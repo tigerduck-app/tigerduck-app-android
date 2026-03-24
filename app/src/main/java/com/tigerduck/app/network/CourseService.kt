@@ -79,21 +79,42 @@ class CourseService @Inject constructor(
             }
         }
 
-    fun parseNodeToSchedule(node: String?): Map<Int, List<String>> {
-        if (node.isNullOrEmpty()) return emptyMap()
-        val dayMap = mapOf(
-            'M' to 1, 'T' to 2, 'W' to 3, 'R' to 4, 'F' to 5, 'S' to 6, 'U' to 7
-        )
+    fun parseNodeToSchedule(node: String?, practicalTimes: String? = null): Map<Int, List<String>> {
         val schedule = mutableMapOf<Int, MutableList<String>>()
-        node.split(",").forEach { item ->
-            val trimmed = item.trim()
-            val first = trimmed.firstOrNull() ?: return@forEach
-            val day = dayMap[first] ?: return@forEach
-            val periodId = trimmed.drop(1)
-            if (periodId.isNotEmpty()) {
-                schedule.getOrPut(day) { mutableListOf() }.add(periodId)
+
+        if (!node.isNullOrEmpty()) {
+            val dayMap = mapOf(
+                'M' to 1, 'T' to 2, 'W' to 3, 'R' to 4, 'F' to 5, 'S' to 6, 'U' to 7
+            )
+            node.split(",").forEach { item ->
+                val trimmed = item.trim()
+                val first = trimmed.firstOrNull() ?: return@forEach
+                val day = dayMap[first] ?: return@forEach
+                val periodId = trimmed.drop(1)
+                if (periodId.isNotEmpty()) {
+                    schedule.getOrPut(day) { mutableListOf() }.add(periodId)
+                }
             }
         }
+
+        if (!practicalTimes.isNullOrEmpty()) {
+            val chineseDayMap = mapOf(
+                '一' to 1, '二' to 2, '三' to 3, '四' to 4, '五' to 5, '六' to 6, '日' to 7
+            )
+            practicalTimes.split(",").forEach { item ->
+                val trimmed = item.trim()
+                val first = trimmed.firstOrNull() ?: return@forEach
+                val day = chineseDayMap[first] ?: return@forEach
+                val periods = trimmed.drop(1)
+                periods.forEach { ch ->
+                    val periodId = ch.toString()
+                    if (periodId.isNotBlank()) {
+                        schedule.getOrPut(day) { mutableListOf() }.add(periodId)
+                    }
+                }
+            }
+        }
+
         return schedule
     }
 
