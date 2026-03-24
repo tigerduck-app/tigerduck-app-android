@@ -4,12 +4,14 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.tigerduck.app.network.model.CourseSearchRequest
 import com.tigerduck.app.network.model.CourseSearchResult
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.logging.HttpLoggingInterceptor
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -62,7 +64,14 @@ class CourseService @Inject constructor(
                 .build()
 
             // Use a plain client (no cookies needed — public API)
-            val plainClient = okhttp3.OkHttpClient.Builder().build()
+            val loggingInterceptor = HttpLoggingInterceptor { message ->
+                Log.d("TigerDuck-HTTP", message)
+            }.apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            }
+            val plainClient = okhttp3.OkHttpClient.Builder()
+                .addInterceptor(loggingInterceptor)
+                .build()
             plainClient.newCall(request).execute().use { response ->
                 val body = response.body?.string() ?: return@withContext emptyList()
                 val type = object : TypeToken<List<CourseSearchResult>>() {}.type

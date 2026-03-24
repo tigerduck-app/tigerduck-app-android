@@ -26,6 +26,7 @@ class AuthService @Inject constructor(
         get() = sessionManager.cookiesValid && credentials.ntustStudentId != null
 
     val storedStudentId: String? get() = credentials.ntustStudentId
+    val storedPassword: String? get() = credentials.ntustPassword
 
     suspend fun login(studentId: String, password: String): Boolean {
         _isLoggingIn.value = true

@@ -15,9 +15,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -158,93 +160,108 @@ private fun TimetableGrid(
 ) {
     val dayLabels = listOf("", "一", "二", "三", "四", "五", "六", "日")
     val cellHeight = 52.dp
-    val periodColWidth = 48.dp
-    val dayColWidth = 56.dp
+    val periodColWidth = 36.dp
 
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
-        // Header row
-        Row {
-            Box(modifier = Modifier.width(periodColWidth))
-            weekdays.forEach { day ->
-                Box(
-                    modifier = Modifier.width(dayColWidth),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = dayLabels.getOrElse(day) { "$day" },
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.primary
-                    )
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+        val dayColWidth = (maxWidth - periodColWidth) / weekdays.size
+        val totalHeight = cellHeight * periods.size
+
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Header row
+            Row {
+                Box(modifier = Modifier.width(periodColWidth))
+                weekdays.forEach { day ->
+                    Box(
+                        modifier = Modifier.width(dayColWidth),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = dayLabels.getOrElse(day) { "$day" },
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
-        }
 
-        // Period rows
-        periods.forEachIndexed { periodIndex, period ->
-            Row(modifier = Modifier.height(cellHeight)) {
-                // Period label
-                Column(
-                    modifier = Modifier
-                        .width(periodColWidth)
-                        .fillMaxHeight(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = period.id,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        fontSize = 12.sp
-                    )
-                    Text(
-                        text = period.startTime,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
+            // Grid body — use Box with absolute positioning so blocks can span rows
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .height(totalHeight)
+            ) {
+                // Period labels (left column)
+                periods.forEachIndexed { periodIndex, period ->
+                    Column(
+                        modifier = Modifier
+                            .width(periodColWidth)
+                            .height(cellHeight)
+                            .absoluteOffset(x = 0.dp, y = cellHeight * periodIndex),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = period.id,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            fontSize = 12.sp
+                        )
+                        Text(
+                            text = period.startTime,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 9.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
                 }
 
                 // Day cells
-                weekdays.forEach { weekday ->
-                    when (val role = viewModel.cellRole(weekday, periodIndex)) {
-                        is ClassTableViewModel.CellRole.Empty -> {
-                            Box(
-                                modifier = Modifier
-                                    .width(dayColWidth)
-                                    .fillMaxHeight()
-                                    .padding(1.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                            )
-                        }
-                        is ClassTableViewModel.CellRole.BlockStart -> {
-                            val color = TigerDuckTheme.courseColor(role.course.courseNo)
-                            Box(
-                                modifier = Modifier
-                                    .width(dayColWidth)
-                                    .height(cellHeight * role.spanCount)
-                                    .padding(1.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(color.copy(alpha = 0.85f))
-                                    .clickable {
-                                        viewModel.selectCourse(role.course, weekday, period.id)
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = role.course.courseName,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White,
-                                    textAlign = TextAlign.Center,
-                                    maxLines = if (role.spanCount >= 2) 3 else 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(2.dp),
-                                    fontSize = 10.sp
+                weekdays.forEachIndexed { dayIndex, weekday ->
+                    val x = periodColWidth + dayColWidth * dayIndex
+
+                    periods.forEachIndexed { periodIndex, period ->
+                        val y = cellHeight * periodIndex
+
+                        when (val role = viewModel.cellRole(weekday, periodIndex)) {
+                            is ClassTableViewModel.CellRole.Empty -> {
+                                Box(
+                                    modifier = Modifier
+                                        .width(dayColWidth)
+                                        .height(cellHeight)
+                                        .absoluteOffset(x = x, y = y)
+                                        .padding(1.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                                 )
                             }
-                        }
-                        is ClassTableViewModel.CellRole.BlockContinuation -> {
-                            // Rendered as part of BlockStart — skip
-                            Box(modifier = Modifier.width(dayColWidth).fillMaxHeight())
+                            is ClassTableViewModel.CellRole.BlockStart -> {
+                                val color = TigerDuckTheme.courseColor(role.course.courseNo)
+                                Box(
+                                    modifier = Modifier
+                                        .width(dayColWidth)
+                                        .height(cellHeight * role.spanCount)
+                                        .absoluteOffset(x = x, y = y)
+                                        .padding(1.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(color.copy(alpha = 0.85f))
+                                        .clickable {
+                                            viewModel.selectCourse(role.course, weekday, period.id)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = role.course.courseName,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White,
+                                        textAlign = TextAlign.Center,
+                                        maxLines = if (role.spanCount >= 2) 3 else 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(2.dp),
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                            is ClassTableViewModel.CellRole.BlockContinuation -> {
+                                // Rendered as part of BlockStart — no cell needed
+                            }
                         }
                     }
                 }

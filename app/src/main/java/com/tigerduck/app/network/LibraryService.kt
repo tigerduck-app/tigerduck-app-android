@@ -6,12 +6,14 @@ import com.tigerduck.app.network.model.LibraryLoginRequest
 import com.tigerduck.app.network.model.LibraryLoginResponse
 import com.tigerduck.app.network.model.LibraryQRRequest
 import com.tigerduck.app.network.model.LibraryQRResponse
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.logging.HttpLoggingInterceptor
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,7 +28,15 @@ class LibraryService @Inject constructor(
     private val credentials: CredentialManager
 ) {
     private val baseUrl = "https://api.lib.ntust.edu.tw/v1"
-    private val client = OkHttpClient.Builder().build()
+    private val loggingInterceptor = HttpLoggingInterceptor { message ->
+        Log.d("TigerDuck-HTTP", message)
+    }.apply {
+        level = HttpLoggingInterceptor.Level.BODY
+    }
+
+    private val client = OkHttpClient.Builder()
+        .addInterceptor(loggingInterceptor)
+        .build()
     private val gson = Gson()
 
     suspend fun login(username: String, password: String): String = withContext(Dispatchers.IO) {

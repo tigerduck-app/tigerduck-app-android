@@ -5,11 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.tigerduck.app.AppConstants
 import com.tigerduck.app.auth.AuthService
 import com.tigerduck.app.data.cache.DataCache
+import android.util.Log
 import com.tigerduck.app.data.model.Assignment
 import com.tigerduck.app.data.model.Course
 import com.tigerduck.app.data.model.MockData
 import com.tigerduck.app.data.model.TimetablePeriod
 import com.tigerduck.app.network.CourseService
+import com.tigerduck.app.network.MoodleService
 import com.tigerduck.app.ui.theme.TigerDuckTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +24,7 @@ import javax.inject.Inject
 class ClassTableViewModel @Inject constructor(
     private val authService: AuthService,
     private val courseService: CourseService,
+    private val moodleService: MoodleService,
     private val dataCache: DataCache
 ) : ViewModel() {
 
@@ -173,11 +176,56 @@ class ClassTableViewModel @Inject constructor(
     private suspend fun fetchData() {
         _isLoading.value = true
         try {
-            val courses = dataCache.loadCourses().ifEmpty { MockData.courses }
-            val assignments = dataCache.loadAssignments().ifEmpty { MockData.assignments }
-            _courses.value = courses
-            _assignments.value = assignments
-            TigerDuckTheme.buildCourseColorMap(courses.map { it.courseNo })
+            val studentId = authService.storedStudentId ?: return
+            val password = authService.storedPassword ?: return
+            val semester = _currentSemester.value
+
+            // Fetch enrolled course numbers, then look up details
+            val courseNos = try {
+                courseService.fetchEnrolledCourseNos(studentId, password)
+            } catch (e: Exception) {
+                Log.e("ClassTableVM", "Failed to fetch course list", e)
+                null
+            }
+
+            if (courseNos != null && courseNos.isNotEmpty()) {
+                val courses = courseNos.mapNotNull { courseNo ->
+                    try {
+                        val results = courseService.lookupCourse(semester, courseNo)
+                        results.firstOrNull()?.let { r ->
+                            val schedule = courseService.parseNodeToSchedule(r.node)
+                            Course.fromSchedule(
+                                courseNo = r.courseNo,
+                                courseName = r.courseName,
+                                instructor = r.courseTeacher,
+                                credits = r.creditPoint.toIntOrNull() ?: 0,
+                                classroom = r.classRoomNo ?: "",
+                                enrolledCount = r.chooseStudent ?: 0,
+                                maxCount = r.restrict1?.toIntOrNull() ?: 0,
+                                schedule = schedule,
+                                moodleIdNumber = "${r.semester}${r.courseNo}"
+                            )
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ClassTableVM", "Failed to lookup course $courseNo", e)
+                        null
+                    }
+                }
+                if (courses.isNotEmpty()) {
+                    _courses.value = courses
+                    dataCache.saveCourses(courses)
+                    TigerDuckTheme.buildCourseColorMap(courses.map { it.courseNo })
+                }
+            }
+
+            // Fetch assignments from Moodle
+            try {
+                val assignments = moodleService.fetchAssignments(studentId, password)
+                _assignments.value = assignments
+                dataCache.saveAssignments(assignments)
+            } catch (e: Exception) {
+                Log.e("ClassTableVM", "Failed to fetch assignments", e)
+            }
         } finally {
             _isLoading.value = false
         }

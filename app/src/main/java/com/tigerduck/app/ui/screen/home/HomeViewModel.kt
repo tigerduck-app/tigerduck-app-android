@@ -58,8 +58,9 @@ class HomeViewModel @Inject constructor(
     private suspend fun fetchData() {
         _isLoading.value = true
         try {
-            val courses = dataCache.loadCourses().ifEmpty { MockData.courses }
-            val assignments = dataCache.loadAssignments().ifEmpty { MockData.assignments }
+            // HomeViewModel only reads from cache — ClassTableViewModel handles the actual fetching
+            val courses = dataCache.loadCourses()
+            val assignments = dataCache.loadAssignments()
             TigerDuckTheme.buildCourseColorMap(courses.map { it.courseNo })
             updateCoursesAndAssignments(courses, assignments)
         } finally {

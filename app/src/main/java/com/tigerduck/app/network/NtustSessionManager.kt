@@ -1,10 +1,12 @@
 package com.tigerduck.app.network
 
 import com.tigerduck.app.data.preferences.AppPreferences
+import android.util.Log
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,6 +31,12 @@ class NtustSessionManager @Inject constructor(
             cookieStore[url.host] ?: emptyList()
     }
 
+    private val loggingInterceptor = HttpLoggingInterceptor { message ->
+        Log.d("TigerDuck-HTTP", message)
+    }.apply {
+        level = HttpLoggingInterceptor.Level.BODY
+    }
+
     val client: OkHttpClient = OkHttpClient.Builder()
         .cookieJar(cookieJar)
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -43,6 +51,7 @@ class NtustSessionManager @Inject constructor(
                 .build()
             chain.proceed(request)
         }
+        .addInterceptor(loggingInterceptor)
         .build()
 
     companion object {

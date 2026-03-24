@@ -73,16 +73,24 @@ object HtmlParser {
             "<$tag[^>]*$attribute=\"([^\"]*)\"[^>]*>",
             RegexOption.IGNORE_CASE
         )
-        return regex.find(html)?.groupValues?.getOrNull(1)
+        return regex.find(html)?.groupValues?.getOrNull(1)?.let { decodeHtmlEntities(it) }
     }
 
     private fun extractTagAttribute(tag: String, attribute: String): String? {
         // Try double quotes
         val dq = Regex("$attribute=\"([^\"]*)\"", RegexOption.IGNORE_CASE)
-        dq.find(tag)?.let { return it.groupValues[1] }
+        dq.find(tag)?.let { return decodeHtmlEntities(it.groupValues[1]) }
         // Try single quotes
         val sq = Regex("$attribute='([^']*)'", RegexOption.IGNORE_CASE)
-        sq.find(tag)?.let { return it.groupValues[1] }
+        sq.find(tag)?.let { return decodeHtmlEntities(it.groupValues[1]) }
         return null
     }
+
+    private fun decodeHtmlEntities(s: String): String =
+        s.replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&#39;", "'")
+            .replace("&apos;", "'")
 }

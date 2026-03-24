@@ -2,10 +2,12 @@ package com.tigerduck.app.network
 
 import com.tigerduck.app.data.model.CalendarEvent
 import com.tigerduck.app.data.model.EventSource
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.logging.HttpLoggingInterceptor
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -19,6 +21,12 @@ class CalendarService @Inject constructor() {
 
     private val calendarPageUrl = "https://r.xinshou.tw/ntust-calender"
 
+    private val loggingInterceptor = HttpLoggingInterceptor { message ->
+        Log.d("TigerDuck-HTTP", message)
+    }.apply {
+        level = HttpLoggingInterceptor.Level.BODY
+    }
+
     private val browserClient = OkHttpClient.Builder()
         .addInterceptor { chain ->
             chain.proceed(
@@ -27,6 +35,7 @@ class CalendarService @Inject constructor() {
                     .build()
             )
         }
+        .addInterceptor(loggingInterceptor)
         .build()
 
     suspend fun fetchCalendarUrls(): Map<Int, String> = withContext(Dispatchers.IO) {
