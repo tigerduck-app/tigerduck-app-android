@@ -2,6 +2,8 @@
 
 A native Android companion app for NTUST (National Taiwan University of Science and Technology) students. Built with Kotlin and Jetpack Compose.
 
+> Please note: This project is currently in early development. Not everything is working in current stage.
+
 ## Features
 
 - **課表** — View your weekly class timetable with color-coded courses
