@@ -279,7 +279,7 @@ fun SettingsScreen(
         item {
             SettingsCard {
                 Column {
-                    SettingsRow("版本", "1.0.0")
+                    SettingsRow("版本", "0.6.1-alpha")
                     HorizontalDivider()
                     SettingsRow("開源授權", "MIT License")
                 }
