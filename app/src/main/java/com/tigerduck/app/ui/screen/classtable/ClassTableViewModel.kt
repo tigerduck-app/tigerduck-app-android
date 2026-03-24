@@ -193,7 +193,9 @@ class ClassTableViewModel @Inject constructor(
                     try {
                         val results = courseService.lookupCourse(semester, courseNo)
                         results.firstOrNull()?.let { r ->
-                            val schedule = courseService.parseNodeToSchedule(r.node, r.practicalTimes)
+                            val schedule = courseService.mergeSchedules(
+                                *results.map { it.node }.toTypedArray()
+                            )
                             Course.fromSchedule(
                                 courseNo = r.courseNo,
                                 courseName = r.courseName,
