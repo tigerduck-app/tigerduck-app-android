@@ -64,9 +64,12 @@ class CalendarService @Inject constructor() {
 
                 val absoluteUrl = if (href.startsWith("http")) {
                     href
+                } else if (href.startsWith("/")) {
+                    val parsed = java.net.URL(baseUrl)
+                    "${parsed.protocol}://${parsed.host}$href"
                 } else {
                     val base = baseUrl.substringBeforeLast("/") + "/"
-                    base + href.trimStart('/')
+                    base + href
                 }
                 result[year] = absoluteUrl
             }
@@ -177,7 +180,10 @@ class CalendarService @Inject constructor() {
                 }
                 inEvent -> {
                     when {
-                        trimmed.startsWith("SUMMARY:") -> summary = trimmed.removePrefix("SUMMARY:")
+                        trimmed.startsWith("SUMMARY") -> {
+                            val colonIdx = trimmed.indexOf(':')
+                            if (colonIdx >= 0) summary = trimmed.substring(colonIdx + 1)
+                        }
                         trimmed.startsWith("DTSTART") -> dtStart = parseICSDate(trimmed)
                         trimmed.startsWith("DTEND") -> dtEnd = parseICSDate(trimmed)
                         trimmed.startsWith("UID:") -> uid = trimmed.removePrefix("UID:")
