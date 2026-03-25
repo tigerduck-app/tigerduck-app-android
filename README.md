@@ -63,7 +63,7 @@ Library login is handled separately via `api.lib.ntust.edu.tw/v1` with its own t
 ## Project Structure
 
 ```
-app/src/main/java/com/tigerduck/app/
+app/src/main/java/org/ntust/app/tigerduck/
 ├── data/
 │   ├── cache/          # Gson-based JSON disk cache
 │   ├── local/          # Room database, DAOs
