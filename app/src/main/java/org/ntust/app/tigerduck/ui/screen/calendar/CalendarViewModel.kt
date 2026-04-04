@@ -2,17 +2,20 @@ package org.ntust.app.tigerduck.ui.screen.calendar
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
-import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.MoodleService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
@@ -22,7 +25,7 @@ import javax.inject.Inject
 class CalendarViewModel @Inject constructor(
     private val calendarService: CalendarService,
     private val moodleService: MoodleService,
-    private val credentialManager: CredentialManager,
+    private val authService: AuthService,
     private val dataCache: DataCache
 ) : ViewModel() {
 
@@ -40,13 +43,19 @@ class CalendarViewModel @Inject constructor(
 
     private var hasLoaded = false
 
-    val eventsForSelectedDate: List<CalendarEvent>
-        get() = _events.value.filter { it.date.isSameDay(_selectedDate.value) }.sortedBy { it.date }
+    val selectedDateEvents: StateFlow<List<CalendarEvent>> = combine(_events, _selectedDate) { events, selectedDate ->
+        events
+            .filter { it.date.isSameDay(selectedDate) }
+            .sortedBy { it.date }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun eventsOnDate(date: Date): List<CalendarEvent> =
         _events.value.filter { it.date.isSameDay(date) }
 
-    fun selectDate(date: Date) { _selectedDate.value = date }
+    fun selectDate(date: Date) {
+        _selectedDate.value = date
+        _displayedMonth.value = date
+    }
 
     fun previousMonth() {
         val cal = Calendar.getInstance().apply {
@@ -115,14 +124,18 @@ class CalendarViewModel @Inject constructor(
     }
 
     private suspend fun fetchMoodleCalendarEvents(): List<CalendarEvent> {
-        val studentId = credentialManager.ntustStudentId
-        val password = credentialManager.ntustPassword
+        val studentId = authService.storedStudentId
+        val password = authService.storedPassword
 
         if (studentId.isNullOrBlank() || password.isNullOrBlank()) {
             return dataCache.loadAssignments().toCalendarEvents()
         }
 
         return try {
+            // Re-establish NTUST session before Moodle call, so calendar refresh works standalone.
+            if (!authService.ensureAuthenticated()) {
+                return dataCache.loadAssignments().toCalendarEvents()
+            }
             val assignments = moodleService.fetchAssignments(studentId, password)
             dataCache.saveAssignments(assignments)
             assignments.toCalendarEvents()
