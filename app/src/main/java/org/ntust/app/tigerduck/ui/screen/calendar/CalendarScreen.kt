@@ -22,7 +22,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.ntust.app.tigerduck.data.model.CalendarEvent
-import org.ntust.app.tigerduck.data.model.EventSource
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -37,6 +36,7 @@ fun CalendarScreen(
     val selectedDate by viewModel.selectedDate.collectAsState()
     val displayedMonth by viewModel.displayedMonth.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val dayEvents by viewModel.selectedDateEvents.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.load() }
 
@@ -90,7 +90,6 @@ fun CalendarScreen(
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             }
 
-            val dayEvents = viewModel.eventsForSelectedDate
             if (dayEvents.isEmpty()) {
                 item {
                     Box(

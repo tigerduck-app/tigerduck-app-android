@@ -2,15 +2,20 @@ package org.ntust.app.tigerduck.ui.screen.calendar
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
-import org.ntust.app.tigerduck.data.model.MockData
 import org.ntust.app.tigerduck.network.CalendarService
+import org.ntust.app.tigerduck.network.MoodleService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Date
@@ -19,6 +24,8 @@ import javax.inject.Inject
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
     private val calendarService: CalendarService,
+    private val moodleService: MoodleService,
+    private val authService: AuthService,
     private val dataCache: DataCache
 ) : ViewModel() {
 
@@ -36,13 +43,19 @@ class CalendarViewModel @Inject constructor(
 
     private var hasLoaded = false
 
-    val eventsForSelectedDate: List<CalendarEvent>
-        get() = _events.value.filter { it.date.isSameDay(_selectedDate.value) }.sortedBy { it.date }
+    val selectedDateEvents: StateFlow<List<CalendarEvent>> = combine(_events, _selectedDate) { events, selectedDate ->
+        events
+            .filter { it.date.isSameDay(selectedDate) }
+            .sortedBy { it.date }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun eventsOnDate(date: Date): List<CalendarEvent> =
         _events.value.filter { it.date.isSameDay(date) }
 
-    fun selectDate(date: Date) { _selectedDate.value = date }
+    fun selectDate(date: Date) {
+        _selectedDate.value = date
+        _displayedMonth.value = date
+    }
 
     fun previousMonth() {
         val cal = Calendar.getInstance().apply {
@@ -69,7 +82,7 @@ class CalendarViewModel @Inject constructor(
     fun load() {
         if (hasLoaded) return
         hasLoaded = true
-        _events.value = dataCache.loadCalendarEvents().ifEmpty { MockData.calendarEvents }
+        _events.value = dataCache.loadCalendarEvents()
         viewModelScope.launch { fetchData() }
     }
 
@@ -81,12 +94,25 @@ class CalendarViewModel @Inject constructor(
         _isLoading.value = true
         try {
             val schoolEventsJob = viewModelScope.async { calendarService.fetchAndParseICS() }
+            val moodleEventsJob = viewModelScope.async { fetchMoodleCalendarEvents() }
+
             val schoolEvents = schoolEventsJob.await()
+            val moodleEvents = moodleEventsJob.await()
+
+            val current = _events.value.toMutableList()
+            var changed = false
 
             if (schoolEvents.isNotEmpty()) {
-                val current = _events.value.toMutableList()
                 current.removeAll { it.sourceRaw == EventSource.SCHOOL.raw }
                 current.addAll(schoolEvents)
+                changed = true
+            }
+
+            current.removeAll { it.sourceRaw == EventSource.MOODLE.raw }
+            current.addAll(moodleEvents)
+            changed = true
+
+            if (changed) {
                 _events.value = current
                 dataCache.saveCalendarEvents(current)
             }
@@ -96,6 +122,38 @@ class CalendarViewModel @Inject constructor(
             _isLoading.value = false
         }
     }
+
+    private suspend fun fetchMoodleCalendarEvents(): List<CalendarEvent> {
+        val studentId = authService.storedStudentId
+        val password = authService.storedPassword
+
+        if (studentId.isNullOrBlank() || password.isNullOrBlank()) {
+            return dataCache.loadAssignments().toCalendarEvents()
+        }
+
+        return try {
+            // Re-establish NTUST session before Moodle call, so calendar refresh works standalone.
+            if (!authService.ensureAuthenticated()) {
+                return dataCache.loadAssignments().toCalendarEvents()
+            }
+            val assignments = moodleService.fetchAssignments(studentId, password)
+            dataCache.saveAssignments(assignments)
+            assignments.toCalendarEvents()
+        } catch (_: Exception) {
+            // Keep calendar useful when Moodle auth/network is temporarily unavailable.
+            dataCache.loadAssignments().toCalendarEvents()
+        }
+    }
+
+    private fun List<Assignment>.toCalendarEvents(): List<CalendarEvent> =
+        map { assignment ->
+            CalendarEvent(
+                eventId = "moodle-${assignment.assignmentId}",
+                title = assignment.title,
+                date = assignment.dueDate,
+                sourceRaw = EventSource.MOODLE.raw
+            )
+        }
 
     private fun Date.isSameDay(other: Date): Boolean {
         val cal1 = Calendar.getInstance().apply { time = this@isSameDay }

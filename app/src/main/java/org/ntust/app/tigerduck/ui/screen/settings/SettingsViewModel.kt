@@ -31,14 +31,22 @@ class SettingsViewModel @Inject constructor(
     private val _libLoginError = MutableStateFlow<String?>(null)
     val libLoginError: StateFlow<String?> = _libLoginError
 
+    private val _isNtustLoggedIn = MutableStateFlow(appState.isNtustLoggedIn)
+    val isNtustLoggedIn: StateFlow<Boolean> = _isNtustLoggedIn
+
+    private val _isLibraryLoggedIn = MutableStateFlow(credentials.isLibraryTokenValid)
+    val isLibraryLoggedIn: StateFlow<Boolean> = _isLibraryLoggedIn
+
     fun loginNtust(studentId: String, password: String) {
         viewModelScope.launch {
-            authService.login(studentId, password)
+            val success = authService.login(studentId, password)
+            _isNtustLoggedIn.value = success
         }
     }
 
     fun logoutNtust() {
         authService.logout()
+        _isNtustLoggedIn.value = false
     }
 
     fun loginLibrary(username: String, password: String) {
@@ -47,6 +55,7 @@ class SettingsViewModel @Inject constructor(
             _libLoginError.value = null
             try {
                 libraryService.login(username, password)
+                _isLibraryLoggedIn.value = true
             } catch (e: Exception) {
                 _libLoginError.value = e.message ?: "登入失敗"
             } finally {
@@ -57,9 +66,9 @@ class SettingsViewModel @Inject constructor(
 
     fun logoutLibrary() {
         credentials.clearLibraryCredentials()
+        _isLibraryLoggedIn.value = false
     }
 
-    val isLibraryLoggedIn: Boolean get() = credentials.isLibraryTokenValid
     val libraryUsername: String? get() = credentials.libraryUsername
     val libraryTokenExpiry: Long get() = credentials.libraryTokenExpiry
     val ntustStudentId: String? get() = authService.storedStudentId

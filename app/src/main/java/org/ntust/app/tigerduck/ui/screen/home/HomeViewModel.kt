@@ -1,10 +1,13 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.*
+import org.ntust.app.tigerduck.network.CourseService
+import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +19,9 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val authService: AuthService,
-    private val dataCache: DataCache
+    private val dataCache: DataCache,
+    private val courseService: CourseService,
+    private val moodleService: MoodleService
 ) : ViewModel() {
 
     private val _sections = MutableStateFlow(HomeSection.defaults())
@@ -48,23 +53,92 @@ class HomeViewModel @Inject constructor(
             updateCoursesAndAssignments(cachedCourses, cachedAssignments)
         }
 
-        viewModelScope.launch { fetchData() }
+        viewModelScope.launch { fetchData(forceRemote = true) }
     }
 
     fun refresh() {
-        viewModelScope.launch { fetchData() }
+        viewModelScope.launch { fetchData(forceRemote = true) }
     }
 
-    private suspend fun fetchData() {
+    private suspend fun fetchData(forceRemote: Boolean) {
         _isLoading.value = true
         try {
-            // HomeViewModel only reads from cache — ClassTableViewModel handles the actual fetching
-            val courses = dataCache.loadCourses()
-            val assignments = dataCache.loadAssignments()
+            var courses = dataCache.loadCourses()
+            var assignments = dataCache.loadAssignments()
+
+            if (forceRemote) {
+                val studentId = authService.storedStudentId
+                val password = authService.storedPassword
+                if (!studentId.isNullOrBlank() && !password.isNullOrBlank()) {
+                    val authenticated = runCatching { authService.ensureAuthenticated() }.getOrDefault(false)
+                    if (authenticated) {
+                        val remoteCourses = fetchCourses(studentId, password)
+                        if (!remoteCourses.isNullOrEmpty()) {
+                            courses = remoteCourses
+                            dataCache.saveCourses(remoteCourses)
+                        }
+
+                        val remoteAssignments = fetchAssignments(studentId, password)
+                        if (remoteAssignments != null) {
+                            assignments = remoteAssignments
+                            dataCache.saveAssignments(remoteAssignments)
+                        }
+                    }
+                }
+            }
+
             TigerDuckTheme.buildCourseColorMap(courses.map { it.courseNo })
             updateCoursesAndAssignments(courses, assignments)
         } finally {
             _isLoading.value = false
+        }
+    }
+
+    private suspend fun fetchCourses(studentId: String, password: String): List<Course>? {
+        val semester = courseService.currentSemesterCode()
+        val courseNos = try {
+            courseService.fetchEnrolledCourseNos(studentId, password)
+        } catch (e: Exception) {
+            Log.e("HomeViewModel", "Failed to fetch enrolled course numbers", e)
+            return null
+        }
+
+        if (courseNos.isEmpty()) return emptyList()
+
+        val courses = courseNos.mapNotNull { courseNo ->
+            try {
+                val results = courseService.lookupCourse(semester, courseNo)
+                results.firstOrNull()?.let { r ->
+                    val schedule = courseService.mergeSchedules(
+                        *results.map { it.node }.toTypedArray()
+                    )
+                    Course.fromSchedule(
+                        courseNo = r.courseNo,
+                        courseName = r.courseName,
+                        instructor = r.courseTeacher,
+                        credits = r.creditPoint.toIntOrNull() ?: 0,
+                        classroom = r.classRoomNo ?: "",
+                        enrolledCount = r.chooseStudent ?: 0,
+                        maxCount = r.restrict1?.toIntOrNull() ?: 0,
+                        schedule = schedule,
+                        moodleIdNumber = "${r.semester}${r.courseNo}"
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Failed to lookup course $courseNo", e)
+                null
+            }
+        }
+
+        return courses
+    }
+
+    private suspend fun fetchAssignments(studentId: String, password: String): List<Assignment>? {
+        return try {
+            moodleService.fetchAssignments(studentId, password)
+        } catch (e: Exception) {
+            Log.e("HomeViewModel", "Failed to fetch assignments", e)
+            null
         }
     }
 
