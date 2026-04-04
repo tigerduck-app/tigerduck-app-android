@@ -6,3 +6,12 @@ plugins {
     alias(libs.plugins.hilt) apply false
     alias(libs.plugins.ksp) apply false
 }
+
+val localBuildRoot = file("${System.getProperty("user.home")}/.tigerduck-build")
+
+rootProject.layout.buildDirectory.set(localBuildRoot.resolve(rootProject.name))
+
+subprojects {
+    layout.buildDirectory.set(localBuildRoot.resolve(name))
+}
+
