@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
@@ -41,24 +42,42 @@ class AppState @Inject constructor(
         get() = prefs.hasCompletedOnboarding
         set(value) { prefs.hasCompletedOnboarding = value }
 
+    private var accentColorHexState by mutableIntStateOf(prefs.accentColorHex)
+
     var accentColorHex: Int
-        get() = prefs.accentColorHex
-        set(value) { prefs.accentColorHex = value }
+        get() = accentColorHexState
+        set(value) {
+            if (accentColorHexState == value) return
+            accentColorHexState = value
+            prefs.accentColorHex = value
+        }
 
     val accentColor: Color
         get() = Color(0xFF000000 or accentColorHex.toLong())
 
+    private var rememberAnnouncementFilterState by mutableStateOf(prefs.rememberAnnouncementFilter)
+
     var rememberAnnouncementFilter: Boolean
-        get() = prefs.rememberAnnouncementFilter
-        set(value) { prefs.rememberAnnouncementFilter = value }
+        get() = rememberAnnouncementFilterState
+        set(value) {
+            if (rememberAnnouncementFilterState == value) return
+            rememberAnnouncementFilterState = value
+            prefs.rememberAnnouncementFilter = value
+        }
 
     var savedAnnouncementDepartments: Set<String>
         get() = prefs.savedAnnouncementDepartments
         set(value) { prefs.savedAnnouncementDepartments = value }
 
+    private var showAbsoluteAssignmentTimeState by mutableStateOf(prefs.showAbsoluteAssignmentTime)
+
     var showAbsoluteAssignmentTime: Boolean
-        get() = prefs.showAbsoluteAssignmentTime
-        set(value) { prefs.showAbsoluteAssignmentTime = value }
+        get() = showAbsoluteAssignmentTimeState
+        set(value) {
+            if (showAbsoluteAssignmentTimeState == value) return
+            showAbsoluteAssignmentTimeState = value
+            prefs.showAbsoluteAssignmentTime = value
+        }
 
     var configuredTabs: List<AppFeature>
         get() = prefs.configuredTabs

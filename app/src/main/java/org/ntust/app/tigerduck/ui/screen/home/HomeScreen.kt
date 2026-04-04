@@ -21,12 +21,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.model.HomeSection
+import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.*
 import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    appState: AppState,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -82,7 +84,7 @@ fun HomeScreen(
                     todayCourses = todayCourses,
                     upcomingAssignments = upcomingAssignments,
                     hasUnfinishedAssignment = viewModel::hasUnfinishedAssignment,
-                    showAbsoluteTime = false,
+                    showAbsoluteTime = appState.showAbsoluteAssignmentTime,
                     onCourseClick = { viewModel.selectCourse(it) },
                     onAssignmentClick = { openAssignmentInMoodle(context, it) }
                 )
