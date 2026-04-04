@@ -6,6 +6,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.model.CalendarEvent
+import org.ntust.app.tigerduck.data.model.EventSource
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
@@ -78,20 +80,39 @@ class AppState @Inject constructor(
             _loadingState.value = LoadingState.LOADING
             val coursesJob = async { runCatching { fetchCourses() } }
             val assignmentsJob = async { runCatching { fetchAssignments() } }
-            val calendarJob = async {
-                runCatching {
-                    val schoolEvents = calendarService.fetchAndParseICS()
-                    if (schoolEvents.isNotEmpty()) {
-                        val cached = dataCache.loadCalendarEvents().toMutableList()
-                        cached.removeAll { it.sourceRaw == "school" }
-                        cached.addAll(schoolEvents)
-                        dataCache.saveCalendarEvents(cached)
-                    }
-                }
-            }
+            val calendarJob = async { runCatching { calendarService.fetchAndParseICS() } }
             coursesJob.await()
-            assignmentsJob.await()
-            calendarJob.await()
+
+            val assignmentsResult = assignmentsJob.await()
+            val schoolEventsResult = calendarJob.await()
+
+            val cached = dataCache.loadCalendarEvents().toMutableList()
+            var changed = false
+
+            if (assignmentsResult.isSuccess) {
+                val moodleEvents = dataCache.loadAssignments().map { assignment ->
+                    CalendarEvent(
+                        eventId = "moodle-${assignment.assignmentId}",
+                        title = assignment.title,
+                        date = assignment.dueDate,
+                        sourceRaw = EventSource.MOODLE.raw
+                    )
+                }
+                cached.removeAll { it.sourceRaw == EventSource.MOODLE.raw }
+                cached.addAll(moodleEvents)
+                changed = true
+            }
+
+            if (schoolEventsResult.isSuccess) {
+                cached.removeAll { it.sourceRaw == EventSource.SCHOOL.raw }
+                cached.addAll(schoolEventsResult.getOrDefault(emptyList()))
+                changed = true
+            }
+
+            if (changed) {
+                dataCache.saveCalendarEvents(cached)
+            }
+
             _loadingState.value = LoadingState.LOADED
         }
     }
