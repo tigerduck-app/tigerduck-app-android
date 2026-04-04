@@ -1,5 +1,8 @@
 package org.ntust.app.tigerduck.ui.screen.library
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -13,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -22,8 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.repeatOnLifecycle
-import kotlinx.coroutines.launch
 
 @Composable
 fun LibraryScreen(
@@ -34,9 +36,13 @@ fun LibraryScreen(
     val isLoadingQR by viewModel.isLoadingQR.collectAsState()
     val isLoggingIn by viewModel.isLoggingIn.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val countdownProgress by animateFloatAsState(
+        targetValue = (countdown.coerceIn(0, 60)) / 60f,
+        animationSpec = tween(durationMillis = if (countdown > 0) 1000 else 0, easing = LinearEasing),
+        label = "library_qr_countdown_progress"
+    )
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    val scope = rememberCoroutineScope()
 
     // Handle lifecycle events to start/stop QR refresh
     DisposableEffect(lifecycleOwner) {
@@ -139,8 +145,11 @@ fun LibraryScreen(
 
                     if (countdown > 0) {
                         LinearProgressIndicator(
-                            progress = { countdown / 60f },
+                            progress = { countdownProgress },
                             modifier = Modifier.fillMaxWidth(),
+                            strokeCap = StrokeCap.Butt,
+                            gapSize = 0.dp,
+                            drawStopIndicator = {}
                         )
                         Text(
                             text = "${countdown}秒後更新",
