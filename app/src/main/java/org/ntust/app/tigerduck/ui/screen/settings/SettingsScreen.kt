@@ -31,15 +31,14 @@ fun SettingsScreen(
     val ntustLoginError by viewModel.ntustLoginError.collectAsState()
     val libIsLoggingIn by viewModel.libIsLoggingIn.collectAsState()
     val libLoginError by viewModel.libLoginError.collectAsState()
+    val isNtustLoggedIn by viewModel.isNtustLoggedIn.collectAsState()
+    val isLibraryLoggedIn by viewModel.isLibraryLoggedIn.collectAsState()
 
     var ntustStudentIdInput by remember { mutableStateOf("") }
     var ntustPasswordInput by remember { mutableStateOf("") }
     var libUsernameInput by remember { mutableStateOf("") }
     var libPasswordInput by remember { mutableStateOf("") }
 
-    // Re-read these on each recomposition to pick up changes
-    val isNtustLoggedIn = viewModel.appState.isNtustLoggedIn
-    val isLibraryLoggedIn = viewModel.isLibraryLoggedIn
     val accentColorHex = viewModel.appState.accentColorHex
     var showAbsoluteTime by remember { mutableStateOf(viewModel.prefs.showAbsoluteAssignmentTime) }
     var rememberFilter by remember { mutableStateOf(viewModel.prefs.rememberAnnouncementFilter) }
