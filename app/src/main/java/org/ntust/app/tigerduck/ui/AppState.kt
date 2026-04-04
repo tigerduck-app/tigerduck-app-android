@@ -36,6 +36,7 @@ class AppState @Inject constructor(
     private val scope = CoroutineScope(Dispatchers.Main)
 
     private val _loadingState = MutableStateFlow(LoadingState.IDLE)
+    @Suppress("unused")
     val loadingState: StateFlow<LoadingState> = _loadingState
 
     var hasCompletedOnboarding: Boolean
@@ -65,6 +66,7 @@ class AppState @Inject constructor(
             prefs.rememberAnnouncementFilter = value
         }
 
+    @Suppress("unused")
     var savedAnnouncementDepartments: Set<String>
         get() = prefs.savedAnnouncementDepartments
         set(value) { prefs.savedAnnouncementDepartments = value }
@@ -84,12 +86,14 @@ class AppState @Inject constructor(
         set(value) { prefs.configuredTabs = value }
 
     val isNtustLoggedIn: Boolean get() = authService.isNtustAuthenticated
+    @Suppress("unused")
     val isLibraryLoggedIn: Boolean get() = credentials.isLibraryTokenValid
 
     fun completeOnboarding() {
         hasCompletedOnboarding = true
     }
 
+    @Suppress("unused")
     fun backgroundSync(
         fetchCourses: suspend () -> Unit,
         fetchAssignments: suspend () -> Unit

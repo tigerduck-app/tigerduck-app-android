@@ -2,7 +2,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -253,7 +253,7 @@ private fun greetingText(): String {
 private fun openAssignmentInMoodle(context: Context, assignment: Assignment) {
     val targets = listOfNotNull(assignment.moodleDeepLink, assignment.moodleUrl)
     for (target in targets) {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
+        val intent = Intent(Intent.ACTION_VIEW, target.toUri()).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         val opened = runCatching {

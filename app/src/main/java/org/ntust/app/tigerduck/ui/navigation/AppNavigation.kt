@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
@@ -20,8 +19,6 @@ import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 
 sealed class Screen(val route: String) {
-    object Onboarding : Screen("onboarding")
-    object Main : Screen("main")
     object Home : Screen("home")
     object ClassTable : Screen("classTable")
     object Calendar : Screen("calendar")
@@ -64,7 +61,7 @@ fun MainNavigation(appState: AppState) {
                         selected = selectedTabRoute == route,
                         onClick = {
                             navController.navigate(route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
+                                popUpTo(navController.graph.startDestinationId) {
                                     saveState = true
                                 }
                                 launchSingleTop = true
