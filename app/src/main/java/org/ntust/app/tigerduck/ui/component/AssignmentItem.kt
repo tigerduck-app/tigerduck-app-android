@@ -1,5 +1,7 @@
 package org.ntust.app.tigerduck.ui.component
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -16,14 +18,18 @@ import java.util.concurrent.TimeUnit
 @Composable
 fun AssignmentItem(
     assignment: Assignment,
+    modifier: Modifier = Modifier,
     showAbsoluteTime: Boolean = false,
-    modifier: Modifier = Modifier
+    onClick: (() -> Unit)? = null
 ) {
     val courseColor = TigerDuckTheme.courseColor(assignment.courseNo)
 
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .let { base ->
+                if (onClick != null) base.clickable { onClick() } else base
+            }
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -31,8 +37,9 @@ fun AssignmentItem(
             modifier = Modifier
                 .width(4.dp)
                 .height(40.dp)
+                .background(courseColor)
         ) {
-            androidx.compose.foundation.layout.Spacer(
+            Spacer(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(vertical = 4.dp)
