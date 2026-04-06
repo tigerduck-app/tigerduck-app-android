@@ -44,6 +44,7 @@ enum class AppFeature(val id: String) {
             SETTINGS -> "設定"
         }
 
+    @Suppress("DEPRECATION")
     val icon: ImageVector
         get() = when (this) {
             HOME -> Icons.Filled.Home

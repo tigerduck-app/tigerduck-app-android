@@ -80,6 +80,9 @@ dependencies {
     // Image loading
     implementation(libs.coil.compose)
 
+    // In-app browser (Custom Tabs)
+    implementation(libs.androidx.browser)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

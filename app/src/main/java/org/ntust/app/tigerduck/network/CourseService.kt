@@ -79,6 +79,31 @@ class CourseService @Inject constructor(
             }
         }
 
+    suspend fun searchCourses(semester: String, courseName: String): List<CourseSearchResult> =
+        withContext(Dispatchers.IO) {
+            val requestBody = gson.toJson(CourseSearchRequest.forCourseName(courseName, semester))
+                .toRequestBody("application/json".toMediaType())
+
+            val request = Request.Builder()
+                .url(courseSearchApiUrl)
+                .post(requestBody)
+                .build()
+
+            val loggingInterceptor = HttpLoggingInterceptor { message ->
+                Log.d("TigerDuck-HTTP", message)
+            }.apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            }
+            val plainClient = okhttp3.OkHttpClient.Builder()
+                .addInterceptor(loggingInterceptor)
+                .build()
+            plainClient.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: return@withContext emptyList()
+                val type = object : TypeToken<List<CourseSearchResult>>() {}.type
+                gson.fromJson(body, type) ?: emptyList()
+            }
+        }
+
     fun parseNodeToSchedule(node: String?): Map<Int, List<String>> {
         if (node.isNullOrEmpty()) return emptyMap()
         val dayMap = mapOf(

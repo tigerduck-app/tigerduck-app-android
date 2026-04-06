@@ -6,8 +6,10 @@ import androidx.lifecycle.viewModelScope
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.*
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
+import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,11 +23,16 @@ class HomeViewModel @Inject constructor(
     private val authService: AuthService,
     private val dataCache: DataCache,
     private val courseService: CourseService,
-    private val moodleService: MoodleService
+    private val moodleService: MoodleService,
+    private val notificationScheduler: AssignmentNotificationScheduler,
+    private val prefs: AppPreferences
 ) : ViewModel() {
 
     private val _sections = MutableStateFlow(HomeSection.defaults())
     val sections: StateFlow<List<HomeSection>> = _sections
+
+    private val _allCourses = MutableStateFlow<List<Course>>(emptyList())
+    val allCourses: StateFlow<List<Course>> = _allCourses
 
     private val _todayCourses = MutableStateFlow<List<Course>>(emptyList())
     val todayCourses: StateFlow<List<Course>> = _todayCourses
@@ -38,6 +45,9 @@ class HomeViewModel @Inject constructor(
 
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
+
+    private val _hasSynced = MutableStateFlow(false)
+    val hasSynced: StateFlow<Boolean> = _hasSynced
 
     private var hasLoaded = false
 
@@ -89,6 +99,7 @@ class HomeViewModel @Inject constructor(
 
             TigerDuckTheme.buildCourseColorMap(courses.map { it.courseNo })
             updateCoursesAndAssignments(courses, assignments)
+            _hasSynced.value = true
         } finally {
             _isLoading.value = false
         }
@@ -143,6 +154,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
+        _allCourses.value = courses
         val todayIndex = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).let {
             // Android: Sun=1, Mon=2..Sat=7. We need Mon=1..Sun=7
             when (it) {
@@ -160,6 +172,11 @@ class HomeViewModel @Inject constructor(
         _upcomingAssignments.value = assignments
             .filter { !it.isCompleted }
             .sortedBy { it.dueDate }
+
+        // Schedule notifications for upcoming assignments
+        if (prefs.notifyAssignments) {
+            notificationScheduler.scheduleAll(assignments)
+        }
     }
 
     fun hasUnfinishedAssignment(courseNo: String): Boolean =

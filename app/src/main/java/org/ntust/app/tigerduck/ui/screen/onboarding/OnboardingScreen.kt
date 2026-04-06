@@ -7,7 +7,11 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,6 +65,7 @@ fun OnboardingScreen(
                     title = "登入帳號",
                     subtitle = "使用 NTUST SSO 登入以存取課表、Moodle 等功能"
                 ) {
+                    val focusManager = LocalFocusManager.current
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -73,7 +78,11 @@ fun OnboardingScreen(
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(
                                 capitalization = KeyboardCapitalization.Characters,
-                                keyboardType = KeyboardType.Ascii
+                                keyboardType = KeyboardType.Ascii,
+                                imeAction = ImeAction.Next
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -83,6 +92,15 @@ fun OnboardingScreen(
                             label = { Text("密碼") },
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    focusManager.clearFocus()
+                                    if (studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn) {
+                                        viewModel.login(studentId, password) { goToPage(2) }
+                                    }
+                                }
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
                         if (loginError != null) {

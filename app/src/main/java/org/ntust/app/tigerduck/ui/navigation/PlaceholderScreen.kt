@@ -30,7 +30,12 @@ fun PlaceholderScreen(feature: AppFeature?) {
             Spacer(Modifier.height(8.dp))
         }
         Text(
-            text = "即將推出",
+            text = "快了快了",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = "此功能尚未實現，敬請期待～",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )

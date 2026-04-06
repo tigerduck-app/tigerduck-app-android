@@ -9,7 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -20,8 +20,16 @@ import org.ntust.app.tigerduck.data.model.FeatureCategory
 import org.ntust.app.tigerduck.ui.navigation.Screen
 import org.ntust.app.tigerduck.ui.navigation.toRoute
 
+private val implementedFeatures = setOf(
+    AppFeature.HOME, AppFeature.CLASS_TABLE, AppFeature.CALENDAR,
+    AppFeature.ANNOUNCEMENTS, AppFeature.LIBRARY,
+    AppFeature.MORE, AppFeature.SETTINGS
+)
+
 @Composable
 fun MoreScreen(navController: NavController) {
+    var showNotImplemented by remember { mutableStateOf(false) }
+
     val grouped = AppFeature.moreFeatures
         .groupBy { it.category }
         .toList()
@@ -53,7 +61,7 @@ fun MoreScreen(navController: NavController) {
             item {
                 Text(
                     text = category?.displayName ?: "其他",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
@@ -70,7 +78,13 @@ fun MoreScreen(navController: NavController) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { navController.navigate(feature.toRoute()) }
+                                .clickable {
+                                    if (feature in implementedFeatures) {
+                                        navController.navigate(feature.toRoute())
+                                    } else {
+                                        showNotImplemented = true
+                                    }
+                                }
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -100,5 +114,16 @@ fun MoreScreen(navController: NavController) {
                 }
             }
         }
+    }
+
+    if (showNotImplemented) {
+        AlertDialog(
+            onDismissRequest = { showNotImplemented = false },
+            title = { Text("快了快了") },
+            text = { Text("此功能尚未實現，敬請期待～") },
+            confirmButton = {
+                TextButton(onClick = { showNotImplemented = false }) { Text("收到！") }
+            }
+        )
     }
 }

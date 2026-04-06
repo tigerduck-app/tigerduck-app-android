@@ -87,6 +87,46 @@ class AppState @Inject constructor(
             prefs.showAbsoluteAssignmentTime = value
         }
 
+    private var browserPreferenceState by mutableStateOf(prefs.browserPreference)
+
+    var browserPreference: String
+        get() = browserPreferenceState
+        set(value) {
+            if (browserPreferenceState == value) return
+            browserPreferenceState = value
+            prefs.browserPreference = value
+        }
+
+    private var timeSliderStyleState by mutableStateOf(prefs.timeSliderStyle)
+
+    var timeSliderStyle: String
+        get() = timeSliderStyleState
+        set(value) {
+            if (timeSliderStyleState == value) return
+            timeSliderStyleState = value
+            prefs.timeSliderStyle = value
+        }
+
+    private var invertSliderDirectionState by mutableStateOf(prefs.invertSliderDirection)
+
+    var invertSliderDirection: Boolean
+        get() = invertSliderDirectionState
+        set(value) {
+            if (invertSliderDirectionState == value) return
+            invertSliderDirectionState = value
+            prefs.invertSliderDirection = value
+        }
+
+    private var notifyAssignmentsState by mutableStateOf(prefs.notifyAssignments)
+
+    var notifyAssignments: Boolean
+        get() = notifyAssignmentsState
+        set(value) {
+            if (notifyAssignmentsState == value) return
+            notifyAssignmentsState = value
+            prefs.notifyAssignments = value
+        }
+
     var configuredTabs: List<AppFeature>
         get() = prefs.configuredTabs
         set(value) { prefs.configuredTabs = value }

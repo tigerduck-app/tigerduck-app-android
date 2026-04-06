@@ -3,6 +3,8 @@ package org.ntust.app.tigerduck.ui.screen.home
 import android.content.Context
 import android.content.Intent
 import androidx.core.net.toUri
+import androidx.compose.animation.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -14,6 +16,7 @@ import androidx.compose.material3.pulltorefresh.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -33,10 +36,12 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val sections by viewModel.sections.collectAsState()
-    val todayCourses by viewModel.todayCourses.collectAsState()
+    val allCourses by viewModel.allCourses.collectAsState()
     val upcomingAssignments by viewModel.upcomingAssignments.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val selectedCourse by viewModel.selectedCourse.collectAsState()
+    val hasSynced by viewModel.hasSynced.collectAsState()
+    var showComingSoon by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.load() }
 
@@ -72,8 +77,20 @@ fun HomeScreen(
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         modifier = Modifier.weight(1f)
                     )
-                    if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    AnimatedContent(
+                        targetState = isLoading to hasSynced,
+                        label = "sync_status"
+                    ) { (loading, synced) ->
+                        if (loading) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else if (synced) {
+                            Icon(
+                                Icons.Filled.CheckCircle,
+                                contentDescription = "同步成功",
+                                tint = Color(0xFF34C759),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -81,16 +98,30 @@ fun HomeScreen(
             items(sections) { section ->
                 HomeSectionContent(
                     section = section,
-                    todayCourses = todayCourses,
+                    allCourses = allCourses,
                     upcomingAssignments = upcomingAssignments,
                     hasUnfinishedAssignment = viewModel::hasUnfinishedAssignment,
                     showAbsoluteTime = appState.showAbsoluteAssignmentTime,
+                    sliderStyle = appState.timeSliderStyle,
+                    invertDirection = appState.invertSliderDirection,
                     onCourseClick = { viewModel.selectCourse(it) },
-                    onAssignmentClick = { openAssignmentInMoodle(context, it) }
+                    onAssignmentClick = { openAssignmentInMoodle(context, it) },
+                    onWidgetClick = { showComingSoon = true }
                 )
             }
         }
 
+    }
+
+    if (showComingSoon) {
+        AlertDialog(
+            onDismissRequest = { showComingSoon = false },
+            title = { Text("快了快了") },
+            text = { Text("此功能尚未實現，敬請期待～") },
+            confirmButton = {
+                TextButton(onClick = { showComingSoon = false }) { Text("收到！") }
+            }
+        )
     }
 
     selectedCourse?.let { course ->
@@ -105,41 +136,29 @@ fun HomeScreen(
 @Composable
 private fun HomeSectionContent(
     section: HomeSection,
-    todayCourses: List<Course>,
+    allCourses: List<Course>,
     upcomingAssignments: List<Assignment>,
     hasUnfinishedAssignment: (String) -> Boolean,
     showAbsoluteTime: Boolean,
+    sliderStyle: String,
+    invertDirection: Boolean,
     onCourseClick: (Course) -> Unit,
-    onAssignmentClick: (Assignment) -> Unit
+    onAssignmentClick: (Assignment) -> Unit,
+    onWidgetClick: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader(title = section.title)
-
         when (section.type) {
             HomeSection.HomeSectionType.TODAY_COURSES -> {
-                if (todayCourses.isEmpty()) {
-                    EmptyStateView(
-                        icon = Icons.Filled.Book,
-                        title = "今日沒有課程",
-                        message = "好好休息吧"
-                    )
-                } else {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(todayCourses) { course ->
-                            CourseCard(
-                                course = course,
-                                hasAssignment = hasUnfinishedAssignment(course.courseNo),
-                                onClick = { onCourseClick(course) }
-                            )
-                        }
-                    }
-                }
+                TimeSliderSection(
+                    courses = allCourses,
+                    sliderStyle = sliderStyle,
+                    invertDirection = invertDirection,
+                    onSelectCourse = onCourseClick
+                )
             }
 
             HomeSection.HomeSectionType.UPCOMING_ASSIGNMENTS -> {
+                SectionHeader(title = section.title)
                 if (upcomingAssignments.isEmpty()) {
                     EmptyStateView(
                         icon = Icons.Filled.CheckCircle,
@@ -172,6 +191,7 @@ private fun HomeSectionContent(
 
             HomeSection.HomeSectionType.QUICK_WIDGETS,
             HomeSection.HomeSectionType.CUSTOM -> {
+                SectionHeader(title = section.title)
                 if (section.widgets.isNotEmpty()) {
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
@@ -179,7 +199,9 @@ private fun HomeSectionContent(
                     ) {
                         items(section.widgets) { widget ->
                             Card(
-                                modifier = Modifier.size(80.dp),
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clickable { onWidgetClick() },
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                                 )
@@ -254,16 +276,9 @@ private fun openAssignmentInMoodle(context: Context, assignment: Assignment) {
     val targets = listOfNotNull(assignment.moodleDeepLink, assignment.moodleUrl)
     for (target in targets) {
         val intent = Intent(Intent.ACTION_VIEW, target.toUri()).apply {
-            if (context !is android.app.Activity) {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
         }
-        val opened = runCatching {
-            context.startActivity(intent)
-        }.isSuccess
-        if (opened) {
-            return
-        }
+        val opened = runCatching { context.startActivity(intent) }.isSuccess
+        if (opened) return
     }
 }
-

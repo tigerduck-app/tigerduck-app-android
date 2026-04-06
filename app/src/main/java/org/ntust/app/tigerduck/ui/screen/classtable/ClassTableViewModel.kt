@@ -22,7 +22,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ClassTableViewModel @Inject constructor(
     private val authService: AuthService,
-    private val courseService: CourseService,
+    val courseService: CourseService,
     private val moodleService: MoodleService,
     private val dataCache: DataCache
 ) : ViewModel() {
@@ -126,6 +126,30 @@ class ClassTableViewModel @Inject constructor(
 
     fun clearSelection() {
         _selectedCourse.value = null
+    }
+
+    val existingCourseNos: Set<String>
+        get() = _courses.value.map { it.courseNo }.toSet()
+
+    fun addCourse(course: Course) {
+        val updated = _courses.value + course
+        _courses.value = updated
+        dataCache.saveCourses(updated)
+        TigerDuckTheme.buildCourseColorMap(updated.map { it.courseNo })
+    }
+
+    fun renameCourse(courseNo: String, newName: String) {
+        val updated = _courses.value.map {
+            if (it.courseNo == courseNo) it.copy(courseName = newName) else it
+        }
+        _courses.value = updated
+        dataCache.saveCourses(updated)
+    }
+
+    fun deleteCourse(courseNo: String) {
+        val updated = _courses.value.filter { it.courseNo != courseNo }
+        _courses.value = updated
+        dataCache.saveCourses(updated)
     }
 
     sealed class CellRole {

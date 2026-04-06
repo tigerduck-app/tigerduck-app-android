@@ -21,6 +21,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Book
+import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.CourseCard
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
@@ -36,6 +42,9 @@ fun ClassTableScreen(
     val todayCourses = viewModel.todayCourses
     val activePeriods = viewModel.activePeriods
     val activeWeekdays = viewModel.activeWeekdays
+    var showAddCourse by remember { mutableStateOf(false) }
+    var courseToRename by remember { mutableStateOf<Course?>(null) }
+    var renameText by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) { viewModel.load() }
 
@@ -52,7 +61,7 @@ fun ClassTableScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            // Header
+            // Title
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -67,21 +76,22 @@ fun ClassTableScreen(
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                 }
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "共 ${viewModel.totalCredits} 學分",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
+                IconButton(onClick = { showAddCourse = true }) {
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = "新增課程",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
             }
 
-            // Today's courses
+            // Today's courses carousel
             if (todayCourses.isNotEmpty()) {
                 SectionHeader(title = "今日課程")
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = 12.dp)
                 ) {
                     items(todayCourses) { course ->
                         CourseCard(
@@ -103,12 +113,39 @@ fun ClassTableScreen(
                 }
             }
 
+            // Semester + credits row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = viewModel.currentSemester.collectAsState().value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = "${viewModel.totalCredits} 學分",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
+            }
+
             // Timetable
             if (activePeriods.isNotEmpty() && activeWeekdays.isNotEmpty()) {
                 TimetableGrid(
                     viewModel = viewModel,
                     weekdays = activeWeekdays,
-                    periods = activePeriods
+                    periods = activePeriods,
+                    onRename = { course ->
+                        renameText = course.courseName
+                        courseToRename = course
+                    },
+                    onDelete = { course ->
+                        viewModel.deleteCourse(course.courseNo)
+                    }
                 )
             }
 
@@ -146,13 +183,55 @@ fun ClassTableScreen(
             }
         )
     }
+
+    courseToRename?.let { course ->
+        AlertDialog(
+            onDismissRequest = { courseToRename = null },
+            title = { Text("重新命名") },
+            text = {
+                OutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    label = { Text("課程名稱") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.renameCourse(course.courseNo, renameText)
+                    courseToRename = null
+                }) { Text("確認") }
+            },
+            dismissButton = {
+                TextButton(onClick = { courseToRename = null }) { Text("取消") }
+            }
+        )
+    }
+
+    if (showAddCourse) {
+        ModalBottomSheet(
+            onDismissRequest = { showAddCourse = false }
+        ) {
+            AddCourseSheet(
+                semester = viewModel.currentSemester.collectAsState().value,
+                existingCourseNos = viewModel.existingCourseNos,
+                courseService = viewModel.courseService,
+                onAdd = { viewModel.addCourse(it) },
+                onDismiss = { showAddCourse = false }
+            )
+        }
+    }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TimetableGrid(
     viewModel: ClassTableViewModel,
     weekdays: List<Int>,
-    periods: List<org.ntust.app.tigerduck.data.model.TimetablePeriod>
+    periods: List<org.ntust.app.tigerduck.data.model.TimetablePeriod>,
+    onRename: (Course) -> Unit = {},
+    onDelete: (Course) -> Unit = {}
 ) {
     val dayLabels = listOf("", "一", "二", "三", "四", "五", "六", "日")
     val cellHeight = 52.dp
@@ -230,6 +309,8 @@ private fun TimetableGrid(
                             }
                             is ClassTableViewModel.CellRole.BlockStart -> {
                                 val color = TigerDuckTheme.courseColor(role.course.courseNo)
+                                val hasBadge = viewModel.hasAssignment(role.course.courseNo)
+                                var showMenu by remember { mutableStateOf(false) }
                                 Box(
                                     modifier = Modifier
                                         .width(dayColWidth)
@@ -238,10 +319,12 @@ private fun TimetableGrid(
                                         .padding(1.dp)
                                         .clip(RoundedCornerShape(6.dp))
                                         .background(color.copy(alpha = 0.85f))
-                                        .clickable {
-                                            viewModel.selectCourse(role.course, weekday, period.id)
-                                        },
-                                    contentAlignment = Alignment.Center
+                                        .combinedClickable(
+                                            onClick = {
+                                                viewModel.selectCourse(role.course, weekday, period.id)
+                                            },
+                                            onLongClick = { showMenu = true }
+                                        )
                                 ) {
                                     Text(
                                         text = role.course.courseName,
@@ -250,9 +333,39 @@ private fun TimetableGrid(
                                         textAlign = TextAlign.Center,
                                         maxLines = if (role.spanCount >= 2) 3 else 2,
                                         overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(2.dp),
+                                        modifier = Modifier.padding(2.dp).align(Alignment.Center),
                                         fontSize = 10.sp
                                     )
+                                    if (hasBadge) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Book,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(3.dp)
+                                                .size(12.dp),
+                                            tint = Color.White.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                    DropdownMenu(
+                                        expanded = showMenu,
+                                        onDismissRequest = { showMenu = false }
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("重新命名") },
+                                            onClick = {
+                                                showMenu = false
+                                                onRename(role.course)
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("刪除", color = MaterialTheme.colorScheme.error) },
+                                            onClick = {
+                                                showMenu = false
+                                                onDelete(role.course)
+                                            }
+                                        )
+                                    }
                                 }
                             }
                             is ClassTableViewModel.CellRole.BlockContinuation -> {

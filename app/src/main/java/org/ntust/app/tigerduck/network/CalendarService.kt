@@ -167,7 +167,7 @@ class CalendarService @Inject constructor() {
                                         time = current
                                         add(Calendar.DAY_OF_YEAR, 1)
                                     }
-                                    current = next.time!!
+                                    current = next.time
                                 }
                             } else {
                                 events.add(CalendarEvent(eventId, title, start, EventSource.SCHOOL.raw))
