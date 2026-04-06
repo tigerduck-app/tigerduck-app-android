@@ -1,5 +1,8 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
+import android.content.Context
+import android.content.Intent
+import androidx.core.net.toUri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -11,20 +14,24 @@ import androidx.compose.material3.pulltorefresh.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.model.HomeSection
+import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.*
 import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    appState: AppState,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val sections by viewModel.sections.collectAsState()
     val todayCourses by viewModel.todayCourses.collectAsState()
     val upcomingAssignments by viewModel.upcomingAssignments.collectAsState()
@@ -39,6 +46,13 @@ fun HomeScreen(
         state = pullRefreshState,
         isRefreshing = isLoading,
         onRefresh = { viewModel.refresh() },
+        indicator = {
+            PullToRefreshDefaults.Indicator(
+                modifier = Modifier.align(Alignment.TopCenter),
+                isRefreshing = isLoading,
+                state = pullRefreshState
+            )
+        },
         modifier = Modifier.fillMaxSize()
     ) {
         LazyColumn(
@@ -70,8 +84,9 @@ fun HomeScreen(
                     todayCourses = todayCourses,
                     upcomingAssignments = upcomingAssignments,
                     hasUnfinishedAssignment = viewModel::hasUnfinishedAssignment,
-                    showAbsoluteTime = false,
-                    onCourseClick = { viewModel.selectCourse(it) }
+                    showAbsoluteTime = appState.showAbsoluteAssignmentTime,
+                    onCourseClick = { viewModel.selectCourse(it) },
+                    onAssignmentClick = { openAssignmentInMoodle(context, it) }
                 )
             }
         }
@@ -94,7 +109,8 @@ private fun HomeSectionContent(
     upcomingAssignments: List<Assignment>,
     hasUnfinishedAssignment: (String) -> Boolean,
     showAbsoluteTime: Boolean,
-    onCourseClick: (Course) -> Unit
+    onCourseClick: (Course) -> Unit,
+    onAssignmentClick: (Assignment) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionHeader(title = section.title)
@@ -131,6 +147,7 @@ private fun HomeSectionContent(
                         message = "沒有待辦作業"
                     )
                 } else {
+                    val topAssignments = upcomingAssignments.take(5)
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -139,12 +156,15 @@ private fun HomeSectionContent(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
-                        upcomingAssignments.take(5).forEach { assignment ->
+                        topAssignments.forEachIndexed { index, assignment ->
                             AssignmentItem(
                                 assignment = assignment,
-                                showAbsoluteTime = showAbsoluteTime
+                                showAbsoluteTime = showAbsoluteTime,
+                                onClick = { onAssignmentClick(assignment) }
                             )
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            if (index < topAssignments.lastIndex) {
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            }
                         }
                     }
                 }
@@ -229,3 +249,19 @@ private fun greetingText(): String {
         else -> "晚安"
     }
 }
+
+private fun openAssignmentInMoodle(context: Context, assignment: Assignment) {
+    val targets = listOfNotNull(assignment.moodleDeepLink, assignment.moodleUrl)
+    for (target in targets) {
+        val intent = Intent(Intent.ACTION_VIEW, target.toUri()).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        val opened = runCatching {
+            context.startActivity(intent)
+        }.isSuccess
+        if (opened) {
+            return
+        }
+    }
+}
+

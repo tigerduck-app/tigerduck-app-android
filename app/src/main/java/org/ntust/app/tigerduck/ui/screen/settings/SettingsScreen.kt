@@ -14,7 +14,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -31,18 +30,17 @@ fun SettingsScreen(
     val ntustLoginError by viewModel.ntustLoginError.collectAsState()
     val libIsLoggingIn by viewModel.libIsLoggingIn.collectAsState()
     val libLoginError by viewModel.libLoginError.collectAsState()
+    val isNtustLoggedIn by viewModel.isNtustLoggedIn.collectAsState()
+    val isLibraryLoggedIn by viewModel.isLibraryLoggedIn.collectAsState()
 
     var ntustStudentIdInput by remember { mutableStateOf("") }
     var ntustPasswordInput by remember { mutableStateOf("") }
     var libUsernameInput by remember { mutableStateOf("") }
     var libPasswordInput by remember { mutableStateOf("") }
 
-    // Re-read these on each recomposition to pick up changes
-    val isNtustLoggedIn = viewModel.appState.isNtustLoggedIn
-    val isLibraryLoggedIn = viewModel.isLibraryLoggedIn
     val accentColorHex = viewModel.appState.accentColorHex
-    var showAbsoluteTime by remember { mutableStateOf(viewModel.prefs.showAbsoluteAssignmentTime) }
-    var rememberFilter by remember { mutableStateOf(viewModel.prefs.rememberAnnouncementFilter) }
+    val showAbsoluteTime = viewModel.appState.showAbsoluteAssignmentTime
+    val rememberFilter = viewModel.appState.rememberAnnouncementFilter
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -216,7 +214,7 @@ fun SettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("主題色", style = MaterialTheme.typography.bodyMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        AppPreferences.themeColors.forEach { (name, hex) ->
+                        AppPreferences.themeColors.forEach { (_, hex) ->
                             val color = Color(0xFF000000 or hex.toLong())
                             Box(
                                 modifier = Modifier
@@ -250,8 +248,7 @@ fun SettingsScreen(
                         Switch(
                             checked = showAbsoluteTime,
                             onCheckedChange = {
-                                showAbsoluteTime = it
-                                viewModel.prefs.showAbsoluteAssignmentTime = it
+                                viewModel.appState.showAbsoluteAssignmentTime = it
                             }
                         )
                     }
@@ -265,8 +262,7 @@ fun SettingsScreen(
                         Switch(
                             checked = rememberFilter,
                             onCheckedChange = {
-                                rememberFilter = it
-                                viewModel.prefs.rememberAnnouncementFilter = it
+                                viewModel.appState.rememberAnnouncementFilter = it
                             }
                         )
                     }

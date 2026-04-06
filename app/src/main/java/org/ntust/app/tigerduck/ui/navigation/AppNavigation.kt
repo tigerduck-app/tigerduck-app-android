@@ -4,8 +4,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
@@ -21,8 +19,6 @@ import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 
 sealed class Screen(val route: String) {
-    object Onboarding : Screen("onboarding")
-    object Main : Screen("main")
     object Home : Screen("home")
     object ClassTable : Screen("classTable")
     object Calendar : Screen("calendar")
@@ -47,6 +43,10 @@ fun MainNavigation(appState: AppState) {
     val configuredTabs by remember(appState.configuredTabs) { mutableStateOf(appState.configuredTabs) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val selectedTabRoute = when (currentRoute) {
+        Screen.Settings.route -> Screen.More.route
+        else -> currentRoute
+    }
 
     val bottomItems = configuredTabs + listOf(AppFeature.MORE)
 
@@ -58,14 +58,15 @@ fun MainNavigation(appState: AppState) {
                     NavigationBarItem(
                         icon = { Icon(feature.icon, contentDescription = feature.displayName) },
                         label = { Text(feature.displayName) },
-                        selected = currentRoute == route,
+                        selected = selectedTabRoute == route,
                         onClick = {
                             navController.navigate(route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
+                                popUpTo(navController.graph.startDestinationId) {
                                     saveState = true
                                 }
                                 launchSingleTop = true
-                                restoreState = true
+                                // More should always open its root page, not restore Settings.
+                                restoreState = route != Screen.More.route
                             }
                         }
                     )
@@ -78,7 +79,7 @@ fun MainNavigation(appState: AppState) {
             startDestination = configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.Home.route) { HomeScreen() }
+            composable(Screen.Home.route) { HomeScreen(appState = appState) }
             composable(Screen.ClassTable.route) { ClassTableScreen() }
             composable(Screen.Calendar.route) { CalendarScreen() }
             composable(Screen.Announcements.route) { AnnouncementsScreen(navController) }
