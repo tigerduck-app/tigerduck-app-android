@@ -2,11 +2,14 @@ package org.ntust.app.tigerduck.network
 
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import android.util.Log
+import com.tigerduck.app.BuildConfig
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,24 +20,24 @@ enum class LoadingState { IDLE, LOADING, LOADED, ERROR }
 class NtustSessionManager @Inject constructor(
     private val prefs: AppPreferences
 ) {
-    private val cookieStore = mutableMapOf<String, MutableList<Cookie>>()
+    private val cookieStore = ConcurrentHashMap<String, CopyOnWriteArrayList<Cookie>>()
 
     private val cookieJar = object : CookieJar {
         override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
             val host = url.host
-            cookieStore.getOrPut(host) { mutableListOf() }.apply {
-                removeAll { existing -> cookies.any { it.name == existing.name } }
-                addAll(cookies)
-            }
+            val hostCookies = cookieStore.getOrPut(host) { CopyOnWriteArrayList() }
+            hostCookies.removeAll { existing -> cookies.any { it.name == existing.name } }
+            hostCookies.addAll(cookies)
         }
         override fun loadForRequest(url: HttpUrl): List<Cookie> =
-            cookieStore[url.host] ?: emptyList()
+            cookieStore[url.host]?.toList() ?: emptyList()
     }
 
     private val loggingInterceptor = HttpLoggingInterceptor { message ->
         Log.d("TigerDuck-HTTP", message)
     }.apply {
-        level = HttpLoggingInterceptor.Level.BODY
+        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+                else HttpLoggingInterceptor.Level.NONE
     }
 
     val client: OkHttpClient = OkHttpClient.Builder()
@@ -61,7 +64,7 @@ class NtustSessionManager @Inject constructor(
     val cookiesValid: Boolean
         get() {
             val ts = prefs.ssoLoginTimestamp
-            return ts > 0L && System.currentTimeMillis() - ts < COOKIE_TTL_MS
+            return ts > 0L && System.currentTimeMillis() - ts < COOKIE_TTL_MS && cookieStore.isNotEmpty()
         }
 
     val loginTimestampMs: Long get() = prefs.ssoLoginTimestamp

@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.network.LoadingState
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +34,7 @@ class AppState @Inject constructor(
     val dataCache: DataCache,
     val calendarService: CalendarService
 ) {
-    private val scope = CoroutineScope(Dispatchers.Main)
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val _loadingState = MutableStateFlow(LoadingState.IDLE)
     @Suppress("unused")
@@ -60,7 +61,7 @@ class AppState @Inject constructor(
         }
 
     val accentColor: Color
-        get() = Color(0xFF000000 or accentColorHex.toLong())
+        get() = Color(0xFF000000L or (accentColorHex.toLong() and 0xFFFFFFL))
 
     private var rememberAnnouncementFilterState by mutableStateOf(prefs.rememberAnnouncementFilter)
 

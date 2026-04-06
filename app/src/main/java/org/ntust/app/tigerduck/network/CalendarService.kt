@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.network
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import android.util.Log
+import com.tigerduck.app.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -24,7 +25,8 @@ class CalendarService @Inject constructor() {
     private val loggingInterceptor = HttpLoggingInterceptor { message ->
         Log.d("TigerDuck-HTTP", message)
     }.apply {
-        level = HttpLoggingInterceptor.Level.BODY
+        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+                else HttpLoggingInterceptor.Level.NONE
     }
 
     private val browserClient = OkHttpClient.Builder()
@@ -160,7 +162,8 @@ class CalendarService @Inject constructor() {
                             if (isMultiDay) {
                                 var current: Date = start
                                 val lastDay = Date(end.time - 1)
-                                while (!current.after(lastDay)) {
+                                var daysAdded = 0
+                                while (!current.after(lastDay) && daysAdded < 365) {
                                     val dayId = "$eventId-${current.time}"
                                     events.add(CalendarEvent(dayId, title, current, EventSource.SCHOOL.raw))
                                     val next = Calendar.getInstance().apply {
@@ -168,6 +171,7 @@ class CalendarService @Inject constructor() {
                                         add(Calendar.DAY_OF_YEAR, 1)
                                     }
                                     current = next.time
+                                    daysAdded++
                                 }
                             } else {
                                 events.add(CalendarEvent(eventId, title, start, EventSource.SCHOOL.raw))

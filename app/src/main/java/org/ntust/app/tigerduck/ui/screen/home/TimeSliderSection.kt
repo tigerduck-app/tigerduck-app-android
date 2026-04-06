@@ -41,7 +41,8 @@ fun TimeSliderSection(
     invertDirection: Boolean,
     onSelectCourse: (Course) -> Unit
 ) {
-    val viewModel = remember { TimeSliderViewModel() }
+    val sliderScope = rememberCoroutineScope()
+    val viewModel = remember(sliderScope) { TimeSliderViewModel(sliderScope) }
 
     LaunchedEffect(courses.map { it.courseNo }) {
         viewModel.configure(courses)

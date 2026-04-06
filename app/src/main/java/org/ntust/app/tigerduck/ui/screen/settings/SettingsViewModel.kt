@@ -37,6 +37,11 @@ class SettingsViewModel @Inject constructor(
     private val _isLibraryLoggedIn = MutableStateFlow(credentials.isLibraryTokenValid)
     val isLibraryLoggedIn: StateFlow<Boolean> = _isLibraryLoggedIn
 
+    fun refreshLoginState() {
+        _isNtustLoggedIn.value = appState.isNtustLoggedIn
+        _isLibraryLoggedIn.value = credentials.isLibraryTokenValid
+    }
+
     fun loginNtust(studentId: String, password: String) {
         viewModelScope.launch {
             val success = authService.login(studentId, password)

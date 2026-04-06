@@ -109,9 +109,11 @@ class CalendarViewModel @Inject constructor(
                 changed = true
             }
 
-            current.removeAll { it.sourceRaw == EventSource.MOODLE.raw }
-            current.addAll(moodleEvents)
-            changed = true
+            if (moodleEvents.isNotEmpty()) {
+                current.removeAll { it.sourceRaw == EventSource.MOODLE.raw }
+                current.addAll(moodleEvents)
+                changed = true
+            }
 
             if (changed) {
                 _events.value = current

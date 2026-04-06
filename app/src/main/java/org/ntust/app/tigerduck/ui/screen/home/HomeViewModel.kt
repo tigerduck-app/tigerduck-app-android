@@ -146,7 +146,16 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun fetchAssignments(studentId: String, password: String): List<Assignment>? {
         return try {
-            moodleService.fetchAssignments(studentId, password)
+            val remote = moodleService.fetchAssignments(studentId, password)
+            val existingCompleted = _upcomingAssignments.value
+                .filter { it.isCompleted }
+                .map { it.assignmentId }
+                .toSet()
+            remote.map { assignment ->
+                if (assignment.assignmentId in existingCompleted) {
+                    assignment.copy(isCompleted = true)
+                } else assignment
+            }
         } catch (e: Exception) {
             Log.e("HomeViewModel", "Failed to fetch assignments", e)
             null

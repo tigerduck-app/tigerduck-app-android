@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.data.model
 
 import androidx.room.Entity
+import androidx.room.Ignore
 import androidx.room.PrimaryKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -18,19 +19,28 @@ data class Course(
     val scheduleJson: String = "{}",
     val moodleIdNumber: String? = null
 ) {
+    @Ignore
+    @Transient
+    private var _cachedSchedule: Map<Int, List<String>>? = null
+
     val schedule: Map<Int, List<String>>
         get() {
+            _cachedSchedule?.let { return it }
             val type = object : TypeToken<Map<String, List<String>>>() {}.type
             val raw: Map<String, List<String>> = try {
-                Gson().fromJson(scheduleJson, type) ?: emptyMap()
+                scheduleGson.fromJson(scheduleJson, type) ?: emptyMap()
             } catch (e: Exception) {
                 emptyMap()
             }
-            return raw.mapKeys { it.key.toIntOrNull() ?: 0 }
+            val parsed = raw.mapKeys { it.key.toIntOrNull() ?: 0 }
                 .filterKeys { it != 0 }
+            _cachedSchedule = parsed
+            return parsed
         }
 
     companion object {
+        private val scheduleGson = Gson()
+
         fun fromSchedule(
             courseNo: String,
             courseName: String,
@@ -43,7 +53,7 @@ data class Course(
             moodleIdNumber: String? = null
         ): Course {
             val stringKeyMap = schedule.mapKeys { it.key.toString() }
-            val json = Gson().toJson(stringKeyMap)
+            val json = scheduleGson.toJson(stringKeyMap)
             return Course(
                 courseNo = courseNo,
                 courseName = courseName,

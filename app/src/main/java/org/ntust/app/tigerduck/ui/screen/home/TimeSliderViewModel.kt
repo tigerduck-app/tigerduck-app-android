@@ -18,7 +18,7 @@ import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
 
-class TimeSliderViewModel {
+class TimeSliderViewModel(private val scope: CoroutineScope) {
 
     var timeSlots by mutableStateOf<List<CourseTimeSlot>>(emptyList())
         private set
@@ -32,7 +32,6 @@ class TimeSliderViewModel {
     private var timelineCenterDate: Date = Date()
     private var lastHapticSlot: Int = 0
     private var autoReturnJob: Job? = null
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     // Compressed position cache
     private var anchors: List<Pair<Date, Float>> = emptyList()

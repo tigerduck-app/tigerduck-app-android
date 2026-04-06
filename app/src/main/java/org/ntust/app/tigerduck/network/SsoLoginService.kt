@@ -85,10 +85,16 @@ class SsoLoginService @Inject constructor(
     }
 
     private fun fetchPage(url: String): Pair<String, HttpUrl> {
-        val request = Request.Builder().url(url).get().build()
-        client.newCall(request).execute().use { response ->
-            val body = response.body?.string() ?: throw SsoLoginError.InvalidResponse
-            return body to (response.request.url)
+        try {
+            val request = Request.Builder().url(url).get().build()
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: throw SsoLoginError.InvalidResponse
+                return body to (response.request.url)
+            }
+        } catch (e: SsoLoginError) {
+            throw e
+        } catch (e: java.io.IOException) {
+            throw SsoLoginError.NetworkError(e)
         }
     }
 
@@ -111,18 +117,24 @@ class SsoLoginService @Inject constructor(
     }
 
     private fun postForm(url: HttpUrl, fields: List<Pair<String, String>>): Pair<String, HttpUrl> {
-        val body = FormBody.Builder().apply {
-            fields.forEach { (name, value) -> add(name, value) }
-        }.build()
+        try {
+            val body = FormBody.Builder().apply {
+                fields.forEach { (name, value) -> add(name, value) }
+            }.build()
 
-        val request = Request.Builder()
-            .url(url)
-            .post(body)
-            .build()
+            val request = Request.Builder()
+                .url(url)
+                .post(body)
+                .build()
 
-        client.newCall(request).execute().use { response ->
-            val html = response.body?.string() ?: throw SsoLoginError.InvalidResponse
-            return html to response.request.url
+            client.newCall(request).execute().use { response ->
+                val html = response.body?.string() ?: throw SsoLoginError.InvalidResponse
+                return html to response.request.url
+            }
+        } catch (e: SsoLoginError) {
+            throw e
+        } catch (e: java.io.IOException) {
+            throw SsoLoginError.NetworkError(e)
         }
     }
 

@@ -10,7 +10,7 @@ import org.ntust.app.tigerduck.data.model.*
 @Database(
     entities = [Course::class, Assignment::class, CalendarEvent::class, Announcement::class],
     version = 1,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {

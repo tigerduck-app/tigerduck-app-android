@@ -23,14 +23,18 @@ object AppModule {
         AppDatabase.create(context)
 
     @Provides
+    @Singleton
     fun provideCourseDao(db: AppDatabase): CourseDao = db.courseDao()
 
     @Provides
+    @Singleton
     fun provideAssignmentDao(db: AppDatabase): AssignmentDao = db.assignmentDao()
 
     @Provides
+    @Singleton
     fun provideCalendarEventDao(db: AppDatabase): CalendarEventDao = db.calendarEventDao()
 
     @Provides
+    @Singleton
     fun provideAnnouncementDao(db: AppDatabase): AnnouncementDao = db.announcementDao()
 }

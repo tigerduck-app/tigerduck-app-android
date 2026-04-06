@@ -18,5 +18,6 @@ data class Assignment(
         get() = !isCompleted && dueDate.before(Date())
 
     val moodleDeepLink: String?
-        get() = "moodlemobile://https://moodle2.ntust.edu.tw?redirect=/mod/assign/view.php?id=$assignmentId"
+        get() = moodleUrl?.let { "moodlemobile://https://moodle2.ntust.edu.tw?redirect=${it.substringAfter("moodle2.ntust.edu.tw")}" }
+            ?: "moodlemobile://https://moodle2.ntust.edu.tw?redirect=/mod/assign/view.php?id=$assignmentId"
 }

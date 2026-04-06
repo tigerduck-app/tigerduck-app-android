@@ -35,7 +35,7 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
             .setAutoCancel(true)
             .build()
 
-        notificationManager.notify(assignmentId.hashCode(), notification)
+        notificationManager.notify(assignmentId.hashCode() and 0x7FFFFFFF, notification)
     }
 
     companion object {

@@ -7,6 +7,7 @@ import org.ntust.app.tigerduck.network.model.LibraryLoginResponse
 import org.ntust.app.tigerduck.network.model.LibraryQRRequest
 import org.ntust.app.tigerduck.network.model.LibraryQRResponse
 import android.util.Log
+import com.tigerduck.app.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -31,7 +32,8 @@ class LibraryService @Inject constructor(
     private val loggingInterceptor = HttpLoggingInterceptor { message ->
         Log.d("TigerDuck-HTTP", message)
     }.apply {
-        level = HttpLoggingInterceptor.Level.BODY
+        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+                else HttpLoggingInterceptor.Level.NONE
     }
 
     private val client = OkHttpClient.Builder()

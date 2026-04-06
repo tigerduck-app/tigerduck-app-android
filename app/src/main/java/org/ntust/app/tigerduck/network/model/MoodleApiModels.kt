@@ -6,7 +6,7 @@ data class MoodleCalendarWrapper(
 )
 
 data class MoodleCalendarData(
-    val events: List<MoodleEvent>
+    val events: List<MoodleEvent> = emptyList()
 )
 
 data class MoodleEvent(
@@ -18,8 +18,8 @@ data class MoodleEvent(
     val activityname: String?,
     val instance: Int?,
     val eventtype: String?,
-    val timestart: Int,
-    val timesort: Int,
+    val timestart: Long,
+    val timesort: Long,
     val course: MoodleCourseInfo?,
     val action: MoodleAction?,
     val url: String?
@@ -45,7 +45,7 @@ data class MoodleCalendarRequest(
     val args: MoodleCalendarArgs
 ) {
     companion object {
-        fun upcoming(fromTimestamp: Int) = MoodleCalendarRequest(
+        fun upcoming(fromTimestamp: Long) = MoodleCalendarRequest(
             index = 0,
             methodname = "core_calendar_get_action_events_by_timesort",
             args = MoodleCalendarArgs(
@@ -59,6 +59,6 @@ data class MoodleCalendarRequest(
 
 data class MoodleCalendarArgs(
     val limitnum: Int,
-    val timesortfrom: Int,
+    val timesortfrom: Long,
     val limittononsuspendedevents: Boolean
 )

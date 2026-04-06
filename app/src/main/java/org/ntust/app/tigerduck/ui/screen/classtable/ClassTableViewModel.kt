@@ -197,10 +197,10 @@ class ClassTableViewModel @Inject constructor(
     }
 
     private suspend fun fetchData() {
+        val studentId = authService.storedStudentId ?: return
+        val password = authService.storedPassword ?: return
         _isLoading.value = true
         try {
-            val studentId = authService.storedStudentId ?: return
-            val password = authService.storedPassword ?: return
             val semester = _currentSemester.value
 
             // Fetch enrolled course numbers, then look up details
@@ -243,11 +243,20 @@ class ClassTableViewModel @Inject constructor(
                 }
             }
 
-            // Fetch assignments from Moodle
+            // Fetch assignments from Moodle, preserving isCompleted state
             try {
-                val assignments = moodleService.fetchAssignments(studentId, password)
-                _assignments.value = assignments
-                dataCache.saveAssignments(assignments)
+                val remoteAssignments = moodleService.fetchAssignments(studentId, password)
+                val existingCompleted = _assignments.value
+                    .filter { it.isCompleted }
+                    .map { it.assignmentId }
+                    .toSet()
+                val merged = remoteAssignments.map { assignment ->
+                    if (assignment.assignmentId in existingCompleted) {
+                        assignment.copy(isCompleted = true)
+                    } else assignment
+                }
+                _assignments.value = merged
+                dataCache.saveAssignments(merged)
             } catch (e: Exception) {
                 Log.e("ClassTableVM", "Failed to fetch assignments", e)
             }

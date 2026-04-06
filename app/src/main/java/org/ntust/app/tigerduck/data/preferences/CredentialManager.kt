@@ -11,7 +11,7 @@ import javax.inject.Singleton
 @Singleton
 class CredentialManager @Inject constructor(@ApplicationContext context: Context) {
 
-    private val prefs: SharedPreferences = try {
+    private val prefs: SharedPreferences = run {
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
@@ -22,9 +22,6 @@ class CredentialManager @Inject constructor(@ApplicationContext context: Context
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
-    } catch (e: Exception) {
-        // Fallback to regular prefs if encryption fails (e.g., on emulator without hardware)
-        context.getSharedPreferences("tigerduck_credentials_fallback", Context.MODE_PRIVATE)
     }
 
     var ntustStudentId: String?

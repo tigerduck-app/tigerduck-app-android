@@ -91,7 +91,12 @@ class LibraryViewModel @Inject constructor(
                 _countdown.value--
             }
             if (isActive && _countdown.value == 0) {
-                refreshQR()
+                try {
+                    refreshQR()
+                } catch (_: Exception) {
+                    // Auto-refresh failed; restart countdown to retry later
+                    startCountdown()
+                }
             }
         }
     }

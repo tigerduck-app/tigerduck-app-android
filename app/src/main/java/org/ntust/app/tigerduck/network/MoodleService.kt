@@ -57,7 +57,7 @@ class MoodleService @Inject constructor(
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
             }
-            val startOfToday = (cal.timeInMillis / 1000).toInt()
+            val startOfToday = cal.timeInMillis / 1000
 
             val apiUrl = moodleApiTemplate.format(sesskey)
             val payload = gson.toJson(listOf(MoodleCalendarRequest.upcoming(startOfToday)))
@@ -97,7 +97,7 @@ class MoodleService @Inject constructor(
                     courseNo = courseNo,
                     courseName = courseName,
                     title = event.activityname ?: event.name,
-                    dueDate = Date(event.timestart.toLong() * 1000),
+                    dueDate = Date(event.timestart * 1000),
                     isCompleted = false,
                     moodleUrl = event.url
                 )

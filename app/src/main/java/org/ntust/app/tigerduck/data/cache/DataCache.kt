@@ -22,7 +22,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     private val cacheDir: File = File(context.cacheDir, "TigerDuckCache").also { it.mkdirs() }
     private val gson: Gson = GsonBuilder()
-        .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+        .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         .create()
 
     // MARK: - Courses

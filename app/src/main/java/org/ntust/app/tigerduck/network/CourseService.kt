@@ -5,6 +5,7 @@ import com.google.gson.reflect.TypeToken
 import org.ntust.app.tigerduck.network.model.CourseSearchRequest
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import android.util.Log
+import com.tigerduck.app.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -30,10 +31,19 @@ class CourseService @Inject constructor(
 ) {
     private val client: OkHttpClient get() = sessionManager.client
     private val gson = Gson()
+    private val plainSearchClient: OkHttpClient by lazy {
+        val interceptor = HttpLoggingInterceptor { message ->
+            Log.d("TigerDuck-HTTP", message)
+        }.apply {
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+                    else HttpLoggingInterceptor.Level.NONE
+        }
+        OkHttpClient.Builder().addInterceptor(interceptor).build()
+    }
 
     private val courseSelectionRoot = "https://courseselection.ntust.edu.tw/"
     private val courseListUrl = "https://courseselection.ntust.edu.tw/ChooseList/D01/D01"
-    private val courseSearchApiUrl = "https://querycourse.ntust.edu.tw/QueryCourse/api//courses"
+    private val courseSearchApiUrl = "https://querycourse.ntust.edu.tw/QueryCourse/api/courses"
 
     suspend fun fetchEnrolledCourseNos(studentId: String, password: String): List<String> =
         withContext(Dispatchers.IO) {
@@ -63,15 +73,7 @@ class CourseService @Inject constructor(
                 .post(requestBody)
                 .build()
 
-            // Use a plain client (no cookies needed — public API)
-            val loggingInterceptor = HttpLoggingInterceptor { message ->
-                Log.d("TigerDuck-HTTP", message)
-            }.apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            }
-            val plainClient = okhttp3.OkHttpClient.Builder()
-                .addInterceptor(loggingInterceptor)
-                .build()
+            val plainClient = plainSearchClient
             plainClient.newCall(request).execute().use { response ->
                 val body = response.body?.string() ?: return@withContext emptyList()
                 val type = object : TypeToken<List<CourseSearchResult>>() {}.type
@@ -89,14 +91,7 @@ class CourseService @Inject constructor(
                 .post(requestBody)
                 .build()
 
-            val loggingInterceptor = HttpLoggingInterceptor { message ->
-                Log.d("TigerDuck-HTTP", message)
-            }.apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            }
-            val plainClient = okhttp3.OkHttpClient.Builder()
-                .addInterceptor(loggingInterceptor)
-                .build()
+            val plainClient = plainSearchClient
             plainClient.newCall(request).execute().use { response ->
                 val body = response.body?.string() ?: return@withContext emptyList()
                 val type = object : TypeToken<List<CourseSearchResult>>() {}.type
