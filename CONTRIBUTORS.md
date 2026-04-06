@@ -4,7 +4,7 @@
 
 以下是曾為本專案原始碼做出貢獻的開發者：
 
-* [SamWang8891](https://github.com/alicesmith) (Ching Kai, Wang)
+* [SamWang8891](https://github.com/SamWang8891) (Ching Kai, Wang)
 * [stanleyowen](https://github.com/stanleyowen) 
 * [xinshoutw](https://github.com/xinshoutw) (Yu Wei, Huang)
 
