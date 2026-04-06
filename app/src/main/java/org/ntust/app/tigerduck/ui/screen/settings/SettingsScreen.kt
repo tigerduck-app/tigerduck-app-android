@@ -38,9 +38,9 @@ fun SettingsScreen(
     var libUsernameInput by remember { mutableStateOf("") }
     var libPasswordInput by remember { mutableStateOf("") }
 
-    val accentColorHex = viewModel.appState.accentColorHex
-    val showAbsoluteTime = viewModel.appState.showAbsoluteAssignmentTime
-    val rememberFilter = viewModel.appState.rememberAnnouncementFilter
+    val accentColorHex by remember { derivedStateOf { viewModel.appState.accentColorHex } }
+    val showAbsoluteTime by remember { derivedStateOf { viewModel.appState.showAbsoluteAssignmentTime } }
+    val rememberFilter by remember { derivedStateOf { viewModel.appState.rememberAnnouncementFilter } }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

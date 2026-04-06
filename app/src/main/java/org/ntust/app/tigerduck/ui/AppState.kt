@@ -39,9 +39,15 @@ class AppState @Inject constructor(
     @Suppress("unused")
     val loadingState: StateFlow<LoadingState> = _loadingState
 
+    private var hasCompletedOnboardingState by mutableStateOf(prefs.hasCompletedOnboarding)
+
     var hasCompletedOnboarding: Boolean
-        get() = prefs.hasCompletedOnboarding
-        set(value) { prefs.hasCompletedOnboarding = value }
+        get() = hasCompletedOnboardingState
+        set(value) {
+            if (hasCompletedOnboardingState == value) return
+            hasCompletedOnboardingState = value
+            prefs.hasCompletedOnboarding = value
+        }
 
     private var accentColorHexState by mutableIntStateOf(prefs.accentColorHex)
 
