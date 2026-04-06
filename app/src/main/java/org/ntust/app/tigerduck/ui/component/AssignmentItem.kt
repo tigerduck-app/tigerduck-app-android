@@ -38,13 +38,7 @@ fun AssignmentItem(
                 .width(4.dp)
                 .height(40.dp)
                 .background(courseColor)
-        ) {
-            Spacer(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(vertical = 4.dp)
-            )
-        }
+        )
 
         Spacer(Modifier.width(12.dp))
 

@@ -11,6 +11,7 @@ import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.MoodleService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -93,11 +94,11 @@ class CalendarViewModel @Inject constructor(
     private suspend fun fetchData() {
         _isLoading.value = true
         try {
-            val schoolEventsJob = viewModelScope.async { calendarService.fetchAndParseICS() }
-            val moodleEventsJob = viewModelScope.async { fetchMoodleCalendarEvents() }
-
-            val schoolEvents = schoolEventsJob.await()
-            val moodleEvents = moodleEventsJob.await()
+            val (schoolEvents, moodleEvents) = coroutineScope {
+                val schoolEventsJob = async { calendarService.fetchAndParseICS() }
+                val moodleEventsJob = async { fetchMoodleCalendarEvents() }
+                schoolEventsJob.await() to moodleEventsJob.await()
+            }
 
             val current = _events.value.toMutableList()
             var changed = false

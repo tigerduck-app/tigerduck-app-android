@@ -127,9 +127,12 @@ class AppState @Inject constructor(
             }
 
             if (schoolEventsResult.isSuccess) {
-                cached.removeAll { it.sourceRaw == EventSource.SCHOOL.raw }
-                cached.addAll(schoolEventsResult.getOrDefault(emptyList()))
-                changed = true
+                val newSchoolEvents = schoolEventsResult.getOrDefault(emptyList())
+                if (newSchoolEvents.isNotEmpty()) {
+                    cached.removeAll { it.sourceRaw == EventSource.SCHOOL.raw }
+                    cached.addAll(newSchoolEvents)
+                    changed = true
+                }
             }
 
             if (changed) {

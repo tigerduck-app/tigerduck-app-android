@@ -254,7 +254,9 @@ private fun openAssignmentInMoodle(context: Context, assignment: Assignment) {
     val targets = listOfNotNull(assignment.moodleDeepLink, assignment.moodleUrl)
     for (target in targets) {
         val intent = Intent(Intent.ACTION_VIEW, target.toUri()).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (context !is android.app.Activity) {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
         }
         val opened = runCatching {
             context.startActivity(intent)
