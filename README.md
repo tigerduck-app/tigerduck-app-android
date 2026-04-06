@@ -3,7 +3,7 @@
 <br>
 
 [![License](https://img.shields.io/github/license/tigerduck-app/tigerduck-app-android?style=for-the-badge)](LICENSE)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.3-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-26%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge)](https://developer.android.com/compose)
 
@@ -74,9 +74,9 @@ TigerDuck 是由學生共同開發的台科大校園助手 Android App。
 | 項目          | 需求                         |
 | ------------- | ---------------------------- |
 | Android 版本  | Android 8.0 (API 26) 以上    |
-| 編譯 SDK      | Android API 35               |
+| 編譯 SDK      | Android API 36               |
 | 開發工具      | Android Studio（建議最新版） |
-| Java / Kotlin | Java 11 / Kotlin 2.0.21      |
+| Java / Kotlin | Java 11 / Kotlin 2.3.0       |
 | 帳號          | NTUST 學號（部分功能）       |
 | 圖書館        | 圖書館帳號（部分功能）       |
 
@@ -85,7 +85,7 @@ TigerDuck 是由學生共同開發的台科大校園助手 Android App。
 ### 需求
 
 - Android Studio
-- Android SDK Platform 35
+- Android SDK Platform 36
 - JDK 11
 
 ### 下載與執行
