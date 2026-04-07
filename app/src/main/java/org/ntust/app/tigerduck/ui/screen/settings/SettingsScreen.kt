@@ -306,7 +306,7 @@ fun SettingsScreen(
                     SettingsRow("版本", appVersion)
                     HorizontalDivider()
                     SettingsLinkRow("回饋/問題回報") {
-                        openUrl(context, "https://github.com/tigerduck-app/tigerduck-app/issues", browserPreference)
+                        openUrl(context, "https://github.com/tigerduck-app/tigerduck-app-android/issues", browserPreference)
                     }
                     HorizontalDivider()
                     SettingsLinkRow("隱私權政策") {
@@ -314,7 +314,7 @@ fun SettingsScreen(
                     }
                     HorizontalDivider()
                     SettingsLinkRow("開源授權") {
-                        openUrl(context, "https://github.com/tigerduck-app/tigerduck-app/blob/main/LICENSE", browserPreference)
+                        openUrl(context, "https://github.com/tigerduck-app/tigerduck-app-android/blob/main/LICENSE", browserPreference)
                     }
                 }
             }
