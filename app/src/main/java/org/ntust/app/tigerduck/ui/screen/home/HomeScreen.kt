@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.Course
+import java.util.Date
 import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.*
@@ -41,6 +42,7 @@ fun HomeScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val selectedCourse by viewModel.selectedCourse.collectAsState()
     val hasSynced by viewModel.hasSynced.collectAsState()
+    val skippedDates by viewModel.skippedDates.collectAsState()
     var showComingSoon by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.load() }
@@ -104,8 +106,10 @@ fun HomeScreen(
                     showAbsoluteTime = appState.showAbsoluteAssignmentTime,
                     sliderStyle = appState.timeSliderStyle,
                     invertDirection = appState.invertSliderDirection,
+                    skippedDates = skippedDates,
                     onCourseClick = { viewModel.selectCourse(it) },
                     onAssignmentClick = { openAssignmentInMoodle(context, it) },
+                    onSkipCourse = { course, date -> viewModel.toggleSkip(course, date) },
                     onWidgetClick = { showComingSoon = true }
                 )
             }
@@ -142,8 +146,10 @@ private fun HomeSectionContent(
     showAbsoluteTime: Boolean,
     sliderStyle: String,
     invertDirection: Boolean,
+    skippedDates: Map<String, List<String>>,
     onCourseClick: (Course) -> Unit,
     onAssignmentClick: (Assignment) -> Unit,
+    onSkipCourse: (Course, Date) -> Unit,
     onWidgetClick: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -153,6 +159,8 @@ private fun HomeSectionContent(
                     courses = allCourses,
                     sliderStyle = sliderStyle,
                     invertDirection = invertDirection,
+                    skippedDates = skippedDates,
+                    onSkipCourse = onSkipCourse,
                     onSelectCourse = onCourseClick
                 )
             }

@@ -74,7 +74,13 @@ class ClassTableViewModel @Inject constructor(
                     Calendar.SUNDAY -> 7; else -> 1
                 }
             }
-            return _courses.value.filter { it.schedule.containsKey(today) }
+            return _courses.value
+                .filter { it.schedule.containsKey(today) }
+                .sortedBy { course ->
+                    val firstPeriod = course.schedule[today]
+                        ?.minByOrNull { AppConstants.Periods.chronologicalOrder.indexOf(it) }
+                    AppConstants.Periods.chronologicalOrder.indexOf(firstPeriod ?: "")
+                }
         }
 
     val activeWeekdays: List<Int>
@@ -108,6 +114,25 @@ class ClassTableViewModel @Inject constructor(
             val last = AppConstants.PeriodTimes.mapping[periods.last()] ?: return null
             return "${first.first} - ${last.second}"
         }
+
+    fun isCourseFinishedToday(course: Course): Boolean {
+        val now = Calendar.getInstance()
+        val todayWeekday = now.get(Calendar.DAY_OF_WEEK).let {
+            when (it) {
+                Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
+                Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
+                else -> 7
+            }
+        }
+        val periods = course.schedule[todayWeekday]
+            ?.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
+        val lastPeriodId = periods?.lastOrNull() ?: return false
+        val endTimeStr = AppConstants.PeriodTimes.mapping[lastPeriodId]?.second ?: return false
+        val parts = endTimeStr.split(":")
+        val endMinutes = parts[0].toInt() * 60 + parts[1].toInt()
+        val nowMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+        return nowMinutes > endMinutes
+    }
 
     fun courseAt(weekday: Int, period: String): Course? =
         _courses.value.firstOrNull { it.schedule[weekday]?.contains(period) == true }

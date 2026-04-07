@@ -43,6 +43,15 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return load(type, "assignments.json") ?: emptyList()
     }
 
+    // MARK: - Skipped Dates (courseNo -> list of ISO date strings "yyyy-MM-dd")
+
+    fun saveSkippedDates(data: Map<String, List<String>>) = save(data, "skipped_dates.json")
+
+    fun loadSkippedDates(): Map<String, List<String>> {
+        val type = object : TypeToken<Map<String, List<String>>>() {}.type
+        return load(type, "skipped_dates.json") ?: emptyMap()
+    }
+
     // MARK: - Calendar Events
 
     fun saveCalendarEvents(events: List<CalendarEvent>) = save(events, "calendar_events.json")

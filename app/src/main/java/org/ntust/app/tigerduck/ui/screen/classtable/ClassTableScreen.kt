@@ -97,6 +97,7 @@ fun ClassTableScreen(
                         CourseCard(
                             course = course,
                             hasAssignment = viewModel.hasAssignment(course.courseNo),
+                            isFinished = viewModel.isCourseFinishedToday(course),
                             onClick = {
                                 val today = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
                                 val dayIndex = when (today) {

@@ -22,17 +22,21 @@ import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 fun CourseCard(
     course: Course,
     hasAssignment: Boolean = false,
+    isFinished: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val color = TigerDuckTheme.courseColor(course.courseNo)
+    val cardAlpha = if (isFinished) 0.08f else 0.15f
+    val accentAlpha = if (isFinished) 0.3f else 1f
+    val textAlpha = if (isFinished) 0.4f else 1f
 
     Card(
         modifier = modifier
             .width(160.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.15f)),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = cardAlpha)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box {
@@ -42,13 +46,14 @@ fun CourseCard(
                         .width(4.dp)
                         .height(48.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(color)
+                        .background(color.copy(alpha = accentAlpha))
                 )
                 Spacer(Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = course.courseName,
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = textAlpha),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -56,13 +61,13 @@ fun CourseCard(
                     Text(
                         text = course.instructor,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f * textAlpha)
                     )
                     if (course.classroom.isNotEmpty()) {
                         Text(
                             text = course.classroom,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f * textAlpha)
                         )
                     }
                 }
@@ -76,7 +81,7 @@ fun CourseCard(
                         .align(Alignment.BottomEnd)
                         .padding(8.dp)
                         .size(14.dp),
-                    tint = Color.Gray.copy(alpha = 0.5f)
+                    tint = Color.Gray.copy(alpha = 0.5f * textAlpha)
                 )
             }
         }

@@ -15,7 +15,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -49,11 +52,16 @@ class HomeViewModel @Inject constructor(
     private val _hasSynced = MutableStateFlow(false)
     val hasSynced: StateFlow<Boolean> = _hasSynced
 
+    private val _skippedDates = MutableStateFlow<Map<String, List<String>>>(emptyMap())
+    val skippedDates: StateFlow<Map<String, List<String>>> = _skippedDates
+
     private var hasLoaded = false
 
     fun load() {
         if (hasLoaded) return
         hasLoaded = true
+
+        _skippedDates.value = dataCache.loadSkippedDates()
 
         // Load cached data immediately
         val cachedCourses = dataCache.loadCourses()
@@ -198,6 +206,16 @@ class HomeViewModel @Inject constructor(
         _selectedCourse.value = course
     }
 
+    fun toggleSkip(course: Course, date: Date) {
+        val key = skipDateFmt.format(date)
+        val current = _skippedDates.value.toMutableMap()
+        val dates = (current[course.courseNo] ?: emptyList()).toMutableList()
+        if (key in dates) dates.remove(key) else dates.add(key)
+        current[course.courseNo] = dates
+        _skippedDates.value = current
+        dataCache.saveSkippedDates(current)
+    }
+
     fun removeSection(sectionId: String) {
         _sections.value = _sections.value.filter { it.id != sectionId }
             .mapIndexed { i, s -> s.copy(sortOrder = i) }
@@ -208,6 +226,10 @@ class HomeViewModel @Inject constructor(
         val item = list.removeAt(from)
         list.add(to, item)
         _sections.value = list.mapIndexed { i, s -> s.copy(sortOrder = i) }
+    }
+
+    companion object {
+        private val skipDateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     }
 
     fun addSection(type: HomeSection.HomeSectionType, title: String) {
