@@ -38,6 +38,7 @@ fun ClassTableScreen(
 ) {
     val courses by viewModel.courses.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    viewModel.currentMinute.collectAsState() // drives recomposition when a class ends
     val selectedCourse by viewModel.selectedCourse.collectAsState()
     val todayCourses = viewModel.todayCourses
     val activePeriods = viewModel.activePeriods

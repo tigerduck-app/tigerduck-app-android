@@ -45,7 +45,24 @@ class ClassTableViewModel @Inject constructor(
     private val _currentSemester = MutableStateFlow(courseService.currentSemesterCode())
     val currentSemester: StateFlow<String> = _currentSemester
 
+    private val _currentMinute = MutableStateFlow(currentMinuteOfDay())
+    val currentMinute: StateFlow<Int> = _currentMinute
+
     private var hasLoaded = false
+
+    init {
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(60_000)
+                _currentMinute.value = currentMinuteOfDay()
+            }
+        }
+    }
+
+    private fun currentMinuteOfDay(): Int {
+        val c = Calendar.getInstance()
+        return c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE)
+    }
 
     val availableSemesters: List<String>
         get() {
@@ -130,8 +147,7 @@ class ClassTableViewModel @Inject constructor(
         val endTimeStr = AppConstants.PeriodTimes.mapping[lastPeriodId]?.second ?: return false
         val parts = endTimeStr.split(":")
         val endMinutes = parts[0].toInt() * 60 + parts[1].toInt()
-        val nowMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
-        return nowMinutes > endMinutes
+        return _currentMinute.value > endMinutes
     }
 
     fun courseAt(weekday: Int, period: String): Course? =
