@@ -177,6 +177,7 @@ private fun CourseTimeCard(
                     SlotCard(
                         slot = it, alpha = 0.5f,
                         isSkipped = isSkippedFor(it),
+                        onSkipToggle = { onSkipCourse(it.course, it.date) },
                         onClick = { onSelect(it.course) },
                         modifier = Modifier.weight(1f)
                     )
@@ -185,6 +186,7 @@ private fun CourseTimeCard(
                     SlotCard(
                         slot = it, alpha = 0.5f,
                         isSkipped = isSkippedFor(it),
+                        onSkipToggle = { onSkipCourse(it.course, it.date) },
                         onClick = { onSelect(it.course) },
                         modifier = Modifier.weight(1f)
                     )
@@ -194,6 +196,7 @@ private fun CourseTimeCard(
                 SlotCard(
                     slot = state.next, alpha = 0.5f,
                     isSkipped = isSkippedFor(state.next),
+                    onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
                     onClick = { onSelect(state.next.course) },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -202,6 +205,7 @@ private fun CourseTimeCard(
                 SlotCard(
                     slot = state.previous, alpha = 0.5f,
                     isSkipped = isSkippedFor(state.previous),
+                    onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
                     onClick = { onSelect(state.previous.course) },
                     modifier = Modifier.fillMaxWidth()
                 )

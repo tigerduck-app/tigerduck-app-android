@@ -96,7 +96,8 @@ class ClassTableViewModel @Inject constructor(
                 .sortedBy { course ->
                     val firstPeriod = course.schedule[today]
                         ?.minByOrNull { AppConstants.Periods.chronologicalOrder.indexOf(it) }
-                    AppConstants.Periods.chronologicalOrder.indexOf(firstPeriod ?: "")
+                    firstPeriod?.let { AppConstants.Periods.chronologicalOrder.indexOf(it) }
+                        ?: Int.MAX_VALUE
                 }
         }
 
@@ -146,7 +147,8 @@ class ClassTableViewModel @Inject constructor(
         val lastPeriodId = periods?.lastOrNull() ?: return false
         val endTimeStr = AppConstants.PeriodTimes.mapping[lastPeriodId]?.second ?: return false
         val parts = endTimeStr.split(":")
-        val endMinutes = parts[0].toInt() * 60 + parts[1].toInt()
+        val endMinutes = (parts.getOrNull(0)?.toIntOrNull() ?: return false) * 60 +
+                         (parts.getOrNull(1)?.toIntOrNull() ?: return false)
         return _currentMinute.value > endMinutes
     }
 
