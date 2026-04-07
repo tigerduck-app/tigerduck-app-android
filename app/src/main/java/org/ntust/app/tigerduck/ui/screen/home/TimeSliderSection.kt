@@ -246,7 +246,7 @@ private fun SlotCard(
 
     val density = LocalDensity.current
     val thresholdPx = with(density) { 100.dp.toPx() }
-    val swipeOffset = remember { Animatable(0f) }
+    val swipeOffset = remember(slot.course.courseNo, slot.date) { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
 
     Box(modifier = modifier) {

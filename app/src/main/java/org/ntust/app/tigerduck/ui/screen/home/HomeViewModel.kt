@@ -213,7 +213,9 @@ class HomeViewModel @Inject constructor(
         if (key in dates) dates.remove(key) else dates.add(key)
         current[course.courseNo] = dates
         _skippedDates.value = current
-        dataCache.saveSkippedDates(current)
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            dataCache.saveSkippedDates(current)
+        }
     }
 
     fun removeSection(sectionId: String) {
