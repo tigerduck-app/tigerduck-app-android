@@ -12,6 +12,8 @@ import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -54,6 +56,16 @@ class HomeViewModel @Inject constructor(
 
     private val _skippedDates = MutableStateFlow<Map<String, List<String>>>(emptyMap())
     val skippedDates: StateFlow<Map<String, List<String>>> = _skippedDates
+
+    private val saveSkipChannel = Channel<Map<String, List<String>>>(Channel.CONFLATED)
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            for (data in saveSkipChannel) {
+                dataCache.saveSkippedDates(data)
+            }
+        }
+    }
 
     private var hasLoaded = false
 
@@ -213,9 +225,7 @@ class HomeViewModel @Inject constructor(
         if (key in dates) dates.remove(key) else dates.add(key)
         current[course.courseNo] = dates
         _skippedDates.value = current
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            dataCache.saveSkippedDates(current)
-        }
+        saveSkipChannel.trySend(current)
     }
 
     fun removeSection(sectionId: String) {
