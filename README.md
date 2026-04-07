@@ -179,4 +179,4 @@ tigerduck-app-android/
 
 ## 授權
 
-本專案採用 [MIT License](LICENSE)。
+本專案採用 [GNU Affero General Public License v3.0](LICENSE) 授權。
