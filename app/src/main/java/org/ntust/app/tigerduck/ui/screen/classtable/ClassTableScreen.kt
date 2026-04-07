@@ -26,6 +26,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
+import org.ntust.app.tigerduck.data.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.CourseCard
 import org.ntust.app.tigerduck.ui.component.SectionHeader
@@ -107,7 +108,8 @@ fun ClassTableScreen(
                                     java.util.Calendar.FRIDAY -> 5; java.util.Calendar.SATURDAY -> 6
                                     else -> 7
                                 }
-                                val firstPeriod = course.schedule[dayIndex]?.firstOrNull() ?: ""
+                                val firstPeriod = course.schedule[dayIndex]
+                                    ?.minByOrNull { AppConstants.Periods.chronologicalOrder.indexOf(it) } ?: ""
                                 viewModel.selectCourse(course, dayIndex, firstPeriod)
                             }
                         )
