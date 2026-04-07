@@ -248,6 +248,7 @@ private fun SlotCard(
         today == cal.get(Calendar.DAY_OF_YEAR) && it.get(Calendar.YEAR) == cal.get(Calendar.YEAR)
     }
 
+    val latestOnSkipToggle by rememberUpdatedState(onSkipToggle)
     val density = LocalDensity.current
     val thresholdPx = with(density) { 100.dp.toPx() }
     val swipeOffset = remember(slot.course.courseNo, slot.date) { Animatable(0f) }
@@ -298,7 +299,7 @@ private fun SlotCard(
                             coroutineScope.launch {
                                 if (swipeOffset.value <= -thresholdPx) {
                                     swipeOffset.animateTo(-2000f, animationSpec = tween(durationMillis = 200))
-                                    onSkipToggle()
+                                    latestOnSkipToggle?.invoke()
                                     swipeOffset.snapTo(0f)
                                 } else {
                                     swipeOffset.animateTo(0f, animationSpec = spring())
