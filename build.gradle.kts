@@ -6,11 +6,11 @@ plugins {
     alias(libs.plugins.ksp) apply false
 }
 
-val localBuildRoot = file("${System.getProperty("user.home")}/.tigerduck-build")
-
-rootProject.layout.buildDirectory.set(localBuildRoot.resolve(rootProject.name))
-
-subprojects {
-    layout.buildDirectory.set(localBuildRoot.resolve(name))
+if (System.getenv("CI") == null) {
+    val localBuildRoot = file("${System.getProperty("user.home")}/.tigerduck-build")
+    rootProject.layout.buildDirectory.set(localBuildRoot.resolve(rootProject.name))
+    subprojects {
+        layout.buildDirectory.set(localBuildRoot.resolve(name))
+    }
 }
 
