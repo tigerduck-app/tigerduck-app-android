@@ -21,6 +21,7 @@ data class Course(
 ) {
     @Ignore
     @Transient
+    @Volatile
     private var _cachedSchedule: Map<Int, List<String>>? = null
 
     val schedule: Map<Int, List<String>>

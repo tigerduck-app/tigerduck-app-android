@@ -7,6 +7,8 @@ import org.ntust.app.tigerduck.network.SsoLoginError
 import org.ntust.app.tigerduck.network.SsoLoginService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,17 +25,19 @@ class AuthService @Inject constructor(
     private val _loginError = MutableStateFlow<String?>(null)
     val loginError: StateFlow<String?> = _loginError
 
+    private val loginMutex = Mutex()
+
     val isNtustAuthenticated: Boolean
         get() = sessionManager.cookiesValid && credentials.ntustStudentId != null
 
     val storedStudentId: String? get() = credentials.ntustStudentId
     internal val storedPassword: String? get() = credentials.ntustPassword
 
-    suspend fun login(studentId: String, password: String): Boolean {
+    suspend fun login(studentId: String, password: String): Boolean = loginMutex.withLock {
         _isLoggingIn.value = true
         _loginError.value = null
 
-        return try {
+        try {
             val normalizedId = studentId.trim().uppercase()
             val serviceUrl = "https://courseselection.ntust.edu.tw/"
 
@@ -77,6 +81,7 @@ class AuthService @Inject constructor(
 
     fun logout() {
         credentials.clearNtustCredentials()
+        credentials.clearLibraryCredentials()
         sessionManager.invalidateSession()
         _loginError.value = null
     }

@@ -61,18 +61,11 @@ fun CalendarScreen(
     val pullRefreshState = rememberPullToRefreshState()
     var pullRefreshing by remember { mutableStateOf(false) }
 
-    LaunchedEffect(pullRefreshing) {
-        if (pullRefreshing) {
-            delay(1000)
-            pullRefreshing = false
-        }
+    LaunchedEffect(isLoading) {
+        if (!isLoading) pullRefreshing = false
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { scaffoldPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
     PullToRefreshBox(
         state = pullRefreshState,
         isRefreshing = pullRefreshing,
@@ -80,7 +73,7 @@ fun CalendarScreen(
             pullRefreshing = true
             viewModel.refresh()
         },
-        modifier = Modifier.fillMaxSize().padding(scaffoldPadding)
+        modifier = Modifier.fillMaxSize()
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -164,7 +157,8 @@ fun CalendarScreen(
         }
 
     }
-    } // Scaffold
+    SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    } // Box
 }
 
 @Composable

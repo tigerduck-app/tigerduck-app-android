@@ -41,9 +41,9 @@ fun ClassTableScreen(
 ) {
     val courses by viewModel.courses.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    viewModel.currentMinute.collectAsState() // drives recomposition when a class ends
+    val currentMinute by viewModel.currentMinute.collectAsState()
     val selectedCourse by viewModel.selectedCourse.collectAsState()
-    val todayCourses = remember(courses) { viewModel.todayCourses }
+    val todayCourses = remember(courses, currentMinute) { viewModel.todayCourses }
     val activePeriods = remember(courses) { viewModel.activePeriods }
     val activeWeekdays = remember(courses) { viewModel.activeWeekdays }
     var showAddCourse by remember { mutableStateOf(false) }
@@ -69,18 +69,11 @@ fun ClassTableScreen(
     val pullRefreshState = rememberPullToRefreshState()
     var pullRefreshing by remember { mutableStateOf(false) }
 
-    LaunchedEffect(pullRefreshing) {
-        if (pullRefreshing) {
-            kotlinx.coroutines.delay(1000)
-            pullRefreshing = false
-        }
+    LaunchedEffect(isLoading) {
+        if (!isLoading) pullRefreshing = false
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { scaffoldPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
     PullToRefreshBox(
         state = pullRefreshState,
         isRefreshing = pullRefreshing,
@@ -88,7 +81,7 @@ fun ClassTableScreen(
             pullRefreshing = true
             viewModel.refresh()
         },
-        modifier = Modifier.fillMaxSize().padding(scaffoldPadding)
+        modifier = Modifier.fillMaxSize()
     ) {
         Column(
             modifier = Modifier
@@ -210,7 +203,8 @@ fun ClassTableScreen(
         }
 
     }
-    } // Scaffold
+    SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    } // Box
 
     selectedCourse?.let { course ->
         AlertDialog(
@@ -271,8 +265,9 @@ fun ClassTableScreen(
         ModalBottomSheet(
             onDismissRequest = { showAddCourse = false }
         ) {
+            val currentSemester by viewModel.currentSemester.collectAsState()
             AddCourseSheet(
-                semester = viewModel.currentSemester.collectAsState().value,
+                semester = currentSemester,
                 existingCourseNos = viewModel.existingCourseNos,
                 courseService = viewModel.courseService,
                 onAdd = { viewModel.addCourse(it) },

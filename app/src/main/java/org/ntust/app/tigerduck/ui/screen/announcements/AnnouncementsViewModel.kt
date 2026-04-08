@@ -30,7 +30,11 @@ class AnnouncementsViewModel @Inject constructor(
     private val _departments = MutableStateFlow<List<String>>(emptyList())
     val departments: StateFlow<List<String>> = _departments
 
+    private var hasLoaded = false
+
     fun load() {
+        if (hasLoaded) return
+        hasLoaded = true
         _announcements.value = MockData.announcements
         if (prefs.rememberAnnouncementFilter) {
             _selectedDepartments.value = prefs.savedAnnouncementDepartments

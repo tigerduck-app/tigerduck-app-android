@@ -91,10 +91,10 @@ class CalendarViewModel @Inject constructor(
     }
 
     private val _noNetworkEvent = Channel<Unit>(Channel.CONFLATED)
-    val noNetworkEvent: Channel<Unit> = _noNetworkEvent
+    val noNetworkEvent: kotlinx.coroutines.channels.ReceiveChannel<Unit> = _noNetworkEvent
 
     private val _syncCompleteEvent = Channel<Unit>(Channel.CONFLATED)
-    val syncCompleteEvent: Channel<Unit> = _syncCompleteEvent
+    val syncCompleteEvent: kotlinx.coroutines.channels.ReceiveChannel<Unit> = _syncCompleteEvent
 
     fun refresh() {
         viewModelScope.launch {
@@ -119,25 +119,17 @@ class CalendarViewModel @Inject constructor(
             }
 
             val current = _events.value.toMutableList()
-            var changed = false
 
-            if (schoolEvents.isNotEmpty()) {
-                current.removeAll { it.sourceRaw == EventSource.SCHOOL.raw }
-                current.addAll(schoolEvents)
-                changed = true
-            }
+            // Always update even if empty — an empty result means no events this period
+            current.removeAll { it.sourceRaw == EventSource.SCHOOL.raw }
+            current.addAll(schoolEvents)
 
-            if (moodleEvents.isNotEmpty()) {
-                current.removeAll { it.sourceRaw == EventSource.MOODLE.raw }
-                current.addAll(moodleEvents)
-                changed = true
-            }
+            current.removeAll { it.sourceRaw == EventSource.MOODLE.raw }
+            current.addAll(moodleEvents)
 
-            if (changed) {
-                _events.value = current
-                dataCache.saveCalendarEvents(current)
-                _syncCompleteEvent.trySend(Unit)
-            }
+            _events.value = current
+            dataCache.saveCalendarEvents(current)
+            _syncCompleteEvent.trySend(Unit)
         } catch (e: Exception) {
             // Keep existing events
         } finally {

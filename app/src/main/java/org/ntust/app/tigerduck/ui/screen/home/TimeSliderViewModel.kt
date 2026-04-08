@@ -105,13 +105,8 @@ class TimeSliderViewModel(private val scope: CoroutineScope) {
     }
 
     private fun checkTimelineRebuildNeeded() {
-        val cal = Calendar.getInstance()
-        cal.time = timelineCenterDate
-        val centerDay = cal.get(Calendar.DAY_OF_YEAR) + cal.get(Calendar.YEAR) * 366
-        cal.time = selectedTime
-        val selectedDay = cal.get(Calendar.DAY_OF_YEAR) + cal.get(Calendar.YEAR) * 366
-
-        if (abs(selectedDay - centerDay) >= TIMELINE_DAY_RADIUS - REBUILD_TRIGGER_DAYS) {
+        val diffDays = abs(timelineCenterDate.time - selectedTime.time) / (24 * 60 * 60 * 1000L)
+        if (diffDays >= TIMELINE_DAY_RADIUS - REBUILD_TRIGGER_DAYS) {
             rebuildTimeline(selectedTime)
         }
     }

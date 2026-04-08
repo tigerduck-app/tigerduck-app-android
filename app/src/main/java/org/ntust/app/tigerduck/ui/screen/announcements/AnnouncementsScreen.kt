@@ -137,7 +137,7 @@ fun AnnouncementsScreen(
 
 @Composable
 private fun AnnouncementCard(announcement: Announcement, onClick: () -> Unit) {
-    val dateFmt = SimpleDateFormat("MM/dd", Locale.getDefault())
+    val dateFmt = remember { SimpleDateFormat("MM/dd", Locale.getDefault()) }
     Card(
         modifier = Modifier
             .fillMaxWidth()

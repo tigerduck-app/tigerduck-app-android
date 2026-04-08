@@ -87,7 +87,7 @@ fun MainNavigation(appState: AppState) {
             }
         }
     ) { innerPadding ->
-        val startDest = remember { configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route }
+        val startDest = remember(configuredTabs) { configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route }
         NavHost(
             navController = navController,
             startDestination = startDest,

@@ -26,8 +26,10 @@ class NtustSessionManager @Inject constructor(
         override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
             val host = url.host
             val hostCookies = cookieStore.getOrPut(host) { CopyOnWriteArrayList() }
-            hostCookies.removeAll { existing -> cookies.any { it.name == existing.name } }
-            hostCookies.addAll(cookies)
+            synchronized(hostCookies) {
+                hostCookies.removeAll { existing -> cookies.any { it.name == existing.name } }
+                hostCookies.addAll(cookies)
+            }
         }
         override fun loadForRequest(url: HttpUrl): List<Cookie> =
             cookieStore[url.host]?.toList() ?: emptyList()
@@ -36,7 +38,7 @@ class NtustSessionManager @Inject constructor(
     private val loggingInterceptor = HttpLoggingInterceptor { message ->
         Log.d("TigerDuck-HTTP", message)
     }.apply {
-        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
                 else HttpLoggingInterceptor.Level.NONE
     }
 

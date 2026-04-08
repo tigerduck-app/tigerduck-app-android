@@ -167,10 +167,11 @@ class AppState @Inject constructor(
             val coursesJob = async { runCatching { fetchCourses() } }
             val assignmentsJob = async { runCatching { fetchAssignments() } }
             val calendarJob = async { runCatching { calendarService.fetchAndParseICS() } }
-            coursesJob.await()
-
+            val coursesResult = coursesJob.await()
             val assignmentsResult = assignmentsJob.await()
             val schoolEventsResult = calendarJob.await()
+
+            val anySucceeded = coursesResult.isSuccess || assignmentsResult.isSuccess || schoolEventsResult.isSuccess
 
             val cached = dataCache.loadCalendarEvents().toMutableList()
             var changed = false
@@ -202,7 +203,7 @@ class AppState @Inject constructor(
                 dataCache.saveCalendarEvents(cached)
             }
 
-            _loadingState.value = LoadingState.LOADED
+            _loadingState.value = if (anySucceeded) LoadingState.LOADED else LoadingState.ERROR
         }
     }
 }

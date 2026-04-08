@@ -37,7 +37,7 @@ class AssignmentNotificationScheduler @Inject constructor(
 
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
-                assignment.assignmentId.hashCode(),
+                assignment.assignmentId.hashCode() and 0x7FFFFFFF,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
@@ -60,7 +60,7 @@ class AssignmentNotificationScheduler @Inject constructor(
             val intent = Intent(context, AssignmentNotificationReceiver::class.java)
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
-                assignment.assignmentId.hashCode(),
+                assignment.assignmentId.hashCode() and 0x7FFFFFFF,
                 intent,
                 PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
             )

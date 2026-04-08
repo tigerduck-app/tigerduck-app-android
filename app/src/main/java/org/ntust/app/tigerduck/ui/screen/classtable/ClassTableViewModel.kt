@@ -229,7 +229,7 @@ class ClassTableViewModel @Inject constructor(
     }
 
     fun load() {
-        if (hasLoaded && _courses.value.isNotEmpty()) return
+        if (hasLoaded) return
         hasLoaded = true
         val cached = dataCache.loadCourses()
         val cachedA = dataCache.loadAssignments()
@@ -242,10 +242,10 @@ class ClassTableViewModel @Inject constructor(
     }
 
     private val _noNetworkEvent = Channel<Unit>(Channel.CONFLATED)
-    val noNetworkEvent: Channel<Unit> = _noNetworkEvent
+    val noNetworkEvent: kotlinx.coroutines.channels.ReceiveChannel<Unit> = _noNetworkEvent
 
     private val _syncCompleteEvent = Channel<Unit>(Channel.CONFLATED)
-    val syncCompleteEvent: Channel<Unit> = _syncCompleteEvent
+    val syncCompleteEvent: kotlinx.coroutines.channels.ReceiveChannel<Unit> = _syncCompleteEvent
 
     fun refresh() {
         viewModelScope.launch {
@@ -261,9 +261,9 @@ class ClassTableViewModel @Inject constructor(
     }
 
     private suspend fun fetchData() {
-        val studentId = authService.storedStudentId ?: return
-        val password = authService.storedPassword ?: return
-        if (!networkChecker.isAvailable()) return
+        val studentId = authService.storedStudentId ?: run { _isLoading.value = false; return }
+        val password = authService.storedPassword ?: run { _isLoading.value = false; return }
+        if (!networkChecker.isAvailable()) { _isLoading.value = false; return }
         _isLoading.value = true
         try {
             val semester = _currentSemester.value

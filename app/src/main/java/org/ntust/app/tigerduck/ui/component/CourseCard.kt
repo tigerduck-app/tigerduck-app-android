@@ -32,9 +32,9 @@ fun CourseCard(
     val textAlpha = if (isFinished) 0.4f else 1f
 
     Card(
+        onClick = onClick,
         modifier = modifier
-            .width(160.dp)
-            .clickable { onClick() },
+            .width(160.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = cardAlpha)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)

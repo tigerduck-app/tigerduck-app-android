@@ -66,18 +66,11 @@ fun HomeScreen(
     val pullRefreshState = rememberPullToRefreshState()
     var pullRefreshing by remember { mutableStateOf(false) }
 
-    LaunchedEffect(pullRefreshing) {
-        if (pullRefreshing) {
-            delay(1000)
-            pullRefreshing = false
-        }
+    LaunchedEffect(isLoading) {
+        if (!isLoading) pullRefreshing = false
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { scaffoldPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
     PullToRefreshBox(
         state = pullRefreshState,
         isRefreshing = pullRefreshing,
@@ -85,18 +78,18 @@ fun HomeScreen(
             pullRefreshing = true
             viewModel.refresh()
         },
-        modifier = Modifier.fillMaxSize().padding(scaffoldPadding)
+        modifier = Modifier.fillMaxSize()
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(vertical = 16.dp),
+            contentPadding = PaddingValues(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -150,7 +143,8 @@ fun HomeScreen(
         }
 
     }
-    } // Scaffold
+    SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    } // Box
 
     if (showComingSoon) {
         AlertDialog(

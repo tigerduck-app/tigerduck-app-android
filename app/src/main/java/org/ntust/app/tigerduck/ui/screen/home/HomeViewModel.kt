@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -51,13 +52,13 @@ class HomeViewModel @Inject constructor(
     val isLoading: StateFlow<Boolean> = _isLoading
 
     private val _noNetworkEvent = Channel<Unit>(Channel.CONFLATED)
-    val noNetworkEvent: Channel<Unit> = _noNetworkEvent
+    val noNetworkEvent: kotlinx.coroutines.channels.ReceiveChannel<Unit> = _noNetworkEvent
 
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
 
     private val _syncCompleteEvent = Channel<Unit>(Channel.CONFLATED)
-    val syncCompleteEvent: Channel<Unit> = _syncCompleteEvent
+    val syncCompleteEvent: kotlinx.coroutines.channels.ReceiveChannel<Unit> = _syncCompleteEvent
 
     private val _skippedDates = MutableStateFlow<Map<String, List<String>>>(emptyMap())
     val skippedDates: StateFlow<Map<String, List<String>>> = _skippedDates
@@ -93,11 +94,9 @@ class HomeViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            _isLoading.value = true
             if (!networkChecker.isAvailable()) {
                 _noNetworkEvent.trySend(Unit)
                 kotlinx.coroutines.yield()
-                _isLoading.value = false
                 return@launch
             }
             fetchData(forceRemote = true)
@@ -236,12 +235,14 @@ class HomeViewModel @Inject constructor(
 
     fun toggleSkip(course: Course, date: Date) {
         val key = skipDateFmt.format(date)
-        val current = _skippedDates.value.toMutableMap()
-        val dates = (current[course.courseNo] ?: emptyList()).toMutableList()
-        if (key in dates) dates.remove(key) else dates.add(key)
-        current[course.courseNo] = dates
-        _skippedDates.value = current
-        saveSkipChannel.trySend(current)
+        _skippedDates.update { current ->
+            val map = current.toMutableMap()
+            val dates = (map[course.courseNo] ?: emptyList()).toMutableList()
+            if (key in dates) dates.remove(key) else dates.add(key)
+            map[course.courseNo] = dates
+            map
+        }
+        saveSkipChannel.trySend(_skippedDates.value)
     }
 
     fun removeSection(sectionId: String) {

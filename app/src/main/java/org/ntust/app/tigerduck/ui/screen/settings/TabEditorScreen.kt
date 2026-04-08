@@ -294,7 +294,7 @@ private fun ActiveTabRow(
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .pointerInput(Unit) {
+                .pointerInput(feature) {
                     detectDragGesturesAfterLongPress(
                         onDragStart = { onDragStarted() },
                         onDrag = { change, offset ->

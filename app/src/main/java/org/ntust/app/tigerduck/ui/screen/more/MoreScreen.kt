@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.FeatureCategory
@@ -110,7 +111,7 @@ fun MoreScreen(navController: NavController, appState: AppState) {
                                         )
                                         Text(
                                             text = feature.displayName,
-                                            style = MaterialTheme.typography.titleSmall.copy(
+                                            style = MaterialTheme.typography.titleLarge.copy(
                                                 fontWeight = FontWeight.SemiBold
                                             )
                                         )

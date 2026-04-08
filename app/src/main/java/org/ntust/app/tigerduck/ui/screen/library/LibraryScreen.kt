@@ -36,6 +36,8 @@ fun LibraryScreen(
     val isLoadingQR by viewModel.isLoadingQR.collectAsState()
     val isLoggingIn by viewModel.isLoggingIn.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val storedUsername by viewModel.storedUsername.collectAsState()
     val countdownProgress by animateFloatAsState(
         targetValue = (countdown.coerceIn(0, 60)) / 60f,
         animationSpec = tween(durationMillis = if (countdown > 0) 1000 else 0, easing = LinearEasing),
@@ -66,11 +68,14 @@ fun LibraryScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Header
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 "圖書館",
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
@@ -81,11 +86,11 @@ fun LibraryScreen(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(androidx.compose.foundation.shape.CircleShape)
-                        .background(if (viewModel.isLoggedIn) Color(0xFF34C759) else Color.Gray)
+                        .background(if (isLoggedIn) Color(0xFF34C759) else Color.Gray)
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = if (viewModel.isLoggedIn) "已登入" else "未登入",
+                    text = if (isLoggedIn) "已登入" else "未登入",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -105,7 +110,7 @@ fun LibraryScreen(
             }
         }
 
-        if (viewModel.isLoggedIn) {
+        if (isLoggedIn) {
             // QR Code section
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -116,7 +121,7 @@ fun LibraryScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    viewModel.storedUsername?.let {
+                    storedUsername?.let {
                         Text(
                             text = "帳號：$it",
                             style = MaterialTheme.typography.labelMedium,

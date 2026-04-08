@@ -37,6 +37,16 @@ class SettingsViewModel @Inject constructor(
     private val _isLibraryLoggedIn = MutableStateFlow(credentials.isLibraryTokenValid)
     val isLibraryLoggedIn: StateFlow<Boolean> = _isLibraryLoggedIn
 
+    init {
+        // Periodically check library token expiry so UI stays in sync
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(30_000)
+                refreshLoginState()
+            }
+        }
+    }
+
     fun refreshLoginState() {
         _isNtustLoggedIn.value = credentials.ntustStudentId != null
         _isLibraryLoggedIn.value = credentials.isLibraryTokenValid

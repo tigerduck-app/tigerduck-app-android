@@ -52,11 +52,10 @@ class CourseService @Inject constructor(
 
             val request = Request.Builder().url(courseListUrl).get().build()
             client.newCall(request).execute().use { response ->
-                val html = response.body?.string() ?: throw CourseServiceError.NoCourseData
-
                 if (response.request.url.host.contains("ssoam2.ntust.edu.tw")) {
                     throw CourseServiceError.RedirectedToSSO
                 }
+                val html = response.body?.string() ?: throw CourseServiceError.NoCourseData
 
                 val pattern = Regex("<tr>\\s*<td>\\s*(3?[A-Z]{2}[A-Z0-9]{6,7})\\s*</td>")
                 pattern.findAll(html).map { it.groupValues[1] }.toList()
@@ -132,11 +131,10 @@ class CourseService @Inject constructor(
         val year = cal.get(Calendar.YEAR)
         val month = cal.get(Calendar.MONTH) + 1
         val rocYear = year - 1911
-        return if (month in 2..8) {
-            "${rocYear - 1}2"
-        } else {
-            val academicYear = if (month >= 9) rocYear else rocYear - 1
-            "${academicYear}1"
+        return when (month) {
+            in 2..8 -> "${rocYear - 1}2"   // Spring semester
+            in 9..12 -> "${rocYear}1"       // Fall semester
+            else -> "${rocYear - 1}1"       // January: still in prior fall semester
         }
     }
 }
