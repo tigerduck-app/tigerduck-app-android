@@ -61,6 +61,7 @@ fun TabEditorScreen(
     val haptic = LocalHapticFeedback.current
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = { Text("Tab 編輯器") },

@@ -31,14 +31,14 @@ class SettingsViewModel @Inject constructor(
     private val _libLoginError = MutableStateFlow<String?>(null)
     val libLoginError: StateFlow<String?> = _libLoginError
 
-    private val _isNtustLoggedIn = MutableStateFlow(appState.isNtustLoggedIn)
+    private val _isNtustLoggedIn = MutableStateFlow(credentials.ntustStudentId != null)
     val isNtustLoggedIn: StateFlow<Boolean> = _isNtustLoggedIn
 
     private val _isLibraryLoggedIn = MutableStateFlow(credentials.isLibraryTokenValid)
     val isLibraryLoggedIn: StateFlow<Boolean> = _isLibraryLoggedIn
 
     fun refreshLoginState() {
-        _isNtustLoggedIn.value = appState.isNtustLoggedIn
+        _isNtustLoggedIn.value = credentials.ntustStudentId != null
         _isLibraryLoggedIn.value = credentials.isLibraryTokenValid
     }
 

@@ -60,7 +60,8 @@ fun CalendarScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { scaffoldPadding ->
     PullToRefreshBox(
         state = pullRefreshState,

@@ -41,9 +41,9 @@ fun ClassTableScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     viewModel.currentMinute.collectAsState() // drives recomposition when a class ends
     val selectedCourse by viewModel.selectedCourse.collectAsState()
-    val todayCourses = viewModel.todayCourses
-    val activePeriods = viewModel.activePeriods
-    val activeWeekdays = viewModel.activeWeekdays
+    val todayCourses = remember(courses) { viewModel.todayCourses }
+    val activePeriods = remember(courses) { viewModel.activePeriods }
+    val activeWeekdays = remember(courses) { viewModel.activeWeekdays }
     var showAddCourse by remember { mutableStateOf(false) }
     var courseToRename by remember { mutableStateOf<Course?>(null) }
     var renameText by remember { mutableStateOf("") }
@@ -68,7 +68,8 @@ fun ClassTableScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { scaffoldPadding ->
     PullToRefreshBox(
         state = pullRefreshState,

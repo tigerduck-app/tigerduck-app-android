@@ -12,7 +12,10 @@ import org.ntust.app.tigerduck.data.model.TimetablePeriod
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -226,7 +229,7 @@ class ClassTableViewModel @Inject constructor(
     }
 
     fun load() {
-        if (hasLoaded) return
+        if (hasLoaded && _courses.value.isNotEmpty()) return
         hasLoaded = true
         val cached = dataCache.loadCourses()
         val cachedA = dataCache.loadAssignments()
@@ -255,13 +258,14 @@ class ClassTableViewModel @Inject constructor(
     }
 
     private suspend fun fetchData() {
+        if (!networkChecker.isAvailable()) return
         val studentId = authService.storedStudentId ?: return
         val password = authService.storedPassword ?: return
         _isLoading.value = true
         try {
             val semester = _currentSemester.value
 
-            // Fetch enrolled course numbers, then look up details
+            // Fetch enrolled course numbers, then look up details in parallel
             val courseNos = try {
                 courseService.fetchEnrolledCourseNos(studentId, password)
             } catch (e: Exception) {
@@ -270,29 +274,33 @@ class ClassTableViewModel @Inject constructor(
             }
 
             if (courseNos != null && courseNos.isNotEmpty()) {
-                val courses = courseNos.mapNotNull { courseNo ->
-                    try {
-                        val results = courseService.lookupCourse(semester, courseNo)
-                        results.firstOrNull()?.let { r ->
-                            val schedule = courseService.mergeSchedules(
-                                *results.map { it.node }.toTypedArray()
-                            )
-                            Course.fromSchedule(
-                                courseNo = r.courseNo,
-                                courseName = r.courseName,
-                                instructor = r.courseTeacher,
-                                credits = r.creditPoint.toIntOrNull() ?: 0,
-                                classroom = r.classRoomNo ?: "",
-                                enrolledCount = r.chooseStudent ?: 0,
-                                maxCount = r.restrict1?.toIntOrNull() ?: 0,
-                                schedule = schedule,
-                                moodleIdNumber = "${r.semester}${r.courseNo}"
-                            )
+                val courses = coroutineScope {
+                    courseNos.map { courseNo ->
+                        async {
+                            try {
+                                val results = courseService.lookupCourse(semester, courseNo)
+                                results.firstOrNull()?.let { r ->
+                                    val schedule = courseService.mergeSchedules(
+                                        *results.map { it.node }.toTypedArray()
+                                    )
+                                    Course.fromSchedule(
+                                        courseNo = r.courseNo,
+                                        courseName = r.courseName,
+                                        instructor = r.courseTeacher,
+                                        credits = r.creditPoint.toIntOrNull() ?: 0,
+                                        classroom = r.classRoomNo ?: "",
+                                        enrolledCount = r.chooseStudent ?: 0,
+                                        maxCount = r.restrict1?.toIntOrNull() ?: 0,
+                                        schedule = schedule,
+                                        moodleIdNumber = "${r.semester}${r.courseNo}"
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                Log.e("ClassTableVM", "Failed to lookup course $courseNo", e)
+                                null
+                            }
                         }
-                    } catch (e: Exception) {
-                        Log.e("ClassTableVM", "Failed to lookup course $courseNo", e)
-                        null
-                    }
+                    }.awaitAll().filterNotNull()
                 }
                 if (courses.isNotEmpty()) {
                     _courses.value = courses
