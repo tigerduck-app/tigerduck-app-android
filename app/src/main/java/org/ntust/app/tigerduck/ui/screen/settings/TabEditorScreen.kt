@@ -114,49 +114,51 @@ fun TabEditorScreen(
                                         if (itemHeightPx == 0f) itemHeightPx = it.height.toFloat()
                                     }
                             ) {
-                                ActiveTabRow(
-                                    feature = feature,
-                                    onRemove = { save(activeTabs - feature) },
-                                    onDragStarted = {
-                                        draggingIndex = index
-                                        dragOffsetY = 0f
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    },
-                                    onDrag = { delta ->
-                                        dragOffsetY += delta
-                                        val currentIdx = draggingIndex ?: return@ActiveTabRow
-                                        if (itemHeightPx > 0f) {
-                                            when {
-                                                dragOffsetY > itemHeightPx * 0.5f && currentIdx < activeTabs.lastIndex -> {
-                                                    val list = activeTabs.toMutableList()
-                                                    val item = list.removeAt(currentIdx)
-                                                    list.add(currentIdx + 1, item)
-                                                    activeTabs = list
-                                                    draggingIndex = currentIdx + 1
-                                                    dragOffsetY -= itemHeightPx
-                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                }
-                                                dragOffsetY < -itemHeightPx * 0.5f && currentIdx > 0 -> {
-                                                    val list = activeTabs.toMutableList()
-                                                    val item = list.removeAt(currentIdx)
-                                                    list.add(currentIdx - 1, item)
-                                                    activeTabs = list
-                                                    draggingIndex = currentIdx - 1
-                                                    dragOffsetY += itemHeightPx
-                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                Column {
+                                    ActiveTabRow(
+                                        feature = feature,
+                                        onRemove = { save(activeTabs - feature) },
+                                        onDragStarted = {
+                                            draggingIndex = index
+                                            dragOffsetY = 0f
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        },
+                                        onDrag = { delta ->
+                                            dragOffsetY += delta
+                                            val currentIdx = draggingIndex ?: return@ActiveTabRow
+                                            if (itemHeightPx > 0f) {
+                                                when {
+                                                    dragOffsetY > itemHeightPx * 0.5f && currentIdx < activeTabs.lastIndex -> {
+                                                        val list = activeTabs.toMutableList()
+                                                        val item = list.removeAt(currentIdx)
+                                                        list.add(currentIdx + 1, item)
+                                                        activeTabs = list
+                                                        draggingIndex = currentIdx + 1
+                                                        dragOffsetY -= itemHeightPx
+                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    }
+                                                    dragOffsetY < -itemHeightPx * 0.5f && currentIdx > 0 -> {
+                                                        val list = activeTabs.toMutableList()
+                                                        val item = list.removeAt(currentIdx)
+                                                        list.add(currentIdx - 1, item)
+                                                        activeTabs = list
+                                                        draggingIndex = currentIdx - 1
+                                                        dragOffsetY += itemHeightPx
+                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    }
                                                 }
                                             }
+                                        },
+                                        onDragEnded = {
+                                            draggingIndex = null
+                                            dragOffsetY = 0f
+                                            appState.configuredTabs = activeTabs
                                         }
-                                    },
-                                    onDragEnded = {
-                                        draggingIndex = null
-                                        dragOffsetY = 0f
-                                        appState.configuredTabs = activeTabs
+                                    )
+                                    if (index < activeTabs.lastIndex) {
+                                        HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                                     }
-                                )
-                            }
-                            if (index < activeTabs.lastIndex) {
-                                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                                }
                             }
                             } // key(feature)
                         }

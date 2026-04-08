@@ -379,10 +379,8 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
             .clip(RoundedCornerShape(50))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
             .pointerInput(invertDirection) {
-                var lastX = 0f
                 detectHorizontalDragGestures(
                     onDragStart = {
-                        lastX = 0f
                         viewModel.onDragStarted()
                     },
                     onDragEnd = { viewModel.onDragEnded() },
