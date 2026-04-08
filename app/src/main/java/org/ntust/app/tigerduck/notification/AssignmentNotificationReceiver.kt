@@ -1,12 +1,11 @@
 package org.ntust.app.tigerduck.notification
 
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
-import com.tigerduck.app.R
+import org.ntust.app.tigerduck.R
 
 class AssignmentNotificationReceiver : BroadcastReceiver() {
 
@@ -17,18 +16,8 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Create channel if needed
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "作業到期提醒",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "提醒你作業即將到期"
-        }
-        notificationManager.createNotificationChannel(channel)
-
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("作業即將到期")
             .setContentText("$courseName — $title")
             .setPriority(NotificationCompat.PRIORITY_HIGH)

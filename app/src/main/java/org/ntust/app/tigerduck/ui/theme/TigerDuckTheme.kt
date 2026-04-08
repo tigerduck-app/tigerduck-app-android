@@ -31,20 +31,26 @@ val courseColorPalette: List<Color> = listOf(
 )
 
 object TigerDuckTheme {
+    @Volatile
     private var courseColorMap: Map<String, Color> = emptyMap()
 
     fun buildCourseColorMap(courseNos: List<String>) {
-        val sorted = courseNos.sorted()
-        courseColorMap = sorted.mapIndexed { index, courseNo ->
-            courseNo to courseColorPalette[index % courseColorPalette.size]
-        }.toMap()
+        courseColorMap = courseNos.associateWith { courseNo -> stableColor(courseNo) }
     }
 
     fun courseColor(courseNo: String): Color {
-        courseColorMap[courseNo]?.let { return it }
+        return courseColorMap[courseNo] ?: stableColor(courseNo)
+    }
+
+    private fun stableColor(courseNo: String): Color {
         val hash = courseNo.fold(0) { acc, c -> (acc * 31 + c.code) and 0x7FFFFFFF }
         return courseColorPalette[hash % courseColorPalette.size]
     }
+}
+
+object ContentAlpha {
+    const val SECONDARY = 0.6f
+    const val DISABLED = 0.38f
 }
 
 object Spacing {

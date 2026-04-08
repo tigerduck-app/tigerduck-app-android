@@ -74,6 +74,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean("invertSliderDirection", false)
         set(value) = prefs.edit().putBoolean("invertSliderDirection", value).apply()
 
+    var libraryFeatureEnabled: Boolean
+        get() = prefs.getBoolean("libraryFeatureEnabled", false)
+        set(value) = prefs.edit().putBoolean("libraryFeatureEnabled", value).apply()
+
     var notifyAssignments: Boolean
         get() = prefs.getBoolean("notifyAssignments", true)
         set(value) = prefs.edit().putBoolean("notifyAssignments", value).apply()

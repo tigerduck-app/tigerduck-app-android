@@ -2,7 +2,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
-import java.text.SimpleDateFormat
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -15,7 +15,7 @@ data class CourseTimeSlot(
     val date: Date
 ) {
     companion object {
-        private val dayKeyFormatter = SimpleDateFormat("yyyyMMdd", Locale.US)
+        private val dayKeyFormatter = DateTimeFormatter.ofPattern("yyyyMMdd", Locale.US)
 
         fun buildSlots(courses: List<Course>, weekday: Int, on: Date = Date()): List<CourseTimeSlot> {
             val cal = Calendar.getInstance()
@@ -32,7 +32,7 @@ data class CourseTimeSlot(
                 val startDate = dateFromTimeString(firstTime.first, on, cal) ?: continue
                 val endDate = dateFromTimeString(lastTime.second, on, cal) ?: continue
 
-                val dayKey = dayKeyFormatter.format(on)
+                val dayKey = dayKeyFormatter.format(on.toInstant().atZone(java.time.ZoneId.systemDefault()))
                 slots.add(CourseTimeSlot(
                     id = "${course.courseNo}_$dayKey",
                     course = course,

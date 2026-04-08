@@ -31,7 +31,7 @@ data class CourseSearchRequest(
     @SerializedName("CampusNotes") val campusNotes: String,
     @SerializedName("ForeignLanguage") val foreignLanguage: Int,
     @SerializedName("OnlyGeneral") val onlyGeneral: Int,
-    @SerializedName("OnleyNTUST") val onlyNtust: Int,
+    @SerializedName("OnlyNTUST") val onlyNtust: Int,
     @SerializedName("OnlyMaster") val onlyMaster: Int,
     @SerializedName("OnlyUnderGraduate") val onlyUnderGraduate: Int,
     @SerializedName("OnlyNode") val onlyNode: Int,

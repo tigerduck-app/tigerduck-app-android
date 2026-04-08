@@ -26,10 +26,13 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
-import org.ntust.app.tigerduck.data.AppConstants
+import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.CourseCard
+import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,23 +42,46 @@ fun ClassTableScreen(
 ) {
     val courses by viewModel.courses.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    viewModel.currentMinute.collectAsState() // drives recomposition when a class ends
+    val currentMinute by viewModel.currentMinute.collectAsState()
     val selectedCourse by viewModel.selectedCourse.collectAsState()
-    val todayCourses = viewModel.todayCourses
-    val activePeriods = viewModel.activePeriods
-    val activeWeekdays = viewModel.activeWeekdays
+    val todayCourses = remember(courses, currentMinute) { viewModel.todayCourses }
+    val activePeriods = remember(courses) { viewModel.activePeriods }
+    val activeWeekdays = remember(courses) { viewModel.activeWeekdays }
     var showAddCourse by remember { mutableStateOf(false) }
     var courseToRename by remember { mutableStateOf<Course?>(null) }
     var renameText by remember { mutableStateOf("") }
+    var showCheckmark by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(Unit) {
+        viewModel.syncCompleteEvent.collect {
+            showCheckmark = true
+            kotlinx.coroutines.delay(2000)
+            showCheckmark = false
+        }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.noNetworkEvent.collect {
+            snackbarHostState.showSnackbar("無法連線，請檢查網路連線")
+        }
+    }
 
     val pullRefreshState = rememberPullToRefreshState()
+    var pullRefreshing by remember { mutableStateOf(false) }
 
+    LaunchedEffect(isLoading) {
+        if (!isLoading) pullRefreshing = false
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     PullToRefreshBox(
         state = pullRefreshState,
-        isRefreshing = isLoading,
-        onRefresh = { viewModel.refresh() },
+        isRefreshing = pullRefreshing,
+        onRefresh = {
+            pullRefreshing = true
+            viewModel.refresh()
+        },
         modifier = Modifier.fillMaxSize()
     ) {
         Column(
@@ -63,26 +89,13 @@ fun ClassTableScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            // Title
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "課表",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.weight(1f)
-                )
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                }
+            PageHeader(title = "課表") {
+                SyncIndicator(isLoading = isLoading, showCheckmark = showCheckmark)
                 IconButton(onClick = { showAddCourse = true }) {
                     Icon(
                         Icons.Filled.Add,
                         contentDescription = "新增課程",
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                     )
                 }
             }
@@ -125,15 +138,15 @@ fun ClassTableScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = viewModel.currentSemester.collectAsState().value,
+                    text = "學期選擇功能即將上線",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
                     text = "${viewModel.totalCredits} 學分",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
             }
 
@@ -157,6 +170,8 @@ fun ClassTableScreen(
         }
 
     }
+    SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    } // Box
 
     selectedCourse?.let { course ->
         AlertDialog(
@@ -217,8 +232,9 @@ fun ClassTableScreen(
         ModalBottomSheet(
             onDismissRequest = { showAddCourse = false }
         ) {
+            val currentSemester by viewModel.currentSemester.collectAsState()
             AddCourseSheet(
-                semester = viewModel.currentSemester.collectAsState().value,
+                semester = currentSemester,
                 existingCourseNos = viewModel.existingCourseNos,
                 courseService = viewModel.courseService,
                 onAdd = { viewModel.addCourse(it) },
@@ -287,7 +303,7 @@ private fun TimetableGrid(
                             text = period.startTime,
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 9.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                         )
                     }
                 }

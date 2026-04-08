@@ -11,11 +11,16 @@ import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.network.NetworkChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -25,6 +30,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    private val networkChecker: NetworkChecker,
     private val authService: AuthService,
     private val dataCache: DataCache,
     private val courseService: CourseService,
@@ -48,11 +54,14 @@ class HomeViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    private val _noNetworkEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
+
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
 
-    private val _hasSynced = MutableStateFlow(false)
-    val hasSynced: StateFlow<Boolean> = _hasSynced
+    private val _syncCompleteEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
     private val _skippedDates = MutableStateFlow<Map<String, List<String>>>(emptyMap())
     val skippedDates: StateFlow<Map<String, List<String>>> = _skippedDates
@@ -73,21 +82,30 @@ class HomeViewModel @Inject constructor(
         if (hasLoaded) return
         hasLoaded = true
 
-        _skippedDates.value = dataCache.loadSkippedDates()
+        viewModelScope.launch {
+            _skippedDates.value = dataCache.loadSkippedDates()
 
-        // Load cached data immediately
-        val cachedCourses = dataCache.loadCourses()
-        val cachedAssignments = dataCache.loadAssignments()
-        if (cachedCourses.isNotEmpty() || cachedAssignments.isNotEmpty()) {
-            TigerDuckTheme.buildCourseColorMap(cachedCourses.map { it.courseNo })
-            updateCoursesAndAssignments(cachedCourses, cachedAssignments)
+            // Load cached data immediately
+            val cachedCourses = dataCache.loadCourses()
+            val cachedAssignments = dataCache.loadAssignments()
+            if (cachedCourses.isNotEmpty() || cachedAssignments.isNotEmpty()) {
+                TigerDuckTheme.buildCourseColorMap(cachedCourses.map { it.courseNo })
+                updateCoursesAndAssignments(cachedCourses, cachedAssignments)
+            }
+
+            fetchData(forceRemote = true)
         }
-
-        viewModelScope.launch { fetchData(forceRemote = true) }
     }
 
     fun refresh() {
-        viewModelScope.launch { fetchData(forceRemote = true) }
+        viewModelScope.launch {
+            if (!networkChecker.isAvailable()) {
+                _noNetworkEvent.tryEmit(Unit)
+                kotlinx.coroutines.yield()
+                return@launch
+            }
+            fetchData(forceRemote = true)
+        }
     }
 
     private suspend fun fetchData(forceRemote: Boolean) {
@@ -119,7 +137,9 @@ class HomeViewModel @Inject constructor(
 
             TigerDuckTheme.buildCourseColorMap(courses.map { it.courseNo })
             updateCoursesAndAssignments(courses, assignments)
-            _hasSynced.value = true
+            if (forceRemote && authService.isNtustAuthenticated) {
+                _syncCompleteEvent.tryEmit(Unit)
+            }
         } finally {
             _isLoading.value = false
         }
@@ -167,7 +187,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun fetchAssignments(studentId: String, password: String): List<Assignment>? {
         return try {
             val remote = moodleService.fetchAssignments(studentId, password)
-            val existingCompleted = _upcomingAssignments.value
+            val existingCompleted = dataCache.loadAssignments()
                 .filter { it.isCompleted }
                 .map { it.assignmentId }
                 .toSet()
@@ -204,8 +224,12 @@ class HomeViewModel @Inject constructor(
 
         // Schedule notifications for upcoming assignments
         if (prefs.notifyAssignments) {
-            notificationScheduler.scheduleAll(assignments)
+            notificationScheduler.scheduleAll(assignments.filter { !it.isCompleted })
         }
+    }
+
+    fun cancelAllAssignmentNotifications() {
+        notificationScheduler.cancelAllTracked()
     }
 
     fun hasUnfinishedAssignment(courseNo: String): Boolean =
@@ -220,12 +244,14 @@ class HomeViewModel @Inject constructor(
 
     fun toggleSkip(course: Course, date: Date) {
         val key = skipDateFmt.format(date)
-        val current = _skippedDates.value.toMutableMap()
-        val dates = (current[course.courseNo] ?: emptyList()).toMutableList()
-        if (key in dates) dates.remove(key) else dates.add(key)
-        current[course.courseNo] = dates
-        _skippedDates.value = current
-        saveSkipChannel.trySend(current)
+        _skippedDates.update { current ->
+            val map = current.toMutableMap()
+            val dates = (map[course.courseNo] ?: emptyList()).toMutableList()
+            if (key in dates) dates.remove(key) else dates.add(key)
+            map[course.courseNo] = dates
+            map
+        }
+        saveSkipChannel.trySend(_skippedDates.value)
     }
 
     fun removeSection(sectionId: String) {

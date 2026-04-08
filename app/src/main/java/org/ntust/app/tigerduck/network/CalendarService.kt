@@ -3,7 +3,7 @@ package org.ntust.app.tigerduck.network
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import android.util.Log
-import com.tigerduck.app.BuildConfig
+import org.ntust.app.tigerduck.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -25,7 +25,7 @@ class CalendarService @Inject constructor() {
     private val loggingInterceptor = HttpLoggingInterceptor { message ->
         Log.d("TigerDuck-HTTP", message)
     }.apply {
-        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
                 else HttpLoggingInterceptor.Level.NONE
     }
 
@@ -51,7 +51,7 @@ class CalendarService @Inject constructor() {
                 "<a[^>]*href=\"([^\"]*)\"[^>]*>(.*?)</a>",
                 setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
             )
-            val yearRegex = Regex("(\\d{3})")
+            val yearRegex = Regex("""\b(1\d{2})\b""")
             val result = mutableMapOf<Int, String>()
 
             for (match in linkRegex.findAll(html)) {
@@ -104,23 +104,26 @@ class CalendarService @Inject constructor() {
         }
     }
 
-    private val icsDateOnly = SimpleDateFormat("yyyyMMdd", Locale.US).apply {
-        timeZone = TimeZone.getTimeZone("Asia/Taipei")
-    }
-    private val icsDateTime = SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.US).apply {
-        timeZone = TimeZone.getTimeZone("Asia/Taipei")
-    }
-    private val icsDateTimeZ = SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.US).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
-    }
-
     private fun parseICSDate(line: String): Date? {
         val colonIdx = line.lastIndexOf(':')
         if (colonIdx < 0) return null
         val value = line.substring(colonIdx + 1)
-        return try { icsDateTimeZ.parse(value) } catch (e: Exception) { null }
-            ?: try { icsDateTime.parse(value) } catch (e: Exception) { null }
-            ?: try { icsDateOnly.parse(value) } catch (e: Exception) { null }
+        // Create new instances each call — SimpleDateFormat is not thread-safe
+        return try {
+            SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }.parse(value)
+        } catch (e: Exception) { null }
+            ?: try {
+            SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("Asia/Taipei")
+            }.parse(value)
+        } catch (e: Exception) { null }
+            ?: try {
+            SimpleDateFormat("yyyyMMdd", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("Asia/Taipei")
+            }.parse(value)
+        } catch (e: Exception) { null }
     }
 
     private fun parseICS(ics: String): List<CalendarEvent> {

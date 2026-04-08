@@ -39,14 +39,20 @@ class LibraryViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
-    val isLoggedIn: Boolean get() = credentials.isLibraryTokenValid
-    val storedUsername: String? get() = credentials.libraryUsername
+    private val _isLoggedIn = MutableStateFlow(credentials.isLibraryTokenValid)
+    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
+
+    private val _storedUsername = MutableStateFlow(credentials.libraryUsername)
+    val storedUsername: StateFlow<String?> = _storedUsername
 
     private var countdownJob: Job? = null
+    private var refreshJob: Job? = null
     private val qrValidSeconds = 60
 
     fun load() {
-        if (isLoggedIn) {
+        _isLoggedIn.value = credentials.isLibraryTokenValid
+        _storedUsername.value = credentials.libraryUsername
+        if (_isLoggedIn.value) {
             refreshQR()
         }
     }
@@ -57,6 +63,8 @@ class LibraryViewModel @Inject constructor(
             _errorMessage.value = null
             try {
                 libraryService.login(username, password)
+                _isLoggedIn.value = true
+                _storedUsername.value = username
                 refreshQR()
             } catch (e: Exception) {
                 _errorMessage.value = e.message ?: "登入失敗"
@@ -67,7 +75,8 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun refreshQR() {
-        viewModelScope.launch {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
             _isLoadingQR.value = true
             _errorMessage.value = null
             try {
@@ -91,24 +100,21 @@ class LibraryViewModel @Inject constructor(
                 _countdown.value--
             }
             if (isActive && _countdown.value == 0) {
-                try {
-                    refreshQR()
-                } catch (_: Exception) {
-                    // Auto-refresh failed; restart countdown to retry later
-                    startCountdown()
-                }
+                refreshQR()
             }
         }
     }
 
     fun onResume() {
-        if (isLoggedIn && _qrBitmap.value == null) {
+        _isLoggedIn.value = credentials.isLibraryTokenValid
+        if (_isLoggedIn.value && _qrBitmap.value == null) {
             refreshQR()
         }
     }
 
     fun onPause() {
         countdownJob?.cancel()
+        refreshJob?.cancel()
     }
 
     private fun generateQRBitmap(content: String, size: Int = 512): Bitmap {

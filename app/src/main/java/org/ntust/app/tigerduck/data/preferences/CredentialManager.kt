@@ -11,17 +11,26 @@ import javax.inject.Singleton
 @Singleton
 class CredentialManager @Inject constructor(@ApplicationContext context: Context) {
 
+    var isEncrypted: Boolean = false
+        private set
+
     private val prefs: SharedPreferences = run {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        EncryptedSharedPreferences.create(
-            context,
-            "tigerduck_credentials",
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+        try {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            isEncrypted = true
+            EncryptedSharedPreferences.create(
+                context,
+                "tigerduck_credentials",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("CredentialManager", "EncryptedSharedPreferences failed", e)
+            throw SecurityException("Cannot create encrypted credential storage", e)
+        }
     }
 
     var ntustStudentId: String?

@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
 @Composable
@@ -32,9 +33,9 @@ fun CourseCard(
     val textAlpha = if (isFinished) 0.4f else 1f
 
     Card(
+        onClick = onClick,
         modifier = modifier
-            .width(160.dp)
-            .clickable { onClick() },
+            .width(160.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = cardAlpha)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -61,13 +62,13 @@ fun CourseCard(
                     Text(
                         text = course.instructor,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f * textAlpha)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY * textAlpha)
                     )
                     if (course.classroom.isNotEmpty()) {
                         Text(
                             text = course.classroom,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f * textAlpha)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY * textAlpha)
                         )
                     }
                 }

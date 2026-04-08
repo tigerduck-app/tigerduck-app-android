@@ -2,7 +2,7 @@ package org.ntust.app.tigerduck.network
 
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import android.util.Log
-import com.tigerduck.app.BuildConfig
+import org.ntust.app.tigerduck.BuildConfig
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
@@ -22,12 +22,21 @@ class NtustSessionManager @Inject constructor(
 ) {
     private val cookieStore = ConcurrentHashMap<String, CopyOnWriteArrayList<Cookie>>()
 
+    init {
+        // Clear stale SSO timestamp if cookie store is empty after process restart
+        if (cookieStore.isEmpty() && prefs.ssoLoginTimestamp > 0L) {
+            prefs.clearSsoTimestamp()
+        }
+    }
+
     private val cookieJar = object : CookieJar {
         override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
             val host = url.host
             val hostCookies = cookieStore.getOrPut(host) { CopyOnWriteArrayList() }
-            hostCookies.removeAll { existing -> cookies.any { it.name == existing.name } }
-            hostCookies.addAll(cookies)
+            synchronized(hostCookies) {
+                hostCookies.removeAll { existing -> cookies.any { it.name == existing.name } }
+                hostCookies.addAll(cookies)
+            }
         }
         override fun loadForRequest(url: HttpUrl): List<Cookie> =
             cookieStore[url.host]?.toList() ?: emptyList()
@@ -36,7 +45,7 @@ class NtustSessionManager @Inject constructor(
     private val loggingInterceptor = HttpLoggingInterceptor { message ->
         Log.d("TigerDuck-HTTP", message)
     }.apply {
-        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
                 else HttpLoggingInterceptor.Level.NONE
     }
 
