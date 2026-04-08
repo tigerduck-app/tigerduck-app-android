@@ -206,7 +206,8 @@ class AppState @Inject constructor(
                 dataCache.saveCalendarEvents(cached)
             }
 
-            _loadingState.value = if (anySucceeded) LoadingState.LOADED else LoadingState.ERROR
+            val hasCachedData = cached.isNotEmpty()
+            _loadingState.value = if (anySucceeded || hasCachedData) LoadingState.LOADED else LoadingState.ERROR
         }
     }
 }

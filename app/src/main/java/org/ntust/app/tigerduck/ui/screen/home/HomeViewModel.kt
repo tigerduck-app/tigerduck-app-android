@@ -38,7 +38,7 @@ class HomeViewModel @Inject constructor(
     private val prefs: AppPreferences
 ) : ViewModel() {
 
-    private val _sections = MutableStateFlow(HomeSection.defaults())
+    private val _sections = MutableStateFlow(prefs.homeSections)
     val sections: StateFlow<List<HomeSection>> = _sections
 
     private val _allCourses = MutableStateFlow<List<Course>>(emptyList())
@@ -256,6 +256,7 @@ class HomeViewModel @Inject constructor(
     fun removeSection(sectionId: String) {
         _sections.value = _sections.value.filter { it.id != sectionId }
             .mapIndexed { i, s -> s.copy(sortOrder = i) }
+        prefs.homeSections = _sections.value
     }
 
     fun moveSections(from: Int, to: Int) {
@@ -263,6 +264,7 @@ class HomeViewModel @Inject constructor(
         val item = list.removeAt(from)
         list.add(to, item)
         _sections.value = list.mapIndexed { i, s -> s.copy(sortOrder = i) }
+        prefs.homeSections = _sections.value
     }
 
     companion object {
@@ -278,5 +280,6 @@ class HomeViewModel @Inject constructor(
             isVisible = true
         )
         _sections.value = _sections.value + newSection
+        prefs.homeSections = _sections.value
     }
 }

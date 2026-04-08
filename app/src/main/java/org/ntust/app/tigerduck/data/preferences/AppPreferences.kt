@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import org.ntust.app.tigerduck.data.model.AppFeature
+import org.ntust.app.tigerduck.data.model.HomeSection
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -81,6 +82,21 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     var notifyAssignments: Boolean
         get() = prefs.getBoolean("notifyAssignments", true)
         set(value) = prefs.edit().putBoolean("notifyAssignments", value).apply()
+
+    var homeSections: List<HomeSection>
+        get() {
+            val json = prefs.getString("homeSections", null) ?: return HomeSection.defaults()
+            return try {
+                val type = object : TypeToken<List<HomeSection>>() {}.type
+                gson.fromJson<List<HomeSection>>(json, type)?.ifEmpty { HomeSection.defaults() }
+                    ?: HomeSection.defaults()
+            } catch (e: Exception) {
+                HomeSection.defaults()
+            }
+        }
+        set(value) {
+            prefs.edit().putString("homeSections", gson.toJson(value)).apply()
+        }
 
     var ssoLoginTimestamp: Long
         get() = prefs.getLong("ssoLoginTimestamp", 0L)
