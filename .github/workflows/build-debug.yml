@@ -45,7 +45,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew bundleRelease assembleRelease
+        run: ./gradlew bundleRelease assembleRelease -Pandroid.buildDir=${{ github.workspace }}/app/build
 
       - name: List build outputs
         run: |
