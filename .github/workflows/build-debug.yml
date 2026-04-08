@@ -48,7 +48,11 @@ jobs:
         run: ./gradlew bundleRelease assembleRelease
 
       - name: List build outputs
-        run: find app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) 2>/dev/null || echo "No outputs found"
+        run: |
+          echo "=== All APK/AAB files ==="
+          find . -type f \( -name "*.apk" -o -name "*.aab" \) 2>/dev/null || echo "None found"
+          echo "=== app/build/outputs tree ==="
+          ls -laR app/build/outputs/ 2>/dev/null || echo "No outputs dir"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
