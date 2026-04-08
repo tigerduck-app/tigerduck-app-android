@@ -34,10 +34,9 @@ abstract class AppDatabase : RoomDatabase() {
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "tigerduck.db")
                 .apply {
+                    addMigrations(MIGRATION_1_2)
                     if (BuildConfig.DEBUG) {
                         fallbackToDestructiveMigration(true)
-                    } else {
-                        addMigrations(MIGRATION_1_2)
                     }
                 }
                 .build()

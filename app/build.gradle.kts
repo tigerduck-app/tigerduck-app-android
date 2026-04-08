@@ -37,7 +37,7 @@ android {
                 "proguard-rules.pro"
             )
             val keystoreFile = file("keystore.jks")
-            if (keystoreFile.exists() && System.getenv("KEYSTORE_PASSWORD") != null) {
+            if (keystoreFile.exists() && System.getenv("KEYSTORE_PASSWORD")?.isNotEmpty() == true) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }

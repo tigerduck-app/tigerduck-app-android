@@ -53,23 +53,11 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     // MARK: - Skipped Dates (courseNo -> list of ISO date strings "yyyy-MM-dd")
     // Stored in filesDir — never cleared by the OS, unlike cacheDir.
 
-    suspend fun saveSkippedDates(data: Map<String, List<String>>) = mutex.withLock {
-        withContext(Dispatchers.IO) {
-            try {
-                File(userDataDir, "skipped_dates.json").writeText(gson.toJson(data))
-            } catch (e: Exception) { }
-        }
-    }
+    suspend fun saveSkippedDates(data: Map<String, List<String>>) = saveToUserData(data, "skipped_dates.json")
 
-    suspend fun loadSkippedDates(): Map<String, List<String>> = mutex.withLock {
-        withContext(Dispatchers.IO) {
-            val type = object : TypeToken<Map<String, List<String>>>() {}.type
-            try {
-                val file = File(userDataDir, "skipped_dates.json")
-                if (!file.exists()) return@withContext emptyMap()
-                gson.fromJson(file.readText(), type) ?: emptyMap()
-            } catch (e: Exception) { emptyMap() }
-        }
+    suspend fun loadSkippedDates(): Map<String, List<String>> {
+        val type = object : TypeToken<Map<String, List<String>>>() {}.type
+        return loadFromUserData(type, "skipped_dates.json") ?: emptyMap()
     }
 
     // MARK: - Calendar Events
@@ -97,6 +85,26 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         withContext(Dispatchers.IO) {
             try {
                 val file = File(cacheDir, filename)
+                if (!file.exists()) return@withContext null
+                gson.fromJson(file.readText(), type)
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    private suspend fun <T> saveToUserData(value: T, filename: String) = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            try {
+                File(userDataDir, filename).writeText(gson.toJson(value))
+            } catch (e: Exception) { }
+        }
+    }
+
+    private suspend fun <T> loadFromUserData(type: java.lang.reflect.Type, filename: String): T? = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            try {
+                val file = File(userDataDir, filename)
                 if (!file.exists()) return@withContext null
                 gson.fromJson(file.readText(), type)
             } catch (e: Exception) {
