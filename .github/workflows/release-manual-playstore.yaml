@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release (e.g. v1.1.0)'
+        description: 'Tag to release (e.g. v1.0.0)'
         required: true
 
 permissions:
@@ -39,6 +39,13 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew bundleRelease assembleRelease
+
+      - name: Rename build outputs
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          VERSION=$(echo "${TAG#v}" | tr '.' '_')
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/TigerDuck_v${VERSION}.apk"
+          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/TigerDuck_v${VERSION}.aab"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2
