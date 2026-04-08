@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
@@ -253,6 +255,7 @@ private fun TimetableGrid(
     onRename: (Course) -> Unit = {},
     onDelete: (Course) -> Unit = {}
 ) {
+    val haptic = LocalHapticFeedback.current
     val dayLabels = listOf("", "一", "二", "三", "四", "五", "六", "日")
     val cellHeight = 52.dp
     val periodColWidth = 36.dp
@@ -343,7 +346,10 @@ private fun TimetableGrid(
                                             onClick = {
                                                 viewModel.selectCourse(role.course, weekday, period.id)
                                             },
-                                            onLongClick = { showMenu = true }
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                showMenu = true
+                                            }
                                         )
                                 ) {
                                     Text(

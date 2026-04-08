@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
@@ -61,6 +63,7 @@ fun MainNavigation(appState: AppState) {
         else -> currentRoute
     }
 
+    val haptic = LocalHapticFeedback.current
     val bottomItems = configuredTabs + listOf(AppFeature.MORE)
     val startDest = remember { configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route }
 
@@ -74,6 +77,7 @@ fun MainNavigation(appState: AppState) {
                         label = { Text(feature.displayName) },
                         selected = selectedTabRoute == route,
                         onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             navController.navigate(route) {
                                 popUpTo(startDest) {
                                     inclusive = false
