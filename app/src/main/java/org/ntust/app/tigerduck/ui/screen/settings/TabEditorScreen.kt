@@ -111,7 +111,7 @@ fun TabEditorScreen(
                                     }
                                     .shadow(elevation)
                                     .onSizeChanged {
-                                        if (itemHeightPx == 0f) itemHeightPx = it.height.toFloat()
+                                        itemHeightPx = it.height.toFloat()
                                     }
                             ) {
                                 Column {

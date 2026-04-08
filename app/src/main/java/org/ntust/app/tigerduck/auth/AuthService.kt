@@ -80,11 +80,6 @@ class AuthService @Inject constructor(
 
         if (sessionManager.cookiesValid) return@withLock true
 
-        // Release the mutex before calling login (which also acquires it)
-        // by inlining the login logic here instead.
-        _isLoggingIn.value = true
-        _loginError.value = null
-
         try {
             val normalizedId = studentId.trim().uppercase()
             val serviceUrl = "https://courseselection.ntust.edu.tw/"
@@ -98,18 +93,10 @@ class AuthService @Inject constructor(
                 }
             }
 
-            _isLoggingIn.value = false
             success
         } catch (e: CancellationException) {
-            _isLoggingIn.value = false
             throw e
-        } catch (e: Exception) {
-            _loginError.value = if (e is SsoLoginError.NetworkError) {
-                "無法連線，請檢查網路連線"
-            } else {
-                e.message ?: "登入失敗"
-            }
-            _isLoggingIn.value = false
+        } catch (_: Exception) {
             false
         }
     }
