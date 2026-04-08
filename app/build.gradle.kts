@@ -45,7 +45,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-buildFeatures {
+    buildFeatures {
         compose = true
         buildConfig = true
     }
