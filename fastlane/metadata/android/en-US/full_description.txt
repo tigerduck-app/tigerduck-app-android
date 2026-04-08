@@ -1,0 +1,10 @@
+TigerDuck is an open-source campus assistant app for National Taiwan University of Science and Technology (NTUST) students.
+
+It brings together scattered campus services into a single native Android experience:
+
+- Sync assignments from Moodle with deadline notifications and reminders
+- Course schedule sync from the selection system with an interactive time-machine timeline
+- Integrated campus calendar combining school events and Moodle deadlines
+- Customizable themes, notification preferences, and display settings
+
+Built by students, for students.

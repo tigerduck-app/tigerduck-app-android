@@ -10,7 +10,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.tigerduck.app"
+        applicationId = "org.ntust.app.tigerduck"
         minSdk = 26
         targetSdk = 36
         versionCode = 2
@@ -21,11 +21,10 @@ android {
 
     signingConfigs {
         create("release") {
-            // TODO: Configure with your keystore before publishing
-            // storeFile = file("keystore.jks")
-            // storePassword = System.getenv("KEYSTORE_PASSWORD")
-            // keyAlias = System.getenv("KEY_ALIAS")
-            // keyPassword = System.getenv("KEY_PASSWORD")
+            storeFile = file("keystore.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
         }
     }
 
@@ -37,7 +36,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // signingConfig = signingConfigs.getByName("release")
+            val keystoreFile = file("keystore.jks")
+            if (keystoreFile.exists() && System.getenv("KEYSTORE_PASSWORD") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
@@ -46,7 +48,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-buildFeatures {
+    buildFeatures {
         compose = true
         buildConfig = true
     }
