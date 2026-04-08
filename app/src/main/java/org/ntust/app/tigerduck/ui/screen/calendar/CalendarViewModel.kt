@@ -125,13 +125,15 @@ class CalendarViewModel @Inject constructor(
 
             val current = _events.value.toMutableList()
 
-            if (schoolEvents.isNotEmpty() || moodleEvents.isNotEmpty()) {
+            if (schoolEvents.isNotEmpty()) {
                 current.removeAll { it.sourceRaw == EventSource.SCHOOL.raw }
                 current.addAll(schoolEvents)
-
+            }
+            if (moodleEvents.isNotEmpty()) {
                 current.removeAll { it.sourceRaw == EventSource.MOODLE.raw }
                 current.addAll(moodleEvents)
-
+            }
+            if (schoolEvents.isNotEmpty() || moodleEvents.isNotEmpty()) {
                 _events.value = current
                 dataCache.saveCalendarEvents(current)
             }
