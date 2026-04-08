@@ -173,7 +173,7 @@ class TimeSliderViewModel(private val scope: CoroutineScope) {
     fun onDragChanged(dx: Float, invertDirection: Boolean, context: Context?) {
         if (!isUserDragging) onDragStarted()
         autoReturnJob?.cancel()
-        val direction = if (invertDirection) 1f else -1f
+        val direction = if (invertDirection) -1f else 1f
 
         val currentX = interpolateX(selectedTime)
         val newX = currentX + direction * dx

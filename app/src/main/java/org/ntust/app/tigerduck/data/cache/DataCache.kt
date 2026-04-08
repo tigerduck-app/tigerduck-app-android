@@ -8,8 +8,10 @@ import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.Course
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Date
 import javax.inject.Inject
@@ -52,7 +54,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     // Stored in filesDir — never cleared by the OS, unlike cacheDir.
 
     suspend fun saveSkippedDates(data: Map<String, List<String>>) = mutex.withLock {
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             try {
                 File(userDataDir, "skipped_dates.json").writeText(gson.toJson(data))
             } catch (e: Exception) { }
@@ -60,7 +62,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     }
 
     suspend fun loadSkippedDates(): Map<String, List<String>> = mutex.withLock {
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             val type = object : TypeToken<Map<String, List<String>>>() {}.type
             try {
                 val file = File(userDataDir, "skipped_dates.json")
@@ -82,7 +84,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     // MARK: - Private helpers
 
     private suspend fun <T> save(value: T, filename: String) = mutex.withLock {
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             try {
                 File(cacheDir, filename).writeText(gson.toJson(value))
             } catch (e: Exception) {
@@ -92,7 +94,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     }
 
     private suspend fun <T> load(type: java.lang.reflect.Type, filename: String): T? = mutex.withLock {
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             try {
                 val file = File(cacheDir, filename)
                 if (!file.exists()) return@withContext null

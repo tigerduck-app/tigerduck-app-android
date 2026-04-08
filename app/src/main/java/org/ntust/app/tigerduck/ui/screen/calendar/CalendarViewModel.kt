@@ -125,15 +125,16 @@ class CalendarViewModel @Inject constructor(
 
             val current = _events.value.toMutableList()
 
-            // Always update even if empty — an empty result means no events this period
-            current.removeAll { it.sourceRaw == EventSource.SCHOOL.raw }
-            current.addAll(schoolEvents)
+            if (schoolEvents.isNotEmpty() || moodleEvents.isNotEmpty()) {
+                current.removeAll { it.sourceRaw == EventSource.SCHOOL.raw }
+                current.addAll(schoolEvents)
 
-            current.removeAll { it.sourceRaw == EventSource.MOODLE.raw }
-            current.addAll(moodleEvents)
+                current.removeAll { it.sourceRaw == EventSource.MOODLE.raw }
+                current.addAll(moodleEvents)
 
-            _events.value = current
-            dataCache.saveCalendarEvents(current)
+                _events.value = current
+                dataCache.saveCalendarEvents(current)
+            }
             _syncCompleteEvent.tryEmit(Unit)
         } catch (e: Exception) {
             // Keep existing events
