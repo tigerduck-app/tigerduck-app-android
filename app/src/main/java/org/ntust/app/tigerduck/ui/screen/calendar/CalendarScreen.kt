@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.calendar
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -8,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
@@ -39,9 +41,17 @@ fun CalendarScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val dayEvents by viewModel.selectedDateEvents.collectAsState()
 
+    var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(Unit) {
+        for (event in viewModel.syncCompleteEvent) {
+            showCheckmark = true
+            delay(2000)
+            showCheckmark = false
+        }
+    }
     LaunchedEffect(Unit) {
         for (event in viewModel.noNetworkEvent) {
             snackbarHostState.showSnackbar("無法連線，請檢查網路連線")
@@ -89,6 +99,30 @@ fun CalendarScreen(
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         modifier = Modifier.weight(1f)
                     )
+                    AnimatedContent(
+                        targetState = when {
+                            isLoading -> "loading"
+                            showCheckmark -> "checkmark"
+                            else -> "idle"
+                        },
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "sync_status"
+                    ) { state ->
+                        when (state) {
+                            "loading" -> CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                            "checkmark" -> Icon(
+                                Icons.Filled.CheckCircle,
+                                contentDescription = "同步成功",
+                                tint = Color(0xFF34C759),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            else -> Spacer(Modifier.size(20.dp))
+                        }
+                    }
                     TextButton(onClick = { viewModel.goToToday() }) {
                         Text("今天", style = MaterialTheme.typography.labelMedium)
                     }

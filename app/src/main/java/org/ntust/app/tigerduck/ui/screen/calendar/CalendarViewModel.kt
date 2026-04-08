@@ -93,6 +93,9 @@ class CalendarViewModel @Inject constructor(
     private val _noNetworkEvent = Channel<Unit>(Channel.CONFLATED)
     val noNetworkEvent: Channel<Unit> = _noNetworkEvent
 
+    private val _syncCompleteEvent = Channel<Unit>(Channel.CONFLATED)
+    val syncCompleteEvent: Channel<Unit> = _syncCompleteEvent
+
     fun refresh() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -133,6 +136,7 @@ class CalendarViewModel @Inject constructor(
             if (changed) {
                 _events.value = current
                 dataCache.saveCalendarEvents(current)
+                _syncCompleteEvent.trySend(Unit)
             }
         } catch (e: Exception) {
             // Keep existing events

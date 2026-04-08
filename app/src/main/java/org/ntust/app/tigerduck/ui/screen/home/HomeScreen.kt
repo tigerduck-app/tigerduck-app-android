@@ -104,17 +104,29 @@ fun HomeScreen(
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         modifier = Modifier.weight(1f)
                     )
-                    AnimatedVisibility(
-                        visible = showCheckmark,
-                        enter = fadeIn(),
-                        exit = fadeOut()
-                    ) {
-                        Icon(
-                            Icons.Filled.CheckCircle,
-                            contentDescription = "同步成功",
-                            tint = Color(0xFF34C759),
-                            modifier = Modifier.size(20.dp)
-                        )
+                    AnimatedContent(
+                        targetState = when {
+                            isLoading -> "loading"
+                            showCheckmark -> "checkmark"
+                            else -> "idle"
+                        },
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "sync_status"
+                    ) { state ->
+                        when (state) {
+                            "loading" -> CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                            "checkmark" -> Icon(
+                                Icons.Filled.CheckCircle,
+                                contentDescription = "同步成功",
+                                tint = Color(0xFF34C759),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            else -> Spacer(Modifier.size(20.dp))
+                        }
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,6 +27,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.CheckCircle
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.CourseCard
@@ -47,9 +49,17 @@ fun ClassTableScreen(
     var showAddCourse by remember { mutableStateOf(false) }
     var courseToRename by remember { mutableStateOf<Course?>(null) }
     var renameText by remember { mutableStateOf("") }
+    var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(Unit) {
+        for (event in viewModel.syncCompleteEvent) {
+            showCheckmark = true
+            kotlinx.coroutines.delay(2000)
+            showCheckmark = false
+        }
+    }
     LaunchedEffect(Unit) {
         for (event in viewModel.noNetworkEvent) {
             snackbarHostState.showSnackbar("無法連線，請檢查網路連線")
@@ -97,6 +107,30 @@ fun ClassTableScreen(
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.weight(1f)
                 )
+                AnimatedContent(
+                    targetState = when {
+                        isLoading -> "loading"
+                        showCheckmark -> "checkmark"
+                        else -> "idle"
+                    },
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "sync_status"
+                ) { state ->
+                    when (state) {
+                        "loading" -> CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                        "checkmark" -> Icon(
+                            Icons.Filled.CheckCircle,
+                            contentDescription = "同步成功",
+                            tint = Color(0xFF34C759),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        else -> Spacer(Modifier.size(20.dp))
+                    }
+                }
                 IconButton(onClick = { showAddCourse = true }) {
                     Icon(
                         Icons.Filled.Add,
