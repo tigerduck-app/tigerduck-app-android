@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 1,
-    "identityHash": "c3e466e26e01eef2d408099c3f400dcd",
+    "version": 2,
+    "identityHash": "91880ad8aa30685decd109cdba992f08",
     "entities": [
       {
         "tableName": "courses",
@@ -120,7 +120,27 @@
           "columnNames": [
             "assignmentId"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_assignments_dueDate",
+            "unique": false,
+            "columnNames": [
+              "dueDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_assignments_dueDate` ON `${TABLE_NAME}` (`dueDate`)"
+          },
+          {
+            "name": "index_assignments_courseNo",
+            "unique": false,
+            "columnNames": [
+              "courseNo"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_assignments_courseNo` ON `${TABLE_NAME}` (`courseNo`)"
+          }
+        ]
       },
       {
         "tableName": "calendar_events",
@@ -208,12 +228,23 @@
           "columnNames": [
             "announcementId"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_announcements_publishDate",
+            "unique": false,
+            "columnNames": [
+              "publishDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_announcements_publishDate` ON `${TABLE_NAME}` (`publishDate`)"
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c3e466e26e01eef2d408099c3f400dcd')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '91880ad8aa30685decd109cdba992f08')"
     ]
   }
 }
