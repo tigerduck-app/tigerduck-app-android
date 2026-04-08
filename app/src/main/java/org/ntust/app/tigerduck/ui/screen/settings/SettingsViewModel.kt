@@ -6,6 +6,7 @@ import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.LibraryService
+import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.ui.AppState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +20,8 @@ class SettingsViewModel @Inject constructor(
     private val authService: AuthService,
     private val libraryService: LibraryService,
     private val credentials: CredentialManager,
-    val prefs: AppPreferences
+    val prefs: AppPreferences,
+    private val notificationScheduler: AssignmentNotificationScheduler
 ) : ViewModel() {
 
     val isNtustLoggingIn = authService.isLoggingIn
@@ -31,14 +33,14 @@ class SettingsViewModel @Inject constructor(
     private val _libLoginError = MutableStateFlow<String?>(null)
     val libLoginError: StateFlow<String?> = _libLoginError
 
-    private val _isNtustLoggedIn = MutableStateFlow(appState.isNtustLoggedIn)
+    private val _isNtustLoggedIn = MutableStateFlow(credentials.ntustStudentId != null)
     val isNtustLoggedIn: StateFlow<Boolean> = _isNtustLoggedIn
 
     private val _isLibraryLoggedIn = MutableStateFlow(credentials.isLibraryTokenValid)
     val isLibraryLoggedIn: StateFlow<Boolean> = _isLibraryLoggedIn
 
     fun refreshLoginState() {
-        _isNtustLoggedIn.value = appState.isNtustLoggedIn
+        _isNtustLoggedIn.value = credentials.ntustStudentId != null
         _isLibraryLoggedIn.value = credentials.isLibraryTokenValid
     }
 
@@ -77,5 +79,6 @@ class SettingsViewModel @Inject constructor(
     val libraryUsername: String? get() = credentials.libraryUsername
     val libraryTokenExpiry: Long get() = credentials.libraryTokenExpiry
     val ntustStudentId: String? get() = authService.storedStudentId
-    val cookieExpiryMs: Long get() = appState.sessionManager.cookieExpiryMs
+
+    fun cancelAllAssignmentNotifications() = notificationScheduler.cancelAllTracked()
 }

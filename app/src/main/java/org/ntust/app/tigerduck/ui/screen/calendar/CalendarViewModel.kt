@@ -9,12 +9,17 @@ import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.MoodleService
+import org.ntust.app.tigerduck.network.NetworkChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -24,6 +29,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
+    private val networkChecker: NetworkChecker,
     private val calendarService: CalendarService,
     private val moodleService: MoodleService,
     private val authService: AuthService,
@@ -83,12 +89,28 @@ class CalendarViewModel @Inject constructor(
     fun load() {
         if (hasLoaded) return
         hasLoaded = true
-        _events.value = dataCache.loadCalendarEvents()
-        viewModelScope.launch { fetchData() }
+        viewModelScope.launch {
+            _events.value = dataCache.loadCalendarEvents()
+            fetchData()
+        }
     }
 
+    private val _noNetworkEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
+
+    private val _syncCompleteEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
+
     fun refresh() {
-        viewModelScope.launch { fetchData() }
+        viewModelScope.launch {
+            _isLoading.value = true
+            if (!networkChecker.isAvailable()) {
+                _noNetworkEvent.tryEmit(Unit)
+                _isLoading.value = false
+                return@launch
+            }
+            fetchData()
+        }
     }
 
     private suspend fun fetchData() {
@@ -101,23 +123,19 @@ class CalendarViewModel @Inject constructor(
             }
 
             val current = _events.value.toMutableList()
-            var changed = false
 
             if (schoolEvents.isNotEmpty()) {
                 current.removeAll { it.sourceRaw == EventSource.SCHOOL.raw }
                 current.addAll(schoolEvents)
-                changed = true
             }
-
             if (moodleEvents.isNotEmpty()) {
                 current.removeAll { it.sourceRaw == EventSource.MOODLE.raw }
                 current.addAll(moodleEvents)
-                changed = true
             }
-
-            if (changed) {
+            if (schoolEvents.isNotEmpty() || moodleEvents.isNotEmpty()) {
                 _events.value = current
                 dataCache.saveCalendarEvents(current)
+                _syncCompleteEvent.tryEmit(Unit)
             }
         } catch (e: Exception) {
             // Keep existing events

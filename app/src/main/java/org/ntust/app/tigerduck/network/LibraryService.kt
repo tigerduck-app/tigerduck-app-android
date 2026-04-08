@@ -7,8 +7,10 @@ import org.ntust.app.tigerduck.network.model.LibraryLoginResponse
 import org.ntust.app.tigerduck.network.model.LibraryQRRequest
 import org.ntust.app.tigerduck.network.model.LibraryQRResponse
 import android.util.Log
-import com.tigerduck.app.BuildConfig
+import org.ntust.app.tigerduck.BuildConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -32,7 +34,7 @@ class LibraryService @Inject constructor(
     private val loggingInterceptor = HttpLoggingInterceptor { message ->
         Log.d("TigerDuck-HTTP", message)
     }.apply {
-        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
+        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
                 else HttpLoggingInterceptor.Level.NONE
     }
 
@@ -40,8 +42,13 @@ class LibraryService @Inject constructor(
         .addInterceptor(loggingInterceptor)
         .build()
     private val gson = Gson()
+    private val tokenMutex = Mutex()
 
-    suspend fun login(username: String, password: String): String = withContext(Dispatchers.IO) {
+    suspend fun login(username: String, password: String): String = tokenMutex.withLock {
+        loginInternal(username, password)
+    }
+
+    private suspend fun loginInternal(username: String, password: String): String = withContext(Dispatchers.IO) {
         val body = gson.toJson(LibraryLoginRequest(username, password))
             .toRequestBody("application/json".toMediaType())
 
@@ -55,8 +62,8 @@ class LibraryService @Inject constructor(
                 ?: throw LibraryServiceError.LoginFailed("無回應")
             val loginResponse = gson.fromJson(responseBody, LibraryLoginResponse::class.java)
 
-            if (loginResponse.error.code != 0 || loginResponse.data == null) {
-                throw LibraryServiceError.LoginFailed(loginResponse.error.message)
+            if (loginResponse.data == null || loginResponse.error?.code?.let { it != 0 } == true) {
+                throw LibraryServiceError.LoginFailed(loginResponse.error?.message ?: "未知錯誤")
             }
 
             credentials.libraryUsername = username
@@ -68,16 +75,16 @@ class LibraryService @Inject constructor(
         }
     }
 
-    suspend fun ensureToken(): String {
+    suspend fun ensureToken(): String = tokenMutex.withLock {
         val token = credentials.libraryToken
-        if (token != null && credentials.isLibraryTokenValid) return token
+        if (token != null && credentials.isLibraryTokenValid) return@withLock token
 
         val username = credentials.libraryUsername
             ?: throw LibraryServiceError.CredentialsNotFound
         val password = credentials.libraryPassword
             ?: throw LibraryServiceError.CredentialsNotFound
 
-        return login(username, password)
+        loginInternal(username, password)
     }
 
     suspend fun generateQRCode(): String = withContext(Dispatchers.IO) {
@@ -95,8 +102,8 @@ class LibraryService @Inject constructor(
                 ?: throw LibraryServiceError.QRGenerationFailed("無回應")
             val qrResponse = gson.fromJson(responseBody, LibraryQRResponse::class.java)
 
-            if (qrResponse.error.code != 0 || qrResponse.data == null) {
-                throw LibraryServiceError.QRGenerationFailed(qrResponse.error.message)
+            if (qrResponse.data == null || qrResponse.error?.code?.let { it != 0 } == true) {
+                throw LibraryServiceError.QRGenerationFailed(qrResponse.error?.message ?: "未知錯誤")
             }
             qrResponse.data
         }

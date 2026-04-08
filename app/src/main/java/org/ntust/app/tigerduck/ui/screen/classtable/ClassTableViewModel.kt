@@ -11,18 +11,29 @@ import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.model.TimetablePeriod
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
+import org.ntust.app.tigerduck.network.NetworkChecker
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.coroutineScope
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
 
 @HiltViewModel
 class ClassTableViewModel @Inject constructor(
+    private val networkChecker: NetworkChecker,
     private val authService: AuthService,
-    val courseService: CourseService,
+    internal val courseService: CourseService,
     private val moodleService: MoodleService,
     private val dataCache: DataCache
 ) : ViewModel() {
@@ -45,11 +56,37 @@ class ClassTableViewModel @Inject constructor(
     private val _currentSemester = MutableStateFlow(courseService.currentSemesterCode())
     val currentSemester: StateFlow<String> = _currentSemester
 
+    data class DayTime(val weekday: Int, val minuteOfDay: Int)
+
+    private val _currentDayTime = MutableStateFlow(currentDayTime())
+    val currentMinute: StateFlow<Int> = _currentDayTime
+        .map { it.minuteOfDay }
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, currentDayTime().minuteOfDay)
+
     private var hasLoaded = false
+
+    init {
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(60_000)
+                _currentDayTime.value = currentDayTime()
+            }
+        }
+    }
+
+    private fun currentDayTime(): DayTime {
+        val c = Calendar.getInstance()
+        val wd = when (c.get(Calendar.DAY_OF_WEEK)) {
+            Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
+            Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
+            else -> 7
+        }
+        return DayTime(wd, c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE))
+    }
 
     val availableSemesters: List<String>
         get() {
-            val code = courseService.currentSemesterCode()
+            val code = _currentSemester.value
             val year = code.dropLast(1).toIntOrNull() ?: return listOf(code)
             val sem = code.last().digitToIntOrNull() ?: 1
             val result = mutableListOf<String>()
@@ -67,14 +104,15 @@ class ClassTableViewModel @Inject constructor(
 
     val todayCourses: List<Course>
         get() {
-            val today = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).let {
-                when (it) {
-                    Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
-                    Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
-                    Calendar.SUNDAY -> 7; else -> 1
+            val today = _currentDayTime.value.weekday
+            return _courses.value
+                .filter { it.schedule.containsKey(today) }
+                .sortedBy { course ->
+                    val firstPeriod = course.schedule[today]
+                        ?.minByOrNull { AppConstants.Periods.chronologicalOrder.indexOf(it) }
+                    firstPeriod?.let { AppConstants.Periods.chronologicalOrder.indexOf(it) }
+                        ?: Int.MAX_VALUE
                 }
-            }
-            return _courses.value.filter { it.schedule.containsKey(today) }
         }
 
     val activeWeekdays: List<Int>
@@ -109,6 +147,18 @@ class ClassTableViewModel @Inject constructor(
             return "${first.first} - ${last.second}"
         }
 
+    fun isCourseFinishedToday(course: Course): Boolean {
+        val dayTime = _currentDayTime.value
+        val periods = course.schedule[dayTime.weekday]
+            ?.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
+        val lastPeriodId = periods?.lastOrNull() ?: return false
+        val endTimeStr = AppConstants.PeriodTimes.mapping[lastPeriodId]?.second ?: return false
+        val parts = endTimeStr.split(":")
+        val endMinutes = (parts.getOrNull(0)?.toIntOrNull() ?: return false) * 60 +
+                         (parts.getOrNull(1)?.toIntOrNull() ?: return false)
+        return dayTime.minuteOfDay > endMinutes
+    }
+
     fun courseAt(weekday: Int, period: String): Course? =
         _courses.value.firstOrNull { it.schedule[weekday]?.contains(period) == true }
 
@@ -134,7 +184,7 @@ class ClassTableViewModel @Inject constructor(
     fun addCourse(course: Course) {
         val updated = _courses.value + course
         _courses.value = updated
-        dataCache.saveCourses(updated)
+        viewModelScope.launch { dataCache.saveCourses(updated) }
         TigerDuckTheme.buildCourseColorMap(updated.map { it.courseNo })
     }
 
@@ -143,13 +193,13 @@ class ClassTableViewModel @Inject constructor(
             if (it.courseNo == courseNo) it.copy(courseName = newName) else it
         }
         _courses.value = updated
-        dataCache.saveCourses(updated)
+        viewModelScope.launch { dataCache.saveCourses(updated) }
     }
 
     fun deleteCourse(courseNo: String) {
         val updated = _courses.value.filter { it.courseNo != courseNo }
         _courses.value = updated
-        dataCache.saveCourses(updated)
+        viewModelScope.launch { dataCache.saveCourses(updated) }
     }
 
     sealed class CellRole {
@@ -182,28 +232,46 @@ class ClassTableViewModel @Inject constructor(
     fun load() {
         if (hasLoaded) return
         hasLoaded = true
-        val cached = dataCache.loadCourses()
-        val cachedA = dataCache.loadAssignments()
-        if (cached.isNotEmpty()) {
-            _courses.value = cached
-            _assignments.value = cachedA
-            TigerDuckTheme.buildCourseColorMap(cached.map { it.courseNo })
+        viewModelScope.launch {
+            val cached = dataCache.loadCourses()
+            val cachedA = dataCache.loadAssignments()
+            if (cached.isNotEmpty()) {
+                _courses.value = cached
+                _assignments.value = cachedA
+                TigerDuckTheme.buildCourseColorMap(cached.map { it.courseNo })
+            }
+            fetchData()
         }
-        viewModelScope.launch { fetchData() }
     }
 
+    private val _noNetworkEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
+
+    private val _syncCompleteEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
+
     fun refresh() {
-        viewModelScope.launch { fetchData() }
+        viewModelScope.launch {
+            _isLoading.value = true
+            if (!networkChecker.isAvailable()) {
+                _noNetworkEvent.tryEmit(Unit)
+                kotlinx.coroutines.yield()
+                _isLoading.value = false
+                return@launch
+            }
+            fetchData()
+        }
     }
 
     private suspend fun fetchData() {
-        val studentId = authService.storedStudentId ?: return
-        val password = authService.storedPassword ?: return
+        val studentId = authService.storedStudentId ?: run { _isLoading.value = false; return }
+        val password = authService.storedPassword ?: run { _isLoading.value = false; return }
+        if (!networkChecker.isAvailable()) { _isLoading.value = false; return }
         _isLoading.value = true
         try {
             val semester = _currentSemester.value
 
-            // Fetch enrolled course numbers, then look up details
+            // Fetch enrolled course numbers, then look up details in parallel
             val courseNos = try {
                 courseService.fetchEnrolledCourseNos(studentId, password)
             } catch (e: Exception) {
@@ -212,29 +280,33 @@ class ClassTableViewModel @Inject constructor(
             }
 
             if (courseNos != null && courseNos.isNotEmpty()) {
-                val courses = courseNos.mapNotNull { courseNo ->
-                    try {
-                        val results = courseService.lookupCourse(semester, courseNo)
-                        results.firstOrNull()?.let { r ->
-                            val schedule = courseService.mergeSchedules(
-                                *results.map { it.node }.toTypedArray()
-                            )
-                            Course.fromSchedule(
-                                courseNo = r.courseNo,
-                                courseName = r.courseName,
-                                instructor = r.courseTeacher,
-                                credits = r.creditPoint.toIntOrNull() ?: 0,
-                                classroom = r.classRoomNo ?: "",
-                                enrolledCount = r.chooseStudent ?: 0,
-                                maxCount = r.restrict1?.toIntOrNull() ?: 0,
-                                schedule = schedule,
-                                moodleIdNumber = "${r.semester}${r.courseNo}"
-                            )
+                val courses = coroutineScope {
+                    courseNos.map { courseNo ->
+                        async {
+                            try {
+                                val results = courseService.lookupCourse(semester, courseNo)
+                                results.firstOrNull()?.let { r ->
+                                    val schedule = courseService.mergeSchedules(
+                                        *results.map { it.node }.toTypedArray()
+                                    )
+                                    Course.fromSchedule(
+                                        courseNo = r.courseNo,
+                                        courseName = r.courseName,
+                                        instructor = r.courseTeacher,
+                                        credits = r.creditPoint.toIntOrNull() ?: 0,
+                                        classroom = r.classRoomNo ?: "",
+                                        enrolledCount = r.chooseStudent ?: 0,
+                                        maxCount = r.restrict1?.toIntOrNull() ?: 0,
+                                        schedule = schedule,
+                                        moodleIdNumber = "${r.semester}${r.courseNo}"
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                Log.e("ClassTableVM", "Failed to lookup course $courseNo", e)
+                                null
+                            }
                         }
-                    } catch (e: Exception) {
-                        Log.e("ClassTableVM", "Failed to lookup course $courseNo", e)
-                        null
-                    }
+                    }.awaitAll().filterNotNull()
                 }
                 if (courses.isNotEmpty()) {
                     _courses.value = courses
@@ -260,6 +332,7 @@ class ClassTableViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("ClassTableVM", "Failed to fetch assignments", e)
             }
+            _syncCompleteEvent.tryEmit(Unit)
         } finally {
             _isLoading.value = false
         }

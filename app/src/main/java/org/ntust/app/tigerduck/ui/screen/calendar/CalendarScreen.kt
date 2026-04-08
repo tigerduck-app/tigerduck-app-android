@@ -21,7 +21,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.data.model.CalendarEvent
+import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -38,14 +42,38 @@ fun CalendarScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val dayEvents by viewModel.selectedDateEvents.collectAsState()
 
+    var showCheckmark by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
     LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(Unit) {
+        viewModel.syncCompleteEvent.collect {
+            showCheckmark = true
+            delay(2000)
+            showCheckmark = false
+        }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.noNetworkEvent.collect {
+            snackbarHostState.showSnackbar("無法連線，請檢查網路連線")
+        }
+    }
 
     val pullRefreshState = rememberPullToRefreshState()
+    var pullRefreshing by remember { mutableStateOf(false) }
 
+    LaunchedEffect(isLoading) {
+        if (!isLoading) pullRefreshing = false
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     PullToRefreshBox(
         state = pullRefreshState,
-        isRefreshing = isLoading,
-        onRefresh = { viewModel.refresh() },
+        isRefreshing = pullRefreshing,
+        onRefresh = {
+            pullRefreshing = true
+            viewModel.refresh()
+        },
         modifier = Modifier.fillMaxSize()
     ) {
         LazyColumn(
@@ -53,22 +81,8 @@ fun CalendarScreen(
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
             item {
-                // Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "行事曆",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
-                    }
+                PageHeader(title = "行事曆") {
+                    SyncIndicator(isLoading = isLoading, showCheckmark = showCheckmark)
                     TextButton(onClick = { viewModel.goToToday() }) {
                         Text("今天", style = MaterialTheme.typography.labelMedium)
                     }
@@ -98,7 +112,7 @@ fun CalendarScreen(
                     ) {
                         Text(
                             "這天沒有活動",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                         )
                     }
                 }
@@ -110,6 +124,8 @@ fun CalendarScreen(
         }
 
     }
+    SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    } // Box
 }
 
 @Composable
@@ -157,7 +173,7 @@ private fun MonthCalendar(
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
             }
         }
@@ -206,7 +222,7 @@ private fun MonthCalendar(
                                     text = "$dayNum",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = when {
-                                        isSelected -> Color.White
+                                        isSelected -> MaterialTheme.colorScheme.onPrimary
                                         isToday -> MaterialTheme.colorScheme.primary
                                         else -> MaterialTheme.colorScheme.onSurface
                                     },
@@ -260,7 +276,7 @@ private fun EventRow(event: CalendarEvent) {
         Text(
             timeFmt.format(event.date),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
         )
     }
 }

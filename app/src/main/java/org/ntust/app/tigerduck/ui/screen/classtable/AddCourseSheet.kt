@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 private enum class SearchMode(val label: String) {
     COURSE_CODE("課程代碼"),
@@ -166,7 +167,7 @@ fun AddCourseSheet(
                 Text(
                     "輸入課程代碼或課名後搜尋",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
             }
         } else {
@@ -205,20 +206,20 @@ fun AddCourseSheet(
                             Text(
                                 "${group.courseNo} · ${group.instructor} · ${group.credits}學分",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                             )
                             if (group.classroom.isNotEmpty()) {
                                 Text(
                                     group.classroom,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                                 )
                             }
                             if (group.nodeDisplay.isNotEmpty()) {
                                 Text(
                                     group.nodeDisplay,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                                 )
                             }
                         }

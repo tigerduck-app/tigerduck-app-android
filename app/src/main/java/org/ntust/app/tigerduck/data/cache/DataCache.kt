@@ -8,6 +8,10 @@ import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.Course
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Date
 import javax.inject.Inject
@@ -21,54 +25,92 @@ import javax.inject.Singleton
 class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     private val cacheDir: File = File(context.cacheDir, "TigerDuckCache").also { it.mkdirs() }
+    // User-generated state that has no remote source — stored in filesDir so the OS never evicts it.
+    private val userDataDir: File = File(context.filesDir, "TigerDuckData").also { it.mkdirs() }
+    private val cacheMutex = Mutex()
+    private val userDataMutex = Mutex()
     private val gson: Gson = GsonBuilder()
         .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         .create()
 
     // MARK: - Courses
 
-    fun saveCourses(courses: List<Course>) = save(courses, "courses.json")
+    suspend fun saveCourses(courses: List<Course>) = save(courses, "courses.json")
 
-    fun loadCourses(): List<Course> {
+    suspend fun loadCourses(): List<Course> {
         val type = object : TypeToken<List<Course>>() {}.type
         return load(type, "courses.json") ?: emptyList()
     }
 
     // MARK: - Assignments
 
-    fun saveAssignments(assignments: List<Assignment>) = save(assignments, "assignments.json")
+    suspend fun saveAssignments(assignments: List<Assignment>) = save(assignments, "assignments.json")
 
-    fun loadAssignments(): List<Assignment> {
+    suspend fun loadAssignments(): List<Assignment> {
         val type = object : TypeToken<List<Assignment>>() {}.type
         return load(type, "assignments.json") ?: emptyList()
     }
 
+    // MARK: - Skipped Dates (courseNo -> list of ISO date strings "yyyy-MM-dd")
+    // Stored in filesDir — never cleared by the OS, unlike cacheDir.
+
+    suspend fun saveSkippedDates(data: Map<String, List<String>>) = saveToUserData(data, "skipped_dates.json")
+
+    suspend fun loadSkippedDates(): Map<String, List<String>> {
+        val type = object : TypeToken<Map<String, List<String>>>() {}.type
+        return loadFromUserData(type, "skipped_dates.json") ?: emptyMap()
+    }
+
     // MARK: - Calendar Events
 
-    fun saveCalendarEvents(events: List<CalendarEvent>) = save(events, "calendar_events.json")
+    suspend fun saveCalendarEvents(events: List<CalendarEvent>) = save(events, "calendar_events.json")
 
-    fun loadCalendarEvents(): List<CalendarEvent> {
+    suspend fun loadCalendarEvents(): List<CalendarEvent> {
         val type = object : TypeToken<List<CalendarEvent>>() {}.type
         return load(type, "calendar_events.json") ?: emptyList()
     }
 
     // MARK: - Private helpers
 
-    private fun <T> save(value: T, filename: String) {
-        try {
-            File(cacheDir, filename).writeText(gson.toJson(value))
-        } catch (e: Exception) {
-            // Ignore write errors
+    private suspend fun <T> save(value: T, filename: String) = cacheMutex.withLock {
+        withContext(Dispatchers.IO) {
+            try {
+                File(cacheDir, filename).writeText(gson.toJson(value))
+            } catch (e: Exception) {
+                // Ignore write errors
+            }
         }
     }
 
-    private fun <T> load(type: java.lang.reflect.Type, filename: String): T? {
-        return try {
-            val file = File(cacheDir, filename)
-            if (!file.exists()) return null
-            gson.fromJson(file.readText(), type)
-        } catch (e: Exception) {
-            null
+    private suspend fun <T> load(type: java.lang.reflect.Type, filename: String): T? = cacheMutex.withLock {
+        withContext(Dispatchers.IO) {
+            try {
+                val file = File(cacheDir, filename)
+                if (!file.exists()) return@withContext null
+                gson.fromJson(file.readText(), type)
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    private suspend fun <T> saveToUserData(value: T, filename: String) = userDataMutex.withLock {
+        withContext(Dispatchers.IO) {
+            try {
+                File(userDataDir, filename).writeText(gson.toJson(value))
+            } catch (e: Exception) { }
+        }
+    }
+
+    private suspend fun <T> loadFromUserData(type: java.lang.reflect.Type, filename: String): T? = userDataMutex.withLock {
+        withContext(Dispatchers.IO) {
+            try {
+                val file = File(userDataDir, filename)
+                if (!file.exists()) return@withContext null
+                gson.fromJson(file.readText(), type)
+            } catch (e: Exception) {
+                null
+            }
         }
     }
 }

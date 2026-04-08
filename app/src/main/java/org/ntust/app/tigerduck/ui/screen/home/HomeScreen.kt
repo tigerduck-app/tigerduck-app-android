@@ -3,7 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 import android.content.Context
 import android.content.Intent
 import androidx.core.net.toUri
-import androidx.compose.animation.*
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,13 +16,12 @@ import androidx.compose.material3.pulltorefresh.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.Course
+import java.util.Date
 import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.*
@@ -40,58 +39,52 @@ fun HomeScreen(
     val upcomingAssignments by viewModel.upcomingAssignments.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val selectedCourse by viewModel.selectedCourse.collectAsState()
-    val hasSynced by viewModel.hasSynced.collectAsState()
+    val skippedDates by viewModel.skippedDates.collectAsState()
     var showComingSoon by remember { mutableStateOf(false) }
+    var showCheckmark by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { viewModel.load() }
 
-    val pullRefreshState = rememberPullToRefreshState()
+    LaunchedEffect(Unit) {
+        viewModel.syncCompleteEvent.collect {
+            showCheckmark = true
+            delay(2000)
+            showCheckmark = false
+        }
+    }
 
+    LaunchedEffect(Unit) {
+        viewModel.noNetworkEvent.collect {
+            snackbarHostState.showSnackbar("無法連線，請檢查網路連線")
+        }
+    }
+
+    val pullRefreshState = rememberPullToRefreshState()
+    var pullRefreshing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isLoading) {
+        if (!isLoading) pullRefreshing = false
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     PullToRefreshBox(
         state = pullRefreshState,
-        isRefreshing = isLoading,
-        onRefresh = { viewModel.refresh() },
-        indicator = {
-            PullToRefreshDefaults.Indicator(
-                modifier = Modifier.align(Alignment.TopCenter),
-                isRefreshing = isLoading,
-                state = pullRefreshState
-            )
+        isRefreshing = pullRefreshing,
+        onRefresh = {
+            pullRefreshing = true
+            viewModel.refresh()
         },
         modifier = Modifier.fillMaxSize()
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(vertical = 16.dp),
+            contentPadding = PaddingValues(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = greetingText(),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.weight(1f)
-                    )
-                    AnimatedContent(
-                        targetState = isLoading to hasSynced,
-                        label = "sync_status"
-                    ) { (loading, synced) ->
-                        if (loading) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        } else if (synced) {
-                            Icon(
-                                Icons.Filled.CheckCircle,
-                                contentDescription = "同步成功",
-                                tint = Color(0xFF34C759),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
+                PageHeader(title = greetingText()) {
+                    SyncIndicator(isLoading = isLoading, showCheckmark = showCheckmark)
                 }
             }
 
@@ -104,24 +97,21 @@ fun HomeScreen(
                     showAbsoluteTime = appState.showAbsoluteAssignmentTime,
                     sliderStyle = appState.timeSliderStyle,
                     invertDirection = appState.invertSliderDirection,
+                    skippedDates = skippedDates,
                     onCourseClick = { viewModel.selectCourse(it) },
                     onAssignmentClick = { openAssignmentInMoodle(context, it) },
+                    onSkipCourse = { course, date -> viewModel.toggleSkip(course, date) },
                     onWidgetClick = { showComingSoon = true }
                 )
             }
         }
 
     }
+    SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    } // Box
 
     if (showComingSoon) {
-        AlertDialog(
-            onDismissRequest = { showComingSoon = false },
-            title = { Text("快了快了") },
-            text = { Text("此功能尚未實現，敬請期待～") },
-            confirmButton = {
-                TextButton(onClick = { showComingSoon = false }) { Text("收到！") }
-            }
-        )
+        ComingSoonDialog(onDismiss = { showComingSoon = false })
     }
 
     selectedCourse?.let { course ->
@@ -142,8 +132,10 @@ private fun HomeSectionContent(
     showAbsoluteTime: Boolean,
     sliderStyle: String,
     invertDirection: Boolean,
+    skippedDates: Map<String, List<String>>,
     onCourseClick: (Course) -> Unit,
     onAssignmentClick: (Assignment) -> Unit,
+    onSkipCourse: (Course, Date) -> Unit,
     onWidgetClick: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -153,6 +145,8 @@ private fun HomeSectionContent(
                     courses = allCourses,
                     sliderStyle = sliderStyle,
                     invertDirection = invertDirection,
+                    skippedDates = skippedDates,
+                    onSkipCourse = onSkipCourse,
                     onSelectCourse = onCourseClick
                 )
             }

@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -52,7 +53,7 @@ fun AssignmentItem(
             Text(
                 text = assignment.courseName,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
             )
         }
 
@@ -63,7 +64,7 @@ fun AssignmentItem(
                    else formatRelative(assignment.dueDate),
             style = MaterialTheme.typography.labelSmall,
             color = if (assignment.isOverdue) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
         )
     }
 }

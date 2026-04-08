@@ -5,21 +5,21 @@ import org.ntust.app.tigerduck.data.model.Course
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface CourseDao {
+abstract class CourseDao {
     @Query("SELECT * FROM courses")
-    fun observeAll(): Flow<List<Course>>
+    abstract fun observeAll(): Flow<List<Course>>
 
     @Query("SELECT * FROM courses")
-    suspend fun getAll(): List<Course>
+    abstract suspend fun getAll(): List<Course>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(courses: List<Course>)
+    abstract suspend fun insertAll(courses: List<Course>)
 
     @Query("DELETE FROM courses")
-    suspend fun deleteAll()
+    abstract suspend fun deleteAll()
 
     @Transaction
-    suspend fun replaceAll(courses: List<Course>) {
+    open suspend fun replaceAll(courses: List<Course>) {
         deleteAll()
         insertAll(courses)
     }

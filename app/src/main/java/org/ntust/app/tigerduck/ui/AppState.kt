@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.network.LoadingState
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,7 @@ class AppState @Inject constructor(
     val calendarService: CalendarService
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var syncJob: Job? = null
 
     private val _loadingState = MutableStateFlow(LoadingState.IDLE)
     @Suppress("unused")
@@ -128,9 +130,25 @@ class AppState @Inject constructor(
             prefs.notifyAssignments = value
         }
 
+    private var libraryFeatureEnabledState by mutableStateOf(prefs.libraryFeatureEnabled)
+
+    var libraryFeatureEnabled: Boolean
+        get() = libraryFeatureEnabledState
+        set(value) {
+            if (libraryFeatureEnabledState == value) return
+            libraryFeatureEnabledState = value
+            prefs.libraryFeatureEnabled = value
+        }
+
+    private var configuredTabsState by mutableStateOf(prefs.configuredTabs)
+
     var configuredTabs: List<AppFeature>
-        get() = prefs.configuredTabs
-        set(value) { prefs.configuredTabs = value }
+        get() = configuredTabsState
+        set(value) {
+            if (configuredTabsState == value) return
+            configuredTabsState = value
+            prefs.configuredTabs = value
+        }
 
     val isNtustLoggedIn: Boolean get() = authService.isNtustAuthenticated
     @Suppress("unused")
@@ -146,15 +164,17 @@ class AppState @Inject constructor(
         fetchAssignments: suspend () -> Unit
     ) {
         if (!hasCompletedOnboarding) return
-        scope.launch {
+        syncJob?.cancel()
+        syncJob = scope.launch {
             _loadingState.value = LoadingState.LOADING
             val coursesJob = async { runCatching { fetchCourses() } }
             val assignmentsJob = async { runCatching { fetchAssignments() } }
             val calendarJob = async { runCatching { calendarService.fetchAndParseICS() } }
-            coursesJob.await()
-
+            val coursesResult = coursesJob.await()
             val assignmentsResult = assignmentsJob.await()
             val schoolEventsResult = calendarJob.await()
+
+            val anySucceeded = coursesResult.isSuccess || assignmentsResult.isSuccess || schoolEventsResult.isSuccess
 
             val cached = dataCache.loadCalendarEvents().toMutableList()
             var changed = false
@@ -186,7 +206,8 @@ class AppState @Inject constructor(
                 dataCache.saveCalendarEvents(cached)
             }
 
-            _loadingState.value = LoadingState.LOADED
+            val hasCachedData = cached.isNotEmpty()
+            _loadingState.value = if (anySucceeded || hasCachedData) LoadingState.LOADED else LoadingState.ERROR
         }
     }
 }

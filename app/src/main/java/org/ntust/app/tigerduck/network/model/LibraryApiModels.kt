@@ -8,7 +8,7 @@ data class LibraryLoginRequest(
 
 data class LibraryLoginResponse(
     val data: LibraryLoginData?,
-    val error: LibraryApiError
+    val error: LibraryApiError? = null
 )
 
 data class LibraryLoginData(
@@ -24,7 +24,7 @@ data class LibraryQRRequest(
 
 data class LibraryQRResponse(
     val data: String?,
-    val error: LibraryApiError
+    val error: LibraryApiError? = null
 )
 
 data class LibraryApiError(

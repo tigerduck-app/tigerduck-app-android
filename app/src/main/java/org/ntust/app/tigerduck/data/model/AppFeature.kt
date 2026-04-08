@@ -68,16 +68,19 @@ enum class AppFeature(val id: String) {
 
     val category: FeatureCategory?
         get() = when (this) {
-            GPA, COURSE_SELECTION, GRADUATION_REQUIREMENTS -> FeatureCategory.ACADEMIC
+            CLASS_TABLE, CALENDAR, GPA, COURSE_SELECTION, GRADUATION_REQUIREMENTS -> FeatureCategory.ACADEMIC
             LIBRARY, DISCUSSION_ROOM, LIBRARY_LECTURE -> FeatureCategory.LIBRARY
-            FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP -> FeatureCategory.LIFE
+            ANNOUNCEMENTS, FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP -> FeatureCategory.LIFE
             ENGLISH_VOCAB -> FeatureCategory.LANGUAGE
             SETTINGS -> FeatureCategory.SYSTEM
             else -> null
         }
 
+    val isLibraryRelated: Boolean
+        get() = this == LIBRARY || this == DISCUSSION_ROOM || this == LIBRARY_LECTURE
+
     companion object {
-        val defaultTabs = listOf(HOME, CLASS_TABLE, CALENDAR, LIBRARY)
+        val defaultTabs = listOf(HOME, CLASS_TABLE, CALENDAR)
 
         val pinnableFeatures = listOf(
             HOME, CLASS_TABLE, CALENDAR, ANNOUNCEMENTS, LIBRARY,
@@ -88,10 +91,10 @@ enum class AppFeature(val id: String) {
         )
 
         val moreFeatures = listOf(
-            ANNOUNCEMENTS,
+            CLASS_TABLE, CALENDAR,
             GPA, COURSE_SELECTION, GRADUATION_REQUIREMENTS,
-            DISCUSSION_ROOM, LIBRARY_LECTURE,
-            FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
+            LIBRARY, DISCUSSION_ROOM, LIBRARY_LECTURE,
+            ANNOUNCEMENTS, FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
             ENGLISH_VOCAB
         )
 

@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 @Composable
 fun LibraryScreen(
@@ -36,6 +38,8 @@ fun LibraryScreen(
     val isLoadingQR by viewModel.isLoadingQR.collectAsState()
     val isLoggingIn by viewModel.isLoggingIn.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val storedUsername by viewModel.storedUsername.collectAsState()
     val countdownProgress by animateFloatAsState(
         targetValue = (countdown.coerceIn(0, 60)) / 60f,
         animationSpec = tween(durationMillis = if (countdown > 0) 1000 else 0, easing = LinearEasing),
@@ -65,29 +69,22 @@ fun LibraryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "圖書館",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                modifier = Modifier.weight(1f)
-            )
+        PageHeader(title = "圖書館") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(androidx.compose.foundation.shape.CircleShape)
-                        .background(if (viewModel.isLoggedIn) Color(0xFF34C759) else Color.Gray)
+                        .background(if (isLoggedIn) Color(0xFF34C759) else Color.Gray)
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = if (viewModel.isLoggedIn) "已登入" else "未登入",
+                    text = if (isLoggedIn) "已登入" else "未登入",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
             }
         }
@@ -95,6 +92,7 @@ fun LibraryScreen(
         // Error banner
         errorMessage?.let { msg ->
             Card(
+                modifier = Modifier.padding(horizontal = 16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
             ) {
                 Text(
@@ -105,10 +103,10 @@ fun LibraryScreen(
             }
         }
 
-        if (viewModel.isLoggedIn) {
+        if (isLoggedIn) {
             // QR Code section
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(
@@ -116,11 +114,11 @@ fun LibraryScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    viewModel.storedUsername?.let {
+                    storedUsername?.let {
                         Text(
                             text = "帳號：$it",
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                         )
                     }
 
@@ -143,7 +141,7 @@ fun LibraryScreen(
                         }
                     }
 
-                    if (countdown > 0) {
+                    if (countdown > 0 && !isLoadingQR) {
                         LinearProgressIndicator(
                             progress = { countdownProgress },
                             modifier = Modifier.fillMaxWidth(),
@@ -154,7 +152,7 @@ fun LibraryScreen(
                         Text(
                             text = "${countdown}秒後更新",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                         )
                     }
 
@@ -166,7 +164,7 @@ fun LibraryScreen(
         } else {
             // Login prompt
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(
@@ -181,7 +179,7 @@ fun LibraryScreen(
                     Text(
                         "密碼可能與校務系統不同",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                     )
                     OutlinedTextField(
                         value = libUsername,
@@ -223,7 +221,7 @@ fun LibraryScreen(
 
         // Library features (placeholder)
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             FeatureCard("討論小間", "即將推出", modifier = Modifier.weight(1f))
@@ -246,7 +244,7 @@ private fun FeatureCard(title: String, subtitle: String, modifier: Modifier = Mo
         ) {
             Text(title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
             Text(subtitle, style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY))
         }
     }
 }
