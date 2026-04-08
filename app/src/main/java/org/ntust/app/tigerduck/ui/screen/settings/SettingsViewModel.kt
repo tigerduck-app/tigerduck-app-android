@@ -77,5 +77,4 @@ class SettingsViewModel @Inject constructor(
     val libraryUsername: String? get() = credentials.libraryUsername
     val libraryTokenExpiry: Long get() = credentials.libraryTokenExpiry
     val ntustStudentId: String? get() = authService.storedStudentId
-    val cookieExpiryMs: Long get() = appState.sessionManager.cookieExpiryMs
 }

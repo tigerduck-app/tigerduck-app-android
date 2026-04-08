@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.auth
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.LibraryService
 import org.ntust.app.tigerduck.network.NtustSessionManager
+import org.ntust.app.tigerduck.network.SsoLoginError
 import org.ntust.app.tigerduck.network.SsoLoginService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,7 +56,11 @@ class AuthService @Inject constructor(
             _isLoggingIn.value = false
             success
         } catch (e: Exception) {
-            _loginError.value = e.message ?: "登入失敗"
+            _loginError.value = if (e is SsoLoginError.NetworkError) {
+                "無法連線，請檢查網路連線"
+            } else {
+                e.message ?: "登入失敗"
+            }
             _isLoggingIn.value = false
             false
         }

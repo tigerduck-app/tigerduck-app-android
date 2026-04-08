@@ -1,5 +1,10 @@
 package org.ntust.app.tigerduck.ui.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,6 +22,7 @@ import org.ntust.app.tigerduck.ui.screen.library.LibraryScreen
 import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -26,6 +32,7 @@ sealed class Screen(val route: String) {
     object Library : Screen("library")
     object More : Screen("more")
     object Settings : Screen("settings")
+    object TabEditor : Screen("tabEditor")
 }
 
 @Composable
@@ -40,11 +47,17 @@ fun AppNavigation(appState: AppState) {
 @Composable
 fun MainNavigation(appState: AppState) {
     val navController = rememberNavController()
-    val configuredTabs by remember(appState.configuredTabs) { mutableStateOf(appState.configuredTabs) }
+    val configuredTabs by remember {
+        derivedStateOf {
+            appState.configuredTabs.filter { feature ->
+                !feature.isLibraryRelated || appState.libraryFeatureEnabled
+            }
+        }
+    }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val selectedTabRoute = when (currentRoute) {
-        Screen.Settings.route -> Screen.More.route
+        Screen.Settings.route, Screen.TabEditor.route -> Screen.More.route
         else -> currentRoute
     }
 
@@ -74,18 +87,33 @@ fun MainNavigation(appState: AppState) {
             }
         }
     ) { innerPadding ->
+        val startDest = remember { configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route }
         NavHost(
             navController = navController,
-            startDestination = configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route,
-            modifier = Modifier.padding(innerPadding)
+            startDestination = startDest,
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = { fadeIn(tween(150)) },
+            exitTransition = { fadeOut(tween(100)) },
+            popEnterTransition = { fadeIn(tween(150)) },
+            popExitTransition = { fadeOut(tween(100)) }
         ) {
             composable(Screen.Home.route) { HomeScreen(appState = appState) }
             composable(Screen.ClassTable.route) { ClassTableScreen() }
             composable(Screen.Calendar.route) { CalendarScreen() }
-            composable(Screen.Announcements.route) { AnnouncementsScreen(navController) }
+            composable(Screen.Announcements.route) { PlaceholderScreen(AppFeature.ANNOUNCEMENTS) }
             composable(Screen.Library.route) { LibraryScreen() }
-            composable(Screen.More.route) { MoreScreen(navController) }
-            composable(Screen.Settings.route) { SettingsScreen() }
+            composable(Screen.More.route) { MoreScreen(navController, appState) }
+            composable(Screen.Settings.route) {
+                SettingsScreen(
+                    onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) }
+                )
+            }
+            composable(Screen.TabEditor.route) {
+                TabEditorScreen(
+                    appState = appState,
+                    onBack = { navController.popBackStack() }
+                )
+            }
             composable("placeholder/{feature}",
                 arguments = listOf(navArgument("feature") { type = NavType.StringType })
             ) { backStackEntry ->

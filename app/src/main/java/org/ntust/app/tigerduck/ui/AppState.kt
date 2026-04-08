@@ -128,9 +128,25 @@ class AppState @Inject constructor(
             prefs.notifyAssignments = value
         }
 
+    private var libraryFeatureEnabledState by mutableStateOf(prefs.libraryFeatureEnabled)
+
+    var libraryFeatureEnabled: Boolean
+        get() = libraryFeatureEnabledState
+        set(value) {
+            if (libraryFeatureEnabledState == value) return
+            libraryFeatureEnabledState = value
+            prefs.libraryFeatureEnabled = value
+        }
+
+    private var configuredTabsState by mutableStateOf(prefs.configuredTabs)
+
     var configuredTabs: List<AppFeature>
-        get() = prefs.configuredTabs
-        set(value) { prefs.configuredTabs = value }
+        get() = configuredTabsState
+        set(value) {
+            if (configuredTabsState == value) return
+            configuredTabsState = value
+            prefs.configuredTabs = value
+        }
 
     val isNtustLoggedIn: Boolean get() = authService.isNtustAuthenticated
     @Suppress("unused")

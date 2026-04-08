@@ -9,6 +9,8 @@ import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.MoodleService
+import org.ntust.app.tigerduck.network.NetworkChecker
+import kotlinx.coroutines.channels.Channel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -24,6 +26,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
+    private val networkChecker: NetworkChecker,
     private val calendarService: CalendarService,
     private val moodleService: MoodleService,
     private val authService: AuthService,
@@ -87,8 +90,20 @@ class CalendarViewModel @Inject constructor(
         viewModelScope.launch { fetchData() }
     }
 
+    private val _noNetworkEvent = Channel<Unit>(Channel.CONFLATED)
+    val noNetworkEvent: Channel<Unit> = _noNetworkEvent
+
     fun refresh() {
-        viewModelScope.launch { fetchData() }
+        viewModelScope.launch {
+            _isLoading.value = true
+            if (!networkChecker.isAvailable()) {
+                _noNetworkEvent.trySend(Unit)
+                kotlinx.coroutines.yield()
+                _isLoading.value = false
+                return@launch
+            }
+            fetchData()
+        }
     }
 
     private suspend fun fetchData() {

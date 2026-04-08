@@ -11,6 +11,7 @@ import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.network.NetworkChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -25,6 +26,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    private val networkChecker: NetworkChecker,
     private val authService: AuthService,
     private val dataCache: DataCache,
     private val courseService: CourseService,
@@ -48,11 +50,14 @@ class HomeViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    private val _noNetworkEvent = Channel<Unit>(Channel.CONFLATED)
+    val noNetworkEvent: Channel<Unit> = _noNetworkEvent
+
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
 
-    private val _hasSynced = MutableStateFlow(false)
-    val hasSynced: StateFlow<Boolean> = _hasSynced
+    private val _syncCompleteEvent = Channel<Unit>(Channel.CONFLATED)
+    val syncCompleteEvent: Channel<Unit> = _syncCompleteEvent
 
     private val _skippedDates = MutableStateFlow<Map<String, List<String>>>(emptyMap())
     val skippedDates: StateFlow<Map<String, List<String>>> = _skippedDates
@@ -87,7 +92,16 @@ class HomeViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch { fetchData(forceRemote = true) }
+        viewModelScope.launch {
+            _isLoading.value = true
+            if (!networkChecker.isAvailable()) {
+                _noNetworkEvent.trySend(Unit)
+                kotlinx.coroutines.yield()
+                _isLoading.value = false
+                return@launch
+            }
+            fetchData(forceRemote = true)
+        }
     }
 
     private suspend fun fetchData(forceRemote: Boolean) {
@@ -119,7 +133,9 @@ class HomeViewModel @Inject constructor(
 
             TigerDuckTheme.buildCourseColorMap(courses.map { it.courseNo })
             updateCoursesAndAssignments(courses, assignments)
-            _hasSynced.value = true
+            if (forceRemote && authService.isNtustAuthenticated) {
+                _syncCompleteEvent.trySend(Unit)
+            }
         } finally {
             _isLoading.value = false
         }

@@ -11,6 +11,8 @@ import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.model.TimetablePeriod
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
+import org.ntust.app.tigerduck.network.NetworkChecker
+import kotlinx.coroutines.channels.Channel
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +23,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ClassTableViewModel @Inject constructor(
+    private val networkChecker: NetworkChecker,
     private val authService: AuthService,
     val courseService: CourseService,
     private val moodleService: MoodleService,
@@ -235,8 +238,20 @@ class ClassTableViewModel @Inject constructor(
         viewModelScope.launch { fetchData() }
     }
 
+    private val _noNetworkEvent = Channel<Unit>(Channel.CONFLATED)
+    val noNetworkEvent: Channel<Unit> = _noNetworkEvent
+
     fun refresh() {
-        viewModelScope.launch { fetchData() }
+        viewModelScope.launch {
+            _isLoading.value = true
+            if (!networkChecker.isAvailable()) {
+                _noNetworkEvent.trySend(Unit)
+                kotlinx.coroutines.yield()
+                _isLoading.value = false
+                return@launch
+            }
+            fetchData()
+        }
     }
 
     private suspend fun fetchData() {

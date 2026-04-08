@@ -26,7 +26,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
-import org.ntust.app.tigerduck.data.AppConstants
+import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.CourseCard
 import org.ntust.app.tigerduck.ui.component.SectionHeader
@@ -47,16 +47,37 @@ fun ClassTableScreen(
     var showAddCourse by remember { mutableStateOf(false) }
     var courseToRename by remember { mutableStateOf<Course?>(null) }
     var renameText by remember { mutableStateOf("") }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(Unit) {
+        for (event in viewModel.noNetworkEvent) {
+            snackbarHostState.showSnackbar("無法連線，請檢查網路連線")
+        }
+    }
 
     val pullRefreshState = rememberPullToRefreshState()
+    var pullRefreshing by remember { mutableStateOf(false) }
 
+    LaunchedEffect(pullRefreshing) {
+        if (pullRefreshing) {
+            kotlinx.coroutines.delay(1000)
+            pullRefreshing = false
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { scaffoldPadding ->
     PullToRefreshBox(
         state = pullRefreshState,
-        isRefreshing = isLoading,
-        onRefresh = { viewModel.refresh() },
-        modifier = Modifier.fillMaxSize()
+        isRefreshing = pullRefreshing,
+        onRefresh = {
+            pullRefreshing = true
+            viewModel.refresh()
+        },
+        modifier = Modifier.fillMaxSize().padding(scaffoldPadding)
     ) {
         Column(
             modifier = Modifier
@@ -75,9 +96,6 @@ fun ClassTableScreen(
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.weight(1f)
                 )
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                }
                 IconButton(onClick = { showAddCourse = true }) {
                     Icon(
                         Icons.Filled.Add,
@@ -125,15 +143,15 @@ fun ClassTableScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = viewModel.currentSemester.collectAsState().value,
+                    text = "學期選擇功能即將上線",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
                     text = "${viewModel.totalCredits} 學分",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
 
@@ -157,6 +175,7 @@ fun ClassTableScreen(
         }
 
     }
+    } // Scaffold
 
     selectedCourse?.let { course ->
         AlertDialog(

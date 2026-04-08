@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.net.toUri
 import androidx.compose.animation.*
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -41,26 +42,49 @@ fun HomeScreen(
     val upcomingAssignments by viewModel.upcomingAssignments.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val selectedCourse by viewModel.selectedCourse.collectAsState()
-    val hasSynced by viewModel.hasSynced.collectAsState()
     val skippedDates by viewModel.skippedDates.collectAsState()
     var showComingSoon by remember { mutableStateOf(false) }
+    var showCheckmark by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { viewModel.load() }
 
-    val pullRefreshState = rememberPullToRefreshState()
+    LaunchedEffect(Unit) {
+        for (event in viewModel.syncCompleteEvent) {
+            showCheckmark = true
+            delay(2000)
+            showCheckmark = false
+        }
+    }
 
+    LaunchedEffect(Unit) {
+        for (event in viewModel.noNetworkEvent) {
+            snackbarHostState.showSnackbar("無法連線，請檢查網路連線")
+        }
+    }
+
+    val pullRefreshState = rememberPullToRefreshState()
+    var pullRefreshing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(pullRefreshing) {
+        if (pullRefreshing) {
+            delay(1000)
+            pullRefreshing = false
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { scaffoldPadding ->
     PullToRefreshBox(
         state = pullRefreshState,
-        isRefreshing = isLoading,
-        onRefresh = { viewModel.refresh() },
-        indicator = {
-            PullToRefreshDefaults.Indicator(
-                modifier = Modifier.align(Alignment.TopCenter),
-                isRefreshing = isLoading,
-                state = pullRefreshState
-            )
+        isRefreshing = pullRefreshing,
+        onRefresh = {
+            pullRefreshing = true
+            viewModel.refresh()
         },
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().padding(scaffoldPadding)
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -79,20 +103,17 @@ fun HomeScreen(
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         modifier = Modifier.weight(1f)
                     )
-                    AnimatedContent(
-                        targetState = isLoading to hasSynced,
-                        label = "sync_status"
-                    ) { (loading, synced) ->
-                        if (loading) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        } else if (synced) {
-                            Icon(
-                                Icons.Filled.CheckCircle,
-                                contentDescription = "同步成功",
-                                tint = Color(0xFF34C759),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                    AnimatedVisibility(
+                        visible = showCheckmark,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        Icon(
+                            Icons.Filled.CheckCircle,
+                            contentDescription = "同步成功",
+                            tint = Color(0xFF34C759),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
@@ -116,6 +137,7 @@ fun HomeScreen(
         }
 
     }
+    } // Scaffold
 
     if (showComingSoon) {
         AlertDialog(

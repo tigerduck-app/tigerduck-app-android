@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -38,15 +39,37 @@ fun CalendarScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val dayEvents by viewModel.selectedDateEvents.collectAsState()
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
     LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(Unit) {
+        for (event in viewModel.noNetworkEvent) {
+            snackbarHostState.showSnackbar("無法連線，請檢查網路連線")
+        }
+    }
 
     val pullRefreshState = rememberPullToRefreshState()
+    var pullRefreshing by remember { mutableStateOf(false) }
 
+    LaunchedEffect(pullRefreshing) {
+        if (pullRefreshing) {
+            delay(1000)
+            pullRefreshing = false
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { scaffoldPadding ->
     PullToRefreshBox(
         state = pullRefreshState,
-        isRefreshing = isLoading,
-        onRefresh = { viewModel.refresh() },
-        modifier = Modifier.fillMaxSize()
+        isRefreshing = pullRefreshing,
+        onRefresh = {
+            pullRefreshing = true
+            viewModel.refresh()
+        },
+        modifier = Modifier.fillMaxSize().padding(scaffoldPadding)
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -65,10 +88,6 @@ fun CalendarScreen(
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         modifier = Modifier.weight(1f)
                     )
-                    if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
-                    }
                     TextButton(onClick = { viewModel.goToToday() }) {
                         Text("今天", style = MaterialTheme.typography.labelMedium)
                     }
@@ -110,6 +129,7 @@ fun CalendarScreen(
         }
 
     }
+    } // Scaffold
 }
 
 @Composable
