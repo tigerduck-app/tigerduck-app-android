@@ -25,7 +25,20 @@ jobs:
       - name: Decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+          echo "Keystore size: $(wc -c < app/keystore.jks) bytes"
+
+      - name: Verify signing config
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "Keystore exists: $(test -f app/keystore.jks && echo yes || echo no)"
+          echo "KEYSTORE_PASSWORD set: $(test -n "$KEYSTORE_PASSWORD" && echo yes || echo no)"
+          echo "KEY_ALIAS set: $(test -n "$KEY_ALIAS" && echo yes || echo no)"
+          echo "KEY_PASSWORD set: $(test -n "$KEY_PASSWORD" && echo yes || echo no)"
 
       - name: Build release AAB and APK
         env:
