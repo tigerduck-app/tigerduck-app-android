@@ -187,7 +187,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun fetchAssignments(studentId: String, password: String): List<Assignment>? {
         return try {
             val remote = moodleService.fetchAssignments(studentId, password)
-            val existingCompleted = _upcomingAssignments.value
+            val existingCompleted = dataCache.loadAssignments()
                 .filter { it.isCompleted }
                 .map { it.assignmentId }
                 .toSet()
