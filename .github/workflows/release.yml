@@ -39,22 +39,14 @@ jobs:
           name: release-aab
           path: app/build/outputs/bundle/release/*.aab
 
-      - name: Determine track
-        id: track
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "track=production" >> "$GITHUB_OUTPUT"
-          else
-            echo "track=internal" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Upload to Google Play
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: r0adkll/upload-google-play@935ef9c68bb393a8e6116b1575626a7f5be3a7fb # v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: org.ntust.app.tigerduck
           releaseFiles: app/build/outputs/bundle/release/*.aab
-          track: ${{ steps.track.outputs.track }}
+          track: production
 
       - name: Clean up keystore
         if: always()
