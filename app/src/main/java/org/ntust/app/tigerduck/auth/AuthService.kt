@@ -91,9 +91,6 @@ class AuthService @Inject constructor(
             val success = ssoLoginService.ensureServiceLogin(serviceUrl, normalizedId, password)
 
             if (success) {
-                credentials.ntustStudentId = normalizedId
-                credentials.ntustPassword = password
-
                 if (!credentials.isLibraryTokenValid) {
                     try {
                         libraryService.login(normalizedId, password)
