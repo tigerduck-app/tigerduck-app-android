@@ -96,6 +96,7 @@ fun TabEditorScreen(
                 ContentCard {
                     Column {
                         activeTabs.forEachIndexed { index, feature ->
+                            key(feature) {
                             val isDragging = draggingIndex == index
                             val elevation by animateDpAsState(
                                 if (isDragging) 4.dp else 0.dp,
@@ -157,6 +158,7 @@ fun TabEditorScreen(
                             if (index < activeTabs.lastIndex) {
                                 HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                             }
+                            } // key(feature)
                         }
 
                         // 更多 — always present, locked at bottom
