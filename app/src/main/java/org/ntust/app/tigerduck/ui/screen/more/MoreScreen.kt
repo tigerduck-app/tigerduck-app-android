@@ -17,6 +17,9 @@ import androidx.navigation.NavController
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.FeatureCategory
 import org.ntust.app.tigerduck.ui.AppState
+import org.ntust.app.tigerduck.ui.component.ComingSoonDialog
+import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.navigation.Screen
 import org.ntust.app.tigerduck.ui.navigation.toRoute
 
@@ -43,30 +46,18 @@ fun MoreScreen(navController: NavController, appState: AppState) {
         contentPadding = PaddingValues(bottom = 32.dp)
     ) {
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "更多",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.weight(1f)
-                )
+            PageHeader(title = "更多") {
                 IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
                     Icon(Icons.Filled.Settings, "設定")
                 }
             }
         }
 
-        grouped.forEach { (category, features) ->
+        grouped.forEachIndexed { index, (category, features) ->
             item {
-                Text(
-                    text = category?.displayName ?: "其他",
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                SectionHeader(
+                    title = category?.displayName ?: "其他",
+                    modifier = if (index > 0) Modifier.padding(top = 16.dp) else Modifier
                 )
             }
             item {
@@ -130,13 +121,6 @@ fun MoreScreen(navController: NavController, appState: AppState) {
     }
 
     if (showNotImplemented) {
-        AlertDialog(
-            onDismissRequest = { showNotImplemented = false },
-            title = { Text("快了快了") },
-            text = { Text("此功能尚未實現，敬請期待～") },
-            confirmButton = {
-                TextButton(onClick = { showNotImplemented = false }) { Text("收到！") }
-            }
-        )
+        ComingSoonDialog(onDismiss = { showNotImplemented = false })
     }
 }

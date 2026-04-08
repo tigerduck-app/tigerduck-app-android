@@ -30,6 +30,9 @@ import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.ui.AppState
+import org.ntust.app.tigerduck.ui.component.ContentCard
+import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 private const val MAX_CUSTOM_TABS = 4
 
@@ -86,23 +89,11 @@ fun TabEditorScreen(
         ) {
             // ── Section: 目前的 Tab ──
             item {
-                Text(
-                    "目前的 Tab",
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+                SectionHeader(title = "目前的 Tab")
             }
 
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
+                ContentCard {
                     Column {
                         activeTabs.forEachIndexed { index, feature ->
                             val isDragging = draggingIndex == index
@@ -179,20 +170,20 @@ fun TabEditorScreen(
                             Icon(
                                 AppFeature.MORE.icon,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(Modifier.width(12.dp))
                             Text(
                                 AppFeature.MORE.displayName,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                                 modifier = Modifier.weight(1f)
                             )
                             Icon(
                                 Icons.Filled.Lock,
                                 contentDescription = "固定",
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -204,7 +195,7 @@ fun TabEditorScreen(
                 Text(
                     "底部導覽列最多 ${MAX_CUSTOM_TABS + 1} 個項目（含「更多」）。長按拖動可調整順序。",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
             }
@@ -212,23 +203,11 @@ fun TabEditorScreen(
             // ── Section: 其他可用的 Tab ──
             if (availableTabs.isNotEmpty()) {
                 item {
-                    Text(
-                        "其他可用的 Tab",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
+                    SectionHeader(title = "其他可用的 Tab")
                 }
 
                 item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
+                    ContentCard {
                         Column {
                             availableTabs.forEachIndexed { index, feature ->
                                 AvailableTabRow(
@@ -310,7 +289,7 @@ private fun ActiveTabRow(
             Icon(
                 Icons.Filled.DragHandle,
                 contentDescription = "拖動排序",
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
                 modifier = Modifier.size(24.dp)
             )
         }

@@ -1,6 +1,5 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,11 +26,13 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.CheckCircle
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.CourseCard
+import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,47 +89,13 @@ fun ClassTableScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            // Title
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "課表",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.weight(1f)
-                )
-                AnimatedContent(
-                    targetState = when {
-                        isLoading -> "loading"
-                        showCheckmark -> "checkmark"
-                        else -> "idle"
-                    },
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "sync_status"
-                ) { state ->
-                    when (state) {
-                        "loading" -> CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                        )
-                        "checkmark" -> Icon(
-                            Icons.Filled.CheckCircle,
-                            contentDescription = "同步成功",
-                            tint = Color(0xFF34C759),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        else -> Spacer(Modifier.size(20.dp))
-                    }
-                }
+            PageHeader(title = "課表") {
+                SyncIndicator(isLoading = isLoading, showCheckmark = showCheckmark)
                 IconButton(onClick = { showAddCourse = true }) {
                     Icon(
                         Icons.Filled.Add,
                         contentDescription = "新增課程",
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                     )
                 }
             }
@@ -173,13 +140,13 @@ fun ClassTableScreen(
                 Text(
                     text = "學期選擇功能即將上線",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
                     text = "${viewModel.totalCredits} 學分",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
             }
 
@@ -336,7 +303,7 @@ private fun TimetableGrid(
                             text = period.startTime,
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 9.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                         )
                     }
                 }

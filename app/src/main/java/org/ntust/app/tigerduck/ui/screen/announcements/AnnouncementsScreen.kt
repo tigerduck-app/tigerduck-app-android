@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import org.ntust.app.tigerduck.data.model.Announcement
+import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -42,17 +44,7 @@ fun AnnouncementsScreen(
     ) {
         item {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "公告",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.weight(1f)
-                    )
+                PageHeader(title = "公告") {
                     IconButton(onClick = {
                         showSearch = !showSearch
                         if (!showSearch) viewModel.setSearchText("")
@@ -101,7 +93,7 @@ fun AnnouncementsScreen(
                     modifier = Modifier.fillMaxWidth().height(200.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("沒有公告", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    Text("沒有公告", color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY))
                 }
             }
         } else {
@@ -156,7 +148,7 @@ private fun AnnouncementCard(announcement: Announcement, onClick: () -> Unit) {
                 Text(
                     text = dateFmt.format(announcement.publishDate),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
             }
             Text(
@@ -170,7 +162,7 @@ private fun AnnouncementCard(announcement: Announcement, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
             )
         }
     }

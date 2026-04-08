@@ -30,6 +30,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.ui.component.ContentCard
+import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -90,17 +94,13 @@ fun SettingsScreen(
         contentPadding = PaddingValues(bottom = 32.dp)
     ) {
         item {
-            Text(
-                "設定",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
-            )
+            PageHeader(title = "設定")
         }
 
         // MARK: Account section
-        item { SettingsSectionTitle("帳號") }
+        item { SectionHeader("帳號") }
         item {
-            SettingsCard {
+            ContentCard {
                 // NTUST Account
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -125,7 +125,7 @@ fun SettingsScreen(
                             Text(
                                 if (isNtustLoggedIn) "已登入" else "未登入",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                             )
                         }
                     }
@@ -194,7 +194,7 @@ fun SettingsScreen(
                                 Text(
                                     if (isLibraryLoggedIn) "已登入" else "未登入",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                                 )
                             }
                         }
@@ -207,7 +207,7 @@ fun SettingsScreen(
                             if (expiryMs > 0) {
                                 val expiry = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()).format(Date(expiryMs))
                                 Text("Token 有效至 $expiry", style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY))
                             }
                             OutlinedButton(
                                 onClick = { viewModel.logoutLibrary() },
@@ -215,7 +215,7 @@ fun SettingsScreen(
                             ) { Text("登出") }
                         } else {
                             Text("帳號密碼可能與校務系統不同", style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY))
                             OutlinedTextField(
                                 value = libUsernameInput,
                                 onValueChange = { libUsernameInput = it.uppercase() },
@@ -246,9 +246,9 @@ fun SettingsScreen(
         }
 
         // MARK: Theme
-        item { SettingsSectionTitle("自訂") }
+        item { SectionHeader("自訂") }
         item {
-            SettingsCard {
+            ContentCard {
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("主題色", style = MaterialTheme.typography.bodyMedium)
@@ -275,15 +275,15 @@ fun SettingsScreen(
 
         // Tab Editor link
         item {
-            SettingsCard {
+            ContentCard {
                 SettingsLinkRow("Tab 編輯器") { onNavigateToTabEditor() }
             }
         }
 
         // MARK: Display
-        item { SettingsSectionTitle("顯示") }
+        item { SectionHeader("顯示") }
         item {
-            SettingsCard {
+            ContentCard {
                 Column {
                     SettingsToggleRow("作業截止時間顯示完整日期", showAbsoluteTime) {
                         viewModel.appState.showAbsoluteAssignmentTime = it
@@ -315,9 +315,9 @@ fun SettingsScreen(
         }
 
         // MARK: Notifications
-        item { SettingsSectionTitle("通知") }
+        item { SectionHeader("通知") }
         item {
-            SettingsCard {
+            ContentCard {
                 SettingsToggleRow("作業到期提醒", notifyAssignments) {
                     viewModel.appState.notifyAssignments = it
                 }
@@ -325,9 +325,9 @@ fun SettingsScreen(
         }
 
         // MARK: Other features
-        item { SettingsSectionTitle("其他功能") }
+        item { SectionHeader("其他功能") }
         item {
-            SettingsCard {
+            ContentCard {
                 SettingsToggleRow("圖書館及相關功能", libraryEnabled) { enabled ->
                     if (enabled) {
                         showLibraryWarning = true
@@ -341,9 +341,9 @@ fun SettingsScreen(
         }
 
         // MARK: About
-        item { SettingsSectionTitle("關於") }
+        item { SectionHeader("關於") }
         item {
-            SettingsCard {
+            ContentCard {
                 Column {
                     SettingsRow("版本", appVersion)
                     HorizontalDivider()
@@ -382,26 +382,6 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsSectionTitle(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-    )
-}
-
-@Composable
-private fun SettingsCard(content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) { content() }
-}
-
-@Composable
 private fun SettingsRow(label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
@@ -409,7 +389,7 @@ private fun SettingsRow(label: String, value: String) {
     ) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         Text(value, style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY))
     }
 }
 
@@ -444,7 +424,7 @@ private fun SettingsPickerRow(
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         Box {
             Text(value, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY))
 
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 options.forEach { (key, display) ->
@@ -479,7 +459,7 @@ private fun SettingsLinkRow(label: String, onClick: () -> Unit) {
         Icon(
             Icons.Filled.ChevronRight,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
             modifier = Modifier.size(18.dp)
         )
     }

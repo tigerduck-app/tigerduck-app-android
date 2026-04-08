@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -76,7 +77,8 @@ fun TimeSliderSection(
         ) {
             Text(
                 "時光機",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(Modifier.weight(1f))
             AnimatedVisibility(
@@ -131,13 +133,13 @@ fun TimeSliderSection(
                 Icon(
                     Icons.Filled.CheckCircle,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
                     modifier = Modifier.size(32.dp)
                 )
                 Text(
                     "目前沒有課程",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
             }
         }
@@ -273,7 +275,7 @@ private fun SlotCard(
                     Icon(
                         imageVector = if (isSkipped) Icons.AutoMirrored.Filled.Undo else Icons.AutoMirrored.Filled.DirectionsWalk,
                         contentDescription = null,
-                        tint = if (isSkipped) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        tint = if (isSkipped) MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                                else Color(0xFFFF2D55),
                         modifier = Modifier.size(22.dp)
                     )
@@ -281,7 +283,7 @@ private fun SlotCard(
                     Text(
                         text = if (isSkipped) "取消翹課" else "翹課",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = if (isSkipped) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        color = if (isSkipped) MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                                 else Color(0xFFFF2D55),
                         fontSize = 11.sp
                     )
@@ -331,14 +333,14 @@ private fun SlotCard(
                     Text(
                         timeRange,
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                     )
                     Spacer(Modifier.weight(1f))
                     if (!isToday) {
                         Text(
                             formatDateLabel(slot.date),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                         )
                     }
                 }
@@ -353,7 +355,7 @@ private fun SlotCard(
                 Text(
                     "${slot.course.classroom} · ${slot.course.instructor}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

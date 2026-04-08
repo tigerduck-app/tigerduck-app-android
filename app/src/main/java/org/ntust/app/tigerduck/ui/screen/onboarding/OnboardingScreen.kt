@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 @Composable
 fun OnboardingScreen(
@@ -130,7 +131,7 @@ fun OnboardingScreen(
                         TextButton(onClick = { goToPage(2) }) {
                             Text(
                                 "暫時跳過",
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY)
                             )
                         }
                     }
@@ -210,7 +211,7 @@ private fun OnboardingPage(
             text = subtitle,
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY)
         )
         Spacer(Modifier.height(16.dp))
         content()

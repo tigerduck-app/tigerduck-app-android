@@ -3,7 +3,6 @@ package org.ntust.app.tigerduck.ui.screen.home
 import android.content.Context
 import android.content.Intent
 import androidx.core.net.toUri
-import androidx.compose.animation.*
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,9 +16,7 @@ import androidx.compose.material3.pulltorefresh.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -86,41 +83,8 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = greetingText(),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.weight(1f)
-                    )
-                    AnimatedContent(
-                        targetState = when {
-                            isLoading -> "loading"
-                            showCheckmark -> "checkmark"
-                            else -> "idle"
-                        },
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        label = "sync_status"
-                    ) { state ->
-                        when (state) {
-                            "loading" -> CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                            "checkmark" -> Icon(
-                                Icons.Filled.CheckCircle,
-                                contentDescription = "同步成功",
-                                tint = Color(0xFF34C759),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            else -> Spacer(Modifier.size(20.dp))
-                        }
-                    }
+                PageHeader(title = greetingText()) {
+                    SyncIndicator(isLoading = isLoading, showCheckmark = showCheckmark)
                 }
             }
 
@@ -147,14 +111,7 @@ fun HomeScreen(
     } // Box
 
     if (showComingSoon) {
-        AlertDialog(
-            onDismissRequest = { showComingSoon = false },
-            title = { Text("快了快了") },
-            text = { Text("此功能尚未實現，敬請期待～") },
-            confirmButton = {
-                TextButton(onClick = { showComingSoon = false }) { Text("收到！") }
-            }
-        )
+        ComingSoonDialog(onDismiss = { showComingSoon = false })
     }
 
     selectedCourse?.let { course ->

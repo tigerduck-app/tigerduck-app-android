@@ -47,6 +47,11 @@ object TigerDuckTheme {
     }
 }
 
+object ContentAlpha {
+    const val SECONDARY = 0.6f
+    const val DISABLED = 0.38f
+}
+
 object Spacing {
     const val xs = 4
     const val sm = 8

@@ -1,6 +1,5 @@
 package org.ntust.app.tigerduck.ui.screen.calendar
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,7 +8,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
@@ -25,6 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.data.model.CalendarEvent
+import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -80,42 +81,8 @@ fun CalendarScreen(
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
             item {
-                // Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "行事曆",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.weight(1f)
-                    )
-                    AnimatedContent(
-                        targetState = when {
-                            isLoading -> "loading"
-                            showCheckmark -> "checkmark"
-                            else -> "idle"
-                        },
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        label = "sync_status"
-                    ) { state ->
-                        when (state) {
-                            "loading" -> CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                            "checkmark" -> Icon(
-                                Icons.Filled.CheckCircle,
-                                contentDescription = "同步成功",
-                                tint = Color(0xFF34C759),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            else -> Spacer(Modifier.size(20.dp))
-                        }
-                    }
+                PageHeader(title = "行事曆") {
+                    SyncIndicator(isLoading = isLoading, showCheckmark = showCheckmark)
                     TextButton(onClick = { viewModel.goToToday() }) {
                         Text("今天", style = MaterialTheme.typography.labelMedium)
                     }
@@ -145,7 +112,7 @@ fun CalendarScreen(
                     ) {
                         Text(
                             "這天沒有活動",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                         )
                     }
                 }
@@ -206,7 +173,7 @@ private fun MonthCalendar(
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
             }
         }
@@ -309,7 +276,7 @@ private fun EventRow(event: CalendarEvent) {
         Text(
             timeFmt.format(event.date),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
         )
     }
 }

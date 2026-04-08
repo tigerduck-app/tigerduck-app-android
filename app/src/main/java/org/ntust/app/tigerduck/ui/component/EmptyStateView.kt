@@ -7,6 +7,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 @Composable
 fun EmptyStateView(
@@ -24,7 +25,7 @@ fun EmptyStateView(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED)
         )
         Spacer(Modifier.height(12.dp))
         Text(
@@ -36,7 +37,7 @@ fun EmptyStateView(
         Text(
             text = message,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
         )
     }
 }
