@@ -27,7 +27,8 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     private val cacheDir: File = File(context.cacheDir, "TigerDuckCache").also { it.mkdirs() }
     // User-generated state that has no remote source — stored in filesDir so the OS never evicts it.
     private val userDataDir: File = File(context.filesDir, "TigerDuckData").also { it.mkdirs() }
-    private val mutex = Mutex()
+    private val cacheMutex = Mutex()
+    private val userDataMutex = Mutex()
     private val gson: Gson = GsonBuilder()
         .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         .create()
@@ -71,7 +72,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     // MARK: - Private helpers
 
-    private suspend fun <T> save(value: T, filename: String) = mutex.withLock {
+    private suspend fun <T> save(value: T, filename: String) = cacheMutex.withLock {
         withContext(Dispatchers.IO) {
             try {
                 File(cacheDir, filename).writeText(gson.toJson(value))
@@ -81,7 +82,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    private suspend fun <T> load(type: java.lang.reflect.Type, filename: String): T? = mutex.withLock {
+    private suspend fun <T> load(type: java.lang.reflect.Type, filename: String): T? = cacheMutex.withLock {
         withContext(Dispatchers.IO) {
             try {
                 val file = File(cacheDir, filename)
@@ -93,7 +94,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    private suspend fun <T> saveToUserData(value: T, filename: String) = mutex.withLock {
+    private suspend fun <T> saveToUserData(value: T, filename: String) = userDataMutex.withLock {
         withContext(Dispatchers.IO) {
             try {
                 File(userDataDir, filename).writeText(gson.toJson(value))
@@ -101,7 +102,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    private suspend fun <T> loadFromUserData(type: java.lang.reflect.Type, filename: String): T? = mutex.withLock {
+    private suspend fun <T> loadFromUserData(type: java.lang.reflect.Type, filename: String): T? = userDataMutex.withLock {
         withContext(Dispatchers.IO) {
             try {
                 val file = File(userDataDir, filename)

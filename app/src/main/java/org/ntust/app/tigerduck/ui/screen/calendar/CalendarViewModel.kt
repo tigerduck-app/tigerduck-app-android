@@ -136,8 +136,8 @@ class CalendarViewModel @Inject constructor(
             if (schoolEvents.isNotEmpty() || moodleEvents.isNotEmpty()) {
                 _events.value = current
                 dataCache.saveCalendarEvents(current)
+                _syncCompleteEvent.tryEmit(Unit)
             }
-            _syncCompleteEvent.tryEmit(Unit)
         } catch (e: Exception) {
             // Keep existing events
         } finally {

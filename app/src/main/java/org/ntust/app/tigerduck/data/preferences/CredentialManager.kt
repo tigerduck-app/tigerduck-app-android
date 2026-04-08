@@ -19,14 +19,13 @@ class CredentialManager @Inject constructor(@ApplicationContext context: Context
             val masterKey = MasterKey.Builder(context)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .build()
-            isEncrypted = true
             EncryptedSharedPreferences.create(
                 context,
                 "tigerduck_credentials",
                 masterKey,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
+            ).also { isEncrypted = true }
         } catch (e: Exception) {
             android.util.Log.e("CredentialManager", "EncryptedSharedPreferences failed", e)
             throw SecurityException("Cannot create encrypted credential storage", e)

@@ -13,7 +13,6 @@ import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.network.NetworkChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,7 +68,7 @@ class HomeViewModel @Inject constructor(
     private val saveSkipChannel = Channel<Map<String, List<String>>>(Channel.CONFLATED)
 
     init {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             for (data in saveSkipChannel) {
                 dataCache.saveSkippedDates(data)
             }
