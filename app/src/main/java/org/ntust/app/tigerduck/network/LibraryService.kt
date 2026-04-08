@@ -62,7 +62,7 @@ class LibraryService @Inject constructor(
                 ?: throw LibraryServiceError.LoginFailed("無回應")
             val loginResponse = gson.fromJson(responseBody, LibraryLoginResponse::class.java)
 
-            if (loginResponse.error?.code != 0 || loginResponse.data == null) {
+            if (loginResponse.data == null || loginResponse.error?.code?.let { it != 0 } == true) {
                 throw LibraryServiceError.LoginFailed(loginResponse.error?.message ?: "未知錯誤")
             }
 
@@ -102,7 +102,7 @@ class LibraryService @Inject constructor(
                 ?: throw LibraryServiceError.QRGenerationFailed("無回應")
             val qrResponse = gson.fromJson(responseBody, LibraryQRResponse::class.java)
 
-            if (qrResponse.error?.code != 0 || qrResponse.data == null) {
+            if (qrResponse.data == null || qrResponse.error?.code?.let { it != 0 } == true) {
                 throw LibraryServiceError.QRGenerationFailed(qrResponse.error?.message ?: "未知錯誤")
             }
             qrResponse.data

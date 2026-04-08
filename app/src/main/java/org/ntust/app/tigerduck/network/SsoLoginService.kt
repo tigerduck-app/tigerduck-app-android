@@ -52,9 +52,7 @@ class SsoLoginService @Inject constructor(
         url = fresh.second
 
         if (!HtmlParser.isSSOLoginPage(html, url)) {
-            val bridged = resolveOIDCBridgeForms(html, url)
-            html = bridged.first
-            url = bridged.second
+            resolveOIDCBridgeForms(html, url)
             sessionManager.markLoginSuccess()
             return@withContext true
         }

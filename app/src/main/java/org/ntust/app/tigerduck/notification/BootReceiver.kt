@@ -23,15 +23,17 @@ class BootReceiver : BroadcastReceiver() {
 
         val pendingResult = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            withTimeout(10_000) {
-                try {
+            try {
+                withTimeout(10_000) {
                     val assignments = dataCache.loadAssignments()
                     if (assignments.isNotEmpty()) {
                         scheduler.scheduleAll(assignments)
                     }
-                } finally {
-                    pendingResult.finish()
                 }
+            } catch (e: Exception) {
+                android.util.Log.w("BootReceiver", "Boot rescheduling failed", e)
+            } finally {
+                pendingResult.finish()
             }
         }
     }
