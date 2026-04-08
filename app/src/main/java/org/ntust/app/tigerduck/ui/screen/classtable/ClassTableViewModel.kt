@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
@@ -54,8 +56,12 @@ class ClassTableViewModel @Inject constructor(
     private val _currentSemester = MutableStateFlow(courseService.currentSemesterCode())
     val currentSemester: StateFlow<String> = _currentSemester
 
-    private val _currentMinute = MutableStateFlow(currentMinuteOfDay())
-    val currentMinute: StateFlow<Int> = _currentMinute
+    data class DayTime(val weekday: Int, val minuteOfDay: Int)
+
+    private val _currentDayTime = MutableStateFlow(currentDayTime())
+    val currentMinute: StateFlow<Int> = _currentDayTime
+        .map { it.minuteOfDay }
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, currentDayTime().minuteOfDay)
 
     private var hasLoaded = false
 
@@ -63,14 +69,19 @@ class ClassTableViewModel @Inject constructor(
         viewModelScope.launch {
             while (true) {
                 kotlinx.coroutines.delay(60_000)
-                _currentMinute.value = currentMinuteOfDay()
+                _currentDayTime.value = currentDayTime()
             }
         }
     }
 
-    private fun currentMinuteOfDay(): Int {
+    private fun currentDayTime(): DayTime {
         val c = Calendar.getInstance()
-        return c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE)
+        val wd = when (c.get(Calendar.DAY_OF_WEEK)) {
+            Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
+            Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
+            else -> 7
+        }
+        return DayTime(wd, c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE))
     }
 
     val availableSemesters: List<String>
@@ -93,13 +104,7 @@ class ClassTableViewModel @Inject constructor(
 
     val todayCourses: List<Course>
         get() {
-            val today = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).let {
-                when (it) {
-                    Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
-                    Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
-                    Calendar.SUNDAY -> 7; else -> 1
-                }
-            }
+            val today = _currentDayTime.value.weekday
             return _courses.value
                 .filter { it.schedule.containsKey(today) }
                 .sortedBy { course ->
@@ -143,22 +148,15 @@ class ClassTableViewModel @Inject constructor(
         }
 
     fun isCourseFinishedToday(course: Course): Boolean {
-        val now = Calendar.getInstance()
-        val todayWeekday = now.get(Calendar.DAY_OF_WEEK).let {
-            when (it) {
-                Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
-                Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
-                else -> 7
-            }
-        }
-        val periods = course.schedule[todayWeekday]
+        val dayTime = _currentDayTime.value
+        val periods = course.schedule[dayTime.weekday]
             ?.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
         val lastPeriodId = periods?.lastOrNull() ?: return false
         val endTimeStr = AppConstants.PeriodTimes.mapping[lastPeriodId]?.second ?: return false
         val parts = endTimeStr.split(":")
         val endMinutes = (parts.getOrNull(0)?.toIntOrNull() ?: return false) * 60 +
                          (parts.getOrNull(1)?.toIntOrNull() ?: return false)
-        return _currentMinute.value > endMinutes
+        return dayTime.minuteOfDay > endMinutes
     }
 
     fun courseAt(weekday: Int, period: String): Course? =

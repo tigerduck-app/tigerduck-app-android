@@ -21,10 +21,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -100,7 +100,6 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             if (!networkChecker.isAvailable()) {
                 _noNetworkEvent.tryEmit(Unit)
-                kotlinx.coroutines.yield()
                 return@launch
             }
             fetchData(forceRemote = true)
@@ -242,7 +241,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun toggleSkip(course: Course, date: Date) {
-        val key = skipDateFmt.format(date)
+        val key = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().format(SKIP_DATE_FMT)
         _skippedDates.update { current ->
             val map = current.toMutableMap()
             val dates = (map[course.courseNo] ?: emptyList()).toMutableList()
@@ -268,7 +267,7 @@ class HomeViewModel @Inject constructor(
     }
 
     companion object {
-        private val skipDateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        private val SKIP_DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE
     }
 
     fun addSection(type: HomeSection.HomeSectionType, title: String) {

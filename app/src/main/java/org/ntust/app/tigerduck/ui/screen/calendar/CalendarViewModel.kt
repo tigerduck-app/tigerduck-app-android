@@ -106,7 +106,6 @@ class CalendarViewModel @Inject constructor(
             _isLoading.value = true
             if (!networkChecker.isAvailable()) {
                 _noNetworkEvent.tryEmit(Unit)
-                kotlinx.coroutines.yield()
                 _isLoading.value = false
                 return@launch
             }
