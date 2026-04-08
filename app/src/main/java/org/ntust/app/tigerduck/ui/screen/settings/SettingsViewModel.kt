@@ -6,6 +6,7 @@ import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.LibraryService
+import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.ui.AppState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +20,8 @@ class SettingsViewModel @Inject constructor(
     private val authService: AuthService,
     private val libraryService: LibraryService,
     private val credentials: CredentialManager,
-    val prefs: AppPreferences
+    val prefs: AppPreferences,
+    private val notificationScheduler: AssignmentNotificationScheduler
 ) : ViewModel() {
 
     val isNtustLoggingIn = authService.isLoggingIn
@@ -77,4 +79,6 @@ class SettingsViewModel @Inject constructor(
     val libraryUsername: String? get() = credentials.libraryUsername
     val libraryTokenExpiry: Long get() = credentials.libraryTokenExpiry
     val ntustStudentId: String? get() = authService.storedStudentId
+
+    fun cancelAllAssignmentNotifications() = notificationScheduler.cancelAllTracked()
 }

@@ -320,6 +320,7 @@ fun SettingsScreen(
             ContentCard {
                 SettingsToggleRow("作業到期提醒", notifyAssignments) {
                     viewModel.appState.notifyAssignments = it
+                    if (!it) viewModel.cancelAllAssignmentNotifications()
                 }
             }
         }

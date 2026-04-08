@@ -17,7 +17,7 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("作業即將到期")
             .setContentText("$courseName — $title")
             .setPriority(NotificationCompat.PRIORITY_HIGH)

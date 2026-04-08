@@ -228,6 +228,10 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun cancelAllAssignmentNotifications() {
+        notificationScheduler.cancelAllTracked()
+    }
+
     fun hasUnfinishedAssignment(courseNo: String): Boolean =
         _upcomingAssignments.value.any { it.courseNo == courseNo && !it.isCompleted }
 

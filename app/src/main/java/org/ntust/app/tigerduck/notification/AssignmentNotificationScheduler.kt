@@ -15,14 +15,14 @@ class AssignmentNotificationScheduler @Inject constructor(
     @param:ApplicationContext private val context: Context
 ) {
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    private val trackerPrefs = context.getSharedPreferences("notification_tracker", Context.MODE_PRIVATE)
 
     fun scheduleAll(assignments: List<Assignment>) {
-        // Cancel all existing assignment alarms first
-        cancelAll(assignments)
+        cancelAllTracked()
 
         val now = System.currentTimeMillis()
-        // Notify 1 hour before due
         val leadTimeMs = 60 * 60 * 1000L
+        val scheduledIds = mutableSetOf<String>()
 
         for (assignment in assignments) {
             if (assignment.isCompleted) continue
@@ -49,22 +49,26 @@ class AssignmentNotificationScheduler @Inject constructor(
                     alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
                 }
             } catch (_: SecurityException) {
-                // Fallback to inexact alarm
                 alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
             }
+            scheduledIds.add(assignment.assignmentId)
         }
+
+        trackerPrefs.edit().putStringSet("scheduled_ids", scheduledIds).apply()
     }
 
-    fun cancelAll(assignments: List<Assignment>) {
-        for (assignment in assignments) {
+    fun cancelAllTracked() {
+        val ids = trackerPrefs.getStringSet("scheduled_ids", emptySet()) ?: emptySet()
+        for (id in ids) {
             val intent = Intent(context, AssignmentNotificationReceiver::class.java)
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
-                assignment.assignmentId.hashCode() and 0x7FFFFFFF,
+                id.hashCode() and 0x7FFFFFFF,
                 intent,
                 PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
             )
             pendingIntent?.let { alarmManager.cancel(it) }
         }
+        trackerPrefs.edit().remove("scheduled_ids").apply()
     }
 }
