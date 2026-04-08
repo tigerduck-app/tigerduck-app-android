@@ -49,9 +49,13 @@ jobs:
 
       - name: List build outputs
         run: |
-          echo "=== All APK/AAB files ==="
-          find . -type f \( -name "*.apk" -o -name "*.aab" \) 2>/dev/null || echo "None found"
-          echo "=== app/build/outputs tree ==="
+          echo "=== pwd ==="
+          pwd
+          echo "=== find from root for apk/aab ==="
+          find /home/runner -type f \( -name "*.apk" -o -name "*.aab" \) 2>/dev/null | head -20 || echo "None found"
+          echo "=== app/build contents ==="
+          ls -la app/build/ 2>/dev/null || echo "No app/build"
+          echo "=== app/build/outputs contents ==="
           ls -laR app/build/outputs/ 2>/dev/null || echo "No outputs dir"
 
       - name: Upload artifacts
