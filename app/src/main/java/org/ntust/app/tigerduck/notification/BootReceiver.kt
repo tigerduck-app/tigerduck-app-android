@@ -6,7 +6,9 @@ import android.content.Intent
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import org.ntust.app.tigerduck.data.cache.DataCache
 import javax.inject.Inject
 
@@ -20,14 +22,16 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
 
         val pendingResult = goAsync()
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val assignments = dataCache.loadAssignments()
-                if (assignments.isNotEmpty()) {
-                    scheduler.scheduleAll(assignments)
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            withTimeout(10_000) {
+                try {
+                    val assignments = dataCache.loadAssignments()
+                    if (assignments.isNotEmpty()) {
+                        scheduler.scheduleAll(assignments)
+                    }
+                } finally {
+                    pendingResult.finish()
                 }
-            } finally {
-                pendingResult.finish()
             }
         }
     }
