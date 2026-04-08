@@ -141,7 +141,7 @@ fun LibraryScreen(
                         }
                     }
 
-                    if (countdown > 0) {
+                    if (countdown > 0 && !isLoadingQR) {
                         LinearProgressIndicator(
                             progress = { countdownProgress },
                             modifier = Modifier.fillMaxWidth(),

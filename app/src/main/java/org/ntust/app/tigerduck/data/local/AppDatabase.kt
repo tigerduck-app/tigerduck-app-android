@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.model.*
 
 @Database(
@@ -22,7 +23,11 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "tigerduck.db")
-                .fallbackToDestructiveMigration(true)
+                .apply {
+                    if (BuildConfig.DEBUG) {
+                        fallbackToDestructiveMigration(true)
+                    }
+                }
                 .build()
     }
 }

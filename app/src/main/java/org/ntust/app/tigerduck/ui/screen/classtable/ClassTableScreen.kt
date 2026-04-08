@@ -55,14 +55,14 @@ fun ClassTableScreen(
 
     LaunchedEffect(Unit) { viewModel.load() }
     LaunchedEffect(Unit) {
-        for (event in viewModel.syncCompleteEvent) {
+        viewModel.syncCompleteEvent.collect {
             showCheckmark = true
             kotlinx.coroutines.delay(2000)
             showCheckmark = false
         }
     }
     LaunchedEffect(Unit) {
-        for (event in viewModel.noNetworkEvent) {
+        viewModel.noNetworkEvent.collect {
             snackbarHostState.showSnackbar("無法連線，請檢查網路連線")
         }
     }

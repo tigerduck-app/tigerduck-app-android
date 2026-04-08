@@ -47,14 +47,14 @@ fun CalendarScreen(
 
     LaunchedEffect(Unit) { viewModel.load() }
     LaunchedEffect(Unit) {
-        for (event in viewModel.syncCompleteEvent) {
+        viewModel.syncCompleteEvent.collect {
             showCheckmark = true
             delay(2000)
             showCheckmark = false
         }
     }
     LaunchedEffect(Unit) {
-        for (event in viewModel.noNetworkEvent) {
+        viewModel.noNetworkEvent.collect {
             snackbarHostState.showSnackbar("無法連線，請檢查網路連線")
         }
     }
@@ -222,7 +222,7 @@ private fun MonthCalendar(
                                     text = "$dayNum",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = when {
-                                        isSelected -> Color.White
+                                        isSelected -> MaterialTheme.colorScheme.onPrimary
                                         isToday -> MaterialTheme.colorScheme.primary
                                         else -> MaterialTheme.colorScheme.onSurface
                                     },

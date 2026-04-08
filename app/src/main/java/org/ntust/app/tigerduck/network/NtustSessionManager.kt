@@ -2,7 +2,7 @@ package org.ntust.app.tigerduck.network
 
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import android.util.Log
-import com.tigerduck.app.BuildConfig
+import org.ntust.app.tigerduck.BuildConfig
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
@@ -21,6 +21,13 @@ class NtustSessionManager @Inject constructor(
     private val prefs: AppPreferences
 ) {
     private val cookieStore = ConcurrentHashMap<String, CopyOnWriteArrayList<Cookie>>()
+
+    init {
+        // Clear stale SSO timestamp if cookie store is empty after process restart
+        if (cookieStore.isEmpty() && prefs.ssoLoginTimestamp > 0L) {
+            prefs.clearSsoTimestamp()
+        }
+    }
 
     private val cookieJar = object : CookieJar {
         override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {

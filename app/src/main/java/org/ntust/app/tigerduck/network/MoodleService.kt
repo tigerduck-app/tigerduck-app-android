@@ -39,9 +39,11 @@ class MoodleService @Inject constructor(
             val loggedIn = ssoLoginService.ensureServiceLogin(moodleLoginUrl, studentId, password)
             if (!loggedIn) throw MoodleServiceError.NotAuthenticated
 
-            // Step 2: Visit Moodle to get sesskey
-            val pageRequest = Request.Builder().url(moodleLoginUrl).get().build()
+            // Step 2: Visit Moodle dashboard to get sesskey
+            val dashboardUrl = "https://moodle2.ntust.edu.tw/my/"
+            val pageRequest = Request.Builder().url(dashboardUrl).get().build()
             val pageHTML = client.newCall(pageRequest).execute().use { response ->
+                if (!response.isSuccessful) throw MoodleServiceError.InvalidResponse
                 response.body?.string() ?: throw MoodleServiceError.InvalidResponse
             }
 

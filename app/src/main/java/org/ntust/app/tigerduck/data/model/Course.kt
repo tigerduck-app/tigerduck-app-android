@@ -27,16 +27,19 @@ data class Course(
     val schedule: Map<Int, List<String>>
         get() {
             _cachedSchedule?.let { return it }
-            val type = object : TypeToken<Map<String, List<String>>>() {}.type
-            val raw: Map<String, List<String>> = try {
-                scheduleGson.fromJson(scheduleJson, type) ?: emptyMap()
-            } catch (e: Exception) {
-                emptyMap()
+            synchronized(this) {
+                _cachedSchedule?.let { return it }
+                val type = object : TypeToken<Map<String, List<String>>>() {}.type
+                val raw: Map<String, List<String>> = try {
+                    scheduleGson.fromJson(scheduleJson, type) ?: emptyMap()
+                } catch (e: Exception) {
+                    emptyMap()
+                }
+                val parsed = raw.mapKeys { it.key.toIntOrNull() ?: 0 }
+                    .filterKeys { it != 0 }
+                _cachedSchedule = parsed
+                return parsed
             }
-            val parsed = raw.mapKeys { it.key.toIntOrNull() ?: 0 }
-                .filterKeys { it != 0 }
-            _cachedSchedule = parsed
-            return parsed
         }
 
     companion object {

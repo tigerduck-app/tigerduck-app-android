@@ -10,13 +10,16 @@ import org.ntust.app.tigerduck.data.model.EventSource
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
-import kotlinx.coroutines.channels.Channel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -86,21 +89,23 @@ class CalendarViewModel @Inject constructor(
     fun load() {
         if (hasLoaded) return
         hasLoaded = true
-        _events.value = dataCache.loadCalendarEvents()
-        viewModelScope.launch { fetchData() }
+        viewModelScope.launch {
+            _events.value = dataCache.loadCalendarEvents()
+            fetchData()
+        }
     }
 
-    private val _noNetworkEvent = Channel<Unit>(Channel.CONFLATED)
-    val noNetworkEvent: kotlinx.coroutines.channels.ReceiveChannel<Unit> = _noNetworkEvent
+    private val _noNetworkEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
 
-    private val _syncCompleteEvent = Channel<Unit>(Channel.CONFLATED)
-    val syncCompleteEvent: kotlinx.coroutines.channels.ReceiveChannel<Unit> = _syncCompleteEvent
+    private val _syncCompleteEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
     fun refresh() {
         viewModelScope.launch {
             _isLoading.value = true
             if (!networkChecker.isAvailable()) {
-                _noNetworkEvent.trySend(Unit)
+                _noNetworkEvent.tryEmit(Unit)
                 kotlinx.coroutines.yield()
                 _isLoading.value = false
                 return@launch
@@ -129,7 +134,7 @@ class CalendarViewModel @Inject constructor(
 
             _events.value = current
             dataCache.saveCalendarEvents(current)
-            _syncCompleteEvent.trySend(Unit)
+            _syncCompleteEvent.tryEmit(Unit)
         } catch (e: Exception) {
             // Keep existing events
         } finally {

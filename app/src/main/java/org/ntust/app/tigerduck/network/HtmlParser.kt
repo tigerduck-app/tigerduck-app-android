@@ -93,4 +93,10 @@ object HtmlParser {
             .replace("&quot;", "\"")
             .replace("&#39;", "'")
             .replace("&apos;", "'")
+            .replace(Regex("&#(\\d+);")) { m ->
+                m.groupValues[1].toIntOrNull()?.let { String(Character.toChars(it)) } ?: m.value
+            }
+            .replace(Regex("&#x([0-9a-fA-F]+);")) { m ->
+                m.groupValues[1].toIntOrNull(16)?.let { String(Character.toChars(it)) } ?: m.value
+            }
 }

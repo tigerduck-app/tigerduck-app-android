@@ -32,6 +32,7 @@ fun AnnouncementsScreen(
     val departments by viewModel.departments.collectAsState()
     val selectedDepartments by viewModel.selectedDepartments.collectAsState()
     val searchText by viewModel.searchText.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     var showSearch by remember { mutableStateOf(false) }
     var selectedAnnouncement by remember { mutableStateOf<Announcement?>(null) }
@@ -87,7 +88,16 @@ fun AnnouncementsScreen(
             }
         }
 
-        if (announcements.isEmpty()) {
+        if (isLoading) {
+            item {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+        } else if (announcements.isEmpty()) {
             item {
                 Box(
                     modifier = Modifier.fillMaxWidth().height(200.dp),

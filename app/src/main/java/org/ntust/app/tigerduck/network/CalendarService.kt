@@ -3,7 +3,7 @@ package org.ntust.app.tigerduck.network
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import android.util.Log
-import com.tigerduck.app.BuildConfig
+import org.ntust.app.tigerduck.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -51,7 +51,7 @@ class CalendarService @Inject constructor() {
                 "<a[^>]*href=\"([^\"]*)\"[^>]*>(.*?)</a>",
                 setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
             )
-            val yearRegex = Regex("(\\d{3})")
+            val yearRegex = Regex("""\b(1\d{2})\b""")
             val result = mutableMapOf<Int, String>()
 
             for (match in linkRegex.findAll(html)) {

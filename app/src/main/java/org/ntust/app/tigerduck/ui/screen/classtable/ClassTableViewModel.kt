@@ -14,12 +14,15 @@ import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
@@ -28,7 +31,7 @@ import javax.inject.Inject
 class ClassTableViewModel @Inject constructor(
     private val networkChecker: NetworkChecker,
     private val authService: AuthService,
-    val courseService: CourseService,
+    internal val courseService: CourseService,
     private val moodleService: MoodleService,
     private val dataCache: DataCache
 ) : ViewModel() {
@@ -72,7 +75,7 @@ class ClassTableViewModel @Inject constructor(
 
     val availableSemesters: List<String>
         get() {
-            val code = courseService.currentSemesterCode()
+            val code = _currentSemester.value
             val year = code.dropLast(1).toIntOrNull() ?: return listOf(code)
             val sem = code.last().digitToIntOrNull() ?: 1
             val result = mutableListOf<String>()
@@ -183,7 +186,7 @@ class ClassTableViewModel @Inject constructor(
     fun addCourse(course: Course) {
         val updated = _courses.value + course
         _courses.value = updated
-        dataCache.saveCourses(updated)
+        viewModelScope.launch { dataCache.saveCourses(updated) }
         TigerDuckTheme.buildCourseColorMap(updated.map { it.courseNo })
     }
 
@@ -192,13 +195,13 @@ class ClassTableViewModel @Inject constructor(
             if (it.courseNo == courseNo) it.copy(courseName = newName) else it
         }
         _courses.value = updated
-        dataCache.saveCourses(updated)
+        viewModelScope.launch { dataCache.saveCourses(updated) }
     }
 
     fun deleteCourse(courseNo: String) {
         val updated = _courses.value.filter { it.courseNo != courseNo }
         _courses.value = updated
-        dataCache.saveCourses(updated)
+        viewModelScope.launch { dataCache.saveCourses(updated) }
     }
 
     sealed class CellRole {
@@ -231,27 +234,29 @@ class ClassTableViewModel @Inject constructor(
     fun load() {
         if (hasLoaded) return
         hasLoaded = true
-        val cached = dataCache.loadCourses()
-        val cachedA = dataCache.loadAssignments()
-        if (cached.isNotEmpty()) {
-            _courses.value = cached
-            _assignments.value = cachedA
-            TigerDuckTheme.buildCourseColorMap(cached.map { it.courseNo })
+        viewModelScope.launch {
+            val cached = dataCache.loadCourses()
+            val cachedA = dataCache.loadAssignments()
+            if (cached.isNotEmpty()) {
+                _courses.value = cached
+                _assignments.value = cachedA
+                TigerDuckTheme.buildCourseColorMap(cached.map { it.courseNo })
+            }
+            fetchData()
         }
-        viewModelScope.launch { fetchData() }
     }
 
-    private val _noNetworkEvent = Channel<Unit>(Channel.CONFLATED)
-    val noNetworkEvent: kotlinx.coroutines.channels.ReceiveChannel<Unit> = _noNetworkEvent
+    private val _noNetworkEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
 
-    private val _syncCompleteEvent = Channel<Unit>(Channel.CONFLATED)
-    val syncCompleteEvent: kotlinx.coroutines.channels.ReceiveChannel<Unit> = _syncCompleteEvent
+    private val _syncCompleteEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
     fun refresh() {
         viewModelScope.launch {
             _isLoading.value = true
             if (!networkChecker.isAvailable()) {
-                _noNetworkEvent.trySend(Unit)
+                _noNetworkEvent.tryEmit(Unit)
                 kotlinx.coroutines.yield()
                 _isLoading.value = false
                 return@launch
@@ -329,7 +334,7 @@ class ClassTableViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("ClassTableVM", "Failed to fetch assignments", e)
             }
-            _syncCompleteEvent.trySend(Unit)
+            _syncCompleteEvent.tryEmit(Unit)
         } finally {
             _isLoading.value = false
         }

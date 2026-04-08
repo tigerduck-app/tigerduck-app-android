@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.network.LoadingState
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,7 @@ class AppState @Inject constructor(
     val calendarService: CalendarService
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var syncJob: Job? = null
 
     private val _loadingState = MutableStateFlow(LoadingState.IDLE)
     @Suppress("unused")
@@ -162,7 +164,8 @@ class AppState @Inject constructor(
         fetchAssignments: suspend () -> Unit
     ) {
         if (!hasCompletedOnboarding) return
-        scope.launch {
+        syncJob?.cancel()
+        syncJob = scope.launch {
             _loadingState.value = LoadingState.LOADING
             val coursesJob = async { runCatching { fetchCourses() } }
             val assignmentsJob = async { runCatching { fetchAssignments() } }

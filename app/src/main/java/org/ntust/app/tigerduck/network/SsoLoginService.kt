@@ -53,6 +53,8 @@ class SsoLoginService @Inject constructor(
 
         if (!HtmlParser.isSSOLoginPage(html, url)) {
             val bridged = resolveOIDCBridgeForms(html, url)
+            html = bridged.first
+            url = bridged.second
             sessionManager.markLoginSuccess()
             return@withContext true
         }
@@ -139,10 +141,15 @@ class SsoLoginService @Inject constructor(
     }
 
     private fun resolveUrl(path: String, base: HttpUrl): HttpUrl {
-        if (path.startsWith("http://") || path.startsWith("https://")) {
-            return path.toHttpUrl()
+        return try {
+            if (path.startsWith("http://") || path.startsWith("https://")) {
+                path.toHttpUrl()
+            } else {
+                base.newBuilder(path)?.build() ?: base
+            }
+        } catch (e: IllegalArgumentException) {
+            base
         }
-        return base.newBuilder(path)?.build() ?: base
     }
 
     private fun MutableList<Pair<String, String>>.replaceOrAppend(name: String, value: String) {

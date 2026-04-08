@@ -5,6 +5,7 @@ import org.ntust.app.tigerduck.network.LibraryService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.network.SsoLoginError
 import org.ntust.app.tigerduck.network.SsoLoginService
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
@@ -59,6 +60,9 @@ class AuthService @Inject constructor(
 
             _isLoggingIn.value = false
             success
+        } catch (e: CancellationException) {
+            _isLoggingIn.value = false
+            throw e
         } catch (e: Exception) {
             _loginError.value = if (e is SsoLoginError.NetworkError) {
                 "無法連線，請檢查網路連線"
@@ -70,13 +74,47 @@ class AuthService @Inject constructor(
         }
     }
 
-    suspend fun ensureAuthenticated(): Boolean {
-        val studentId = credentials.ntustStudentId ?: return false
-        val password = credentials.ntustPassword ?: return false
+    suspend fun ensureAuthenticated(): Boolean = loginMutex.withLock {
+        val studentId = credentials.ntustStudentId ?: return@withLock false
+        val password = credentials.ntustPassword ?: return@withLock false
 
-        if (sessionManager.cookiesValid) return true
+        if (sessionManager.cookiesValid) return@withLock true
 
-        return login(studentId, password)
+        // Release the mutex before calling login (which also acquires it)
+        // by inlining the login logic here instead.
+        _isLoggingIn.value = true
+        _loginError.value = null
+
+        try {
+            val normalizedId = studentId.trim().uppercase()
+            val serviceUrl = "https://courseselection.ntust.edu.tw/"
+            val success = ssoLoginService.ensureServiceLogin(serviceUrl, normalizedId, password)
+
+            if (success) {
+                credentials.ntustStudentId = normalizedId
+                credentials.ntustPassword = password
+
+                if (!credentials.isLibraryTokenValid) {
+                    try {
+                        libraryService.login(normalizedId, password)
+                    } catch (_: Exception) { }
+                }
+            }
+
+            _isLoggingIn.value = false
+            success
+        } catch (e: CancellationException) {
+            _isLoggingIn.value = false
+            throw e
+        } catch (e: Exception) {
+            _loginError.value = if (e is SsoLoginError.NetworkError) {
+                "無法連線，請檢查網路連線"
+            } else {
+                e.message ?: "登入失敗"
+            }
+            _isLoggingIn.value = false
+            false
+        }
     }
 
     fun logout() {

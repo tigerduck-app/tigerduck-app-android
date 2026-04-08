@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.tigerduck.app"
+    namespace = "org.ntust.app.tigerduck"
     compileSdk = 36
 
     defaultConfig {

@@ -46,6 +46,7 @@ class LibraryViewModel @Inject constructor(
     val storedUsername: StateFlow<String?> = _storedUsername
 
     private var countdownJob: Job? = null
+    private var refreshJob: Job? = null
     private val qrValidSeconds = 60
 
     fun load() {
@@ -74,7 +75,8 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun refreshQR() {
-        viewModelScope.launch {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
             _isLoadingQR.value = true
             _errorMessage.value = null
             try {
@@ -112,6 +114,7 @@ class LibraryViewModel @Inject constructor(
 
     fun onPause() {
         countdownJob?.cancel()
+        refreshJob?.cancel()
     }
 
     private fun generateQRBitmap(content: String, size: Int = 512): Bitmap {

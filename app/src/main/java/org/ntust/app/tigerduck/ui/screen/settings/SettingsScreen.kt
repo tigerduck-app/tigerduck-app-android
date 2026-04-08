@@ -56,13 +56,13 @@ fun SettingsScreen(
     var libUsernameInput by remember { mutableStateOf("") }
     var libPasswordInput by remember { mutableStateOf("") }
 
-    val accentColorHex by remember { derivedStateOf { viewModel.appState.accentColorHex } }
-    val showAbsoluteTime by remember { derivedStateOf { viewModel.appState.showAbsoluteAssignmentTime } }
-    val browserPreference by remember { derivedStateOf { viewModel.appState.browserPreference } }
-    val timeSliderStyle by remember { derivedStateOf { viewModel.appState.timeSliderStyle } }
-    val invertSlider by remember { derivedStateOf { viewModel.appState.invertSliderDirection } }
-    val notifyAssignments by remember { derivedStateOf { viewModel.appState.notifyAssignments } }
-    val libraryEnabled by remember { derivedStateOf { viewModel.appState.libraryFeatureEnabled } }
+    val accentColorHex = viewModel.appState.accentColorHex
+    val showAbsoluteTime = viewModel.appState.showAbsoluteAssignmentTime
+    val browserPreference = viewModel.appState.browserPreference
+    val timeSliderStyle = viewModel.appState.timeSliderStyle
+    val invertSlider = viewModel.appState.invertSliderDirection
+    val notifyAssignments = viewModel.appState.notifyAssignments
+    val libraryEnabled = viewModel.appState.libraryFeatureEnabled
 
     var showLibraryWarning by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }

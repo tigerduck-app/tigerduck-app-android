@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.component
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -18,6 +19,7 @@ fun SyncIndicator(
     showCheckmark: Boolean,
     modifier: Modifier = Modifier
 ) {
+    Box(modifier = modifier.size(20.dp)) {
     AnimatedContent(
         targetState = when {
             isLoading -> "loading"
@@ -25,8 +27,7 @@ fun SyncIndicator(
             else -> "idle"
         },
         transitionSpec = { fadeIn() togetherWith fadeOut() },
-        label = "sync_status",
-        modifier = modifier
+        label = "sync_status"
     ) { state ->
         when (state) {
             "loading" -> CircularProgressIndicator(
@@ -42,5 +43,6 @@ fun SyncIndicator(
             )
             else -> Spacer(Modifier.size(20.dp))
         }
+    }
     }
 }

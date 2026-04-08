@@ -62,6 +62,7 @@ fun MainNavigation(appState: AppState) {
     }
 
     val bottomItems = configuredTabs + listOf(AppFeature.MORE)
+    val startDest = remember { configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route }
 
     Scaffold(
         bottomBar = {
@@ -74,11 +75,10 @@ fun MainNavigation(appState: AppState) {
                         selected = selectedTabRoute == route,
                         onClick = {
                             navController.navigate(route) {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    saveState = true
+                                popUpTo(startDest) {
+                                    inclusive = false
                                 }
                                 launchSingleTop = true
-                                // More should always open its root page, not restore Settings.
                                 restoreState = route != Screen.More.route
                             }
                         }
@@ -87,7 +87,6 @@ fun MainNavigation(appState: AppState) {
             }
         }
     ) { innerPadding ->
-        val startDest = remember(configuredTabs) { configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route }
         NavHost(
             navController = navController,
             startDestination = startDest,

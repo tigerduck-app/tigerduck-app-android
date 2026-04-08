@@ -15,8 +15,11 @@ import org.ntust.app.tigerduck.network.NetworkChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -51,14 +54,14 @@ class HomeViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
-    private val _noNetworkEvent = Channel<Unit>(Channel.CONFLATED)
-    val noNetworkEvent: kotlinx.coroutines.channels.ReceiveChannel<Unit> = _noNetworkEvent
+    private val _noNetworkEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
 
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
 
-    private val _syncCompleteEvent = Channel<Unit>(Channel.CONFLATED)
-    val syncCompleteEvent: kotlinx.coroutines.channels.ReceiveChannel<Unit> = _syncCompleteEvent
+    private val _syncCompleteEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
     private val _skippedDates = MutableStateFlow<Map<String, List<String>>>(emptyMap())
     val skippedDates: StateFlow<Map<String, List<String>>> = _skippedDates
@@ -79,23 +82,25 @@ class HomeViewModel @Inject constructor(
         if (hasLoaded) return
         hasLoaded = true
 
-        _skippedDates.value = dataCache.loadSkippedDates()
+        viewModelScope.launch {
+            _skippedDates.value = dataCache.loadSkippedDates()
 
-        // Load cached data immediately
-        val cachedCourses = dataCache.loadCourses()
-        val cachedAssignments = dataCache.loadAssignments()
-        if (cachedCourses.isNotEmpty() || cachedAssignments.isNotEmpty()) {
-            TigerDuckTheme.buildCourseColorMap(cachedCourses.map { it.courseNo })
-            updateCoursesAndAssignments(cachedCourses, cachedAssignments)
+            // Load cached data immediately
+            val cachedCourses = dataCache.loadCourses()
+            val cachedAssignments = dataCache.loadAssignments()
+            if (cachedCourses.isNotEmpty() || cachedAssignments.isNotEmpty()) {
+                TigerDuckTheme.buildCourseColorMap(cachedCourses.map { it.courseNo })
+                updateCoursesAndAssignments(cachedCourses, cachedAssignments)
+            }
+
+            fetchData(forceRemote = true)
         }
-
-        viewModelScope.launch { fetchData(forceRemote = true) }
     }
 
     fun refresh() {
         viewModelScope.launch {
             if (!networkChecker.isAvailable()) {
-                _noNetworkEvent.trySend(Unit)
+                _noNetworkEvent.tryEmit(Unit)
                 kotlinx.coroutines.yield()
                 return@launch
             }
@@ -133,7 +138,7 @@ class HomeViewModel @Inject constructor(
             TigerDuckTheme.buildCourseColorMap(courses.map { it.courseNo })
             updateCoursesAndAssignments(courses, assignments)
             if (forceRemote && authService.isNtustAuthenticated) {
-                _syncCompleteEvent.trySend(Unit)
+                _syncCompleteEvent.tryEmit(Unit)
             }
         } finally {
             _isLoading.value = false
@@ -219,7 +224,7 @@ class HomeViewModel @Inject constructor(
 
         // Schedule notifications for upcoming assignments
         if (prefs.notifyAssignments) {
-            notificationScheduler.scheduleAll(assignments)
+            notificationScheduler.scheduleAll(assignments.filter { !it.isCompleted })
         }
     }
 

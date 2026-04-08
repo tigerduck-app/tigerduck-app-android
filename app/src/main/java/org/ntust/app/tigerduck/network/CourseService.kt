@@ -5,7 +5,7 @@ import com.google.gson.reflect.TypeToken
 import org.ntust.app.tigerduck.network.model.CourseSearchRequest
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import android.util.Log
-import com.tigerduck.app.BuildConfig
+import org.ntust.app.tigerduck.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType

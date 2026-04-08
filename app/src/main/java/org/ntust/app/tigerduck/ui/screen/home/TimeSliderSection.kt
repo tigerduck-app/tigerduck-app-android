@@ -563,20 +563,19 @@ private fun SegmentedBarTrack(viewModel: TimeSliderViewModel, invertDirection: B
     }
 }
 
-private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
-private val dateTimeFmt = SimpleDateFormat("M/d (EEE) HH:mm", Locale.TRADITIONAL_CHINESE)
-private val dateLabelFmt = SimpleDateFormat("M/d (EEE)", Locale.TRADITIONAL_CHINESE)
+private val timeFmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+private val dateTimeFmt = java.time.format.DateTimeFormatter.ofPattern("M/d (EEE) HH:mm", Locale.TRADITIONAL_CHINESE)
+private val dateLabelFmt = java.time.format.DateTimeFormatter.ofPattern("M/d (EEE)", Locale.TRADITIONAL_CHINESE)
 
 private fun formatTimeLabel(date: Date): String {
-    val cal = Calendar.getInstance()
-    val today = cal.get(Calendar.DAY_OF_YEAR)
-    val year = cal.get(Calendar.YEAR)
-    cal.time = date
-    return if (today == cal.get(Calendar.DAY_OF_YEAR) && year == cal.get(Calendar.YEAR)) {
-        timeFmt.format(date)
+    val instant = date.toInstant().atZone(java.time.ZoneId.systemDefault())
+    val today = java.time.LocalDate.now()
+    return if (instant.toLocalDate() == today) {
+        timeFmt.format(instant)
     } else {
-        dateTimeFmt.format(date)
+        dateTimeFmt.format(instant)
     }
 }
 
-private fun formatDateLabel(date: Date): String = dateLabelFmt.format(date)
+private fun formatDateLabel(date: Date): String =
+    dateLabelFmt.format(date.toInstant().atZone(java.time.ZoneId.systemDefault()))
