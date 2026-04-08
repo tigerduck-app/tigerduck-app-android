@@ -26,6 +26,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
+import org.ntust.app.tigerduck.data.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.CourseCard
 import org.ntust.app.tigerduck.ui.component.SectionHeader
@@ -38,6 +39,7 @@ fun ClassTableScreen(
 ) {
     val courses by viewModel.courses.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    viewModel.currentMinute.collectAsState() // drives recomposition when a class ends
     val selectedCourse by viewModel.selectedCourse.collectAsState()
     val todayCourses = viewModel.todayCourses
     val activePeriods = viewModel.activePeriods
@@ -97,6 +99,7 @@ fun ClassTableScreen(
                         CourseCard(
                             course = course,
                             hasAssignment = viewModel.hasAssignment(course.courseNo),
+                            isFinished = viewModel.isCourseFinishedToday(course),
                             onClick = {
                                 val today = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
                                 val dayIndex = when (today) {
@@ -105,7 +108,8 @@ fun ClassTableScreen(
                                     java.util.Calendar.FRIDAY -> 5; java.util.Calendar.SATURDAY -> 6
                                     else -> 7
                                 }
-                                val firstPeriod = course.schedule[dayIndex]?.firstOrNull() ?: ""
+                                val firstPeriod = course.schedule[dayIndex]
+                                    ?.minByOrNull { AppConstants.Periods.chronologicalOrder.indexOf(it) } ?: ""
                                 viewModel.selectCourse(course, dayIndex, firstPeriod)
                             }
                         )

@@ -21,6 +21,8 @@ import javax.inject.Singleton
 class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     private val cacheDir: File = File(context.cacheDir, "TigerDuckCache").also { it.mkdirs() }
+    // User-generated state that has no remote source — stored in filesDir so the OS never evicts it.
+    private val userDataDir: File = File(context.filesDir, "TigerDuckData").also { it.mkdirs() }
     private val gson: Gson = GsonBuilder()
         .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         .create()
@@ -41,6 +43,24 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     fun loadAssignments(): List<Assignment> {
         val type = object : TypeToken<List<Assignment>>() {}.type
         return load(type, "assignments.json") ?: emptyList()
+    }
+
+    // MARK: - Skipped Dates (courseNo -> list of ISO date strings "yyyy-MM-dd")
+    // Stored in filesDir — never cleared by the OS, unlike cacheDir.
+
+    fun saveSkippedDates(data: Map<String, List<String>>) {
+        try {
+            File(userDataDir, "skipped_dates.json").writeText(gson.toJson(data))
+        } catch (e: Exception) { }
+    }
+
+    fun loadSkippedDates(): Map<String, List<String>> {
+        val type = object : TypeToken<Map<String, List<String>>>() {}.type
+        return try {
+            val file = File(userDataDir, "skipped_dates.json")
+            if (!file.exists()) return emptyMap()
+            gson.fromJson(file.readText(), type) ?: emptyMap()
+        } catch (e: Exception) { emptyMap() }
     }
 
     // MARK: - Calendar Events

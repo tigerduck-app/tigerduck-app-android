@@ -1,21 +1,27 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -25,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.ntust.app.tigerduck.data.model.Course
@@ -33,12 +40,17 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 @Composable
 fun TimeSliderSection(
     courses: List<Course>,
     sliderStyle: String,
     invertDirection: Boolean,
+    skippedDates: Map<String, List<String>> = emptyMap(),
+    onSkipCourse: (Course, Date) -> Unit = { _, _ -> },
     onSelectCourse: (Course) -> Unit
 ) {
     val sliderScope = rememberCoroutineScope()
@@ -90,6 +102,8 @@ fun TimeSliderSection(
                 // Course card
                 CourseTimeCard(
                     state = viewModel.currentCourseState,
+                    skippedDates = skippedDates,
+                    onSkipCourse = onSkipCourse,
                     onSelect = onSelectCourse
                 )
 
@@ -133,34 +147,68 @@ fun TimeSliderSection(
 @Composable
 private fun CourseTimeCard(
     state: CourseState,
+    skippedDates: Map<String, List<String>>,
+    onSkipCourse: (Course, Date) -> Unit,
     onSelect: (Course) -> Unit
 ) {
+    val isoFmt = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
+    val isSkippedFor: (CourseTimeSlot) -> Boolean = { slot ->
+        val dateKey = isoFmt.format(slot.date)
+        skippedDates[slot.course.courseNo]?.contains(dateKey) == true
+    }
+
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         when (state) {
             is CourseState.InClass -> {
-                SlotCard(slot = state.slot, alpha = 1f, onClick = { onSelect(state.slot.course) },
-                    modifier = Modifier.fillMaxWidth())
+                SlotCard(
+                    slot = state.slot,
+                    alpha = 1f,
+                    isSkipped = isSkippedFor(state.slot),
+                    onSkipToggle = { onSkipCourse(state.slot.course, state.slot.date) },
+                    onClick = { onSelect(state.slot.course) },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
             is CourseState.Between -> {
                 state.previous?.let {
-                    SlotCard(slot = it, alpha = 0.5f, onClick = { onSelect(it.course) },
-                        modifier = Modifier.weight(1f))
+                    SlotCard(
+                        slot = it, alpha = 0.5f,
+                        isSkipped = isSkippedFor(it),
+                        onSkipToggle = { onSkipCourse(it.course, it.date) },
+                        onClick = { onSelect(it.course) },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
                 state.next?.let {
-                    SlotCard(slot = it, alpha = 0.5f, onClick = { onSelect(it.course) },
-                        modifier = Modifier.weight(1f))
+                    SlotCard(
+                        slot = it, alpha = 0.5f,
+                        isSkipped = isSkippedFor(it),
+                        onSkipToggle = { onSkipCourse(it.course, it.date) },
+                        onClick = { onSelect(it.course) },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
             is CourseState.BeforeFirst -> {
-                SlotCard(slot = state.next, alpha = 0.5f, onClick = { onSelect(state.next.course) },
-                    modifier = Modifier.fillMaxWidth())
+                SlotCard(
+                    slot = state.next, alpha = 0.5f,
+                    isSkipped = isSkippedFor(state.next),
+                    onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
+                    onClick = { onSelect(state.next.course) },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
             is CourseState.AfterLast -> {
-                SlotCard(slot = state.previous, alpha = 0.5f, onClick = { onSelect(state.previous.course) },
-                    modifier = Modifier.fillMaxWidth())
+                SlotCard(
+                    slot = state.previous, alpha = 0.5f,
+                    isSkipped = isSkippedFor(state.previous),
+                    onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
+                    onClick = { onSelect(state.previous.course) },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }
@@ -170,6 +218,8 @@ private fun CourseTimeCard(
 private fun SlotCard(
     slot: CourseTimeSlot,
     alpha: Float,
+    isSkipped: Boolean = false,
+    onSkipToggle: (() -> Unit)? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -198,42 +248,116 @@ private fun SlotCard(
         today == cal.get(Calendar.DAY_OF_YEAR) && it.get(Calendar.YEAR) == cal.get(Calendar.YEAR)
     }
 
-    Card(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.15f * alpha))
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row {
-                Text(
-                    timeRange,
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-                Spacer(Modifier.weight(1f))
-                if (!isToday) {
+    val latestOnSkipToggle by rememberUpdatedState(onSkipToggle)
+    val density = LocalDensity.current
+    val thresholdPx = with(density) { 100.dp.toPx() }
+    val swipeOffset = remember(slot.course.courseNo, slot.date) { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+
+    Box(modifier = modifier) {
+        // Skip action indicator shown behind the card while swiping
+        if (onSkipToggle != null) {
+            val progress = (abs(swipeOffset.value) / thresholdPx).coerceIn(0f, 1f)
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .padding(end = 20.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Column(
+                    modifier = Modifier
+                        .alpha(progress)
+                        .scale(0.5f + 0.5f * progress),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = if (isSkipped) Icons.AutoMirrored.Filled.Undo else Icons.AutoMirrored.Filled.DirectionsWalk,
+                        contentDescription = null,
+                        tint = if (isSkipped) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                               else Color(0xFFFF2D55),
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(Modifier.height(2.dp))
                     Text(
-                        formatDateLabel(slot.date),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        text = if (isSkipped) "取消翹課" else "翹課",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = if (isSkipped) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                else Color(0xFFFF2D55),
+                        fontSize = 11.sp
                     )
                 }
             }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                slot.course.courseName,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                "${slot.course.classroom} · ${slot.course.instructor}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+        }
+
+        val cardModifier = if (onSkipToggle != null) {
+            Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(swipeOffset.value.roundToInt(), 0) }
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            coroutineScope.launch {
+                                if (swipeOffset.value <= -thresholdPx) {
+                                    swipeOffset.animateTo(-2000f, animationSpec = tween(durationMillis = 200))
+                                    latestOnSkipToggle?.invoke()
+                                    swipeOffset.snapTo(0f)
+                                } else {
+                                    swipeOffset.animateTo(0f, animationSpec = spring())
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            coroutineScope.launch { swipeOffset.animateTo(0f, animationSpec = spring()) }
+                        },
+                        onHorizontalDrag = { _, delta ->
+                            coroutineScope.launch {
+                                swipeOffset.snapTo((swipeOffset.value + delta * 0.6f).coerceAtMost(0f))
+                            }
+                        }
+                    )
+                }
+        } else {
+            Modifier.fillMaxWidth()
+        }
+
+        Card(
+            onClick = onClick,
+            modifier = cardModifier,
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.15f * alpha))
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row {
+                    Text(
+                        timeRange,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                    Spacer(Modifier.weight(1f))
+                    if (!isToday) {
+                        Text(
+                            formatDateLabel(slot.date),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    slot.course.courseName,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = if (isSkipped) Color(0xFFFF2D55) else Color.Unspecified,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "${slot.course.classroom} · ${slot.course.instructor}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }

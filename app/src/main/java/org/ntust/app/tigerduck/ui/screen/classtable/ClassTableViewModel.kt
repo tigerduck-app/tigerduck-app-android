@@ -45,7 +45,24 @@ class ClassTableViewModel @Inject constructor(
     private val _currentSemester = MutableStateFlow(courseService.currentSemesterCode())
     val currentSemester: StateFlow<String> = _currentSemester
 
+    private val _currentMinute = MutableStateFlow(currentMinuteOfDay())
+    val currentMinute: StateFlow<Int> = _currentMinute
+
     private var hasLoaded = false
+
+    init {
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(60_000)
+                _currentMinute.value = currentMinuteOfDay()
+            }
+        }
+    }
+
+    private fun currentMinuteOfDay(): Int {
+        val c = Calendar.getInstance()
+        return c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE)
+    }
 
     val availableSemesters: List<String>
         get() {
@@ -74,7 +91,14 @@ class ClassTableViewModel @Inject constructor(
                     Calendar.SUNDAY -> 7; else -> 1
                 }
             }
-            return _courses.value.filter { it.schedule.containsKey(today) }
+            return _courses.value
+                .filter { it.schedule.containsKey(today) }
+                .sortedBy { course ->
+                    val firstPeriod = course.schedule[today]
+                        ?.minByOrNull { AppConstants.Periods.chronologicalOrder.indexOf(it) }
+                    firstPeriod?.let { AppConstants.Periods.chronologicalOrder.indexOf(it) }
+                        ?: Int.MAX_VALUE
+                }
         }
 
     val activeWeekdays: List<Int>
@@ -108,6 +132,25 @@ class ClassTableViewModel @Inject constructor(
             val last = AppConstants.PeriodTimes.mapping[periods.last()] ?: return null
             return "${first.first} - ${last.second}"
         }
+
+    fun isCourseFinishedToday(course: Course): Boolean {
+        val now = Calendar.getInstance()
+        val todayWeekday = now.get(Calendar.DAY_OF_WEEK).let {
+            when (it) {
+                Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
+                Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
+                else -> 7
+            }
+        }
+        val periods = course.schedule[todayWeekday]
+            ?.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
+        val lastPeriodId = periods?.lastOrNull() ?: return false
+        val endTimeStr = AppConstants.PeriodTimes.mapping[lastPeriodId]?.second ?: return false
+        val parts = endTimeStr.split(":")
+        val endMinutes = (parts.getOrNull(0)?.toIntOrNull() ?: return false) * 60 +
+                         (parts.getOrNull(1)?.toIntOrNull() ?: return false)
+        return _currentMinute.value > endMinutes
+    }
 
     fun courseAt(weekday: Int, period: String): Course? =
         _courses.value.firstOrNull { it.schedule[weekday]?.contains(period) == true }
