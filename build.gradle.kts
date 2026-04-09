@@ -6,7 +6,8 @@ plugins {
     alias(libs.plugins.ksp) apply false
 }
 
-if (System.getenv("CI") == null) {
+val isCI = System.getenv("CI") != null || System.getProperty("user.home") == "/home/vagrant"
+if (!isCI) {
     val localBuildRoot = file("${System.getProperty("user.home")}/.tigerduck-build")
     rootProject.layout.buildDirectory.set(localBuildRoot.resolve(rootProject.name))
     subprojects {
