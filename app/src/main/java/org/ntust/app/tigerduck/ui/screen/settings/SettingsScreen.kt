@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.content.Intent
+import org.ntust.app.tigerduck.BuildConfig
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.animation.core.*
@@ -67,14 +68,7 @@ fun SettingsScreen(
     var showLibraryWarning by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val appVersion = remember {
-        try {
-            val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            pInfo.versionName ?: "1.1.1"
-        } catch (_: Exception) {
-            "1.1.1"
-        }
-    }
+    val appVersion = remember { BuildConfig.VERSION_NAME }
 
     // Show network error as snackbar
     LaunchedEffect(ntustLoginError) {
