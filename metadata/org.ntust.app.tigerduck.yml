@@ -1,5 +1,5 @@
 Categories:
-  - Education
+  - Science & Education
 License: AGPL-3.0-only
 AuthorName: tigerduck-app
 AuthorWebSite: https://github.com/tigerduck-app
@@ -8,12 +8,12 @@ IssueTracker: https://github.com/tigerduck-app/tigerduck-app-android/issues
 
 AutoName: TigerDuck
 Description: |
-    TigerDuck 是專為臺灣科技大學學生打造的校園生活助手 App。
+  TigerDuck 是專為臺灣科技大學學生打造的校園生活助手 App。
 
-    功能包含：
-    * 課表查詢
-    * Moodle 作業截止日查詢、提醒
-    * 行事曆整合
+  功能包含：
+  * 課表查詢
+  * Moodle 作業截止日查詢、提醒
+  * 行事曆整合
 
 RepoType: git
 Repo: https://github.com/tigerduck-app/tigerduck-app-android.git
