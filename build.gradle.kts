@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.ksp) apply false
 }
 
+// F-Droid buildserver runs `unset CI` before building, so also check for /home/vagrant
 val isCI = System.getenv("CI") != null || System.getProperty("user.home") == "/home/vagrant"
 if (!isCI) {
     val localBuildRoot = file("${System.getProperty("user.home")}/.tigerduck-build")
