@@ -56,6 +56,8 @@ jobs:
           packageName: org.ntust.app.tigerduck
           releaseFiles: app/build/outputs/bundle/release/*.aab
           track: production
+          status: completed
+          userFraction: 0.1
 
       - name: Clean up keystore
         if: always()

@@ -1,4 +1,4 @@
-name: Release (Manual + Play Store)
+name: Release (Manual + Play Store (Internal))
 
 on:
   workflow_dispatch:
@@ -27,6 +27,15 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@ac638b010cf58a27ee6c972d7336334ccaf61c96 # v4
+
+      - name: Validate tag format
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid tag format. Expected: v1.2.3"
+            exit 1
+          fi
 
       - name: Decode keystore
         env:
@@ -61,9 +70,8 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: org.ntust.app.tigerduck
           releaseFiles: app/build/outputs/bundle/release/*.aab
-          track: production
+          track: internal
           status: completed
-          userFraction: 0.1
 
       - name: Clean up keystore
         if: always()
