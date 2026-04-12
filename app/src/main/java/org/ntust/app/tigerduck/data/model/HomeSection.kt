@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.data.model
 
+// TODO: Add user adjustment of the order and visibility of sections
 data class HomeSection(
     val id: String,
     val type: HomeSectionType,
@@ -11,6 +12,7 @@ data class HomeSection(
     enum class HomeSectionType(val defaultTitle: String) {
         TODAY_COURSES("今日課程"),
         UPCOMING_ASSIGNMENTS("待辦作業"),
+        @Deprecated("Feature temporarily disabled")
         QUICK_WIDGETS("快速功能"),
         CUSTOM("自訂區塊");
     }
@@ -19,15 +21,16 @@ data class HomeSection(
         fun defaults(): List<HomeSection> = listOf(
             HomeSection("today-courses", HomeSectionType.TODAY_COURSES, "今日課程", 0, true),
             HomeSection("upcoming-assignments", HomeSectionType.UPCOMING_ASSIGNMENTS, "待辦作業", 1, true),
-            HomeSection(
-                "quick-widgets", HomeSectionType.QUICK_WIDGETS, "快速功能", 2, true,
-                widgets = listOf(
-                    WidgetItem("w1", AppFeature.FREE_LUNCH),
-                    WidgetItem("w2", AppFeature.EMPTY_CLASSROOM),
-                    WidgetItem("w3", AppFeature.SCHOLARSHIP),
-                    WidgetItem("w4", AppFeature.GPA),
-                )
-            )
+            // TODO: 快速功能
+//            HomeSection(
+//                "quick-widgets", HomeSectionType.QUICK_WIDGETS, "快速功能", 2, true,
+//                widgets = listOf(
+//                    WidgetItem("w1", AppFeature.FREE_LUNCH),
+//                    WidgetItem("w2", AppFeature.EMPTY_CLASSROOM),
+//                    WidgetItem("w3", AppFeature.SCHOLARSHIP),
+//                    WidgetItem("w4", AppFeature.GPA),
+//                )
+//            )
         )
     }
 }

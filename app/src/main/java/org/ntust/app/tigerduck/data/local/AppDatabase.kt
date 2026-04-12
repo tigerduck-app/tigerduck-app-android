@@ -12,7 +12,7 @@ import org.ntust.app.tigerduck.data.model.*
 
 @Database(
     entities = [Course::class, Assignment::class, CalendarEvent::class, Announcement::class],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -31,10 +31,16 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE courses ADD COLUMN customColorHex TEXT")
+            }
+        }
+
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "tigerduck.db")
                 .apply {
-                    addMigrations(MIGRATION_1_2)
+                    addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     if (BuildConfig.DEBUG) {
                         fallbackToDestructiveMigration(true)
                     }

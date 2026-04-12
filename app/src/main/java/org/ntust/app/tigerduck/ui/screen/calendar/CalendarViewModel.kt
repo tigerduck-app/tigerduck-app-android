@@ -65,7 +65,7 @@ class CalendarViewModel @Inject constructor(
     }
 
     fun previousMonth() {
-        val cal = Calendar.getInstance().apply {
+        val cal = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply {
             time = _displayedMonth.value
             add(Calendar.MONTH, -1)
         }
@@ -73,7 +73,7 @@ class CalendarViewModel @Inject constructor(
     }
 
     fun nextMonth() {
-        val cal = Calendar.getInstance().apply {
+        val cal = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply {
             time = _displayedMonth.value
             add(Calendar.MONTH, 1)
         }
@@ -177,8 +177,8 @@ class CalendarViewModel @Inject constructor(
         }
 
     private fun Date.isSameDay(other: Date): Boolean {
-        val cal1 = Calendar.getInstance().apply { time = this@isSameDay }
-        val cal2 = Calendar.getInstance().apply { time = other }
+        val cal1 = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = this@isSameDay }
+        val cal2 = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = other }
         return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
                cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
     }

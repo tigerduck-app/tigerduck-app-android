@@ -2,8 +2,10 @@ package org.ntust.app.tigerduck.ui.screen.home
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import org.ntust.app.tigerduck.AppConstants
 import androidx.lifecycle.viewModelScope
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.*
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -35,7 +37,8 @@ class HomeViewModel @Inject constructor(
     private val courseService: CourseService,
     private val moodleService: MoodleService,
     private val notificationScheduler: AssignmentNotificationScheduler,
-    private val prefs: AppPreferences
+    private val prefs: AppPreferences,
+    private val courseColorStore: CourseColorStore
 ) : ViewModel() {
 
     private val _sections = MutableStateFlow(prefs.homeSections)
@@ -73,6 +76,16 @@ class HomeViewModel @Inject constructor(
                 dataCache.saveSkippedDates(data)
             }
         }
+        viewModelScope.launch {
+            // Pick up color changes triggered from Settings (e.g. "重設課表顏色").
+            courseColorStore.changeEvent.collect {
+                val fresh = dataCache.loadCourses()
+                if (fresh.isNotEmpty()) {
+                    TigerDuckTheme.buildCourseColorMap(fresh)
+                    updateCoursesAndAssignments(fresh, _upcomingAssignments.value)
+                }
+            }
+        }
     }
 
     private var hasLoaded = false
@@ -88,7 +101,7 @@ class HomeViewModel @Inject constructor(
             val cachedCourses = dataCache.loadCourses()
             val cachedAssignments = dataCache.loadAssignments()
             if (cachedCourses.isNotEmpty() || cachedAssignments.isNotEmpty()) {
-                TigerDuckTheme.buildCourseColorMap(cachedCourses.map { it.courseNo })
+                TigerDuckTheme.buildCourseColorMap(cachedCourses)
                 updateCoursesAndAssignments(cachedCourses, cachedAssignments)
             }
 
@@ -120,8 +133,13 @@ class HomeViewModel @Inject constructor(
                     if (authenticated) {
                         val remoteCourses = fetchCourses(studentId, password)
                         if (!remoteCourses.isNullOrEmpty()) {
-                            courses = remoteCourses
-                            dataCache.saveCourses(remoteCourses)
+                            // Re-read cache so a concurrent color change isn't erased.
+                            val latestColors = dataCache.loadCourses()
+                                .associate { it.courseNo to it.customColorHex }
+                            courses = remoteCourses.map { c ->
+                                c.copy(customColorHex = latestColors[c.courseNo])
+                            }
+                            dataCache.saveCourses(courses)
                         }
 
                         val remoteAssignments = fetchAssignments(studentId, password)
@@ -133,7 +151,7 @@ class HomeViewModel @Inject constructor(
                 }
             }
 
-            TigerDuckTheme.buildCourseColorMap(courses.map { it.courseNo })
+            TigerDuckTheme.buildCourseColorMap(courses)
             updateCoursesAndAssignments(courses, assignments)
             if (forceRemote && authService.isNtustAuthenticated) {
                 _syncCompleteEvent.tryEmit(Unit)
@@ -202,7 +220,7 @@ class HomeViewModel @Inject constructor(
 
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
         _allCourses.value = courses
-        val todayIndex = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).let {
+        val todayIndex = Calendar.getInstance(AppConstants.TAIPEI_TZ).get(Calendar.DAY_OF_WEEK).let {
             // Android: Sun=1, Mon=2..Sat=7. We need Mon=1..Sun=7
             when (it) {
                 Calendar.MONDAY -> 1
@@ -241,7 +259,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun toggleSkip(course: Course, date: Date) {
-        val key = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().format(SKIP_DATE_FMT)
+        val key = date.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate().format(SKIP_DATE_FMT)
         _skippedDates.update { current ->
             val map = current.toMutableMap()
             val dates = (map[course.courseNo] ?: emptyList()).toMutableList()

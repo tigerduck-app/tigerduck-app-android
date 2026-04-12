@@ -47,6 +47,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getString("browserPreference", "system") ?: "system"
         set(value) = prefs.edit().putString("browserPreference", value).apply()
 
+    /** One of "system", "dark", "light". */
+    var themeMode: String
+        get() = prefs.getString("themeMode", "system") ?: "system"
+        set(value) = prefs.edit().putString("themeMode", value).apply()
+
     var showAbsoluteAssignmentTime: Boolean
         get() = prefs.getBoolean("showAbsoluteAssignmentTime", false)
         set(value) = prefs.edit().putBoolean("showAbsoluteAssignmentTime", value).apply()
@@ -88,7 +93,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
             val json = prefs.getString("homeSections", null) ?: return HomeSection.defaults()
             return try {
                 val type = object : TypeToken<List<HomeSection>>() {}.type
-                gson.fromJson<List<HomeSection>>(json, type)?.ifEmpty { HomeSection.defaults() }
+                @Suppress("DEPRECATION")
+                gson.fromJson<List<HomeSection>>(json, type)
+                    ?.filter { it.type != HomeSection.HomeSectionType.QUICK_WIDGETS }
+                    ?.ifEmpty { HomeSection.defaults() }
                     ?: HomeSection.defaults()
             } catch (e: Exception) {
                 HomeSection.defaults()
@@ -107,6 +115,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     }
 
     companion object {
+        /**
+         * Accent color palette — canonical (light-mode) hex. The user's pick
+         * is always stored as the light hex; [themeColorsDark] provides the
+         * paired dark variant at the same index so themes swap in-place.
+         */
         val themeColors: List<Pair<String, Int>> = listOf(
             "藍" to 0x007AFF,
             "紫" to 0xAF52DE,
@@ -117,5 +130,31 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
             "青" to 0x5AC8FA,
             "靛" to 0x5856D6,
         )
+
+        val themeColorsDark: List<Pair<String, Int>> = listOf(
+            "藍" to 0x0A84FF,
+            "紫" to 0xBF5AF2,
+            "粉" to 0xFF375F,
+            "紅" to 0xFF453A,
+            "橘" to 0xFF9F0A,
+            "綠" to 0x32D74B,
+            "青" to 0x64D2FF,
+            "靛" to 0x5E5CE6,
+        )
+
+        init {
+            require(themeColors.size == themeColorsDark.size) {
+                "themeColors and themeColorsDark must be the same size"
+            }
+            require(themeColors.map { it.first } == themeColorsDark.map { it.first }) {
+                "themeColors and themeColorsDark must share names in the same order"
+            }
+        }
+
+        /** Look up the dark-mode companion for a given light-mode accent hex. */
+        fun accentDarkVariant(lightHex: Int): Int {
+            val idx = themeColors.indexOfFirst { it.second == lightHex }
+            return if (idx >= 0) themeColorsDark[idx].second else lightHex
+        }
     }
 }

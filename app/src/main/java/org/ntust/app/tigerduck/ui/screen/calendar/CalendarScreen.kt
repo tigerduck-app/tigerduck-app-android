@@ -138,12 +138,13 @@ private fun MonthCalendar(
     onNextMonth: () -> Unit
 ) {
     val monthFmt = SimpleDateFormat("yyyy年M月", Locale.CHINESE)
-    val cal = Calendar.getInstance().apply { time = displayedMonth }
+    val taipeiTz = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
+    val cal = Calendar.getInstance(taipeiTz).apply { time = displayedMonth }
     val year = cal.get(Calendar.YEAR)
     val month = cal.get(Calendar.MONTH)
 
     // Build days
-    val firstDay = Calendar.getInstance().apply { set(year, month, 1) }
+    val firstDay = Calendar.getInstance(taipeiTz).apply { set(year, month, 1) }
     val daysInMonth = firstDay.getActualMaximum(Calendar.DAY_OF_MONTH)
     // Sunday = 1, Monday = 2... adjust to Mon-first
     val startDow = ((firstDay.get(Calendar.DAY_OF_WEEK) - 2 + 7) % 7)
@@ -193,7 +194,7 @@ private fun MonthCalendar(
                     if (dayNum < 1 || dayNum > daysInMonth) {
                         Box(modifier = Modifier.weight(1f).height(40.dp))
                     } else {
-                        val dayDate = Calendar.getInstance().apply {
+                        val dayDate = Calendar.getInstance(taipeiTz).apply {
                             set(year, month, dayNum, 0, 0, 0)
                             set(Calendar.MILLISECOND, 0)
                         }.time
@@ -282,8 +283,8 @@ private fun EventRow(event: CalendarEvent) {
 }
 
 private fun isSameDay(a: Date, b: Date): Boolean {
-    val ca = Calendar.getInstance().apply { time = a }
-    val cb = Calendar.getInstance().apply { time = b }
+    val ca = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = a }
+    val cb = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = b }
     return ca.get(Calendar.YEAR) == cb.get(Calendar.YEAR) &&
            ca.get(Calendar.DAY_OF_YEAR) == cb.get(Calendar.DAY_OF_YEAR)
 }

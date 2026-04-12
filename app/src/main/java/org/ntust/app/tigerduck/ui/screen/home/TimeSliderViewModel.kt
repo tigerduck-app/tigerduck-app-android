@@ -73,7 +73,7 @@ class TimeSliderViewModel(private val scope: CoroutineScope) {
                 val next = timeSlots[i + 1]
                 val gapMin = (next.start.time - slot.end.time) / 60_000.0
 
-                val cal = Calendar.getInstance()
+                val cal = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ)
                 cal.time = slot.date
                 val slotDay = cal.get(Calendar.DAY_OF_YEAR)
                 cal.time = next.date
