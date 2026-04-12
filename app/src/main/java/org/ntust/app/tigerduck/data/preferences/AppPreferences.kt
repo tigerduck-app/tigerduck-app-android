@@ -142,6 +142,15 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
             "靛" to 0x5E5CE6,
         )
 
+        init {
+            require(themeColors.size == themeColorsDark.size) {
+                "themeColors and themeColorsDark must be the same size"
+            }
+            require(themeColors.map { it.first } == themeColorsDark.map { it.first }) {
+                "themeColors and themeColorsDark must share names in the same order"
+            }
+        }
+
         /** Look up the dark-mode companion for a given light-mode accent hex. */
         fun accentDarkVariant(lightHex: Int): Int {
             val idx = themeColors.indexOfFirst { it.second == lightHex }

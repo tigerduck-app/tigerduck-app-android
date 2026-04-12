@@ -7,7 +7,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.navigation.AppNavigation
@@ -33,7 +32,7 @@ class MainActivity : ComponentActivity() {
                 "light" -> false
                 else -> systemDark
             }
-            SideEffect { TigerDuckTheme.setDarkMode(dark) }
+            TigerDuckTheme.setDarkMode(dark)
 
             TigerDuckAppTheme(darkTheme = dark, accentColor = appState.accentColor(dark)) {
                 Surface(modifier = Modifier.fillMaxSize()) {
