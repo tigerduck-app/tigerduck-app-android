@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.channels.BufferOverflow
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -52,7 +51,6 @@ class CourseColorStore @Inject constructor(
         }
 
         dataCache.saveCourses(updated)
-        TigerDuckTheme.buildCourseColorMap(updated)
         _changeEvent.tryEmit(Unit)
     }
 

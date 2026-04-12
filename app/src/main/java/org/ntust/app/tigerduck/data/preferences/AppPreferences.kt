@@ -93,7 +93,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
             val json = prefs.getString("homeSections", null) ?: return HomeSection.defaults()
             return try {
                 val type = object : TypeToken<List<HomeSection>>() {}.type
-                gson.fromJson<List<HomeSection>>(json, type)?.ifEmpty { HomeSection.defaults() }
+                @Suppress("DEPRECATION")
+                gson.fromJson<List<HomeSection>>(json, type)
+                    ?.filter { it.type != HomeSection.HomeSectionType.QUICK_WIDGETS }
+                    ?.ifEmpty { HomeSection.defaults() }
                     ?: HomeSection.defaults()
             } catch (e: Exception) {
                 HomeSection.defaults()

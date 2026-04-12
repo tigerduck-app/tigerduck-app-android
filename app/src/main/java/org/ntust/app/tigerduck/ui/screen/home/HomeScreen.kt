@@ -182,8 +182,8 @@ private fun HomeSectionContent(
                     }
                 }
             }
-            // TODO: 快速功能
-//            HomeSection.HomeSectionType.QUICK_WIDGETS,
+            @Suppress("DEPRECATION")
+            HomeSection.HomeSectionType.QUICK_WIDGETS,
             HomeSection.HomeSectionType.CUSTOM -> {
                 SectionHeader(title = section.title)
                 if (section.widgets.isNotEmpty()) {

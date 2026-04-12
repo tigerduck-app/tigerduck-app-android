@@ -12,8 +12,8 @@ data class HomeSection(
     enum class HomeSectionType(val defaultTitle: String) {
         TODAY_COURSES("今日課程"),
         UPCOMING_ASSIGNMENTS("待辦作業"),
-        // TODO: 快速功能
-//        QUICK_WIDGETS("快速功能"),
+        @Deprecated("Feature temporarily disabled")
+        QUICK_WIDGETS("快速功能"),
         CUSTOM("自訂區塊");
     }
 
