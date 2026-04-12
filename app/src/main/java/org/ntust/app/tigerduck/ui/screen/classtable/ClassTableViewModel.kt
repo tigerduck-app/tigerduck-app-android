@@ -345,7 +345,7 @@ class ClassTableViewModel @Inject constructor(
                 }
                 if (courses.isNotEmpty()) {
                     // Preserve user-picked tile colors across network refresh.
-                    val existingColors = _courses.value.associate { it.courseNo to it.customColorHex }
+                    val existingColors = dataCache.loadCourses().associate { it.courseNo to it.customColorHex }
                     val merged = courses.map { c ->
                         c.copy(customColorHex = existingColors[c.courseNo])
                     }
