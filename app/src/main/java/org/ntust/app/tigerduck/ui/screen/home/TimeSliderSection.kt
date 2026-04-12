@@ -584,8 +584,8 @@ private fun SegmentedBarTrack(viewModel: TimeSliderViewModel, invertDirection: B
 }
 
 private val timeFmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
-private val dateTimeFmt = java.time.format.DateTimeFormatter.ofPattern("M/d (EEE) HH:mm", Locale.TRADITIONAL_CHINESE)
-private val dateLabelFmt = java.time.format.DateTimeFormatter.ofPattern("M/d (EEE)", Locale.TRADITIONAL_CHINESE)
+private val dateTimeFmt = java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE) HH:mm", Locale.TRADITIONAL_CHINESE)
+private val dateLabelFmt = java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE)", Locale.TRADITIONAL_CHINESE)
 
 private fun formatTimeLabel(date: Date): String {
     val instant = date.toInstant().atZone(AppConstants.TAIPEI_ZONE)
