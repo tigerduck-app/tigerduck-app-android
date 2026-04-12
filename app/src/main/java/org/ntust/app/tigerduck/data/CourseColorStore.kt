@@ -61,7 +61,7 @@ class CourseColorStore @Inject constructor(
         paletteArgbs: Set<Int>,
         alreadyUsed: Set<Int>
     ): Color {
-        repeat(32) {
+        while (true) {
             val h = Random.nextFloat() * 360f
             val s = 0.55f + Random.nextFloat() * 0.4f
             val v = 0.55f + Random.nextFloat() * 0.3f
@@ -69,10 +69,5 @@ class CourseColorStore @Inject constructor(
             val argb = c.toArgb()
             if (argb !in paletteArgbs && argb !in alreadyUsed) return c
         }
-        return Color(
-            android.graphics.Color.HSVToColor(
-                floatArrayOf(Random.nextFloat() * 360f, 0.7f, 0.7f)
-            )
-        )
     }
 }
