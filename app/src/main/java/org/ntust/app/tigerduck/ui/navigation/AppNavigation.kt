@@ -5,12 +5,20 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import org.ntust.app.tigerduck.AppConstants
+import java.time.Instant
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
@@ -67,9 +75,28 @@ fun MainNavigation(appState: AppState) {
     val bottomItems = configuredTabs + listOf(AppFeature.MORE)
     val startDest = remember { configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route }
 
+    val isNonTaipeiTz = remember {
+        val now = Instant.now()
+        java.util.TimeZone.getDefault().getOffset(now.toEpochMilli()) !=
+            AppConstants.TAIPEI_TZ.getOffset(now.toEpochMilli())
+    }
+
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            Column {
+                if (isNonTaipeiTz) {
+                    Text(
+                        text = "您目前不在臺灣時區，此 APP 已自動使用臺灣時區，請注意日期與時間！",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFFFF3B0))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        color = Color(0xFF5C4A00),
+                        style = MaterialTheme.typography.labelMedium,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                NavigationBar {
                 bottomItems.forEach { feature ->
                     val route = feature.toRoute()
                     NavigationBarItem(
@@ -88,6 +115,7 @@ fun MainNavigation(appState: AppState) {
                         }
                     )
                 }
+            }
             }
         }
     ) { innerPadding ->
