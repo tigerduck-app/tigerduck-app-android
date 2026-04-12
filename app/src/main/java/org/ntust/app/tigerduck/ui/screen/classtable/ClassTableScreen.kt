@@ -28,14 +28,19 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.ui.graphics.toArgb
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.ui.component.ColorPickerSheet
 import org.ntust.app.tigerduck.ui.component.CourseCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import androidx.compose.ui.graphics.compositeOver
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.ui.theme.courseColorPalette
+import org.ntust.app.tigerduck.ui.theme.courseColorPaletteDark
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +57,7 @@ fun ClassTableScreen(
     var showAddCourse by remember { mutableStateOf(false) }
     var courseToRename by remember { mutableStateOf<Course?>(null) }
     var renameText by remember { mutableStateOf("") }
+    var courseToRecolor by remember { mutableStateOf<Course?>(null) }
     var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -110,19 +116,29 @@ fun ClassTableScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.padding(bottom = 12.dp)
                 ) {
+                    val today = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
+                    val dayIndex = when (today) {
+                        java.util.Calendar.MONDAY -> 1; java.util.Calendar.TUESDAY -> 2
+                        java.util.Calendar.WEDNESDAY -> 3; java.util.Calendar.THURSDAY -> 4
+                        java.util.Calendar.FRIDAY -> 5; java.util.Calendar.SATURDAY -> 6
+                        else -> 7
+                    }
                     items(todayCourses) { course ->
+                        val timeRange = remember(course, dayIndex) {
+                            val periods = course.schedule[dayIndex]
+                                ?.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
+                            if (!periods.isNullOrEmpty()) {
+                                val first = AppConstants.PeriodTimes.mapping[periods.first()]
+                                val last = AppConstants.PeriodTimes.mapping[periods.last()]
+                                if (first != null && last != null) "${first.first}-${last.second}" else null
+                            } else null
+                        }
                         CourseCard(
                             course = course,
+                            timeRange = timeRange,
                             hasAssignment = viewModel.hasAssignment(course.courseNo),
                             isFinished = viewModel.isCourseFinishedToday(course),
                             onClick = {
-                                val today = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
-                                val dayIndex = when (today) {
-                                    java.util.Calendar.MONDAY -> 1; java.util.Calendar.TUESDAY -> 2
-                                    java.util.Calendar.WEDNESDAY -> 3; java.util.Calendar.THURSDAY -> 4
-                                    java.util.Calendar.FRIDAY -> 5; java.util.Calendar.SATURDAY -> 6
-                                    else -> 7
-                                }
                                 val firstPeriod = course.schedule[dayIndex]
                                     ?.minByOrNull { AppConstants.Periods.chronologicalOrder.indexOf(it) } ?: ""
                                 viewModel.selectCourse(course, dayIndex, firstPeriod)
@@ -164,6 +180,9 @@ fun ClassTableScreen(
                     },
                     onDelete = { course ->
                         viewModel.deleteCourse(course.courseNo)
+                    },
+                    onPickColor = { course ->
+                        courseToRecolor = course
                     }
                 )
             }
@@ -230,6 +249,43 @@ fun ClassTableScreen(
         )
     }
 
+    courseToRecolor?.let { course ->
+        val isDark = TigerDuckTheme.isDarkMode
+        val displayPalette = if (isDark) courseColorPaletteDark else courseColorPalette
+        val currentColor = TigerDuckTheme.courseColor(course.courseNo)
+        val usedByOthers = remember(courses, course.courseNo, isDark) {
+            courses
+                .asSequence()
+                .filter { it.courseNo != course.courseNo }
+                .map { TigerDuckTheme.courseColor(it.courseNo).toArgb() or 0xFF000000.toInt() }
+                .toSet()
+        }
+        ColorPickerSheet(
+            courseName = course.courseName,
+            currentColor = currentColor,
+            presetPalette = displayPalette,
+            usedByOthers = usedByOthers,
+            onApply = { picked ->
+                val pickedArgb = picked.toArgb() or 0xFF000000.toInt()
+                val displayIdx = displayPalette.indexOfFirst {
+                    (it.toArgb() or 0xFF000000.toInt()) == pickedArgb
+                }
+                // Preset picks are stored as the canonical (light) hex so
+                // switching theme later swaps automatically. Custom HSV picks
+                // keep the exact color in both modes.
+                val storedArgb = if (displayIdx >= 0) {
+                    courseColorPalette[displayIdx].toArgb()
+                } else {
+                    picked.toArgb()
+                }
+                val hex = "#" + String.format("%06X", storedArgb and 0xFFFFFF)
+                viewModel.updateCourseColor(course.courseNo, hex)
+                courseToRecolor = null
+            },
+            onDismiss = { courseToRecolor = null }
+        )
+    }
+
     if (showAddCourse) {
         ModalBottomSheet(
             onDismissRequest = { showAddCourse = false }
@@ -253,7 +309,8 @@ private fun TimetableGrid(
     weekdays: List<Int>,
     periods: List<org.ntust.app.tigerduck.data.model.TimetablePeriod>,
     onRename: (Course) -> Unit = {},
-    onDelete: (Course) -> Unit = {}
+    onDelete: (Course) -> Unit = {},
+    onPickColor: (Course) -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
     val dayLabels = listOf("", "一", "二", "三", "四", "五", "六", "日")
@@ -331,7 +388,18 @@ private fun TimetableGrid(
                                 )
                             }
                             is ClassTableViewModel.CellRole.BlockStart -> {
-                                val color = TigerDuckTheme.courseColor(role.course.courseNo)
+                                val vibrantColor = TigerDuckTheme.courseColorVibrant(role.course.courseNo)
+                                val cellSurface = MaterialTheme.colorScheme.surface
+                                val cellBg = if (TigerDuckTheme.isDarkMode) {
+                                    vibrantColor.copy(alpha = 0.55f).compositeOver(cellSurface)
+                                } else {
+                                    vibrantColor.copy(alpha = 0.50f)
+                                }
+                                val cellTextColor = if (TigerDuckTheme.isDarkMode) {
+                                    Color.White
+                                } else {
+                                    Color(0xFF1C1C1E)
+                                }
                                 val hasBadge = viewModel.hasAssignment(role.course.courseNo)
                                 var showMenu by remember { mutableStateOf(false) }
                                 Box(
@@ -341,7 +409,7 @@ private fun TimetableGrid(
                                         .absoluteOffset(x = x, y = y)
                                         .padding(1.dp)
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(color.copy(alpha = 0.85f))
+                                        .background(cellBg)
                                         .combinedClickable(
                                             onClick = {
                                                 viewModel.selectCourse(role.course, weekday, period.id)
@@ -355,7 +423,7 @@ private fun TimetableGrid(
                                     Text(
                                         text = role.course.courseName,
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = Color.White,
+                                        color = cellTextColor,
                                         textAlign = TextAlign.Center,
                                         maxLines = if (role.spanCount >= 2) 3 else 2,
                                         overflow = TextOverflow.Ellipsis,
@@ -370,18 +438,26 @@ private fun TimetableGrid(
                                                 .align(Alignment.BottomEnd)
                                                 .padding(3.dp)
                                                 .size(12.dp),
-                                            tint = Color.White.copy(alpha = 0.7f)
+                                            tint = cellTextColor.copy(alpha = 0.7f)
                                         )
                                     }
                                     DropdownMenu(
                                         expanded = showMenu,
-                                        onDismissRequest = { showMenu = false }
+                                        onDismissRequest = { showMenu = false },
+                                        shape = RoundedCornerShape(12.dp)
                                     ) {
                                         DropdownMenuItem(
                                             text = { Text("重新命名") },
                                             onClick = {
                                                 showMenu = false
                                                 onRename(role.course)
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("選擇顏色") },
+                                            onClick = {
+                                                showMenu = false
+                                                onPickColor(role.course)
                                             }
                                         )
                                         DropdownMenuItem(

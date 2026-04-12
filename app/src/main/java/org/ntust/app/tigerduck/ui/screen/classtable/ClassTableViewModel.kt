@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import android.util.Log
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -35,7 +36,8 @@ class ClassTableViewModel @Inject constructor(
     private val authService: AuthService,
     internal val courseService: CourseService,
     private val moodleService: MoodleService,
-    private val dataCache: DataCache
+    private val dataCache: DataCache,
+    private val courseColorStore: CourseColorStore
 ) : ViewModel() {
 
     private val _courses = MutableStateFlow<List<Course>>(emptyList())
@@ -70,6 +72,17 @@ class ClassTableViewModel @Inject constructor(
             while (true) {
                 kotlinx.coroutines.delay(60_000)
                 _currentDayTime.value = currentDayTime()
+            }
+        }
+        viewModelScope.launch {
+            // Reload course state whenever Settings resets tile colors so
+            // our in-memory _courses doesn't fight the freshly-written cache.
+            courseColorStore.changeEvent.collect {
+                val fresh = dataCache.loadCourses()
+                if (fresh.isNotEmpty()) {
+                    _courses.value = fresh
+                    TigerDuckTheme.buildCourseColorMap(fresh)
+                }
             }
         }
     }
@@ -185,7 +198,7 @@ class ClassTableViewModel @Inject constructor(
         val updated = _courses.value + course
         _courses.value = updated
         viewModelScope.launch { dataCache.saveCourses(updated) }
-        TigerDuckTheme.buildCourseColorMap(updated.map { it.courseNo })
+        TigerDuckTheme.buildCourseColorMap(updated)
     }
 
     fun renameCourse(courseNo: String, newName: String) {
@@ -199,6 +212,28 @@ class ClassTableViewModel @Inject constructor(
     fun deleteCourse(courseNo: String) {
         val updated = _courses.value.filter { it.courseNo != courseNo }
         _courses.value = updated
+        viewModelScope.launch { dataCache.saveCourses(updated) }
+        TigerDuckTheme.buildCourseColorMap(updated)
+    }
+
+    /**
+     * Assigns [newHex] to [courseNo]. Pass null to clear the user-picked color
+     * and fall back to hash-based assignment. Any other course whose custom
+     * color matches [newHex] is automatically cleared so it gets reassigned
+     * through the palette probe logic.
+     */
+    fun updateCourseColor(courseNo: String, newHex: String?) {
+        val normalized = newHex?.uppercase()
+        val updated = _courses.value.map { course ->
+            when {
+                course.courseNo == courseNo -> course.copy(customColorHex = normalized)
+                normalized != null && course.customColorHex?.uppercase() == normalized ->
+                    course.copy(customColorHex = null)
+                else -> course
+            }
+        }
+        _courses.value = updated
+        TigerDuckTheme.buildCourseColorMap(updated)
         viewModelScope.launch { dataCache.saveCourses(updated) }
     }
 
@@ -238,7 +273,7 @@ class ClassTableViewModel @Inject constructor(
             if (cached.isNotEmpty()) {
                 _courses.value = cached
                 _assignments.value = cachedA
-                TigerDuckTheme.buildCourseColorMap(cached.map { it.courseNo })
+                TigerDuckTheme.buildCourseColorMap(cached)
             }
             fetchData()
         }
@@ -309,9 +344,14 @@ class ClassTableViewModel @Inject constructor(
                     }.awaitAll().filterNotNull()
                 }
                 if (courses.isNotEmpty()) {
-                    _courses.value = courses
-                    dataCache.saveCourses(courses)
-                    TigerDuckTheme.buildCourseColorMap(courses.map { it.courseNo })
+                    // Preserve user-picked tile colors across network refresh.
+                    val existingColors = _courses.value.associate { it.courseNo to it.customColorHex }
+                    val merged = courses.map { c ->
+                        c.copy(customColorHex = existingColors[c.courseNo])
+                    }
+                    _courses.value = merged
+                    dataCache.saveCourses(merged)
+                    TigerDuckTheme.buildCourseColorMap(merged)
                 }
             }
 
