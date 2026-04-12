@@ -36,9 +36,11 @@ import org.ntust.app.tigerduck.ui.component.CourseCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import androidx.compose.ui.graphics.compositeOver
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
+import org.ntust.app.tigerduck.ui.theme.courseColorPaletteDark
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -238,8 +240,10 @@ fun ClassTableScreen(
     }
 
     courseToRecolor?.let { course ->
+        val isDark = TigerDuckTheme.isDarkMode
+        val displayPalette = if (isDark) courseColorPaletteDark else courseColorPalette
         val currentColor = TigerDuckTheme.courseColor(course.courseNo)
-        val usedByOthers = remember(courses, course.courseNo) {
+        val usedByOthers = remember(courses, course.courseNo, isDark) {
             courses
                 .asSequence()
                 .filter { it.courseNo != course.courseNo }
@@ -249,11 +253,22 @@ fun ClassTableScreen(
         ColorPickerSheet(
             courseName = course.courseName,
             currentColor = currentColor,
-            presetPalette = courseColorPalette,
+            presetPalette = displayPalette,
             usedByOthers = usedByOthers,
             onApply = { picked ->
-                val argb = picked.toArgb()
-                val hex = "#" + String.format("%06X", argb and 0xFFFFFF)
+                val pickedArgb = picked.toArgb() or 0xFF000000.toInt()
+                val displayIdx = displayPalette.indexOfFirst {
+                    (it.toArgb() or 0xFF000000.toInt()) == pickedArgb
+                }
+                // Preset picks are stored as the canonical (light) hex so
+                // switching theme later swaps automatically. Custom HSV picks
+                // keep the exact color in both modes.
+                val storedArgb = if (displayIdx >= 0) {
+                    courseColorPalette[displayIdx].toArgb()
+                } else {
+                    picked.toArgb()
+                }
+                val hex = "#" + String.format("%06X", storedArgb and 0xFFFFFF)
                 viewModel.updateCourseColor(course.courseNo, hex)
                 courseToRecolor = null
             },
@@ -363,7 +378,18 @@ private fun TimetableGrid(
                                 )
                             }
                             is ClassTableViewModel.CellRole.BlockStart -> {
-                                val color = TigerDuckTheme.courseColor(role.course.courseNo)
+                                val vibrantColor = TigerDuckTheme.courseColorVibrant(role.course.courseNo)
+                                val cellSurface = MaterialTheme.colorScheme.surface
+                                val cellBg = if (TigerDuckTheme.isDarkMode) {
+                                    vibrantColor.copy(alpha = 0.55f).compositeOver(cellSurface)
+                                } else {
+                                    vibrantColor.copy(alpha = 0.50f)
+                                }
+                                val cellTextColor = if (TigerDuckTheme.isDarkMode) {
+                                    Color.White
+                                } else {
+                                    Color(0xFF1C1C1E)
+                                }
                                 val hasBadge = viewModel.hasAssignment(role.course.courseNo)
                                 var showMenu by remember { mutableStateOf(false) }
                                 Box(
@@ -373,7 +399,7 @@ private fun TimetableGrid(
                                         .absoluteOffset(x = x, y = y)
                                         .padding(1.dp)
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(color.copy(alpha = 0.85f))
+                                        .background(cellBg)
                                         .combinedClickable(
                                             onClick = {
                                                 viewModel.selectCourse(role.course, weekday, period.id)
@@ -387,7 +413,7 @@ private fun TimetableGrid(
                                     Text(
                                         text = role.course.courseName,
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = Color.White,
+                                        color = cellTextColor,
                                         textAlign = TextAlign.Center,
                                         maxLines = if (role.spanCount >= 2) 3 else 2,
                                         overflow = TextOverflow.Ellipsis,
@@ -402,7 +428,7 @@ private fun TimetableGrid(
                                                 .align(Alignment.BottomEnd)
                                                 .padding(3.dp)
                                                 .size(12.dp),
-                                            tint = Color.White.copy(alpha = 0.7f)
+                                            tint = cellTextColor.copy(alpha = 0.7f)
                                         )
                                     }
                                     DropdownMenu(

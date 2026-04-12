@@ -85,7 +85,7 @@ fun MoreScreen(navController: NavController, appState: AppState) {
                                         .aspectRatio(1.6f),
                                     shape = RoundedCornerShape(12.dp),
                                     colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                        containerColor = MaterialTheme.colorScheme.surface
                                     )
                                 ) {
                                     Column(

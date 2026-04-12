@@ -15,6 +15,7 @@ import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.LoadingState
 import org.ntust.app.tigerduck.network.NtustSessionManager
+import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -62,8 +63,20 @@ class AppState @Inject constructor(
             prefs.accentColorHex = value
         }
 
+    /**
+     * Accent color resolved for the current theme mode. [accentColorHex] always
+     * stores the canonical (light) hex; in dark mode we return the paired
+     * dark variant so the tint stays vibrant against dark surfaces.
+     */
     val accentColor: Color
-        get() = Color(0xFF000000L or (accentColorHex.toLong() and 0xFFFFFFL))
+        get() {
+            val hex = if (TigerDuckTheme.isDarkMode) {
+                AppPreferences.accentDarkVariant(accentColorHex)
+            } else {
+                accentColorHex
+            }
+            return Color(0xFF000000L or (hex.toLong() and 0xFFFFFFL))
+        }
 
     private var rememberAnnouncementFilterState by mutableStateOf(prefs.rememberAnnouncementFilter)
 
@@ -98,6 +111,17 @@ class AppState @Inject constructor(
             if (browserPreferenceState == value) return
             browserPreferenceState = value
             prefs.browserPreference = value
+        }
+
+    private var themeModeState by mutableStateOf(prefs.themeMode)
+
+    /** One of "system", "dark", "light". */
+    var themeMode: String
+        get() = themeModeState
+        set(value) {
+            if (themeModeState == value) return
+            themeModeState = value
+            prefs.themeMode = value
         }
 
     private var timeSliderStyleState by mutableStateOf(prefs.timeSliderStyle)

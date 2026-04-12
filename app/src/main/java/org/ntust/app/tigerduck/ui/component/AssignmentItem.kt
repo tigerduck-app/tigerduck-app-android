@@ -23,7 +23,7 @@ fun AssignmentItem(
     showAbsoluteTime: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
-    val courseColor = TigerDuckTheme.courseColor(assignment.courseNo)
+    val courseColor = TigerDuckTheme.courseColorVibrant(assignment.courseNo)
 
     Row(
         modifier = modifier

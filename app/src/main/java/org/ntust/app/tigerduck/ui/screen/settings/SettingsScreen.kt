@@ -35,6 +35,7 @@ import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -64,6 +65,7 @@ fun SettingsScreen(
     val invertSlider = viewModel.appState.invertSliderDirection
     val notifyAssignments = viewModel.appState.notifyAssignments
     val libraryEnabled = viewModel.appState.libraryFeatureEnabled
+    val themeMode = viewModel.appState.themeMode
 
     var showLibraryWarning by remember { mutableStateOf(false) }
     var showResetColorsConfirm by remember { mutableStateOf(false) }
@@ -247,33 +249,32 @@ fun SettingsScreen(
                 Column {
                     SettingsLinkRow("Tab 編輯器") { onNavigateToTabEditor() }
                     HorizontalDivider()
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showResetColorsConfirm = true }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("重設課表顏色", style = MaterialTheme.typography.bodyMedium)
-                    }
-                    HorizontalDivider()
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text("主題色", style = MaterialTheme.typography.bodyMedium)
+                        // Show the mode-appropriate display color but always
+                        // persist the canonical (light) hex so the pair swaps
+                        // when the user toggles 顏色主題.
+                        val accentPaletteDisplay = if (TigerDuckTheme.isDarkMode) {
+                            AppPreferences.themeColorsDark
+                        } else {
+                            AppPreferences.themeColors
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            AppPreferences.themeColors.forEach { (_, hex) ->
-                                val color = Color(0xFF000000 or hex.toLong())
+                            accentPaletteDisplay.forEachIndexed { idx, (_, displayHex) ->
+                                val canonicalHex = AppPreferences.themeColors[idx].second
+                                val color = Color(0xFF000000 or displayHex.toLong())
                                 Box(
                                     modifier = Modifier
                                         .size(32.dp)
                                         .clip(CircleShape)
                                         .background(color)
-                                        .clickable { viewModel.appState.accentColorHex = hex },
+                                        .clickable { viewModel.appState.accentColorHex = canonicalHex },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    if (accentColorHex == hex) {
+                                    if (accentColorHex == canonicalHex) {
                                         Text("\u2713", color = Color.White, style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
@@ -333,6 +334,7 @@ fun SettingsScreen(
         item { SectionHeader("其他功能") }
         item {
             ContentCard {
+                Column {
                 SettingsToggleRow("圖書館及相關功能", libraryEnabled) { enabled ->
                     if (enabled) {
                         showLibraryWarning = true
@@ -342,6 +344,34 @@ fun SettingsScreen(
                             viewModel.appState.configuredTabs.filter { !it.isLibraryRelated }
                     }
                 }
+                HorizontalDivider()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(SettingRowHeight)
+                        .clickable { showResetColorsConfirm = true }
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("重設課表顏色", style = MaterialTheme.typography.bodyMedium)
+                }
+                HorizontalDivider()
+                SettingsPickerRow(
+                    label = "顏色主題",
+                    value = when (themeMode) {
+                        "dark" -> "暗色模式"
+                        "light" -> "亮色模式"
+                        else -> "跟隨系統"
+                    },
+                    options = listOf(
+                        "system" to "跟隨系統",
+                        "dark" to "暗色模式",
+                        "light" to "亮色模式"
+                    ),
+                    selectedKey = themeMode,
+                    onSelect = { viewModel.appState.themeMode = it }
+                )
+                } // Column
             }
         }
 
@@ -403,10 +433,15 @@ fun SettingsScreen(
     }
 }
 
+private val SettingRowHeight = 56.dp
+
 @Composable
 private fun SettingsRow(label: String, value: String) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(SettingRowHeight)
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
@@ -418,11 +453,29 @@ private fun SettingsRow(label: String, value: String) {
 @Composable
 private fun SettingsToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(SettingRowHeight)
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        // iOS-style switch colors: the default M3 unchecked thumb is `outline`
+        // which collapses to near-invisible dark gray on the dark track in
+        // dark mode. Force a white thumb and a neutral track instead.
+        val isDark = TigerDuckTheme.isDarkMode
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                checkedBorderColor = Color.Transparent,
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = if (isDark) Color(0xFF39393D) else Color(0xFFE9E9EB),
+                uncheckedBorderColor = Color.Transparent,
+            )
+        )
     }
 }
 
@@ -439,8 +492,9 @@ private fun SettingsPickerRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(SettingRowHeight)
             .clickable { expanded = true }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
@@ -473,8 +527,9 @@ private fun SettingsLinkRow(label: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(SettingRowHeight)
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)

@@ -166,7 +166,7 @@ private fun HomeSectionContent(
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            containerColor = MaterialTheme.colorScheme.surface
                         )
                     ) {
                         topAssignments.forEachIndexed { index, assignment ->
@@ -197,7 +197,7 @@ private fun HomeSectionContent(
                                     .size(80.dp)
                                     .clickable { onWidgetClick() },
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                    containerColor = MaterialTheme.colorScheme.surface
                                 )
                             ) {
                                 Column(

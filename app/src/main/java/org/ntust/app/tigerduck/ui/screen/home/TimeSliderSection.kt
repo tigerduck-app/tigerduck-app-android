@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -177,7 +178,7 @@ private fun CourseTimeCard(
             is CourseState.Between -> {
                 state.previous?.let {
                     SlotCard(
-                        slot = it, alpha = 0.5f,
+                        slot = it, alpha = 0.8f,
                         isSkipped = isSkippedFor(it),
                         onSkipToggle = { onSkipCourse(it.course, it.date) },
                         onClick = { onSelect(it.course) },
@@ -186,7 +187,7 @@ private fun CourseTimeCard(
                 }
                 state.next?.let {
                     SlotCard(
-                        slot = it, alpha = 0.5f,
+                        slot = it, alpha = 0.8f,
                         isSkipped = isSkippedFor(it),
                         onSkipToggle = { onSkipCourse(it.course, it.date) },
                         onClick = { onSelect(it.course) },
@@ -196,7 +197,7 @@ private fun CourseTimeCard(
             }
             is CourseState.BeforeFirst -> {
                 SlotCard(
-                    slot = state.next, alpha = 0.5f,
+                    slot = state.next, alpha = 0.8f,
                     isSkipped = isSkippedFor(state.next),
                     onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
                     onClick = { onSelect(state.next.course) },
@@ -205,7 +206,7 @@ private fun CourseTimeCard(
             }
             is CourseState.AfterLast -> {
                 SlotCard(
-                    slot = state.previous, alpha = 0.5f,
+                    slot = state.previous, alpha = 0.8f,
                     isSkipped = isSkippedFor(state.previous),
                     onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
                     onClick = { onSelect(state.previous.course) },
@@ -225,7 +226,7 @@ private fun SlotCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val color = TigerDuckTheme.courseColor(slot.course.courseNo)
+    val color = TigerDuckTheme.courseColorVibrant(slot.course.courseNo)
     val cal = Calendar.getInstance()
     val weekday = run {
         cal.time = slot.date
@@ -322,11 +323,20 @@ private fun SlotCard(
             Modifier.fillMaxWidth()
         }
 
+        val slotSurface = MaterialTheme.colorScheme.surface
+        val slotLightAlpha = if (alpha >= 1f) 0.50f else 0.35f
+        val slotDarkAlpha = if (alpha >= 1f) 0.55f else 0.40f
+        val slotContainer = if (TigerDuckTheme.isDarkMode) {
+            color.copy(alpha = slotDarkAlpha)
+                .compositeOver(slotSurface)
+        } else {
+            color.copy(alpha = slotLightAlpha)
+        }
         Card(
             onClick = onClick,
             modifier = cardModifier,
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.15f * alpha))
+            colors = CardDefaults.cardColors(containerColor = slotContainer)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
                 Row {
@@ -407,10 +417,12 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
 
                     if (left + segW > -50 && left < size.width + 50) {
                         val isActive = viewModel.selectedTime >= slot.start && viewModel.selectedTime <= slot.end
-                        val courseColor = TigerDuckTheme.courseColor(slot.course.courseNo)
+                        val courseColor = TigerDuckTheme.courseColorVibrant(slot.course.courseNo)
 
                         drawRoundRect(
-                            color = courseColor.copy(alpha = if (isActive) 0.5f else 0.3f),
+                            color = courseColor.copy(
+                                alpha = TigerDuckTheme.tintAlpha(if (isActive) 0.5f else 0.3f)
+                            ),
                             topLeft = Offset(
                                 left,
                                 (trackH - TimeSliderViewModel.FLUID_SEGMENT_HEIGHT) / 2
@@ -466,7 +478,7 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
 
                 // Glow dot
                 val glowColor = when (val s = viewModel.currentCourseState) {
-                    is CourseState.InClass -> TigerDuckTheme.courseColor(s.slot.course.courseNo)
+                    is CourseState.InClass -> TigerDuckTheme.courseColorVibrant(s.slot.course.courseNo)
                     else -> Color.White
                 }
                 val gs = TimeSliderViewModel.GLOW_DOT_SIZE
@@ -518,7 +530,16 @@ private fun SegmentedBarTrack(viewModel: TimeSliderViewModel, invertDirection: B
 
                 if (leftPx + segW > -50 && leftPx < widthPx + 50) {
                     val isSelected = viewModel.selectedTime >= slot.start && viewModel.selectedTime <= slot.end
-                    val courseColor = TigerDuckTheme.courseColor(slot.course.courseNo)
+                    val courseColor = TigerDuckTheme.courseColorVibrant(slot.course.courseNo)
+                    val segSurface = MaterialTheme.colorScheme.surface
+                    val segBaseAlpha = if (isSelected) 0.4f else 0.15f
+                    val segBg = if (TigerDuckTheme.isDarkMode) {
+                        courseColor.copy(alpha = (segBaseAlpha * 2.3f).coerceAtMost(1f))
+                            .compositeOver(segSurface)
+                    } else {
+                        courseColor.copy(alpha = segBaseAlpha)
+                    }
+                    val segTextAlpha = TigerDuckTheme.tintAlpha(if (isSelected) 1f else 0.7f)
                     val segWDp = with(density) { segW.toDp() }
                     val leftDp = with(density) { leftPx.toDp() }
 
@@ -529,7 +550,7 @@ private fun SegmentedBarTrack(viewModel: TimeSliderViewModel, invertDirection: B
                             .height(barHeightDp - 4.dp)
                             .align(Alignment.CenterStart)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(courseColor.copy(alpha = if (isSelected) 0.4f else 0.15f)),
+                            .background(segBg),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -539,7 +560,7 @@ private fun SegmentedBarTrack(viewModel: TimeSliderViewModel, invertDirection: B
                             } else {
                                 MaterialTheme.typography.labelSmall
                             },
-                            color = courseColor.copy(alpha = if (isSelected) 1f else 0.7f),
+                            color = courseColor.copy(alpha = segTextAlpha),
                             maxLines = 1,
                             overflow = TextOverflow.Clip,
                             fontSize = 10.sp
