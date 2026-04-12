@@ -132,10 +132,11 @@ class HomeViewModel @Inject constructor(
                     if (authenticated) {
                         val remoteCourses = fetchCourses(studentId, password)
                         if (!remoteCourses.isNullOrEmpty()) {
-                            // Preserve user-picked tile colors across refresh.
-                            val pinned = courses.associate { it.courseNo to it.customColorHex }
+                            // Re-read cache so a concurrent color change isn't erased.
+                            val latestColors = dataCache.loadCourses()
+                                .associate { it.courseNo to it.customColorHex }
                             courses = remoteCourses.map { c ->
-                                c.copy(customColorHex = pinned[c.courseNo])
+                                c.copy(customColorHex = latestColors[c.courseNo])
                             }
                             dataCache.saveCourses(courses)
                         }
