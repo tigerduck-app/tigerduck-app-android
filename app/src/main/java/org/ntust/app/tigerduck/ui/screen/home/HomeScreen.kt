@@ -168,13 +168,14 @@ private fun HomeSectionContent(
                             containerColor = MaterialTheme.colorScheme.surface
                         )
                     ) {
-                        upcomingAssignments.forEachIndexed { index, assignment ->
+                        val displayedAssignments = upcomingAssignments.take(5)
+                        displayedAssignments.forEachIndexed { index, assignment ->
                             AssignmentItem(
                                 assignment = assignment,
                                 showAbsoluteTime = showAbsoluteTime,
                                 onClick = { onAssignmentClick(assignment) }
                             )
-                            if (index < upcomingAssignments.lastIndex) {
+                            if (index < displayedAssignments.lastIndex) {
                                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                             }
                         }

@@ -68,15 +68,14 @@ class AppState @Inject constructor(
      * stores the canonical (light) hex; in dark mode we return the paired
      * dark variant so the tint stays vibrant against dark surfaces.
      */
-    val accentColor: Color
-        get() {
-            val hex = if (TigerDuckTheme.isDarkMode) {
-                AppPreferences.accentDarkVariant(accentColorHex)
-            } else {
-                accentColorHex
-            }
-            return Color(0xFF000000L or (hex.toLong() and 0xFFFFFFL))
+    fun accentColor(isDark: Boolean = TigerDuckTheme.isDarkMode): Color {
+        val hex = if (isDark) {
+            AppPreferences.accentDarkVariant(accentColorHex)
+        } else {
+            accentColorHex
         }
+        return Color(0xFF000000L or (hex.toLong() and 0xFFFFFFL))
+    }
 
     private var rememberAnnouncementFilterState by mutableStateOf(prefs.rememberAnnouncementFilter)
 

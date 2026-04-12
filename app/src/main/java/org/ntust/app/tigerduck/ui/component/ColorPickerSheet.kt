@@ -113,7 +113,8 @@ fun ColorPickerSheet(
             ) {
                 Text(
                     text = courseName.ifBlank { "預覽" },
-                    color = Color.White,
+                    color = if (selectedColor.red * 0.299f + selectedColor.green * 0.587f + selectedColor.blue * 0.114f > 0.5f)
+                        Color(0xFF1C1C1E) else Color.White,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

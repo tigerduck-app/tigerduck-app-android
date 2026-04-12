@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
             }
             SideEffect { TigerDuckTheme.setDarkMode(dark) }
 
-            TigerDuckAppTheme(darkTheme = dark, accentColor = appState.accentColor) {
+            TigerDuckAppTheme(darkTheme = dark, accentColor = appState.accentColor(dark)) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     AppNavigation(appState = appState)
                 }

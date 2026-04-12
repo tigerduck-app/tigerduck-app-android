@@ -59,8 +59,8 @@ val courseColorPaletteDark: List<Color> = listOf(
 )
 
 object TigerDuckTheme {
-    @Volatile
-    private var courseColorMap: Map<String, Color> = emptyMap()
+    private val courseColorMapRef = java.util.concurrent.atomic.AtomicReference<Map<String, Color>>(emptyMap())
+    private val courseColorMap get() = courseColorMapRef.get()
 
     // Compose-observable so course tiles recompose when the app switches theme.
     private val _isDarkMode = mutableStateOf(false)
@@ -105,7 +105,7 @@ object TigerDuckTheme {
                 taken.add(color)
             }
 
-        courseColorMap = map
+        courseColorMapRef.set(map)
     }
 
     fun courseColor(courseNo: String): Color {
