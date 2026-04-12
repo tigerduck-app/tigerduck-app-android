@@ -86,7 +86,7 @@ fun MainNavigation(appState: AppState) {
             Column {
                 if (isNonTaipeiTz) {
                     Text(
-                        text = "您目前不在臺灣時區，此 APP 已自動使用臺灣時區，請注意日期與時間！",
+                        text = "您目前不在臺灣時區，此 APP 已自動使用臺灣時區。\n請注意日期與時間，並敬祝您旅途平安！",
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(Color(0xFFFFF3B0))
