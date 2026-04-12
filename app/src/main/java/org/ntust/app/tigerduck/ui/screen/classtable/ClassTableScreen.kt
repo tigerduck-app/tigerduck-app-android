@@ -116,19 +116,29 @@ fun ClassTableScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.padding(bottom = 12.dp)
                 ) {
+                    val today = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
+                    val dayIndex = when (today) {
+                        java.util.Calendar.MONDAY -> 1; java.util.Calendar.TUESDAY -> 2
+                        java.util.Calendar.WEDNESDAY -> 3; java.util.Calendar.THURSDAY -> 4
+                        java.util.Calendar.FRIDAY -> 5; java.util.Calendar.SATURDAY -> 6
+                        else -> 7
+                    }
                     items(todayCourses) { course ->
+                        val timeRange = remember(course, dayIndex) {
+                            val periods = course.schedule[dayIndex]
+                                ?.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
+                            if (!periods.isNullOrEmpty()) {
+                                val first = AppConstants.PeriodTimes.mapping[periods.first()]
+                                val last = AppConstants.PeriodTimes.mapping[periods.last()]
+                                if (first != null && last != null) "${first.first}-${last.second}" else null
+                            } else null
+                        }
                         CourseCard(
                             course = course,
+                            timeRange = timeRange,
                             hasAssignment = viewModel.hasAssignment(course.courseNo),
                             isFinished = viewModel.isCourseFinishedToday(course),
                             onClick = {
-                                val today = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
-                                val dayIndex = when (today) {
-                                    java.util.Calendar.MONDAY -> 1; java.util.Calendar.TUESDAY -> 2
-                                    java.util.Calendar.WEDNESDAY -> 3; java.util.Calendar.THURSDAY -> 4
-                                    java.util.Calendar.FRIDAY -> 5; java.util.Calendar.SATURDAY -> 6
-                                    else -> 7
-                                }
                                 val firstPeriod = course.schedule[dayIndex]
                                     ?.minByOrNull { AppConstants.Periods.chronologicalOrder.indexOf(it) } ?: ""
                                 viewModel.selectCourse(course, dayIndex, firstPeriod)

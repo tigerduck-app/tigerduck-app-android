@@ -1,5 +1,8 @@
 package org.ntust.app.tigerduck.ui.screen.more
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,9 +37,12 @@ private val implementedFeatures = setOf(
 fun MoreScreen(navController: NavController, appState: AppState) {
     var showNotImplemented by remember { mutableStateOf(false) }
 
+    val pageFeatures = listOf(AppFeature.HOME, AppFeature.CLASS_TABLE, AppFeature.CALENDAR)
+
     val grouped = AppFeature.moreFeatures
         .filter { feature ->
-            !feature.isLibraryRelated || appState.libraryFeatureEnabled
+            feature !in pageFeatures &&
+                (!feature.isLibraryRelated || appState.libraryFeatureEnabled)
         }
         .groupBy { it.category }
         .toList()
@@ -47,80 +54,121 @@ fun MoreScreen(navController: NavController, appState: AppState) {
     ) {
         item {
             PageHeader(title = "更多") {
-                IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
-                    Icon(Icons.Filled.Settings, "設定")
+                IconButton(
+                    onClick = { navController.navigate(Screen.Settings.route) }
+                ) {
+                    Icon(
+                        Icons.Filled.Settings, "設定",
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
             }
+        }
+
+        // 頁面 section (first section)
+        item { SectionHeader(title = "頁面") }
+        item {
+            FeatureGrid(
+                features = pageFeatures,
+                implementedFeatures = implementedFeatures,
+                navController = navController,
+                onNotImplemented = { showNotImplemented = true }
+            )
         }
 
         grouped.forEachIndexed { index, (category, features) ->
             item {
                 SectionHeader(
                     title = category?.displayName ?: "其他",
-                    modifier = if (index > 0) Modifier.padding(top = 16.dp) else Modifier
+                    modifier = Modifier.padding(top = 16.dp)
                 )
             }
             item {
-                val rows = features.chunked(2)
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    rows.forEach { rowFeatures ->
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            rowFeatures.forEach { feature ->
-                                Card(
-                                    onClick = {
-                                        if (feature in implementedFeatures) {
-                                            navController.navigate(feature.toRoute())
-                                        } else {
-                                            showNotImplemented = true
-                                        }
-                                    },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .aspectRatio(1.6f),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surface
-                                    )
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(14.dp),
-                                        verticalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Icon(
-                                            imageVector = feature.icon,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Text(
-                                            text = feature.displayName,
-                                            style = MaterialTheme.typography.titleLarge.copy(
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                            // Pad with spacer if odd number
-                            if (rowFeatures.size == 1) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-                }
+                FeatureGrid(
+                    features = features,
+                    implementedFeatures = implementedFeatures,
+                    navController = navController,
+                    onNotImplemented = { showNotImplemented = true }
+                )
             }
         }
     }
 
     if (showNotImplemented) {
         ComingSoonDialog(onDismiss = { showNotImplemented = false })
+    }
+}
+
+@Composable
+private fun FeatureGrid(
+    features: List<AppFeature>,
+    implementedFeatures: Set<AppFeature>,
+    navController: NavController,
+    onNotImplemented: () -> Unit
+) {
+    val rows = features.chunked(2)
+    Column(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        rows.forEach { rowFeatures ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                rowFeatures.forEach { feature ->
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val isPressed by interactionSource.collectIsPressedAsState()
+                    val scale by animateFloatAsState(
+                        targetValue = if (isPressed) 0.92f else 1f,
+                        label = "cardScale"
+                    )
+                    Card(
+                        onClick = {
+                            if (feature in implementedFeatures) {
+                                navController.navigate(feature.toRoute())
+                            } else {
+                                onNotImplemented()
+                            }
+                        },
+                        interactionSource = interactionSource,
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1.6f)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Icon(
+                                imageVector = feature.icon,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Text(
+                                text = feature.displayName,
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+                        }
+                    }
+                }
+                if (rowFeatures.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
     }
 }

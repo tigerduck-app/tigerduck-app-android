@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 @Composable
 fun CourseCard(
     course: Course,
+    timeRange: String? = null,
     hasAssignment: Boolean = false,
     isFinished: Boolean = false,
     onClick: () -> Unit,
@@ -56,16 +57,22 @@ fun CourseCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = course.instructor,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY * textAlpha)
-                    )
                     if (course.classroom.isNotEmpty()) {
                         Text(
                             text = course.classroom,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY * textAlpha)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY * textAlpha),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    if (timeRange != null) {
+                        Text(
+                            text = timeRange,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY * textAlpha),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }

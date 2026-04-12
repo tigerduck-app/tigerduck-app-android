@@ -92,7 +92,7 @@ fun TimeSliderSection(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                     modifier = Modifier.height(32.dp)
                 ) {
-                    Text("回到現在", style = MaterialTheme.typography.labelMedium)
+                    Text("現在", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }

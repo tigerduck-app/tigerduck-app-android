@@ -68,46 +68,46 @@ fun HomeScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-    PullToRefreshBox(
-        state = pullRefreshState,
-        isRefreshing = pullRefreshing,
-        onRefresh = {
-            pullRefreshing = true
-            viewModel.refresh()
-        },
-        modifier = Modifier.fillMaxSize()
-    ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        PullToRefreshBox(
+            state = pullRefreshState,
+            isRefreshing = pullRefreshing,
+            onRefresh = {
+                pullRefreshing = true
+                viewModel.refresh()
+            },
+            modifier = Modifier.fillMaxSize()
         ) {
-            item {
-                PageHeader(title = greetingText()) {
-                    SyncIndicator(isLoading = isLoading, showCheckmark = showCheckmark)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    PageHeader(title = greetingText()) {
+                        SyncIndicator(isLoading = isLoading, showCheckmark = showCheckmark)
+                    }
+                }
+
+                items(sections) { section ->
+                    HomeSectionContent(
+                        section = section,
+                        allCourses = allCourses,
+                        upcomingAssignments = upcomingAssignments,
+                        hasUnfinishedAssignment = viewModel::hasUnfinishedAssignment,
+                        showAbsoluteTime = appState.showAbsoluteAssignmentTime,
+                        sliderStyle = appState.timeSliderStyle,
+                        invertDirection = appState.invertSliderDirection,
+                        skippedDates = skippedDates,
+                        onCourseClick = { viewModel.selectCourse(it) },
+                        onAssignmentClick = { openAssignmentInMoodle(context, it) },
+                        onSkipCourse = { course, date -> viewModel.toggleSkip(course, date) },
+                        onWidgetClick = { showComingSoon = true }
+                    )
                 }
             }
 
-            items(sections) { section ->
-                HomeSectionContent(
-                    section = section,
-                    allCourses = allCourses,
-                    upcomingAssignments = upcomingAssignments,
-                    hasUnfinishedAssignment = viewModel::hasUnfinishedAssignment,
-                    showAbsoluteTime = appState.showAbsoluteAssignmentTime,
-                    sliderStyle = appState.timeSliderStyle,
-                    invertDirection = appState.invertSliderDirection,
-                    skippedDates = skippedDates,
-                    onCourseClick = { viewModel.selectCourse(it) },
-                    onAssignmentClick = { openAssignmentInMoodle(context, it) },
-                    onSkipCourse = { course, date -> viewModel.toggleSkip(course, date) },
-                    onWidgetClick = { showComingSoon = true }
-                )
-            }
         }
-
-    }
-    SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+        SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
     } // Box
 
     if (showComingSoon) {
@@ -160,7 +160,6 @@ private fun HomeSectionContent(
                         message = "沒有待辦作業"
                     )
                 } else {
-                    val topAssignments = upcomingAssignments.take(5)
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -169,21 +168,21 @@ private fun HomeSectionContent(
                             containerColor = MaterialTheme.colorScheme.surface
                         )
                     ) {
-                        topAssignments.forEachIndexed { index, assignment ->
+                        upcomingAssignments.forEachIndexed { index, assignment ->
                             AssignmentItem(
                                 assignment = assignment,
                                 showAbsoluteTime = showAbsoluteTime,
                                 onClick = { onAssignmentClick(assignment) }
                             )
-                            if (index < topAssignments.lastIndex) {
+                            if (index < upcomingAssignments.lastIndex) {
                                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                             }
                         }
                     }
                 }
             }
-
-            HomeSection.HomeSectionType.QUICK_WIDGETS,
+            // TODO: 快速功能
+//            HomeSection.HomeSectionType.QUICK_WIDGETS,
             HomeSection.HomeSectionType.CUSTOM -> {
                 SectionHeader(title = section.title)
                 if (section.widgets.isNotEmpty()) {
