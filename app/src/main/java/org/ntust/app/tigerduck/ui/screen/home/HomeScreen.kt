@@ -259,7 +259,6 @@ private fun CourseDetailDialog(
 private fun greetingText(): String {
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     return when {
-        hour < 6 -> "深夜好"
         hour < 12 -> "早安"
         hour < 18 -> "午安"
         else -> "晚安"
