@@ -6,45 +6,102 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import org.ntust.app.tigerduck.data.model.Course
+import kotlin.random.Random
 
 val courseColorPalette: List<Color> = listOf(
-    Color(0xFFFF6B6B), // 珊瑚紅
-    Color(0xFF4ECDC4), // 青綠
-    Color(0xFF45B7D1), // 天藍
-    Color(0xFFF39C12), // 橘橙
-    Color(0xFFDDA0DD), // 梅紫
-    Color(0xFF2ECC71), // 翡翠綠
-    Color(0xFFE74C3C), // 磚紅
-    Color(0xFF3498DB), // 寶藍
-    Color(0xFFF7DC6F), // 金黃
-    Color(0xFF9B59B6), // 紫羅蘭
-    Color(0xFF1ABC9C), // 碧綠
-    Color(0xFFE67E22), // 南瓜橘
-    Color(0xFF85C1E9), // 淺藍
-    Color(0xFFD35400), // 焦橙
-    Color(0xFF27AE60), // 森林綠
-    Color(0xFFC0392B), // 酒紅
-    Color(0xFF8E44AD), // 深紫
-    Color(0xFF16A085), // 松綠
-    Color(0xFFF1C40F), // 向日葵黃
-    Color(0xFF2980B9), // 鈷藍
+    Color(0xFFDC2626), // Red
+    Color(0xFFEA580C), // Orange
+    Color(0xFFD97706), // Amber
+    Color(0xFFCA8A04), // Ochre
+    Color(0xFF65A30D), // Lime
+    Color(0xFF16A34A), // Green
+    Color(0xFF059669), // Emerald
+    Color(0xFF0D9488), // Teal
+    Color(0xFF0891B2), // Cyan
+    Color(0xFF0284C7), // Sky
+    Color(0xFF2563EB), // Blue
+    Color(0xFF4F46E5), // Indigo
+    Color(0xFF7C3AED), // Violet
+    Color(0xFF9333EA), // Purple
+    Color(0xFFC026D3), // Fuchsia
+    Color(0xFFDB2777), // Pink
+    Color(0xFFE11D48), // Rose
+    Color(0xFF475569), // Slate
 )
 
 object TigerDuckTheme {
     @Volatile
     private var courseColorMap: Map<String, Color> = emptyMap()
 
-    fun buildCourseColorMap(courseNos: List<String>) {
-        courseColorMap = courseNos.associateWith { courseNo -> stableColor(courseNo) }
+    fun buildCourseColorMap(courses: List<Course>) {
+        val map = mutableMapOf<String, Color>()
+        val taken = mutableSetOf<Color>()
+
+        // Pinned (user-picked) colors claim their slots first.
+        courses.forEach { course ->
+            val pinned = parseHexOrNull(course.customColorHex) ?: return@forEach
+            map[course.courseNo] = pinned
+            taken.add(pinned)
+        }
+
+        // Remaining courses fall back to hash-based assignment, probing forward
+        // through the palette to avoid colliding with pinned/already-assigned slots.
+        // When the palette is exhausted (more than 18 distinct courses), we fall
+        // back to a deterministic-random color outside the palette.
+        courses.filter { map[it.courseNo] == null }
+            .sortedBy { it.courseNo }
+            .forEach { course ->
+                val color = pickFreeColor(course.courseNo, taken)
+                map[course.courseNo] = color
+                taken.add(color)
+            }
+
+        courseColorMap = map
     }
 
     fun courseColor(courseNo: String): Color {
-        return courseColorMap[courseNo] ?: stableColor(courseNo)
+        courseColorMap[courseNo]?.let { return it }
+        return courseColorPalette[courseHashIndex(courseNo)]
     }
 
-    private fun stableColor(courseNo: String): Color {
+    private fun pickFreeColor(courseNo: String, taken: Set<Color>): Color {
+        val base = courseHashIndex(courseNo)
+        var idx = base
+        var probes = 0
+        while (probes < courseColorPalette.size && courseColorPalette[idx] in taken) {
+            idx = (idx + 1) % courseColorPalette.size
+            probes++
+        }
+        if (probes < courseColorPalette.size) return courseColorPalette[idx]
+
+        // Palette fully taken. Pick a deterministic-random color not in the
+        // palette, seeded by courseNo so the same class keeps a stable color.
+        val paletteArgbs = courseColorPalette.mapTo(mutableSetOf()) { it.toArgb() }
+        val rng = Random(courseNo.hashCode())
+        repeat(32) {
+            val h = rng.nextFloat() * 360f
+            val s = 0.55f + rng.nextFloat() * 0.4f
+            val v = 0.55f + rng.nextFloat() * 0.3f
+            val c = Color(android.graphics.Color.HSVToColor(floatArrayOf(h, s, v)))
+            if (c.toArgb() !in paletteArgbs && c !in taken) return c
+        }
+        return Color(android.graphics.Color.HSVToColor(floatArrayOf(rng.nextFloat() * 360f, 0.7f, 0.7f)))
+    }
+
+    private fun courseHashIndex(courseNo: String): Int {
         val hash = courseNo.fold(0) { acc, c -> (acc * 31 + c.code) and 0x7FFFFFFF }
-        return courseColorPalette[hash % courseColorPalette.size]
+        return hash % courseColorPalette.size
+    }
+
+    private fun parseHexOrNull(hex: String?): Color? {
+        if (hex.isNullOrBlank()) return null
+        return try {
+            Color(android.graphics.Color.parseColor(hex))
+        } catch (_: IllegalArgumentException) {
+            null
+        }
     }
 }
 

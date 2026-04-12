@@ -66,6 +66,7 @@ fun SettingsScreen(
     val libraryEnabled = viewModel.appState.libraryFeatureEnabled
 
     var showLibraryWarning by remember { mutableStateOf(false) }
+    var showResetColorsConfirm by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     val appVersion = remember { BuildConfig.VERSION_NAME }
@@ -239,38 +240,47 @@ fun SettingsScreen(
             }
         }
 
-        // MARK: Theme
+        // MARK: Custom
         item { SectionHeader("自訂") }
         item {
             ContentCard {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("主題色", style = MaterialTheme.typography.bodyMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        AppPreferences.themeColors.forEach { (_, hex) ->
-                            val color = Color(0xFF000000 or hex.toLong())
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(color)
-                                    .clickable { viewModel.appState.accentColorHex = hex },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (accentColorHex == hex) {
-                                    Text("\u2713", color = Color.White, style = MaterialTheme.typography.labelSmall)
+                Column {
+                    SettingsLinkRow("Tab 編輯器") { onNavigateToTabEditor() }
+                    HorizontalDivider()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showResetColorsConfirm = true }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("重設課表顏色", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    HorizontalDivider()
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text("主題色", style = MaterialTheme.typography.bodyMedium)
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            AppPreferences.themeColors.forEach { (_, hex) ->
+                                val color = Color(0xFF000000 or hex.toLong())
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(color)
+                                        .clickable { viewModel.appState.accentColorHex = hex },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (accentColorHex == hex) {
+                                        Text("\u2713", color = Color.White, style = MaterialTheme.typography.labelSmall)
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
-        }
-
-        // Tab Editor link
-        item {
-            ContentCard {
-                SettingsLinkRow("Tab 編輯器") { onNavigateToTabEditor() }
             }
         }
 
@@ -372,6 +382,23 @@ fun SettingsScreen(
                 showLibraryWarning = false
             },
             onDismiss = { showLibraryWarning = false }
+        )
+    }
+
+    if (showResetColorsConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetColorsConfirm = false },
+            title = { Text("確定要重設課表顏色？") },
+            text = { Text("這將會把課表的顏色依照預設顏色隨機重新分配") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.resetCourseColors()
+                    showResetColorsConfirm = false
+                }) { Text("確定") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetColorsConfirm = false }) { Text("取消") }
+            }
         )
     }
 }

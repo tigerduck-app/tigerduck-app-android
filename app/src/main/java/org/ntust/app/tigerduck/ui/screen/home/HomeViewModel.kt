@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.*
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -35,7 +36,8 @@ class HomeViewModel @Inject constructor(
     private val courseService: CourseService,
     private val moodleService: MoodleService,
     private val notificationScheduler: AssignmentNotificationScheduler,
-    private val prefs: AppPreferences
+    private val prefs: AppPreferences,
+    private val courseColorStore: CourseColorStore
 ) : ViewModel() {
 
     private val _sections = MutableStateFlow(prefs.homeSections)
@@ -73,6 +75,16 @@ class HomeViewModel @Inject constructor(
                 dataCache.saveSkippedDates(data)
             }
         }
+        viewModelScope.launch {
+            // Pick up color changes triggered from Settings (e.g. "重設課表顏色").
+            courseColorStore.changeEvent.collect {
+                val fresh = dataCache.loadCourses()
+                if (fresh.isNotEmpty()) {
+                    TigerDuckTheme.buildCourseColorMap(fresh)
+                    updateCoursesAndAssignments(fresh, _upcomingAssignments.value)
+                }
+            }
+        }
     }
 
     private var hasLoaded = false
@@ -88,7 +100,7 @@ class HomeViewModel @Inject constructor(
             val cachedCourses = dataCache.loadCourses()
             val cachedAssignments = dataCache.loadAssignments()
             if (cachedCourses.isNotEmpty() || cachedAssignments.isNotEmpty()) {
-                TigerDuckTheme.buildCourseColorMap(cachedCourses.map { it.courseNo })
+                TigerDuckTheme.buildCourseColorMap(cachedCourses)
                 updateCoursesAndAssignments(cachedCourses, cachedAssignments)
             }
 
@@ -120,8 +132,12 @@ class HomeViewModel @Inject constructor(
                     if (authenticated) {
                         val remoteCourses = fetchCourses(studentId, password)
                         if (!remoteCourses.isNullOrEmpty()) {
-                            courses = remoteCourses
-                            dataCache.saveCourses(remoteCourses)
+                            // Preserve user-picked tile colors across refresh.
+                            val pinned = courses.associate { it.courseNo to it.customColorHex }
+                            courses = remoteCourses.map { c ->
+                                c.copy(customColorHex = pinned[c.courseNo])
+                            }
+                            dataCache.saveCourses(courses)
                         }
 
                         val remoteAssignments = fetchAssignments(studentId, password)
@@ -133,7 +149,7 @@ class HomeViewModel @Inject constructor(
                 }
             }
 
-            TigerDuckTheme.buildCourseColorMap(courses.map { it.courseNo })
+            TigerDuckTheme.buildCourseColorMap(courses)
             updateCoursesAndAssignments(courses, assignments)
             if (forceRemote && authService.isNtustAuthenticated) {
                 _syncCompleteEvent.tryEmit(Unit)

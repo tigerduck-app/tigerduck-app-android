@@ -28,14 +28,17 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.ui.graphics.toArgb
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.ui.component.ColorPickerSheet
 import org.ntust.app.tigerduck.ui.component.CourseCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.ui.theme.courseColorPalette
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +55,7 @@ fun ClassTableScreen(
     var showAddCourse by remember { mutableStateOf(false) }
     var courseToRename by remember { mutableStateOf<Course?>(null) }
     var renameText by remember { mutableStateOf("") }
+    var courseToRecolor by remember { mutableStateOf<Course?>(null) }
     var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -164,6 +168,9 @@ fun ClassTableScreen(
                     },
                     onDelete = { course ->
                         viewModel.deleteCourse(course.courseNo)
+                    },
+                    onPickColor = { course ->
+                        courseToRecolor = course
                     }
                 )
             }
@@ -230,6 +237,30 @@ fun ClassTableScreen(
         )
     }
 
+    courseToRecolor?.let { course ->
+        val currentColor = TigerDuckTheme.courseColor(course.courseNo)
+        val usedByOthers = remember(courses, course.courseNo) {
+            courses
+                .asSequence()
+                .filter { it.courseNo != course.courseNo }
+                .map { TigerDuckTheme.courseColor(it.courseNo).toArgb() or 0xFF000000.toInt() }
+                .toSet()
+        }
+        ColorPickerSheet(
+            courseName = course.courseName,
+            currentColor = currentColor,
+            presetPalette = courseColorPalette,
+            usedByOthers = usedByOthers,
+            onApply = { picked ->
+                val argb = picked.toArgb()
+                val hex = "#" + String.format("%06X", argb and 0xFFFFFF)
+                viewModel.updateCourseColor(course.courseNo, hex)
+                courseToRecolor = null
+            },
+            onDismiss = { courseToRecolor = null }
+        )
+    }
+
     if (showAddCourse) {
         ModalBottomSheet(
             onDismissRequest = { showAddCourse = false }
@@ -253,7 +284,8 @@ private fun TimetableGrid(
     weekdays: List<Int>,
     periods: List<org.ntust.app.tigerduck.data.model.TimetablePeriod>,
     onRename: (Course) -> Unit = {},
-    onDelete: (Course) -> Unit = {}
+    onDelete: (Course) -> Unit = {},
+    onPickColor: (Course) -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
     val dayLabels = listOf("", "一", "二", "三", "四", "五", "六", "日")
@@ -382,6 +414,13 @@ private fun TimetableGrid(
                                             onClick = {
                                                 showMenu = false
                                                 onRename(role.course)
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("選擇顏色") },
+                                            onClick = {
+                                                showMenu = false
+                                                onPickColor(role.course)
                                             }
                                         )
                                         DropdownMenuItem(

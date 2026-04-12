@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.LibraryService
@@ -21,7 +22,8 @@ class SettingsViewModel @Inject constructor(
     private val libraryService: LibraryService,
     private val credentials: CredentialManager,
     val prefs: AppPreferences,
-    private val notificationScheduler: AssignmentNotificationScheduler
+    private val notificationScheduler: AssignmentNotificationScheduler,
+    private val courseColorStore: CourseColorStore
 ) : ViewModel() {
 
     val isNtustLoggingIn = authService.isLoggingIn
@@ -81,4 +83,8 @@ class SettingsViewModel @Inject constructor(
     val ntustStudentId: String? get() = authService.storedStudentId
 
     fun cancelAllAssignmentNotifications() = notificationScheduler.cancelAllTracked()
+
+    fun resetCourseColors() {
+        viewModelScope.launch { courseColorStore.resetAllColors() }
+    }
 }

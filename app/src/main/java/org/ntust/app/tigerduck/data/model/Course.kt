@@ -17,7 +17,9 @@ data class Course(
     val maxCount: Int = 0,
     /** JSON: {"1":["3","4"],"3":["6","7"]} — keys = weekday (1=Mon..7=Sun) */
     val scheduleJson: String = "{}",
-    val moodleIdNumber: String? = null
+    val moodleIdNumber: String? = null,
+    /** User-picked tile color as "#RRGGBB". Null means hash-based palette assignment. */
+    val customColorHex: String? = null
 ) {
     @Ignore
     @Transient
