@@ -443,7 +443,8 @@ private fun TimetableGrid(
                                     }
                                     DropdownMenu(
                                         expanded = showMenu,
-                                        onDismissRequest = { showMenu = false }
+                                        onDismissRequest = { showMenu = false },
+                                        shape = RoundedCornerShape(12.dp)
                                     ) {
                                         DropdownMenuItem(
                                             text = { Text("重新命名") },

@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
@@ -502,7 +503,7 @@ private fun SettingsPickerRow(
             Text(value, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY))
 
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, shape = RoundedCornerShape(12.dp)) {
                 options.forEach { (key, display) ->
                     DropdownMenuItem(
                         text = { Text(display) },
@@ -510,10 +511,11 @@ private fun SettingsPickerRow(
                             onSelect(key)
                             expanded = false
                         },
-                        trailingIcon = {
-                            if (selectedKey == key) {
-                                Text("\u2713", color = MaterialTheme.colorScheme.primary)
-                            }
+                        leadingIcon = {
+                            RadioButton(
+                                selected = selectedKey == key,
+                                onClick = null
+                            )
                         }
                     )
                 }

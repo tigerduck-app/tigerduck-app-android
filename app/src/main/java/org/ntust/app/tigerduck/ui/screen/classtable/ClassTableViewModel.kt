@@ -232,11 +232,9 @@ class ClassTableViewModel @Inject constructor(
                 else -> course
             }
         }
-        viewModelScope.launch {
-            dataCache.saveCourses(updated)
-            _courses.value = updated
-            TigerDuckTheme.buildCourseColorMap(updated)
-        }
+        _courses.value = updated
+        TigerDuckTheme.buildCourseColorMap(updated)
+        viewModelScope.launch { dataCache.saveCourses(updated) }
     }
 
     sealed class CellRole {
