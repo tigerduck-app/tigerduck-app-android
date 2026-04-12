@@ -6,6 +6,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 data class CourseTimeSlot(
     val id: String,
@@ -18,7 +19,7 @@ data class CourseTimeSlot(
         private val dayKeyFormatter = DateTimeFormatter.ofPattern("yyyyMMdd", Locale.US)
 
         fun buildSlots(courses: List<Course>, weekday: Int, on: Date = Date()): List<CourseTimeSlot> {
-            val cal = Calendar.getInstance()
+            val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
             val slots = mutableListOf<CourseTimeSlot>()
 
             for (course in courses) {
@@ -32,7 +33,7 @@ data class CourseTimeSlot(
                 val startDate = dateFromTimeString(firstTime.first, on, cal) ?: continue
                 val endDate = dateFromTimeString(lastTime.second, on, cal) ?: continue
 
-                val dayKey = dayKeyFormatter.format(on.toInstant().atZone(java.time.ZoneId.systemDefault()))
+                val dayKey = dayKeyFormatter.format(on.toInstant().atZone(AppConstants.TAIPEI_ZONE))
                 slots.add(CourseTimeSlot(
                     id = "${course.courseNo}_$dayKey",
                     course = course,
@@ -49,7 +50,7 @@ data class CourseTimeSlot(
             centerDate: Date,
             dayRadius: Int = 28
         ): List<CourseTimeSlot> {
-            val cal = Calendar.getInstance()
+            val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
             val allSlots = mutableListOf<CourseTimeSlot>()
 
             for (offset in -dayRadius..dayRadius) {

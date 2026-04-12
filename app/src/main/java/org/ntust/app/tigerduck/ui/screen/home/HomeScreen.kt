@@ -257,7 +257,7 @@ private fun CourseDetailDialog(
 }
 
 private fun greetingText(): String {
-    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    val hour = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).get(Calendar.HOUR_OF_DAY)
     return when {
         hour < 6 -> "還不睡？"
         hour < 12 -> "早安"

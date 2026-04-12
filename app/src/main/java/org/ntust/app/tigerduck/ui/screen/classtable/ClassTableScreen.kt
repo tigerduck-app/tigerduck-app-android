@@ -116,7 +116,7 @@ fun ClassTableScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.padding(bottom = 12.dp)
                 ) {
-                    val today = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
+                    val today = java.util.Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).get(java.util.Calendar.DAY_OF_WEEK)
                     val dayIndex = when (today) {
                         java.util.Calendar.MONDAY -> 1; java.util.Calendar.TUESDAY -> 2
                         java.util.Calendar.WEDNESDAY -> 3; java.util.Calendar.THURSDAY -> 4

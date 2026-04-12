@@ -127,7 +127,7 @@ class CourseService @Inject constructor(
     }
 
     fun currentSemesterCode(): String {
-        val cal = Calendar.getInstance()
+        val cal = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ)
         val year = cal.get(Calendar.YEAR)
         val month = cal.get(Calendar.MONTH) + 1
         val rocYear = year - 1911

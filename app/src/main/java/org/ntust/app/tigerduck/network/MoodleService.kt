@@ -53,7 +53,7 @@ class MoodleService @Inject constructor(
                 ?: throw MoodleServiceError.SesskeyNotFound
 
             // Step 3: Call Moodle calendar API
-            val cal = Calendar.getInstance().apply {
+            val cal = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply {
                 set(Calendar.HOUR_OF_DAY, 0)
                 set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0)

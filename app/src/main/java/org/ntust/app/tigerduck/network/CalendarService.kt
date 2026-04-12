@@ -83,7 +83,7 @@ class CalendarService @Inject constructor() {
 
     private val currentRocYear: Int
         get() {
-            val cal = Calendar.getInstance()
+            val cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Taipei"))
             val year = cal.get(Calendar.YEAR) - 1911
             val month = cal.get(Calendar.MONTH) + 1
             return if (month >= 8) year else year - 1
@@ -153,12 +153,12 @@ class CalendarService @Inject constructor() {
                     if (title != null && start != null) {
                         val eventId = uid ?: "school-$title-${start.time}"
                         val end = dtEnd
-                        val cal = Calendar.getInstance()
+                        val taipeiTz = TimeZone.getTimeZone("Asia/Taipei")
 
                         if (end != null) {
                             // Check if multi-day
-                            val startCal = Calendar.getInstance().apply { time = start }
-                            val endCal = Calendar.getInstance().apply { time = Date(end.time - 1) }
+                            val startCal = Calendar.getInstance(taipeiTz).apply { time = start }
+                            val endCal = Calendar.getInstance(taipeiTz).apply { time = Date(end.time - 1) }
                             val isMultiDay = startCal.get(Calendar.DAY_OF_YEAR) != endCal.get(Calendar.DAY_OF_YEAR) ||
                                             startCal.get(Calendar.YEAR) != endCal.get(Calendar.YEAR)
 
@@ -169,7 +169,7 @@ class CalendarService @Inject constructor() {
                                 while (!current.after(lastDay) && daysAdded < 365) {
                                     val dayId = "$eventId-${current.time}"
                                     events.add(CalendarEvent(dayId, title, current, EventSource.SCHOOL.raw))
-                                    val next = Calendar.getInstance().apply {
+                                    val next = Calendar.getInstance(taipeiTz).apply {
                                         time = current
                                         add(Calendar.DAY_OF_YEAR, 1)
                                     }

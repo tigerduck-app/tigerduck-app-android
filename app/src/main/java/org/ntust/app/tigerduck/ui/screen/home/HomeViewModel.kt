@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import org.ntust.app.tigerduck.AppConstants
 import androidx.lifecycle.viewModelScope
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
@@ -219,7 +220,7 @@ class HomeViewModel @Inject constructor(
 
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
         _allCourses.value = courses
-        val todayIndex = Calendar.getInstance().get(Calendar.DAY_OF_WEEK).let {
+        val todayIndex = Calendar.getInstance(AppConstants.TAIPEI_TZ).get(Calendar.DAY_OF_WEEK).let {
             // Android: Sun=1, Mon=2..Sat=7. We need Mon=1..Sun=7
             when (it) {
                 Calendar.MONDAY -> 1
@@ -258,7 +259,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun toggleSkip(course: Course, date: Date) {
-        val key = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().format(SKIP_DATE_FMT)
+        val key = date.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate().format(SKIP_DATE_FMT)
         _skippedDates.update { current ->
             val map = current.toMutableMap()
             val dates = (map[course.courseNo] ?: emptyList()).toMutableList()

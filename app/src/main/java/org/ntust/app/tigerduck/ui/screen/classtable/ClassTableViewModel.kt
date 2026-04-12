@@ -88,7 +88,7 @@ class ClassTableViewModel @Inject constructor(
     }
 
     private fun currentDayTime(): DayTime {
-        val c = Calendar.getInstance()
+        val c = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ)
         val wd = when (c.get(Calendar.DAY_OF_WEEK)) {
             Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
             Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6

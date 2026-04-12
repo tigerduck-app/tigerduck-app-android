@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
@@ -227,7 +228,7 @@ private fun SlotCard(
     modifier: Modifier = Modifier
 ) {
     val color = TigerDuckTheme.courseColorVibrant(slot.course.courseNo)
-    val cal = Calendar.getInstance()
+    val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
     val weekday = run {
         cal.time = slot.date
         when (cal.get(Calendar.DAY_OF_WEEK)) {
@@ -245,7 +246,7 @@ private fun SlotCard(
         if (first != null && last != null) "${first.first} - ${last.second}" else ""
     } else ""
 
-    val isToday = Calendar.getInstance().let {
+    val isToday = Calendar.getInstance(AppConstants.TAIPEI_TZ).let {
         val today = it.get(Calendar.DAY_OF_YEAR)
         cal.time = slot.date
         today == cal.get(Calendar.DAY_OF_YEAR) && it.get(Calendar.YEAR) == cal.get(Calendar.YEAR)
@@ -587,8 +588,8 @@ private val dateTimeFmt = java.time.format.DateTimeFormatter.ofPattern("M/d (EEE
 private val dateLabelFmt = java.time.format.DateTimeFormatter.ofPattern("M/d (EEE)", Locale.TRADITIONAL_CHINESE)
 
 private fun formatTimeLabel(date: Date): String {
-    val instant = date.toInstant().atZone(java.time.ZoneId.systemDefault())
-    val today = java.time.LocalDate.now()
+    val instant = date.toInstant().atZone(AppConstants.TAIPEI_ZONE)
+    val today = java.time.LocalDate.now(AppConstants.TAIPEI_ZONE)
     return if (instant.toLocalDate() == today) {
         timeFmt.format(instant)
     } else {
@@ -597,4 +598,4 @@ private fun formatTimeLabel(date: Date): String {
 }
 
 private fun formatDateLabel(date: Date): String =
-    dateLabelFmt.format(date.toInstant().atZone(java.time.ZoneId.systemDefault()))
+    dateLabelFmt.format(date.toInstant().atZone(AppConstants.TAIPEI_ZONE))

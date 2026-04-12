@@ -124,7 +124,7 @@ fun ColorPickerSheet(
 
             Spacer(Modifier.height(22.dp))
 
-            SectionLabel(text = "預設（設選擇與它科重複顏色會導致該科顏色重新分配）")
+            SectionLabel(text = "預設（若選擇與它科重複顏色會導致該科顏色重新分配）")
             Spacer(Modifier.height(10.dp))
 
             FlowRow(
