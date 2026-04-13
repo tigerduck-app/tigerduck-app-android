@@ -7,26 +7,19 @@ SourceCode: https://github.com/tigerduck-app/tigerduck-app-android
 IssueTracker: https://github.com/tigerduck-app/tigerduck-app-android/issues
 
 AutoName: TigerDuck
-Description: |
-  TigerDuck 是專為臺灣科技大學學生打造的校園生活助手 App。
-
-  功能包含：
-  * 課表查詢
-  * Moodle 作業截止日查詢、提醒
-  * 行事曆整合
 
 RepoType: git
 Repo: https://github.com/tigerduck-app/tigerduck-app-android.git
 
 Builds:
-  - versionName: 1.1.4
-    versionCode: 6
-    commit: v1.1.4
+  - versionName: 1.1.5
+    versionCode: 7
+    commit: 1.1.5
     subdir: app
     gradle:
       - yes
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.1.4
-CurrentVersionCode: 6
+CurrentVersion: 1.1.5
+CurrentVersionCode: 7
