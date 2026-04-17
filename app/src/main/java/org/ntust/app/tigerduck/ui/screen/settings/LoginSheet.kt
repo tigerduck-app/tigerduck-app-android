@@ -34,6 +34,7 @@ fun LoginSheet(
     usernamePlaceholder: String,
     passwordPlaceholder: String,
     initialUsername: String = "",
+    uppercaseInput: Boolean = false,
     isLoggingIn: Boolean,
     loginError: String?,
     onLogin: (String, String) -> Unit,
@@ -67,14 +68,18 @@ fun LoginSheet(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = username,
-                    onValueChange = { username = it.uppercase().filter { ch -> !ch.isWhitespace() } },
+                    onValueChange = { raw ->
+                        val stripped = raw.filter { ch -> !ch.isWhitespace() }
+                        username = if (uppercaseInput) stripped.uppercase() else stripped
+                    },
                     label = { Text(usernamePlaceholder) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(usernameFocusRequester),
                     keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Characters,
+                        capitalization = if (uppercaseInput) KeyboardCapitalization.Characters
+                            else KeyboardCapitalization.None,
                         keyboardType = KeyboardType.Ascii,
                         imeAction = ImeAction.Next,
                     ),

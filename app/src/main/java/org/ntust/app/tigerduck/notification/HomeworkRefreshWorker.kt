@@ -36,6 +36,13 @@ class HomeworkRefreshWorker @AssistedInject constructor(
 
         return try {
             val remote = moodleService.fetchAssignments(studentId, password)
+
+            // The network call may have taken seconds. If the user logged out
+            // in the meantime, bail before touching the cache or scheduling
+            // anything — otherwise we'd repopulate a cleared cache and post
+            // notifications for a logged-out account.
+            if (authService.storedStudentId != studentId) return Result.success()
+
             val completed = dataCache.loadAssignments()
                 .filter { it.isCompleted }
                 .map { it.assignmentId }

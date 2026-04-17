@@ -304,6 +304,7 @@ fun SettingsScreen(
             title = "NTUST 校務系統",
             usernamePlaceholder = "學號",
             passwordPlaceholder = "密碼",
+            uppercaseInput = true,
             isLoggingIn = isNtustLoggingIn,
             loginError = ntustLoginError,
             onLogin = { u, p -> viewModel.loginNtust(u, p) },

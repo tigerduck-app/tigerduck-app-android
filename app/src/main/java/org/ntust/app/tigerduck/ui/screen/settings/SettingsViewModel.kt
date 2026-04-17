@@ -43,27 +43,24 @@ class SettingsViewModel @Inject constructor(
     private val _libLoginError = MutableStateFlow<String?>(null)
     val libLoginError: StateFlow<String?> = _libLoginError
 
-    private val _isNtustLoggedIn = MutableStateFlow(credentials.ntustStudentId != null)
-    val isNtustLoggedIn: StateFlow<Boolean> = _isNtustLoggedIn
+    val isNtustLoggedIn: StateFlow<Boolean> = authService.authState
 
     private val _isLibraryLoggedIn = MutableStateFlow(credentials.isLibraryTokenValid)
     val isLibraryLoggedIn: StateFlow<Boolean> = _isLibraryLoggedIn
 
     fun refreshLoginState() {
-        _isNtustLoggedIn.value = credentials.ntustStudentId != null
         _isLibraryLoggedIn.value = credentials.isLibraryTokenValid
     }
 
     fun loginNtust(studentId: String, password: String) {
         viewModelScope.launch {
             val success = authService.login(studentId, password)
-            _isNtustLoggedIn.value = success
+            if (success) HomeworkRefreshWorker.schedule(context)
         }
     }
 
     fun logoutNtust() {
         authService.logout()
-        _isNtustLoggedIn.value = false
         _isLibraryLoggedIn.value = false
         notificationScheduler.cancelAllTracked()
         liveActivityManager.stop()

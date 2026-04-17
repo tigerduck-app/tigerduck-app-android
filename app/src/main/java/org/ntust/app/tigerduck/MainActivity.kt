@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.notification.HomeworkRefreshWorker
 import org.ntust.app.tigerduck.ui.AppState
@@ -27,6 +28,7 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var appState: AppState
     @Inject lateinit var liveActivityManager: LiveActivityManager
+    @Inject lateinit var authService: AuthService
 
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -38,7 +40,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         requestNotificationPermissionIfNeeded()
-        HomeworkRefreshWorker.schedule(applicationContext)
+        if (authService.storedStudentId != null) {
+            HomeworkRefreshWorker.schedule(applicationContext)
+        }
 
         setContent {
             val systemDark = isSystemInDarkTheme()
