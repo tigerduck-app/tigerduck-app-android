@@ -9,6 +9,7 @@ import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.*
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
@@ -38,7 +39,8 @@ class HomeViewModel @Inject constructor(
     private val moodleService: MoodleService,
     private val notificationScheduler: AssignmentNotificationScheduler,
     private val prefs: AppPreferences,
-    private val courseColorStore: CourseColorStore
+    private val courseColorStore: CourseColorStore,
+    private val liveActivityManager: LiveActivityManager,
 ) : ViewModel() {
 
     private val _sections = MutableStateFlow(prefs.homeSections)
@@ -55,6 +57,8 @@ class HomeViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
+
+    val isLoggedIn: StateFlow<Boolean> = authService.authState
 
     private val _noNetworkEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
     val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
@@ -83,6 +87,22 @@ class HomeViewModel @Inject constructor(
                 if (fresh.isNotEmpty()) {
                     TigerDuckTheme.buildCourseColorMap(fresh)
                     updateCoursesAndAssignments(fresh, _upcomingAssignments.value)
+                }
+            }
+        }
+        viewModelScope.launch {
+            // React to login/logout: clear immediately on sign-out, kick off a
+            // fresh data fetch on sign-in so the UI never lingers on a prior
+            // user's cached courses.
+            authService.authState.collect { isAuthed ->
+                if (!isAuthed) {
+                    _allCourses.value = emptyList()
+                    _todayCourses.value = emptyList()
+                    _upcomingAssignments.value = emptyList()
+                    _skippedDates.value = emptyMap()
+                    hasLoaded = false
+                } else {
+                    fetchData(forceRemote = true)
                 }
             }
         }
@@ -242,6 +262,9 @@ class HomeViewModel @Inject constructor(
         if (prefs.notifyAssignments) {
             notificationScheduler.scheduleAll(assignments.filter { !it.isCompleted })
         }
+
+        // Refresh the Live Update (Android analogue of the iOS dynamic island)
+        liveActivityManager.refresh()
     }
 
     fun cancelAllAssignmentNotifications() {

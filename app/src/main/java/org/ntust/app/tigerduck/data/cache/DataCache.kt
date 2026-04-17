@@ -70,6 +70,31 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return load(type, "calendar_events.json") ?: emptyList()
     }
 
+    // MARK: - Logout cleanup
+
+    /**
+     * Wipe every piece of user-scoped data so the next login does not inherit
+     * the previous user's courses, assignments, calendar events, or skip
+     * marks on the UI. School-wide calendar events are rebuilt on the next
+     * sync, so it is fine to drop them here too.
+     */
+    suspend fun clearAllUserData() {
+        cacheMutex.withLock {
+            withContext(Dispatchers.IO) {
+                listOf("courses.json", "assignments.json", "calendar_events.json").forEach { name ->
+                    runCatching { File(cacheDir, name).delete() }
+                }
+            }
+        }
+        userDataMutex.withLock {
+            withContext(Dispatchers.IO) {
+                listOf("skipped_dates.json").forEach { name ->
+                    runCatching { File(userDataDir, name).delete() }
+                }
+            }
+        }
+    }
+
     // MARK: - Private helpers
 
     private suspend fun <T> save(value: T, filename: String) = cacheMutex.withLock {

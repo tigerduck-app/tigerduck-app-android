@@ -102,6 +102,11 @@ dependencies {
     // In-app browser (Custom Tabs)
     implementation(libs.androidx.browser)
 
+    // Background work scheduling
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

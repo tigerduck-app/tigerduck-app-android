@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material3.*
@@ -53,6 +54,7 @@ fun TimeSliderSection(
     sliderStyle: String,
     invertDirection: Boolean,
     skippedDates: Map<String, List<String>> = emptyMap(),
+    isLoggedIn: Boolean = true,
     onSkipCourse: (Course, Date) -> Unit = { _, _ -> },
     onSelectCourse: (Course) -> Unit
 ) {
@@ -133,13 +135,13 @@ fun TimeSliderSection(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
-                    Icons.Filled.CheckCircle,
+                    if (isLoggedIn) Icons.Filled.CheckCircle else Icons.Filled.Lock,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
                     modifier = Modifier.size(32.dp)
                 )
                 Text(
-                    "目前沒有課程",
+                    if (isLoggedIn) "目前沒有課程" else "請先登入以使用這項功能",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )

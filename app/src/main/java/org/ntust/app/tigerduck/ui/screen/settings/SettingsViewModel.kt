@@ -4,10 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
+import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.LibraryService
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
+import org.ntust.app.tigerduck.notification.HomeworkRefreshWorker
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.ui.AppState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +28,10 @@ class SettingsViewModel @Inject constructor(
     private val credentials: CredentialManager,
     val prefs: AppPreferences,
     private val notificationScheduler: AssignmentNotificationScheduler,
-    private val courseColorStore: CourseColorStore
+    private val courseColorStore: CourseColorStore,
+    private val liveActivityManager: LiveActivityManager,
+    private val dataCache: DataCache,
+    @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     val isNtustLoggingIn = authService.isLoggingIn
@@ -56,6 +64,11 @@ class SettingsViewModel @Inject constructor(
     fun logoutNtust() {
         authService.logout()
         _isNtustLoggedIn.value = false
+        _isLibraryLoggedIn.value = false
+        notificationScheduler.cancelAllTracked()
+        liveActivityManager.stop()
+        HomeworkRefreshWorker.cancel(context)
+        viewModelScope.launch { dataCache.clearAllUserData() }
     }
 
     fun loginLibrary(username: String, password: String) {

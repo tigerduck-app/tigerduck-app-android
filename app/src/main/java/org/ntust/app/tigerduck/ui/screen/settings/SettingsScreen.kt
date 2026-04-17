@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Warning
@@ -24,8 +23,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -44,7 +41,8 @@ import java.util.Locale
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
-    onNavigateToTabEditor: () -> Unit = {}
+    onNavigateToTabEditor: () -> Unit = {},
+    onNavigateToLiveActivity: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsState()
@@ -54,10 +52,16 @@ fun SettingsScreen(
     val isNtustLoggedIn by viewModel.isNtustLoggedIn.collectAsState()
     val isLibraryLoggedIn by viewModel.isLibraryLoggedIn.collectAsState()
 
-    var ntustStudentIdInput by remember { mutableStateOf("") }
-    var ntustPasswordInput by remember { mutableStateOf("") }
-    var libUsernameInput by remember { mutableStateOf("") }
-    var libPasswordInput by remember { mutableStateOf("") }
+    var showNtustLoginSheet by remember { mutableStateOf(false) }
+    var showLibraryLoginSheet by remember { mutableStateOf(false) }
+
+    // Auto-dismiss dialogs when login succeeds
+    LaunchedEffect(isNtustLoggedIn) {
+        if (isNtustLoggedIn) showNtustLoginSheet = false
+    }
+    LaunchedEffect(isLibraryLoggedIn) {
+        if (isLibraryLoggedIn) showLibraryLoginSheet = false
+    }
 
     val accentColorHex = viewModel.appState.accentColorHex
     val showAbsoluteTime = viewModel.appState.showAbsoluteAssignmentTime
@@ -99,145 +103,32 @@ fun SettingsScreen(
         item { SectionHeader("帳號") }
         item {
             ContentCard {
-                // NTUST Account
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .clip(CircleShape)
-                                .background(if (isNtustLoggedIn) Color(0xFF34C759) else Color(0xFFFF3B30))
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "NTUST 校務系統",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (isNtustLoggingIn) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                        } else {
-                            Text(
-                                if (isNtustLoggedIn) "已登入" else "未登入",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                            )
-                        }
-                    }
+                Column {
+                    AccountRow(
+                        title = "NTUST 校務系統",
+                        isLoggedIn = isNtustLoggedIn,
+                        subtitle = if (isNtustLoggedIn) viewModel.ntustStudentId else null,
+                        isLoggingIn = isNtustLoggingIn,
+                        onLogin = { showNtustLoginSheet = true },
+                        onLogout = { viewModel.logoutNtust() },
+                    )
 
-                    if (isNtustLoggedIn) {
-                        viewModel.ntustStudentId?.let {
-                            Text("學號：$it", style = MaterialTheme.typography.bodySmall)
-                        }
-                        OutlinedButton(
-                            onClick = { viewModel.logoutNtust() },
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) { Text("登出") }
-                    } else {
-                        OutlinedTextField(
-                            value = ntustStudentIdInput,
-                            onValueChange = { ntustStudentIdInput = it.uppercase() },
-                            label = { Text("學號") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters)
+                    if (libraryEnabled) {
+                        HorizontalDivider()
+                        val expiryMs = viewModel.libraryTokenExpiry
+                        val expirySubtitle = if (isLibraryLoggedIn && expiryMs > 0) {
+                            "Token 有效至 " +
+                                SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()).format(Date(expiryMs))
+                        } else null
+                        AccountRow(
+                            title = "圖書館系統",
+                            isLoggedIn = isLibraryLoggedIn,
+                            subtitle = if (isLibraryLoggedIn) viewModel.libraryUsername else null,
+                            extraSubtitle = expirySubtitle,
+                            isLoggingIn = libIsLoggingIn,
+                            onLogin = { showLibraryLoginSheet = true },
+                            onLogout = { viewModel.logoutLibrary() },
                         )
-                        OutlinedTextField(
-                            value = ntustPasswordInput,
-                            onValueChange = { ntustPasswordInput = it },
-                            label = { Text("密碼") },
-                            singleLine = true,
-                            visualTransformation = PasswordVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        ntustLoginError?.let {
-                            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                        }
-                        Button(
-                            onClick = {
-                                viewModel.loginNtust(ntustStudentIdInput, ntustPasswordInput)
-                            },
-                            enabled = ntustStudentIdInput.isNotBlank() && ntustPasswordInput.isNotBlank() && !isNtustLoggingIn
-                        ) { Text("登入 NTUST") }
-                    }
-                }
-
-                if (libraryEnabled) {
-                    HorizontalDivider()
-
-                    // Library Account
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isLibraryLoggedIn) Color(0xFF34C759) else Color(0xFFFF3B30))
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "圖書館系統",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (libIsLoggingIn) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            } else {
-                                Text(
-                                    if (isLibraryLoggedIn) "已登入" else "未登入",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                                )
-                            }
-                        }
-
-                        if (isLibraryLoggedIn) {
-                            viewModel.libraryUsername?.let {
-                                Text("帳號：$it", style = MaterialTheme.typography.bodySmall)
-                            }
-                            val expiryMs = viewModel.libraryTokenExpiry
-                            if (expiryMs > 0) {
-                                val expiry = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()).format(Date(expiryMs))
-                                Text("Token 有效至 $expiry", style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY))
-                            }
-                            OutlinedButton(
-                                onClick = { viewModel.logoutLibrary() },
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                            ) { Text("登出") }
-                        } else {
-                            Text("帳號密碼可能與校務系統不同", style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY))
-                            OutlinedTextField(
-                                value = libUsernameInput,
-                                onValueChange = { libUsernameInput = it.uppercase() },
-                                label = { Text("圖書館帳號") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters)
-                            )
-                            OutlinedTextField(
-                                value = libPasswordInput,
-                                onValueChange = { libPasswordInput = it },
-                                label = { Text("圖書館密碼") },
-                                singleLine = true,
-                                visualTransformation = PasswordVisualTransformation(),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            libLoginError?.let {
-                                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                            }
-                            Button(
-                                onClick = { viewModel.loginLibrary(libUsernameInput, libPasswordInput) },
-                                enabled = libUsernameInput.isNotBlank() && libPasswordInput.isNotBlank() && !libIsLoggingIn
-                            ) { Text("登入圖書館") }
-                        }
                     }
                 }
             }
@@ -324,9 +215,13 @@ fun SettingsScreen(
         item { SectionHeader("通知") }
         item {
             ContentCard {
-                SettingsToggleRow("作業到期提醒", notifyAssignments) {
-                    viewModel.appState.notifyAssignments = it
-                    if (!it) viewModel.cancelAllAssignmentNotifications()
+                Column {
+                    SettingsToggleRow("作業到期提醒", notifyAssignments) {
+                        viewModel.appState.notifyAssignments = it
+                        if (!it) viewModel.cancelAllAssignmentNotifications()
+                    }
+                    HorizontalDivider()
+                    SettingsLinkRow("即時動態（實驗性）") { onNavigateToLiveActivity() }
                 }
             }
         }
@@ -394,11 +289,41 @@ fun SettingsScreen(
                     SettingsLinkRow("開源授權") {
                         openUrl(context, "https://github.com/tigerduck-app/tigerduck-app-android/blob/main/LICENSE", browserPreference)
                     }
+                    HorizontalDivider()
+                    SettingsLinkRow("查看原始碼") {
+                        openUrl(context, "https://github.com/tigerduck-app/tigerduck-app-android", browserPreference)
+                    }
                 }
             }
         }
     }
     } // Scaffold
+
+    if (showNtustLoginSheet) {
+        LoginSheet(
+            title = "NTUST 校務系統",
+            usernamePlaceholder = "學號",
+            passwordPlaceholder = "密碼",
+            isLoggingIn = isNtustLoggingIn,
+            loginError = ntustLoginError,
+            onLogin = { u, p -> viewModel.loginNtust(u, p) },
+            onDismiss = { showNtustLoginSheet = false },
+        )
+    }
+
+    if (showLibraryLoginSheet) {
+        LoginSheet(
+            title = "圖書館系統",
+            subtitle = "帳號密碼可能與校務系統不同",
+            usernamePlaceholder = "圖書館帳號",
+            passwordPlaceholder = "圖書館密碼",
+            initialUsername = viewModel.ntustStudentId.orEmpty(),
+            isLoggingIn = libIsLoggingIn,
+            loginError = libLoginError,
+            onLogin = { u, p -> viewModel.loginLibrary(u, p) },
+            onDismiss = { showLibraryLoginSheet = false },
+        )
+    }
 
     if (showLibraryWarning) {
         LibraryWarningDialog(
@@ -435,6 +360,67 @@ fun SettingsScreen(
 }
 
 private val SettingRowHeight = 56.dp
+
+@Composable
+private fun AccountRow(
+    title: String,
+    isLoggedIn: Boolean,
+    subtitle: String?,
+    extraSubtitle: String? = null,
+    isLoggingIn: Boolean,
+    onLogin: () -> Unit,
+    onLogout: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(if (isLoggedIn) Color(0xFF34C759) else Color(0xFFFF3B30))
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+                )
+            }
+            if (!extraSubtitle.isNullOrBlank()) {
+                Text(
+                    extraSubtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+                )
+            }
+        }
+        if (isLoggingIn) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+            )
+        } else if (isLoggedIn) {
+            OutlinedButton(
+                onClick = onLogout,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) { Text("登出") }
+        } else {
+            Button(onClick = onLogin) { Text("登入") }
+        }
+    }
+}
 
 @Composable
 private fun SettingsRow(label: String, value: String) {

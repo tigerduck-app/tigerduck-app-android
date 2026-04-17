@@ -31,6 +31,7 @@ import org.ntust.app.tigerduck.ui.screen.home.HomeScreen
 import org.ntust.app.tigerduck.ui.screen.library.LibraryScreen
 import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
+import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
 
@@ -43,6 +44,7 @@ sealed class Screen(val route: String) {
     object More : Screen("more")
     object Settings : Screen("settings")
     object TabEditor : Screen("tabEditor")
+    object LiveActivitySettings : Screen("liveActivitySettings")
 }
 
 @Composable
@@ -136,7 +138,8 @@ fun MainNavigation(appState: AppState) {
             composable(Screen.More.route) { MoreScreen(navController, appState) }
             composable(Screen.Settings.route) {
                 SettingsScreen(
-                    onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) }
+                    onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
+                    onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
                 )
             }
             composable(Screen.TabEditor.route) {
@@ -144,6 +147,9 @@ fun MainNavigation(appState: AppState) {
                     appState = appState,
                     onBack = { navController.popBackStack() }
                 )
+            }
+            composable(Screen.LiveActivitySettings.route) {
+                LiveActivitySettingsScreen(onBack = { navController.popBackStack() })
             }
             composable("placeholder/{feature}",
                 arguments = listOf(navArgument("feature") { type = NavType.StringType })

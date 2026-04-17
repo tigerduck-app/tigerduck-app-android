@@ -48,7 +48,23 @@ class CalendarViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    val isLoggedIn: StateFlow<Boolean> = authService.authState
+
     private var hasLoaded = false
+
+    init {
+        viewModelScope.launch {
+            // Clear / refresh in sync with auth changes.
+            authService.authState.collect { isAuthed ->
+                if (!isAuthed) {
+                    _events.value = emptyList()
+                    hasLoaded = false
+                } else {
+                    fetchData()
+                }
+            }
+        }
+    }
 
     val selectedDateEvents: StateFlow<List<CalendarEvent>> = combine(_events, _selectedDate) { events, selectedDate ->
         events

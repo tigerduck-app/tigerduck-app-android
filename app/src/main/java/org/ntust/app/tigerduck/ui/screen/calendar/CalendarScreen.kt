@@ -40,6 +40,7 @@ fun CalendarScreen(
     val selectedDate by viewModel.selectedDate.collectAsState()
     val displayedMonth by viewModel.displayedMonth.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
     val dayEvents by viewModel.selectedDateEvents.collectAsState()
 
     var showCheckmark by remember { mutableStateOf(false) }
@@ -111,7 +112,7 @@ fun CalendarScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            "這天沒有活動",
+                            if (isLoggedIn) "這天沒有活動" else "請先登入以使用這項功能",
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                         )
                     }

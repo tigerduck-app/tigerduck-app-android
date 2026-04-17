@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.ui.graphics.toArgb
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
@@ -49,6 +50,7 @@ fun ClassTableScreen(
 ) {
     val courses by viewModel.courses.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
     val currentMinute by viewModel.currentMinute.collectAsState()
     val selectedCourse by viewModel.selectedCourse.collectAsState()
     val todayCourses = remember(courses, currentMinute) { viewModel.todayCourses }
@@ -169,7 +171,7 @@ fun ClassTableScreen(
             }
 
             // Timetable
-            if (activePeriods.isNotEmpty() && activeWeekdays.isNotEmpty()) {
+            if (activePeriods.isNotEmpty() && activeWeekdays.isNotEmpty() && courses.isNotEmpty()) {
                 TimetableGrid(
                     viewModel = viewModel,
                     weekdays = activeWeekdays,
@@ -184,6 +186,12 @@ fun ClassTableScreen(
                     onPickColor = { course ->
                         courseToRecolor = course
                     }
+                )
+            } else if (!isLoggedIn) {
+                org.ntust.app.tigerduck.ui.component.EmptyStateView(
+                    icon = Icons.Filled.Lock,
+                    title = "尚未登入",
+                    message = "請先登入以使用這項功能",
                 )
             }
 

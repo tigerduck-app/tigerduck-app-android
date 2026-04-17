@@ -49,6 +49,8 @@ class ClassTableViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    val isLoggedIn: StateFlow<Boolean> = authService.authState
+
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
 
@@ -82,6 +84,20 @@ class ClassTableViewModel @Inject constructor(
                 if (fresh.isNotEmpty()) {
                     _courses.value = fresh
                     TigerDuckTheme.buildCourseColorMap(fresh)
+                }
+            }
+        }
+        viewModelScope.launch {
+            // Clear on logout, refresh on login.
+            authService.authState.collect { isAuthed ->
+                if (!isAuthed) {
+                    _courses.value = emptyList()
+                    _assignments.value = emptyList()
+                    _selectedCourse.value = null
+                    hasLoaded = false
+                    TigerDuckTheme.buildCourseColorMap(emptyList())
+                } else {
+                    fetchData()
                 }
             }
         }
