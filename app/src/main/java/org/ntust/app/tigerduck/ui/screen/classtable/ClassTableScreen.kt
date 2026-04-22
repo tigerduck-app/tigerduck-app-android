@@ -101,11 +101,16 @@ fun ClassTableScreen(
         ) {
             PageHeader(title = "課表") {
                 SyncIndicator(isLoading = isLoading, showCheckmark = showCheckmark)
-                IconButton(onClick = { showAddCourse = true }) {
+                IconButton(
+                    onClick = { showAddCourse = true },
+                    enabled = isLoggedIn
+                ) {
                     Icon(
                         Icons.Filled.Add,
                         contentDescription = "新增課程",
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                        tint = MaterialTheme.colorScheme.onSurface.copy(
+                            alpha = if (isLoggedIn) ContentAlpha.SECONDARY else ContentAlpha.DISABLED
+                        )
                     )
                 }
             }
