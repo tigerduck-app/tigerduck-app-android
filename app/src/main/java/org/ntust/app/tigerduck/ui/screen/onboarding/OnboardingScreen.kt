@@ -95,7 +95,11 @@ fun OnboardingScreen(
                             label = { Text("密碼") },
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardOptions = KeyboardOptions(
+                                autoCorrect = false,
+                                keyboardType = KeyboardType.Ascii,
+                                imeAction = ImeAction.Done,
+                            ),
                             keyboardActions = KeyboardActions(
                                 onDone = {
                                     focusManager.clearFocus()
