@@ -68,6 +68,9 @@ class MainActivity : ComponentActivity() {
 
     private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        // During onboarding, the dedicated permission page triggers the prompt
+        // with context. Skip the bare auto-prompt on cold start until that's done.
+        if (!appState.hasCompletedOnboarding) return
         val granted = ContextCompat.checkSelfPermission(
             this, Manifest.permission.POST_NOTIFICATIONS,
         ) == PackageManager.PERMISSION_GRANTED
