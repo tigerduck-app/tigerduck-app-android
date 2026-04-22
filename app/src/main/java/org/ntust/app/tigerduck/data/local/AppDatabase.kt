@@ -12,7 +12,7 @@ import org.ntust.app.tigerduck.data.model.*
 
 @Database(
     entities = [Course::class, Assignment::class, CalendarEvent::class, Announcement::class],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -37,10 +37,17 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE assignments ADD COLUMN cutoffDate INTEGER")
+                db.execSQL("ALTER TABLE assignments ADD COLUMN submittedAt INTEGER")
+            }
+        }
+
         fun create(context: Context): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, "tigerduck.db")
                 .apply {
-                    addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     if (BuildConfig.DEBUG) {
                         fallbackToDestructiveMigration(true)
                     }

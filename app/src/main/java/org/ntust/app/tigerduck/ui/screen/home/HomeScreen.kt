@@ -3,8 +3,12 @@ package org.ntust.app.tigerduck.ui.screen.home
 import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,30 +20,39 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.*
 import java.util.Calendar
 import java.util.Date
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,10 +65,13 @@ fun HomeScreen(
     val sections by viewModel.sections.collectAsState()
     val allCourses by viewModel.allCourses.collectAsState()
     val upcomingAssignments by viewModel.upcomingAssignments.collectAsState()
+    val assignmentFilter by viewModel.assignmentFilter.collectAsState()
+    val ignoredAssignmentIds by viewModel.ignoredAssignmentIds.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
     val selectedCourse by viewModel.selectedCourse.collectAsState()
-    val skippedDates by viewModel.skippedDates.collectAsState()
+    // 翹課 feature disabled — kept for potential re-enable.
+    // val skippedDates by viewModel.skippedDates.collectAsState()
     var showComingSoon by remember { mutableStateOf(false) }
     var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -189,20 +205,26 @@ fun HomeScreen(
                             section = section,
                             allCourses = allCourses,
                             upcomingAssignments = upcomingAssignments,
+                            assignmentFilter = assignmentFilter,
+                            ignoredAssignmentIds = ignoredAssignmentIds,
                             isLoggedIn = isLoggedIn,
                             hasUnfinishedAssignment = viewModel::hasUnfinishedAssignment,
                             showAbsoluteTime = appState.showAbsoluteAssignmentTime,
                             invertDirection = appState.invertSliderDirection,
-                            skippedDates = skippedDates,
                             onCourseClick = {
                                 if (!isEditing) viewModel.selectCourse(it)
                             },
                             onAssignmentClick = {
                                 if (!isEditing) openAssignmentInMoodle(context, it)
                             },
-                            onSkipCourse = { course, date ->
-                                if (!isEditing) viewModel.toggleSkip(course, date)
+                            onToggleIgnore = {
+                                if (!isEditing) viewModel.toggleIgnore(it)
                             },
+                            onSelectFilter = { viewModel.setAssignmentFilter(it) },
+                            // 翹課 feature disabled — replaced by 已忽略 homework flow.
+                            // onSkipCourse = { course, date ->
+                            //     if (!isEditing) viewModel.toggleSkip(course, date)
+                            // },
                             onWidgetClick = { if (!isEditing) showComingSoon = true }
                         )
                     }
@@ -348,14 +370,16 @@ private fun HomeSectionContent(
     section: HomeSection,
     allCourses: List<Course>,
     upcomingAssignments: List<Assignment>,
+    assignmentFilter: AssignmentFilter,
+    ignoredAssignmentIds: Set<String>,
     isLoggedIn: Boolean,
     hasUnfinishedAssignment: (String) -> Boolean,
     showAbsoluteTime: Boolean,
     invertDirection: Boolean,
-    skippedDates: Map<String, List<String>>,
     onCourseClick: (Course) -> Unit,
     onAssignmentClick: (Assignment) -> Unit,
-    onSkipCourse: (Course, Date) -> Unit,
+    onToggleIgnore: (Assignment) -> Unit,
+    onSelectFilter: (AssignmentFilter) -> Unit,
     onWidgetClick: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -364,29 +388,23 @@ private fun HomeSectionContent(
                 TimeSliderSection(
                     courses = allCourses,
                     invertDirection = invertDirection,
-                    skippedDates = skippedDates,
                     isLoggedIn = isLoggedIn,
-                    onSkipCourse = onSkipCourse,
                     onSelectCourse = onCourseClick
                 )
             }
 
             HomeSection.HomeSectionType.UPCOMING_ASSIGNMENTS -> {
                 SectionHeader(title = section.title)
+                AssignmentFilterTabs(
+                    selected = assignmentFilter,
+                    enabled = isLoggedIn,
+                    onSelect = onSelectFilter,
+                )
                 if (upcomingAssignments.isEmpty()) {
-                    if (!isLoggedIn) {
-                        EmptyStateView(
-                            icon = Icons.Filled.Lock,
-                            title = "尚未登入",
-                            message = "請先登入以使用這項功能",
-                        )
-                    } else {
-                        EmptyStateView(
-                            icon = Icons.Filled.CheckCircle,
-                            title = "一切順利",
-                            message = "沒有待辦作業",
-                        )
-                    }
+                    AssignmentsEmptyState(
+                        isLoggedIn = isLoggedIn,
+                        filter = assignmentFilter,
+                    )
                 } else {
                     Card(
                         modifier = Modifier
@@ -397,10 +415,12 @@ private fun HomeSectionContent(
                         )
                     ) {
                         upcomingAssignments.forEachIndexed { index, assignment ->
-                            AssignmentItem(
+                            SwipeableAssignmentRow(
                                 assignment = assignment,
+                                isIgnored = assignment.assignmentId in ignoredAssignmentIds,
                                 showAbsoluteTime = showAbsoluteTime,
-                                onClick = { onAssignmentClick(assignment) }
+                                onClick = { onAssignmentClick(assignment) },
+                                onToggleIgnore = { onToggleIgnore(assignment) },
                             )
                             if (index < upcomingAssignments.lastIndex) {
                                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -501,5 +521,163 @@ private fun openAssignmentInMoodle(context: Context, assignment: Assignment) {
         }
         val opened = runCatching { context.startActivity(intent) }.isSuccess
         if (opened) return
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AssignmentFilterTabs(
+    selected: AssignmentFilter,
+    enabled: Boolean,
+    onSelect: (AssignmentFilter) -> Unit,
+) {
+    val options = AssignmentFilter.entries
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+    ) {
+        options.forEachIndexed { index, option ->
+            SegmentedButton(
+                selected = option == selected,
+                onClick = { onSelect(option) },
+                enabled = enabled,
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+            ) {
+                Text(option.displayName)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AssignmentsEmptyState(
+    isLoggedIn: Boolean,
+    filter: AssignmentFilter,
+) {
+    if (!isLoggedIn) {
+        EmptyStateView(
+            icon = Icons.Filled.Lock,
+            title = "尚未登入",
+            message = "請先登入以使用這項功能",
+        )
+        return
+    }
+    when (filter) {
+        AssignmentFilter.INCOMPLETE -> EmptyStateView(
+            icon = Icons.Filled.CheckCircle,
+            title = "一切順利",
+            message = "沒有待辦作業",
+        )
+        AssignmentFilter.ALL -> EmptyStateView(
+            icon = Icons.Filled.Inbox,
+            title = "目前沒有作業",
+            message = "",
+        )
+        AssignmentFilter.IGNORED -> EmptyStateView(
+            icon = Icons.Filled.VisibilityOff,
+            title = "沒有已忽略的作業",
+            message = "向左滑動作業以將其忽略",
+        )
+    }
+}
+
+/**
+ * Assignment row with left-swipe-to-toggle-ignore, mirroring the SlotCard
+ * gesture pattern: drag damped at 0.6×, 100dp threshold, tween-out + snap-reset
+ * on commit, spring-back otherwise.
+ */
+@Composable
+private fun SwipeableAssignmentRow(
+    assignment: Assignment,
+    isIgnored: Boolean,
+    showAbsoluteTime: Boolean,
+    onClick: () -> Unit,
+    onToggleIgnore: () -> Unit,
+) {
+    val latestOnToggle by rememberUpdatedState(onToggleIgnore)
+    val density = LocalDensity.current
+    val thresholdPx = with(density) { 100.dp.toPx() }
+    val swipeOffset = remember(assignment.assignmentId) { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    val actionColor = Color(0xFFFF9500)
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        // Indicator painted behind the sliding row. It becomes visible as the
+        // row slides left and exposes the right-edge area.
+        val progress = (abs(swipeOffset.value) / thresholdPx).coerceIn(0f, 1f)
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .padding(end = 20.dp),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            Column(
+                modifier = Modifier
+                    .alpha(progress)
+                    .scale(0.5f + 0.5f * progress),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Icon(
+                    imageVector = if (isIgnored) Icons.AutoMirrored.Filled.Undo
+                                  else Icons.Filled.VisibilityOff,
+                    contentDescription = null,
+                    tint = actionColor,
+                    modifier = Modifier.size(22.dp),
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = if (isIgnored) "取消忽略" else "忽略",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = actionColor,
+                    fontSize = 11.sp,
+                )
+            }
+        }
+
+        // Opaque row that slides over the indicator. The surface color matches
+        // the parent Card so no seam is visible at rest.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(swipeOffset.value.roundToInt(), 0) }
+                .background(MaterialTheme.colorScheme.surface)
+                .pointerInput(assignment.assignmentId) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            coroutineScope.launch {
+                                if (swipeOffset.value <= -thresholdPx) {
+                                    swipeOffset.animateTo(
+                                        -2000f,
+                                        animationSpec = tween(durationMillis = 200),
+                                    )
+                                    latestOnToggle()
+                                    swipeOffset.snapTo(0f)
+                                } else {
+                                    swipeOffset.animateTo(0f, animationSpec = spring())
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            coroutineScope.launch {
+                                swipeOffset.animateTo(0f, animationSpec = spring())
+                            }
+                        },
+                        onHorizontalDrag = { _, delta ->
+                            coroutineScope.launch {
+                                swipeOffset.snapTo(
+                                    (swipeOffset.value + delta * 0.6f).coerceAtMost(0f),
+                                )
+                            }
+                        },
+                    )
+                },
+        ) {
+            AssignmentItem(
+                assignment = assignment,
+                showAbsoluteTime = showAbsoluteTime,
+                onClick = onClick,
+            )
+        }
     }
 }

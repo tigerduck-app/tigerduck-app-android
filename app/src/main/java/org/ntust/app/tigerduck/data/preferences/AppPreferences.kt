@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import org.ntust.app.tigerduck.data.model.AppFeature
+import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.data.model.HomeSection
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -55,6 +56,14 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     var showAbsoluteAssignmentTime: Boolean
         get() = prefs.getBoolean("showAbsoluteAssignmentTime", false)
         set(value) = prefs.edit().putBoolean("showAbsoluteAssignmentTime", value).apply()
+
+    var homeAssignmentFilter: AssignmentFilter
+        get() {
+            val raw = prefs.getString("homeAssignmentFilter", null)
+            return AssignmentFilter.entries.firstOrNull { it.name == raw }
+                ?: AssignmentFilter.INCOMPLETE
+        }
+        set(value) = prefs.edit().putString("homeAssignmentFilter", value.name).apply()
 
     var configuredTabs: List<AppFeature>
         get() {

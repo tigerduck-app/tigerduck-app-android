@@ -20,8 +20,11 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.ZoneId
@@ -52,8 +55,37 @@ class HomeViewModel @Inject constructor(
     private val _todayCourses = MutableStateFlow<List<Course>>(emptyList())
     val todayCourses: StateFlow<List<Course>> = _todayCourses
 
-    private val _upcomingAssignments = MutableStateFlow<List<Assignment>>(emptyList())
-    val upcomingAssignments: StateFlow<List<Assignment>> = _upcomingAssignments
+    // Full assignment list from the most recent load/fetch. The UI-visible
+    // list is derived from this + the ignore set + the current tab filter.
+    private val _allAssignments = MutableStateFlow<List<Assignment>>(emptyList())
+
+    private val _ignoredAssignmentIds = MutableStateFlow<Set<String>>(emptySet())
+    val ignoredAssignmentIds: StateFlow<Set<String>> = _ignoredAssignmentIds
+
+    private val _assignmentFilter = MutableStateFlow(prefs.homeAssignmentFilter)
+    val assignmentFilter: StateFlow<AssignmentFilter> = _assignmentFilter
+
+    val upcomingAssignments: StateFlow<List<Assignment>> = combine(
+        _allAssignments,
+        _ignoredAssignmentIds,
+        _assignmentFilter,
+    ) { all, ignored, filter ->
+        when (filter) {
+            AssignmentFilter.INCOMPLETE ->
+                all.filter { !it.isCompleted && it.assignmentId !in ignored }
+                    .sortedBy { it.dueDate }
+            AssignmentFilter.ALL -> {
+                val visible = all.filter { it.assignmentId !in ignored }
+                val incomplete = visible.filter { !it.isCompleted }.sortedBy { it.dueDate }
+                val completed = visible.filter { it.isCompleted }.sortedByDescending { it.dueDate }
+                incomplete + completed
+            }
+            AssignmentFilter.IGNORED ->
+                all.filter { it.assignmentId in ignored }.sortedBy { it.dueDate }
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private val saveIgnoredChannel = Channel<Set<String>>(Channel.CONFLATED)
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -81,12 +113,17 @@ class HomeViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            for (ids in saveIgnoredChannel) {
+                dataCache.saveIgnoredAssignments(ids)
+            }
+        }
+        viewModelScope.launch {
             // Pick up color changes triggered from Settings (e.g. "重設課表顏色").
             courseColorStore.changeEvent.collect {
                 val fresh = dataCache.loadCourses()
                 if (fresh.isNotEmpty()) {
                     TigerDuckTheme.buildCourseColorMap(fresh)
-                    updateCoursesAndAssignments(fresh, _upcomingAssignments.value)
+                    updateCoursesAndAssignments(fresh, _allAssignments.value)
                 }
             }
         }
@@ -98,8 +135,9 @@ class HomeViewModel @Inject constructor(
                 if (!isAuthed) {
                     _allCourses.value = emptyList()
                     _todayCourses.value = emptyList()
-                    _upcomingAssignments.value = emptyList()
+                    _allAssignments.value = emptyList()
                     _skippedDates.value = emptyMap()
+                    _ignoredAssignmentIds.value = emptySet()
                     hasLoaded = false
                 } else {
                     fetchData(forceRemote = true)
@@ -116,6 +154,7 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch {
             _skippedDates.value = dataCache.loadSkippedDates()
+            _ignoredAssignmentIds.value = dataCache.loadIgnoredAssignments()
 
             // Load cached data immediately
             val cachedCourses = dataCache.loadCourses()
@@ -162,7 +201,11 @@ class HomeViewModel @Inject constructor(
                             dataCache.saveCourses(courses)
                         }
 
-                        val remoteAssignments = fetchAssignments(studentId, password)
+                        val remoteAssignments = fetchAssignments(
+                            studentId = studentId,
+                            password = password,
+                            currentCourseNos = courses.map { it.courseNo }.toSet(),
+                        )
                         if (remoteAssignments != null) {
                             assignments = remoteAssignments
                             dataCache.saveAssignments(remoteAssignments)
@@ -220,15 +263,23 @@ class HomeViewModel @Inject constructor(
         return courses
     }
 
-    private suspend fun fetchAssignments(studentId: String, password: String): List<Assignment>? {
+    private suspend fun fetchAssignments(
+        studentId: String,
+        password: String,
+        currentCourseNos: Set<String>,
+    ): List<Assignment>? {
         return try {
-            val remote = moodleService.fetchAssignments(studentId, password)
+            val remote = moodleService.fetchAssignments(studentId, password, currentCourseNos)
+            // Safety net: if a transient submission-status call failed and the
+            // remote reports isCompleted=false for something we previously
+            // confirmed as submitted, don't regress the user's view. Remote
+            // wins when it explicitly says isCompleted=true.
             val existingCompleted = dataCache.loadAssignments()
                 .filter { it.isCompleted }
                 .map { it.assignmentId }
                 .toSet()
             remote.map { assignment ->
-                if (assignment.assignmentId in existingCompleted) {
+                if (!assignment.isCompleted && assignment.assignmentId in existingCompleted) {
                     assignment.copy(isCompleted = true)
                 } else assignment
             }
@@ -254,13 +305,16 @@ class HomeViewModel @Inject constructor(
             }
         }
         _todayCourses.value = courses.filter { it.schedule.containsKey(todayIndex) }
-        _upcomingAssignments.value = assignments
-            .filter { !it.isCompleted }
-            .sortedBy { it.dueDate }
+        _allAssignments.value = assignments.sortedBy { it.dueDate }
 
-        // Schedule notifications for upcoming assignments
+        // Schedule notifications for upcoming assignments. Skip anything the
+        // user has ignored — notifying on a manually-dismissed task would be
+        // the opposite of what the ignore gesture is for.
         if (prefs.notifyAssignments) {
-            notificationScheduler.scheduleAll(assignments.filter { !it.isCompleted })
+            val ignored = _ignoredAssignmentIds.value
+            notificationScheduler.scheduleAll(
+                assignments.filter { !it.isCompleted && it.assignmentId !in ignored }
+            )
         }
 
         // Refresh the Live Update (Android analogue of the iOS dynamic island)
@@ -271,26 +325,50 @@ class HomeViewModel @Inject constructor(
         notificationScheduler.cancelAllTracked()
     }
 
-    fun hasUnfinishedAssignment(courseNo: String): Boolean =
-        _upcomingAssignments.value.any { it.courseNo == courseNo && !it.isCompleted }
+    fun hasUnfinishedAssignment(courseNo: String): Boolean {
+        val ignored = _ignoredAssignmentIds.value
+        return _allAssignments.value.any {
+            it.courseNo == courseNo && !it.isCompleted && it.assignmentId !in ignored
+        }
+    }
 
-    fun assignmentsFor(courseNo: String): List<Assignment> =
-        _upcomingAssignments.value.filter { it.courseNo == courseNo && !it.isCompleted }
+    fun assignmentsFor(courseNo: String): List<Assignment> {
+        val ignored = _ignoredAssignmentIds.value
+        return _allAssignments.value.filter {
+            it.courseNo == courseNo && !it.isCompleted && it.assignmentId !in ignored
+        }
+    }
+
+    fun setAssignmentFilter(filter: AssignmentFilter) {
+        _assignmentFilter.value = filter
+        prefs.homeAssignmentFilter = filter
+    }
+
+    fun toggleIgnore(assignment: Assignment) {
+        _ignoredAssignmentIds.update { current ->
+            if (assignment.assignmentId in current) current - assignment.assignmentId
+            else current + assignment.assignmentId
+        }
+        saveIgnoredChannel.trySend(_ignoredAssignmentIds.value)
+    }
 
     fun selectCourse(course: Course?) {
         _selectedCourse.value = course
     }
 
+    // 翹課 feature disabled — replaced by the "已忽略" homework flow. Kept as
+    // a no-op so existing call sites still compile; re-enable by uncommenting
+    // the body below if the feature is ever reinstated.
     fun toggleSkip(course: Course, date: Date) {
-        val key = date.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate().format(SKIP_DATE_FMT)
-        _skippedDates.update { current ->
-            val map = current.toMutableMap()
-            val dates = (map[course.courseNo] ?: emptyList()).toMutableList()
-            if (key in dates) dates.remove(key) else dates.add(key)
-            map[course.courseNo] = dates
-            map
-        }
-        saveSkipChannel.trySend(_skippedDates.value)
+        // val key = date.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate().format(SKIP_DATE_FMT)
+        // _skippedDates.update { current ->
+        //     val map = current.toMutableMap()
+        //     val dates = (map[course.courseNo] ?: emptyList()).toMutableList()
+        //     if (key in dates) dates.remove(key) else dates.add(key)
+        //     map[course.courseNo] = dates
+        //     map
+        // }
+        // saveSkipChannel.trySend(_skippedDates.value)
     }
 
     fun removeSection(sectionId: String) {

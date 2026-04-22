@@ -1,68 +1,5 @@
 package org.ntust.app.tigerduck.network.model
 
-data class MoodleCalendarWrapper(
-    val error: Boolean,
-    val data: MoodleCalendarData?
-)
-
-data class MoodleCalendarData(
-    val events: List<MoodleEvent> = emptyList()
-)
-
-data class MoodleEvent(
-    val id: Int,
-    val name: String,
-    val description: String?,
-    val component: String?,
-    val modulename: String?,
-    val activityname: String?,
-    val instance: Int?,
-    val eventtype: String?,
-    val timestart: Long,
-    val timesort: Long,
-    val course: MoodleCourseInfo?,
-    val action: MoodleAction?,
-    val url: String?
-)
-
-data class MoodleCourseInfo(
-    val id: Int,
-    val fullname: String?,
-    val shortname: String?,
-    val idnumber: String?
-)
-
-data class MoodleAction(
-    val name: String?,
-    val url: String?,
-    val itemcount: Int?,
-    val actionable: Boolean?
-)
-
-data class MoodleCalendarRequest(
-    val index: Int,
-    val methodname: String,
-    val args: MoodleCalendarArgs
-) {
-    companion object {
-        fun upcoming(fromTimestamp: Long) = MoodleCalendarRequest(
-            index = 0,
-            methodname = "core_calendar_get_action_events_by_timesort",
-            args = MoodleCalendarArgs(
-                limitnum = 50,
-                timesortfrom = fromTimestamp,
-                limittononsuspendedevents = true
-            )
-        )
-    }
-}
-
-data class MoodleCalendarArgs(
-    val limitnum: Int,
-    val timesortfrom: Long,
-    val limittononsuspendedevents: Boolean
-)
-
 data class MoodleEnrolledCourse(
     val id: Int,
     val fullname: String?,
@@ -85,23 +22,40 @@ data class MoodleEnrolledCourse(
     }
 }
 
-data class MoodleEnrolRequest(
-    val index: Int,
-    val methodname: String,
-    val args: MoodleEnrolArgs
-) {
-    companion object {
-        fun forUser(userId: Int) = MoodleEnrolRequest(
-            index = 0,
-            methodname = "core_enrol_get_users_courses",
-            args = MoodleEnrolArgs(userid = userId)
-        )
-    }
-}
+// mod_assign_get_assignments
 
-data class MoodleEnrolArgs(val userid: Int)
+data class MoodleAssignmentsEnvelope(
+    val courses: List<MoodleAssignmentsCourse> = emptyList()
+)
 
-data class MoodleEnrolWrapper(
-    val error: Boolean,
-    val data: List<MoodleEnrolledCourse>?
+data class MoodleAssignmentsCourse(
+    val id: Int,
+    val assignments: List<MoodleAssignmentNode> = emptyList()
+)
+
+data class MoodleAssignmentNode(
+    val id: Int,
+    val cmid: Int,
+    val name: String,
+    val duedate: Long = 0,
+    val cutoffdate: Long? = null,
+    val allowsubmissionsfromdate: Long? = null,
+    val intro: String? = null,
+    val nosubmissions: Int = 0
+)
+
+// mod_assign_get_submission_status
+
+data class MoodleSubmissionStatusEnvelope(
+    val lastattempt: MoodleSubmissionLastAttempt? = null
+)
+
+data class MoodleSubmissionLastAttempt(
+    val submission: MoodleSubmission? = null,
+    val gradingstatus: String? = null
+)
+
+data class MoodleSubmission(
+    val status: String? = null,
+    val timemodified: Long? = null
 )

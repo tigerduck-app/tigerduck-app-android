@@ -110,6 +110,18 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return loadFromUserData(type, "skipped_dates.json") ?: emptyMap()
     }
 
+    // MARK: - Ignored Assignments (set of assignmentIds)
+    // Stored in filesDir so the user's ignore decisions survive OS cache eviction
+    // and remote re-fetches, mirroring skipped_dates.json handling.
+
+    suspend fun saveIgnoredAssignments(ids: Set<String>) =
+        saveToUserData(ids.toList(), "ignored_assignments.json")
+
+    suspend fun loadIgnoredAssignments(): Set<String> {
+        val type = object : TypeToken<List<String>>() {}.type
+        return loadFromUserData<List<String>>(type, "ignored_assignments.json")?.toSet() ?: emptySet()
+    }
+
     // MARK: - Score Report (per studentId)
 
     data class ScoreReportSnapshot(val report: ScoreReport, val cachedAt: Date)
@@ -168,7 +180,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         }
         userDataMutex.withLock {
             withContext(Dispatchers.IO) {
-                listOf("skipped_dates.json").forEach { name ->
+                listOf("skipped_dates.json", "ignored_assignments.json").forEach { name ->
                     runCatching { File(userDataDir, name).delete() }
                 }
             }
