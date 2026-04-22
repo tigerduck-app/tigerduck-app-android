@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
-import org.ntust.app.tigerduck.notification.HomeworkRefreshWorker
+import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.navigation.AppNavigation
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
 
         requestNotificationPermissionIfNeeded()
         if (authService.storedStudentId != null) {
-            HomeworkRefreshWorker.schedule(applicationContext)
+            BackgroundSyncWorker.schedule(applicationContext)
         }
 
         setContent {

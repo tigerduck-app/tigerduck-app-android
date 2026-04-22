@@ -10,7 +10,7 @@ import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.LibraryService
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
-import org.ntust.app.tigerduck.notification.HomeworkRefreshWorker
+import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.ui.AppState
@@ -55,7 +55,7 @@ class SettingsViewModel @Inject constructor(
     fun loginNtust(studentId: String, password: String) {
         viewModelScope.launch {
             val success = authService.login(studentId, password)
-            if (success) HomeworkRefreshWorker.schedule(context)
+            if (success) BackgroundSyncWorker.schedule(context)
         }
     }
 
@@ -64,7 +64,7 @@ class SettingsViewModel @Inject constructor(
         _isLibraryLoggedIn.value = false
         notificationScheduler.cancelAllTracked()
         liveActivityManager.stop()
-        HomeworkRefreshWorker.cancel(context)
+        BackgroundSyncWorker.cancel(context)
         viewModelScope.launch { dataCache.clearAllUserData() }
     }
 
