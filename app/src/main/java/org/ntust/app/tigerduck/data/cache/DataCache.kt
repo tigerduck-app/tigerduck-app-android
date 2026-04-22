@@ -13,6 +13,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,13 +34,60 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         .create()
 
-    // MARK: - Courses
+    init {
+        absorbLegacyCourseCache()
+    }
 
-    suspend fun saveCourses(courses: List<Course>) = save(courses, "courses.json")
+    // MARK: - Courses (semester-scoped)
 
-    suspend fun loadCourses(): List<Course> {
+    /** Save courses for a specific semester. File: courses_<semester>.json */
+    suspend fun saveCourses(courses: List<Course>, semester: String) =
+        save(courses, coursesFilename(semester))
+
+    /** Load courses for a specific semester. Returns empty list when not cached. */
+    suspend fun loadCourses(semester: String): List<Course> {
         val type = object : TypeToken<List<Course>>() {}.type
-        return load(type, "courses.json") ?: emptyList()
+        return load<List<Course>>(type, coursesFilename(semester)) ?: emptyList()
+    }
+
+    // MARK: - Courses (current-semester aliases)
+    // Home, BackgroundSyncWorker, LiveActivity, etc. operate on "whatever
+    // the user is studying right now" so we keep a no-arg convenience that
+    // always maps to the actual current semester.
+
+    suspend fun saveCourses(courses: List<Course>) =
+        saveCourses(courses, currentSemesterCode())
+
+    suspend fun loadCourses(): List<Course> =
+        loadCourses(currentSemesterCode())
+
+    private fun coursesFilename(semester: String): String = "courses_$semester.json"
+
+    /**
+     * Pre-semester-scoped format stored at `courses.json`. Move it into the
+     * current-semester file on first launch so existing users don't lose
+     * their timetable when they upgrade; matches iOS's one-shot migration.
+     */
+    private fun absorbLegacyCourseCache() {
+        val legacy = File(cacheDir, "courses.json")
+        if (!legacy.exists()) return
+        val target = File(cacheDir, coursesFilename(currentSemesterCode()))
+        runCatching {
+            if (!target.exists()) legacy.copyTo(target, overwrite = false)
+            legacy.delete()
+        }
+    }
+
+    private fun currentSemesterCode(): String {
+        val cal = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ)
+        val year = cal.get(Calendar.YEAR)
+        val month = cal.get(Calendar.MONTH) + 1
+        val rocYear = year - 1911
+        return when (month) {
+            in 2..8 -> "${rocYear - 1}2"
+            in 9..12 -> "${rocYear}1"
+            else -> "${rocYear - 1}1"
+        }
     }
 
     // MARK: - Assignments
@@ -83,6 +131,12 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
             withContext(Dispatchers.IO) {
                 listOf("courses.json", "assignments.json", "calendar_events.json").forEach { name ->
                     runCatching { File(cacheDir, name).delete() }
+                }
+                // Drop every per-semester course bucket so historical data
+                // doesn't bleed across accounts on the same device.
+                runCatching {
+                    cacheDir.listFiles { _, name -> name.startsWith("courses_") && name.endsWith(".json") }
+                        ?.forEach { it.delete() }
                 }
             }
         }

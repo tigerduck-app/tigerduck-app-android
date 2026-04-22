@@ -76,10 +76,19 @@ class CredentialManager @Inject constructor(@ApplicationContext context: Context
     val isLibraryTokenValid: Boolean
         get() = libraryToken != null && System.currentTimeMillis() < libraryTokenExpiry
 
+    /** Long-lived Moodle Mobile wstoken, obtained via the OIDC launch flow. */
+    var moodleToken: String?
+        get() = prefs.getString("moodle_token", null)
+        set(value) = if (value != null)
+            prefs.edit().putString("moodle_token", value).apply()
+        else
+            prefs.edit().remove("moodle_token").apply()
+
     fun clearNtustCredentials() {
         prefs.edit()
             .remove("ntust_student_id")
             .remove("ntust_password")
+            .remove("moodle_token")
             .apply()
     }
 

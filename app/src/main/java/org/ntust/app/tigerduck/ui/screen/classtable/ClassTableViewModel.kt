@@ -10,9 +10,11 @@ import android.util.Log
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.model.TimetablePeriod
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
+import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.BufferOverflow
@@ -37,7 +39,8 @@ class ClassTableViewModel @Inject constructor(
     internal val courseService: CourseService,
     private val moodleService: MoodleService,
     private val dataCache: DataCache,
-    private val courseColorStore: CourseColorStore
+    private val courseColorStore: CourseColorStore,
+    private val appPreferences: AppPreferences
 ) : ViewModel() {
 
     private val _courses = MutableStateFlow<List<Course>>(emptyList())
@@ -57,7 +60,9 @@ class ClassTableViewModel @Inject constructor(
     private val _selectedWeekday = MutableStateFlow<Int?>(null)
     private val _selectedPeriodId = MutableStateFlow<String?>(null)
 
-    private val _currentSemester = MutableStateFlow(courseService.currentSemesterCode())
+    private val _currentSemester = MutableStateFlow(
+        appPreferences.classTableSelectedSemester ?: courseService.currentSemesterCode()
+    )
     val currentSemester: StateFlow<String> = _currentSemester
 
     data class DayTime(val weekday: Int, val minuteOfDay: Int)
@@ -79,8 +84,11 @@ class ClassTableViewModel @Inject constructor(
         viewModelScope.launch {
             // Reload course state whenever Settings resets tile colors so
             // our in-memory _courses doesn't fight the freshly-written cache.
+            // Re-read the currently-viewed semester — not the live one —
+            // so picking a past term doesn't get snapped back to the
+            // current semester on a color reset.
             courseColorStore.changeEvent.collect {
-                val fresh = dataCache.loadCourses()
+                val fresh = dataCache.loadCourses(_currentSemester.value)
                 if (fresh.isNotEmpty()) {
                     _courses.value = fresh
                     TigerDuckTheme.buildCourseColorMap(fresh)
@@ -113,9 +121,18 @@ class ClassTableViewModel @Inject constructor(
         return DayTime(wd, c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE))
     }
 
+    /** The actual live semester code (not whatever the user picked). */
+    val liveSemesterCode: String
+        get() = courseService.currentSemesterCode()
+
+    /**
+     * The four most recent semesters, anchored on the *actual* current
+     * semester — not whatever the user last switched to. Matches iOS so
+     * the picker always offers the same range regardless of selection.
+     */
     val availableSemesters: List<String>
         get() {
-            val code = _currentSemester.value
+            val code = courseService.currentSemesterCode()
             val year = code.dropLast(1).toIntOrNull() ?: return listOf(code)
             val sem = code.last().digitToIntOrNull() ?: 1
             val result = mutableListOf<String>()
@@ -128,6 +145,24 @@ class ClassTableViewModel @Inject constructor(
             }
             return result
         }
+
+    /** Format semester code for display, e.g. "1142" → "114-2". */
+    fun displayLabel(code: String): String {
+        if (code.length < 2) return code
+        return code.dropLast(1) + "-" + code.last()
+    }
+
+    fun setSemester(code: String) {
+        if (code == _currentSemester.value) return
+        appPreferences.classTableSelectedSemester = code
+        _currentSemester.value = code
+        viewModelScope.launch {
+            val cached = dataCache.loadCourses(code)
+            _courses.value = cached
+            TigerDuckTheme.buildCourseColorMap(cached)
+            fetchData()
+        }
+    }
 
     val totalCredits: Int get() = _courses.value.sumOf { it.credits }
 
@@ -270,7 +305,7 @@ class ClassTableViewModel @Inject constructor(
     fun addCourse(course: Course) {
         val updated = _courses.value + course
         _courses.value = updated
-        viewModelScope.launch { dataCache.saveCourses(updated) }
+        viewModelScope.launch { dataCache.saveCourses(updated, _currentSemester.value) }
         TigerDuckTheme.buildCourseColorMap(updated)
     }
 
@@ -279,13 +314,13 @@ class ClassTableViewModel @Inject constructor(
             if (it.courseNo == courseNo) it.copy(courseName = newName) else it
         }
         _courses.value = updated
-        viewModelScope.launch { dataCache.saveCourses(updated) }
+        viewModelScope.launch { dataCache.saveCourses(updated, _currentSemester.value) }
     }
 
     fun deleteCourse(courseNo: String) {
         val updated = _courses.value.filter { it.courseNo != courseNo }
         _courses.value = updated
-        viewModelScope.launch { dataCache.saveCourses(updated) }
+        viewModelScope.launch { dataCache.saveCourses(updated, _currentSemester.value) }
         TigerDuckTheme.buildCourseColorMap(updated)
     }
 
@@ -307,7 +342,7 @@ class ClassTableViewModel @Inject constructor(
         }
         _courses.value = updated
         TigerDuckTheme.buildCourseColorMap(updated)
-        viewModelScope.launch { dataCache.saveCourses(updated) }
+        viewModelScope.launch { dataCache.saveCourses(updated, _currentSemester.value) }
     }
 
     sealed class CellRole {
@@ -341,7 +376,7 @@ class ClassTableViewModel @Inject constructor(
         if (hasLoaded) return
         hasLoaded = true
         viewModelScope.launch {
-            val cached = dataCache.loadCourses()
+            val cached = dataCache.loadCourses(_currentSemester.value)
             val cachedA = dataCache.loadAssignments()
             if (cached.isNotEmpty()) {
                 _courses.value = cached
@@ -378,22 +413,55 @@ class ClassTableViewModel @Inject constructor(
         _isLoading.value = true
         try {
             val semester = _currentSemester.value
+            val isCurrentSemester = semester == courseService.currentSemesterCode()
+            Log.i("ClassTableVM", "fetchData start: semester=$semester isCurrent=$isCurrentSemester")
 
-            // Fetch enrolled course numbers, then look up details in parallel
-            val courseNos = try {
-                courseService.fetchEnrolledCourseNos(studentId, password)
+            // Source 1: course-selection enrolment list. Only current-term
+            // enrolments are exposed by that portal, so skip it for past
+            // semesters and lean on Moodle's historical record instead.
+            val selectionNos: List<String> = if (isCurrentSemester) {
+                try {
+                    courseService.fetchEnrolledCourseNos(studentId, password)
+                } catch (e: Exception) {
+                    Log.e("ClassTableVM", "Failed to fetch course list", e)
+                    emptyList()
+                }
+            } else emptyList()
+            Log.i("ClassTableVM", "selectionNos=${selectionNos.size} -> $selectionNos")
+
+            // Source 2: Moodle enrolled courses (all semesters). Works for
+            // past terms too because Moodle keeps every course the user has
+            // ever been enrolled in.
+            val moodleAll: List<MoodleEnrolledCourse> = try {
+                moodleService.fetchEnrolledCourses(studentId, password)
             } catch (e: Exception) {
-                Log.e("ClassTableVM", "Failed to fetch course list", e)
-                null
+                Log.e("ClassTableVM", "Failed to fetch Moodle enrolled courses", e)
+                emptyList()
             }
+            Log.i(
+                "ClassTableVM",
+                "moodleAll=${moodleAll.size} sampleIdnums=${moodleAll.take(5).map { it.idnumber }} semesters=${moodleAll.map { it.semesterCode }.distinct()}"
+            )
+            val moodleForSem = moodleAll.filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }
+            val moodleByNo = moodleForSem.associateBy { it.courseNo }
+            Log.i("ClassTableVM", "moodleForSem[$semester]=${moodleForSem.size} -> ${moodleForSem.map { it.courseNo }}")
 
-            if (courseNos != null && courseNos.isNotEmpty()) {
+            // Dedup while preserving order: selection first, then whatever
+            // Moodle adds.
+            val seen = LinkedHashSet<String>()
+            selectionNos.forEach { seen.add(it) }
+            moodleForSem.forEach { seen.add(it.courseNo) }
+            val orderedCourseNos = seen.toList()
+            Log.i("ClassTableVM", "orderedCourseNos=${orderedCourseNos.size} -> $orderedCourseNos")
+
+            if (orderedCourseNos.isNotEmpty()) {
                 val courses = coroutineScope {
-                    courseNos.map { courseNo ->
+                    orderedCourseNos.map { courseNo ->
                         async {
                             try {
                                 val results = courseService.lookupCourse(semester, courseNo)
-                                results.firstOrNull()?.let { r ->
+                                if (results.isNotEmpty()) {
+                                    val r = results.first()
                                     val schedule = courseService.mergeSchedules(
                                         *results.map { it.node }.toTypedArray()
                                     )
@@ -408,42 +476,70 @@ class ClassTableViewModel @Inject constructor(
                                         schedule = schedule,
                                         moodleIdNumber = "${r.semester}${r.courseNo}"
                                     )
+                                } else {
+                                    // QueryCourse only indexes the latest
+                                    // term or two; fall back to Moodle
+                                    // metadata so historical courses still
+                                    // render (no schedule, but at least the
+                                    // name and credits).
+                                    moodleByNo[courseNo]?.let { m ->
+                                        Course.fromSchedule(
+                                            courseNo = courseNo,
+                                            courseName = m.fullname ?: courseNo,
+                                            moodleIdNumber = m.idnumber
+                                        )
+                                    }
                                 }
                             } catch (e: Exception) {
                                 Log.e("ClassTableVM", "Failed to lookup course $courseNo", e)
-                                null
+                                moodleByNo[courseNo]?.let { m ->
+                                    Course.fromSchedule(
+                                        courseNo = courseNo,
+                                        courseName = m.fullname ?: courseNo,
+                                        moodleIdNumber = m.idnumber
+                                    )
+                                }
                             }
                         }
                     }.awaitAll().filterNotNull()
                 }
                 if (courses.isNotEmpty()) {
                     // Preserve user-picked tile colors across network refresh.
-                    val existingColors = dataCache.loadCourses().associate { it.courseNo to it.customColorHex }
+                    val existingColors = dataCache.loadCourses(semester)
+                        .associate { it.courseNo to it.customColorHex }
                     val merged = courses.map { c ->
                         c.copy(customColorHex = existingColors[c.courseNo])
                     }
-                    _courses.value = merged
-                    dataCache.saveCourses(merged)
-                    TigerDuckTheme.buildCourseColorMap(merged)
+                    // Only apply if the user hasn't flipped to a different
+                    // semester mid-flight.
+                    if (_currentSemester.value == semester) {
+                        _courses.value = merged
+                        TigerDuckTheme.buildCourseColorMap(merged)
+                    }
+                    dataCache.saveCourses(merged, semester)
                 }
             }
 
-            // Fetch assignments from Moodle, preserving isCompleted state
-            try {
-                val remoteAssignments = moodleService.fetchAssignments(studentId, password)
-                val existingCompleted = _assignments.value
-                    .filter { it.isCompleted }
-                    .map { it.assignmentId }
-                    .toSet()
-                val merged = remoteAssignments.map { assignment ->
-                    if (assignment.assignmentId in existingCompleted) {
-                        assignment.copy(isCompleted = true)
-                    } else assignment
+            // Assignments are always "upcoming from now", so they belong to
+            // the active enrolment — fetch only when viewing the current
+            // semester.
+            if (isCurrentSemester) {
+                try {
+                    val remoteAssignments = moodleService.fetchAssignments(studentId, password)
+                    val existingCompleted = _assignments.value
+                        .filter { it.isCompleted }
+                        .map { it.assignmentId }
+                        .toSet()
+                    val merged = remoteAssignments.map { assignment ->
+                        if (assignment.assignmentId in existingCompleted) {
+                            assignment.copy(isCompleted = true)
+                        } else assignment
+                    }
+                    _assignments.value = merged
+                    dataCache.saveAssignments(merged)
+                } catch (e: Exception) {
+                    Log.e("ClassTableVM", "Failed to fetch assignments", e)
                 }
-                _assignments.value = merged
-                dataCache.saveAssignments(merged)
-            } catch (e: Exception) {
-                Log.e("ClassTableVM", "Failed to fetch assignments", e)
             }
             _syncCompleteEvent.tryEmit(Unit)
         } finally {

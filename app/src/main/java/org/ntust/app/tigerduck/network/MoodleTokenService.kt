@@ -1,0 +1,370 @@
+package org.ntust.app.tigerduck.network
+
+import android.util.Base64
+import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import okhttp3.FormBody
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import java.net.SocketTimeoutException
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlin.random.Random
+
+/**
+ * Obtains and persists a Moodle Mobile App long-lived wstoken via the NTUST
+ * OIDC launch flow, mirroring the verified Moodle iOS HAR trace.
+ *
+ * WARNING — do NOT replace this flow with a POST to `/login/token.php`.
+ * NTUST Moodle authenticates via OIDC only; the local-password token
+ * endpoint counts every attempt as a failed login and triggers
+ * `login_lockout`, banning the account within ~10 attempts.
+ *
+ * Flow:
+ *   [1] GET  /admin/tool/mobile/launch.php?service=moodle_mobile_app&passport=...&urlscheme=moodlemobile
+ *   [2] OkHttp auto-follows redirects → ssoam2/account/login
+ *   [3] Parse SSO form, POST credentials to ssoam2
+ *   [4] Auto-follow → OIDC bridge form (code/state/iss)
+ *   [5] POST bridge to /auth/oidc/
+ *   [6] Auto-follow → launch.php?confirmed=... which emits `moodlemobile://token=BASE64`
+ *   [7] Base64-decode `signature:::wstoken:::privatetoken`
+ */
+@Singleton
+class MoodleTokenService @Inject constructor(
+    private val sessionManager: NtustSessionManager,
+    private val credentialManager: CredentialManager,
+) {
+    private val mutex = Mutex()
+
+    private val moodleUa =
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) " +
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 " +
+            "MoodleMobile 5.1.1 (51100)"
+
+    /**
+     * Dedicated client that forces the Moodle Mobile UA on every hop of the
+     * OIDC chain (SSO portal + Moodle). The session manager's default
+     * interceptor only swaps UA for moodle2.* — SSO hops need it too so
+     * NetScaler doesn't serve an anti-bot challenge mid-redirect.
+     */
+    private val tokenClient: OkHttpClient by lazy {
+        sessionManager.client.newBuilder()
+            .addNetworkInterceptor { chain ->
+                val req = chain.request().newBuilder()
+                    .header("User-Agent", moodleUa)
+                    .header(
+                        "Accept",
+                        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    )
+                    .header("Accept-Language", "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7")
+                    .build()
+                chain.proceed(req)
+            }
+            .build()
+    }
+
+    suspend fun currentToken(): String? = credentialManager.moodleToken
+
+    suspend fun clearToken() {
+        credentialManager.moodleToken = null
+    }
+
+    /** Fetch a fresh token using stored NTUST credentials. */
+    suspend fun refreshToken(): String = mutex.withLock {
+        val sid = credentialManager.ntustStudentId
+            ?: throw MoodleWebserviceError.MissingStoredCredentials
+        val pwd = credentialManager.ntustPassword
+            ?: throw MoodleWebserviceError.MissingStoredCredentials
+        val triple = performOidcLogin(sid.trim().uppercase(), pwd)
+        credentialManager.moodleToken = triple.wstoken
+        Log.i("MoodleTokenService", "refreshed wstoken (len=${triple.wstoken.length})")
+        triple.wstoken
+    }
+
+    /** Fetch a fresh token using the supplied credentials (first-time login). */
+    suspend fun obtainToken(studentId: String, password: String): String = mutex.withLock {
+        val triple = performOidcLogin(studentId.trim().uppercase(), password)
+        credentialManager.moodleToken = triple.wstoken
+        Log.i("MoodleTokenService", "obtained wstoken (len=${triple.wstoken.length})")
+        triple.wstoken
+    }
+
+    private data class TokenTriple(
+        val signature: String,
+        val wstoken: String,
+        val privatetoken: String?,
+    )
+
+    private suspend fun performOidcLogin(
+        studentId: String,
+        password: String,
+    ): TokenTriple = withContext(Dispatchers.IO) {
+        val passport = Random.nextDouble(0.0, 1.0) * 1000.0
+        val launchUrl = "https://moodle2.ntust.edu.tw/admin/tool/mobile/launch.php"
+            .toHttpUrl()
+            .newBuilder()
+            .addQueryParameter("service", "moodle_mobile_app")
+            .addQueryParameter("passport", passport.toString())
+            .addQueryParameter("urlscheme", "moodlemobile")
+            .build()
+        Log.i("MoodleTokenService", "launch GET $launchUrl")
+        val (html, finalUrl) = getPage(launchUrl)
+        resolveTokenTriple(
+            html = html,
+            responseUrl = finalUrl,
+            studentId = studentId,
+            password = password,
+            remainingSteps = 6,
+        )
+    }
+
+    private suspend fun resolveTokenTriple(
+        html: String,
+        responseUrl: HttpUrl,
+        studentId: String,
+        password: String,
+        remainingSteps: Int,
+    ): TokenTriple {
+        if (remainingSteps <= 0) {
+            throw MoodleWebserviceError.MalformedResponse("OIDC flow exceeded maximum step count")
+        }
+
+        // Terminal state: the mobile launch confirmation page embeds a
+        // custom-scheme URL `moodlemobile://token=BASE64`. That's our token.
+        extractMoodleMobileToken(html)?.let { base64 ->
+            return decodeTokenTriple(base64)
+        }
+
+        // Step hop: Moodle's /auth/oidc/ bridge form carrying (code, state, iss)
+        // from the OIDC IdP back to Moodle.
+        parseOIDCBridge(html)?.let { bridge ->
+            val url = responseUrl.resolve(bridge.action)
+                ?: throw MoodleWebserviceError.MalformedResponse("Invalid bridge action: ${bridge.action}")
+            Log.i("MoodleTokenService", "posting OIDC bridge → $url")
+            val (nextHtml, nextUrl) = postForm(url, bridge.payload, referer = responseUrl.toString())
+            return resolveTokenTriple(nextHtml, nextUrl, studentId, password, remainingSteps - 1)
+        }
+
+        // SSO login step: we landed on ssoam2.ntust.edu.tw with a form.
+        if (responseUrl.host.contains("ssoam2.ntust.edu.tw")) {
+            val fields = parseSSOLoginFields(html)
+            if (fields.antiforgery.isEmpty()) {
+                if (responseUrl.encodedPath.contains("/account/login")) {
+                    throw MoodleWebserviceError.SsoLoginRejected(extractLoginError(html))
+                }
+                throw MoodleWebserviceError.MalformedResponse("SSO login form missing anti-forgery token")
+            }
+            val postUrl = responseUrl.resolve(fields.action)
+                ?: throw MoodleWebserviceError.MalformedResponse("Invalid SSO action: ${fields.action}")
+            val payload = linkedMapOf(
+                "__RequestVerificationToken" to fields.antiforgery,
+                "Username" to studentId,
+                "Password" to password,
+                "captcha" to "",
+                "cf-turnstile-response" to "",
+                "h-captcha-response" to "",
+                "g-recaptcha-response" to "",
+                "ClientId" to fields.clientId,
+                "ReturnUrl" to fields.returnUrl,
+                "Uri" to fields.uri,
+            )
+            Log.i("MoodleTokenService", "posting SSO login → $postUrl")
+            val (nextHtml, nextUrl) = postForm(
+                url = postUrl,
+                fields = payload,
+                referer = responseUrl.toString(),
+                origin = "https://ssoam2.ntust.edu.tw",
+            )
+
+            // If we're still at /account/login and neither a token nor an OIDC
+            // bridge is in sight, the credentials were rejected.
+            if (nextUrl.encodedPath.contains("/account/login") &&
+                extractMoodleMobileToken(nextHtml) == null &&
+                parseOIDCBridge(nextHtml) == null
+            ) {
+                throw MoodleWebserviceError.SsoLoginRejected(extractLoginError(nextHtml))
+            }
+            return resolveTokenTriple(nextHtml, nextUrl, studentId, password, remainingSteps - 1)
+        }
+
+        throw MoodleWebserviceError.MalformedResponse("Unexpected OIDC page: $responseUrl — body preview=${html.take(300).replace("\n", " ")}")
+    }
+
+    // MARK: - HTTP helpers
+
+    private fun getPage(url: HttpUrl): Pair<String, HttpUrl> {
+        val req = Request.Builder().url(url).get().build()
+        return executeAndReadBody(req)
+    }
+
+    private fun postForm(
+        url: HttpUrl,
+        fields: Map<String, String>,
+        referer: String? = null,
+        origin: String? = null,
+    ): Pair<String, HttpUrl> {
+        val body = FormBody.Builder().apply {
+            fields.forEach { (k, v) -> add(k, v) }
+        }.build()
+        val reqBuilder = Request.Builder().url(url).post(body)
+        if (referer != null) reqBuilder.header("Referer", referer)
+        if (origin != null) reqBuilder.header("Origin", origin)
+        return executeAndReadBody(reqBuilder.build())
+    }
+
+    private fun executeAndReadBody(request: Request): Pair<String, HttpUrl> {
+        val response = try {
+            tokenClient.newCall(request).execute()
+        } catch (e: SocketTimeoutException) {
+            throw MoodleWebserviceError.TransientNetwork("timeout: ${e.message}")
+        } catch (e: java.io.IOException) {
+            throw MoodleWebserviceError.TransientNetwork(e.message ?: "io error")
+        }
+        response.use { r ->
+            if (!r.isSuccessful) {
+                throw MoodleWebserviceError.HttpStatus(r.code)
+            }
+            val body = r.body?.string()
+                ?: throw MoodleWebserviceError.MalformedResponse("empty response body")
+            return body to r.request.url
+        }
+    }
+
+    // MARK: - HTML parsing
+
+    private data class SSOLoginFields(
+        val action: String,
+        val antiforgery: String,
+        val clientId: String,
+        val returnUrl: String,
+        val uri: String,
+    )
+
+    private data class OIDCBridge(val action: String, val payload: Map<String, String>)
+
+    private val formRegex = Regex("<form[^>]*>([\\s\\S]+?)</form>", RegexOption.IGNORE_CASE)
+    private val formActionRegex =
+        Regex("<form[^>]*action=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE)
+    private val inputTagRegex = Regex("<input[^>]*>", RegexOption.IGNORE_CASE)
+    private val inputNameRegex = Regex("name=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE)
+    private val inputValueRegex = Regex("value=[\"']([^\"']*)[\"']", RegexOption.IGNORE_CASE)
+    private val moodleMobileTokenRegex =
+        Regex("moodlemobile://token=([A-Za-z0-9+/=_\\-]+)")
+
+    private fun parseSSOLoginFields(html: String): SSOLoginFields {
+        for (formMatch in formRegex.findAll(html)) {
+            val formFull = formMatch.value
+            val formBody = formMatch.groupValues[1]
+            val names = extractInputNames(formBody)
+            if ("Username" in names && "Password" in names) {
+                val action = extractFormAction(formFull) ?: "/"
+                val fields = extractInputPairs(formBody)
+                return SSOLoginFields(
+                    action = action,
+                    antiforgery = fields["__RequestVerificationToken"] ?: "",
+                    clientId = fields["ClientId"] ?: "",
+                    returnUrl = fields["ReturnUrl"] ?: "",
+                    uri = fields["Uri"] ?: "",
+                )
+            }
+        }
+        return SSOLoginFields("/", "", "", "", "")
+    }
+
+    private fun parseOIDCBridge(html: String): OIDCBridge? {
+        for (formMatch in formRegex.findAll(html)) {
+            val formFull = formMatch.value
+            val formBody = formMatch.groupValues[1]
+            val action = extractFormAction(formFull) ?: continue
+            val payload = extractInputPairs(formBody)
+            val isOidcAction = action.contains("/auth/oidc")
+            if (isOidcAction &&
+                payload["code"] != null &&
+                payload["state"] != null &&
+                payload["iss"] != null
+            ) {
+                return OIDCBridge(action, payload)
+            }
+        }
+        return null
+    }
+
+    private fun extractFormAction(formTag: String): String? =
+        formActionRegex.find(formTag)?.groupValues?.getOrNull(1)?.let(::decodeHtmlEntities)
+
+    private fun extractInputNames(html: String): Set<String> =
+        inputTagRegex.findAll(html).mapNotNull { match ->
+            inputNameRegex.find(match.value)?.groupValues?.getOrNull(1)
+        }.toSet()
+
+    private fun extractInputPairs(html: String): Map<String, String> {
+        val out = linkedMapOf<String, String>()
+        for (match in inputTagRegex.findAll(html)) {
+            val tag = match.value
+            val name = inputNameRegex.find(tag)?.groupValues?.getOrNull(1) ?: continue
+            val value = inputValueRegex.find(tag)?.groupValues?.getOrNull(1) ?: ""
+            out[name] = decodeHtmlEntities(value)
+        }
+        return out
+    }
+
+    private fun extractMoodleMobileToken(html: String): String? =
+        moodleMobileTokenRegex.find(html)?.groupValues?.getOrNull(1)
+
+    private fun decodeTokenTriple(base64: String): TokenTriple {
+        val decoded = try {
+            String(Base64.decode(base64, Base64.DEFAULT), Charsets.US_ASCII)
+        } catch (e: Exception) {
+            throw MoodleWebserviceError.MalformedResponse("Failed to base64-decode token triple: ${e.message}")
+        }
+        val parts = decoded.split(":::")
+        if (parts.size != 3) {
+            throw MoodleWebserviceError.MalformedResponse("Unexpected token triple (${parts.size} parts)")
+        }
+        return TokenTriple(
+            signature = parts[0],
+            wstoken = parts[1],
+            privatetoken = parts[2].takeIf { it.isNotEmpty() },
+        )
+    }
+
+    private fun extractLoginError(html: String): String? {
+        val classes = listOf(
+            "field-validation-error",
+            "validation-summary-errors",
+            "alert-danger",
+            "text-danger",
+        )
+        for (cls in classes) {
+            val re = Regex(
+                """<[^>]*class=["'][^"']*\b$cls\b[^"']*["'][^>]*>([\s\S]*?)</[^>]+>""",
+                RegexOption.IGNORE_CASE,
+            )
+            val match = re.find(html) ?: continue
+            val fragment = match.groupValues[1]
+            val text = fragment
+                .replace(Regex("<[^>]+>"), " ")
+                .let(::decodeHtmlEntities)
+                .replace(Regex("\\s+"), " ")
+                .trim()
+            if (text.isNotEmpty()) return text
+        }
+        return null
+    }
+
+    private fun decodeHtmlEntities(s: String): String = s
+        .replace("&amp;", "&")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&#x2F;", "/")
+        .replace("&#x27;", "'")
+        .replace("&#39;", "'")
+}

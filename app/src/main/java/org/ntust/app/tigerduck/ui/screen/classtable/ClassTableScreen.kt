@@ -26,6 +26,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.ui.graphics.toArgb
@@ -115,8 +116,12 @@ fun ClassTableScreen(
                 }
             }
 
-            // Today's courses carousel
-            if (todayCourses.isNotEmpty()) {
+            // Today's courses carousel — only meaningful when the user is
+            // viewing the live semester. Past semesters are historical
+            // records, so "現在課程 / 今日課程" don't apply there.
+            val selectedSemester by viewModel.currentSemester.collectAsState()
+            val isLiveSemester = selectedSemester == viewModel.liveSemesterCode
+            if (isLiveSemester && todayCourses.isNotEmpty()) {
                 SectionHeader(title = "今日課程")
                 val today = java.util.Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).get(java.util.Calendar.DAY_OF_WEEK)
                 val dayIndex = when (today) {
@@ -180,17 +185,18 @@ fun ClassTableScreen(
                 }
             }
 
-            // Semester + credits row
+            // Semester picker + credits row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "學期選擇功能即將上線",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                SemesterPicker(
+                    current = selectedSemester,
+                    options = viewModel.availableSemesters,
+                    labelFor = viewModel::displayLabel,
+                    onPick = { viewModel.setSemester(it) }
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
@@ -516,6 +522,57 @@ private fun TimetableGrid(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SemesterPicker(
+    current: String,
+    options: List<String>,
+    labelFor: (String) -> String,
+    onPick: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { expanded = true }
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = labelFor(current),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Icon(
+                imageVector = Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            options.forEach { code ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            labelFor(code),
+                            color = if (code == current) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        onPick(code)
+                    }
+                )
             }
         }
     }

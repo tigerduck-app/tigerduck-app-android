@@ -62,3 +62,46 @@ data class MoodleCalendarArgs(
     val timesortfrom: Long,
     val limittononsuspendedevents: Boolean
 )
+
+data class MoodleEnrolledCourse(
+    val id: Int,
+    val fullname: String?,
+    val shortname: String?,
+    val idnumber: String?,
+    val startdate: Long?,
+    val enddate: Long?
+) {
+    /** NTUST course number with 4-digit semester prefix stripped. */
+    val courseNo: String
+        get() = if (hasSemesterPrefix()) idnumber!!.substring(4) else ""
+
+    /** 4-digit semester code prefix of idnumber, e.g. "1142". */
+    val semesterCode: String
+        get() = if (hasSemesterPrefix()) idnumber!!.substring(0, 4) else ""
+
+    private fun hasSemesterPrefix(): Boolean {
+        val id = idnumber ?: return false
+        return id.length > 4 && id.substring(0, 4).all { it.isDigit() }
+    }
+}
+
+data class MoodleEnrolRequest(
+    val index: Int,
+    val methodname: String,
+    val args: MoodleEnrolArgs
+) {
+    companion object {
+        fun forUser(userId: Int) = MoodleEnrolRequest(
+            index = 0,
+            methodname = "core_enrol_get_users_courses",
+            args = MoodleEnrolArgs(userid = userId)
+        )
+    }
+}
+
+data class MoodleEnrolArgs(val userid: Int)
+
+data class MoodleEnrolWrapper(
+    val error: Boolean,
+    val data: List<MoodleEnrolledCourse>?
+)

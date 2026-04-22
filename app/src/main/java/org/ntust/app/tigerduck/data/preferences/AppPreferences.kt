@@ -110,6 +110,16 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         prefs.edit().remove("ssoLoginTimestamp").apply()
     }
 
+    /** Semester the user last viewed in 課表. Null until first pick. */
+    var classTableSelectedSemester: String?
+        get() = prefs.getString("classTableSelectedSemester", null)
+        set(value) {
+            val editor = prefs.edit()
+            if (value == null) editor.remove("classTableSelectedSemester")
+            else editor.putString("classTableSelectedSemester", value)
+            editor.apply()
+        }
+
     companion object {
         /**
          * Accent color palette — canonical (light-mode) hex. The user's pick

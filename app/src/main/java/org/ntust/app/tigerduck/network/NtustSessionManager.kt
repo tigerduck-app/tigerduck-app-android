@@ -56,10 +56,23 @@ class NtustSessionManager @Inject constructor(
         .followRedirects(true)
         .followSslRedirects(true)
         .addInterceptor { chain ->
-            val request = chain.request().newBuilder()
-                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+            val req = chain.request()
+            // Pose as the Moodle Mobile App for any moodle2.ntust.edu.tw
+            // request — the NTUST edge (Citrix NetScaler) serves an
+            // anti-bot JS challenge page to generic Android/Chrome UAs
+            // when hitting /my/ directly, which breaks our sesskey scrape.
+            // The Moodle app UA is on the allow-list and gets through.
+            val ua = if (req.url.host.endsWith("moodle2.ntust.edu.tw")) {
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) " +
+                    "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 " +
+                    "MoodleMobile 5.1.1 (51100)"
+            } else {
+                "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+            }
+            val request = req.newBuilder()
+                .header("User-Agent", ua)
                 .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-                .header("Accept-Language", "zh-TW,zh;q=0.9")
+                .header("Accept-Language", "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7")
                 .build()
             chain.proceed(request)
         }
