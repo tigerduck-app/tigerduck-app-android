@@ -28,7 +28,7 @@ data class HomeSection(
 //                    WidgetItem("w1", AppFeature.FREE_LUNCH),
 //                    WidgetItem("w2", AppFeature.EMPTY_CLASSROOM),
 //                    WidgetItem("w3", AppFeature.SCHOLARSHIP),
-//                    WidgetItem("w4", AppFeature.GPA),
+//                    WidgetItem("w4", AppFeature.SCORE),
 //                )
 //            )
         )

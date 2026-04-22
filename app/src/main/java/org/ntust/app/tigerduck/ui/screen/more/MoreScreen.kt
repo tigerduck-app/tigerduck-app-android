@@ -30,7 +30,7 @@ import org.ntust.app.tigerduck.ui.navigation.toRoute
 
 private val implementedFeatures = setOf(
     AppFeature.HOME, AppFeature.CLASS_TABLE, AppFeature.CALENDAR,
-    AppFeature.LIBRARY,
+    AppFeature.LIBRARY, AppFeature.SCORE,
     AppFeature.MORE, AppFeature.SETTINGS
 )
 

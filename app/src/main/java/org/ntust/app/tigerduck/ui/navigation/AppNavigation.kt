@@ -32,6 +32,7 @@ import org.ntust.app.tigerduck.ui.screen.home.HomeScreen
 import org.ntust.app.tigerduck.ui.screen.library.LibraryScreen
 import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
+import org.ntust.app.tigerduck.ui.screen.score.ScoreScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
@@ -43,6 +44,7 @@ sealed class Screen(val route: String) {
     object Calendar : Screen("calendar")
     object Announcements : Screen("announcements")
     object Library : Screen("library")
+    object Score : Screen("score")
     object More : Screen("more")
     object Settings : Screen("settings")
     object TabEditor : Screen("tabEditor")
@@ -139,6 +141,7 @@ fun MainNavigation(appState: AppState) {
             composable(Screen.Calendar.route) { CalendarScreen() }
             composable(Screen.Announcements.route) { PlaceholderScreen(AppFeature.ANNOUNCEMENTS) }
             composable(Screen.Library.route) { LibraryScreen() }
+            composable(Screen.Score.route) { ScoreScreen() }
             composable(Screen.More.route) { MoreScreen(navController, appState) }
             composable(Screen.Settings.route) {
                 SettingsScreen(
@@ -175,6 +178,7 @@ fun AppFeature.toRoute(): String = when (this) {
     AppFeature.CALENDAR -> Screen.Calendar.route
     AppFeature.ANNOUNCEMENTS -> Screen.Announcements.route
     AppFeature.LIBRARY -> Screen.Library.route
+    AppFeature.SCORE -> Screen.Score.route
     AppFeature.MORE -> Screen.More.route
     AppFeature.SETTINGS -> Screen.Settings.route
     else -> "placeholder/$id"

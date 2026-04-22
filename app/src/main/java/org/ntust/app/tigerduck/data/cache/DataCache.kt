@@ -7,6 +7,7 @@ import com.google.gson.reflect.TypeToken
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.data.model.ScoreReport
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -109,6 +110,27 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return loadFromUserData(type, "skipped_dates.json") ?: emptyMap()
     }
 
+    // MARK: - Score Report (per studentId)
+
+    data class ScoreReportSnapshot(val report: ScoreReport, val cachedAt: Date)
+
+    suspend fun saveScoreReport(report: ScoreReport, studentId: String) =
+        save(ScoreReportSnapshot(report, Date()), scoreReportFilename(studentId))
+
+    suspend fun loadScoreReport(studentId: String): ScoreReportSnapshot? {
+        val type = object : TypeToken<ScoreReportSnapshot>() {}.type
+        return load(type, scoreReportFilename(studentId))
+    }
+
+    suspend fun invalidateScoreReport(studentId: String) = cacheMutex.withLock {
+        withContext(Dispatchers.IO) {
+            runCatching { File(cacheDir, scoreReportFilename(studentId)).delete() }
+            Unit
+        }
+    }
+
+    private fun scoreReportFilename(studentId: String): String = "score_$studentId.json"
+
     // MARK: - Calendar Events
 
     suspend fun saveCalendarEvents(events: List<CalendarEvent>) = save(events, "calendar_events.json")
@@ -136,6 +158,10 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
                 // doesn't bleed across accounts on the same device.
                 runCatching {
                     cacheDir.listFiles { _, name -> name.startsWith("courses_") && name.endsWith(".json") }
+                        ?.forEach { it.delete() }
+                }
+                runCatching {
+                    cacheDir.listFiles { _, name -> name.startsWith("score_") && name.endsWith(".json") }
                         ?.forEach { it.delete() }
                 }
             }
