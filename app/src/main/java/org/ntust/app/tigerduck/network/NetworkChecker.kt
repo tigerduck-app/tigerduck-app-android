@@ -9,7 +9,7 @@ import javax.inject.Singleton
 
 @Singleton
 class NetworkChecker @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     fun isAvailable(): Boolean {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager

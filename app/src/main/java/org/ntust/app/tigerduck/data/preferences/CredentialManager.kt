@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package org.ntust.app.tigerduck.data.preferences
 
 import android.content.Context
