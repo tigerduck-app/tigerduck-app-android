@@ -37,25 +37,28 @@ val courseColorPalette: List<Color> = listOf(
     Color(0xFF475569), // Slate
 )
 
+// Hues inherited from the Tailwind -700 line but with HSV saturation scaled
+// to ~0.55x and value scaled to ~0.75x so dark-mode tiles read as muted and
+// dim rather than vivid.
 val courseColorPaletteDark: List<Color> = listOf(
-    Color(0xFFB91C1C), // Red-700
-    Color(0xFFC2410C), // Orange-700
-    Color(0xFFB45309), // Amber-700
-    Color(0xFFA16207), // Ochre-700
-    Color(0xFF4D7C0F), // Lime-700
-    Color(0xFF15803D), // Green-700
-    Color(0xFF047857), // Emerald-700
-    Color(0xFF0F766E), // Teal-700
-    Color(0xFF0E7490), // Cyan-700
-    Color(0xFF0369A1), // Sky-700
-    Color(0xFF1D4ED8), // Blue-700
-    Color(0xFF4338CA), // Indigo-700
-    Color(0xFF6D28D9), // Violet-700
-    Color(0xFF7E22CE), // Purple-700
-    Color(0xFFA21CAF), // Fuchsia-700
-    Color(0xFFBE185D), // Pink-700
-    Color(0xFFBE123C), // Rose-700
-    Color(0xFF334155), // Slate-700
+    Color(0xFF8B4A4A), // Red
+    Color(0xFF925C46), // Orange
+    Color(0xFF875F41), // Amber
+    Color(0xFF795F39), // Ochre
+    Color(0xFF4A5D30), // Lime
+    Color(0xFF346045), // Green
+    Color(0xFF2A5A4C), // Emerald
+    Color(0xFF2E5855), // Teal
+    Color(0xFF36616C), // Cyan
+    Color(0xFF386179), // Sky
+    Color(0xFF5569A2), // Blue
+    Color(0xFF605B98), // Indigo
+    Color(0xFF765AA3), // Violet
+    Color(0xFF7A549B), // Purple
+    Color(0xFF7E4783), // Fuchsia
+    Color(0xFF8F4A67), // Pink
+    Color(0xFF8F4859), // Rose
+    Color(0xFF323840), // Slate
 )
 
 object TigerDuckTheme {

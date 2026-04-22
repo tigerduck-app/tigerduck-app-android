@@ -37,7 +37,6 @@ import org.ntust.app.tigerduck.ui.component.CurrentClassCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
-import androidx.compose.ui.graphics.compositeOver
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
@@ -422,12 +421,14 @@ private fun TimetableGrid(
                                 )
                             }
                             is ClassTableViewModel.CellRole.BlockStart -> {
-                                val vibrantColor = TigerDuckTheme.courseColorVibrant(role.course.courseNo)
-                                val cellSurface = MaterialTheme.colorScheme.surface
                                 val cellBg = if (TigerDuckTheme.isDarkMode) {
-                                    vibrantColor.copy(alpha = 0.55f).compositeOver(cellSurface)
+                                    // Dark palette is pre-tuned to sit against the dark
+                                    // surface, so render it directly rather than tinting
+                                    // a vivid light-palette color at low alpha.
+                                    TigerDuckTheme.courseColor(role.course.courseNo)
                                 } else {
-                                    vibrantColor.copy(alpha = 0.50f)
+                                    TigerDuckTheme.courseColorVibrant(role.course.courseNo)
+                                        .copy(alpha = 0.50f)
                                 }
                                 val cellTextColor = if (TigerDuckTheme.isDarkMode) {
                                     Color.White
