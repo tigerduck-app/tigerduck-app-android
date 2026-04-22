@@ -25,13 +25,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupContent
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 @Composable
 fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
-    val pagerState = rememberPagerState(pageCount = { 4 })
+    val pageCount = 5
+    val pagerState = rememberPagerState(pageCount = { pageCount })
     val scope = rememberCoroutineScope()
     val isLoggingIn by viewModel.isLoggingIn.collectAsState()
     val loginError by viewModel.loginError.collectAsState()
@@ -148,7 +150,12 @@ fun OnboardingScreen(
                     ) { Text("下一步") }
                 }
 
-                3 -> OnboardingPage(
+                3 -> PermissionsPage(
+                    systemPermissions = viewModel.systemPermissions,
+                    onContinue = { goToPage(4) },
+                )
+
+                4 -> OnboardingPage(
                     icon = "✅",
                     title = "準備就緒！",
                     subtitle = "開始探索你的校園生活"
@@ -168,7 +175,7 @@ fun OnboardingScreen(
                 .padding(bottom = 48.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            repeat(4) { i ->
+            repeat(pageCount) { i ->
                 Box(
                     modifier = Modifier
                         .clip(CircleShape)
@@ -182,6 +189,43 @@ fun OnboardingScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PermissionsPage(
+    systemPermissions: org.ntust.app.tigerduck.notification.SystemPermissions,
+    onContinue: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+            .padding(top = 72.dp, bottom = 100.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("🔔", style = MaterialTheme.typography.displayMedium)
+        Text(
+            "通知與提醒權限",
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Text(
+            "允許以下權限後，即使 App 關閉，作業與即將上課提醒也能準時送達。可之後在設定中調整。",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+        Spacer(Modifier.height(8.dp))
+        NotificationSetupContent(
+            systemPermissions = systemPermissions,
+            finishLabel = "下一步",
+            onFinish = onContinue,
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 }
 

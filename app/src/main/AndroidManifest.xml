@@ -6,7 +6,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
@@ -33,6 +35,10 @@
 
         <receiver
             android:name="org.ntust.app.tigerduck.notification.AssignmentNotificationReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name="org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver"
             android:exported="false" />
 
         <receiver

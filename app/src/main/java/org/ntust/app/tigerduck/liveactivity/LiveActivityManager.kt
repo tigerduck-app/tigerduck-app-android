@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.notification.ClassPreparingNotificationScheduler
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,6 +27,7 @@ class LiveActivityManager @Inject constructor(
     private val dataCache: DataCache,
     private val authService: AuthService,
     private val appPrefs: AppPreferences,
+    private val classPreparingScheduler: ClassPreparingNotificationScheduler,
 ) {
     private val resolver = LiveActivityResolver()
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -44,6 +46,7 @@ class LiveActivityManager @Inject constructor(
         refreshJob = scope.launch {
             if (!preferences.isEnabled || !authService.isNtustAuthenticated) {
                 notifier.cancel()
+                classPreparingScheduler.cancelAllTracked()
                 boundaryJob?.cancel()
                 return@launch
             }
@@ -62,6 +65,19 @@ class LiveActivityManager @Inject constructor(
             )
             notifier.apply(snapshot)
 
+            // Keep the class-preparing alarm set in sync with the current
+            // course list + lead-time preference so reminders fire even when
+            // the app is fully closed.
+            if (preferences.showClassPreparing) {
+                classPreparingScheduler.scheduleAll(
+                    courses = courses,
+                    skippedDates = skipped,
+                    leadTimeSec = preferences.classPreparingLeadTimeSec,
+                )
+            } else {
+                classPreparingScheduler.cancelAllTracked()
+            }
+
             scheduleBoundaryRefresh(snapshot, courses, assignments, now)
         }
     }
@@ -70,6 +86,7 @@ class LiveActivityManager @Inject constructor(
         boundaryJob?.cancel()
         refreshJob?.cancel()
         notifier.cancel()
+        classPreparingScheduler.cancelAllTracked()
     }
 
     private fun scheduleBoundaryRefresh(

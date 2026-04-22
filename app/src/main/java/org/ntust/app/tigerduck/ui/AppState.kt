@@ -15,6 +15,7 @@ import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.LoadingState
 import org.ntust.app.tigerduck.network.NtustSessionManager
+import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +35,8 @@ class AppState @Inject constructor(
     val prefs: AppPreferences,
     val credentials: CredentialManager,
     val dataCache: DataCache,
-    val calendarService: CalendarService
+    val calendarService: CalendarService,
+    val systemPermissions: SystemPermissions,
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var syncJob: Job? = null

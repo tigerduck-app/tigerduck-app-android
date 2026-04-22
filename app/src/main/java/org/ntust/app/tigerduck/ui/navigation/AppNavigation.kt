@@ -24,6 +24,7 @@ import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.ui.AppState
+import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
 import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementsScreen
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarScreen
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableScreen
@@ -32,6 +33,7 @@ import org.ntust.app.tigerduck.ui.screen.library.LibraryScreen
 import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
 
@@ -45,6 +47,7 @@ sealed class Screen(val route: String) {
     object Settings : Screen("settings")
     object TabEditor : Screen("tabEditor")
     object LiveActivitySettings : Screen("liveActivitySettings")
+    object NotificationSetup : Screen("notificationSetup")
 }
 
 @Composable
@@ -53,6 +56,7 @@ fun AppNavigation(appState: AppState) {
         OnboardingScreen()
     } else {
         MainNavigation(appState)
+        PermissionWarningDialogHost(appState.systemPermissions)
     }
 }
 
@@ -140,7 +144,11 @@ fun MainNavigation(appState: AppState) {
                 SettingsScreen(
                     onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
+                    onNavigateToNotificationSetup = { navController.navigate(Screen.NotificationSetup.route) },
                 )
+            }
+            composable(Screen.NotificationSetup.route) {
+                NotificationSetupScreen(onDone = { navController.popBackStack() })
             }
             composable(Screen.TabEditor.route) {
                 TabEditorScreen(

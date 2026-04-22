@@ -43,6 +43,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onNavigateToTabEditor: () -> Unit = {},
     onNavigateToLiveActivity: () -> Unit = {},
+    onNavigateToNotificationSetup: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsState()
@@ -221,7 +222,9 @@ fun SettingsScreen(
                         if (!it) viewModel.cancelAllAssignmentNotifications()
                     }
                     HorizontalDivider()
-                    SettingsLinkRow("即時動態（實驗性）") { onNavigateToLiveActivity() }
+                    SettingsLinkRow("即時動態") { onNavigateToLiveActivity() }
+                    HorizontalDivider()
+                    SettingsLinkRow("重新設定通知") { onNavigateToNotificationSetup() }
                 }
             }
         }

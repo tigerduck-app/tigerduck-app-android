@@ -10,12 +10,15 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class BootReceiver : BroadcastReceiver() {
 
     @Inject lateinit var scheduler: AssignmentNotificationScheduler
+    @Inject lateinit var classPreparingScheduler: ClassPreparingNotificationScheduler
+    @Inject lateinit var liveActivityPreferences: LiveActivityPreferences
     @Inject lateinit var dataCache: DataCache
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -28,6 +31,17 @@ class BootReceiver : BroadcastReceiver() {
                     val assignments = dataCache.loadAssignments()
                     if (assignments.isNotEmpty()) {
                         scheduler.scheduleAll(assignments)
+                    }
+                    if (liveActivityPreferences.isEnabled && liveActivityPreferences.showClassPreparing) {
+                        val courses = dataCache.loadCourses()
+                        val skipped = dataCache.loadSkippedDates()
+                        if (courses.isNotEmpty()) {
+                            classPreparingScheduler.scheduleAll(
+                                courses = courses,
+                                skippedDates = skipped,
+                                leadTimeSec = liveActivityPreferences.classPreparingLeadTimeSec,
+                            )
+                        }
                     }
                 }
             } catch (e: Exception) {

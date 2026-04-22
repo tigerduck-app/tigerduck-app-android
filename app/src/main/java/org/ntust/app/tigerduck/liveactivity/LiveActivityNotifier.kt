@@ -28,8 +28,14 @@ import javax.inject.Singleton
 @Singleton
 class LiveActivityNotifier @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val preferences: LiveActivityPreferences,
 ) {
     private val manager = context.getSystemService(NotificationManager::class.java)
+
+    // Tracks the scenario the user is currently looking at, so we can tell a
+    // same-scenario chronometer tick (must stay silent) apart from an actual
+    // transition into a new scenario (may alert, subject to per-scenario pref).
+    private var lastScenario: LiveActivityScenario? = null
 
     init {
         ensureChannel()
@@ -38,6 +44,7 @@ class LiveActivityNotifier @Inject constructor(
     fun apply(snapshot: LiveActivitySnapshot?) {
         if (snapshot == null) {
             manager.cancel(NOTIFICATION_ID)
+            lastScenario = null
             return
         }
         if (!hasPostPermission()) return
@@ -51,6 +58,21 @@ class LiveActivityNotifier @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+        val visibility = if (preferences.showOnLockScreen) {
+            NotificationCompat.VISIBILITY_PUBLIC
+        } else {
+            NotificationCompat.VISIBILITY_PRIVATE
+        }
+
+        val scenarioChanged = lastScenario != snapshot.scenario
+        val soundWanted = scenarioChanged && wantsSoundFor(snapshot.scenario)
+
+        // For sound to play on a scenario transition we need to (a) drop the
+        // prior notification so the system re-arms alert-once, and (b) not
+        // call setSilent(true). Same-scenario updates skip the cancel and stay
+        // silent regardless of pref — the chronometer tick shouldn't chime.
+        if (scenarioChanged) manager.cancel(NOTIFICATION_ID)
+
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(snapshot.title)
@@ -61,8 +83,9 @@ class LiveActivityNotifier @Inject constructor(
             .setColor(0xFF000000.toInt() or (snapshot.accentHex and 0xFFFFFF))
             .setColorized(true)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setSilent(true)
+            .setPriority(if (soundWanted) NotificationCompat.PRIORITY_DEFAULT else NotificationCompat.PRIORITY_LOW)
+            .setVisibility(visibility)
+            .apply { if (!soundWanted) setSilent(true) }
 
         val target = snapshot.countdownTarget?.time ?: 0L
         if (target > System.currentTimeMillis()) {
@@ -86,10 +109,18 @@ class LiveActivityNotifier @Inject constructor(
         }
 
         manager.notify(NOTIFICATION_ID, builder.build())
+        lastScenario = snapshot.scenario
     }
 
     fun cancel() {
         manager.cancel(NOTIFICATION_ID)
+        lastScenario = null
+    }
+
+    private fun wantsSoundFor(scenario: LiveActivityScenario): Boolean = when (scenario) {
+        LiveActivityScenario.IN_CLASS -> preferences.soundInClass
+        LiveActivityScenario.CLASS_PREPARING -> preferences.soundClassPreparing
+        LiveActivityScenario.ASSIGNMENT_URGENT -> preferences.soundAssignment
     }
 
     private fun hasPostPermission(): Boolean {
@@ -110,21 +141,31 @@ class LiveActivityNotifier @Inject constructor(
     }
 
     private fun ensureChannel() {
+        // Drop legacy channels so the new defaults (lockscreen visibility +
+        // importance) are actually applied; both attributes are frozen after
+        // channel creation on API 26+.
+        for (old in LEGACY_CHANNEL_IDS) {
+            if (manager.getNotificationChannel(old) != null) {
+                manager.deleteNotificationChannel(old)
+            }
+        }
         val existing = manager.getNotificationChannel(CHANNEL_ID)
         if (existing != null) return
         val channel = NotificationChannel(
             CHANNEL_ID,
             "即時動態",
-            NotificationManager.IMPORTANCE_LOW,
+            NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
-            description = "顯示當前課程、即將上課與作業倒數"
+            description = "顯示當前課程、即將上課與作業倒數；可在 App 設定中調整各情境是否發出提示音"
             setShowBadge(false)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         manager.createNotificationChannel(channel)
     }
 
     companion object {
-        const val CHANNEL_ID = "live_activity"
+        const val CHANNEL_ID = "live_activity_v3"
+        private val LEGACY_CHANNEL_IDS = listOf("live_activity", "live_activity_v2")
         const val NOTIFICATION_ID = 42_001
     }
 }
