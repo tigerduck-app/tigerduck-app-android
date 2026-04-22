@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -106,7 +107,13 @@ private fun FeatureGrid(
     navController: NavController,
     onNotImplemented: () -> Unit
 ) {
-    val rows = features.chunked(2)
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val columns = when {
+        screenWidthDp >= 840 -> 4
+        screenWidthDp >= 600 -> 3
+        else -> 2
+    }
+    val rows = features.chunked(columns)
     Column(
         modifier = Modifier.padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -165,7 +172,7 @@ private fun FeatureGrid(
                         }
                     }
                 }
-                if (rowFeatures.size == 1) {
+                repeat(columns - rowFeatures.size) {
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }

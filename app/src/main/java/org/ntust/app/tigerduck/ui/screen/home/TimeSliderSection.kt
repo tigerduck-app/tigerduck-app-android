@@ -28,11 +28,15 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -338,20 +342,19 @@ private fun SlotCard(
             colors = CardDefaults.cardColors(containerColor = slotContainer)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Row {
-                    Text(
-                        timeRange,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                val metaStyle = MaterialTheme.typography.labelSmall
+                val metaBoldStyle = metaStyle.copy(fontWeight = FontWeight.Bold)
+                val metaColor = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                if (isToday) {
+                    Text(timeRange, style = metaBoldStyle, color = metaColor)
+                } else {
+                    FitOrStack(
+                        modifier = Modifier.fillMaxWidth(),
+                        first = { Text(timeRange, style = metaBoldStyle, color = metaColor) },
+                        second = {
+                            Text(formatDateLabel(slot.date), style = metaStyle, color = metaColor)
+                        },
                     )
-                    Spacer(Modifier.weight(1f))
-                    if (!isToday) {
-                        Text(
-                            formatDateLabel(slot.date),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                        )
-                    }
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -361,12 +364,11 @@ private fun SlotCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    "${slot.course.classroom} · ${slot.course.instructor}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                InlineOrStackText(
+                    primary = slot.course.classroom,
+                    secondary = slot.course.instructor,
+                    style = metaStyle,
+                    color = metaColor,
                 )
             }
         }
@@ -506,3 +508,86 @@ private fun formatTimeLabel(date: Date): String {
 
 private fun formatDateLabel(date: Date): String =
     dateLabelFmt.format(date.toInstant().atZone(AppConstants.TAIPEI_ZONE))
+
+/**
+ * Places [first] at the start and [second] at the end on a single row if both
+ * fit; otherwise stacks them vertically with [first] above [second].
+ */
+@Composable
+private fun FitOrStack(
+    first: @Composable () -> Unit,
+    second: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    minGap: Dp = 8.dp,
+) {
+    SubcomposeLayout(modifier) { constraints ->
+        val unbounded = Constraints()
+        val f = subcompose("first", first).first().measure(unbounded)
+        val s = subcompose("second", second).first().measure(unbounded)
+        val gap = minGap.roundToPx()
+        val width = constraints.maxWidth
+        if (f.width + gap + s.width <= width) {
+            val h = maxOf(f.height, s.height)
+            layout(width, h) {
+                f.place(0, (h - f.height) / 2)
+                s.place(width - s.width, (h - s.height) / 2)
+            }
+        } else {
+            layout(width, f.height + s.height) {
+                f.place(0, 0)
+                s.place(0, f.height)
+            }
+        }
+    }
+}
+
+/**
+ * Renders `"$primary $separator $secondary"` on a single line when it fits;
+ * otherwise stacks [primary] above [secondary] without the separator.
+ */
+@Composable
+private fun InlineOrStackText(
+    primary: String,
+    secondary: String,
+    style: TextStyle,
+    color: Color,
+    separator: String = " · ",
+    modifier: Modifier = Modifier,
+) {
+    SubcomposeLayout(modifier) { constraints ->
+        val unbounded = Constraints()
+        val bounded = constraints.copy(minWidth = 0, maxHeight = Constraints.Infinity)
+        val inline = subcompose("inline") {
+            Text(
+                primary + separator + secondary,
+                style = style,
+                color = color,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Clip,
+            )
+        }.first().measure(unbounded)
+
+        if (inline.width <= constraints.maxWidth) {
+            val w = inline.width.coerceAtMost(constraints.maxWidth)
+            layout(w, inline.height) { inline.place(0, 0) }
+        } else {
+            val p = subcompose("primary") {
+                Text(
+                    primary, style = style, color = color,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }.first().measure(bounded)
+            val s = subcompose("secondary") {
+                Text(
+                    secondary, style = style, color = color,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }.first().measure(bounded)
+            layout(constraints.maxWidth, p.height + s.height) {
+                p.place(0, 0)
+                s.place(0, p.height)
+            }
+        }
+    }
+}
