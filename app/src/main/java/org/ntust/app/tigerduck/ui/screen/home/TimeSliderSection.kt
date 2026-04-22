@@ -51,7 +51,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun TimeSliderSection(
     courses: List<Course>,
-    sliderStyle: String,
     invertDirection: Boolean,
     skippedDates: Map<String, List<String>> = emptyMap(),
     isLoggedIn: Boolean = true,
@@ -121,10 +120,7 @@ fun TimeSliderSection(
                 )
 
                 // Track
-                when (sliderStyle) {
-                    "segmentedBar" -> SegmentedBarTrack(viewModel, invertDirection)
-                    else -> FluidTrack(viewModel, invertDirection)
-                }
+                FluidTrack(viewModel, invertDirection)
             }
         } else {
             Column(
@@ -492,97 +488,6 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                 )
             }
     )
-}
-
-@Composable
-private fun SegmentedBarTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean) {
-    val context = LocalContext.current
-    val barHeightDp = TimeSliderViewModel.SEGMENTED_BAR_HEIGHT.dp
-    var widthPx by remember { mutableStateOf(0f) }
-    val density = LocalDensity.current
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(barHeightDp)
-            .onSizeChanged { widthPx = it.width.toFloat() }
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-            .pointerInput(invertDirection) {
-                val scale = 3f
-                detectHorizontalDragGestures(
-                    onDragStart = { viewModel.onDragStarted() },
-                    onDragEnd = { viewModel.onDragEnded() },
-                    onDragCancel = { viewModel.onDragEnded() },
-                    onHorizontalDrag = { _, dragAmount ->
-                        viewModel.onDragChanged(dragAmount / scale, invertDirection, context)
-                    }
-                )
-            }
-    ) {
-        if (widthPx > 0) {
-            val scale = 3f
-            val centerXDp = with(density) { (widthPx / 2).toDp() }
-
-            viewModel.timeSlots.forEach { slot ->
-                val startOff = viewModel.xOffset(slot.start) * scale
-                val endOff = viewModel.xOffset(slot.end) * scale
-                val segW = maxOf(80f, endOff - startOff)
-                val segCenterX = (startOff + endOff) / 2
-                val leftPx = widthPx / 2 + segCenterX - segW / 2
-
-                if (leftPx + segW > -50 && leftPx < widthPx + 50) {
-                    val isSelected = viewModel.selectedTime >= slot.start && viewModel.selectedTime <= slot.end
-                    val courseColor = TigerDuckTheme.courseColorVibrant(slot.course.courseNo)
-                    val segSurface = MaterialTheme.colorScheme.surface
-                    val segBaseAlpha = if (isSelected) 0.4f else 0.15f
-                    val segBg = if (TigerDuckTheme.isDarkMode) {
-                        courseColor.copy(alpha = (segBaseAlpha * 2.3f).coerceAtMost(1f))
-                            .compositeOver(segSurface)
-                    } else {
-                        courseColor.copy(alpha = segBaseAlpha)
-                    }
-                    val segTextAlpha = TigerDuckTheme.tintAlpha(if (isSelected) 1f else 0.7f)
-                    val segWDp = with(density) { segW.toDp() }
-                    val leftDp = with(density) { leftPx.toDp() }
-
-                    Box(
-                        modifier = Modifier
-                            .absoluteOffset(x = leftDp)
-                            .width(segWDp)
-                            .height(barHeightDp - 4.dp)
-                            .align(Alignment.CenterStart)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(segBg),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = slot.course.courseName,
-                            style = if (isSelected) {
-                                MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                            } else {
-                                MaterialTheme.typography.labelSmall
-                            },
-                            color = courseColor.copy(alpha = segTextAlpha),
-                            maxLines = 1,
-                            overflow = TextOverflow.Clip,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-            }
-
-            // Center indicator
-            Box(
-                modifier = Modifier
-                    .absoluteOffset(x = centerXDp - 1.dp)
-                    .width(2.dp)
-                    .height(barHeightDp - 8.dp)
-                    .align(Alignment.CenterStart)
-                    .background(Color.White.copy(alpha = 0.4f))
-            )
-        }
-    }
 }
 
 private val timeFmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")

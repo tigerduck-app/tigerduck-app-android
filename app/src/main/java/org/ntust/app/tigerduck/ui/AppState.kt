@@ -125,16 +125,6 @@ class AppState @Inject constructor(
             prefs.themeMode = value
         }
 
-    private var timeSliderStyleState by mutableStateOf(prefs.timeSliderStyle)
-
-    var timeSliderStyle: String
-        get() = timeSliderStyleState
-        set(value) {
-            if (timeSliderStyleState == value) return
-            timeSliderStyleState = value
-            prefs.timeSliderStyle = value
-        }
-
     private var invertSliderDirectionState by mutableStateOf(prefs.invertSliderDirection)
 
     var invertSliderDirection: Boolean

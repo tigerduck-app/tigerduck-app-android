@@ -72,10 +72,6 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
             prefs.edit().putString("configuredTabs", gson.toJson(value.map { it.id })).apply()
         }
 
-    var timeSliderStyle: String
-        get() = prefs.getString("timeSliderStyle", "fluidTrack") ?: "fluidTrack"
-        set(value) = prefs.edit().putString("timeSliderStyle", value).apply()
-
     var invertSliderDirection: Boolean
         get() = prefs.getBoolean("invertSliderDirection", false)
         set(value) = prefs.edit().putBoolean("invertSliderDirection", value).apply()

@@ -268,7 +268,6 @@ class TimeSliderViewModel(private val scope: CoroutineScope) {
 
         const val FLUID_TRACK_HEIGHT = 36f
         const val FLUID_SEGMENT_HEIGHT = 20f
-        const val SEGMENTED_BAR_HEIGHT = 44f
         const val MIN_SEGMENT_WIDTH = 28f
         const val SELECTION_THUMB_WIDTH = 2f
         const val SELECTION_THUMB_HEIGHT = 28f

@@ -192,7 +192,6 @@ fun HomeScreen(
                             isLoggedIn = isLoggedIn,
                             hasUnfinishedAssignment = viewModel::hasUnfinishedAssignment,
                             showAbsoluteTime = appState.showAbsoluteAssignmentTime,
-                            sliderStyle = appState.timeSliderStyle,
                             invertDirection = appState.invertSliderDirection,
                             skippedDates = skippedDates,
                             onCourseClick = {
@@ -352,7 +351,6 @@ private fun HomeSectionContent(
     isLoggedIn: Boolean,
     hasUnfinishedAssignment: (String) -> Boolean,
     showAbsoluteTime: Boolean,
-    sliderStyle: String,
     invertDirection: Boolean,
     skippedDates: Map<String, List<String>>,
     onCourseClick: (Course) -> Unit,
@@ -365,7 +363,6 @@ private fun HomeSectionContent(
             HomeSection.HomeSectionType.TODAY_COURSES -> {
                 TimeSliderSection(
                     courses = allCourses,
-                    sliderStyle = sliderStyle,
                     invertDirection = invertDirection,
                     skippedDates = skippedDates,
                     isLoggedIn = isLoggedIn,

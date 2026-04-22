@@ -67,7 +67,6 @@ fun SettingsScreen(
     val accentColorHex = viewModel.appState.accentColorHex
     val showAbsoluteTime = viewModel.appState.showAbsoluteAssignmentTime
     val browserPreference = viewModel.appState.browserPreference
-    val timeSliderStyle = viewModel.appState.timeSliderStyle
     val invertSlider = viewModel.appState.invertSliderDirection
     val notifyAssignments = viewModel.appState.notifyAssignments
     val libraryEnabled = viewModel.appState.libraryFeatureEnabled
@@ -194,15 +193,6 @@ fun SettingsScreen(
                         options = listOf("system" to "系統預設瀏覽器", "inApp" to "App 內瀏覽器"),
                         selectedKey = browserPreference,
                         onSelect = { viewModel.appState.browserPreference = it }
-                    )
-                    HorizontalDivider()
-                    // Time slider style
-                    SettingsPickerRow(
-                        label = "時間滑條樣式",
-                        value = if (timeSliderStyle == "segmentedBar") "課程區塊" else "時間軸",
-                        options = listOf("fluidTrack" to "時間軸", "segmentedBar" to "課程區塊"),
-                        selectedKey = timeSliderStyle,
-                        onSelect = { viewModel.appState.timeSliderStyle = it }
                     )
                     HorizontalDivider()
                     SettingsToggleRow("反轉滑條方向", invertSlider) {
