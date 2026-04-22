@@ -188,6 +188,63 @@ class ClassTableViewModel @Inject constructor(
         return dayTime.minuteOfDay > endMinutes
     }
 
+    data class OngoingCourseInfo(
+        val course: Course,
+        val weekday: Int,
+        val firstPeriodId: String,
+        val startMinute: Int,
+        val endMinute: Int
+    )
+
+    /**
+     * The course whose contiguous block of periods contains the current
+     * Taipei minute. Breaks between adjacent periods of the same course (e.g.
+     * 3+4 or 6+7) count as "ongoing"; non-adjacent periods are treated as
+     * separate blocks.
+     */
+    val ongoingCourse: OngoingCourseInfo?
+        get() {
+            val dayTime = _currentDayTime.value
+            val now = dayTime.minuteOfDay
+            val order = AppConstants.Periods.chronologicalOrder
+            for (course in _courses.value) {
+                val periods = course.schedule[dayTime.weekday]
+                    ?.sortedBy { order.indexOf(it) } ?: continue
+                if (periods.isEmpty()) continue
+                var blockStart = 0
+                while (blockStart < periods.size) {
+                    var blockEnd = blockStart
+                    while (blockEnd + 1 < periods.size &&
+                        order.indexOf(periods[blockEnd + 1]) == order.indexOf(periods[blockEnd]) + 1
+                    ) blockEnd++
+                    val firstId = periods[blockStart]
+                    val lastId = periods[blockEnd]
+                    val startStr = AppConstants.PeriodTimes.mapping[firstId]?.first
+                    val endStr = AppConstants.PeriodTimes.mapping[lastId]?.second
+                    val startMin = startStr?.let(::parseHm)
+                    val endMin = endStr?.let(::parseHm)
+                    if (startMin != null && endMin != null && now in startMin..endMin) {
+                        return OngoingCourseInfo(
+                            course = course,
+                            weekday = dayTime.weekday,
+                            firstPeriodId = firstId,
+                            startMinute = startMin,
+                            endMinute = endMin
+                        )
+                    }
+                    blockStart = blockEnd + 1
+                }
+            }
+            return null
+        }
+
+    private fun parseHm(hhmm: String): Int? {
+        val parts = hhmm.split(":")
+        val h = parts.getOrNull(0)?.toIntOrNull() ?: return null
+        val m = parts.getOrNull(1)?.toIntOrNull() ?: return null
+        return h * 60 + m
+    }
+
     fun courseAt(weekday: Int, period: String): Course? =
         _courses.value.firstOrNull { it.schedule[weekday]?.contains(period) == true }
 

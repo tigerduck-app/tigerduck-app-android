@@ -2,9 +2,8 @@ package org.ntust.app.tigerduck.ui.screen.classtable
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -34,6 +33,7 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.ColorPickerSheet
 import org.ntust.app.tigerduck.ui.component.CourseCard
+import org.ntust.app.tigerduck.ui.component.CurrentClassCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
@@ -54,6 +54,7 @@ fun ClassTableScreen(
     val currentMinute by viewModel.currentMinute.collectAsState()
     val selectedCourse by viewModel.selectedCourse.collectAsState()
     val todayCourses = remember(courses, currentMinute) { viewModel.todayCourses }
+    val ongoingCourse = remember(courses, currentMinute) { viewModel.ongoingCourse }
     val activePeriods = remember(courses) { viewModel.activePeriods }
     val activeWeekdays = remember(courses) { viewModel.activeWeekdays }
     var showAddCourse by remember { mutableStateOf(false) }
@@ -113,19 +114,40 @@ fun ClassTableScreen(
             // Today's courses carousel
             if (todayCourses.isNotEmpty()) {
                 SectionHeader(title = "今日課程")
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.padding(bottom = 12.dp)
+                val today = java.util.Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).get(java.util.Calendar.DAY_OF_WEEK)
+                val dayIndex = when (today) {
+                    java.util.Calendar.MONDAY -> 1; java.util.Calendar.TUESDAY -> 2
+                    java.util.Calendar.WEDNESDAY -> 3; java.util.Calendar.THURSDAY -> 4
+                    java.util.Calendar.FRIDAY -> 5; java.util.Calendar.SATURDAY -> 6
+                    else -> 7
+                }
+                val rowScroll = rememberScrollState()
+                Row(
+                    modifier = Modifier
+                        .padding(bottom = 12.dp)
+                        .horizontalScroll(rowScroll)
+                        .height(IntrinsicSize.Max)
+                        .padding(horizontal = 16.dp)
                 ) {
-                    val today = java.util.Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).get(java.util.Calendar.DAY_OF_WEEK)
-                    val dayIndex = when (today) {
-                        java.util.Calendar.MONDAY -> 1; java.util.Calendar.TUESDAY -> 2
-                        java.util.Calendar.WEDNESDAY -> 3; java.util.Calendar.THURSDAY -> 4
-                        java.util.Calendar.FRIDAY -> 5; java.util.Calendar.SATURDAY -> 6
-                        else -> 7
+                    ongoingCourse?.let { info ->
+                        CurrentClassCard(
+                            course = info.course,
+                            blockStartMinute = info.startMinute,
+                            blockEndMinute = info.endMinute,
+                            currentMinute = currentMinute,
+                            hasAssignment = viewModel.hasAssignment(info.course.courseNo),
+                            onClick = {
+                                viewModel.selectCourse(
+                                    info.course,
+                                    info.weekday,
+                                    info.firstPeriodId
+                                )
+                            },
+                            modifier = Modifier.fillMaxHeight()
+                        )
+                        Spacer(Modifier.width(24.dp))
                     }
-                    items(todayCourses) { course ->
+                    todayCourses.forEachIndexed { index, course ->
                         val timeRange = remember(course, dayIndex) {
                             val periods = course.schedule[dayIndex]
                                 ?.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
@@ -144,8 +166,12 @@ fun ClassTableScreen(
                                 val firstPeriod = course.schedule[dayIndex]
                                     ?.minByOrNull { AppConstants.Periods.chronologicalOrder.indexOf(it) } ?: ""
                                 viewModel.selectCourse(course, dayIndex, firstPeriod)
-                            }
+                            },
+                            modifier = Modifier.fillMaxHeight()
                         )
+                        if (index < todayCourses.lastIndex) {
+                            Spacer(Modifier.width(12.dp))
+                        }
                     }
                 }
             }
