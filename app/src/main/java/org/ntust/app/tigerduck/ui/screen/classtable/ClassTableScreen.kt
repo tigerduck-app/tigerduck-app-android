@@ -21,7 +21,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material.icons.Icons
@@ -33,6 +35,9 @@ import androidx.compose.ui.graphics.toArgb
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.ColorPickerSheet
+import org.ntust.app.tigerduck.ui.component.ConflictCoursePickerSheet
+import org.ntust.app.tigerduck.ui.component.ConflictLOrientation
+import org.ntust.app.tigerduck.ui.component.ConflictLShape
 import org.ntust.app.tigerduck.ui.component.CourseCard
 import org.ntust.app.tigerduck.ui.component.CurrentClassCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
@@ -63,6 +68,8 @@ fun ClassTableScreen(
     var renameText by remember { mutableStateOf("") }
     var courseToRecolor by remember { mutableStateOf<Course?>(null) }
     var showCheckmark by remember { mutableStateOf(false) }
+    var conflictPicker by remember { mutableStateOf<Pair<Course, Course>?>(null) }
+    var tripleConflictError by remember { mutableStateOf<ClassTableViewModel.TripleConflictError?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { viewModel.load() }
@@ -77,6 +84,9 @@ fun ClassTableScreen(
         viewModel.noNetworkEvent.collect {
             snackbarHostState.showSnackbar("無法連線，請檢查網路連線")
         }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.tripleConflictEvent.collect { tripleConflictError = it }
     }
 
     var pullProgress by remember { mutableFloatStateOf(0f) }
@@ -219,7 +229,8 @@ fun ClassTableScreen(
                     },
                     onPickColor = { course ->
                         courseToRecolor = course
-                    }
+                    },
+                    onPickConflict = { a, b -> conflictPicker = a to b },
                 )
             } else if (!isLoggedIn) {
                 org.ntust.app.tigerduck.ui.component.EmptyStateView(
@@ -328,6 +339,42 @@ fun ClassTableScreen(
         )
     }
 
+    conflictPicker?.let { (a, b) ->
+        ConflictCoursePickerSheet(
+            courseA = a,
+            courseB = b,
+            onPick = { picked ->
+                // Find which weekday/period the user tapped from. We don't
+                // track it through the sheet — fall back to any slot where
+                // the picked course is scheduled; selectCourse only uses
+                // weekday + first period for display, so the first one works.
+                val weekday = picked.schedule.keys.firstOrNull() ?: 1
+                val periodId = picked.schedule[weekday]?.firstOrNull() ?: ""
+                viewModel.selectCourse(picked, weekday, periodId)
+                conflictPicker = null
+            },
+            onDismiss = { conflictPicker = null },
+        )
+    }
+
+    tripleConflictError?.let { err ->
+        val dayLabel = listOf("", "一", "二", "三", "四", "五", "六", "日").getOrElse(err.weekday) { err.weekday.toString() }
+        AlertDialog(
+            onDismissRequest = { tripleConflictError = null },
+            title = { Text("無法加入") },
+            text = {
+                Text(
+                    "${err.newCourseName} 的時段（週$dayLabel 第${err.periodId}節）已有兩堂課程：" +
+                        "${err.existingA.courseName} 和 ${err.existingB.courseName}。" +
+                        "系統不支援三堂以上衝堂。",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { tripleConflictError = null }) { Text("確認") }
+            },
+        )
+    }
+
     if (showAddCourse) {
         ModalBottomSheet(
             onDismissRequest = { showAddCourse = false }
@@ -352,7 +399,8 @@ private fun TimetableGrid(
     periods: List<org.ntust.app.tigerduck.data.model.TimetablePeriod>,
     onRename: (Course) -> Unit = {},
     onDelete: (Course) -> Unit = {},
-    onPickColor: (Course) -> Unit = {}
+    onPickColor: (Course) -> Unit = {},
+    onPickConflict: (Course, Course) -> Unit = { _, _ -> },
 ) {
     val haptic = LocalHapticFeedback.current
     val dayLabels = listOf("", "一", "二", "三", "四", "五", "六", "日")
@@ -429,93 +477,41 @@ private fun TimetableGrid(
                                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                                 )
                             }
-                            is ClassTableViewModel.CellRole.BlockStart -> {
-                                val cellBg = if (TigerDuckTheme.isDarkMode) {
-                                    // Dark palette is pre-tuned to sit against the dark
-                                    // surface, so render it directly rather than tinting
-                                    // a vivid light-palette color at low alpha.
-                                    TigerDuckTheme.courseColor(role.course.courseNo)
-                                } else {
-                                    TigerDuckTheme.courseColorVibrant(role.course.courseNo)
-                                        .copy(alpha = 0.50f)
-                                }
-                                val cellTextColor = if (TigerDuckTheme.isDarkMode) {
-                                    Color.White
-                                } else {
-                                    Color(0xFF1C1C1E)
-                                }
-                                val hasBadge = viewModel.hasAssignment(role.course.courseNo)
-                                var showMenu by remember { mutableStateOf(false) }
-                                Box(
-                                    modifier = Modifier
-                                        .width(dayColWidth)
-                                        .height(cellHeight * role.spanCount)
-                                        .absoluteOffset(x = x, y = y)
-                                        .padding(1.dp)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(cellBg)
-                                        .combinedClickable(
-                                            onClick = {
-                                                viewModel.selectCourse(role.course, weekday, period.id)
-                                            },
-                                            onLongClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                showMenu = true
-                                            }
-                                        )
-                                ) {
-                                    Text(
-                                        text = role.course.courseName,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = cellTextColor,
-                                        textAlign = TextAlign.Center,
-                                        maxLines = if (role.spanCount >= 2) 3 else 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(2.dp).align(Alignment.Center),
-                                        fontSize = 10.sp
-                                    )
-                                    if (hasBadge) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Book,
-                                            contentDescription = null,
-                                            modifier = Modifier
-                                                .align(Alignment.BottomEnd)
-                                                .padding(3.dp)
-                                                .size(12.dp),
-                                            tint = cellTextColor.copy(alpha = 0.7f)
-                                        )
-                                    }
-                                    DropdownMenu(
-                                        expanded = showMenu,
-                                        onDismissRequest = { showMenu = false },
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        DropdownMenuItem(
-                                            text = { Text("重新命名") },
-                                            onClick = {
-                                                showMenu = false
-                                                onRename(role.course)
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("選擇顏色") },
-                                            onClick = {
-                                                showMenu = false
-                                                onPickColor(role.course)
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("刪除", color = MaterialTheme.colorScheme.error) },
-                                            onClick = {
-                                                showMenu = false
-                                                onDelete(role.course)
-                                            }
-                                        )
-                                    }
-                                }
+                            is ClassTableViewModel.CellRole.SoloStart -> {
+                                SoloCourseCell(
+                                    course = role.course,
+                                    spanCount = role.spanCount,
+                                    dayColWidth = dayColWidth,
+                                    cellHeight = cellHeight,
+                                    x = x,
+                                    y = y,
+                                    hasAssignment = viewModel.hasAssignment(role.course.courseNo),
+                                    onTap = { viewModel.selectCourse(role.course, weekday, period.id) },
+                                    onLongPress = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                                    onRename = onRename,
+                                    onPickColor = onPickColor,
+                                    onDelete = onDelete,
+                                )
                             }
-                            is ClassTableViewModel.CellRole.BlockContinuation -> {
-                                // Rendered as part of BlockStart — no cell needed
+                            is ClassTableViewModel.CellRole.ConflictStart -> {
+                                ConflictCourseCell(
+                                    role = role,
+                                    dayColWidth = dayColWidth,
+                                    cellHeight = cellHeight,
+                                    x = x,
+                                    y = y,
+                                    weekday = weekday,
+                                    hasAssignmentA = viewModel.hasAssignment(role.courseA.courseNo),
+                                    hasAssignmentB = viewModel.hasAssignment(role.courseB.courseNo),
+                                    onPickConflict = onPickConflict,
+                                    onLongPress = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                                    onRename = onRename,
+                                    onPickColor = onPickColor,
+                                    onDelete = onDelete,
+                                )
+                            }
+                            is ClassTableViewModel.CellRole.Skip -> {
+                                // Rendered as part of an earlier SoloStart / ConflictStart
                             }
                         }
                     }
@@ -575,3 +571,294 @@ private fun SemesterPicker(
         }
     }
 }
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SoloCourseCell(
+    course: Course,
+    spanCount: Int,
+    dayColWidth: androidx.compose.ui.unit.Dp,
+    cellHeight: androidx.compose.ui.unit.Dp,
+    x: androidx.compose.ui.unit.Dp,
+    y: androidx.compose.ui.unit.Dp,
+    hasAssignment: Boolean,
+    onTap: () -> Unit,
+    onLongPress: () -> Unit,
+    onRename: (Course) -> Unit,
+    onPickColor: (Course) -> Unit,
+    onDelete: (Course) -> Unit,
+) {
+    val cellBg = if (TigerDuckTheme.isDarkMode) {
+        TigerDuckTheme.courseColor(course.courseNo)
+    } else {
+        TigerDuckTheme.courseColorVibrant(course.courseNo).copy(alpha = 0.50f)
+    }
+    val cellTextColor = if (TigerDuckTheme.isDarkMode) Color.White else Color(0xFF1C1C1E)
+    var showMenu by remember { mutableStateOf(false) }
+    Box(
+        modifier = Modifier
+            .width(dayColWidth)
+            .height(cellHeight * spanCount)
+            .absoluteOffset(x = x, y = y)
+            .padding(1.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(cellBg)
+            .combinedClickable(
+                onClick = onTap,
+                onLongClick = {
+                    onLongPress()
+                    showMenu = true
+                },
+            ),
+    ) {
+        Text(
+            text = course.courseName,
+            style = MaterialTheme.typography.labelSmall,
+            color = cellTextColor,
+            textAlign = TextAlign.Center,
+            maxLines = if (spanCount >= 2) 3 else 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(2.dp).align(Alignment.Center),
+            fontSize = 10.sp,
+        )
+        if (hasAssignment) {
+            Icon(
+                imageVector = Icons.Filled.Book,
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(3.dp)
+                    .size(12.dp),
+                tint = cellTextColor.copy(alpha = 0.7f),
+            )
+        }
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+            shape = RoundedCornerShape(12.dp),
+        ) {
+            DropdownMenuItem(
+                text = { Text("重新命名") },
+                onClick = { showMenu = false; onRename(course) },
+            )
+            DropdownMenuItem(
+                text = { Text("選擇顏色") },
+                onClick = { showMenu = false; onPickColor(course) },
+            )
+            DropdownMenuItem(
+                text = { Text("刪除", color = MaterialTheme.colorScheme.error) },
+                onClick = { showMenu = false; onDelete(course) },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ConflictCourseCell(
+    role: ClassTableViewModel.CellRole.ConflictStart,
+    dayColWidth: androidx.compose.ui.unit.Dp,
+    cellHeight: androidx.compose.ui.unit.Dp,
+    x: androidx.compose.ui.unit.Dp,
+    y: androidx.compose.ui.unit.Dp,
+    weekday: Int,
+    hasAssignmentA: Boolean,
+    hasAssignmentB: Boolean,
+    onPickConflict: (Course, Course) -> Unit,
+    onLongPress: () -> Unit,
+    onRename: (Course) -> Unit,
+    onPickColor: (Course) -> Unit,
+    onDelete: (Course) -> Unit,
+) {
+    val textColor = if (TigerDuckTheme.isDarkMode) Color.White else Color(0xFF1C1C1E)
+    fun bgFor(course: Course) = if (TigerDuckTheme.isDarkMode) {
+        TigerDuckTheme.courseColor(course.courseNo)
+    } else {
+        TigerDuckTheme.courseColorVibrant(course.courseNo).copy(alpha = 0.50f)
+    }
+
+    val overlapStart = maxOf(role.offsetA, role.offsetB)
+    val overlapEnd = minOf(role.offsetA + role.spanA, role.offsetB + role.spanB)
+
+    // Solo fractions are relative to each course's OWN span (= its Box height),
+    // not the combined span.
+    fun soloAbove(offset: Int, span: Int) =
+        (overlapStart - offset).coerceAtLeast(0).toFloat() / span
+    fun soloBelow(offset: Int, span: Int) =
+        (offset + span - overlapEnd).coerceAtLeast(0).toFloat() / span
+
+    val soloAboveA = soloAbove(role.offsetA, role.spanA)
+    val soloBelowA = soloBelow(role.offsetA, role.spanA)
+    val soloAboveB = soloAbove(role.offsetB, role.spanB)
+    val soloBelowB = soloBelow(role.offsetB, role.spanB)
+
+    // Pure overlap at an edge = neither course has solo at that edge. There
+    // both shapes have convex corners pointing the same way, so only sharp
+    // corners can touch without a gap.
+    val sharpTop = soloAboveA == 0f && soloAboveB == 0f
+    val sharpBottom = soloBelowA == 0f && soloBelowB == 0f
+
+    val shapeA = ConflictLShape(
+        orientation = ConflictLOrientation.TopBarRightTail,
+        soloAboveFraction = soloAboveA,
+        soloBelowFraction = soloBelowA,
+        sharpTopOuter = sharpTop,
+        sharpBottomOuter = sharpBottom,
+    )
+    val shapeB = ConflictLShape(
+        orientation = ConflictLOrientation.LeftTailBottomBar,
+        soloAboveFraction = soloAboveB,
+        soloBelowFraction = soloBelowB,
+        sharpTopOuter = sharpTop,
+        sharpBottomOuter = sharpBottom,
+    )
+
+    var showMenu by remember { mutableStateOf(false) }
+    // Shared so a press on EITHER course triggers the ripple on BOTH — the
+    // menu applies to both, so the press feedback should too.
+    val interactionSource = remember { MutableInteractionSource() }
+    val indication = LocalIndication.current
+
+    Box(
+        modifier = Modifier
+            .width(dayColWidth)
+            .height(cellHeight * role.combinedSpan)
+            .absoluteOffset(x = x, y = y)
+            .padding(1.dp),
+    ) {
+        // Pull the true padded size so child heights/offsets scale to it exactly.
+        // Using a fixed `cellHeight * spanA` for each child causes its Box to
+        // exceed the padded area by 2dp; Compose's overflow handling then
+        // leaves a visible seam between the two shapes.
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val rowHeight = maxHeight / role.combinedSpan
+        val aTop = rowHeight * role.offsetA
+        val aHeight = rowHeight * role.spanA
+        val bTop = rowHeight * role.offsetB
+        val bHeight = rowHeight * role.spanB
+        val aBarFraction = (soloAboveA + 0.5f * (1f - soloAboveA - soloBelowA))
+            .coerceAtLeast(0.1f)
+        val bBarFraction = (soloBelowB + 0.5f * (1f - soloAboveB - soloBelowB))
+            .coerceAtLeast(0.1f)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(aHeight)
+                .absoluteOffset(x = 0.dp, y = aTop)
+                .clip(shapeA)
+                .background(bgFor(role.courseA))
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = indication,
+                    onClick = { onPickConflict(role.courseA, role.courseB) },
+                    onLongClick = { onLongPress(); showMenu = true },
+                ),
+        ) {
+            // Course name uses the full width of the bar rectangle.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .fillMaxWidth(1f - 0.28f)
+                    .fillMaxHeight(aBarFraction)
+                    .padding(vertical = 2.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = role.courseA.courseName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = textColor,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 10.sp,
+                )
+            }
+            if (hasAssignmentA) {
+                Icon(
+                    imageVector = Icons.Filled.Book,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(3.dp)
+                        .size(10.dp),
+                    tint = textColor.copy(alpha = 0.7f),
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(bHeight)
+                .absoluteOffset(x = 0.dp, y = bTop)
+                .clip(shapeB)
+                .background(bgFor(role.courseB))
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = indication,
+                    onClick = { onPickConflict(role.courseA, role.courseB) },
+                    onLongClick = { onLongPress(); showMenu = true },
+                ),
+        ) {
+            // Course name uses the full width of the bar rectangle.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth(1f - 0.28f)
+                    .fillMaxHeight(bBarFraction)
+                    .padding(vertical = 2.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = role.courseB.courseName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = textColor,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 10.sp,
+                )
+            }
+            if (hasAssignmentB) {
+                Icon(
+                    imageVector = Icons.Filled.Book,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(3.dp)
+                        .size(10.dp),
+                    tint = textColor.copy(alpha = 0.7f),
+                )
+            }
+        }
+
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+            shape = RoundedCornerShape(12.dp),
+        ) {
+            listOf(role.courseA, role.courseB).forEachIndexed { idx, course ->
+                if (idx > 0) HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text("重新命名 — ${course.courseName}") },
+                    onClick = { showMenu = false; onRename(course) },
+                )
+                DropdownMenuItem(
+                    text = { Text("選擇顏色 — ${course.courseName}") },
+                    onClick = { showMenu = false; onPickColor(course) },
+                )
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            "刪除 — ${course.courseName}",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    },
+                    onClick = { showMenu = false; onDelete(course) },
+                )
+            }
+        }
+        } // BoxWithConstraints
+    }
+}
+

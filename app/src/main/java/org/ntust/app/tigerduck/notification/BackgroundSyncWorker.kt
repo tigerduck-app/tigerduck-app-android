@@ -89,9 +89,16 @@ class BackgroundSyncWorker @AssistedInject constructor(
             }
 
             if (fetched.isNotEmpty()) {
-                // Preserve user-picked tile colors across the background refresh.
-                val existingColors = dataCache.loadCourses().associate { it.courseNo to it.customColorHex }
-                val merged = fetched.map { c -> c.copy(customColorHex = existingColors[c.courseNo]) }
+                // Preserve user-picked tile colors and manually-added courses
+                // across the background refresh.
+                val cached = dataCache.loadCourses()
+                val existingColors = cached.associate { it.courseNo to it.customColorHex }
+                val fetchedWithColors = fetched.map { c ->
+                    c.copy(customColorHex = existingColors[c.courseNo])
+                }
+                val fetchedNos = fetchedWithColors.map { it.courseNo }.toSet()
+                val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
+                val merged = fetchedWithColors + manualLeftovers
                 dataCache.saveCourses(merged)
             }
             true

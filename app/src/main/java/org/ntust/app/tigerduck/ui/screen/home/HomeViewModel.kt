@@ -215,12 +215,16 @@ class HomeViewModel @Inject constructor(
                         fetchCoursesAndAssignments(studentId, password)
 
                     if (!remoteCourses.isNullOrEmpty()) {
-                        // Re-read cache so a concurrent color change isn't erased.
-                        val latestColors = dataCache.loadCourses()
-                            .associate { it.courseNo to it.customColorHex }
-                        courses = remoteCourses.map { c ->
+                        // Re-read cache so a concurrent color change isn't erased,
+                        // and so manually-added courses survive the refresh.
+                        val cached = dataCache.loadCourses()
+                        val latestColors = cached.associate { it.courseNo to it.customColorHex }
+                        val fetched = remoteCourses.map { c ->
                             c.copy(customColorHex = latestColors[c.courseNo])
                         }
+                        val fetchedNos = fetched.map { it.courseNo }.toSet()
+                        val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
+                        courses = fetched + manualLeftovers
                         dataCache.saveCourses(courses)
                     }
 

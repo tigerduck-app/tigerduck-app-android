@@ -280,8 +280,8 @@ class ClassTableViewModel @Inject constructor(
         return h * 60 + m
     }
 
-    fun courseAt(weekday: Int, period: String): Course? =
-        _courses.value.firstOrNull { it.schedule[weekday]?.contains(period) == true }
+    fun coursesAt(weekday: Int, period: String): List<Course> =
+        _courses.value.filter { it.schedule[weekday]?.contains(period) == true }
 
     fun hasAssignment(courseNo: String): Boolean =
         _assignments.value.any { it.courseNo == courseNo && !it.isCompleted }
@@ -303,7 +303,12 @@ class ClassTableViewModel @Inject constructor(
         get() = _courses.value.map { it.courseNo }.toSet()
 
     fun addCourse(course: Course) {
-        val updated = _courses.value + course
+        wouldCauseTripleConflict(course)?.let {
+            _tripleConflictEvent.tryEmit(it)
+            return
+        }
+        val flagged = course.copy(isManual = true)
+        val updated = _courses.value + flagged
         _courses.value = updated
         viewModelScope.launch { dataCache.saveCourses(updated, _currentSemester.value) }
         TigerDuckTheme.buildCourseColorMap(updated)
@@ -347,30 +352,138 @@ class ClassTableViewModel @Inject constructor(
 
     sealed class CellRole {
         object Empty : CellRole()
-        data class BlockStart(val course: Course, val spanCount: Int) : CellRole()
-        object BlockContinuation : CellRole()
+        data class SoloStart(val course: Course, val spanCount: Int) : CellRole()
+        /**
+         * Two overlapping courses occupying (possibly partially) this cluster.
+         * [combinedSpan] is the total row count of the union. [offsetA]/[offsetB]
+         * are 0-indexed row positions within the cluster where each course's
+         * block begins. [spanA]/[spanB] are each course's own contiguous block
+         * length. The L-split is drawn only on rows where both appear.
+         */
+        data class ConflictStart(
+            val courseA: Course, val spanA: Int, val offsetA: Int,
+            val courseB: Course, val spanB: Int, val offsetB: Int,
+            val combinedSpan: Int
+        ) : CellRole()
+        object Skip : CellRole()
+    }
+
+    /**
+     * Contiguous block within [weekday] that contains [startIndex], for [course].
+     * Returns (firstIndex, span). Adjacent periods in
+     * [AppConstants.Periods.chronologicalOrder] count as contiguous.
+     */
+    private fun blockFor(weekday: Int, startIndex: Int, course: Course): Pair<Int, Int> {
+        val periods = activePeriods
+        val courseNo = course.courseNo
+        // Walk backward to find the block start
+        var first = startIndex
+        while (first - 1 >= 0) {
+            val prev = periods[first - 1]
+            val prevPresent = _courses.value.any {
+                it.courseNo == courseNo && it.schedule[weekday]?.contains(prev.id) == true
+            }
+            if (prevPresent) first-- else break
+        }
+        // Walk forward to find the block end
+        var last = startIndex
+        while (last + 1 < periods.size) {
+            val next = periods[last + 1]
+            val nextPresent = _courses.value.any {
+                it.courseNo == courseNo && it.schedule[weekday]?.contains(next.id) == true
+            }
+            if (nextPresent) last++ else break
+        }
+        return first to (last - first + 1)
     }
 
     fun cellRole(weekday: Int, periodIndex: Int): CellRole {
         val periods = activePeriods
         if (periodIndex < 0 || periodIndex >= periods.size) return CellRole.Empty
         val period = periods[periodIndex]
-        val course = courseAt(weekday, period.id) ?: return CellRole.Empty
+        val coursesHere = coursesAt(weekday, period.id)
+        if (coursesHere.isEmpty()) return CellRole.Empty
 
-        if (periodIndex > 0) {
-            val prev = periods[periodIndex - 1]
-            val prevCourse = courseAt(weekday, prev.id)
-            if (prevCourse?.courseNo == course.courseNo) return CellRole.BlockContinuation
+        // Build transitive closure of courses whose blocks overlap with any
+        // course already in the cluster, rooted at the courses present in this
+        // cell. This guarantees we emit a ConflictStart at the earliest row
+        // of the union and Skip thereafter.
+        val closure = LinkedHashMap<String, Triple<Course, Int, Int>>() // courseNo -> (course, firstIndex, span)
+        fun addCourse(c: Course, seedIndex: Int) {
+            if (closure.containsKey(c.courseNo)) return
+            val (first, span) = blockFor(weekday, seedIndex, c)
+            closure[c.courseNo] = Triple(c, first, span)
+            // Expand: any other course touching any row in [first, first+span)
+            for (i in first until first + span) {
+                val pid = periods.getOrNull(i)?.id ?: continue
+                for (other in coursesAt(weekday, pid)) {
+                    if (!closure.containsKey(other.courseNo)) addCourse(other, i)
+                }
+            }
+        }
+        coursesHere.forEach { addCourse(it, periodIndex) }
+
+        val clusterStart = closure.values.minOf { it.second }
+        if (clusterStart < periodIndex) return CellRole.Skip
+
+        if (closure.size == 1) {
+            val (course, _, span) = closure.values.first()
+            return CellRole.SoloStart(course, span)
         }
 
-        var span = 1
-        var next = periodIndex + 1
-        while (next < periods.size) {
-            val nextCourse = courseAt(weekday, periods[next].id)
-            if (nextCourse?.courseNo == course.courseNo) { span++; next++ } else break
-        }
-        return CellRole.BlockStart(course, span)
+        // 2+ courses — cap at 2, warn if we dropped any
+        val entries = closure.values.toList()
+        val kept = if (entries.size > 2) {
+            Log.w("ClassTableVM", "Slot weekday=$weekday period=${period.id} has ${entries.size} overlapping courses, rendering only the first 2")
+            entries.take(2)
+        } else entries
+        val (courseA, firstA, spanA) = kept[0]
+        val (courseB, firstB, spanB) = kept[1]
+        val clusterEnd = maxOf(firstA + spanA, firstB + spanB)
+        val combined = clusterEnd - clusterStart
+        return CellRole.ConflictStart(
+            courseA = courseA, spanA = spanA, offsetA = firstA - clusterStart,
+            courseB = courseB, spanB = spanB, offsetB = firstB - clusterStart,
+            combinedSpan = combined,
+        )
     }
+
+    data class TripleConflictError(
+        val weekday: Int,
+        val periodId: String,
+        val newCourseName: String,
+        val existingA: Course,
+        val existingB: Course,
+    )
+
+    /**
+     * Scans every (weekday, period) the candidate course would occupy and
+     * returns the first slot that already has two courses — i.e. adding the
+     * candidate would push that slot to three. Null if the add is safe.
+     */
+    fun wouldCauseTripleConflict(candidate: Course): TripleConflictError? {
+        for ((weekday, periodIds) in candidate.schedule) {
+            for (pid in periodIds) {
+                val existing = coursesAt(weekday, pid)
+                if (existing.size >= 2) {
+                    return TripleConflictError(
+                        weekday = weekday,
+                        periodId = pid,
+                        newCourseName = candidate.courseName,
+                        existingA = existing[0],
+                        existingB = existing[1],
+                    )
+                }
+            }
+        }
+        return null
+    }
+
+    private val _tripleConflictEvent = MutableSharedFlow<TripleConflictError>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val tripleConflictEvent: SharedFlow<TripleConflictError> = _tripleConflictEvent.asSharedFlow()
 
     fun load() {
         if (hasLoaded) return
@@ -514,11 +627,19 @@ class ClassTableViewModel @Inject constructor(
                         }.awaitAll().filterNotNull()
 
                         if (courses.isNotEmpty()) {
-                            val existingColors = dataCache.loadCourses(semester)
-                                .associate { it.courseNo to it.customColorHex }
-                            val merged = courses.map { c ->
+                            val cached = dataCache.loadCourses(semester)
+                            val existingColors = cached.associate { it.courseNo to it.customColorHex }
+                            val fetched = courses.map { c ->
                                 c.copy(customColorHex = existingColors[c.courseNo])
                             }
+                            // Manually-added courses aren't in the NTUST
+                            // enrolment feed or the Moodle list, so they'd be
+                            // wiped on every refresh. Re-add any cached course
+                            // flagged `isManual` whose courseNo isn't already
+                            // in the fetched set.
+                            val fetchedNos = fetched.map { it.courseNo }.toSet()
+                            val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
+                            val merged = fetched + manualLeftovers
                             // Only apply if the user hasn't flipped to a
                             // different semester mid-flight.
                             if (_currentSemester.value == semester) {

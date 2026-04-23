@@ -14,6 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -42,6 +46,7 @@ fun AddCourseSheet(
     onDismiss: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val keyboardController = LocalSoftwareKeyboardController.current
     var searchText by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<GroupedCourse>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
@@ -123,13 +128,26 @@ fun AddCourseSheet(
                 onValueChange = { searchText = it },
                 placeholder = { Text("輸入課程代碼、課名或老師") },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = {
+                    keyboardController?.hide()
+                    search()
+                }),
                 modifier = Modifier.weight(1f)
             )
             FilledIconButton(
                 onClick = { search() },
                 enabled = searchText.isNotBlank() && !isSearching
             ) {
-                Icon(Icons.Filled.Search, contentDescription = "搜尋")
+                if (isSearching) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                } else {
+                    Icon(Icons.Filled.Search, contentDescription = "搜尋")
+                }
             }
         }
 
