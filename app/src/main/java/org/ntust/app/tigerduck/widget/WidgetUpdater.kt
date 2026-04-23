@@ -13,6 +13,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.widget.receivers.NextClassDarkWidget
@@ -50,15 +51,12 @@ class WidgetUpdater @Inject constructor(
         // captured when the widget's session was first established.
         val now = System.currentTimeMillis()
         bumpTickForEveryPlacedWidget(now)
-        try {
-            WeekLightWidget().updateAll(context)
-            WeekDarkWidget().updateAll(context)
-            TodayLightWidget().updateAll(context)
-            TodayDarkWidget().updateAll(context)
-            NextClassLightWidget().updateAll(context)
-            NextClassDarkWidget().updateAll(context)
-        } catch (_: Exception) {
-            // Fall through to the manual broadcast below.
+        coroutineScope {
+            GLANCE_WIDGET_FACTORIES.forEach { factory ->
+                launch {
+                    runCatching { factory().updateAll(context) }
+                }
+            }
         }
         // Belt-and-suspenders: poke each provider via the system's
         // ACTION_APPWIDGET_UPDATE broadcast too.
