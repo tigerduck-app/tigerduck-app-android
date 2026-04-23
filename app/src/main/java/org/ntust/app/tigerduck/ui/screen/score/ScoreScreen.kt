@@ -4,9 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,7 +27,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -42,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import kotlin.math.roundToInt
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.CreditSummary
 import org.ntust.app.tigerduck.data.model.CreditType
@@ -49,19 +47,18 @@ import org.ntust.app.tigerduck.data.model.GradeStatus
 import org.ntust.app.tigerduck.data.model.SemesterRanking
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
-import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScoreScreen(viewModel: ScoreViewModel = hiltViewModel()) {
-    val report by viewModel.report.collectAsState()
-    val isRefreshing by viewModel.isRefreshing.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
-    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
-    val rankingScope by viewModel.rankingScope.collectAsState()
-    val collapsedTerms by viewModel.collapsedTerms.collectAsState()
+    val report by viewModel.report.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
+    val rankingScope by viewModel.rankingScope.collectAsStateWithLifecycle()
+    val collapsedTerms by viewModel.collapsedTerms.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) { viewModel.load() }
 

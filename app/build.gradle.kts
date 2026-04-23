@@ -52,10 +52,6 @@ android {
         compose = true
         buildConfig = true
     }
-
-    ksp {
-        arg("room.schemaLocation", "$projectDir/schemas")
-    }
 }
 
 dependencies {
@@ -77,11 +73,6 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    // Room
-    implementation(libs.room.runtime)
-    implementation(libs.room.ktx)
-    ksp(libs.room.compiler)
-
     // Network
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
@@ -96,9 +87,6 @@ dependencies {
 
     // QR Code
     implementation(libs.zxing.core)
-
-    // Image loading
-    implementation(libs.coil.compose)
 
     // In-app browser (Custom Tabs)
     implementation(libs.androidx.browser)

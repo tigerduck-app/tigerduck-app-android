@@ -26,24 +26,6 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getInt("accentColorHex", 0x007AFF)
         set(value) = prefs.edit().putInt("accentColorHex", value).apply()
 
-    var rememberAnnouncementFilter: Boolean
-        get() = prefs.getBoolean("rememberAnnouncementFilter", false)
-        set(value) = prefs.edit().putBoolean("rememberAnnouncementFilter", value).apply()
-
-    var savedAnnouncementDepartments: Set<String>
-        get() {
-            val json = prefs.getString("savedAnnouncementDepartments", null) ?: return emptySet()
-            return try {
-                val type = object : TypeToken<List<String>>() {}.type
-                (gson.fromJson<List<String>>(json, type) ?: emptyList()).toSet()
-            } catch (e: Exception) {
-                emptySet()
-            }
-        }
-        set(value) {
-            prefs.edit().putString("savedAnnouncementDepartments", gson.toJson(value.toList())).apply()
-        }
-
     var browserPreference: String
         get() = prefs.getString("browserPreference", "system") ?: "system"
         set(value) = prefs.edit().putString("browserPreference", value).apply()
@@ -117,6 +99,20 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
 
     fun clearSsoTimestamp() {
         prefs.edit().remove("ssoLoginTimestamp").apply()
+    }
+
+    /**
+     * Monotonic version for on-device user-data layout. Bumped whenever the
+     * app ships a change that needs a one-shot migration (see DataMigration).
+     * 0 covers every pre-migration-system build (fresh install or upgrade).
+     */
+    var dataSchemaVersion: Int
+        get() = prefs.getInt("dataSchemaVersion", 0)
+        set(value) = prefs.edit().putInt("dataSchemaVersion", value).apply()
+
+    /** Wipe every pref key. Used by the full-reset flow only. */
+    fun clearAllPrefs() {
+        prefs.edit().clear().apply()
     }
 
     /** Semester the user last viewed in 課表. Null until first pick. */

@@ -2,7 +2,6 @@ package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.content.Intent
 import org.ntust.app.tigerduck.BuildConfig
-import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -117,8 +116,10 @@ fun SettingsScreen(
                         HorizontalDivider()
                         val expiryMs = viewModel.libraryTokenExpiry
                         val expirySubtitle = if (isLibraryLoggedIn && expiryMs > 0) {
-                            "Token 有效至 " +
-                                SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()).format(Date(expiryMs))
+                            val fmt = SimpleDateFormat("yyyy/MM/dd", Locale.TAIWAN).apply {
+                                timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
+                            }
+                            "Token 有效至 " + fmt.format(Date(expiryMs))
                         } else null
                         AccountRow(
                             title = "圖書館系統",

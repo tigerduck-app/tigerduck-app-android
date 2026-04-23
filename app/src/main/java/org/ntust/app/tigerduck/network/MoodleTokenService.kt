@@ -113,7 +113,9 @@ class MoodleTokenService @Inject constructor(
             .addQueryParameter("passport", passport.toString())
             .addQueryParameter("urlscheme", "moodlemobile")
             .build()
-        Log.i("MoodleTokenService", "launch GET $launchUrl")
+        // `launchUrl` carries the `passport` HMAC key in its query; never log the
+        // full URL. Emit a redacted hint instead.
+        Log.i("MoodleTokenService", "launch GET ${launchUrl.redactForLog()}")
         val (html, finalUrl) = getPage(launchUrl)
         resolveTokenTriple(
             html = html,
@@ -146,7 +148,7 @@ class MoodleTokenService @Inject constructor(
         parseOIDCBridge(html)?.let { bridge ->
             val url = responseUrl.resolve(bridge.action)
                 ?: throw MoodleWebserviceError.MalformedResponse("Invalid bridge action: ${bridge.action}")
-            Log.i("MoodleTokenService", "posting OIDC bridge → $url")
+            Log.i("MoodleTokenService", "posting OIDC bridge → ${url.redactForLog()}")
             val (nextHtml, nextUrl) = postForm(url, bridge.payload, referer = responseUrl.toString())
             return resolveTokenTriple(nextHtml, nextUrl, studentId, password, remainingSteps - 1)
         }
@@ -174,7 +176,7 @@ class MoodleTokenService @Inject constructor(
                 "ReturnUrl" to fields.returnUrl,
                 "Uri" to fields.uri,
             )
-            Log.i("MoodleTokenService", "posting SSO login → $postUrl")
+            Log.i("MoodleTokenService", "posting SSO login → ${postUrl.redactForLog()}")
             val (nextHtml, nextUrl) = postForm(
                 url = postUrl,
                 fields = payload,
@@ -356,6 +358,18 @@ class MoodleTokenService @Inject constructor(
             if (text.isNotEmpty()) return text
         }
         return null
+    }
+
+    // Named `redactForLog` so it doesn't shadow OkHttp's HttpUrl.redact() member.
+    private fun HttpUrl.redactForLog(): String {
+        val sensitive = setOf("passport", "wstoken", "token", "code", "state")
+        val builder = newBuilder()
+        for (name in queryParameterNames) {
+            if (name.lowercase() in sensitive) {
+                builder.setQueryParameter(name, "***")
+            }
+        }
+        return builder.build().toString()
     }
 
     private fun decodeHtmlEntities(s: String): String = s

@@ -1,7 +1,5 @@
 package org.ntust.app.tigerduck.ui.navigation
 
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -17,6 +15,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.AppConstants
 import java.time.Instant
 import androidx.navigation.NavType
@@ -25,7 +25,6 @@ import androidx.navigation.navArgument
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
-import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementsScreen
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarScreen
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableScreen
 import org.ntust.app.tigerduck.ui.screen.home.HomeScreen
@@ -59,6 +58,32 @@ fun AppNavigation(appState: AppState) {
     } else {
         MainNavigation(appState)
         PermissionWarningDialogHost(appState.systemPermissions)
+    }
+
+    val needsReset by appState.needsUserReset.collectAsStateWithLifecycle()
+    if (needsReset) {
+        // Non-dismissable: the app is in an unrecoverable data state, so the
+        // only way forward is to reset and walk through onboarding again.
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("需要重新設定") },
+            text = {
+                Text(
+                    "您的登入狀態與偏好設定已無法讀取，" +
+                        "可能因為裝置升級、備份還原或儲存空間異常。\n\n" +
+                        "請點選「重新設定」以清除舊資料，然後重新登入並重新配置偏好。"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { appState.performFullReset() }) {
+                    Text("重新設定")
+                }
+            },
+            properties = DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+            ),
+        )
     }
 }
 

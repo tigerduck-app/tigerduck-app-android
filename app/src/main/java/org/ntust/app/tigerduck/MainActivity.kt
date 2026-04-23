@@ -42,7 +42,10 @@ class MainActivity : ComponentActivity() {
         volumeControlStream = AudioManager.STREAM_NOTIFICATION
 
         requestNotificationPermissionIfNeeded()
-        if (authService.storedStudentId != null) {
+        // Only schedule on the first Activity creation. WorkManager.UPDATE would
+        // be idempotent, but re-enqueuing on every rotation/config change is
+        // wasted work (and thrashes WorkManager's internal bookkeeping DB).
+        if (savedInstanceState == null && authService.storedStudentId != null) {
             BackgroundSyncWorker.schedule(applicationContext)
         }
 

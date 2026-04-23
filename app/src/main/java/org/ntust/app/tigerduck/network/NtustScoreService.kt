@@ -81,6 +81,7 @@ class NtustScoreService @Inject constructor(
     private fun get(url: String): Pair<String, String> {
         val request = Request.Builder().url(url).get().build()
         client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw NtustScoreError.InvalidResponse
             val html = response.body?.string() ?: throw NtustScoreError.InvalidResponse
             return html to response.request.url.host
         }

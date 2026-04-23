@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.ui.component.PageHeader
@@ -36,12 +37,12 @@ import java.util.Locale
 fun CalendarScreen(
     viewModel: CalendarViewModel = hiltViewModel()
 ) {
-    val events by viewModel.events.collectAsState()
-    val selectedDate by viewModel.selectedDate.collectAsState()
-    val displayedMonth by viewModel.displayedMonth.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
-    val dayEvents by viewModel.selectedDateEvents.collectAsState()
+    val events by viewModel.events.collectAsStateWithLifecycle()
+    val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
+    val displayedMonth by viewModel.displayedMonth.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
+    val dayEvents by viewModel.selectedDateEvents.collectAsStateWithLifecycle()
 
     var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -252,7 +253,11 @@ private fun MonthCalendar(
 
 @Composable
 private fun EventRow(event: CalendarEvent) {
-    val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val timeFmt = remember {
+        SimpleDateFormat("HH:mm", Locale.TAIWAN).apply {
+            timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
+        }
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()

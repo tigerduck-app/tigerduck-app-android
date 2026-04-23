@@ -43,10 +43,15 @@ class NtustSessionManager @Inject constructor(
     }
 
     private val loggingInterceptor = HttpLoggingInterceptor { message ->
-        Log.d("TigerDuck-HTTP", message)
+        Log.d("TigerDuck-HTTP", redactSensitive(message))
     }.apply {
         level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
                 else HttpLoggingInterceptor.Level.NONE
+        // Session cookies and wstoken can appear in these headers; mask them
+        // even in debug so logcat doesn't carry long-lived credentials.
+        redactHeader("Cookie")
+        redactHeader("Set-Cookie")
+        redactHeader("Authorization")
     }
 
     val client: OkHttpClient = OkHttpClient.Builder()
@@ -81,6 +86,12 @@ class NtustSessionManager @Inject constructor(
 
     companion object {
         private const val COOKIE_TTL_MS = 3600_000L // 1 hour
+
+        private val SENSITIVE_PARAM_REGEX =
+            Regex("""\b(wstoken|passport|token|code|state|password|Password)=([^&\s"]+)""")
+
+        fun redactSensitive(message: String): String =
+            SENSITIVE_PARAM_REGEX.replace(message) { m -> "${m.groupValues[1]}=***" }
     }
 
     val cookiesValid: Boolean

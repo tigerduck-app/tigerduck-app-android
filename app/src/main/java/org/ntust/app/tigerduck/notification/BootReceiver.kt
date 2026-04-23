@@ -7,9 +7,11 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import javax.inject.Inject
 
@@ -20,17 +22,21 @@ class BootReceiver : BroadcastReceiver() {
     @Inject lateinit var classPreparingScheduler: ClassPreparingNotificationScheduler
     @Inject lateinit var liveActivityPreferences: LiveActivityPreferences
     @Inject lateinit var dataCache: DataCache
+    @Inject lateinit var appPreferences: AppPreferences
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
 
         val pendingResult = goAsync()
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        scope.launch {
             try {
                 withTimeout(10_000) {
-                    val assignments = dataCache.loadAssignments()
-                    if (assignments.isNotEmpty()) {
-                        scheduler.scheduleAll(assignments)
+                    if (appPreferences.notifyAssignments) {
+                        val assignments = dataCache.loadAssignments()
+                        if (assignments.isNotEmpty()) {
+                            scheduler.scheduleAll(assignments)
+                        }
                     }
                     if (liveActivityPreferences.isEnabled && liveActivityPreferences.showClassPreparing) {
                         val courses = dataCache.loadCourses()
@@ -48,6 +54,7 @@ class BootReceiver : BroadcastReceiver() {
                 android.util.Log.w("BootReceiver", "Boot rescheduling failed", e)
             } finally {
                 pendingResult.finish()
+                scope.cancel()
             }
         }
     }

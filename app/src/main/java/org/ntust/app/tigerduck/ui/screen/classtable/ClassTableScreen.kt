@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -48,11 +49,11 @@ import org.ntust.app.tigerduck.ui.theme.courseColorPaletteDark
 fun ClassTableScreen(
     viewModel: ClassTableViewModel = hiltViewModel()
 ) {
-    val courses by viewModel.courses.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
-    val currentMinute by viewModel.currentMinute.collectAsState()
-    val selectedCourse by viewModel.selectedCourse.collectAsState()
+    val courses by viewModel.courses.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
+    val currentMinute by viewModel.currentMinute.collectAsStateWithLifecycle()
+    val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
     val todayCourses = remember(courses, currentMinute) { viewModel.todayCourses }
     val ongoingCourse = remember(courses, currentMinute) { viewModel.ongoingCourse }
     val activePeriods = remember(courses) { viewModel.activePeriods }
@@ -119,7 +120,7 @@ fun ClassTableScreen(
             // Today's courses carousel — only meaningful when the user is
             // viewing the live semester. Past semesters are historical
             // records, so "現在課程 / 今日課程" don't apply there.
-            val selectedSemester by viewModel.currentSemester.collectAsState()
+            val selectedSemester by viewModel.currentSemester.collectAsStateWithLifecycle()
             val isLiveSemester = selectedSemester == viewModel.liveSemesterCode
             if (isLiveSemester && todayCourses.isNotEmpty()) {
                 SectionHeader(title = "今日課程")
@@ -334,7 +335,7 @@ fun ClassTableScreen(
         ModalBottomSheet(
             onDismissRequest = { showAddCourse = false }
         ) {
-            val currentSemester by viewModel.currentSemester.collectAsState()
+            val currentSemester by viewModel.currentSemester.collectAsStateWithLifecycle()
             AddCourseSheet(
                 semester = currentSemester,
                 existingCourseNos = viewModel.existingCourseNos,

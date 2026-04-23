@@ -33,9 +33,13 @@ class LiveActivityManager @Inject constructor(
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var boundaryJob: Job? = null
     private var refreshJob: Job? = null
+    // Hold a reference so `stop()` can halt preference-driven refreshes too;
+    // otherwise a `preferences.changeEvent` arriving after `stop()` would
+    // silently resurrect the notifier machinery.
+    private var prefsCollectorJob: Job? = null
 
     init {
-        scope.launch {
+        prefsCollectorJob = scope.launch {
             preferences.changeEvent.collect { refresh() }
         }
     }
@@ -83,6 +87,8 @@ class LiveActivityManager @Inject constructor(
     }
 
     fun stop() {
+        prefsCollectorJob?.cancel()
+        prefsCollectorJob = null
         boundaryJob?.cancel()
         refreshJob?.cancel()
         notifier.cancel()

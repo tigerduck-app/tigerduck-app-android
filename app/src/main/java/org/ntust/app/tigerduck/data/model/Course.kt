@@ -1,14 +1,10 @@
 package org.ntust.app.tigerduck.data.model
 
-import androidx.room.Entity
-import androidx.room.Ignore
-import androidx.room.PrimaryKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
-@Entity(tableName = "courses")
 data class Course(
-    @PrimaryKey val courseNo: String,
+    val courseNo: String,
     val courseName: String,
     val instructor: String = "",
     val credits: Int = 0,
@@ -21,7 +17,6 @@ data class Course(
     /** User-picked tile color as "#RRGGBB". Null means hash-based palette assignment. */
     val customColorHex: String? = null
 ) {
-    @Ignore
     @Transient
     @Volatile
     private var _cachedSchedule: Map<Int, List<String>>? = null

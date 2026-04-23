@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -51,7 +52,6 @@ import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.*
 import java.util.Calendar
-import java.util.Date
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -62,16 +62,16 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val sections by viewModel.sections.collectAsState()
-    val allCourses by viewModel.allCourses.collectAsState()
-    val upcomingAssignments by viewModel.upcomingAssignments.collectAsState()
-    val assignmentFilter by viewModel.assignmentFilter.collectAsState()
-    val ignoredAssignmentIds by viewModel.ignoredAssignmentIds.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
-    val selectedCourse by viewModel.selectedCourse.collectAsState()
+    val sections by viewModel.sections.collectAsStateWithLifecycle()
+    val allCourses by viewModel.allCourses.collectAsStateWithLifecycle()
+    val upcomingAssignments by viewModel.upcomingAssignments.collectAsStateWithLifecycle()
+    val assignmentFilter by viewModel.assignmentFilter.collectAsStateWithLifecycle()
+    val ignoredAssignmentIds by viewModel.ignoredAssignmentIds.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
+    val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
     // 翹課 feature disabled — kept for potential re-enable.
-    // val skippedDates by viewModel.skippedDates.collectAsState()
+    // val skippedDates by viewModel.skippedDates.collectAsStateWithLifecycle()
     var showComingSoon by remember { mutableStateOf(false) }
     var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -438,7 +438,7 @@ private fun HomeSectionContent(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(section.widgets) { widget ->
+                        items(section.widgets, key = { it.id }) { widget ->
                             Card(
                                 modifier = Modifier
                                     .size(80.dp)

@@ -1,16 +1,9 @@
 package org.ntust.app.tigerduck.data.model
 
-import androidx.room.Entity
-import androidx.room.Index
-import androidx.room.PrimaryKey
 import java.util.Date
 
-@Entity(
-    tableName = "assignments",
-    indices = [Index("dueDate"), Index("courseNo")]
-)
 data class Assignment(
-    @PrimaryKey val assignmentId: String,
+    val assignmentId: String,
     val courseNo: String,
     val courseName: String,
     val title: String,

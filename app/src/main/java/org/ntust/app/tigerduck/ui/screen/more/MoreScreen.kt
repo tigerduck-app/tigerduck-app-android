@@ -5,22 +5,18 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import org.ntust.app.tigerduck.data.model.AppFeature
-import org.ntust.app.tigerduck.data.model.FeatureCategory
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.ComingSoonDialog
 import org.ntust.app.tigerduck.ui.component.PageHeader
@@ -133,7 +129,11 @@ private fun FeatureGrid(
                     Card(
                         onClick = {
                             if (feature in implementedFeatures) {
-                                navController.navigate(feature.toRoute())
+                                // Tapping the same tile twice would otherwise stack two
+                                // copies of the destination on the back stack.
+                                navController.navigate(feature.toRoute()) {
+                                    launchSingleTop = true
+                                }
                             } else {
                                 onNotImplemented()
                             }
