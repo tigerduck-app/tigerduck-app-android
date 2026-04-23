@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.text.SimpleDateFormat
@@ -62,8 +63,7 @@ fun TimeSliderSection(
     onSkipCourse: (Course, Date) -> Unit = { _, _ -> },
     onSelectCourse: (Course) -> Unit
 ) {
-    val sliderScope = rememberCoroutineScope()
-    val viewModel = remember(sliderScope) { TimeSliderViewModel(sliderScope) }
+    val viewModel = remember { TimeSliderViewModel() }
 
     LaunchedEffect(courses.map { it.courseNo }) {
         viewModel.configure(courses)
@@ -78,9 +78,13 @@ fun TimeSliderSection(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Header
+        // Header — fixed height so the 現在 chip appearing doesn't push
+        // the slider and course card below it downward.
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(32.dp)
+                .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -94,13 +98,7 @@ fun TimeSliderSection(
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
-                FilledTonalButton(
-                    onClick = { viewModel.returnToNow() },
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Text("現在", style = MaterialTheme.typography.labelMedium)
-                }
+                JumpToNowChip(label = "現在", onClick = { viewModel.returnToNow() })
             }
         }
 

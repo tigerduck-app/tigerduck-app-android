@@ -23,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.data.model.CalendarEvent
+import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
@@ -82,9 +83,8 @@ fun CalendarScreen(
                         showCheckmark = showCheckmark,
                         dragProgress = pullProgress,
                     )
-                    TextButton(onClick = { viewModel.goToToday() }) {
-                        Text("今天", style = MaterialTheme.typography.labelMedium)
-                    }
+                    Spacer(Modifier.width(8.dp))
+                    JumpToNowChip(label = "今天", onClick = { viewModel.goToToday() })
                 }
             }
 

@@ -9,7 +9,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.ntust.app.tigerduck.data.model.Course
-import kotlinx.coroutines.*
 import java.util.Calendar
 import java.util.Date
 import kotlin.math.abs
@@ -18,7 +17,7 @@ import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
 
-class TimeSliderViewModel(private val scope: CoroutineScope) {
+class TimeSliderViewModel {
 
     var timeSlots by mutableStateOf<List<CourseTimeSlot>>(emptyList())
         private set
@@ -31,7 +30,6 @@ class TimeSliderViewModel(private val scope: CoroutineScope) {
     private var allCourses: List<Course> = emptyList()
     private var timelineCenterDate: Date = Date()
     private var lastHapticSlot: Int = 0
-    private var autoReturnJob: Job? = null
 
     // Compressed position cache
     private var anchors: List<Pair<Date, Float>> = emptyList()
@@ -166,13 +164,11 @@ class TimeSliderViewModel(private val scope: CoroutineScope) {
 
     fun onDragStarted() {
         isUserDragging = true
-        autoReturnJob?.cancel()
         lastHapticSlot = hapticSlot(selectedTime)
     }
 
     fun onDragChanged(dx: Float, invertDirection: Boolean, context: Context?) {
         if (!isUserDragging) onDragStarted()
-        autoReturnJob?.cancel()
         val direction = if (invertDirection) 1f else -1f
 
         val currentX = interpolateX(selectedTime)
@@ -225,22 +221,13 @@ class TimeSliderViewModel(private val scope: CoroutineScope) {
     }
 
     fun onDragEnded() {
-        startAutoReturn()
+        // Keep the user's selected time in place. The 現在 button remains
+        // visible (isUserDragging stays true) until the user taps it.
     }
 
     fun returnToNow() {
-        autoReturnJob?.cancel()
         isUserDragging = false
         selectedTime = Date()
-    }
-
-    private fun startAutoReturn() {
-        autoReturnJob?.cancel()
-        autoReturnJob = scope.launch {
-            delay(5000)
-            isUserDragging = false
-            selectedTime = Date()
-        }
     }
 
     private fun performHaptic(context: Context) {
