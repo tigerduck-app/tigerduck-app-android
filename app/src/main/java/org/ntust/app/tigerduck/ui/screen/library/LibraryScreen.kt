@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -120,7 +122,11 @@ fun LibraryScreen(
                 password = libPassword,
                 isLoggingIn = isLoggingIn,
                 onUsernameChange = { libUsername = it.uppercase() },
-                onPasswordChange = { libPassword = it },
+                // Library credentials are provisioned against an ASCII-only
+                // backend — strip anything the IME or paste inserts outside
+                // printable ASCII so silent non-ASCII chars can't poison the
+                // login attempt.
+                onPasswordChange = { libPassword = it.filter { ch -> ch.code in 0x20..0x7E } },
                 onSubmit = { viewModel.loginAndRefresh(libUsername, libPassword) }
             )
         }
@@ -308,7 +314,19 @@ private fun LoginPromptCard(
                 label = { Text("圖書館密碼") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                // Match the NTUST login fields (LoginSheet / OnboardingScreen):
+                // ASCII-only keyboard + no autocorrect. The onPasswordChange
+                // filter also strips any non-ASCII the IME or paste slips in.
+                keyboardOptions = KeyboardOptions(
+                    autoCorrect = false,
+                    keyboardType = KeyboardType.Ascii,
+                    capitalization = KeyboardCapitalization.None,
+                    imeAction = ImeAction.Go,
+                ),
+                keyboardActions = KeyboardActions(onGo = {
+                    if (username.isNotBlank() && password.isNotBlank() && !isLoggingIn) onSubmit()
+                }),
             )
             Button(
                 onClick = onSubmit,
