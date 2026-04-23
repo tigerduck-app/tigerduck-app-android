@@ -1,5 +1,10 @@
 package org.ntust.app.tigerduck.ui.navigation
 
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,8 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
@@ -120,7 +124,7 @@ fun MainNavigation(appState: AppState) {
         else -> currentRoute
     }
 
-    val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
     val bottomItems = configuredTabs + listOf(AppFeature.MORE)
     val startDest = remember { configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route }
 
@@ -153,7 +157,7 @@ fun MainNavigation(appState: AppState) {
                         label = { Text(feature.displayName) },
                         selected = selectedTabRoute == route,
                         onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            performTabSwitchHaptic(context)
                             navController.navigate(route) {
                                 popUpTo(startDest) {
                                     inclusive = false
@@ -217,6 +221,32 @@ fun MainNavigation(appState: AppState) {
             }
         }
     }
+}
+
+// Intentionally lighter than the old HapticFeedbackType.TextHandleMove
+// default but still a notch heavier than 時光機's PRIMITIVE_TICK @ 0.6 so the
+// tab switch remains distinct from the slider drag.
+private fun performTabSwitchHaptic(context: Context) {
+    try {
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        } ?: return
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            vibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_CLICK)
+        ) {
+            val effect = VibrationEffect.startComposition()
+                .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.75f)
+                .compose()
+            vibrator.vibrate(effect)
+        } else {
+            val amp = if (vibrator.hasAmplitudeControl()) 180 else VibrationEffect.DEFAULT_AMPLITUDE
+            vibrator.vibrate(VibrationEffect.createOneShot(14, amp))
+        }
+    } catch (_: Exception) { }
 }
 
 fun AppFeature.toRoute(): String = when (this) {
