@@ -9,6 +9,5 @@
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen"
-    android:previewLayout="@layout/widget_preview_next_class_light"
     android:label="@string/widget_next_class_light_label"
     android:description="@string/widget_next_class_light_desc" />

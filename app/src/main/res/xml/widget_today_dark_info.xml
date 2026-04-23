@@ -7,6 +7,5 @@
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen"
-    android:previewLayout="@layout/widget_preview_today_dark"
     android:label="@string/widget_today_dark_label"
     android:description="@string/widget_today_dark_desc" />
