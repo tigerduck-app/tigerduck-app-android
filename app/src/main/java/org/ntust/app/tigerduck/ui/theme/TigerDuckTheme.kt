@@ -2,12 +2,15 @@ package org.ntust.app.tigerduck.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import org.ntust.app.tigerduck.data.model.Course
 import kotlin.random.Random
 
@@ -212,13 +215,13 @@ private val LightColorScheme = lightColorScheme(
     tertiary = Color(0xFF5AC8FA),
     onTertiary = Color.White,
 
-    background = Color(0xFFF2F2F7),      // iOS systemGroupedBackground
+    background = Color.White,            // page background
     onBackground = Color(0xFF1C1C1E),
 
-    surface = Color.White,               // cards
+    surface = Color(0xFFF2F2F7),         // cards (pale gray on white background)
     onSurface = Color(0xFF1C1C1E),
 
-    surfaceVariant = Color(0xFFE9E9EE),  // subtle fills (chips, disabled bg)
+    surfaceVariant = Color(0xFFE5E5EA),  // subtle fills, slightly darker than surface
     onSurfaceVariant = Color(0xFF5B5F68),
 
     outline = Color(0xFFC6C6C8),         // iOS separator
@@ -240,7 +243,7 @@ private val DarkColorScheme = darkColorScheme(
 
     secondary = Color(0xFFAEAEB2),
     onSecondary = Color(0xFF2C2C2E),
-    secondaryContainer = Color(0xFF2C2C2E),
+    secondaryContainer = Color(0xFF3A3A3C),
     onSecondaryContainer = Color(0xFFE5E5EA),
 
     tertiary = Color(0xFF64D2FF),
@@ -249,14 +252,14 @@ private val DarkColorScheme = darkColorScheme(
     background = Color(0xFF000000),      // iOS systemBackground (dark)
     onBackground = Color.White,
 
-    surface = Color(0xFF1C1C1E),         // cards
+    surface = Color(0xFF3A3A3C),         // cards (brighter gray so they stand out on black)
     onSurface = Color.White,
 
-    surfaceVariant = Color(0xFF2C2C2E),
-    onSurfaceVariant = Color(0xFFAEAEB2),
+    surfaceVariant = Color(0xFF48484A),
+    onSurfaceVariant = Color(0xFFC7C7CC),
 
-    outline = Color(0xFF38383A),
-    outlineVariant = Color(0xFF2C2C2E),
+    outline = Color(0xFF5A5A5C),
+    outlineVariant = Color(0xFF3A3A3C),
 
     error = Color(0xFFEF4444),
     onError = Color.White,
@@ -265,6 +268,29 @@ private val DarkColorScheme = darkColorScheme(
 
     surfaceTint = Color(0xFF0A84FF),
 )
+
+// Larger + bolder take on the Material 3 default type scale. Font sizes are
+// bumped ~2sp across the board and every slot is at least SemiBold so text
+// reads as emphatic throughout the app.
+private val TigerDuckTypography: Typography = Typography().let { default ->
+    Typography(
+        displayLarge = default.displayLarge.copy(fontSize = 60.sp, fontWeight = FontWeight.Bold),
+        displayMedium = default.displayMedium.copy(fontSize = 48.sp, fontWeight = FontWeight.Bold),
+        displaySmall = default.displaySmall.copy(fontSize = 38.sp, fontWeight = FontWeight.Bold),
+        headlineLarge = default.headlineLarge.copy(fontSize = 34.sp, fontWeight = FontWeight.Bold),
+        headlineMedium = default.headlineMedium.copy(fontSize = 30.sp, fontWeight = FontWeight.Bold),
+        headlineSmall = default.headlineSmall.copy(fontSize = 26.sp, fontWeight = FontWeight.Bold),
+        titleLarge = default.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold),
+        titleMedium = default.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
+        titleSmall = default.titleSmall.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+        bodyLarge = default.bodyLarge.copy(fontSize = 18.sp, fontWeight = FontWeight.Medium),
+        bodyMedium = default.bodyMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium),
+        bodySmall = default.bodySmall.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
+        labelLarge = default.labelLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+        labelMedium = default.labelMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+        labelSmall = default.labelSmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+    )
+}
 
 @Composable
 fun TigerDuckAppTheme(
@@ -280,6 +306,7 @@ fun TigerDuckAppTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
+        typography = TigerDuckTypography,
         content = content
     )
 }
