@@ -133,12 +133,8 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
             else -> {
                 val name = state.tomorrowFirstCourseName
                 val time = state.tomorrowFirstCourseTime
-                Text(
-                    text = "已下課",
-                    style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 12.sp, fontWeight = FontWeight.Bold),
-                )
-                Spacer(GlanceModifier.width(8.dp))
-                Column(modifier = GlanceModifier.defaultWeight()) {
+                Spacer(GlanceModifier.defaultWeight())
+                Column(horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
                     Text(
                         text = name ?: "今日課程已結束",
                         style = TextStyle(color = ColorProvider(colors.onSurface), fontSize = 15.sp, fontWeight = FontWeight.Bold),
@@ -152,6 +148,7 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                         )
                     }
                 }
+                Spacer(GlanceModifier.defaultWeight())
             }
         }
     }
@@ -161,48 +158,63 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
 private fun FullLayout(state: WidgetState, colors: WidgetColors, tapAction: Action) {
     val ongoing = state.ongoingCourseNos.mapNotNull { no -> state.courses.find { it.courseNo == no } }
     val heightDp = LocalSize.current.height.value
-    // Stay at 1.0 up to ~170dp so the default 2-cell-tall widget doesn't
-    // inflate past its bounds; only scale up when the user makes it larger.
-    val scale = ((heightDp - 170f) / 160f + 1f).coerceIn(1f, 2.2f)
-    val pad = (12f * scale).dp
+    // Widget is resizable between 2-cell (~110dp) and 4-cell (~250dp) heights.
+    // A midpoint threshold picks the right variant regardless of whether the
+    // widget is at its narrow (2-cell wide) or wide (3-cell wide) size.
+    val tall = heightDp >= 180f
+
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(ColorProvider(colors.background))
-            .padding(pad)
+            .padding(12.dp)
             .clickable(tapAction),
     ) {
         when {
             !state.isLoggedIn -> {
                 Text(
                     text = "請先登入 TigerDuck",
-                    style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = (15f * scale).sp),
+                    style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 15.sp),
                 )
             }
 
-            ongoing.size >= 2 -> {
-                // Fixed, compact layout so both cards fit in the default
-                // 2-cell-tall widget. Scaling intentionally omitted — the
-                // two-card case trades extra whitespace for guaranteed fit.
-                OngoingMiniCard(ongoing[0], state, colors)
-                Spacer(GlanceModifier.height(6.dp))
-                OngoingMiniCard(ongoing[1], state, colors)
+            ongoing.size >= 2 && tall -> {
+                // Two stacked full-size ongoing cards, each owning half the
+                // widget height via defaultWeight so the progress bars
+                // naturally fall to the bottom of their halves.
+                Column(modifier = GlanceModifier.defaultWeight()) {
+                    OngoingCard(ongoing[0], state, colors)
+                }
+                Spacer(GlanceModifier.height(12.dp))
+                Column(modifier = GlanceModifier.defaultWeight()) {
+                    OngoingCard(ongoing[1], state, colors)
+                }
             }
 
-            ongoing.size == 1 -> OngoingCard(ongoing[0], state, colors, scale)
+            ongoing.size >= 2 -> {
+                // Default 2-cell height: compact mini cards, evenly
+                // distributed so the gap above, between, and below matches.
+                Spacer(GlanceModifier.defaultWeight())
+                OngoingMiniCard(ongoing[0], state, colors)
+                Spacer(GlanceModifier.defaultWeight())
+                OngoingMiniCard(ongoing[1], state, colors)
+                Spacer(GlanceModifier.defaultWeight())
+            }
+
+            ongoing.size == 1 -> OngoingCard(ongoing[0], state, colors)
 
             state.nextCourseTodayNo != null -> {
                 val course = state.courses.find { it.courseNo == state.nextCourseTodayNo }
-                if (course != null) NextCard(course, state, colors, scale)
+                if (course != null) NextCard(course, state, colors)
             }
 
-            else -> TomorrowCard(state, colors, scale)
+            else -> TomorrowCard(state, colors)
         }
     }
 }
 
 @Composable
-private fun OngoingCard(course: Course, state: WidgetState, colors: WidgetColors, scale: Float) {
+private fun OngoingCard(course: Course, state: WidgetState, colors: WidgetColors) {
     val order = AppConstants.Periods.chronologicalOrder
     val weekday = state.currentWeekday
     val periods = course.schedule[weekday]?.sortedBy { order.indexOf(it) } ?: emptyList()
@@ -216,53 +228,56 @@ private fun OngoingCard(course: Course, state: WidgetState, colors: WidgetColors
     } else 0f
     val periodRange = if (periods.size > 1) "${periods.first()}–${periods.last()}" else periods.firstOrNull() ?: ""
 
-    Box(
-        modifier = GlanceModifier
-            .background(ColorProvider(colors.highlight))
-            .cornerRadius(12.dp)
-            .padding(horizontal = (10f * scale).dp, vertical = (3f * scale).dp),
-    ) {
-        Text(
-            text = "進行中",
-            style = TextStyle(color = ColorProvider(Color.White), fontSize = (12f * scale).sp, fontWeight = FontWeight.Bold),
-        )
-    }
-    Spacer(GlanceModifier.height((6f * scale).dp))
-    Text(
-        text = course.courseName,
-        style = TextStyle(
-            color = ColorProvider(colors.onSurface),
-            fontSize = (19f * scale).sp,
-            fontWeight = FontWeight.Bold,
-        ),
-        maxLines = (2 * scale).toInt().coerceAtLeast(2),
-    )
-    Spacer(GlanceModifier.height((3f * scale).dp))
-    Text(
-        text = "$startTime–$endTime  $periodRange",
-        style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = (13f * scale).sp),
-    )
-    if (course.classroom.isNotEmpty()) {
-        Text(
-            text = course.classroom,
-            style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = (13f * scale).sp),
-        )
-    }
-    Spacer(GlanceModifier.height((10f * scale).dp))
-    val widgetWidth = LocalSize.current.width
-    val filledWidth = (widgetWidth.value * progress - 24f * scale).coerceAtLeast(0f).dp
-    val barHeight = (5f * scale).dp
-    val barRadius = (2.5f * scale).dp
-    Row(
-        modifier = GlanceModifier.fillMaxWidth().height(barHeight)
-            .background(ColorProvider(colors.emptyCell))
-            .cornerRadius(barRadius),
-    ) {
+    Column(modifier = GlanceModifier.fillMaxSize()) {
         Box(
-            modifier = GlanceModifier.width(filledWidth).fillMaxHeight()
+            modifier = GlanceModifier
                 .background(ColorProvider(colors.highlight))
-                .cornerRadius(barRadius),
-        ) {}
+                .cornerRadius(12.dp)
+                .padding(horizontal = 10.dp, vertical = 3.dp),
+        ) {
+            Text(
+                text = "進行中",
+                style = TextStyle(color = ColorProvider(Color.White), fontSize = 12.sp, fontWeight = FontWeight.Bold),
+            )
+        }
+        Spacer(GlanceModifier.height(6.dp))
+        Text(
+            text = course.courseName,
+            style = TextStyle(
+                color = ColorProvider(colors.onSurface),
+                fontSize = 19.sp,
+                fontWeight = FontWeight.Bold,
+            ),
+            maxLines = 2,
+        )
+        Spacer(GlanceModifier.height(3.dp))
+        Text(
+            text = "$startTime–$endTime  $periodRange",
+            style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 13.sp),
+        )
+        if (course.classroom.isNotEmpty()) {
+            Text(
+                text = course.classroom,
+                style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 13.sp),
+            )
+        }
+        // Weighted spacer pushes the progress bar to the bottom of whatever
+        // vertical space the caller allocates (full widget for the single
+        // -ongoing case, half for the tall two-ongoing case).
+        Spacer(GlanceModifier.defaultWeight())
+        val widgetWidth = LocalSize.current.width
+        val filledWidth = (widgetWidth.value * progress - 24f).coerceAtLeast(0f).dp
+        Row(
+            modifier = GlanceModifier.fillMaxWidth().height(5.dp)
+                .background(ColorProvider(colors.emptyCell))
+                .cornerRadius(2.5.dp),
+        ) {
+            Box(
+                modifier = GlanceModifier.width(filledWidth).fillMaxHeight()
+                    .background(ColorProvider(colors.highlight))
+                    .cornerRadius(2.5.dp),
+            ) {}
+        }
     }
 }
 
@@ -331,65 +346,72 @@ private fun OngoingMiniCard(course: Course, state: WidgetState, colors: WidgetCo
 }
 
 @Composable
-private fun NextCard(course: Course, state: WidgetState, colors: WidgetColors, scale: Float) {
+private fun NextCard(course: Course, state: WidgetState, colors: WidgetColors) {
     val order = AppConstants.Periods.chronologicalOrder
     val periods = course.schedule[state.currentWeekday]?.sortedBy { order.indexOf(it) } ?: emptyList()
     val startTime = periods.firstOrNull()?.let { AppConstants.PeriodTimes.mapping[it]?.first } ?: ""
 
     Text(
         text = "下一堂課",
-        style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = (13f * scale).sp, fontWeight = FontWeight.Bold),
+        style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 13.sp, fontWeight = FontWeight.Bold),
     )
-    Spacer(GlanceModifier.height((5f * scale).dp))
+    Spacer(GlanceModifier.height(5.dp))
     Text(
         text = course.courseName,
         style = TextStyle(
             color = ColorProvider(colors.onSurface),
-            fontSize = (19f * scale).sp,
+            fontSize = 19.sp,
             fontWeight = FontWeight.Bold,
         ),
-        maxLines = (2 * scale).toInt().coerceAtLeast(2),
+        maxLines = 2,
     )
     if (startTime.isNotEmpty()) {
         Text(
             text = startTime,
-            style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = (14f * scale).sp),
+            style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 14.sp),
         )
     }
     if (course.classroom.isNotEmpty()) {
         Text(
             text = course.classroom,
-            style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = (13f * scale).sp),
+            style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 13.sp),
         )
     }
 }
 
 @Composable
-private fun TomorrowCard(state: WidgetState, colors: WidgetColors, scale: Float) {
-    Text(
-        text = "今日課程已結束",
-        style = TextStyle(
-            color = ColorProvider(colors.onSurface),
-            fontSize = (16f * scale).sp,
-            fontWeight = FontWeight.Bold,
-        ),
-    )
-    val name = state.tomorrowFirstCourseName
-    val time = state.tomorrowFirstCourseTime
-    if (name != null && time != null) {
-        Spacer(GlanceModifier.height((10f * scale).dp))
-        Text(
-            text = "明天",
-            style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = (13f * scale).sp, fontWeight = FontWeight.Bold),
-        )
-        Text(
-            text = name,
-            style = TextStyle(color = ColorProvider(colors.onSurface), fontSize = (15f * scale).sp),
-            maxLines = 1,
-        )
-        Text(
-            text = time,
-            style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = (13f * scale).sp),
-        )
+private fun TomorrowCard(state: WidgetState, colors: WidgetColors) {
+    Box(
+        modifier = GlanceModifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
+            Text(
+                text = "今日課程已結束",
+                style = TextStyle(
+                    color = ColorProvider(colors.onSurface),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                ),
+            )
+            val name = state.tomorrowFirstCourseName
+            val time = state.tomorrowFirstCourseTime
+            if (name != null && time != null) {
+                Spacer(GlanceModifier.height(10.dp))
+                Text(
+                    text = "明天",
+                    style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 13.sp, fontWeight = FontWeight.Bold),
+                )
+                Text(
+                    text = name,
+                    style = TextStyle(color = ColorProvider(colors.onSurface), fontSize = 15.sp),
+                    maxLines = 1,
+                )
+                Text(
+                    text = time,
+                    style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 13.sp),
+                )
+            }
+        }
     }
 }
