@@ -8,7 +8,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +38,7 @@ import org.ntust.app.tigerduck.ui.component.CurrentClassCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
@@ -79,22 +79,15 @@ fun ClassTableScreen(
         }
     }
 
-    val pullRefreshState = rememberPullToRefreshState()
-    var pullRefreshing by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isLoading) {
-        if (!isLoading) pullRefreshing = false
-    }
+    var pullProgress by remember { mutableFloatStateOf(0f) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-    PullToRefreshBox(
-        state = pullRefreshState,
-        isRefreshing = pullRefreshing,
-        onRefresh = {
-            pullRefreshing = true
-            viewModel.refresh()
-        },
-        modifier = Modifier.fillMaxSize()
+    TigerPullToRefresh(
+        isRefreshing = isLoading,
+        onRefresh = { viewModel.refresh() },
+        onDragProgress = { pullProgress = it },
+        modifier = Modifier.fillMaxSize(),
+        refreshingMessage = "頁面正在刷新，別急～",
     ) {
         Column(
             modifier = Modifier
@@ -102,7 +95,11 @@ fun ClassTableScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             PageHeader(title = "課表") {
-                SyncIndicator(isLoading = isLoading, showCheckmark = showCheckmark)
+                SyncIndicator(
+                    isLoading = isLoading,
+                    showCheckmark = showCheckmark,
+                    dragProgress = pullProgress,
+                )
                 IconButton(
                     onClick = { showAddCourse = true },
                     enabled = isLoggedIn

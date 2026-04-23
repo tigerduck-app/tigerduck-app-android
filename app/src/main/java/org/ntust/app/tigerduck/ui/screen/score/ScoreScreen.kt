@@ -16,8 +16,6 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +46,7 @@ import org.ntust.app.tigerduck.data.model.SemesterRanking
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,21 +61,17 @@ fun ScoreScreen(viewModel: ScoreViewModel = hiltViewModel()) {
 
     LaunchedEffect(Unit) { viewModel.load() }
 
-    val pullState = rememberPullToRefreshState()
-    var pulling by remember { mutableStateOf(false) }
-    LaunchedEffect(isRefreshing) { if (!isRefreshing) pulling = false }
+    var pullProgress by remember { mutableFloatStateOf(0f) }
 
     var selectedCourse by remember { mutableStateOf<CourseGrade?>(null) }
 
     Box(Modifier.fillMaxSize()) {
-        PullToRefreshBox(
-            state = pullState,
-            isRefreshing = pulling,
-            onRefresh = {
-                pulling = true
-                viewModel.triggerRefresh()
-            },
-            modifier = Modifier.fillMaxSize()
+        TigerPullToRefresh(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.triggerRefresh() },
+            onDragProgress = { pullProgress = it },
+            modifier = Modifier.fillMaxSize(),
+            refreshingMessage = "頁面正在刷新，別急～",
         ) {
             Column(
                 modifier = Modifier
@@ -84,7 +79,11 @@ fun ScoreScreen(viewModel: ScoreViewModel = hiltViewModel()) {
                     .verticalScroll(rememberScrollState())
             ) {
                 PageHeader(title = "歷年成績") {
-                    SyncIndicator(isLoading = isRefreshing, showCheckmark = false)
+                    SyncIndicator(
+                        isLoading = isRefreshing,
+                        showCheckmark = false,
+                        dragProgress = pullProgress,
+                    )
                 }
 
                 when {

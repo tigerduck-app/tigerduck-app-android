@@ -23,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -117,22 +116,15 @@ fun HomeScreen(
         }
     }
 
-    val pullRefreshState = rememberPullToRefreshState()
-    var pullRefreshing by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isLoading) {
-        if (!isLoading) pullRefreshing = false
-    }
+    var pullProgress by remember { mutableFloatStateOf(0f) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        PullToRefreshBox(
-            state = pullRefreshState,
-            isRefreshing = pullRefreshing,
-            onRefresh = {
-                pullRefreshing = true
-                viewModel.refresh()
-            },
-            modifier = Modifier.fillMaxSize()
+        TigerPullToRefresh(
+            isRefreshing = isLoading,
+            onRefresh = { viewModel.refresh() },
+            onDragProgress = { pullProgress = it },
+            modifier = Modifier.fillMaxSize(),
+            refreshingMessage = "頁面正在刷新，別急～",
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -150,7 +142,11 @@ fun HomeScreen(
                                 Text("完成", fontWeight = FontWeight.SemiBold)
                             }
                         } else {
-                            SyncIndicator(isLoading = isLoading, showCheckmark = showCheckmark)
+                            SyncIndicator(
+                                isLoading = isLoading,
+                                showCheckmark = showCheckmark,
+                                dragProgress = pullProgress,
+                            )
                         }
                     }
                 }

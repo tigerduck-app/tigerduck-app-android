@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,6 +25,7 @@ import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -61,22 +61,15 @@ fun CalendarScreen(
         }
     }
 
-    val pullRefreshState = rememberPullToRefreshState()
-    var pullRefreshing by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isLoading) {
-        if (!isLoading) pullRefreshing = false
-    }
+    var pullProgress by remember { mutableFloatStateOf(0f) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-    PullToRefreshBox(
-        state = pullRefreshState,
-        isRefreshing = pullRefreshing,
-        onRefresh = {
-            pullRefreshing = true
-            viewModel.refresh()
-        },
-        modifier = Modifier.fillMaxSize()
+    TigerPullToRefresh(
+        isRefreshing = isLoading,
+        onRefresh = { viewModel.refresh() },
+        onDragProgress = { pullProgress = it },
+        modifier = Modifier.fillMaxSize(),
+        refreshingMessage = "頁面正在刷新，別急～",
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -84,7 +77,11 @@ fun CalendarScreen(
         ) {
             item {
                 PageHeader(title = "行事曆") {
-                    SyncIndicator(isLoading = isLoading, showCheckmark = showCheckmark)
+                    SyncIndicator(
+                        isLoading = isLoading,
+                        showCheckmark = showCheckmark,
+                        dragProgress = pullProgress,
+                    )
                     TextButton(onClick = { viewModel.goToToday() }) {
                         Text("今天", style = MaterialTheme.typography.labelMedium)
                     }
