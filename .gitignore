@@ -1,5 +1,6 @@
 # AI Tools
 .claude/settings.local.json
+.superpowers/
 
 # Created by https://www.toptal.com/developers/gitignore/api/linux,macos,kotlin,windows,intellij,visualstudio,visualstudiocode,python,pycharm,androidstudio,android,gradle,keystonejs,java
 # Edit at https://www.toptal.com/developers/gitignore?templates=linux,macos,kotlin,windows,intellij,visualstudio,visualstudiocode,python,pycharm,androidstudio,android,gradle,keystonejs,java
