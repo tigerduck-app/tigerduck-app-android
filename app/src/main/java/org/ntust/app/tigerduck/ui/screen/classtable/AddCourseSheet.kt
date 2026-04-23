@@ -297,7 +297,7 @@ private fun groupResults(results: List<CourseSearchResult>, courseService: Cours
                 credits = result.creditPoint.toIntOrNull() ?: 0,
                 classroom = result.classRoomNo ?: "",
                 enrolledCount = result.chooseStudent ?: 0,
-                maxCount = result.restrict1?.toIntOrNull() ?: 0,
+                maxCount = result.maxEnrollment,
                 schedule = courseService.parseNodeToSchedule(result.node),
                 nodeDisplay = result.node ?: ""
             )

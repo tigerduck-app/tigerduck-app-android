@@ -19,7 +19,19 @@ data class CourseSearchResult(
     @SerializedName("ClassRoomNo") val classRoomNo: String?,
     @SerializedName("Node") val node: String?,
     @SerializedName("Contents") val contents: String?
-)
+) {
+    // Restrict1 is NTUST's per-category quota (9999 = "no category cap");
+    // Restrict2 is the real class size. They're usually equal, but some
+    // courses (e.g. 微積分 BA1601301) report Restrict1=9999 / Restrict2=55
+    // and we'd show "37/9999" if we read Restrict1 blindly.
+    val maxEnrollment: Int
+        get() {
+            val v1 = restrict1?.toIntOrNull()
+            val v2 = restrict2?.toIntOrNull()
+            val real = listOfNotNull(v1, v2).filter { it > 0 && it != 9999 }
+            return real.minOrNull() ?: v2 ?: v1 ?: 0
+        }
+}
 
 data class CourseSearchRequest(
     @SerializedName("Semester") val semester: String,

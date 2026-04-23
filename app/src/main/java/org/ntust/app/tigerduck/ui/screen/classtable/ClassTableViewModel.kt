@@ -472,7 +472,7 @@ class ClassTableViewModel @Inject constructor(
                                         credits = r.creditPoint.toIntOrNull() ?: 0,
                                         classroom = r.classRoomNo ?: "",
                                         enrolledCount = r.chooseStudent ?: 0,
-                                        maxCount = r.restrict1?.toIntOrNull() ?: 0,
+                                        maxCount = r.maxEnrollment,
                                         schedule = schedule,
                                         moodleIdNumber = "${r.semester}${r.courseNo}"
                                     )
