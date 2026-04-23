@@ -103,7 +103,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
 
     private suspend fun syncAssignments(studentId: String): Boolean {
         return try {
-            val remote = moodleService.fetchAssignments(studentId, authService.storedPassword.orEmpty())
+            val enrolled = moodleService.fetchEnrolledCourses(studentId, authService.storedPassword.orEmpty())
+            val remote = moodleService.fetchAssignments(enrolled)
             val completed = dataCache.loadAssignments()
                 .filter { it.isCompleted }
                 .map { it.assignmentId }

@@ -51,31 +51,23 @@ class MoodleService @Inject constructor(
      * `mod_assign_get_submission_status` per assignment (fanned out in
      * parallel) to derive `isCompleted = (submission.status == "submitted")`.
      *
-     * The previous calendar-based endpoint only surfaced upcoming/actionable
-     * events, so submitted homework disappeared from the list entirely —
-     * which is why the "全部" filter had nothing extra to show.
+     * The caller passes in the already-fetched Moodle enrolment list so we
+     * don't duplicate `core_enrol_get_users_courses` when the ViewModel has
+     * just called `fetchEnrolledCourses` to build the course schedule.
+     * Filtering by `semesterCode` is intentional — we used to intersect with
+     * the NTUST course-selection roster too, but that silently dropped
+     * anything enrolled via a non-standard path (勞作教育, 服務學習, 通識
+     * sections, cross-enrolled extras, etc.).
      */
     suspend fun fetchAssignments(
-        studentId: String,
-        password: String,
-        currentCourseNos: Set<String> = emptySet(),
+        enrolledCourses: List<MoodleEnrolledCourse>,
     ): List<Assignment> = withContext(Dispatchers.IO) {
+        val currentSemester = courseService.currentSemesterCode()
+        val relevant = enrolledCourses.filter { it.semesterCode == currentSemester }
+        if (relevant.isEmpty()) return@withContext emptyList<Assignment>()
+
         attemptWithTokenRetry { token ->
             val userId = getSiteInfoUserId(token)
-            val enrolled = callEnrolledCourses(token, userId)
-
-            // Filter to the current semester's Moodle enrollments. We used to
-            // intersect with the NTUST course-selection roster too, but that
-            // silently drops anything enrolled via a non-standard path
-            // (勞作教育, 服務學習, 通識 sections, cross-enrolled extras, etc.) —
-            // the old calendar endpoint surfaced those because it never
-            // filtered by roster. Moodle's own enrollment is the better
-            // source of truth here; the semester guard still prevents stale
-            // last-semester courses from bleeding in.
-            val currentSemester = courseService.currentSemesterCode()
-            val relevant = enrolled.filter { it.semesterCode == currentSemester }
-            if (relevant.isEmpty()) return@attemptWithTokenRetry emptyList<Assignment>()
-
             val envelope = callGetAssignments(token, relevant.map { it.id })
             val coursesById = relevant.associateBy { it.id }
 

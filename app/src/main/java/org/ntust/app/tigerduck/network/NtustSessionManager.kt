@@ -5,6 +5,7 @@ import android.util.Log
 import org.ntust.app.tigerduck.BuildConfig
 import okhttp3.Cookie
 import okhttp3.CookieJar
+import okhttp3.Dispatcher
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -54,8 +55,18 @@ class NtustSessionManager @Inject constructor(
         redactHeader("Authorization")
     }
 
+    // Default OkHttp caps parallelism at 5 requests per host, which
+    // serialized the tail of lookupCourse (typical 7–10 enrolled courses)
+    // and get_submission_status fan-outs on first load. Raise the ceiling so
+    // all concurrent course/assignment calls fire at once.
+    private val sharedDispatcher = Dispatcher().apply {
+        maxRequests = 64
+        maxRequestsPerHost = 20
+    }
+
     val client: OkHttpClient = OkHttpClient.Builder()
         .cookieJar(cookieJar)
+        .dispatcher(sharedDispatcher)
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .followRedirects(true)
@@ -74,9 +85,16 @@ class NtustSessionManager @Inject constructor(
             } else {
                 "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
             }
+            // Respect caller-set Accept. querycourse.ntust.edu.tw does strict
+            // content negotiation on Accept and returns HTTP 500 with an XML
+            // error body when the header prefers text/html over JSON, which
+            // silently broke lookupCourse/searchCourses after we retired the
+            // plain OkHttpClient that had no Accept header at all.
+            val acceptHeader = req.header("Accept")
+                ?: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
             val request = req.newBuilder()
                 .header("User-Agent", ua)
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                .header("Accept", acceptHeader)
                 .header("Accept-Language", "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7")
                 .build()
             chain.proceed(request)

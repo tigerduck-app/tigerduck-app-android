@@ -16,6 +16,9 @@ import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.network.NetworkChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -195,28 +198,26 @@ class HomeViewModel @Inject constructor(
                 val studentId = authService.storedStudentId
                 val password = authService.storedPassword
                 if (!studentId.isNullOrBlank() && !password.isNullOrBlank()) {
-                    val authenticated = runCatching { authService.ensureAuthenticated() }.getOrDefault(false)
-                    if (authenticated) {
-                        val remoteCourses = fetchCourses(studentId, password)
-                        if (!remoteCourses.isNullOrEmpty()) {
-                            // Re-read cache so a concurrent color change isn't erased.
-                            val latestColors = dataCache.loadCourses()
-                                .associate { it.courseNo to it.customColorHex }
-                            courses = remoteCourses.map { c ->
-                                c.copy(customColorHex = latestColors[c.courseNo])
-                            }
-                            dataCache.saveCourses(courses)
-                        }
+                    // ensureAuthenticated runs alongside the Moodle fetches now
+                    // (see fetchCoursesAndAssignments). Moodle uses a long-lived
+                    // wstoken so it doesn't need the NTUST SSO cookies the auth
+                    // check is renewing.
+                    val (remoteCourses, remoteAssignments) =
+                        fetchCoursesAndAssignments(studentId, password)
 
-                        val remoteAssignments = fetchAssignments(
-                            studentId = studentId,
-                            password = password,
-                            currentCourseNos = courses.map { it.courseNo }.toSet(),
-                        )
-                        if (remoteAssignments != null) {
-                            assignments = remoteAssignments
-                            dataCache.saveAssignments(remoteAssignments)
+                    if (!remoteCourses.isNullOrEmpty()) {
+                        // Re-read cache so a concurrent color change isn't erased.
+                        val latestColors = dataCache.loadCourses()
+                            .associate { it.courseNo to it.customColorHex }
+                        courses = remoteCourses.map { c ->
+                            c.copy(customColorHex = latestColors[c.courseNo])
                         }
+                        dataCache.saveCourses(courses)
+                    }
+
+                    if (remoteAssignments != null) {
+                        assignments = remoteAssignments
+                        dataCache.saveAssignments(remoteAssignments)
                     }
                 }
             }
@@ -231,69 +232,101 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private suspend fun fetchCourses(studentId: String, password: String): List<Course>? {
+    /**
+     * One network round of the two enrolment sources (NTUST course-selection
+     * portal + Moodle enrolled-courses) run in parallel, then per-course
+     * detail lookups run in parallel while assignments are fetched alongside.
+     * Returns (null, null) for any piece that failed so the caller can fall
+     * back to cached data cleanly.
+     */
+    private suspend fun fetchCoursesAndAssignments(
+        studentId: String,
+        password: String,
+    ): Pair<List<Course>?, List<Assignment>?> = coroutineScope {
         val semester = courseService.currentSemesterCode()
-        val courseNos = try {
-            courseService.fetchEnrolledCourseNos(studentId, password)
-        } catch (e: Exception) {
-            Log.e("HomeViewModel", "Failed to fetch enrolled course numbers", e)
-            return null
-        }
 
-        if (courseNos.isEmpty()) return emptyList()
-
-        val courses = courseNos.mapNotNull { courseNo ->
+        // Moodle webservice calls auth with a long-lived wstoken, so they
+        // don't need the NTUST SSO cookies that ensureAuthenticated refreshes.
+        // Let them run concurrently with the SSO + course-selection scrape.
+        val moodleEnrolledDef = async {
             try {
-                val results = courseService.lookupCourse(semester, courseNo)
-                results.firstOrNull()?.let { r ->
-                    val schedule = courseService.mergeSchedules(
-                        *results.map { it.node }.toTypedArray()
-                    )
-                    Course.fromSchedule(
-                        courseNo = r.courseNo,
-                        courseName = r.courseName,
-                        instructor = r.courseTeacher,
-                        credits = r.creditPoint.toIntOrNull() ?: 0,
-                        classroom = r.classRoomNo ?: "",
-                        enrolledCount = r.chooseStudent ?: 0,
-                        maxCount = r.maxEnrollment,
-                        schedule = schedule,
-                        moodleIdNumber = "${r.semester}${r.courseNo}"
-                    )
-                }
+                moodleService.fetchEnrolledCourses(studentId, password)
             } catch (e: Exception) {
-                Log.e("HomeViewModel", "Failed to lookup course $courseNo", e)
+                Log.e("HomeViewModel", "Failed to fetch Moodle enrolled courses", e)
+                null
+            }
+        }
+        val courseNosDef = async {
+            val authed = runCatching { authService.ensureAuthenticated() }.getOrDefault(false)
+            if (!authed) return@async null
+            try {
+                courseService.fetchEnrolledCourseNos(studentId, password)
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Failed to fetch enrolled course numbers", e)
                 null
             }
         }
 
-        return courses
-    }
+        val courseNos = courseNosDef.await()
+        val moodleEnrolled = moodleEnrolledDef.await()
 
-    private suspend fun fetchAssignments(
-        studentId: String,
-        password: String,
-        currentCourseNos: Set<String>,
-    ): List<Assignment>? {
-        return try {
-            val remote = moodleService.fetchAssignments(studentId, password, currentCourseNos)
-            // Safety net: if a transient submission-status call failed and the
-            // remote reports isCompleted=false for something we previously
-            // confirmed as submitted, don't regress the user's view. Remote
-            // wins when it explicitly says isCompleted=true.
-            val existingCompleted = dataCache.loadAssignments()
-                .filter { it.isCompleted }
-                .map { it.assignmentId }
-                .toSet()
-            remote.map { assignment ->
-                if (!assignment.isCompleted && assignment.assignmentId in existingCompleted) {
-                    assignment.copy(isCompleted = true)
-                } else assignment
+        val coursesDef = async {
+            when {
+                courseNos == null -> null
+                courseNos.isEmpty() -> emptyList()
+                else -> courseNos.map { courseNo ->
+                    async {
+                        try {
+                            val results = courseService.lookupCourse(semester, courseNo)
+                            results.firstOrNull()?.let { r ->
+                                val schedule = courseService.mergeSchedules(
+                                    *results.map { it.node }.toTypedArray()
+                                )
+                                Course.fromSchedule(
+                                    courseNo = r.courseNo,
+                                    courseName = r.courseName,
+                                    instructor = r.courseTeacher,
+                                    credits = r.creditPoint.toIntOrNull() ?: 0,
+                                    classroom = r.classRoomNo ?: "",
+                                    enrolledCount = r.chooseStudent ?: 0,
+                                    maxCount = r.maxEnrollment,
+                                    schedule = schedule,
+                                    moodleIdNumber = "${r.semester}${r.courseNo}"
+                                )
+                            }
+                        } catch (e: Exception) {
+                            Log.e("HomeViewModel", "Failed to lookup course $courseNo", e)
+                            null
+                        }
+                    }
+                }.awaitAll().filterNotNull()
             }
-        } catch (e: Exception) {
-            Log.e("HomeViewModel", "Failed to fetch assignments", e)
-            null
         }
+
+        val assignmentsDef = async {
+            if (moodleEnrolled == null) return@async null
+            try {
+                val remote = moodleService.fetchAssignments(moodleEnrolled)
+                // Safety net: if a transient submission-status call failed and
+                // the remote reports isCompleted=false for something we
+                // previously confirmed as submitted, don't regress the user's
+                // view. Remote wins when it explicitly says isCompleted=true.
+                val existingCompleted = dataCache.loadAssignments()
+                    .filter { it.isCompleted }
+                    .map { it.assignmentId }
+                    .toSet()
+                remote.map { assignment ->
+                    if (!assignment.isCompleted && assignment.assignmentId in existingCompleted) {
+                        assignment.copy(isCompleted = true)
+                    } else assignment
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Failed to fetch assignments", e)
+                null
+            }
+        }
+
+        coursesDef.await() to assignmentsDef.await()
     }
 
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {

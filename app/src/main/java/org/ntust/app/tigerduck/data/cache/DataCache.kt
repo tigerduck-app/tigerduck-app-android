@@ -8,6 +8,7 @@ import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.model.ScoreReport
+import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -143,6 +144,25 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     private fun scoreReportFilename(studentId: String): String = "score_$studentId.json"
 
+    // MARK: - Course lookup (querycourse.ntust.edu.tw responses)
+    // Course metadata (name, instructor, schedule, caps) is static within a
+    // semester; only ChooseStudent drifts, and drifting by a few minutes is
+    // tolerable for a pull-to-refresh UX. Caching the raw CourseSearchResult
+    // lets a repeat "課表" or Home load skip the per-course fan-out entirely.
+
+    data class CourseLookupEntry(
+        val results: List<CourseSearchResult>,
+        val cachedAt: Long,
+    )
+
+    suspend fun saveCourseLookups(map: Map<String, CourseLookupEntry>) =
+        save(map, "course_lookups.json")
+
+    suspend fun loadCourseLookups(): Map<String, CourseLookupEntry> {
+        val type = object : TypeToken<Map<String, CourseLookupEntry>>() {}.type
+        return load<Map<String, CourseLookupEntry>>(type, "course_lookups.json") ?: emptyMap()
+    }
+
     // MARK: - Calendar Events
 
     suspend fun saveCalendarEvents(events: List<CalendarEvent>) = save(events, "calendar_events.json")
@@ -163,7 +183,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     suspend fun clearAllUserData() {
         cacheMutex.withLock {
             withContext(Dispatchers.IO) {
-                listOf("courses.json", "assignments.json", "calendar_events.json").forEach { name ->
+                listOf("courses.json", "assignments.json", "calendar_events.json", "course_lookups.json").forEach { name ->
                     runCatching { File(cacheDir, name).delete() }
                 }
                 // Drop every per-semester course bucket so historical data

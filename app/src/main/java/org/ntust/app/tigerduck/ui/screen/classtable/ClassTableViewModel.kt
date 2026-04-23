@@ -416,28 +416,34 @@ class ClassTableViewModel @Inject constructor(
             val isCurrentSemester = semester == courseService.currentSemesterCode()
             Log.i("ClassTableVM", "fetchData start: semester=$semester isCurrent=$isCurrentSemester")
 
-            // Source 1: course-selection enrolment list. Only current-term
-            // enrolments are exposed by that portal, so skip it for past
-            // semesters and lean on Moodle's historical record instead.
-            val selectionNos: List<String> = if (isCurrentSemester) {
-                try {
-                    courseService.fetchEnrolledCourseNos(studentId, password)
-                } catch (e: Exception) {
-                    Log.e("ClassTableVM", "Failed to fetch course list", e)
-                    emptyList()
+            // Kick off the two enrolment sources concurrently — they hit
+            // different hosts (courseselection.ntust.edu.tw vs.
+            // moodle2.ntust.edu.tw) and neither depends on the other.
+            //   Source 1: course-selection portal, current term only.
+            //   Source 2: Moodle enrolment list, all semesters (needed for
+            //             historical terms and for fanning out assignments).
+            val (selectionNos, moodleAll) = coroutineScope {
+                val selectionDef = async {
+                    if (isCurrentSemester) {
+                        try {
+                            courseService.fetchEnrolledCourseNos(studentId, password)
+                        } catch (e: Exception) {
+                            Log.e("ClassTableVM", "Failed to fetch course list", e)
+                            emptyList()
+                        }
+                    } else emptyList()
                 }
-            } else emptyList()
-            Log.i("ClassTableVM", "selectionNos=${selectionNos.size} -> $selectionNos")
-
-            // Source 2: Moodle enrolled courses (all semesters). Works for
-            // past terms too because Moodle keeps every course the user has
-            // ever been enrolled in.
-            val moodleAll: List<MoodleEnrolledCourse> = try {
-                moodleService.fetchEnrolledCourses(studentId, password)
-            } catch (e: Exception) {
-                Log.e("ClassTableVM", "Failed to fetch Moodle enrolled courses", e)
-                emptyList()
+                val moodleDef = async {
+                    try {
+                        moodleService.fetchEnrolledCourses(studentId, password)
+                    } catch (e: Exception) {
+                        Log.e("ClassTableVM", "Failed to fetch Moodle enrolled courses", e)
+                        emptyList<MoodleEnrolledCourse>()
+                    }
+                }
+                selectionDef.await() to moodleDef.await()
             }
+            Log.i("ClassTableVM", "selectionNos=${selectionNos.size} -> $selectionNos")
             Log.i(
                 "ClassTableVM",
                 "moodleAll=${moodleAll.size} sampleIdnums=${moodleAll.take(5).map { it.idnumber }} semesters=${moodleAll.map { it.semesterCode }.distinct()}"
@@ -454,34 +460,48 @@ class ClassTableViewModel @Inject constructor(
             val orderedCourseNos = seen.toList()
             Log.i("ClassTableVM", "orderedCourseNos=${orderedCourseNos.size} -> $orderedCourseNos")
 
-            if (orderedCourseNos.isNotEmpty()) {
-                val courses = coroutineScope {
-                    orderedCourseNos.map { courseNo ->
-                        async {
-                            try {
-                                val results = courseService.lookupCourse(semester, courseNo)
-                                if (results.isNotEmpty()) {
-                                    val r = results.first()
-                                    val schedule = courseService.mergeSchedules(
-                                        *results.map { it.node }.toTypedArray()
-                                    )
-                                    Course.fromSchedule(
-                                        courseNo = r.courseNo,
-                                        courseName = r.courseName,
-                                        instructor = r.courseTeacher,
-                                        credits = r.creditPoint.toIntOrNull() ?: 0,
-                                        classroom = r.classRoomNo ?: "",
-                                        enrolledCount = r.chooseStudent ?: 0,
-                                        maxCount = r.maxEnrollment,
-                                        schedule = schedule,
-                                        moodleIdNumber = "${r.semester}${r.courseNo}"
-                                    )
-                                } else {
-                                    // QueryCourse only indexes the latest
-                                    // term or two; fall back to Moodle
-                                    // metadata so historical courses still
-                                    // render (no schedule, but at least the
-                                    // name and credits).
+            // Course detail lookups and assignment fetching are fully
+            // independent — run them concurrently and apply each result as
+            // soon as it lands.
+            coroutineScope {
+                val coursesJob = if (orderedCourseNos.isNotEmpty()) {
+                    launch {
+                        val courses = orderedCourseNos.map { courseNo ->
+                            async {
+                                try {
+                                    val results = courseService.lookupCourse(semester, courseNo)
+                                    if (results.isNotEmpty()) {
+                                        val r = results.first()
+                                        val schedule = courseService.mergeSchedules(
+                                            *results.map { it.node }.toTypedArray()
+                                        )
+                                        Course.fromSchedule(
+                                            courseNo = r.courseNo,
+                                            courseName = r.courseName,
+                                            instructor = r.courseTeacher,
+                                            credits = r.creditPoint.toIntOrNull() ?: 0,
+                                            classroom = r.classRoomNo ?: "",
+                                            enrolledCount = r.chooseStudent ?: 0,
+                                            maxCount = r.maxEnrollment,
+                                            schedule = schedule,
+                                            moodleIdNumber = "${r.semester}${r.courseNo}"
+                                        )
+                                    } else {
+                                        // QueryCourse only indexes the latest
+                                        // term or two; fall back to Moodle
+                                        // metadata so historical courses still
+                                        // render (no schedule, but at least the
+                                        // name and credits).
+                                        moodleByNo[courseNo]?.let { m ->
+                                            Course.fromSchedule(
+                                                courseNo = courseNo,
+                                                courseName = m.fullname ?: courseNo,
+                                                moodleIdNumber = m.idnumber
+                                            )
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("ClassTableVM", "Failed to lookup course $courseNo", e)
                                     moodleByNo[courseNo]?.let { m ->
                                         Course.fromSchedule(
                                             courseNo = courseNo,
@@ -490,56 +510,53 @@ class ClassTableViewModel @Inject constructor(
                                         )
                                     }
                                 }
-                            } catch (e: Exception) {
-                                Log.e("ClassTableVM", "Failed to lookup course $courseNo", e)
-                                moodleByNo[courseNo]?.let { m ->
-                                    Course.fromSchedule(
-                                        courseNo = courseNo,
-                                        courseName = m.fullname ?: courseNo,
-                                        moodleIdNumber = m.idnumber
-                                    )
-                                }
                             }
-                        }
-                    }.awaitAll().filterNotNull()
-                }
-                if (courses.isNotEmpty()) {
-                    // Preserve user-picked tile colors across network refresh.
-                    val existingColors = dataCache.loadCourses(semester)
-                        .associate { it.courseNo to it.customColorHex }
-                    val merged = courses.map { c ->
-                        c.copy(customColorHex = existingColors[c.courseNo])
-                    }
-                    // Only apply if the user hasn't flipped to a different
-                    // semester mid-flight.
-                    if (_currentSemester.value == semester) {
-                        _courses.value = merged
-                        TigerDuckTheme.buildCourseColorMap(merged)
-                    }
-                    dataCache.saveCourses(merged, semester)
-                }
-            }
+                        }.awaitAll().filterNotNull()
 
-            // Assignments are always "upcoming from now", so they belong to
-            // the active enrolment — fetch only when viewing the current
-            // semester.
-            if (isCurrentSemester) {
-                try {
-                    val remoteAssignments = moodleService.fetchAssignments(studentId, password)
-                    val existingCompleted = _assignments.value
-                        .filter { it.isCompleted }
-                        .map { it.assignmentId }
-                        .toSet()
-                    val merged = remoteAssignments.map { assignment ->
-                        if (assignment.assignmentId in existingCompleted) {
-                            assignment.copy(isCompleted = true)
-                        } else assignment
+                        if (courses.isNotEmpty()) {
+                            val existingColors = dataCache.loadCourses(semester)
+                                .associate { it.courseNo to it.customColorHex }
+                            val merged = courses.map { c ->
+                                c.copy(customColorHex = existingColors[c.courseNo])
+                            }
+                            // Only apply if the user hasn't flipped to a
+                            // different semester mid-flight.
+                            if (_currentSemester.value == semester) {
+                                _courses.value = merged
+                                TigerDuckTheme.buildCourseColorMap(merged)
+                            }
+                            dataCache.saveCourses(merged, semester)
+                        }
                     }
-                    _assignments.value = merged
-                    dataCache.saveAssignments(merged)
-                } catch (e: Exception) {
-                    Log.e("ClassTableVM", "Failed to fetch assignments", e)
-                }
+                } else null
+
+                // Assignments are always "upcoming from now", so they belong
+                // to the active enrolment — fetch only when viewing the
+                // current semester. Uses the Moodle enrolment list we already
+                // fetched above.
+                val assignmentsJob = if (isCurrentSemester) {
+                    launch {
+                        try {
+                            val remoteAssignments = moodleService.fetchAssignments(moodleAll)
+                            val existingCompleted = _assignments.value
+                                .filter { it.isCompleted }
+                                .map { it.assignmentId }
+                                .toSet()
+                            val merged = remoteAssignments.map { assignment ->
+                                if (assignment.assignmentId in existingCompleted) {
+                                    assignment.copy(isCompleted = true)
+                                } else assignment
+                            }
+                            _assignments.value = merged
+                            dataCache.saveAssignments(merged)
+                        } catch (e: Exception) {
+                            Log.e("ClassTableVM", "Failed to fetch assignments", e)
+                        }
+                    }
+                } else null
+
+                coursesJob?.join()
+                assignmentsJob?.join()
             }
             _syncCompleteEvent.tryEmit(Unit)
         } finally {

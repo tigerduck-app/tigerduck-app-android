@@ -176,7 +176,8 @@ class CalendarViewModel @Inject constructor(
             if (!authService.ensureAuthenticated()) {
                 return dataCache.loadAssignments().toCalendarEvents()
             }
-            val assignments = moodleService.fetchAssignments(studentId, password)
+            val enrolled = moodleService.fetchEnrolledCourses(studentId, password)
+            val assignments = moodleService.fetchAssignments(enrolled)
             dataCache.saveAssignments(assignments)
             assignments.toCalendarEvents()
         } catch (_: Exception) {
