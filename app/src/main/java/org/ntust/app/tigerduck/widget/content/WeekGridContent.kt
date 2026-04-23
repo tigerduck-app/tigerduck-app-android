@@ -6,6 +6,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceModifier
+import androidx.glance.Image
+import androidx.glance.ImageProvider
+import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.Action
 import androidx.glance.action.clickable
@@ -14,6 +17,7 @@ import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
+import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
 import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
@@ -28,8 +32,12 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.widget.LayerCourse
+import org.ntust.app.tigerduck.widget.ScheduleCell
 import org.ntust.app.tigerduck.widget.WidgetColors
 import org.ntust.app.tigerduck.widget.WidgetState
+import org.ntust.app.tigerduck.widget.buildScheduleCells
+import org.ntust.app.tigerduck.widget.renderConflictLayer
 import org.ntust.app.tigerduck.widget.widgetCourseColor
 
 @Composable
@@ -40,11 +48,18 @@ fun WeekGridContent(state: WidgetState, colors: WidgetColors, tapAction: Action)
     val headerHeight = 22.dp
     val headerBottomPad = 4.dp
 
-    val widgetHeight = LocalSize.current.height
+    val widgetSize = LocalSize.current
+    val widgetHeight = widgetSize.height
+    val widgetWidth = widgetSize.width
     val usableHeight = (widgetHeight - outerPadding * 2 - headerHeight - headerBottomPad)
         .coerceAtLeast(40.dp)
     val rowCount = state.activePeriodIds.size.coerceAtLeast(1)
     val cellHeight: Dp = (usableHeight.value / rowCount).dp.coerceAtLeast(20.dp)
+    val dayColWidth: Dp = run {
+        val numDays = state.activeWeekdays.size.coerceAtLeast(1)
+        ((widgetWidth - outerPadding * 2 - periodColWidth).value / numDays).dp
+            .coerceAtLeast(20.dp)
+    }
 
     Column(
         modifier = GlanceModifier
@@ -102,14 +117,15 @@ fun WeekGridContent(state: WidgetState, colors: WidgetColors, tapAction: Action)
                 }
             }
             state.activeWeekdays.forEach { weekday ->
-                val runs = buildRuns(state.activePeriodIds, state.courses, weekday)
+                val cells = buildScheduleCells(state.activePeriodIds, state.courses, weekday)
                 Column(modifier = GlanceModifier.defaultWeight().padding(horizontal = 1.dp)) {
-                    runs.forEach { run ->
-                        RunCell(
-                            run = run,
+                    cells.forEach { cell ->
+                        ScheduleCellBox(
+                            cell = cell,
                             colors = colors,
                             ongoingCourseNo = state.ongoingCourseNo,
-                            blockHeight = cellHeight * run.length,
+                            blockHeight = cellHeight * cell.length,
+                            blockWidth = dayColWidth,
                         )
                     }
                 }
@@ -146,85 +162,57 @@ private fun PeriodLabelCell(periodId: String, colors: WidgetColors, cellHeight: 
     }
 }
 
-private data class Run(val courses: List<Course>, val length: Int)
-
 @Composable
-private fun RunCell(
-    run: Run,
+private fun ScheduleCellBox(
+    cell: ScheduleCell,
     colors: WidgetColors,
     ongoingCourseNo: String?,
     blockHeight: Dp,
+    blockWidth: Dp,
 ) {
-    if (run.courses.isEmpty()) {
-        Box(
-            modifier = GlanceModifier
-                .fillMaxWidth()
-                .height(blockHeight)
-                .padding(vertical = 1.dp),
-        ) {
-            Box(
-                modifier = GlanceModifier
-                    .fillMaxSize()
-                    .background(ColorProvider(colors.emptyCell))
-                    .cornerRadius(4.dp),
-            ) {}
-        }
-        return
+    when (cell) {
+        is ScheduleCell.Empty -> EmptyCell(blockHeight, colors)
+        is ScheduleCell.Solo -> SoloCell(
+            course = cell.course,
+            length = cell.length,
+            ongoing = cell.course.courseNo == ongoingCourseNo,
+            colors = colors,
+            blockHeight = blockHeight,
+        )
+        is ScheduleCell.Conflict -> ConflictCell(
+            cell = cell,
+            colors = colors,
+            ongoingCourseNo = ongoingCourseNo,
+            blockHeight = blockHeight,
+            blockWidth = blockWidth,
+        )
     }
+}
 
-    if (run.courses.size == 1) {
-        val course = run.courses.first()
-        Box(
-            modifier = GlanceModifier
-                .fillMaxWidth()
-                .height(blockHeight)
-                .padding(vertical = 1.dp),
-        ) {
-            CourseTile(
-                course = course,
-                colors = colors,
-                ongoing = course.courseNo == ongoingCourseNo,
-                maxLines = if (run.length >= 2) 3 else 2,
-                compact = false,
-            )
-        }
-        return
-    }
-
-    // 衝堂 — two courses in the same period. Split side-by-side; cap at 2.
-    val shown = run.courses.take(2)
-    Row(
+@Composable
+private fun EmptyCell(blockHeight: Dp, colors: WidgetColors) {
+    Box(
         modifier = GlanceModifier
             .fillMaxWidth()
             .height(blockHeight)
             .padding(vertical = 1.dp),
     ) {
-        shown.forEachIndexed { index, course ->
-            Box(
-                modifier = GlanceModifier
-                    .defaultWeight()
-                    .fillMaxHeight()
-                    .padding(end = if (index == 0 && shown.size > 1) 1.dp else 0.dp),
-            ) {
-                CourseTile(
-                    course = course,
-                    colors = colors,
-                    ongoing = course.courseNo == ongoingCourseNo,
-                    maxLines = 2,
-                    compact = true,
-                )
-            }
-        }
+        Box(
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .background(ColorProvider(colors.emptyCell))
+                .cornerRadius(4.dp),
+        ) {}
     }
 }
 
 @Composable
-private fun CourseTile(
+private fun SoloCell(
     course: Course,
-    colors: WidgetColors,
+    length: Int,
     ongoing: Boolean,
-    maxLines: Int,
-    compact: Boolean,
+    colors: WidgetColors,
+    blockHeight: Dp,
 ) {
     val baseColor = widgetCourseColor(course, colors.isDark)
     val cellBg: Color = when {
@@ -239,63 +227,128 @@ private fun CourseTile(
     }
     Box(
         modifier = GlanceModifier
-            .fillMaxSize()
-            .background(ColorProvider(cellBg))
-            .cornerRadius(6.dp)
-            .padding(if (compact) 1.dp else 2.dp),
-        contentAlignment = Alignment.Center,
+            .fillMaxWidth()
+            .height(blockHeight)
+            .padding(vertical = 1.dp),
     ) {
-        Text(
-            text = course.courseName,
-            style = TextStyle(
-                color = ColorProvider(textColor),
-                fontSize = if (compact) 9.sp else 10.sp,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center,
-            ),
-            maxLines = maxLines,
-        )
+        Box(
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .background(ColorProvider(cellBg))
+                .cornerRadius(6.dp)
+                .padding(2.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = course.courseName,
+                style = TextStyle(
+                    color = ColorProvider(textColor),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center,
+                ),
+                maxLines = if (length >= 2) 3 else 2,
+            )
+        }
     }
 }
 
-private fun buildRuns(
-    activePeriodIds: List<String>,
-    courses: List<Course>,
-    weekday: Int,
-): List<Run> {
-    val out = mutableListOf<Run>()
-    var i = 0
-    while (i < activePeriodIds.size) {
-        val slot = coursesAt(courses, weekday, activePeriodIds[i])
-        when {
-            slot.size >= 2 -> {
-                // Conflict — do not merge with neighbors.
-                out.add(Run(slot, 1))
-                i++
+@Composable
+private fun ConflictCell(
+    cell: ScheduleCell.Conflict,
+    colors: WidgetColors,
+    ongoingCourseNo: String?,
+    blockHeight: Dp,
+    blockWidth: Dp,
+) {
+    val context = LocalContext.current
+    val density = context.resources.displayMetrics.density
+    val widthPx = ((blockWidth - 2.dp).value * density).toInt().coerceAtLeast(1)
+    val heightPx = (blockHeight.value * density).toInt().coerceAtLeast(1)
+
+    fun tileBg(course: Course, ongoing: Boolean): Color {
+        val base = widgetCourseColor(course, colors.isDark)
+        return when {
+            ongoing -> colors.highlight
+            colors.isDark -> base
+            else -> base.copy(alpha = 0.55f)
+        }
+    }
+    val textColor: Color = if (colors.isDark) Color.White else Color(0xFF1C1C1E)
+
+    val ongoingA = cell.courseA.courseNo == ongoingCourseNo
+    val ongoingB = cell.courseB.courseNo == ongoingCourseNo
+
+    val bitmapA = renderConflictLayer(
+        clusterWidthPx = widthPx,
+        clusterHeightPx = heightPx,
+        densityFactor = density,
+        cell = cell,
+        course = LayerCourse.A,
+        fillColor = tileBg(cell.courseA, ongoingA),
+    )
+    val bitmapB = renderConflictLayer(
+        clusterWidthPx = widthPx,
+        clusterHeightPx = heightPx,
+        densityFactor = density,
+        cell = cell,
+        course = LayerCourse.B,
+        fillColor = tileBg(cell.courseB, ongoingB),
+    )
+
+    Box(
+        modifier = GlanceModifier
+            .fillMaxWidth()
+            .height(blockHeight)
+            .padding(vertical = 1.dp),
+    ) {
+        Box(modifier = GlanceModifier.fillMaxSize()) {
+            Image(
+                provider = ImageProvider(bitmapA),
+                contentDescription = null,
+                modifier = GlanceModifier.fillMaxSize(),
+                contentScale = ContentScale.FillBounds,
+            )
+            Image(
+                provider = ImageProvider(bitmapB),
+                contentDescription = null,
+                modifier = GlanceModifier.fillMaxSize(),
+                contentScale = ContentScale.FillBounds,
+            )
+            // Course A label — aligned to the top bar (Γ)
+            Box(
+                modifier = GlanceModifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                Text(
+                    text = cell.courseA.courseName,
+                    style = TextStyle(
+                        color = ColorProvider(if (ongoingA) Color.White else textColor),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                    ),
+                    maxLines = 2,
+                    modifier = GlanceModifier.padding(horizontal = 2.dp, vertical = 3.dp),
+                )
             }
-            slot.size == 1 -> {
-                val course = slot.single()
-                var j = i + 1
-                while (j < activePeriodIds.size) {
-                    val nextSlot = coursesAt(courses, weekday, activePeriodIds[j])
-                    if (nextSlot.size == 1 && nextSlot.single().courseNo == course.courseNo) j++
-                    else break
-                }
-                out.add(Run(listOf(course), j - i))
-                i = j
-            }
-            else -> {
-                var j = i + 1
-                while (j < activePeriodIds.size &&
-                    coursesAt(courses, weekday, activePeriodIds[j]).isEmpty()
-                ) j++
-                out.add(Run(emptyList(), j - i))
-                i = j
+            // Course B label — aligned to the bottom bar (mirror-L)
+            Box(
+                modifier = GlanceModifier.fillMaxSize(),
+                contentAlignment = Alignment.BottomCenter,
+            ) {
+                Text(
+                    text = cell.courseB.courseName,
+                    style = TextStyle(
+                        color = ColorProvider(if (ongoingB) Color.White else textColor),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                    ),
+                    maxLines = 2,
+                    modifier = GlanceModifier.padding(horizontal = 2.dp, vertical = 3.dp),
+                )
             }
         }
     }
-    return out
 }
-
-private fun coursesAt(courses: List<Course>, weekday: Int, periodId: String): List<Course> =
-    courses.filter { it.schedule[weekday]?.contains(periodId) == true }
