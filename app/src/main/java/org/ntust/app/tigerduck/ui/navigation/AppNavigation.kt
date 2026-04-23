@@ -157,6 +157,7 @@ fun MainNavigation(appState: AppState) {
                         label = { Text(feature.displayName) },
                         selected = selectedTabRoute == route,
                         onClick = {
+                            if (currentRoute == route) return@NavigationBarItem
                             performTabSwitchHaptic(context)
                             navController.navigate(route) {
                                 popUpTo(startDest) {
