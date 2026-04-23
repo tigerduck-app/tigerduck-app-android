@@ -86,7 +86,6 @@ class LiveActivityNotifier @Inject constructor(
             .setColor(0xFF000000.toInt() or (snapshot.accentHex and 0xFFFFFF))
             .setColorized(true)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
-            .setPriority(if (soundWanted) NotificationCompat.PRIORITY_DEFAULT else NotificationCompat.PRIORITY_LOW)
             .setVisibility(visibility)
             .apply { if (!soundWanted) setSilent(true) }
 

@@ -33,7 +33,12 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         skippedDates: Map<String, List<String>>,
         leadTimeSec: Long,
     ) {
-        cancelAllTracked()
+        // Load the persisted slotId→requestCode map BEFORE cancelling so cancel
+        // looks up the same code each alarm was originally registered with.
+        // Previously we hashed slotId into the requestCode, which could collide
+        // across two different slots and silently overwrite the earlier alarm.
+        val codeMap = loadCodeMap()
+        cancelAllTracked(codeMap)
         if (leadTimeSec <= 0 || courses.isEmpty()) return
 
         val now = System.currentTimeMillis()
@@ -54,7 +59,7 @@ class ClassPreparingNotificationScheduler @Inject constructor(
 
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
-                slot.id.hashCode() and 0x7FFFFFFF,
+                requestCodeFor(codeMap, slot.id),
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
@@ -71,16 +76,25 @@ class ClassPreparingNotificationScheduler @Inject constructor(
             scheduled.add(slot.id)
         }
 
-        trackerPrefs.edit().putStringSet(KEY_SCHEDULED_IDS, scheduled).apply()
+        codeMap.keys.retainAll(scheduled)
+        trackerPrefs.edit()
+            .putStringSet(KEY_SCHEDULED_IDS, scheduled)
+            .putString(KEY_CODE_MAP, encodeCodeMap(codeMap))
+            .apply()
     }
 
     fun cancelAllTracked() {
+        cancelAllTracked(loadCodeMap())
+    }
+
+    private fun cancelAllTracked(codeMap: Map<String, Int>) {
         val ids = trackerPrefs.getStringSet(KEY_SCHEDULED_IDS, emptySet()) ?: emptySet()
         for (id in ids) {
+            val code = codeMap[id] ?: continue
             val intent = Intent(context, ClassPreparingNotificationReceiver::class.java)
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
-                id.hashCode() and 0x7FFFFFFF,
+                code,
                 intent,
                 PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
             )
@@ -88,6 +102,33 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         }
         trackerPrefs.edit().remove(KEY_SCHEDULED_IDS).apply()
     }
+
+    private fun requestCodeFor(map: MutableMap<String, Int>, id: String): Int =
+        map.getOrPut(id) {
+            val next = trackerPrefs.getInt(KEY_NEXT_CODE, 1)
+            // Int.MAX_VALUE worth of slots is effectively unbounded, but wrap at
+            // 1 just in case so we never hand out 0 or a negative code.
+            val nextPlus = if (next == Int.MAX_VALUE) 1 else next + 1
+            trackerPrefs.edit().putInt(KEY_NEXT_CODE, nextPlus).apply()
+            next
+        }
+
+    private fun loadCodeMap(): MutableMap<String, Int> {
+        val raw = trackerPrefs.getString(KEY_CODE_MAP, null) ?: return mutableMapOf()
+        if (raw.isEmpty()) return mutableMapOf()
+        val out = mutableMapOf<String, Int>()
+        for (entry in raw.split(';')) {
+            val sep = entry.lastIndexOf('=')
+            if (sep <= 0) continue
+            val key = entry.substring(0, sep)
+            val code = entry.substring(sep + 1).toIntOrNull() ?: continue
+            out[key] = code
+        }
+        return out
+    }
+
+    private fun encodeCodeMap(map: Map<String, Int>): String =
+        map.entries.joinToString(";") { "${it.key}=${it.value}" }
 
     private data class UpcomingSlot(
         val course: Course,
@@ -137,6 +178,8 @@ class ClassPreparingNotificationScheduler @Inject constructor(
     companion object {
         private const val TRACKER_PREFS = "class_preparing_tracker"
         private const val KEY_SCHEDULED_IDS = "scheduled_ids"
+        private const val KEY_CODE_MAP = "slot_request_codes"
+        private const val KEY_NEXT_CODE = "next_request_code"
         private const val DAYS_AHEAD = 10
 
         private fun parseTime(text: String): LocalTime? = runCatching {
