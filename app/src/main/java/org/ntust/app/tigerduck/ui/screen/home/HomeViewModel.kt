@@ -89,6 +89,12 @@ class HomeViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    // Flips true after the first cache read returns (even if the cache is
+    // empty). UI keeps empty-state placeholders hidden until this is set so
+    // the first frame never flashes "no data" before cached data appears.
+    private val _initialLoadComplete = MutableStateFlow(false)
+    val initialLoadComplete: StateFlow<Boolean> = _initialLoadComplete
+
     val isLoggedIn: StateFlow<Boolean> = authService.authState
 
     private val _noNetworkEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
@@ -138,6 +144,7 @@ class HomeViewModel @Inject constructor(
                     _skippedDates.value = emptyMap()
                     _ignoredAssignmentIds.value = emptySet()
                     hasLoaded = false
+                    _initialLoadComplete.value = true
                 } else {
                     fetchData(forceRemote = true)
                 }
@@ -162,6 +169,7 @@ class HomeViewModel @Inject constructor(
                 TigerDuckTheme.buildCourseColorMap(cachedCourses)
                 updateCoursesAndAssignments(cachedCourses, cachedAssignments)
             }
+            _initialLoadComplete.value = true
 
             fetchData(forceRemote = true)
         }

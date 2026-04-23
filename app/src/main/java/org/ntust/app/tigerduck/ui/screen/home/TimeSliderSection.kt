@@ -58,6 +58,7 @@ fun TimeSliderSection(
     invertDirection: Boolean,
     skippedDates: Map<String, List<String>> = emptyMap(),
     isLoggedIn: Boolean = true,
+    initialLoadComplete: Boolean = true,
     onSkipCourse: (Course, Date) -> Unit = { _, _ -> },
     onSelectCourse: (Course) -> Unit
 ) {
@@ -126,6 +127,9 @@ fun TimeSliderSection(
                 // Track
                 FluidTrack(viewModel, invertDirection)
             }
+        } else if (isLoggedIn && !initialLoadComplete) {
+            // Cache hasn't been consulted yet — don't flash "目前沒有課程"
+            // while the on-disk cache is still being read.
         } else {
             Column(
                 modifier = Modifier

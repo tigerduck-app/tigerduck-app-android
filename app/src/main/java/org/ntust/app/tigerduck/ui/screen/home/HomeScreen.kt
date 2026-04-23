@@ -67,6 +67,7 @@ fun HomeScreen(
     val assignmentFilter by viewModel.assignmentFilter.collectAsStateWithLifecycle()
     val ignoredAssignmentIds by viewModel.ignoredAssignmentIds.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val initialLoadComplete by viewModel.initialLoadComplete.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
     // 翹課 feature disabled — kept for potential re-enable.
@@ -205,6 +206,7 @@ fun HomeScreen(
                             ignoredAssignmentIds = ignoredAssignmentIds,
                             isLoggedIn = isLoggedIn,
                             isLoading = isLoading,
+                            initialLoadComplete = initialLoadComplete,
                             hasUnfinishedAssignment = viewModel::hasUnfinishedAssignment,
                             showAbsoluteTime = appState.showAbsoluteAssignmentTime,
                             invertDirection = appState.invertSliderDirection,
@@ -371,6 +373,7 @@ private fun HomeSectionContent(
     ignoredAssignmentIds: Set<String>,
     isLoggedIn: Boolean,
     isLoading: Boolean,
+    initialLoadComplete: Boolean,
     hasUnfinishedAssignment: (String) -> Boolean,
     showAbsoluteTime: Boolean,
     invertDirection: Boolean,
@@ -387,6 +390,7 @@ private fun HomeSectionContent(
                     courses = allCourses,
                     invertDirection = invertDirection,
                     isLoggedIn = isLoggedIn,
+                    initialLoadComplete = initialLoadComplete,
                     onSelectCourse = onCourseClick
                 )
             }
@@ -401,7 +405,7 @@ private fun HomeSectionContent(
                 if (upcomingAssignments.isEmpty()) {
                     AssignmentsEmptyState(
                         isLoggedIn = isLoggedIn,
-                        isLoading = isLoading,
+                        isLoading = isLoading || (!initialLoadComplete && isLoggedIn),
                         filter = assignmentFilter,
                     )
                 } else {
