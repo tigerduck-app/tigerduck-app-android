@@ -105,7 +105,7 @@ fun WeekGridContent(state: WidgetState, colors: WidgetColors, tapAction: Action)
                 val runs = buildRuns(state.activePeriodIds, state.courses, weekday)
                 Column(modifier = GlanceModifier.defaultWeight().padding(horizontal = 1.dp)) {
                     runs.forEach { run ->
-                        CellBox(
+                        RunCell(
                             run = run,
                             colors = colors,
                             ongoingCourseNo = state.ongoingCourseNo,
@@ -146,17 +146,16 @@ private fun PeriodLabelCell(periodId: String, colors: WidgetColors, cellHeight: 
     }
 }
 
-private data class Run(val course: Course?, val length: Int)
+private data class Run(val courses: List<Course>, val length: Int)
 
 @Composable
-private fun CellBox(
+private fun RunCell(
     run: Run,
     colors: WidgetColors,
     ongoingCourseNo: String?,
     blockHeight: Dp,
 ) {
-    val course = run.course
-    if (course == null) {
+    if (run.courses.isEmpty()) {
         Box(
             modifier = GlanceModifier
                 .fillMaxWidth()
@@ -173,45 +172,89 @@ private fun CellBox(
         return
     }
 
-    val isOngoing = course.courseNo == ongoingCourseNo
-    val baseColor = widgetCourseColor(course, colors.isDark)
-    val cellBg: Color = when {
-        isOngoing -> colors.highlight
-        colors.isDark -> baseColor
-        else -> baseColor.copy(alpha = 0.55f)
+    if (run.courses.size == 1) {
+        val course = run.courses.first()
+        Box(
+            modifier = GlanceModifier
+                .fillMaxWidth()
+                .height(blockHeight)
+                .padding(vertical = 1.dp),
+        ) {
+            CourseTile(
+                course = course,
+                colors = colors,
+                ongoing = course.courseNo == ongoingCourseNo,
+                maxLines = if (run.length >= 2) 3 else 2,
+                compact = false,
+            )
+        }
+        return
     }
-    val textColor: Color = when {
-        isOngoing -> Color.White
-        colors.isDark -> Color.White
-        else -> Color(0xFF1C1C1E)
-    }
-    val maxLines = if (run.length >= 2) 3 else 2
 
-    Box(
+    // 衝堂 — two courses in the same period. Split side-by-side; cap at 2.
+    val shown = run.courses.take(2)
+    Row(
         modifier = GlanceModifier
             .fillMaxWidth()
             .height(blockHeight)
             .padding(vertical = 1.dp),
     ) {
-        Box(
-            modifier = GlanceModifier
-                .fillMaxSize()
-                .background(ColorProvider(cellBg))
-                .cornerRadius(6.dp)
-                .padding(2.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = course.courseName,
-                style = TextStyle(
-                    color = ColorProvider(textColor),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                ),
-                maxLines = maxLines,
-            )
+        shown.forEachIndexed { index, course ->
+            Box(
+                modifier = GlanceModifier
+                    .defaultWeight()
+                    .fillMaxHeight()
+                    .padding(end = if (index == 0 && shown.size > 1) 1.dp else 0.dp),
+            ) {
+                CourseTile(
+                    course = course,
+                    colors = colors,
+                    ongoing = course.courseNo == ongoingCourseNo,
+                    maxLines = 2,
+                    compact = true,
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun CourseTile(
+    course: Course,
+    colors: WidgetColors,
+    ongoing: Boolean,
+    maxLines: Int,
+    compact: Boolean,
+) {
+    val baseColor = widgetCourseColor(course, colors.isDark)
+    val cellBg: Color = when {
+        ongoing -> colors.highlight
+        colors.isDark -> baseColor
+        else -> baseColor.copy(alpha = 0.55f)
+    }
+    val textColor: Color = when {
+        ongoing -> Color.White
+        colors.isDark -> Color.White
+        else -> Color(0xFF1C1C1E)
+    }
+    Box(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .background(ColorProvider(cellBg))
+            .cornerRadius(6.dp)
+            .padding(if (compact) 1.dp else 2.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = course.courseName,
+            style = TextStyle(
+                color = ColorProvider(textColor),
+                fontSize = if (compact) 9.sp else 10.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+            ),
+            maxLines = maxLines,
+        )
     }
 }
 
@@ -223,18 +266,36 @@ private fun buildRuns(
     val out = mutableListOf<Run>()
     var i = 0
     while (i < activePeriodIds.size) {
-        val periodId = activePeriodIds[i]
-        val course = courses.firstOrNull { it.schedule[weekday]?.contains(periodId) == true }
-        var j = i + 1
-        while (j < activePeriodIds.size) {
-            val nextCourse = courses.firstOrNull {
-                it.schedule[weekday]?.contains(activePeriodIds[j]) == true
+        val slot = coursesAt(courses, weekday, activePeriodIds[i])
+        when {
+            slot.size >= 2 -> {
+                // Conflict — do not merge with neighbors.
+                out.add(Run(slot, 1))
+                i++
             }
-            if (nextCourse?.courseNo != course?.courseNo) break
-            j++
+            slot.size == 1 -> {
+                val course = slot.single()
+                var j = i + 1
+                while (j < activePeriodIds.size) {
+                    val nextSlot = coursesAt(courses, weekday, activePeriodIds[j])
+                    if (nextSlot.size == 1 && nextSlot.single().courseNo == course.courseNo) j++
+                    else break
+                }
+                out.add(Run(listOf(course), j - i))
+                i = j
+            }
+            else -> {
+                var j = i + 1
+                while (j < activePeriodIds.size &&
+                    coursesAt(courses, weekday, activePeriodIds[j]).isEmpty()
+                ) j++
+                out.add(Run(emptyList(), j - i))
+                i = j
+            }
         }
-        out.add(Run(course, j - i))
-        i = j
     }
     return out
 }
+
+private fun coursesAt(courses: List<Course>, weekday: Int, periodId: String): List<Course> =
+    courses.filter { it.schedule[weekday]?.contains(periodId) == true }
