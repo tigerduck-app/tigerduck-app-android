@@ -103,8 +103,12 @@ class BackgroundSyncWorker @AssistedInject constructor(
                     c.copy(customColorHex = existingColors[c.courseNo])
                 }
                 val fetchedNos = fetchedWithColors.map { it.courseNo }.toSet()
+                val failedNos = courseNos.toSet() - fetchedNos
+                // Carry forward cached remote entries for courses whose lookup
+                // failed this cycle, so a partial fetch doesn't drop them.
+                val cachedFallbacks = cached.filter { !it.isManual && it.courseNo in failedNos }
                 val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
-                val merged = fetchedWithColors + manualLeftovers
+                val merged = fetchedWithColors + manualLeftovers + cachedFallbacks
                 dataCache.saveCourses(merged)
             }
             true
