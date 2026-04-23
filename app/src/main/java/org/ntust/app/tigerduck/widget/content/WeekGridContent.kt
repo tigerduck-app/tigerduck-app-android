@@ -296,6 +296,8 @@ private fun ConflictCell(
         fillColor = tileBg(cell.courseB, ongoingB),
     )
 
+    val rowHeight = blockHeight / cell.combinedSpan.coerceAtLeast(1)
+    val barWidth = (blockWidth.value * (1f - 0.28f)).dp
     Box(
         modifier = GlanceModifier
             .fillMaxWidth()
@@ -315,40 +317,59 @@ private fun ConflictCell(
                 modifier = GlanceModifier.fillMaxSize(),
                 contentScale = ContentScale.FillBounds,
             )
-            // Course A label — aligned to the top bar (Γ)
-            Box(
-                modifier = GlanceModifier.fillMaxSize(),
-                contentAlignment = Alignment.TopCenter,
-            ) {
-                Text(
-                    text = cell.courseA.courseName,
-                    style = TextStyle(
-                        color = ColorProvider(if (ongoingA) Color.White else textColor),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Medium,
-                        textAlign = TextAlign.Center,
-                    ),
-                    maxLines = 2,
-                    modifier = GlanceModifier.padding(horizontal = 2.dp, vertical = 3.dp),
-                )
-            }
-            // Course B label — aligned to the bottom bar (mirror-L)
-            Box(
-                modifier = GlanceModifier.fillMaxSize(),
-                contentAlignment = Alignment.BottomCenter,
-            ) {
-                Text(
-                    text = cell.courseB.courseName,
-                    style = TextStyle(
-                        color = ColorProvider(if (ongoingB) Color.White else textColor),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Medium,
-                        textAlign = TextAlign.Center,
-                    ),
-                    maxLines = 2,
-                    modifier = GlanceModifier.padding(horizontal = 2.dp, vertical = 3.dp),
-                )
-            }
+            // Course A label — pinned inside A's own Box at top-right (Γ's top bar).
+            ConflictLabel(
+                courseName = cell.courseA.courseName,
+                textColor = if (ongoingA) Color.White else textColor,
+                alignment = Alignment.TopEnd,
+                boxTopPadding = rowHeight * cell.offsetA,
+                boxBottomPadding = rowHeight * (cell.combinedSpan - cell.offsetA - cell.spanA),
+                barWidth = barWidth,
+            )
+            // Course B label — pinned inside B's own Box at bottom-left (mirror-L's bottom bar).
+            ConflictLabel(
+                courseName = cell.courseB.courseName,
+                textColor = if (ongoingB) Color.White else textColor,
+                alignment = Alignment.BottomStart,
+                boxTopPadding = rowHeight * cell.offsetB,
+                boxBottomPadding = rowHeight * (cell.combinedSpan - cell.offsetB - cell.spanB),
+                barWidth = barWidth,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ConflictLabel(
+    courseName: String,
+    textColor: Color,
+    alignment: Alignment,
+    boxTopPadding: Dp,
+    boxBottomPadding: Dp,
+    barWidth: Dp,
+) {
+    Box(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .padding(top = boxTopPadding, bottom = boxBottomPadding),
+        contentAlignment = alignment,
+    ) {
+        Box(
+            modifier = GlanceModifier
+                .width(barWidth)
+                .padding(horizontal = 2.dp, vertical = 2.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = courseName,
+                style = TextStyle(
+                    color = ColorProvider(textColor),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center,
+                ),
+                maxLines = 2,
+            )
         }
     }
 }
