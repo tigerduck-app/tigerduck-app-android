@@ -10,6 +10,7 @@ import com.google.zxing.qrcode.QRCodeWriter
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.LibraryService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -71,6 +72,8 @@ class LibraryViewModel @Inject constructor(
                 _isLoggedIn.value = true
                 _storedUsername.value = username
                 refreshQR()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _errorMessage.value = e.message ?: "登入失敗"
             } finally {
@@ -79,7 +82,7 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    fun refreshQR() {
+    private fun refreshQR() {
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             _isLoadingQR.value = _qrBitmap.value == null
@@ -92,6 +95,8 @@ class LibraryViewModel @Inject constructor(
                 val bitmap = withContext(Dispatchers.Default) { generateQRBitmap(qrData) }
                 _qrBitmap.value = bitmap
                 startCountdown()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _errorMessage.value = e.message ?: "QR 碼產生失敗"
                 // If the failure means our session is gone, drop back to the

@@ -114,7 +114,6 @@ fun LibraryScreen(
                 username = storedUsername,
                 countdown = countdown,
                 isLoadingQR = isLoadingQR,
-                onRefresh = { viewModel.refreshQR() }
             )
         } else {
             LoginPromptCard(
@@ -153,7 +152,6 @@ private fun LibraryQRCodeCard(
     username: String?,
     countdown: Int,
     isLoadingQR: Boolean,
-    onRefresh: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -225,10 +223,6 @@ private fun LibraryQRCodeCard(
 
             if (countdown > 0 && !isLoadingQR) {
                 CountdownIndicator(countdown = countdown)
-            }
-
-            TextButton(onClick = onRefresh) {
-                Text("重新產生")
             }
         }
     }
