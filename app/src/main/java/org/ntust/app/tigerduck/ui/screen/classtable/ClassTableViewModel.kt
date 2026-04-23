@@ -42,7 +42,8 @@ class ClassTableViewModel @Inject constructor(
     private val moodleService: MoodleService,
     private val dataCache: DataCache,
     private val courseColorStore: CourseColorStore,
-    private val appPreferences: AppPreferences
+    private val appPreferences: AppPreferences,
+    private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
 ) : ViewModel() {
 
     private val _courses = MutableStateFlow<List<Course>>(emptyList())
@@ -94,6 +95,7 @@ class ClassTableViewModel @Inject constructor(
                 if (fresh.isNotEmpty()) {
                     _courses.value = fresh
                     TigerDuckTheme.buildCourseColorMap(fresh)
+                    widgetUpdater.updateAll()
                 }
             }
         }
@@ -261,7 +263,10 @@ class ClassTableViewModel @Inject constructor(
         val flagged = course.copy(isManual = true)
         val updated = _courses.value + flagged
         _courses.value = updated
-        viewModelScope.launch { dataCache.saveCourses(updated, _currentSemester.value) }
+        viewModelScope.launch {
+            dataCache.saveCourses(updated, _currentSemester.value)
+            widgetUpdater.updateAll()
+        }
         TigerDuckTheme.buildCourseColorMap(updated)
     }
 
@@ -270,13 +275,19 @@ class ClassTableViewModel @Inject constructor(
             if (it.courseNo == courseNo) it.copy(courseName = newName) else it
         }
         _courses.value = updated
-        viewModelScope.launch { dataCache.saveCourses(updated, _currentSemester.value) }
+        viewModelScope.launch {
+            dataCache.saveCourses(updated, _currentSemester.value)
+            widgetUpdater.updateAll()
+        }
     }
 
     fun deleteCourse(courseNo: String) {
         val updated = _courses.value.filter { it.courseNo != courseNo }
         _courses.value = updated
-        viewModelScope.launch { dataCache.saveCourses(updated, _currentSemester.value) }
+        viewModelScope.launch {
+            dataCache.saveCourses(updated, _currentSemester.value)
+            widgetUpdater.updateAll()
+        }
         TigerDuckTheme.buildCourseColorMap(updated)
     }
 
@@ -298,7 +309,10 @@ class ClassTableViewModel @Inject constructor(
         }
         _courses.value = updated
         TigerDuckTheme.buildCourseColorMap(updated)
-        viewModelScope.launch { dataCache.saveCourses(updated, _currentSemester.value) }
+        viewModelScope.launch {
+            dataCache.saveCourses(updated, _currentSemester.value)
+            widgetUpdater.updateAll()
+        }
     }
 
     sealed class CellRole {
@@ -598,6 +612,7 @@ class ClassTableViewModel @Inject constructor(
                                 TigerDuckTheme.buildCourseColorMap(merged)
                             }
                             dataCache.saveCourses(merged, semester)
+                            widgetUpdater.updateAll()
                         }
                     }
                 } else null
