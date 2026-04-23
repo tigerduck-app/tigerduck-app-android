@@ -40,6 +40,7 @@ class AppState @Inject constructor(
     val dataCache: DataCache,
     val calendarService: CalendarService,
     val systemPermissions: SystemPermissions,
+    private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     @param:ApplicationContext private val appContext: Context,
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -83,6 +84,7 @@ class AppState @Inject constructor(
             if (accentColorHexState == value) return
             accentColorHexState = value
             prefs.accentColorHex = value
+            widgetUpdater.requestUpdate()
         }
 
     /**
@@ -128,6 +130,7 @@ class AppState @Inject constructor(
             if (themeModeState == value) return
             themeModeState = value
             prefs.themeMode = value
+            widgetUpdater.requestUpdate()
         }
 
     private var invertSliderDirectionState by mutableStateOf(prefs.invertSliderDirection)

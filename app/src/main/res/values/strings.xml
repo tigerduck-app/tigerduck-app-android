@@ -2,19 +2,21 @@
 <resources>
     <string name="app_name">TigerDuck</string>
 
-    <!-- Widget picker labels and descriptions -->
-    <string name="widget_week_light_label">課表 週視圖（淺色）</string>
-    <string name="widget_week_dark_label">課表 週視圖（深色）</string>
-    <string name="widget_today_light_label">課表 今日（淺色）</string>
-    <string name="widget_today_dark_label">課表 今日（深色）</string>
-    <string name="widget_next_class_light_label">下一堂課（淺色）</string>
-    <string name="widget_next_class_dark_label">下一堂課（深色）</string>
-    <string name="widget_week_light_desc">本週完整課表，淺色主題</string>
-    <string name="widget_week_dark_desc">本週完整課表，深色主題</string>
-    <string name="widget_today_light_desc">今日課程清單，淺色主題</string>
-    <string name="widget_today_dark_desc">今日課程清單，深色主題</string>
-    <string name="widget_next_class_light_desc">進行中或下一堂課，淺色主題</string>
-    <string name="widget_next_class_dark_desc">進行中或下一堂課，深色主題</string>
+    <!-- Widget picker labels and descriptions. Light/dark variants coexist
+         for backward compat with widgets already placed on users' home
+         screens, but both now follow the app's theme setting. -->
+    <string name="widget_week_light_label">課表 週視圖</string>
+    <string name="widget_week_dark_label">課表 週視圖</string>
+    <string name="widget_today_light_label">課表 今日</string>
+    <string name="widget_today_dark_label">課表 今日</string>
+    <string name="widget_next_class_light_label">下一堂課</string>
+    <string name="widget_next_class_dark_label">下一堂課</string>
+    <string name="widget_week_light_desc">本週完整課表，主題跟隨 App 設定</string>
+    <string name="widget_week_dark_desc">本週完整課表，主題跟隨 App 設定</string>
+    <string name="widget_today_light_desc">今日課程清單，主題跟隨 App 設定</string>
+    <string name="widget_today_dark_desc">今日課程清單，主題跟隨 App 設定</string>
+    <string name="widget_next_class_light_desc">進行中或下一堂課，主題跟隨 App 設定</string>
+    <string name="widget_next_class_dark_desc">進行中或下一堂課，主題跟隨 App 設定</string>
 
     <!-- Widget UI strings -->
     <string name="widget_no_classes_today">今日沒有課</string>
