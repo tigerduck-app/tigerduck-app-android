@@ -385,6 +385,7 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
     val trackHeightDp = TimeSliderViewModel.FLUID_TRACK_HEIGHT.dp
     var widthPx by remember { mutableStateOf(0f) }
 
+    val pxPerDp = with(density) { 1.dp.toPx() }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -400,20 +401,24 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                     onDragEnd = { viewModel.onDragEnded() },
                     onDragCancel = { viewModel.onDragEnded() },
                     onHorizontalDrag = { _, dragAmount ->
-                        viewModel.onDragChanged(dragAmount, invertDirection, context)
+                        viewModel.onDragChanged(dragAmount / pxPerDp, invertDirection, context)
                     }
                 )
             }
             .drawBehind {
                 val centerX = size.width / 2
                 val trackH = size.height
+                val segHeightPx = TimeSliderViewModel.FLUID_SEGMENT_HEIGHT.dp.toPx()
+                val majorMarkerHeightPx = TimeSliderViewModel.MAJOR_MARKER_HEIGHT.dp.toPx()
+                val thumbHeightPx = TimeSliderViewModel.SELECTION_THUMB_HEIGHT.dp.toPx()
+                val minSegWidthPx = TimeSliderViewModel.MIN_SEGMENT_WIDTH.dp.toPx()
 
                 // Draw course segments
                 for (slot in viewModel.timeSlots) {
-                    val startOff = viewModel.xOffset(slot.start)
-                    val endOff = viewModel.xOffset(slot.end)
+                    val startOff = viewModel.xOffset(slot.start) * pxPerDp
+                    val endOff = viewModel.xOffset(slot.end) * pxPerDp
                     val segW = maxOf(
-                        TimeSliderViewModel.MIN_SEGMENT_WIDTH,
+                        minSegWidthPx,
                         endOff - startOff
                     )
                     val segCenterX = centerX + (startOff + endOff) / 2
@@ -429,9 +434,9 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                             ),
                             topLeft = Offset(
                                 left,
-                                (trackH - TimeSliderViewModel.FLUID_SEGMENT_HEIGHT) / 2
+                                (trackH - segHeightPx) / 2
                             ),
-                            size = Size(segW, TimeSliderViewModel.FLUID_SEGMENT_HEIGHT),
+                            size = Size(segW, segHeightPx),
                             cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f)
                         )
                     }
@@ -440,7 +445,7 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                 // Tick marks
                 val markerInterval = (TimeSliderViewModel.MARKER_INTERVAL_MINUTES * 60_000).toLong()
                 val majorInterval = (TimeSliderViewModel.MAJOR_MARKER_INTERVAL_MINUTES * 60_000).toLong()
-                val visibleMinutes = size.width / TimeSliderViewModel.POINTS_PER_MINUTE
+                val visibleMinutes = (size.width / pxPerDp) / TimeSliderViewModel.POINTS_PER_MINUTE
                 val selectedRef = viewModel.selectedTime.time
                 val rangeStart = selectedRef - (visibleMinutes * 60_000).toLong()
                 val rangeEnd = selectedRef + (visibleMinutes * 60_000).toLong()
@@ -448,15 +453,14 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
 
                 while (t <= rangeEnd) {
                     val markerDate = Date(t)
-                    val x = centerX + viewModel.xOffset(markerDate)
+                    val x = centerX + viewModel.xOffset(markerDate) * pxPerDp
                     if (x > -10 && x < size.width + 10) {
                         val isMajor = t % majorInterval == 0L
                         if (isMajor) {
-                            val mh = TimeSliderViewModel.MAJOR_MARKER_HEIGHT
                             drawRect(
                                 color = Color.White.copy(alpha = 0.15f),
-                                topLeft = Offset(x - 0.5f, (trackH - mh) / 2),
-                                size = Size(1f, mh)
+                                topLeft = Offset(x - 0.5f, (trackH - majorMarkerHeightPx) / 2),
+                                size = Size(1f, majorMarkerHeightPx)
                             )
                         } else {
                             val ds = TimeSliderViewModel.MARKER_DOT_SIZE
@@ -472,11 +476,10 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
 
                 // Center indicator
                 val tw = TimeSliderViewModel.SELECTION_THUMB_WIDTH
-                val th = TimeSliderViewModel.SELECTION_THUMB_HEIGHT
                 drawRoundRect(
                     color = Color.White.copy(alpha = 0.7f),
-                    topLeft = Offset(centerX - tw / 2, (trackH - th) / 2),
-                    size = Size(tw, th),
+                    topLeft = Offset(centerX - tw / 2, (trackH - thumbHeightPx) / 2),
+                    size = Size(tw, thumbHeightPx),
                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(1f)
                 )
 

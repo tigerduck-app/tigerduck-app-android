@@ -245,13 +245,23 @@ class TimeSliderViewModel(private val scope: CoroutineScope) {
 
     private fun performHaptic(context: Context) {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val mgr = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-                mgr?.defaultVibrator?.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
             } else {
                 @Suppress("DEPRECATION")
-                val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-                vibrator?.vibrate(VibrationEffect.createOneShot(10, VibrationEffect.DEFAULT_AMPLITUDE))
+                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            } ?: return
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                vibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_TICK)
+            ) {
+                val effect = VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.6f)
+                    .compose()
+                vibrator.vibrate(effect)
+            } else {
+                val amp = if (vibrator.hasAmplitudeControl()) 90 else VibrationEffect.DEFAULT_AMPLITUDE
+                vibrator.vibrate(VibrationEffect.createOneShot(6, amp))
             }
         } catch (_: Exception) { }
     }
@@ -267,7 +277,7 @@ class TimeSliderViewModel(private val scope: CoroutineScope) {
         const val HAPTIC_INTERVAL_MINUTES = 15.0
 
         const val FLUID_TRACK_HEIGHT = 36f
-        const val FLUID_SEGMENT_HEIGHT = 20f
+        const val FLUID_SEGMENT_HEIGHT = 18f
         const val MIN_SEGMENT_WIDTH = 28f
         const val SELECTION_THUMB_WIDTH = 2f
         const val SELECTION_THUMB_HEIGHT = 28f
