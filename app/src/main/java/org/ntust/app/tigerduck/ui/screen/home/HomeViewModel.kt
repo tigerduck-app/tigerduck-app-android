@@ -265,7 +265,12 @@ class HomeViewModel @Inject constructor(
                         widgetUpdater.requestUpdate()
                     }
 
-                    if (remoteAssignments != null) {
+                    // Symmetric with the courses branch above: treat an empty
+                    // remote result as "upstream returned nothing useful"
+                    // (NetScaler challenge, token-rotation race, semester-code
+                    // skew in MoodleService.fetchAssignments) rather than
+                    // clobbering a valid cache with an empty list.
+                    if (!remoteAssignments.isNullOrEmpty()) {
                         assignments = remoteAssignments
                         dataCache.saveAssignments(remoteAssignments)
                     }
