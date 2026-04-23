@@ -1,7 +1,6 @@
 package org.ntust.app.tigerduck.ui.component
 
 import android.Manifest
-import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -51,7 +50,6 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
  */
 @Composable
 fun PermissionWarningDialogHost(systemPermissions: SystemPermissions) {
-    val context = LocalContext.current
     var revoked by remember { mutableStateOf<List<AppPermission>>(emptyList()) }
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -106,10 +104,7 @@ fun PermissionWarningDialogHost(systemPermissions: SystemPermissions) {
                             ) {
                                 notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                             } else {
-                                systemPermissions.settingsIntent(p)?.let {
-                                    it.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                    context.startActivity(it)
-                                }
+                                systemPermissions.openSettings(p)
                             }
                         },
                         onMute = {

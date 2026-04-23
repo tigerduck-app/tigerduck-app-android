@@ -1,7 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.Manifest
-import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -420,10 +419,7 @@ private fun openPermissionPrompt(
         askNotification()
         return
     }
-    systemPermissions.settingsIntent(permission)?.let {
-        it.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        context.startActivity(it)
-    }
+    systemPermissions.openSettings(permission)
 }
 
 private fun formatDuration(totalMinutes: Int): String {

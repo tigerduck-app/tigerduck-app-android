@@ -1,7 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.Manifest
-import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -41,7 +40,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -102,7 +100,6 @@ fun NotificationSetupContent(
     finishLabel: String,
     onFinish: () -> Unit,
 ) {
-    val context = LocalContext.current
     var states by remember { mutableStateOf(systemPermissions.states()) }
 
     val notificationLauncher = rememberLauncherForActivityResult(
@@ -147,17 +144,11 @@ fun NotificationSetupContent(
                             ) {
                                 notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                             } else {
-                                systemPermissions.settingsIntent(s.permission)?.let {
-                                    it.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                    context.startActivity(it)
-                                }
+                                systemPermissions.openSettings(s.permission)
                             }
                         }
                         else -> {
-                            systemPermissions.settingsIntent(s.permission)?.let {
-                                it.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                context.startActivity(it)
-                            }
+                            systemPermissions.openSettings(s.permission)
                         }
                     }
                 },

@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.notification
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -9,6 +10,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.content.ActivityNotFoundException
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -58,8 +60,17 @@ class SystemPermissions @Inject constructor(
             }
         }
         AppPermission.BATTERY_OPTIMIZATION -> {
-            val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-            pm.isIgnoringBatteryOptimizations(context.packageName)
+            // "Battery optimization" UX differs across Android versions and OEMs.
+            // On modern Android, the user-facing "Restricted/Optimized/Unrestricted" toggle
+            // maps more closely to background restriction than Doze allowlisting.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val activityManager =
+                    context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                activityManager.isBackgroundRestricted.not()
+            } else {
+                val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+                pm.isIgnoringBatteryOptimizations(context.packageName)
+            }
         }
     }
 
@@ -122,9 +133,52 @@ class SystemPermissions @Inject constructor(
                 }
             } else null
         }
-        AppPermission.BATTERY_OPTIMIZATION -> Intent(
-            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-        ).apply { data = "package:${context.packageName}".toUri() }
+        AppPermission.BATTERY_OPTIMIZATION -> batterySettingsIntents().firstOrNull()
+    }
+
+    /**
+     * Opens the best available system screen to let the user fix [p].
+     * Returns true if we managed to launch an activity.
+     */
+    fun openSettings(p: AppPermission): Boolean {
+        // Battery optimization / background restriction screens vary a lot by Android version/OEM.
+        // We only link to non-restricted settings pages.
+        if (p == AppPermission.BATTERY_OPTIMIZATION) {
+            for (intent in batterySettingsIntents()) {
+                if (tryStartActivity(intent)) return true
+            }
+            return false
+        }
+
+        val intent = settingsIntent(p) ?: return false
+        return tryStartActivity(intent)
+    }
+
+    private fun tryStartActivity(intent: Intent): Boolean {
+        return try {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+            true
+        } catch (_: SecurityException) {
+            false
+        } catch (_: ActivityNotFoundException) {
+            false
+        }
+    }
+
+    private fun batterySettingsIntents(): List<Intent> {
+        val pkgUri = "package:${context.packageName}".toUri()
+        val candidates = mutableListOf<Intent>()
+        // Prefer the global battery-optimization app list first (user can find TigerDuck there).
+        candidates += Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            candidates += Intent("android.settings.APP_BATTERY_SETTINGS").apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                data = pkgUri
+            }
+        }
+        candidates += Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply { data = pkgUri }
+        return candidates
     }
 
     private fun keyGranted(p: AppPermission) = "granted_${p.name}"
@@ -136,7 +190,7 @@ class SystemPermissions @Inject constructor(
         fun displayName(p: AppPermission): String = when (p) {
             AppPermission.NOTIFICATIONS -> "通知權限"
             AppPermission.EXACT_ALARM -> "精確鬧鐘"
-            AppPermission.BATTERY_OPTIMIZATION -> "關閉省電限制"
+            AppPermission.BATTERY_OPTIMIZATION -> "背景活動限制"
         }
 
         fun description(p: AppPermission): String = when (p) {
@@ -145,7 +199,7 @@ class SystemPermissions @Inject constructor(
             AppPermission.EXACT_ALARM ->
                 "允許 App 在精確的時間送出作業與上課提醒；關閉後提醒可能延後數分鐘至十幾分鐘。"
             AppPermission.BATTERY_OPTIMIZATION ->
-                "關閉系統對 App 的省電限制，確保 App 關閉或背景時仍能準時發送提醒。"
+                "建議在系統的電池/背景活動設定中，將 TigerDuck 設為不受限制（或不要限制背景活動），以降低提醒延遲。"
         }
     }
 }
