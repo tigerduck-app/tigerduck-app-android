@@ -2,7 +2,6 @@ package org.ntust.app.tigerduck.widget
 
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -36,7 +35,6 @@ import androidx.glance.unit.ColorProvider
 import dagger.hilt.android.EntryPointAccessors
 import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.data.preferences.AppPreferences
 
 /**
  * 1x1 home-screen widget that deep-links straight to the library QR page.
@@ -53,8 +51,8 @@ class LibraryShortcutWidget : GlanceAppWidget() {
         val prefs = EntryPointAccessors
             .fromApplication(context.applicationContext, WidgetThemeEntryPoint::class.java)
             .appPreferences()
-        val isDark = resolveIsDark(prefs, context)
-        val accent = resolveAccentColor(prefs, isDark)
+        val isDark = resolveWidgetIsDark(prefs, context)
+        val accent = resolveWidgetAccentColor(prefs, isDark)
         val tapIntent = Intent(context, MainActivity::class.java)
             .putExtra("start_route", ROUTE_SENTINEL)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -62,23 +60,6 @@ class LibraryShortcutWidget : GlanceAppWidget() {
         provideContent {
             LibraryShortcutContent(isDark = isDark, accent = accent, onTap = tapAction)
         }
-    }
-
-    private fun resolveIsDark(prefs: AppPreferences, context: Context): Boolean =
-        when (prefs.themeMode) {
-            "dark" -> true
-            "light" -> false
-            else -> {
-                val night = context.resources.configuration.uiMode and
-                    Configuration.UI_MODE_NIGHT_MASK
-                night == Configuration.UI_MODE_NIGHT_YES
-            }
-        }
-
-    private fun resolveAccentColor(prefs: AppPreferences, isDark: Boolean): Color {
-        val lightHex = prefs.accentColorHex
-        val hex = if (isDark) AppPreferences.accentDarkVariant(lightHex) else lightHex
-        return Color(0xFF000000L or (hex.toLong() and 0xFFFFFFL))
     }
 
     companion object {

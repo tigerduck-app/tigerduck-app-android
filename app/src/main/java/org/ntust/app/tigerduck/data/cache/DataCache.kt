@@ -36,9 +36,10 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         .create()
 
-    init {
-        absorbLegacyCourseCache()
-    }
+    // One-shot legacy cache migration is deferred to the first course op so
+    // the file I/O never lands on the main thread via Hilt-driven singleton
+    // construction (would trip StrictMode and risk ANR on slow storage).
+    @Volatile private var legacyCourseCacheAbsorbed = false
 
     // MARK: - Courses (semester-scoped)
 
@@ -50,6 +51,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
      * can only be recovered from userDataDir.
      */
     suspend fun saveCourses(courses: List<Course>, semester: String) {
+        absorbLegacyCourseCache()
         val (manual, remote) = courses.partition { it.isManual }
         save(remote, coursesFilename(semester))
         saveToUserData(manual, manualCoursesFilename(semester))
@@ -62,6 +64,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
      * evicted and a re-fetch has not yet repopulated it.
      */
     suspend fun loadCourses(semester: String): List<Course> {
+        absorbLegacyCourseCache()
         migrateManualCoursesToUserData(semester)
         val type = object : TypeToken<List<Course>>() {}.type
         val remote = load<List<Course>>(type, coursesFilename(semester)) ?: emptyList()
@@ -106,13 +109,21 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
      * current-semester file on first launch so existing users don't lose
      * their timetable when they upgrade; matches iOS's one-shot migration.
      */
-    private fun absorbLegacyCourseCache() {
-        val legacy = File(cacheDir, "courses.json")
-        if (!legacy.exists()) return
-        val target = File(cacheDir, coursesFilename(currentSemesterCode()))
-        runCatching {
-            if (!target.exists()) legacy.copyTo(target, overwrite = false)
-            legacy.delete()
+    private suspend fun absorbLegacyCourseCache() {
+        if (legacyCourseCacheAbsorbed) return
+        cacheMutex.withLock {
+            if (legacyCourseCacheAbsorbed) return@withLock
+            withContext(Dispatchers.IO) {
+                val legacy = File(cacheDir, "courses.json")
+                if (legacy.exists()) {
+                    val target = File(cacheDir, coursesFilename(currentSemesterCode()))
+                    runCatching {
+                        if (!target.exists()) legacy.copyTo(target, overwrite = false)
+                        legacy.delete()
+                    }
+                }
+                legacyCourseCacheAbsorbed = true
+            }
         }
     }
 
@@ -250,7 +261,11 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         }
         userDataMutex.withLock {
             withContext(Dispatchers.IO) {
-                listOf("skipped_dates.json", "ignored_assignments.json").forEach { name ->
+                listOf(
+                    "skipped_dates.json",
+                    "ignored_assignments.json",
+                    "marked_completed_assignments.json",
+                ).forEach { name ->
                     runCatching { File(userDataDir, name).delete() }
                 }
                 runCatching {

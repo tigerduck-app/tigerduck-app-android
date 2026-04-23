@@ -2,7 +2,6 @@ package org.ntust.app.tigerduck.widget
 
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -14,7 +13,6 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.provideContent
-import androidx.compose.ui.graphics.Color
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.Box
@@ -55,8 +53,8 @@ abstract class BaseClassTableWidget(
             // provideGlance itself only runs once per Glance session, so any
             // prefs-derived state has to live inside provideContent.
             val tick = currentState(WidgetState.TickKey) ?: 0L
-            val isDark = resolveIsDark(prefs, context)
-            val accent = resolveAccentColor(prefs, isDark)
+            val isDark = resolveWidgetIsDark(prefs, context)
+            val accent = resolveWidgetAccentColor(prefs, isDark)
             val colors = (if (isDark) WidgetTheme.Dark else WidgetTheme.Light)
                 .copy(highlight = accent)
 
@@ -86,28 +84,4 @@ abstract class BaseClassTableWidget(
             context.applicationContext,
             WidgetThemeEntryPoint::class.java,
         ).appPreferences()
-
-    // Resolves dark vs light from the app's theme preference. "system" defers
-    // to the current device UI mode so switching dark mode at the OS level
-    // propagates to the widget on its next recomposition.
-    private fun resolveIsDark(prefs: AppPreferences, context: Context): Boolean {
-        return when (prefs.themeMode) {
-            "dark" -> true
-            "light" -> false
-            else -> {
-                val nightMode = context.resources.configuration.uiMode and
-                    Configuration.UI_MODE_NIGHT_MASK
-                nightMode == Configuration.UI_MODE_NIGHT_YES
-            }
-        }
-    }
-
-    // `accentColorHex` stores the canonical light-mode hex. In dark mode we
-    // swap to the paired dark variant so the tint stays legible on dark
-    // surfaces, matching how the app resolves it in AppState.accentColor.
-    private fun resolveAccentColor(prefs: AppPreferences, isDark: Boolean): Color {
-        val lightHex = prefs.accentColorHex
-        val hex = if (isDark) AppPreferences.accentDarkVariant(lightHex) else lightHex
-        return Color(0xFF000000L or (hex.toLong() and 0xFFFFFFL))
-    }
 }
