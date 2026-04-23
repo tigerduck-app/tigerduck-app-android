@@ -1,9 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />
+
+    <!--
+        Pinned hosts receive NTUST SSO credentials and a long-lived Moodle wstoken.
+        Pins are SHA-256 of SubjectPublicKeyInfo. Each set includes the leaf SPKI
+        plus the issuing intermediate CA SPKI as a rotation-safe backup.
+
+        Rotation before expiration is MANDATORY — after the expiration date the
+        pins stop enforcing and fall back to system CA trust.
+
+        To re-pin, run (replace host as needed):
+            echo | openssl s_client -servername HOST -connect HOST:443 -showcerts \
+              | openssl x509 -noout -pubkey | openssl pkey -pubin -outform der \
+              | openssl dgst -sha256 -binary | openssl enc -base64
+    -->
+
+    <!-- *.ntust.edu.tw wildcard leaf + TWCA Secure SSL intermediate.
+         Leaf cert expires 2027-02-18; pins expire a month earlier. -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">ntust.edu.tw</domain>
+        <pin-set expiration="2027-01-18">
+            <pin digest="SHA-256">Nz3wUtBXZ+2HPXuSyx4enXs62i/PH4MKtayV9N4X0PE=</pin>
+            <pin digest="SHA-256">9VZ7Yd685RTXsE6rL/puuMbnejYaXwaZasGL7c+Uolc=</pin>
+        </pin-set>
+    </domain-config>
+
+    <!-- api.lib.ntust.edu.tw leaf + intermediate. -->
+    <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">api.lib.ntust.edu.tw</domain>
+        <pin-set expiration="2027-01-18">
+            <pin digest="SHA-256">m8Epf0KqJFv9abCXfipePZ79hfOMjddCKxz+RSZIDKY=</pin>
+            <pin digest="SHA-256">ZSagvDzjltLkewXEBuDxIzpW/dpVw1Juvvmd0hhkzdY=</pin>
+        </pin-set>
+    </domain-config>
+
+    <!-- App's own backend: cleartext still blocked but not pinned. -->
+    <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">r.xinshou.tw</domain>
     </domain-config>
 </network-security-config>

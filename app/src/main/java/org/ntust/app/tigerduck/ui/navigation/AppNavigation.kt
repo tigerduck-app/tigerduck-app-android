@@ -126,7 +126,11 @@ fun MainNavigation(appState: AppState) {
 
     val context = LocalContext.current
     val bottomItems = configuredTabs + listOf(AppFeature.MORE)
+    // NavHost startDestination must not change mid-session, so freeze it on
+    // first composition. popUpTo, in contrast, needs the *current* first tab
+    // so reordering via TabEditor doesn't pop to a removed route.
     val startDest = remember { configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route }
+    val popUpToDest = configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route
 
     val isNonTaipeiTz = remember {
         val now = Instant.now()
@@ -160,7 +164,7 @@ fun MainNavigation(appState: AppState) {
                             if (currentRoute == route) return@NavigationBarItem
                             performTabSwitchHaptic(context)
                             navController.navigate(route) {
-                                popUpTo(startDest) {
+                                popUpTo(popUpToDest) {
                                     inclusive = false
                                 }
                                 launchSingleTop = true

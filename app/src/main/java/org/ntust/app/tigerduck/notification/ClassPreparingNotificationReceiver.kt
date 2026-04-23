@@ -1,11 +1,15 @@
 package org.ntust.app.tigerduck.notification
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
 import java.time.Instant
@@ -20,6 +24,13 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         val startMs = intent.getLongExtra(EXTRA_START_MS, 0L)
         val endMs = intent.getLongExtra(EXTRA_END_MS, 0L)
         val slotId = intent.getStringExtra(EXTRA_SLOT_ID) ?: courseName
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
 
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         ensureChannel(nm)
