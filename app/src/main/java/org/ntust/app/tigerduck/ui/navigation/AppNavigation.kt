@@ -1,10 +1,14 @@
 package org.ntust.app.tigerduck.ui.navigation
 
+import android.app.Activity
 import android.content.Context
 import android.os.Build
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -131,6 +135,19 @@ fun MainNavigation(appState: AppState) {
     // so reordering via TabEditor doesn't pop to a removed route.
     val startDest = remember { configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route }
     val popUpToDest = configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route
+
+    // Two-press-to-exit on the leftmost tab. Deeper BackHandlers (e.g., Home
+    // edit mode) register later in composition and still win.
+    var lastBackPressMs by remember { mutableLongStateOf(0L) }
+    BackHandler(enabled = currentRoute == popUpToDest) {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastBackPressMs < 2000L) {
+            (context as? Activity)?.finish()
+        } else {
+            lastBackPressMs = now
+            Toast.makeText(context, "再次返回以退出應用程式", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     val isNonTaipeiTz = remember {
         val now = Instant.now()
