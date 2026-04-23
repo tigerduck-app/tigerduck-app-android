@@ -124,6 +124,18 @@
                 android:resource="@xml/widget_next_class_dark_info" />
         </receiver>
 
+        <receiver
+            android:name="org.ntust.app.tigerduck.widget.LibraryShortcutWidgetReceiver"
+            android:label="@string/widget_library_shortcut_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_library_shortcut_info" />
+        </receiver>
+
         <!-- App provides its own WorkManager configuration via Configuration.Provider
              so Hilt's worker factory is used. Disable the default initializer. -->
         <provider

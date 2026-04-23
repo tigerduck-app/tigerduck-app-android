@@ -163,6 +163,12 @@ class AppState @Inject constructor(
             prefs.libraryFeatureEnabled = value
         }
 
+    // Transient signal from the library-shortcut widget: when the user taps
+    // the widget while the library feature is disabled, we navigate to
+    // Settings and flip this so SettingsScreen surfaces an "enable first"
+    // dialog. Not persisted — lives only within the process.
+    var pendingLibraryEnablePrompt by mutableStateOf(false)
+
     private var configuredTabsState by mutableStateOf(prefs.configuredTabs)
 
     var configuredTabs: List<AppFeature>

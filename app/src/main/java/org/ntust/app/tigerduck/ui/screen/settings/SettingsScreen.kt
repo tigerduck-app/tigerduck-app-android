@@ -336,6 +336,19 @@ fun SettingsScreen(
         )
     }
 
+    if (viewModel.appState.pendingLibraryEnablePrompt) {
+        AlertDialog(
+            onDismissRequest = { viewModel.appState.pendingLibraryEnablePrompt = false },
+            title = { Text("圖書館功能未啟用") },
+            text = { Text("請先在下方「其他功能」中開啟「圖書館及相關功能」後，再使用圖書館 QR 捷徑。") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.appState.pendingLibraryEnablePrompt = false }) {
+                    Text("知道了")
+                }
+            },
+        )
+    }
+
     if (showResetColorsConfirm) {
         AlertDialog(
             onDismissRequest = { showResetColorsConfirm = false },

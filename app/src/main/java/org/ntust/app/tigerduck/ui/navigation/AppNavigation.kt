@@ -32,6 +32,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import org.ntust.app.tigerduck.data.model.AppFeature
+import org.ntust.app.tigerduck.widget.LibraryShortcutWidget
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarScreen
@@ -104,7 +105,21 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
     val navController = rememberNavController()
     LaunchedEffect(widgetStartRoute) {
         widgetStartRoute ?: return@LaunchedEffect
-        navController.navigate(widgetStartRoute) {
+        // The library-shortcut widget emits a sentinel instead of a direct
+        // route so the feature gate is re-evaluated at tap time. If library
+        // has been turned off since the widget was placed, reroute to
+        // Settings and raise the "enable first" prompt.
+        val target = if (widgetStartRoute == LibraryShortcutWidget.ROUTE_SENTINEL) {
+            if (appState.libraryFeatureEnabled) {
+                Screen.Library.route
+            } else {
+                appState.pendingLibraryEnablePrompt = true
+                Screen.Settings.route
+            }
+        } else {
+            widgetStartRoute
+        }
+        navController.navigate(target) {
             launchSingleTop = true
         }
     }
