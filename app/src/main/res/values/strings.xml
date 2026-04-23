@@ -1,4 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TigerDuck</string>
+
+    <!-- Widget picker labels and descriptions -->
+    <string name="widget_week_light_label">Classtable Week (Light)</string>
+    <string name="widget_week_dark_label">Classtable Week (Dark)</string>
+    <string name="widget_today_light_label">Classtable Today (Light)</string>
+    <string name="widget_today_dark_label">Classtable Today (Dark)</string>
+    <string name="widget_next_class_light_label">Next Class (Light)</string>
+    <string name="widget_next_class_dark_label">Next Class (Dark)</string>
+    <string name="widget_week_light_desc">Weekly class schedule, light theme</string>
+    <string name="widget_week_dark_desc">Weekly class schedule, dark theme</string>
+    <string name="widget_today_light_desc">Today\'s classes, light theme</string>
+    <string name="widget_today_dark_desc">Today\'s classes, dark theme</string>
+    <string name="widget_next_class_light_desc">Next class card, light theme</string>
+    <string name="widget_next_class_dark_desc">Next class card, dark theme</string>
+
+    <!-- Widget UI strings -->
+    <string name="widget_no_classes_today">今日沒有課</string>
+    <string name="widget_no_classes_weekend">週末沒有課，週一見！</string>
+    <string name="widget_no_more_classes">今日課程已結束</string>
+    <string name="widget_sign_in">請先登入 TigerDuck</string>
+    <string name="widget_ongoing">進行中</string>
+    <string name="widget_tomorrow">明天</string>
+    <string name="widget_next_class">下一堂課</string>
 </resources>
