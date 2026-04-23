@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -56,6 +57,7 @@ import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -273,6 +275,17 @@ private fun RankingsTrendCard(
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                     modifier = Modifier.weight(1f)
                 )
+                val primary = MaterialTheme.colorScheme.primary
+                val activeContainer = if (TigerDuckTheme.isDarkMode) {
+                    lerp(primary, Color.White, 0.7f).copy(alpha = 0.22f)
+                } else {
+                    primary.copy(alpha = 0.08f)
+                }
+                val segmentColors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = activeContainer,
+                    activeContentColor = primary,
+                    activeBorderColor = primary,
+                )
                 SingleChoiceSegmentedButtonRow {
                     ScoreViewModel.RankingScope.values().forEachIndexed { index, option ->
                         SegmentedButton(
@@ -281,7 +294,8 @@ private fun RankingsTrendCard(
                             shape = SegmentedButtonDefaults.itemShape(
                                 index = index,
                                 count = ScoreViewModel.RankingScope.values().size
-                            )
+                            ),
+                            colors = segmentColors,
                         ) {
                             Text(option.displayName, style = MaterialTheme.typography.labelMedium)
                         }

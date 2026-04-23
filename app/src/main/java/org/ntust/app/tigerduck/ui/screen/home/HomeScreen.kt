@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -52,6 +53,7 @@ import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.*
+import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.util.Calendar
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -571,6 +573,7 @@ private fun AssignmentFilterTabs(
     // from under them mid-interaction.
     val options = if (showIgnoredTab) AssignmentFilter.entries
                   else AssignmentFilter.entries.filter { it != AssignmentFilter.IGNORED }
+    val segmentColors = tigerDuckSegmentedButtonColors()
     SingleChoiceSegmentedButtonRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -582,11 +585,29 @@ private fun AssignmentFilterTabs(
                 onClick = { onSelect(option) },
                 enabled = enabled,
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                colors = segmentColors,
             ) {
-                Text(option.displayName)
+                Text(option.displayName, style = MaterialTheme.typography.labelMedium)
             }
         }
     }
+}
+
+@Composable
+private fun tigerDuckSegmentedButtonColors(): SegmentedButtonColors {
+    val primary = MaterialTheme.colorScheme.primary
+    // Blend toward white in dark mode so the tint reads as a *lighter* pastel
+    // accent. A raw primary tint composites darker than the dark card surface.
+    val activeContainer = if (TigerDuckTheme.isDarkMode) {
+        lerp(primary, Color.White, 0.7f).copy(alpha = 0.22f)
+    } else {
+        primary.copy(alpha = 0.08f)
+    }
+    return SegmentedButtonDefaults.colors(
+        activeContainerColor = activeContainer,
+        activeContentColor = primary,
+        activeBorderColor = primary,
+    )
 }
 
 @Composable
