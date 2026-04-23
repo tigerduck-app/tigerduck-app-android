@@ -65,6 +65,13 @@ class HomeViewModel @Inject constructor(
     private val _ignoredAssignmentIds = MutableStateFlow<Set<String>>(emptySet())
     val ignoredAssignmentIds: StateFlow<Set<String>> = _ignoredAssignmentIds
 
+    // Manually flagged "done" via the right-swipe gesture. Distinct from the
+    // Moodle `isCompleted` field so the UI can render a "標示為完成" badge
+    // instead of "已繳交"/"已遲交", and so the flag survives even if Moodle
+    // never records a submission for it.
+    private val _markedCompletedIds = MutableStateFlow<Set<String>>(emptySet())
+    val markedCompletedIds: StateFlow<Set<String>> = _markedCompletedIds
+
     private val _assignmentFilter = MutableStateFlow(prefs.homeAssignmentFilter)
     val assignmentFilter: StateFlow<AssignmentFilter> = _assignmentFilter
 
@@ -80,17 +87,37 @@ class HomeViewModel @Inject constructor(
     val upcomingAssignments: StateFlow<List<Assignment>> = combine(
         _allAssignments,
         _ignoredAssignmentIds,
+        _markedCompletedIds,
         _assignmentFilter,
-    ) { all, ignored, filter ->
+    ) { all, ignored, marked, filter ->
+        // "Effectively done" = Moodle says submitted OR the user manually
+        // marked it from the swipe gesture. Both buckets get treated the
+        // same for filter/sort purposes.
+        fun done(a: Assignment) = a.isCompleted || a.assignmentId in marked
         when (filter) {
             AssignmentFilter.INCOMPLETE ->
-                all.filter { !it.isCompleted && it.assignmentId !in ignored }
+                all.filter { !done(it) && it.assignmentId !in ignored }
                     .sortedBy { it.dueDate }
             AssignmentFilter.ALL -> {
+                // 全部 ordering, top → bottom:
+                //   1. Unhandled overdue (past due, not done, not marked) —
+                //      pinned. A 逾期/逾期拒收 item the user has *also*
+                //      marked complete is NOT pinned; it falls into the
+                //      regular past bucket.
+                //   2. Future items, soonest first (most recent future →
+                //      least recent future).
+                //   3. Past items, most recently passed first → oldest.
+                // Within bucket 1, sort by dueDate desc so the most
+                // recently overdue is on top.
+                val now = Date()
                 val visible = all.filter { it.assignmentId !in ignored }
-                val incomplete = visible.filter { !it.isCompleted }.sortedBy { it.dueDate }
-                val completed = visible.filter { it.isCompleted }.sortedByDescending { it.dueDate }
-                incomplete + completed
+                val (overdueUnhandled, rest) = visible.partition { a ->
+                    !done(a) && a.dueDate.before(now)
+                }
+                val (future, past) = rest.partition { !it.dueDate.before(now) }
+                overdueUnhandled.sortedByDescending { it.dueDate } +
+                    future.sortedBy { it.dueDate } +
+                    past.sortedByDescending { it.dueDate }
             }
             AssignmentFilter.IGNORED ->
                 all.filter { it.assignmentId in ignored }.sortedBy { it.dueDate }
@@ -98,6 +125,7 @@ class HomeViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val saveIgnoredChannel = Channel<Set<String>>(Channel.CONFLATED)
+    private val saveMarkedCompletedChannel = Channel<Set<String>>(Channel.CONFLATED)
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -136,6 +164,11 @@ class HomeViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            for (ids in saveMarkedCompletedChannel) {
+                dataCache.saveMarkedCompletedAssignments(ids)
+            }
+        }
+        viewModelScope.launch {
             // Pick up color changes triggered from Settings (e.g. "重設課表顏色").
             courseColorStore.changeEvent.collect {
                 val fresh = dataCache.loadCourses()
@@ -156,6 +189,7 @@ class HomeViewModel @Inject constructor(
                     _allAssignments.value = emptyList()
                     _skippedDates.value = emptyMap()
                     _ignoredAssignmentIds.value = emptySet()
+                    _markedCompletedIds.value = emptySet()
                     hasLoaded = false
                     _initialLoadComplete.value = true
                 } else {
@@ -174,6 +208,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _skippedDates.value = dataCache.loadSkippedDates()
             _ignoredAssignmentIds.value = dataCache.loadIgnoredAssignments()
+            _markedCompletedIds.value = dataCache.loadMarkedCompletedAssignments()
 
             // Load cached data immediately
             val cachedCourses = dataCache.loadCourses()
@@ -265,7 +300,7 @@ class HomeViewModel @Inject constructor(
         // Let them run concurrently with the SSO + course-selection scrape.
         val moodleEnrolledDef = async {
             try {
-                moodleService.fetchEnrolledCourses(studentId, password)
+                moodleService.fetchEnrolledCourses()
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Failed to fetch Moodle enrolled courses", e)
                 null
@@ -367,8 +402,13 @@ class HomeViewModel @Inject constructor(
         // the opposite of what the ignore gesture is for.
         if (prefs.notifyAssignments) {
             val ignored = _ignoredAssignmentIds.value
+            val marked = _markedCompletedIds.value
             notificationScheduler.scheduleAll(
-                assignments.filter { !it.isCompleted && it.assignmentId !in ignored }
+                assignments.filter {
+                    !it.isCompleted &&
+                        it.assignmentId !in ignored &&
+                        it.assignmentId !in marked
+                }
             )
         }
 
@@ -382,15 +422,19 @@ class HomeViewModel @Inject constructor(
 
     fun hasUnfinishedAssignment(courseNo: String): Boolean {
         val ignored = _ignoredAssignmentIds.value
+        val marked = _markedCompletedIds.value
         return _allAssignments.value.any {
-            it.courseNo == courseNo && !it.isCompleted && it.assignmentId !in ignored
+            it.courseNo == courseNo && !it.isCompleted &&
+                it.assignmentId !in ignored && it.assignmentId !in marked
         }
     }
 
     fun assignmentsFor(courseNo: String): List<Assignment> {
         val ignored = _ignoredAssignmentIds.value
+        val marked = _markedCompletedIds.value
         return _allAssignments.value.filter {
-            it.courseNo == courseNo && !it.isCompleted && it.assignmentId !in ignored
+            it.courseNo == courseNo && !it.isCompleted &&
+                it.assignmentId !in ignored && it.assignmentId !in marked
         }
     }
 
@@ -423,6 +467,30 @@ class HomeViewModel @Inject constructor(
             else current + assignment.assignmentId
         }
         saveIgnoredChannel.trySend(_ignoredAssignmentIds.value)
+    }
+
+    fun toggleMarkCompleted(assignment: Assignment) {
+        // Two-way gesture: right-swipe in 未完成 marks an item complete and
+        // sends it to 全部; right-swipe a marked item in 全部 (revert-arrow
+        // affordance) un-marks it and it reappears in 未完成. Re-run
+        // notification scheduling so a removed mark resurfaces a reminder
+        // (and a new mark cancels one).
+        _markedCompletedIds.update { current ->
+            if (assignment.assignmentId in current) current - assignment.assignmentId
+            else current + assignment.assignmentId
+        }
+        saveMarkedCompletedChannel.trySend(_markedCompletedIds.value)
+        if (prefs.notifyAssignments) {
+            val ignored = _ignoredAssignmentIds.value
+            val marked = _markedCompletedIds.value
+            notificationScheduler.scheduleAll(
+                _allAssignments.value.filter {
+                    !it.isCompleted &&
+                        it.assignmentId !in ignored &&
+                        it.assignmentId !in marked
+                }
+            )
+        }
     }
 
     fun selectCourse(course: Course?) {

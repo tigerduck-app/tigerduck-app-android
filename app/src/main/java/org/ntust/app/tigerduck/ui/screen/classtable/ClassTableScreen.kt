@@ -278,7 +278,7 @@ fun ClassTableScreen(
                     val assignments = viewModel.assignmentsFor(course.courseNo)
                     if (assignments.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
-                        Text("待繳作業", style = MaterialTheme.typography.titleSmall)
+                        Text("待辦作業", style = MaterialTheme.typography.titleSmall)
                         assignments.forEach { a ->
                             Text("• ${a.title}", style = MaterialTheme.typography.bodySmall)
                         }

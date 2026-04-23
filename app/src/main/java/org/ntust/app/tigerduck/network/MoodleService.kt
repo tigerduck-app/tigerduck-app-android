@@ -36,7 +36,7 @@ class MoodleService @Inject constructor(
      * webservice directly so we don't depend on the sesskey / `/my/` path,
      * which NTUST's edge (Citrix NetScaler) tends to challenge.
      */
-    suspend fun fetchEnrolledCourses(studentId: String, password: String): List<MoodleEnrolledCourse> =
+    suspend fun fetchEnrolledCourses(): List<MoodleEnrolledCourse> =
         withContext(Dispatchers.IO) {
             attemptWithTokenRetry { token ->
                 val userId = getSiteInfoUserId(token)

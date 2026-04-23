@@ -68,6 +68,7 @@ fun HomeScreen(
     val upcomingAssignments by viewModel.upcomingAssignments.collectAsStateWithLifecycle()
     val assignmentFilter by viewModel.assignmentFilter.collectAsStateWithLifecycle()
     val ignoredAssignmentIds by viewModel.ignoredAssignmentIds.collectAsStateWithLifecycle()
+    val markedCompletedIds by viewModel.markedCompletedIds.collectAsStateWithLifecycle()
     val ignoredTabPinned by viewModel.ignoredTabPinned.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val initialLoadComplete by viewModel.initialLoadComplete.collectAsStateWithLifecycle()
@@ -223,6 +224,7 @@ fun HomeScreen(
                             assignmentFilter = assignmentFilter,
                             showIgnoredTab = ignoredAssignmentIds.isNotEmpty() || ignoredTabPinned,
                             ignoredAssignmentIds = ignoredAssignmentIds,
+                            markedCompletedIds = markedCompletedIds,
                             isLoggedIn = isLoggedIn,
                             isLoading = isLoading,
                             initialLoadComplete = initialLoadComplete,
@@ -237,6 +239,9 @@ fun HomeScreen(
                             },
                             onToggleIgnore = {
                                 if (!isEditing) viewModel.toggleIgnore(it)
+                            },
+                            onMarkCompleted = {
+                                if (!isEditing) viewModel.toggleMarkCompleted(it)
                             },
                             onSelectFilter = { viewModel.setAssignmentFilter(it) },
                             // 翹課 feature disabled — replaced by 已忽略 homework flow.
@@ -391,6 +396,7 @@ private fun HomeSectionContent(
     assignmentFilter: AssignmentFilter,
     showIgnoredTab: Boolean,
     ignoredAssignmentIds: Set<String>,
+    markedCompletedIds: Set<String>,
     isLoggedIn: Boolean,
     isLoading: Boolean,
     initialLoadComplete: Boolean,
@@ -400,6 +406,7 @@ private fun HomeSectionContent(
     onCourseClick: (Course) -> Unit,
     onAssignmentClick: (Assignment) -> Unit,
     onToggleIgnore: (Assignment) -> Unit,
+    onMarkCompleted: (Assignment) -> Unit,
     onSelectFilter: (AssignmentFilter) -> Unit,
     onWidgetClick: () -> Unit
 ) {
@@ -439,12 +446,15 @@ private fun HomeSectionContent(
                         )
                     ) {
                         upcomingAssignments.forEachIndexed { index, assignment ->
+                            val isMarkedCompleted = assignment.assignmentId in markedCompletedIds
                             SwipeableAssignmentRow(
                                 assignment = assignment,
                                 isIgnored = assignment.assignmentId in ignoredAssignmentIds,
+                                isMarkedCompleted = isMarkedCompleted,
                                 showAbsoluteTime = showAbsoluteTime,
                                 onClick = { onAssignmentClick(assignment) },
                                 onToggleIgnore = { onToggleIgnore(assignment) },
+                                onMarkCompleted = { onMarkCompleted(assignment) },
                             )
                             if (index < upcomingAssignments.lastIndex) {
                                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -514,7 +524,7 @@ private fun CourseDetailDialog(
                 Text("學分：${course.credits}", style = MaterialTheme.typography.bodyMedium)
                 if (assignments.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
-                    Text("待繳作業", style = MaterialTheme.typography.titleSmall)
+                    Text("待辦作業", style = MaterialTheme.typography.titleSmall)
                     assignments.forEach { a ->
                         Text("• ${a.title}", style = MaterialTheme.typography.bodySmall)
                     }
@@ -609,7 +619,7 @@ private fun AssignmentsEmptyState(
         AssignmentFilter.INCOMPLETE -> EmptyStateView(
             icon = Icons.Filled.CheckCircle,
             title = "一切順利",
-            message = "沒有待辦作業",
+            message = "沒有作業",
         )
         AssignmentFilter.ALL -> EmptyStateView(
             icon = Icons.Filled.Inbox,
@@ -625,48 +635,84 @@ private fun AssignmentsEmptyState(
 }
 
 /**
- * Assignment row with left-swipe-to-toggle-ignore, mirroring the SlotCard
- * gesture pattern: drag damped at 0.6×, 100dp threshold, tween-out + snap-reset
- * on commit, spring-back otherwise.
+ * Assignment row with two swipe gestures, both following the SlotCard
+ * pattern (0.6× drag damping, 100dp threshold, tween-out + snap-reset on
+ * commit, spring-back otherwise):
+ *  - Left swipe: toggle ignore (orange icon on the right edge — eye-off
+ *    when not yet ignored, undo arrow when already ignored).
+ *  - Right swipe: toggle mark-as-complete (green icon on the left edge —
+ *    tick when not yet marked, undo arrow when already marked). The undo
+ *    affordance is what makes 標示為完成 reversible from the 全部 tab.
  */
 @Composable
 private fun SwipeableAssignmentRow(
     assignment: Assignment,
     isIgnored: Boolean,
+    isMarkedCompleted: Boolean,
     showAbsoluteTime: Boolean,
     onClick: () -> Unit,
     onToggleIgnore: () -> Unit,
+    onMarkCompleted: () -> Unit,
 ) {
-    val latestOnToggle by rememberUpdatedState(onToggleIgnore)
+    val latestOnToggleIgnore by rememberUpdatedState(onToggleIgnore)
+    val latestOnMarkCompleted by rememberUpdatedState(onMarkCompleted)
     val density = LocalDensity.current
     val thresholdPx = with(density) { 100.dp.toPx() }
     val swipeOffset = remember(assignment.assignmentId) { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
-    val actionColor = Color(0xFFFF9500)
+    val ignoreColor = Color(0xFFFF9500)
+    val completeColor = Color(0xFF34C759)
 
     Box(modifier = Modifier.fillMaxWidth()) {
-        // Indicator painted behind the sliding row. It becomes visible as the
-        // row slides left and exposes the right-edge area.
         val progress = (abs(swipeOffset.value) / thresholdPx).coerceIn(0f, 1f)
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .padding(end = 20.dp),
-            contentAlignment = Alignment.CenterEnd,
-        ) {
-            Icon(
-                imageVector = if (isIgnored) Icons.AutoMirrored.Filled.Undo
-                              else Icons.Filled.VisibilityOff,
-                contentDescription = if (isIgnored) "取消忽略" else "忽略",
-                tint = actionColor,
+
+        // Left-edge mark/unmark icon: revealed when the row is dragged
+        // right (positive offset). Tick when the row isn't marked yet,
+        // revert-arrow when it is already marked (so 標示為完成 is
+        // reversible without leaving the 全部 tab).
+        if (swipeOffset.value > 0f) {
+            Box(
                 modifier = Modifier
-                    .size(26.dp)
-                    .alpha(progress)
-                    .scale(0.5f + 0.5f * progress),
-            )
+                    .matchParentSize()
+                    .padding(start = 20.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Icon(
+                    imageVector = if (isMarkedCompleted) Icons.AutoMirrored.Filled.Undo
+                                  else Icons.Filled.Check,
+                    contentDescription = if (isMarkedCompleted) "取消標示為完成" else "標示為完成",
+                    tint = completeColor,
+                    modifier = Modifier
+                        .size(26.dp)
+                        .alpha(progress)
+                        .scale(0.5f + 0.5f * progress),
+                )
+            }
         }
 
-        // Opaque row that slides over the indicator. The surface color matches
+        // Right-edge hide/undo icon: revealed when the row is dragged left
+        // (negative offset).
+        if (swipeOffset.value < 0f) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .padding(end = 20.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Icon(
+                    imageVector = if (isIgnored) Icons.AutoMirrored.Filled.Undo
+                                  else Icons.Filled.VisibilityOff,
+                    contentDescription = if (isIgnored) "取消忽略" else "忽略",
+                    tint = ignoreColor,
+                    modifier = Modifier
+                        .size(26.dp)
+                        .alpha(progress)
+                        .scale(0.5f + 0.5f * progress),
+                )
+            }
+        }
+
+        // Opaque row that slides over the indicators. Surface color matches
         // the parent Card so no seam is visible at rest.
         Box(
             modifier = Modifier
@@ -677,15 +723,24 @@ private fun SwipeableAssignmentRow(
                     detectHorizontalDragGestures(
                         onDragEnd = {
                             coroutineScope.launch {
-                                if (swipeOffset.value <= -thresholdPx) {
-                                    swipeOffset.animateTo(
-                                        -2000f,
-                                        animationSpec = tween(durationMillis = 200),
-                                    )
-                                    latestOnToggle()
-                                    swipeOffset.snapTo(0f)
-                                } else {
-                                    swipeOffset.animateTo(0f, animationSpec = spring())
+                                when {
+                                    swipeOffset.value <= -thresholdPx -> {
+                                        swipeOffset.animateTo(
+                                            -2000f,
+                                            animationSpec = tween(durationMillis = 200),
+                                        )
+                                        latestOnToggleIgnore()
+                                        swipeOffset.snapTo(0f)
+                                    }
+                                    swipeOffset.value >= thresholdPx -> {
+                                        swipeOffset.animateTo(
+                                            2000f,
+                                            animationSpec = tween(durationMillis = 200),
+                                        )
+                                        latestOnMarkCompleted()
+                                        swipeOffset.snapTo(0f)
+                                    }
+                                    else -> swipeOffset.animateTo(0f, animationSpec = spring())
                                 }
                             }
                         },
@@ -696,9 +751,7 @@ private fun SwipeableAssignmentRow(
                         },
                         onHorizontalDrag = { _, delta ->
                             coroutineScope.launch {
-                                swipeOffset.snapTo(
-                                    (swipeOffset.value + delta * 0.6f).coerceAtMost(0f),
-                                )
+                                swipeOffset.snapTo(swipeOffset.value + delta * 0.6f)
                             }
                         },
                     )
@@ -707,6 +760,7 @@ private fun SwipeableAssignmentRow(
             AssignmentItem(
                 assignment = assignment,
                 showAbsoluteTime = showAbsoluteTime,
+                markedCompleted = isMarkedCompleted,
                 onClick = onClick,
             )
         }

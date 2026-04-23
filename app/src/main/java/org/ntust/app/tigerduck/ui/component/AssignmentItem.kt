@@ -33,6 +33,7 @@ fun AssignmentItem(
     assignment: Assignment,
     modifier: Modifier = Modifier,
     showAbsoluteTime: Boolean = false,
+    markedCompleted: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
     val courseColor = TigerDuckTheme.courseColorVibrant(assignment.courseNo)
@@ -79,6 +80,7 @@ fun AssignmentItem(
             assignment = assignment,
             status = status,
             showAbsoluteTime = showAbsoluteTime,
+            markedCompleted = markedCompleted,
         )
     }
 }
@@ -88,27 +90,38 @@ private fun AssignmentTrailing(
     assignment: Assignment,
     status: AssignmentStatus,
     showAbsoluteTime: Boolean,
+    markedCompleted: Boolean,
 ) {
-    val badge = statusBadge(status)
+    // Show the Moodle-derived badge AND the manual "標示為完成" tag side-
+    // by-side when both apply (e.g. an overdue assignment the user manually
+    // marked done renders as "逾期 標示為完成"). The two badges are
+    // independent signals — one is from Moodle, the other from the user.
+    val moodleBadge = statusBadge(status)
+    val markedBadge: Pair<String, Color>? = if (markedCompleted) "標示為完成" to BadgeGreen else null
     val isOverdue = status == AssignmentStatus.OVERDUE_ACCEPTABLE ||
             status == AssignmentStatus.OVERDUE_REJECTED
     val emphasise = status == AssignmentStatus.OVERDUE_REJECTED
 
     Column(horizontalAlignment = Alignment.End) {
-        if (badge != null) {
-            val (label, color) = badge
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = if (emphasise) FontWeight.Bold else FontWeight.SemiBold,
-                ),
-                color = color,
-            )
+        val badges = listOfNotNull(moodleBadge, markedBadge)
+        if (badges.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                badges.forEach { (label, color) ->
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = if (emphasise && label != "標示為完成") FontWeight.Bold
+                                         else FontWeight.SemiBold,
+                        ),
+                        color = color,
+                    )
+                }
+            }
         }
 
         val now = remember { Date() }
         val useAbsolute = showAbsoluteTime ||
-                (assignment.isCompleted && assignment.dueDate.before(now))
+                ((assignment.isCompleted || markedCompleted) && assignment.dueDate.before(now))
         val timeText = if (useAbsolute) formatAbsolute(assignment.dueDate)
                        else formatRelative(assignment.dueDate, now)
         val timeColor = if (isOverdue) BadgeRed

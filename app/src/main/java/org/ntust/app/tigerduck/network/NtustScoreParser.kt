@@ -162,6 +162,10 @@ object NtustScoreParser {
         if (g.contains("二次退選") || r.contains("二次退選")) return GradeStatus.WITHDREW
         if (r.contains("抵免")) return GradeStatus.EXEMPTED
         if (g.contains("成績未到")) return GradeStatus.PENDING
+        // Both 通過 and 不通過 collapse to PASSED — this matches the iOS
+        // parser's bucket of "graded on a pass/fail scale" rather than the
+        // outcome. Don't introduce a FAILED variant here without coordinating
+        // the same change in iOS NTUSTScoreParser, or the two clients drift.
         if (g == "通過" || g == "不通過") return GradeStatus.PASSED
         if (g.isEmpty()) return GradeStatus.UNKNOWN
         return GradeStatus.GRADED

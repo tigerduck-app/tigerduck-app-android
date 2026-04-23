@@ -514,7 +514,7 @@ class ClassTableViewModel @Inject constructor(
                 }
                 val moodleDef = async {
                     try {
-                        moodleService.fetchEnrolledCourses(studentId, password)
+                        moodleService.fetchEnrolledCourses()
                     } catch (e: Exception) {
                         Log.e("ClassTableVM", "Failed to fetch Moodle enrolled courses", e)
                         emptyList<MoodleEnrolledCourse>()

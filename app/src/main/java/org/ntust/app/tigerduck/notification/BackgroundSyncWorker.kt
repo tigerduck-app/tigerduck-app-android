@@ -46,13 +46,17 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // Bail before touching the cache or scheduling anything.
         if (authService.storedStudentId != studentId) return Result.success()
 
-        val assignmentsOk = syncAssignments(studentId)
+        val assignmentsOk = syncAssignments()
         if (authService.storedStudentId != studentId) return Result.success()
 
         liveActivityManager.refreshAndWait()
         widgetUpdater.updateAll()
 
-        return if (coursesOk || assignmentsOk) Result.success() else Result.retry()
+        // Retry whenever either half failed: treating a partial failure as
+        // success would silently drop the failing component until the next
+        // hourly tick. WorkManager's exponential backoff is the right
+        // recovery path for transient Moodle/NTUST outages.
+        return if (coursesOk && assignmentsOk) Result.success() else Result.retry()
     }
 
     private suspend fun syncCourses(studentId: String, password: String): Boolean {
@@ -110,9 +114,9 @@ class BackgroundSyncWorker @AssistedInject constructor(
         }
     }
 
-    private suspend fun syncAssignments(studentId: String): Boolean {
+    private suspend fun syncAssignments(): Boolean {
         return try {
-            val enrolled = moodleService.fetchEnrolledCourses(studentId, authService.storedPassword.orEmpty())
+            val enrolled = moodleService.fetchEnrolledCourses()
             val remote = moodleService.fetchAssignments(enrolled)
             val completed = dataCache.loadAssignments()
                 .filter { it.isCompleted }
@@ -124,7 +128,17 @@ class BackgroundSyncWorker @AssistedInject constructor(
             dataCache.saveAssignments(merged)
 
             if (prefs.notifyAssignments) {
-                notificationScheduler.scheduleAll(merged.filter { !it.isCompleted })
+                // Mirror HomeViewModel's filter so background re-scheduling
+                // doesn't resurrect notifications the user manually silenced.
+                val ignored = dataCache.loadIgnoredAssignments()
+                val marked = dataCache.loadMarkedCompletedAssignments()
+                notificationScheduler.scheduleAll(
+                    merged.filter {
+                        !it.isCompleted &&
+                            it.assignmentId !in ignored &&
+                            it.assignmentId !in marked
+                    }
+                )
             }
             true
         } catch (e: Exception) {

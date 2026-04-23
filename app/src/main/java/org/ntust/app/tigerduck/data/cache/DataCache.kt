@@ -159,6 +159,20 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return loadFromUserData<List<String>>(type, "ignored_assignments.json")?.toSet() ?: emptySet()
     }
 
+    // MARK: - Marked-Completed Assignments (set of assignmentIds)
+    // Independent from Moodle's `isCompleted`: lets the user manually flag a
+    // homework as done from the swipe gesture even when Moodle hasn't (or
+    // won't) record a submission. Persisted in filesDir alongside the ignore
+    // list so it survives remote re-fetches.
+
+    suspend fun saveMarkedCompletedAssignments(ids: Set<String>) =
+        saveToUserData(ids.toList(), "marked_completed_assignments.json")
+
+    suspend fun loadMarkedCompletedAssignments(): Set<String> {
+        val type = object : TypeToken<List<String>>() {}.type
+        return loadFromUserData<List<String>>(type, "marked_completed_assignments.json")?.toSet() ?: emptySet()
+    }
+
     // MARK: - Score Report (per studentId)
 
     data class ScoreReportSnapshot(val report: ScoreReport, val cachedAt: Date)

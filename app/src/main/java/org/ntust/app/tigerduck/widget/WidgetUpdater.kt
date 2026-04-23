@@ -152,6 +152,7 @@ class WidgetUpdater @Inject constructor(
             TodayDarkWidgetReceiver::class.java,
             NextClassLightWidgetReceiver::class.java,
             NextClassDarkWidgetReceiver::class.java,
+            LibraryShortcutWidgetReceiver::class.java,
         )
         private val GLANCE_WIDGET_FACTORIES: List<() -> GlanceAppWidget> = listOf(
             { WeekLightWidget() },
@@ -160,6 +161,7 @@ class WidgetUpdater @Inject constructor(
             { TodayDarkWidget() },
             { NextClassLightWidget() },
             { NextClassDarkWidget() },
+            { LibraryShortcutWidget() },
         )
     }
 }

@@ -195,7 +195,17 @@ class MoodleTokenService @Inject constructor(
             return resolveTokenTriple(nextHtml, nextUrl, studentId, password, remainingSteps - 1)
         }
 
-        throw MoodleWebserviceError.MalformedResponse("Unexpected OIDC page: $responseUrl — body preview=${html.take(300).replace("\n", " ")}")
+        // Redact secrets before they hit logs/crash reports: the URL goes
+        // through `redactForLog()` (masks passport/token/code/state query
+        // params) and the HTML preview gets any input value of length ≥8
+        // collapsed to `value="***"` to scrub OIDC `code`/`state`/session
+        // values that ride hidden form fields between hops.
+        val safePreview = html.take(300)
+            .replace(Regex("value=\"[^\"]{8,}\""), "value=\"***\"")
+            .replace("\n", " ")
+        throw MoodleWebserviceError.MalformedResponse(
+            "Unexpected OIDC page: ${responseUrl.redactForLog()} — body preview=$safePreview"
+        )
     }
 
     // MARK: - HTTP helpers

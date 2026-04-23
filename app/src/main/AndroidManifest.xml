@@ -23,6 +23,7 @@
         <activity
             android:name="org.ntust.app.tigerduck.MainActivity"
             android:exported="true"
+            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.TigerDuck">
             <intent-filter>
