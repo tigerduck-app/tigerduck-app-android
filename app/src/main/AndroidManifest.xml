@@ -48,6 +48,10 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name="org.ntust.app.tigerduck.widget.WidgetBoundaryReceiver"
+            android:exported="false" />
+
         <!-- App provides its own WorkManager configuration via Configuration.Provider
              so Hilt's worker factory is used. Disable the default initializer. -->
         <provider
