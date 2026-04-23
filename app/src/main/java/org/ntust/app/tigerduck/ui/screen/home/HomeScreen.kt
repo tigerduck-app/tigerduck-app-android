@@ -208,6 +208,7 @@ fun HomeScreen(
                             assignmentFilter = assignmentFilter,
                             ignoredAssignmentIds = ignoredAssignmentIds,
                             isLoggedIn = isLoggedIn,
+                            isLoading = isLoading,
                             hasUnfinishedAssignment = viewModel::hasUnfinishedAssignment,
                             showAbsoluteTime = appState.showAbsoluteAssignmentTime,
                             invertDirection = appState.invertSliderDirection,
@@ -373,6 +374,7 @@ private fun HomeSectionContent(
     assignmentFilter: AssignmentFilter,
     ignoredAssignmentIds: Set<String>,
     isLoggedIn: Boolean,
+    isLoading: Boolean,
     hasUnfinishedAssignment: (String) -> Boolean,
     showAbsoluteTime: Boolean,
     invertDirection: Boolean,
@@ -403,6 +405,7 @@ private fun HomeSectionContent(
                 if (upcomingAssignments.isEmpty()) {
                     AssignmentsEmptyState(
                         isLoggedIn = isLoggedIn,
+                        isLoading = isLoading,
                         filter = assignmentFilter,
                     )
                 } else {
@@ -539,7 +542,7 @@ private fun AssignmentFilterTabs(
     ) {
         options.forEachIndexed { index, option ->
             SegmentedButton(
-                selected = option == selected,
+                selected = enabled && option == selected,
                 onClick = { onSelect(option) },
                 enabled = enabled,
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
@@ -553,6 +556,7 @@ private fun AssignmentFilterTabs(
 @Composable
 private fun AssignmentsEmptyState(
     isLoggedIn: Boolean,
+    isLoading: Boolean,
     filter: AssignmentFilter,
 ) {
     if (!isLoggedIn) {
@@ -561,6 +565,18 @@ private fun AssignmentsEmptyState(
             title = "尚未登入",
             message = "請先登入以使用這項功能",
         )
+        return
+    }
+    if (isLoading) {
+        Box(
+            modifier = Modifier.fillMaxWidth().padding(32.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                strokeWidth = 2.dp,
+            )
+        }
         return
     }
     when (filter) {

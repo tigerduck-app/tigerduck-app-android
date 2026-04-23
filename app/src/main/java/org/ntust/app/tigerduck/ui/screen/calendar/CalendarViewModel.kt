@@ -107,7 +107,9 @@ class CalendarViewModel @Inject constructor(
         hasLoaded = true
         viewModelScope.launch {
             _events.value = dataCache.loadCalendarEvents()
-            fetchData()
+            // The school ICS is public, but the user expects a logged-out
+            // calendar to stay completely idle (no spinner, no network).
+            if (authService.isNtustAuthenticated) fetchData()
         }
     }
 
@@ -118,6 +120,7 @@ class CalendarViewModel @Inject constructor(
     val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
     fun refresh() {
+        if (!authService.isNtustAuthenticated) return
         viewModelScope.launch {
             _isLoading.value = true
             if (!networkChecker.isAvailable()) {
