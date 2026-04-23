@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.os.Build
@@ -12,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import org.ntust.app.tigerduck.auth.AuthService
@@ -31,6 +33,8 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var liveActivityManager: LiveActivityManager
     @Inject lateinit var authService: AuthService
 
+    private val widgetStartRoute = mutableStateOf<String?>(null)
+
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) liveActivityManager.refresh()
@@ -49,6 +53,8 @@ class MainActivity : ComponentActivity() {
             BackgroundSyncWorker.schedule(applicationContext)
         }
 
+        widgetStartRoute.value = intent?.getStringExtra("start_route")
+
         setContent {
             val systemDark = isSystemInDarkTheme()
             val dark = when (appState.themeMode) {
@@ -60,7 +66,7 @@ class MainActivity : ComponentActivity() {
 
             TigerDuckAppTheme(darkTheme = dark, accentColor = appState.accentColor(dark)) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    AppNavigation(appState = appState)
+                    AppNavigation(appState = appState, widgetStartRoute = widgetStartRoute.value)
                 }
             }
         }
@@ -69,6 +75,11 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         liveActivityManager.refresh()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        widgetStartRoute.value = intent.getStringExtra("start_route")
     }
 
     private fun requestNotificationPermissionIfNeeded() {

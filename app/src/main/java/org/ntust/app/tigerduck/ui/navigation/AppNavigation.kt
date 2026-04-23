@@ -64,11 +64,11 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun AppNavigation(appState: AppState) {
+fun AppNavigation(appState: AppState, widgetStartRoute: String? = null) {
     if (!appState.hasCompletedOnboarding) {
         OnboardingScreen()
     } else {
-        MainNavigation(appState)
+        MainNavigation(appState, widgetStartRoute)
         PermissionWarningDialogHost(appState.systemPermissions)
     }
 
@@ -100,8 +100,14 @@ fun AppNavigation(appState: AppState) {
 }
 
 @Composable
-fun MainNavigation(appState: AppState) {
+fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
     val navController = rememberNavController()
+    LaunchedEffect(widgetStartRoute) {
+        widgetStartRoute ?: return@LaunchedEffect
+        navController.navigate(widgetStartRoute) {
+            launchSingleTop = true
+        }
+    }
     // Hoist Home / ClassTable / Calendar VMs to the activity scope so they
     // exist from app open and survive tab switches. load() is called once
     // here on first composition; the per-screen LaunchedEffect that also
