@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.widget
 
 import androidx.compose.ui.graphics.Color
+import androidx.datastore.preferences.core.longPreferencesKey
 import org.ntust.app.tigerduck.data.model.Course
 
 data class WidgetState(
@@ -20,4 +21,16 @@ data class WidgetState(
      * hash-based palette color inside [widgetCourseColor].
      */
     val courseColors: Map<String, Color>,
-)
+) {
+    companion object {
+        /**
+         * Monotonic refresh token stored in each widget's Glance preferences.
+         * Bumping it from [WidgetUpdater.updateAll] forces every widget's
+         * composition to recompose and reload its state from disk. Reading it
+         * inside the composable via `currentState(TickKey)` is what makes the
+         * recomposition observable — without this handshake, Glance reuses
+         * the stale captured state from the widget's initial `provideGlance`.
+         */
+        val TickKey = longPreferencesKey("widget_refresh_tick")
+    }
+}

@@ -95,7 +95,8 @@ class ClassTableViewModel @Inject constructor(
                 if (fresh.isNotEmpty()) {
                     _courses.value = fresh
                     TigerDuckTheme.buildCourseColorMap(fresh)
-                    widgetUpdater.updateAll()
+                    // Widget refresh is driven by CourseColorStore itself, so
+                    // subscribers don't need to re-trigger it.
                 }
             }
         }
@@ -265,7 +266,7 @@ class ClassTableViewModel @Inject constructor(
         _courses.value = updated
         viewModelScope.launch {
             dataCache.saveCourses(updated, _currentSemester.value)
-            widgetUpdater.updateAll()
+            widgetUpdater.requestUpdate()
         }
         TigerDuckTheme.buildCourseColorMap(updated)
     }
@@ -277,7 +278,7 @@ class ClassTableViewModel @Inject constructor(
         _courses.value = updated
         viewModelScope.launch {
             dataCache.saveCourses(updated, _currentSemester.value)
-            widgetUpdater.updateAll()
+            widgetUpdater.requestUpdate()
         }
     }
 
@@ -286,7 +287,7 @@ class ClassTableViewModel @Inject constructor(
         _courses.value = updated
         viewModelScope.launch {
             dataCache.saveCourses(updated, _currentSemester.value)
-            widgetUpdater.updateAll()
+            widgetUpdater.requestUpdate()
         }
         TigerDuckTheme.buildCourseColorMap(updated)
     }
@@ -311,7 +312,7 @@ class ClassTableViewModel @Inject constructor(
         TigerDuckTheme.buildCourseColorMap(updated)
         viewModelScope.launch {
             dataCache.saveCourses(updated, _currentSemester.value)
-            widgetUpdater.updateAll()
+            widgetUpdater.requestUpdate()
         }
     }
 
@@ -612,7 +613,7 @@ class ClassTableViewModel @Inject constructor(
                                 TigerDuckTheme.buildCourseColorMap(merged)
                             }
                             dataCache.saveCourses(merged, semester)
-                            widgetUpdater.updateAll()
+                            widgetUpdater.requestUpdate()
                         }
                     }
                 } else null

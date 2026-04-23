@@ -273,6 +273,12 @@ private fun OngoingMiniCard(course: Course, state: WidgetState, colors: WidgetCo
     val periods = course.schedule[weekday]?.sortedBy { order.indexOf(it) } ?: emptyList()
     val startTime = periods.firstOrNull()?.let { AppConstants.PeriodTimes.mapping[it]?.first } ?: ""
     val endTime = periods.lastOrNull()?.let { AppConstants.PeriodTimes.mapping[it]?.second } ?: ""
+    val startMin = parseHm(startTime) ?: 0
+    val endMin = parseHm(endTime) ?: 0
+    val progress = if (endMin > startMin) {
+        ((state.currentMinuteOfDay - startMin).toFloat() / (endMin - startMin))
+            .coerceIn(0f, 1f)
+    } else 0f
 
     Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
         Box(
@@ -308,6 +314,20 @@ private fun OngoingMiniCard(course: Course, state: WidgetState, colors: WidgetCo
         style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 10.sp),
         maxLines = 1,
     )
+    Spacer(GlanceModifier.height(3.dp))
+    val widgetWidth = LocalSize.current.width
+    val filledWidth = (widgetWidth.value * progress - 24f).coerceAtLeast(0f).dp
+    Row(
+        modifier = GlanceModifier.fillMaxWidth().height(3.dp)
+            .background(ColorProvider(colors.emptyCell))
+            .cornerRadius(1.5.dp),
+    ) {
+        Box(
+            modifier = GlanceModifier.width(filledWidth).fillMaxHeight()
+                .background(ColorProvider(colors.highlight))
+                .cornerRadius(1.5.dp),
+        ) {}
+    }
 }
 
 @Composable

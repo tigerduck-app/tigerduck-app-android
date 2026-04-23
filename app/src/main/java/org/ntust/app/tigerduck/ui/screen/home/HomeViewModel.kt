@@ -46,6 +46,7 @@ class HomeViewModel @Inject constructor(
     private val prefs: AppPreferences,
     private val courseColorStore: CourseColorStore,
     private val liveActivityManager: LiveActivityManager,
+    private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
 ) : ViewModel() {
 
     private val _sections = MutableStateFlow(prefs.homeSections)
@@ -226,6 +227,7 @@ class HomeViewModel @Inject constructor(
                         val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
                         courses = fetched + manualLeftovers
                         dataCache.saveCourses(courses)
+                        widgetUpdater.requestUpdate()
                     }
 
                     if (remoteAssignments != null) {

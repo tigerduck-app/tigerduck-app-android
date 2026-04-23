@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.channels.BufferOverflow
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
+import org.ntust.app.tigerduck.widget.WidgetUpdater
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.random.Random
@@ -19,7 +20,8 @@ import kotlin.random.Random
  */
 @Singleton
 class CourseColorStore @Inject constructor(
-    private val dataCache: DataCache
+    private val dataCache: DataCache,
+    private val widgetUpdater: WidgetUpdater,
 ) {
     private val _changeEvent = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
@@ -51,6 +53,7 @@ class CourseColorStore @Inject constructor(
         }
 
         dataCache.saveCourses(updated)
+        widgetUpdater.requestUpdate()
         _changeEvent.tryEmit(Unit)
     }
 
