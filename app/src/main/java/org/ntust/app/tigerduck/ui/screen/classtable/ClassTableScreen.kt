@@ -60,7 +60,7 @@ fun ClassTableScreen(
     val currentMinute by viewModel.currentMinute.collectAsStateWithLifecycle()
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
     val todayCourses = remember(courses, currentMinute) { viewModel.todayCourses }
-    val ongoingCourse = remember(courses, currentMinute) { viewModel.ongoingCourse }
+    val ongoingCourses = remember(courses, currentMinute) { viewModel.ongoingCourses }
     val activePeriods = remember(courses) { viewModel.activePeriods }
     val activeWeekdays = remember(courses) { viewModel.activeWeekdays }
     var showAddCourse by remember { mutableStateOf(false) }
@@ -146,7 +146,7 @@ fun ClassTableScreen(
                         .height(IntrinsicSize.Max)
                         .padding(horizontal = 16.dp)
                 ) {
-                    ongoingCourse?.let { info ->
+                    ongoingCourses.forEachIndexed { idx, info ->
                         CurrentClassCard(
                             course = info.course,
                             blockStartMinute = info.startMinute,
@@ -162,6 +162,11 @@ fun ClassTableScreen(
                             },
                             modifier = Modifier.fillMaxHeight()
                         )
+                        if (idx < ongoingCourses.lastIndex) {
+                            Spacer(Modifier.width(12.dp))
+                        }
+                    }
+                    if (ongoingCourses.isNotEmpty()) {
                         Spacer(Modifier.width(24.dp))
                     }
                     todayCourses.forEachIndexed { index, course ->

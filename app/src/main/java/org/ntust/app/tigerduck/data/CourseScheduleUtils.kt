@@ -11,12 +11,13 @@ data class OngoingCourseInfo(
     val endMinute: Int,
 )
 
-fun computeOngoingCourse(
+fun computeOngoingCourses(
     courses: List<Course>,
     weekday: Int,
     minuteOfDay: Int,
-): OngoingCourseInfo? {
+): List<OngoingCourseInfo> {
     val order = AppConstants.Periods.chronologicalOrder
+    val results = mutableListOf<OngoingCourseInfo>()
     for (course in courses) {
         val periods = course.schedule[weekday]
             ?.sortedBy { order.indexOf(it) } ?: continue
@@ -32,18 +33,21 @@ fun computeOngoingCourse(
             val startMin = parseHm(AppConstants.PeriodTimes.mapping[firstId]?.first)
             val endMin = parseHm(AppConstants.PeriodTimes.mapping[lastId]?.second)
             if (startMin != null && endMin != null && minuteOfDay in startMin..endMin) {
-                return OngoingCourseInfo(
-                    course = course,
-                    weekday = weekday,
-                    firstPeriodId = firstId,
-                    startMinute = startMin,
-                    endMinute = endMin,
+                results.add(
+                    OngoingCourseInfo(
+                        course = course,
+                        weekday = weekday,
+                        firstPeriodId = firstId,
+                        startMinute = startMin,
+                        endMinute = endMin,
+                    )
                 )
+                break
             }
             blockStart = blockEnd + 1
         }
     }
-    return null
+    return results
 }
 
 fun parseHm(hhmm: String?): Int? {

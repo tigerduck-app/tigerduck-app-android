@@ -86,7 +86,7 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
             }
             else -> {
                 todayCourses.forEach { course ->
-                    val isOngoing = course.courseNo == state.ongoingCourseNo
+                    val isOngoing = course.courseNo in state.ongoingCourseNos
                     val periods = course.schedule[today]!!.sortedBy { order.indexOf(it) }
                     val firstPeriod = periods.first()
                     val lastPeriod = periods.last()

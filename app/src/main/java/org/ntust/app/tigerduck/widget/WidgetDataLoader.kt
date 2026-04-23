@@ -8,7 +8,8 @@ import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.computeOngoingCourse
+import org.ntust.app.tigerduck.data.computeOngoingCourses
+import org.ntust.app.tigerduck.ui.theme.buildCourseColorAssignments
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.parseHm
 import java.util.Calendar
@@ -34,9 +35,10 @@ object WidgetDataLoader {
         val weekday = cal.toWeekday()
         val minuteOfDay = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
 
-        val ongoingInfo = computeOngoingCourse(courses, weekday, minuteOfDay)
+        val ongoingInfos = computeOngoingCourses(courses, weekday, minuteOfDay)
+        val ongoingNos = ongoingInfos.map { it.course.courseNo }
         val nextCourseTodayNo = computeNextCourseTodayNo(
-            courses, weekday, minuteOfDay, ongoingInfo?.course?.courseNo,
+            courses, weekday, minuteOfDay, ongoingNos,
         )
         val (tomorrowName, tomorrowTime) = computeTomorrowFirst(courses, weekday)
 
@@ -47,10 +49,11 @@ object WidgetDataLoader {
             currentWeekday = weekday,
             currentMinuteOfDay = minuteOfDay,
             isLoggedIn = isLoggedIn,
-            ongoingCourseNo = ongoingInfo?.course?.courseNo,
+            ongoingCourseNos = ongoingNos,
             nextCourseTodayNo = nextCourseTodayNo,
             tomorrowFirstCourseName = tomorrowName,
             tomorrowFirstCourseTime = tomorrowTime,
+            courseColors = buildCourseColorAssignments(courses),
         )
     }
 
@@ -78,10 +81,10 @@ object WidgetDataLoader {
         courses: List<Course>,
         weekday: Int,
         minuteOfDay: Int,
-        ongoingNo: String?,
+        ongoingNos: List<String>,
     ): String? {
         return courses
-            .filter { it.schedule.containsKey(weekday) && it.courseNo != ongoingNo }
+            .filter { it.schedule.containsKey(weekday) && it.courseNo !in ongoingNos }
             .mapNotNull { course ->
                 val firstFutureMinute = course.schedule[weekday]!!
                     .mapNotNull { pid -> parseHm(AppConstants.PeriodTimes.mapping[pid]?.first) }

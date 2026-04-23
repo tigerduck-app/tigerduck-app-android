@@ -36,14 +36,26 @@ object WidgetTheme {
     )
 }
 
-fun widgetCourseColor(course: Course, isDark: Boolean): Color {
-    val base = course.customColorHex?.let { hex ->
-        try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { null }
-    } ?: hashPaletteColor(course.courseNo)
+/**
+ * Resolves the display color for [course], preferring the pre-computed
+ * assignment in [courseColors] so the widget matches the app's per-course
+ * palette picks (which probe for free slots to avoid collisions). Falls back
+ * to a hash-based palette pick if the map is missing the course.
+ */
+fun widgetCourseColor(
+    course: Course,
+    courseColors: Map<String, Color>,
+    isDark: Boolean,
+): Color {
+    val resolved = courseColors[course.courseNo]
+        ?: course.customColorHex?.let { hex ->
+            try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { null }
+        }
+        ?: hashPaletteColor(course.courseNo)
 
-    if (!isDark) return base
-    val lightIdx = courseColorPalette.indexOfFirst { it == base }
-    return if (lightIdx >= 0) courseColorPaletteDark[lightIdx] else base
+    if (!isDark) return resolved
+    val lightIdx = courseColorPalette.indexOfFirst { it == resolved }
+    return if (lightIdx >= 0) courseColorPaletteDark[lightIdx] else resolved
 }
 
 private fun hashPaletteColor(courseNo: String): Color {

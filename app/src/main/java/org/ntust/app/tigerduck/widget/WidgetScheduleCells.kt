@@ -39,36 +39,50 @@ fun buildScheduleCells(
     var i = 0
     while (i < activePeriodIds.size) {
         val slot = coursesAt(courses, weekday, activePeriodIds[i])
-        when {
-            slot.isEmpty() -> {
-                var j = i + 1
-                while (j < activePeriodIds.size &&
-                    coursesAt(courses, weekday, activePeriodIds[j]).isEmpty()
-                ) j++
-                out.add(ScheduleCell.Empty(j - i))
-                i = j
-            }
+        if (slot.isEmpty()) {
+            var j = i + 1
+            while (j < activePeriodIds.size &&
+                coursesAt(courses, weekday, activePeriodIds[j]).isEmpty()
+            ) j++
+            out.add(ScheduleCell.Empty(j - i))
+            i = j
+            continue
+        }
 
-            slot.size == 1 -> {
-                val course = slot.single()
-                // Extend only while the next slot is *also* a single instance
-                // of the same course. A slot that goes multi-course terminates
-                // the solo run so the conflict cluster picks it up.
-                var j = i + 1
-                while (j < activePeriodIds.size) {
-                    val next = coursesAt(courses, weekday, activePeriodIds[j])
-                    if (next.size == 1 && next.single().courseNo == course.courseNo) j++
-                    else break
-                }
-                out.add(ScheduleCell.Solo(course, j - i))
-                i = j
-            }
+        // Route every non-empty cell through the transitive closure so a solo
+        // course whose block extends into a later conflict (e.g. A on periods
+        // 7–9, B on 8–9) is folded into the cluster at period 7 instead of
+        // being emitted first as a Solo and then re-emitted as part of the
+        // Conflict. Matches ClassTableViewModel.cellRole.
+        val closure = buildClosure(activePeriodIds, courses, weekday, i)
+        val entries = closure.values.toList()
 
-            else -> {
-                val cluster = clusterStartingAt(activePeriodIds, courses, weekday, i)
-                out.add(cluster)
-                i += cluster.combinedSpan
-            }
+        if (entries.size == 1) {
+            val (course, first, span) = entries.first()
+            // `first` should always equal `i` — we can only reach this branch
+            // through its own earliest period since we advance past every
+            // previously-emitted cluster.
+            out.add(ScheduleCell.Solo(course, span))
+            i = first + span
+        } else {
+            val kept = entries.take(2)
+            val (courseA, firstA, spanA) = kept[0]
+            val (courseB, firstB, spanB) = kept[1]
+            val clusterStart = minOf(firstA, firstB)
+            val clusterEnd = maxOf(firstA + spanA, firstB + spanB)
+            val combined = clusterEnd - clusterStart
+            out.add(
+                ScheduleCell.Conflict(
+                    courseA = courseA,
+                    spanA = spanA,
+                    offsetA = firstA - clusterStart,
+                    courseB = courseB,
+                    spanB = spanB,
+                    offsetB = firstB - clusterStart,
+                    combinedSpan = combined,
+                )
+            )
+            i = clusterStart + combined
         }
     }
     return out
@@ -78,30 +92,27 @@ private fun coursesAt(courses: List<Course>, weekday: Int, periodId: String): Li
     courses.filter { it.schedule[weekday]?.contains(periodId) == true }
 
 /**
- * Builds a conflict cluster rooted at [startIndex]. Follows transitive closure:
- * any course touching any row in the current cluster is pulled in. Caps output
- * at two courses (matches the in-app ConflictCourseCell, which also only shows
- * two); extras are dropped.
+ * Transitive closure of courses reachable from [startIndex]. For every course
+ * in the closure, records its (course, first-index-in-activePeriodIds, span)
+ * covering its full contiguous block on [weekday]. Adjacent courses that touch
+ * any row of an already-added course are pulled in recursively, matching
+ * ClassTableViewModel.blockFor + cellRole.
  */
-private fun clusterStartingAt(
+private fun buildClosure(
     activePeriodIds: List<String>,
     courses: List<Course>,
     weekday: Int,
     startIndex: Int,
-): ScheduleCell.Conflict {
-    // courseNo -> (course, firstIndexInActivePeriodIds, span)
+): LinkedHashMap<String, Triple<Course, Int, Int>> {
     val closure = linkedMapOf<String, Triple<Course, Int, Int>>()
 
     fun spanFor(course: Course): Pair<Int, Int> {
-        // First index in activePeriodIds where this course appears on this weekday.
         val schedule = course.schedule[weekday] ?: return startIndex to 0
         val hitIdxs = activePeriodIds
             .mapIndexedNotNull { idx, pid -> if (pid in schedule) idx else null }
             .filter { it >= startIndex }
         if (hitIdxs.isEmpty()) return startIndex to 0
         val first = hitIdxs.first()
-        // Span = contiguous run starting at first, stopping when activePeriodIds
-        // is not in schedule.
         var span = 1
         while (first + span < activePeriodIds.size &&
             activePeriodIds[first + span] in schedule
@@ -114,7 +125,6 @@ private fun clusterStartingAt(
         val (first, span) = spanFor(course)
         if (span == 0) return
         closure[course.courseNo] = Triple(course, first, span)
-        // Expand: any other course touching any row in [first, first+span)
         for (k in first until first + span) {
             val pid = activePeriodIds.getOrNull(k) ?: continue
             for (other in coursesAt(courses, weekday, pid)) {
@@ -124,32 +134,5 @@ private fun clusterStartingAt(
     }
 
     coursesAt(courses, weekday, activePeriodIds[startIndex]).forEach { add(it) }
-
-    val entries = closure.values.toList().take(2)
-    val (courseA, firstA, spanA) = entries[0]
-    val (courseB, firstB, spanB) = entries.getOrElse(1) {
-        // Degenerate: only one course after closure. Emit as a solo-length cluster.
-        return ScheduleCell.Conflict(
-            courseA = courseA,
-            spanA = spanA,
-            offsetA = 0,
-            courseB = courseA,
-            spanB = spanA,
-            offsetB = 0,
-            combinedSpan = spanA,
-        )
-    }
-
-    val clusterStart = minOf(firstA, firstB)
-    val clusterEnd = maxOf(firstA + spanA, firstB + spanB)
-    val combined = clusterEnd - clusterStart
-    return ScheduleCell.Conflict(
-        courseA = courseA,
-        spanA = spanA,
-        offsetA = firstA - clusterStart,
-        courseB = courseB,
-        spanB = spanB,
-        offsetB = firstB - clusterStart,
-        combinedSpan = combined,
-    )
+    return closure
 }

@@ -7,7 +7,7 @@ import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.OngoingCourseInfo
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.computeOngoingCourse
+import org.ntust.app.tigerduck.data.computeOngoingCourses
 import android.util.Log
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.Course
@@ -227,10 +227,10 @@ class ClassTableViewModel @Inject constructor(
         return dayTime.minuteOfDay > endMinutes
     }
 
-    val ongoingCourse: OngoingCourseInfo?
+    val ongoingCourses: List<OngoingCourseInfo>
         get() {
             val dayTime = _currentDayTime.value
-            return computeOngoingCourse(_courses.value, dayTime.weekday, dayTime.minuteOfDay)
+            return computeOngoingCourses(_courses.value, dayTime.weekday, dayTime.minuteOfDay)
         }
 
     fun coursesAt(weekday: Int, period: String): List<Course> =

@@ -123,7 +123,8 @@ fun WeekGridContent(state: WidgetState, colors: WidgetColors, tapAction: Action)
                         ScheduleCellBox(
                             cell = cell,
                             colors = colors,
-                            ongoingCourseNo = state.ongoingCourseNo,
+                            courseColors = state.courseColors,
+                            ongoingCourseNos = state.ongoingCourseNos,
                             blockHeight = cellHeight * cell.length,
                             blockWidth = dayColWidth,
                         )
@@ -166,7 +167,8 @@ private fun PeriodLabelCell(periodId: String, colors: WidgetColors, cellHeight: 
 private fun ScheduleCellBox(
     cell: ScheduleCell,
     colors: WidgetColors,
-    ongoingCourseNo: String?,
+    courseColors: Map<String, Color>,
+    ongoingCourseNos: List<String>,
     blockHeight: Dp,
     blockWidth: Dp,
 ) {
@@ -175,14 +177,16 @@ private fun ScheduleCellBox(
         is ScheduleCell.Solo -> SoloCell(
             course = cell.course,
             length = cell.length,
-            ongoing = cell.course.courseNo == ongoingCourseNo,
+            ongoing = cell.course.courseNo in ongoingCourseNos,
             colors = colors,
+            courseColors = courseColors,
             blockHeight = blockHeight,
         )
         is ScheduleCell.Conflict -> ConflictCell(
             cell = cell,
             colors = colors,
-            ongoingCourseNo = ongoingCourseNo,
+            courseColors = courseColors,
+            ongoingCourseNos = ongoingCourseNos,
             blockHeight = blockHeight,
             blockWidth = blockWidth,
         )
@@ -212,9 +216,10 @@ private fun SoloCell(
     length: Int,
     ongoing: Boolean,
     colors: WidgetColors,
+    courseColors: Map<String, Color>,
     blockHeight: Dp,
 ) {
-    val baseColor = widgetCourseColor(course, colors.isDark)
+    val baseColor = widgetCourseColor(course, courseColors, colors.isDark)
     val cellBg: Color = when {
         ongoing -> colors.highlight
         colors.isDark -> baseColor
@@ -257,7 +262,8 @@ private fun SoloCell(
 private fun ConflictCell(
     cell: ScheduleCell.Conflict,
     colors: WidgetColors,
-    ongoingCourseNo: String?,
+    courseColors: Map<String, Color>,
+    ongoingCourseNos: List<String>,
     blockHeight: Dp,
     blockWidth: Dp,
 ) {
@@ -266,18 +272,23 @@ private fun ConflictCell(
     val widthPx = ((blockWidth - 2.dp).value * density).toInt().coerceAtLeast(1)
     val heightPx = (blockHeight.value * density).toInt().coerceAtLeast(1)
 
+    val ongoingA = cell.courseA.courseNo in ongoingCourseNos
+    val ongoingB = cell.courseB.courseNo in ongoingCourseNos
+    // If both conflicting courses are currently ongoing, painting both halves
+    // with the single highlight color merges them into a solid rectangle and
+    // hides the L-shape. Keep them in their own course colors in that case —
+    // the "進行中" status is surfaced by the NextClass widget anyway.
+    val bothOngoing = ongoingA && ongoingB
+
     fun tileBg(course: Course, ongoing: Boolean): Color {
-        val base = widgetCourseColor(course, colors.isDark)
+        val base = widgetCourseColor(course, courseColors, colors.isDark)
         return when {
-            ongoing -> colors.highlight
+            ongoing && !bothOngoing -> colors.highlight
             colors.isDark -> base
             else -> base.copy(alpha = 0.55f)
         }
     }
     val textColor: Color = if (colors.isDark) Color.White else Color(0xFF1C1C1E)
-
-    val ongoingA = cell.courseA.courseNo == ongoingCourseNo
-    val ongoingB = cell.courseB.courseNo == ongoingCourseNo
 
     val bitmapA = renderConflictLayer(
         clusterWidthPx = widthPx,
@@ -320,7 +331,7 @@ private fun ConflictCell(
             // Course A label — pinned inside A's own Box at top-right (Γ's top bar).
             ConflictLabel(
                 courseName = cell.courseA.courseName,
-                textColor = if (ongoingA) Color.White else textColor,
+                textColor = if (ongoingA && !bothOngoing) Color.White else textColor,
                 alignment = Alignment.TopEnd,
                 boxTopPadding = rowHeight * cell.offsetA,
                 boxBottomPadding = rowHeight * (cell.combinedSpan - cell.offsetA - cell.spanA),
@@ -329,7 +340,7 @@ private fun ConflictCell(
             // Course B label — pinned inside B's own Box at bottom-left (mirror-L's bottom bar).
             ConflictLabel(
                 courseName = cell.courseB.courseName,
-                textColor = if (ongoingB) Color.White else textColor,
+                textColor = if (ongoingB && !bothOngoing) Color.White else textColor,
                 alignment = Alignment.BottomStart,
                 boxTopPadding = rowHeight * cell.offsetB,
                 boxBottomPadding = rowHeight * (cell.combinedSpan - cell.offsetB - cell.spanB),
