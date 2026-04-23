@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.glance.GlanceId
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
@@ -15,6 +16,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.widget.receivers.NextClassDarkWidget
 import org.ntust.app.tigerduck.widget.receivers.NextClassDarkWidgetReceiver
@@ -42,6 +46,9 @@ class WidgetUpdater @Inject constructor(
     // navigates away before Glance has finished re-rendering). Default
     // dispatcher keeps the widget IPC off the main thread.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val boundaryLock = Mutex()
+    private var boundaryInFlight = false
+    private val boundaryFinishers = mutableListOf<() -> Unit>()
 
     suspend fun updateAll() {
         // Bump the per-widget tick BEFORE asking Glance to recompose. The
@@ -87,6 +94,39 @@ class WidgetUpdater @Inject constructor(
      */
     fun requestUpdate() {
         scope.launch { updateAll() }
+    }
+
+    /**
+     * Coalesces repeated boundary-triggered refreshes into one in-flight run.
+     * Every receiver callback gets its finish block invoked when that run ends.
+     */
+    fun requestBoundaryUpdate(onFinished: () -> Unit) {
+        scope.launch {
+            val shouldStart = boundaryLock.withLock {
+                boundaryFinishers += onFinished
+                if (boundaryInFlight) {
+                    false
+                } else {
+                    boundaryInFlight = true
+                    true
+                }
+            }
+            if (!shouldStart) return@launch
+
+            try {
+                withTimeout(9_000) { updateAll() }
+            } catch (e: Exception) {
+                Log.w("WidgetUpdater", "Boundary widget update failed", e)
+            } finally {
+                val finishers = boundaryLock.withLock {
+                    boundaryInFlight = false
+                    boundaryFinishers.toList().also { boundaryFinishers.clear() }
+                }
+                finishers.forEach { finisher ->
+                    runCatching { finisher() }
+                }
+            }
+        }
     }
 
     private fun broadcastAppWidgetUpdate() {
