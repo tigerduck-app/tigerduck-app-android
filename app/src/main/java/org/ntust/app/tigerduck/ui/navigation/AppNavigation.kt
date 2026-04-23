@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.AppConstants
 import java.time.Instant
@@ -26,8 +27,11 @@ import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarScreen
+import org.ntust.app.tigerduck.ui.screen.calendar.CalendarViewModel
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableScreen
+import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableViewModel
 import org.ntust.app.tigerduck.ui.screen.home.HomeScreen
+import org.ntust.app.tigerduck.ui.screen.home.HomeViewModel
 import org.ntust.app.tigerduck.ui.screen.library.LibraryScreen
 import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
@@ -90,6 +94,18 @@ fun AppNavigation(appState: AppState) {
 @Composable
 fun MainNavigation(appState: AppState) {
     val navController = rememberNavController()
+    // Hoist Home / ClassTable / Calendar VMs to the activity scope so they
+    // exist from app open and survive tab switches. load() is called once
+    // here on first composition; the per-screen LaunchedEffect that also
+    // calls load() becomes a no-op via the VM's hasLoaded guard.
+    val homeViewModel: HomeViewModel = hiltViewModel()
+    val classTableViewModel: ClassTableViewModel = hiltViewModel()
+    val calendarViewModel: CalendarViewModel = hiltViewModel()
+    LaunchedEffect(Unit) {
+        homeViewModel.load()
+        classTableViewModel.load()
+        calendarViewModel.load()
+    }
     val configuredTabs by remember {
         derivedStateOf {
             appState.configuredTabs.filter { feature ->
@@ -161,9 +177,15 @@ fun MainNavigation(appState: AppState) {
             popEnterTransition = { fadeIn(tween(150)) },
             popExitTransition = { fadeOut(tween(100)) }
         ) {
-            composable(Screen.Home.route) { HomeScreen(appState = appState) }
-            composable(Screen.ClassTable.route) { ClassTableScreen() }
-            composable(Screen.Calendar.route) { CalendarScreen() }
+            composable(Screen.Home.route) {
+                HomeScreen(appState = appState, viewModel = homeViewModel)
+            }
+            composable(Screen.ClassTable.route) {
+                ClassTableScreen(viewModel = classTableViewModel)
+            }
+            composable(Screen.Calendar.route) {
+                CalendarScreen(viewModel = calendarViewModel)
+            }
             composable(Screen.Announcements.route) { PlaceholderScreen(AppFeature.ANNOUNCEMENTS) }
             composable(Screen.Library.route) { LibraryScreen() }
             composable(Screen.Score.route) { ScoreScreen() }
