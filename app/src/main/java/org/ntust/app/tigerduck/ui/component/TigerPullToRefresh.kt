@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -29,8 +30,8 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
-private val ThresholdDp = 80.dp
-private val MaxPullDp = 120.dp
+private val ThresholdDp = 140.dp
+private val MaxPullDp = 220.dp
 private val RefreshingMessageOffset = 36.dp
 private const val PostThresholdScale = 0.3f
 
@@ -54,6 +55,11 @@ fun TigerPullToRefresh(
     val latestIsRefreshing by rememberUpdatedState(isRefreshing)
     val latestOnRefresh by rememberUpdatedState(onRefresh)
     val latestOnDragProgress by rememberUpdatedState(onDragProgress)
+
+    // True only while the user's finger is actively pulling. Cleared on
+    // release so the "別急" hint disappears the moment we start the rebound,
+    // even though dragY > 0 and isRefreshing is still true.
+    val isUserPulling = remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         snapshotFlow { dragY.value }.collect { y ->
@@ -91,6 +97,7 @@ fun TigerPullToRefresh(
                     val delta = dampDelta(available.y, dragY.value, thresholdPx)
                     val newY = (dragY.value + delta).coerceIn(0f, maxPx)
                     scope.launch { dragY.snapTo(newY) }
+                    if (newY > 0f) isUserPulling.value = true
                     if (!latestIsRefreshing) {
                         if (!crossedThreshold && newY >= thresholdPx) {
                             crossedThreshold = true
@@ -108,6 +115,7 @@ fun TigerPullToRefresh(
                 if (dragY.value > 0f) {
                     val triggered = dragY.value >= thresholdPx && !latestIsRefreshing
                     if (triggered) latestOnRefresh()
+                    isUserPulling.value = false
                     dragY.animateTo(
                         targetValue = 0f,
                         animationSpec = spring(stiffness = 400f, dampingRatio = 0.9f),
@@ -115,6 +123,7 @@ fun TigerPullToRefresh(
                     crossedThreshold = false
                     return available
                 }
+                isUserPulling.value = false
                 return Velocity.Zero
             }
         }
@@ -122,7 +131,8 @@ fun TigerPullToRefresh(
 
     Box(modifier = modifier.nestedScroll(connection)) {
         Box(modifier = Modifier.graphicsLayer { translationY = dragY.value }) {
-            if (isRefreshing && refreshingMessage != null && dragY.value > 0f) {
+            if (isRefreshing && refreshingMessage != null && dragY.value > 0f
+                && isUserPulling.value) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
