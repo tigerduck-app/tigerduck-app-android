@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
@@ -48,42 +49,17 @@ class LiveActivityManager @Inject constructor(
     fun refresh() {
         refreshJob?.cancel()
         refreshJob = scope.launch {
-            if (!preferences.isEnabled || !authService.isNtustAuthenticated) {
-                notifier.cancel()
-                classPreparingScheduler.cancelAllTracked()
-                boundaryJob?.cancel()
-                return@launch
-            }
-            val now = Date()
-            val courses = dataCache.loadCourses()
-            val assignments = dataCache.loadAssignments()
-            val skipped = dataCache.loadSkippedDates()
-
-            val snapshot = resolver.resolve(
-                courses = courses,
-                assignments = assignments,
-                skippedDates = skipped,
-                preferences = preferences,
-                accentHex = appPrefs.accentColorHex,
-                now = now,
-            )
-            notifier.apply(snapshot)
-
-            // Keep the class-preparing alarm set in sync with the current
-            // course list + lead-time preference so reminders fire even when
-            // the app is fully closed.
-            if (preferences.showClassPreparing) {
-                classPreparingScheduler.scheduleAll(
-                    courses = courses,
-                    skippedDates = skipped,
-                    leadTimeSec = preferences.classPreparingLeadTimeSec,
-                )
-            } else {
-                classPreparingScheduler.cancelAllTracked()
-            }
-
-            scheduleBoundaryRefresh(snapshot, courses, assignments, now)
+            refreshInternal()
         }
+    }
+
+    /**
+     * Refresh synchronously in the caller coroutine.
+     * Used by background workers so scheduling completes before doWork() returns.
+     */
+    suspend fun refreshAndWait() {
+        refreshJob?.cancelAndJoin()
+        refreshInternal()
     }
 
     fun stop() {
@@ -93,6 +69,44 @@ class LiveActivityManager @Inject constructor(
         refreshJob?.cancel()
         notifier.cancel()
         classPreparingScheduler.cancelAllTracked()
+    }
+
+    private suspend fun refreshInternal() {
+        if (!preferences.isEnabled || !authService.isNtustAuthenticated) {
+            notifier.cancel()
+            classPreparingScheduler.cancelAllTracked()
+            boundaryJob?.cancel()
+            return
+        }
+        val now = Date()
+        val courses = dataCache.loadCourses()
+        val assignments = dataCache.loadAssignments()
+        val skipped = dataCache.loadSkippedDates()
+
+        val snapshot = resolver.resolve(
+            courses = courses,
+            assignments = assignments,
+            skippedDates = skipped,
+            preferences = preferences,
+            accentHex = appPrefs.accentColorHex,
+            now = now,
+        )
+        notifier.apply(snapshot)
+
+        // Keep the class-preparing alarm set in sync with the current
+        // course list + lead-time preference so reminders fire even when
+        // the app is fully closed.
+        if (preferences.showClassPreparing) {
+            classPreparingScheduler.scheduleAll(
+                courses = courses,
+                skippedDates = skipped,
+                leadTimeSec = preferences.classPreparingLeadTimeSec,
+            )
+        } else {
+            classPreparingScheduler.cancelAllTracked()
+        }
+
+        scheduleBoundaryRefresh(snapshot, courses, assignments, now)
     }
 
     private fun scheduleBoundaryRefresh(

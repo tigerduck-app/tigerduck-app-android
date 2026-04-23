@@ -49,7 +49,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         val assignmentsOk = syncAssignments(studentId)
         if (authService.storedStudentId != studentId) return Result.success()
 
-        liveActivityManager.refresh()
+        liveActivityManager.refreshAndWait()
         widgetUpdater.updateAll()
 
         return if (coursesOk || assignmentsOk) Result.success() else Result.retry()
