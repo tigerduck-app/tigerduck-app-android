@@ -51,7 +51,7 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
             text = if (today in 1..7) "星期${dayNames[today - 1]}" else "今日課表",
             style = TextStyle(
                 color = ColorProvider(colors.onSurface),
-                fontSize = 12.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
             ),
             modifier = GlanceModifier.padding(bottom = 6.dp),
@@ -67,7 +67,7 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
                         text = "請先登入 TigerDuck",
                         style = TextStyle(
                             color = ColorProvider(colors.onSurfaceVariant),
-                            fontSize = 11.sp,
+                            fontSize = 14.sp,
                         ),
                     )
                 }
@@ -75,13 +75,13 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
             todayCourses.isEmpty() && isWeekend -> {
                 Text(
                     text = "週末沒有課，週一見！",
-                    style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 11.sp),
+                    style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 14.sp),
                 )
             }
             todayCourses.isEmpty() -> {
                 Text(
                     text = "今日沒有課",
-                    style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 11.sp),
+                    style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 14.sp),
                 )
             }
             else -> {
@@ -107,12 +107,12 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
                             .padding(horizontal = 6.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.Vertical.CenterVertically,
                     ) {
-                        Column(modifier = GlanceModifier.width(52.dp)) {
+                        Column(modifier = GlanceModifier.width(70.dp)) {
                             Text(
                                 text = periodRange,
                                 style = TextStyle(
                                     color = ColorProvider(primaryText),
-                                    fontSize = 10.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                 ),
                             )
@@ -120,7 +120,7 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
                                 text = "$startTime–$endTime",
                                 style = TextStyle(
                                     color = ColorProvider(secondaryText),
-                                    fontSize = 9.sp,
+                                    fontSize = 11.sp,
                                 ),
                             )
                         }
@@ -131,7 +131,7 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
                                 text = course.courseName,
                                 style = TextStyle(
                                     color = ColorProvider(primaryText),
-                                    fontSize = 11.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium,
                                 ),
                                 maxLines = 1,
@@ -141,7 +141,7 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
                                     text = course.classroom,
                                     style = TextStyle(
                                         color = ColorProvider(secondaryText),
-                                        fontSize = 9.sp,
+                                        fontSize = 11.sp,
                                     ),
                                     maxLines = 1,
                                 )

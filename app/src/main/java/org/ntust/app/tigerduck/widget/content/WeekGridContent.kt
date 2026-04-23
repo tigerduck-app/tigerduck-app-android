@@ -15,7 +15,6 @@ import androidx.glance.layout.Row
 import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
-import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
@@ -31,14 +30,13 @@ import org.ntust.app.tigerduck.widget.widgetCourseColor
 @Composable
 fun WeekGridContent(state: WidgetState, colors: WidgetColors, tapAction: Action) {
     val dayNames = listOf("一", "二", "三", "四", "五", "六", "日")
-    val periodLabelWidth = 18.dp
-    val cellHeight = 26.dp
+    val periodLabelWidth = 22.dp
 
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(ColorProvider(colors.background))
-            .padding(4.dp)
+            .padding(6.dp)
             .clickable(tapAction),
     ) {
         if (!state.isLoggedIn || state.courses.isEmpty()) {
@@ -50,7 +48,7 @@ fun WeekGridContent(state: WidgetState, colors: WidgetColors, tapAction: Action)
                     text = if (!state.isLoggedIn) "請先登入 TigerDuck" else "今日沒有課",
                     style = TextStyle(
                         color = ColorProvider(colors.onSurfaceVariant),
-                        fontSize = 11.sp,
+                        fontSize = 14.sp,
                         textAlign = TextAlign.Center,
                     ),
                 )
@@ -58,7 +56,7 @@ fun WeekGridContent(state: WidgetState, colors: WidgetColors, tapAction: Action)
             return@Column
         }
 
-        Row(modifier = GlanceModifier.fillMaxWidth().padding(bottom = 2.dp)) {
+        Row(modifier = GlanceModifier.fillMaxWidth().padding(bottom = 3.dp)) {
             Box(modifier = GlanceModifier.width(periodLabelWidth)) {}
             state.activeWeekdays.forEach { day ->
                 Box(
@@ -69,7 +67,7 @@ fun WeekGridContent(state: WidgetState, colors: WidgetColors, tapAction: Action)
                         text = dayNames[day - 1],
                         style = TextStyle(
                             color = ColorProvider(colors.onSurface),
-                            fontSize = 9.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
                         ),
@@ -80,7 +78,7 @@ fun WeekGridContent(state: WidgetState, colors: WidgetColors, tapAction: Action)
 
         state.activePeriodIds.forEach { periodId ->
             Row(
-                modifier = GlanceModifier.fillMaxWidth().height(cellHeight),
+                modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
                 verticalAlignment = Alignment.Vertical.CenterVertically,
             ) {
                 Box(
@@ -91,7 +89,7 @@ fun WeekGridContent(state: WidgetState, colors: WidgetColors, tapAction: Action)
                         text = periodId,
                         style = TextStyle(
                             color = ColorProvider(colors.onSurfaceVariant),
-                            fontSize = 7.sp,
+                            fontSize = 10.sp,
                             textAlign = TextAlign.Center,
                         ),
                     )
@@ -127,10 +125,10 @@ fun WeekGridContent(state: WidgetState, colors: WidgetColors, tapAction: Action)
                                 text = course.courseName,
                                 style = TextStyle(
                                     color = ColorProvider(Color.White),
-                                    fontSize = 6.sp,
+                                    fontSize = 9.sp,
                                 ),
-                                maxLines = 2,
-                                modifier = GlanceModifier.padding(1.dp),
+                                maxLines = 3,
+                                modifier = GlanceModifier.padding(2.dp),
                             )
                         }
                     }

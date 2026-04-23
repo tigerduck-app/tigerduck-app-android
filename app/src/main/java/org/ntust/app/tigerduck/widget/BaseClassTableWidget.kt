@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.glance.GlanceId
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.provideContent
 import org.ntust.app.tigerduck.MainActivity
@@ -15,6 +16,8 @@ abstract class BaseClassTableWidget(
     private val layout: WidgetLayout,
     val isDark: Boolean,
 ) : GlanceAppWidget() {
+
+    override val sizeMode: SizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val state = WidgetDataLoader.load(context)

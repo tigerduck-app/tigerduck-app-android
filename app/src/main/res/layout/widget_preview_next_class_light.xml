@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5F5F5"
+    android:padding="12dp"
+    android:gravity="center_vertical">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="進行中"
+        android:textColor="#FFFFFF"
+        android:textSize="11sp"
+        android:background="#0066CC"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="資料結構"
+        android:textColor="#1C1C1E"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:paddingTop="8dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="10:20–12:10  3–4"
+        android:textColor="#6E6E73"
+        android:textSize="12sp"
+        android:paddingTop="2dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="E2-106"
+        android:textColor="#6E6E73"
+        android:textSize="12sp"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="5dp"
+        android:background="#ECECEC"
+        android:layout_marginTop="10dp"/>
+</LinearLayout>

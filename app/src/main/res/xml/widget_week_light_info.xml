@@ -2,8 +2,11 @@
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="250dp"
     android:minHeight="250dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="4"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen"
+    android:previewLayout="@layout/widget_preview_week_light"
     android:label="@string/widget_week_light_label"
     android:description="@string/widget_week_light_desc" />
