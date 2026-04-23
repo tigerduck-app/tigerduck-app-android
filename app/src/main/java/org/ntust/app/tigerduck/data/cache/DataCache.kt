@@ -42,14 +42,50 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     // MARK: - Courses (semester-scoped)
 
-    /** Save courses for a specific semester. File: courses_<semester>.json */
-    suspend fun saveCourses(courses: List<Course>, semester: String) =
-        save(courses, coursesFilename(semester))
+    /**
+     * Save courses for a specific semester. Splits the list: remote-fetched
+     * courses go to `cacheDir/courses_<semester>.json` (evictable), manual
+     * courses go to `userDataDir/manual_courses_<semester>.json` (durable).
+     * Manual courses have no remote source — if the cache is evicted they
+     * can only be recovered from userDataDir.
+     */
+    suspend fun saveCourses(courses: List<Course>, semester: String) {
+        val (manual, remote) = courses.partition { it.isManual }
+        save(remote, coursesFilename(semester))
+        saveToUserData(manual, manualCoursesFilename(semester))
+    }
 
-    /** Load courses for a specific semester. Returns empty list when not cached. */
+    /**
+     * Load courses for a specific semester. Merges remote-fetched (cacheDir)
+     * and manual (userDataDir) files; manual courses win on courseNo collision
+     * so the user's isManual flag is preserved even if the remote list was
+     * evicted and a re-fetch has not yet repopulated it.
+     */
     suspend fun loadCourses(semester: String): List<Course> {
+        migrateManualCoursesToUserData(semester)
         val type = object : TypeToken<List<Course>>() {}.type
-        return load<List<Course>>(type, coursesFilename(semester)) ?: emptyList()
+        val remote = load<List<Course>>(type, coursesFilename(semester)) ?: emptyList()
+        val manual = loadFromUserData<List<Course>>(type, manualCoursesFilename(semester)) ?: emptyList()
+        if (manual.isEmpty()) return remote
+        val manualNos = manual.map { it.courseNo }.toSet()
+        return remote.filter { it.courseNo !in manualNos } + manual
+    }
+
+    private fun manualCoursesFilename(semester: String): String = "manual_courses_$semester.json"
+
+    /**
+     * One-shot migration for installs that were already writing manual
+     * courses to cacheDir. If the cache still contains isManual entries and
+     * the durable file is empty, copy them across.
+     */
+    private suspend fun migrateManualCoursesToUserData(semester: String) {
+        val userFile = File(userDataDir, manualCoursesFilename(semester))
+        if (userFile.exists()) return
+        val type = object : TypeToken<List<Course>>() {}.type
+        val cached = load<List<Course>>(type, coursesFilename(semester)) ?: return
+        val manual = cached.filter { it.isManual }
+        if (manual.isEmpty()) return
+        saveToUserData(manual, manualCoursesFilename(semester))
     }
 
     // MARK: - Courses (current-semester aliases)
@@ -202,6 +238,10 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
             withContext(Dispatchers.IO) {
                 listOf("skipped_dates.json", "ignored_assignments.json").forEach { name ->
                     runCatching { File(userDataDir, name).delete() }
+                }
+                runCatching {
+                    userDataDir.listFiles { _, name -> name.startsWith("manual_courses_") && name.endsWith(".json") }
+                        ?.forEach { it.delete() }
                 }
             }
         }

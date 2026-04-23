@@ -13,6 +13,7 @@ import kotlinx.coroutines.withTimeout
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
+import org.ntust.app.tigerduck.widget.WidgetBoundaryScheduler
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -23,6 +24,7 @@ class BootReceiver : BroadcastReceiver() {
     @Inject lateinit var liveActivityPreferences: LiveActivityPreferences
     @Inject lateinit var dataCache: DataCache
     @Inject lateinit var appPreferences: AppPreferences
+    @Inject lateinit var widgetBoundaryScheduler: WidgetBoundaryScheduler
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
@@ -38,17 +40,20 @@ class BootReceiver : BroadcastReceiver() {
                             scheduler.scheduleAll(assignments)
                         }
                     }
-                    if (liveActivityPreferences.isEnabled && liveActivityPreferences.showClassPreparing) {
-                        val courses = dataCache.loadCourses()
+                    val courses = dataCache.loadCourses()
+                    if (liveActivityPreferences.isEnabled && liveActivityPreferences.showClassPreparing &&
+                        courses.isNotEmpty()) {
                         val skipped = dataCache.loadSkippedDates()
-                        if (courses.isNotEmpty()) {
-                            classPreparingScheduler.scheduleAll(
-                                courses = courses,
-                                skippedDates = skipped,
-                                leadTimeSec = liveActivityPreferences.classPreparingLeadTimeSec,
-                            )
-                        }
+                        classPreparingScheduler.scheduleAll(
+                            courses = courses,
+                            skippedDates = skipped,
+                            leadTimeSec = liveActivityPreferences.classPreparingLeadTimeSec,
+                        )
                     }
+                    // AlarmManager alarms don't survive reboot; without this
+                    // the widget's class-boundary refresh stays dead until the
+                    // user opens the app or BackgroundSyncWorker fires.
+                    widgetBoundaryScheduler.scheduleForToday(courses)
                 }
             } catch (e: Exception) {
                 android.util.Log.w("BootReceiver", "Boot rescheduling failed", e)

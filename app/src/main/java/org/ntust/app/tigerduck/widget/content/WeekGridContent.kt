@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.widget.content
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -290,22 +291,32 @@ private fun ConflictCell(
     }
     val textColor: Color = if (colors.isDark) Color.White else Color(0xFF1C1C1E)
 
-    val bitmapA = renderConflictLayer(
-        clusterWidthPx = widthPx,
-        clusterHeightPx = heightPx,
-        densityFactor = density,
-        cell = cell,
-        course = LayerCourse.A,
-        fillColor = tileBg(cell.courseA, ongoingA),
-    )
-    val bitmapB = renderConflictLayer(
-        clusterWidthPx = widthPx,
-        clusterHeightPx = heightPx,
-        densityFactor = density,
-        cell = cell,
-        course = LayerCourse.B,
-        fillColor = tileBg(cell.courseB, ongoingB),
-    )
+    // renderConflictLayer allocates ARGB_8888 bitmaps and runs Canvas paths —
+    // without `remember` every Glance recomposition (class-boundary ticks,
+    // sync completes, theme flips) would re-allocate and re-draw both layers
+    // and inflate the RemoteViews payload toward the Binder 1 MB limit.
+    val fillA = tileBg(cell.courseA, ongoingA)
+    val fillB = tileBg(cell.courseB, ongoingB)
+    val bitmapA = remember(cell, widthPx, heightPx, density, fillA) {
+        renderConflictLayer(
+            clusterWidthPx = widthPx,
+            clusterHeightPx = heightPx,
+            densityFactor = density,
+            cell = cell,
+            course = LayerCourse.A,
+            fillColor = fillA,
+        )
+    }
+    val bitmapB = remember(cell, widthPx, heightPx, density, fillB) {
+        renderConflictLayer(
+            clusterWidthPx = widthPx,
+            clusterHeightPx = heightPx,
+            densityFactor = density,
+            cell = cell,
+            course = LayerCourse.B,
+            fillColor = fillB,
+        )
+    }
 
     val rowHeight = blockHeight / cell.combinedSpan.coerceAtLeast(1)
     val barWidth = (blockWidth.value * (1f - 0.28f)).dp

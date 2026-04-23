@@ -143,9 +143,12 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
     val popUpToDest = configuredTabs.firstOrNull()?.toRoute() ?: Screen.Home.route
 
     // Two-press-to-exit on the leftmost tab. Deeper BackHandlers (e.g., Home
-    // edit mode) register later in composition and still win.
+    // edit mode) register later in composition and still win. startDest is
+    // frozen per session (NavHost can't change it) while popUpToDest tracks
+    // the current first tab; after a TabEditor reorder they diverge, so gate
+    // on either so the frozen start destination keeps the guard.
     var lastBackPressMs by remember { mutableLongStateOf(0L) }
-    BackHandler(enabled = currentRoute == popUpToDest) {
+    BackHandler(enabled = currentRoute == popUpToDest || currentRoute == startDest) {
         val now = SystemClock.elapsedRealtime()
         if (now - lastBackPressMs < 2000L) {
             (context as? Activity)?.finish()

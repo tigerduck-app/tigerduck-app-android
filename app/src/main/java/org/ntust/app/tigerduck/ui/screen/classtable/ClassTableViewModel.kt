@@ -594,15 +594,19 @@ class ClassTableViewModel @Inject constructor(
 
                         if (courses.isNotEmpty()) {
                             val cached = dataCache.loadCourses(semester)
-                            val existingColors = cached.associate { it.courseNo to it.customColorHex }
+                            val cachedByNo = cached.associateBy { it.courseNo }
+                            // Carry forward both the user's color pick AND the
+                            // `isManual` flag. If the user manually added a
+                            // course that later appears in the remote feed,
+                            // keep it marked manual so subsequent refreshes
+                            // still rescue it when it drops off the feed.
                             val fetched = courses.map { c ->
-                                c.copy(customColorHex = existingColors[c.courseNo])
+                                val prior = cachedByNo[c.courseNo]
+                                c.copy(
+                                    customColorHex = prior?.customColorHex,
+                                    isManual = prior?.isManual == true,
+                                )
                             }
-                            // Manually-added courses aren't in the NTUST
-                            // enrolment feed or the Moodle list, so they'd be
-                            // wiped on every refresh. Re-add any cached course
-                            // flagged `isManual` whose courseNo isn't already
-                            // in the fetched set.
                             val fetchedNos = fetched.map { it.courseNo }.toSet()
                             val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
                             val merged = fetched + manualLeftovers

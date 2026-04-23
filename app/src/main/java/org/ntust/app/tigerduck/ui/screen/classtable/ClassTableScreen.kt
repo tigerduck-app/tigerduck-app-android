@@ -49,6 +49,13 @@ import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
 import org.ntust.app.tigerduck.ui.theme.courseColorPaletteDark
 
+private data class ConflictPickerTarget(
+    val courseA: Course,
+    val courseB: Course,
+    val weekday: Int,
+    val periodId: String,
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClassTableScreen(
@@ -68,7 +75,7 @@ fun ClassTableScreen(
     var renameText by remember { mutableStateOf("") }
     var courseToRecolor by remember { mutableStateOf<Course?>(null) }
     var showCheckmark by remember { mutableStateOf(false) }
-    var conflictPicker by remember { mutableStateOf<Pair<Course, Course>?>(null) }
+    var conflictPicker by remember { mutableStateOf<ConflictPickerTarget?>(null) }
     var tripleConflictError by remember { mutableStateOf<ClassTableViewModel.TripleConflictError?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -235,7 +242,9 @@ fun ClassTableScreen(
                     onPickColor = { course ->
                         courseToRecolor = course
                     },
-                    onPickConflict = { a, b -> conflictPicker = a to b },
+                    onPickConflict = { a, b, weekday, periodId ->
+                        conflictPicker = ConflictPickerTarget(a, b, weekday, periodId)
+                    },
                 )
             } else if (!isLoggedIn) {
                 org.ntust.app.tigerduck.ui.component.EmptyStateView(
@@ -344,18 +353,12 @@ fun ClassTableScreen(
         )
     }
 
-    conflictPicker?.let { (a, b) ->
+    conflictPicker?.let { target ->
         ConflictCoursePickerSheet(
-            courseA = a,
-            courseB = b,
+            courseA = target.courseA,
+            courseB = target.courseB,
             onPick = { picked ->
-                // Find which weekday/period the user tapped from. We don't
-                // track it through the sheet — fall back to any slot where
-                // the picked course is scheduled; selectCourse only uses
-                // weekday + first period for display, so the first one works.
-                val weekday = picked.schedule.keys.firstOrNull() ?: 1
-                val periodId = picked.schedule[weekday]?.firstOrNull() ?: ""
-                viewModel.selectCourse(picked, weekday, periodId)
+                viewModel.selectCourse(picked, target.weekday, target.periodId)
                 conflictPicker = null
             },
             onDismiss = { conflictPicker = null },
@@ -405,7 +408,7 @@ private fun TimetableGrid(
     onRename: (Course) -> Unit = {},
     onDelete: (Course) -> Unit = {},
     onPickColor: (Course) -> Unit = {},
-    onPickConflict: (Course, Course) -> Unit = { _, _ -> },
+    onPickConflict: (Course, Course, Int, String) -> Unit = { _, _, _, _ -> },
 ) {
     val haptic = LocalHapticFeedback.current
     val dayLabels = listOf("", "一", "二", "三", "四", "五", "六", "日")
@@ -506,6 +509,7 @@ private fun TimetableGrid(
                                     x = x,
                                     y = y,
                                     weekday = weekday,
+                                    periodId = period.id,
                                     hasAssignmentA = viewModel.hasAssignment(role.courseA.courseNo),
                                     hasAssignmentB = viewModel.hasAssignment(role.courseB.courseNo),
                                     onPickConflict = onPickConflict,
@@ -667,9 +671,10 @@ private fun ConflictCourseCell(
     x: androidx.compose.ui.unit.Dp,
     y: androidx.compose.ui.unit.Dp,
     weekday: Int,
+    periodId: String,
     hasAssignmentA: Boolean,
     hasAssignmentB: Boolean,
-    onPickConflict: (Course, Course) -> Unit,
+    onPickConflict: (Course, Course, Int, String) -> Unit,
     onLongPress: () -> Unit,
     onRename: (Course) -> Unit,
     onPickColor: (Course) -> Unit,
@@ -755,7 +760,7 @@ private fun ConflictCourseCell(
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = indication,
-                    onClick = { onPickConflict(role.courseA, role.courseB) },
+                    onClick = { onPickConflict(role.courseA, role.courseB, weekday, periodId) },
                     onLongClick = { onLongPress(); showMenu = true },
                 ),
         ) {
@@ -801,7 +806,7 @@ private fun ConflictCourseCell(
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = indication,
-                    onClick = { onPickConflict(role.courseA, role.courseB) },
+                    onClick = { onPickConflict(role.courseA, role.courseB, weekday, periodId) },
                     onLongClick = { onLongPress(); showMenu = true },
                 ),
         ) {

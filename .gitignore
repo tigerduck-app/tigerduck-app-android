@@ -1,5 +1,6 @@
 # AI Tools
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 .superpowers/
 docs/superpowers/
 

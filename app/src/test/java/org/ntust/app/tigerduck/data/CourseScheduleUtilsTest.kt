@@ -7,31 +7,32 @@ import org.junit.Test
 class CourseScheduleUtilsTest {
 
     @Test
-    fun `returns null for empty course list`() {
-        assertNull(computeOngoingCourse(emptyList(), weekday = 1, minuteOfDay = 660))
+    fun `returns empty list for empty course list`() {
+        assertTrue(computeOngoingCourses(emptyList(), weekday = 1, minuteOfDay = 660).isEmpty())
     }
 
     @Test
     fun `returns ongoing course when current time is within a contiguous block`() {
         val course = Course.fromSchedule("CS101", "Algorithms", schedule = mapOf(1 to listOf("3", "4")))
-        val result = computeOngoingCourse(listOf(course), weekday = 1, minuteOfDay = 660)
-        assertNotNull(result)
-        assertEquals("CS101", result!!.course.courseNo)
+        val results = computeOngoingCourses(listOf(course), weekday = 1, minuteOfDay = 660)
+        assertEquals(1, results.size)
+        val result = results.first()
+        assertEquals("CS101", result.course.courseNo)
         assertEquals("3", result.firstPeriodId)
         assertEquals(620, result.startMinute)
         assertEquals(730, result.endMinute)
     }
 
     @Test
-    fun `returns null when between two non-contiguous blocks of the same course`() {
+    fun `returns empty when between two non-contiguous blocks of the same course`() {
         val course = Course.fromSchedule("CS101", "Algorithms", schedule = mapOf(1 to listOf("3", "6")))
-        assertNull(computeOngoingCourse(listOf(course), weekday = 1, minuteOfDay = 750))
+        assertTrue(computeOngoingCourses(listOf(course), weekday = 1, minuteOfDay = 750).isEmpty())
     }
 
     @Test
-    fun `returns null when course is on a different weekday`() {
+    fun `returns empty when course is on a different weekday`() {
         val course = Course.fromSchedule("CS101", "Algorithms", schedule = mapOf(2 to listOf("3")))
-        assertNull(computeOngoingCourse(listOf(course), weekday = 1, minuteOfDay = 660))
+        assertTrue(computeOngoingCourses(listOf(course), weekday = 1, minuteOfDay = 660).isEmpty())
     }
 
     @Test

@@ -25,13 +25,21 @@ class WidgetBoundaryScheduler @Inject constructor(
         val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
         val weekday = cal.toWeekday()
         val nowMinute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
-        val nextMinute = nextBoundaryMinuteAfter(courses, weekday, nowMinute) ?: return
 
-        val triggerCal = Calendar.getInstance(AppConstants.TAIPEI_TZ).apply {
-            set(Calendar.HOUR_OF_DAY, nextMinute / 60)
-            set(Calendar.MINUTE, nextMinute % 60)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
+        val nextTodayMinute = nextBoundaryMinuteAfter(courses, weekday, nowMinute)
+        val triggerCal = if (nextTodayMinute != null) {
+            Calendar.getInstance(AppConstants.TAIPEI_TZ).apply {
+                set(Calendar.HOUR_OF_DAY, nextTodayMinute / 60)
+                set(Calendar.MINUTE, nextTodayMinute % 60)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+        } else {
+            // No more classes today — hand off to the first boundary of the
+            // next day that has any courses, so the widget keeps advancing
+            // (tomorrow's first class, next-class preview) without relying on
+            // the 30-min updatePeriodMillis tick to eventually catch up.
+            firstBoundaryOnOrAfterTomorrow(courses, weekday) ?: return
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
@@ -39,6 +47,24 @@ class WidgetBoundaryScheduler @Inject constructor(
         } else {
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerCal.timeInMillis, pi)
         }
+    }
+
+    private fun firstBoundaryOnOrAfterTomorrow(
+        courses: List<Course>,
+        fromWeekday: Int,
+    ): Calendar? {
+        for (offset in 1..7) {
+            val targetWeekday = ((fromWeekday - 1 + offset) % 7) + 1
+            val minute = nextBoundaryMinuteAfter(courses, targetWeekday, -1) ?: continue
+            return Calendar.getInstance(AppConstants.TAIPEI_TZ).apply {
+                add(Calendar.DAY_OF_YEAR, offset)
+                set(Calendar.HOUR_OF_DAY, minute / 60)
+                set(Calendar.MINUTE, minute % 60)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+        }
+        return null
     }
 
     private fun makePendingIntent(): PendingIntent {
