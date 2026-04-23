@@ -7,6 +7,18 @@ import org.junit.Test
 class CourseScheduleUtilsTest {
 
     @Test
+    fun `collapseContiguousPeriods groups adjacent periods using canonical order`() {
+        val collapsed = collapseContiguousPeriods(listOf("4", "3", "A", "B", "D"))
+        assertEquals(listOf("3" to "4", "A" to "B", "D" to "D"), collapsed)
+    }
+
+    @Test
+    fun `collapseContiguousPeriods keeps unknown periods separate`() {
+        val collapsed = collapseContiguousPeriods(listOf("E", "1"))
+        assertEquals(listOf("E" to "E", "1" to "1"), collapsed)
+    }
+
+    @Test
     fun `returns empty list for empty course list`() {
         assertTrue(computeOngoingCourses(emptyList(), weekday = 1, minuteOfDay = 660).isEmpty())
     }

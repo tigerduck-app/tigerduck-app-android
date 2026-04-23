@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.data.collapseContiguousPeriods
 import org.ntust.app.tigerduck.data.model.Course
 import java.time.LocalDate
 import java.time.LocalTime
@@ -113,7 +114,7 @@ class ClassPreparingNotificationScheduler @Inject constructor(
                 val periods = course.schedule[weekdayIdx] ?: continue
                 if (periods.isEmpty()) continue
                 if (skippedDates[course.courseNo]?.contains(isoDate) == true) continue
-                val ranges = collapseContiguous(periods)
+                val ranges = collapseContiguousPeriods(periods)
                 for ((first, last) in ranges) {
                     val start = periodStart(first) ?: continue
                     val end = periodEnd(last) ?: continue
@@ -133,26 +134,6 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         return results
     }
 
-    private fun collapseContiguous(periods: List<String>): List<Pair<String, String>> {
-        val sorted = periods.sortedBy(::periodOrder)
-        if (sorted.isEmpty()) return emptyList()
-        val out = mutableListOf<Pair<String, String>>()
-        var rangeStart = sorted.first()
-        var prev = rangeStart
-        for (i in 1 until sorted.size) {
-            val cur = sorted[i]
-            if (periodOrder(cur) == periodOrder(prev) + 1) {
-                prev = cur
-            } else {
-                out += rangeStart to prev
-                rangeStart = cur
-                prev = cur
-            }
-        }
-        out += rangeStart to prev
-        return out
-    }
-
     companion object {
         private const val TRACKER_PREFS = "class_preparing_tracker"
         private const val KEY_SCHEDULED_IDS = "scheduled_ids"
@@ -169,13 +150,5 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         private fun periodEnd(id: String): LocalTime? =
             AppConstants.PeriodTimes.mapping[id]?.second?.let(::parseTime)
 
-        private fun periodOrder(id: String): Int = when {
-            id.toIntOrNull() != null -> id.toInt()
-            id == "A" -> 11
-            id == "B" -> 12
-            id == "C" -> 13
-            id == "D" -> 14
-            else -> -1
-        }
     }
 }

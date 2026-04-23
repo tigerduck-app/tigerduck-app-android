@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.liveactivity
 
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.data.collapseContiguousPeriods
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.Course
 import java.time.LocalDate
@@ -98,7 +99,7 @@ class LiveActivityResolver {
         for (course in courses) {
             val periods = course.schedule[weekdayIdx] ?: continue
             if (periods.isEmpty()) continue
-            val ranges = collapseContiguous(periods)
+            val ranges = collapseContiguousPeriods(periods)
             for ((first, last) in ranges) {
                 val startTime = periodStart(first) ?: continue
                 val endTime = periodEnd(last) ?: continue
@@ -113,29 +114,6 @@ class LiveActivityResolver {
             }
         }
         return results.sortedBy { it.start }
-    }
-
-    /** Groups contiguous period IDs (e.g. "3","4","5") into [(3,5)] ranges. */
-    private fun collapseContiguous(periods: List<String>): List<Pair<String, String>> {
-        val sorted = periods.sortedBy { periodOrder(it) }
-        if (sorted.isEmpty()) return emptyList()
-        val out = mutableListOf<Pair<String, String>>()
-        var rangeStart = sorted.first()
-        var prev = rangeStart
-        for (i in 1 until sorted.size) {
-            val cur = sorted[i]
-            val prevOrder = periodOrder(prev)
-            val curOrder = periodOrder(cur)
-            if (prevOrder >= 0 && curOrder == prevOrder + 1) {
-                prev = cur
-            } else {
-                out += rangeStart to prev
-                rangeStart = cur
-                prev = cur
-            }
-        }
-        out += rangeStart to prev
-        return out
     }
 
     private fun inClassSnapshot(slot: Slot, now: Date, accentHex: Int): LiveActivitySnapshot {
@@ -201,14 +179,5 @@ class LiveActivityResolver {
         private fun periodEnd(id: String): LocalTime? =
             AppConstants.PeriodTimes.mapping[id]?.second?.let(::parseTime)
 
-        // "1".."10" sort numerically; "A".."D" extend after period 10.
-        private fun periodOrder(id: String): Int = when {
-            id.toIntOrNull() != null -> id.toInt()
-            id == "A" -> 11
-            id == "B" -> 12
-            id == "C" -> 13
-            id == "D" -> 14
-            else -> -1
-        }
     }
 }
