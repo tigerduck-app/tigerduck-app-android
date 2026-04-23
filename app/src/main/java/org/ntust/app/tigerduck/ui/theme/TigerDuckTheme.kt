@@ -2,12 +2,15 @@ package org.ntust.app.tigerduck.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import org.ntust.app.tigerduck.data.model.Course
 import kotlin.random.Random
 
@@ -37,25 +40,28 @@ val courseColorPalette: List<Color> = listOf(
     Color(0xFF475569), // Slate
 )
 
+// Hues inherited from the Tailwind -700 line but with HSV saturation scaled
+// to ~0.55x and value scaled to ~0.75x so dark-mode tiles read as muted and
+// dim rather than vivid.
 val courseColorPaletteDark: List<Color> = listOf(
-    Color(0xFFB91C1C), // Red-700
-    Color(0xFFC2410C), // Orange-700
-    Color(0xFFB45309), // Amber-700
-    Color(0xFFA16207), // Ochre-700
-    Color(0xFF4D7C0F), // Lime-700
-    Color(0xFF15803D), // Green-700
-    Color(0xFF047857), // Emerald-700
-    Color(0xFF0F766E), // Teal-700
-    Color(0xFF0E7490), // Cyan-700
-    Color(0xFF0369A1), // Sky-700
-    Color(0xFF1D4ED8), // Blue-700
-    Color(0xFF4338CA), // Indigo-700
-    Color(0xFF6D28D9), // Violet-700
-    Color(0xFF7E22CE), // Purple-700
-    Color(0xFFA21CAF), // Fuchsia-700
-    Color(0xFFBE185D), // Pink-700
-    Color(0xFFBE123C), // Rose-700
-    Color(0xFF334155), // Slate-700
+    Color(0xFF8B4A4A), // Red
+    Color(0xFF925C46), // Orange
+    Color(0xFF875F41), // Amber
+    Color(0xFF795F39), // Ochre
+    Color(0xFF4A5D30), // Lime
+    Color(0xFF346045), // Green
+    Color(0xFF2A5A4C), // Emerald
+    Color(0xFF2E5855), // Teal
+    Color(0xFF36616C), // Cyan
+    Color(0xFF386179), // Sky
+    Color(0xFF5569A2), // Blue
+    Color(0xFF605B98), // Indigo
+    Color(0xFF765AA3), // Violet
+    Color(0xFF7A549B), // Purple
+    Color(0xFF7E4783), // Fuchsia
+    Color(0xFF8F4A67), // Pink
+    Color(0xFF8F4859), // Rose
+    Color(0xFF323840), // Slate
 )
 
 object TigerDuckTheme {
@@ -83,29 +89,7 @@ object TigerDuckTheme {
     }
 
     fun buildCourseColorMap(courses: List<Course>) {
-        val map = mutableMapOf<String, Color>()
-        val taken = mutableSetOf<Color>()
-
-        // Pinned (user-picked) colors claim their slots first.
-        courses.forEach { course ->
-            val pinned = parseHexOrNull(course.customColorHex) ?: return@forEach
-            map[course.courseNo] = pinned
-            taken.add(pinned)
-        }
-
-        // Remaining courses fall back to hash-based assignment, probing forward
-        // through the palette to avoid colliding with pinned/already-assigned slots.
-        // When the palette is exhausted (more than 18 distinct courses), we fall
-        // back to a deterministic-random color outside the palette.
-        courses.filter { map[it.courseNo] == null }
-            .sortedBy { it.courseNo }
-            .forEach { course ->
-                val color = pickFreeColor(course.courseNo, taken)
-                map[course.courseNo] = color
-                taken.add(color)
-            }
-
-        courseColorMapRef.set(map)
+        courseColorMapRef.set(buildCourseColorAssignments(courses))
     }
 
     fun courseColor(courseNo: String): Color {
@@ -132,42 +116,69 @@ object TigerDuckTheme {
         else lightModeAlpha
     }
 
-    private fun pickFreeColor(courseNo: String, taken: Set<Color>): Color {
-        val base = courseHashIndex(courseNo)
-        var idx = base
-        var probes = 0
-        while (probes < courseColorPalette.size && courseColorPalette[idx] in taken) {
-            idx = (idx + 1) % courseColorPalette.size
-            probes++
-        }
-        if (probes < courseColorPalette.size) return courseColorPalette[idx]
+}
 
-        // Palette fully taken. Pick a deterministic-random color not in the
-        // palette, seeded by courseNo so the same class keeps a stable color.
-        val paletteArgbs = courseColorPalette.mapTo(mutableSetOf()) { it.toArgb() }
-        val rng = Random(courseNo.hashCode())
-        repeat(32) {
-            val h = rng.nextFloat() * 360f
-            val s = 0.55f + rng.nextFloat() * 0.4f
-            val v = 0.55f + rng.nextFloat() * 0.3f
-            val c = Color(android.graphics.Color.HSVToColor(floatArrayOf(h, s, v)))
-            if (c.toArgb() !in paletteArgbs && c !in taken) return c
-        }
-        return Color(android.graphics.Color.HSVToColor(floatArrayOf(rng.nextFloat() * 360f, 0.7f, 0.7f)))
+/**
+ * Pure, side-effect-free color assignment used by both the app and the
+ * widget. Pinned (user-picked) hex colors claim their slots first, then
+ * remaining courses are assigned probing through the palette so collisions
+ * between different courses are avoided — the widget must call this with the
+ * same inputs as the app to stay in sync.
+ */
+fun buildCourseColorAssignments(courses: List<Course>): Map<String, Color> {
+    val map = mutableMapOf<String, Color>()
+    val taken = mutableSetOf<Color>()
+
+    courses.forEach { course ->
+        val pinned = parseHexOrNull(course.customColorHex) ?: return@forEach
+        map[course.courseNo] = pinned
+        taken.add(pinned)
     }
 
-    private fun courseHashIndex(courseNo: String): Int {
-        val hash = courseNo.fold(0) { acc, c -> (acc * 31 + c.code) and 0x7FFFFFFF }
-        return hash % courseColorPalette.size
-    }
-
-    private fun parseHexOrNull(hex: String?): Color? {
-        if (hex.isNullOrBlank()) return null
-        return try {
-            Color(android.graphics.Color.parseColor(hex))
-        } catch (_: IllegalArgumentException) {
-            null
+    courses.filter { map[it.courseNo] == null }
+        .sortedBy { it.courseNo }
+        .forEach { course ->
+            val color = pickFreeCourseColor(course.courseNo, taken)
+            map[course.courseNo] = color
+            taken.add(color)
         }
+
+    return map
+}
+
+private fun pickFreeCourseColor(courseNo: String, taken: Set<Color>): Color {
+    val base = courseHashIndex(courseNo)
+    var idx = base
+    var probes = 0
+    while (probes < courseColorPalette.size && courseColorPalette[idx] in taken) {
+        idx = (idx + 1) % courseColorPalette.size
+        probes++
+    }
+    if (probes < courseColorPalette.size) return courseColorPalette[idx]
+
+    val paletteArgbs = courseColorPalette.mapTo(mutableSetOf()) { it.toArgb() }
+    val rng = Random(courseNo.hashCode())
+    repeat(32) {
+        val h = rng.nextFloat() * 360f
+        val s = 0.55f + rng.nextFloat() * 0.4f
+        val v = 0.55f + rng.nextFloat() * 0.3f
+        val c = Color(android.graphics.Color.HSVToColor(floatArrayOf(h, s, v)))
+        if (c.toArgb() !in paletteArgbs && c !in taken) return c
+    }
+    return Color(android.graphics.Color.HSVToColor(floatArrayOf(rng.nextFloat() * 360f, 0.7f, 0.7f)))
+}
+
+private fun courseHashIndex(courseNo: String): Int {
+    val hash = courseNo.fold(0) { acc, c -> (acc * 31 + c.code) and 0x7FFFFFFF }
+    return hash % courseColorPalette.size
+}
+
+private fun parseHexOrNull(hex: String?): Color? {
+    if (hex.isNullOrBlank()) return null
+    return try {
+        Color(android.graphics.Color.parseColor(hex))
+    } catch (_: IllegalArgumentException) {
+        null
     }
 }
 
@@ -209,13 +220,13 @@ private val LightColorScheme = lightColorScheme(
     tertiary = Color(0xFF5AC8FA),
     onTertiary = Color.White,
 
-    background = Color(0xFFF2F2F7),      // iOS systemGroupedBackground
+    background = Color.White,            // page background
     onBackground = Color(0xFF1C1C1E),
 
-    surface = Color.White,               // cards
+    surface = Color(0xFFF2F2F7),         // cards (pale gray on white background)
     onSurface = Color(0xFF1C1C1E),
 
-    surfaceVariant = Color(0xFFE9E9EE),  // subtle fills (chips, disabled bg)
+    surfaceVariant = Color(0xFFE5E5EA),  // subtle fills, slightly darker than surface
     onSurfaceVariant = Color(0xFF5B5F68),
 
     outline = Color(0xFFC6C6C8),         // iOS separator
@@ -237,7 +248,7 @@ private val DarkColorScheme = darkColorScheme(
 
     secondary = Color(0xFFAEAEB2),
     onSecondary = Color(0xFF2C2C2E),
-    secondaryContainer = Color(0xFF2C2C2E),
+    secondaryContainer = Color(0xFF3A3A3C),
     onSecondaryContainer = Color(0xFFE5E5EA),
 
     tertiary = Color(0xFF64D2FF),
@@ -246,14 +257,14 @@ private val DarkColorScheme = darkColorScheme(
     background = Color(0xFF000000),      // iOS systemBackground (dark)
     onBackground = Color.White,
 
-    surface = Color(0xFF1C1C1E),         // cards
+    surface = Color(0xFF3A3A3C),         // cards (brighter gray so they stand out on black)
     onSurface = Color.White,
 
-    surfaceVariant = Color(0xFF2C2C2E),
-    onSurfaceVariant = Color(0xFFAEAEB2),
+    surfaceVariant = Color(0xFF48484A),
+    onSurfaceVariant = Color(0xFFC7C7CC),
 
-    outline = Color(0xFF38383A),
-    outlineVariant = Color(0xFF2C2C2E),
+    outline = Color(0xFF5A5A5C),
+    outlineVariant = Color(0xFF3A3A3C),
 
     error = Color(0xFFEF4444),
     onError = Color.White,
@@ -262,6 +273,29 @@ private val DarkColorScheme = darkColorScheme(
 
     surfaceTint = Color(0xFF0A84FF),
 )
+
+// Larger + bolder take on the Material 3 default type scale. Font sizes are
+// bumped ~2sp across the board and every slot is at least SemiBold so text
+// reads as emphatic throughout the app.
+private val TigerDuckTypography: Typography = Typography().let { default ->
+    Typography(
+        displayLarge = default.displayLarge.copy(fontSize = 60.sp, fontWeight = FontWeight.Bold),
+        displayMedium = default.displayMedium.copy(fontSize = 48.sp, fontWeight = FontWeight.Bold),
+        displaySmall = default.displaySmall.copy(fontSize = 38.sp, fontWeight = FontWeight.Bold),
+        headlineLarge = default.headlineLarge.copy(fontSize = 34.sp, fontWeight = FontWeight.Bold),
+        headlineMedium = default.headlineMedium.copy(fontSize = 30.sp, fontWeight = FontWeight.Bold),
+        headlineSmall = default.headlineSmall.copy(fontSize = 26.sp, fontWeight = FontWeight.Bold),
+        titleLarge = default.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold),
+        titleMedium = default.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),
+        titleSmall = default.titleSmall.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+        bodyLarge = default.bodyLarge.copy(fontSize = 18.sp, fontWeight = FontWeight.Medium),
+        bodyMedium = default.bodyMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium),
+        bodySmall = default.bodySmall.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
+        labelLarge = default.labelLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+        labelMedium = default.labelMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+        labelSmall = default.labelSmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+    )
+}
 
 @Composable
 fun TigerDuckAppTheme(
@@ -277,6 +311,7 @@ fun TigerDuckAppTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
+        typography = TigerDuckTypography,
         content = content
     )
 }

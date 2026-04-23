@@ -4,10 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
+import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.LibraryService
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
+import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.ui.AppState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +28,10 @@ class SettingsViewModel @Inject constructor(
     private val credentials: CredentialManager,
     val prefs: AppPreferences,
     private val notificationScheduler: AssignmentNotificationScheduler,
-    private val courseColorStore: CourseColorStore
+    private val courseColorStore: CourseColorStore,
+    private val liveActivityManager: LiveActivityManager,
+    private val dataCache: DataCache,
+    @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     val isNtustLoggingIn = authService.isLoggingIn
@@ -35,27 +43,29 @@ class SettingsViewModel @Inject constructor(
     private val _libLoginError = MutableStateFlow<String?>(null)
     val libLoginError: StateFlow<String?> = _libLoginError
 
-    private val _isNtustLoggedIn = MutableStateFlow(credentials.ntustStudentId != null)
-    val isNtustLoggedIn: StateFlow<Boolean> = _isNtustLoggedIn
+    val isNtustLoggedIn: StateFlow<Boolean> = authService.authState
 
     private val _isLibraryLoggedIn = MutableStateFlow(credentials.isLibraryTokenValid)
     val isLibraryLoggedIn: StateFlow<Boolean> = _isLibraryLoggedIn
 
     fun refreshLoginState() {
-        _isNtustLoggedIn.value = credentials.ntustStudentId != null
         _isLibraryLoggedIn.value = credentials.isLibraryTokenValid
     }
 
     fun loginNtust(studentId: String, password: String) {
         viewModelScope.launch {
             val success = authService.login(studentId, password)
-            _isNtustLoggedIn.value = success
+            if (success) BackgroundSyncWorker.schedule(context)
         }
     }
 
     fun logoutNtust() {
         authService.logout()
-        _isNtustLoggedIn.value = false
+        _isLibraryLoggedIn.value = false
+        notificationScheduler.cancelAllTracked()
+        liveActivityManager.stop()
+        BackgroundSyncWorker.cancel(context)
+        viewModelScope.launch { dataCache.clearAllUserData() }
     }
 
     fun loginLibrary(username: String, password: String) {

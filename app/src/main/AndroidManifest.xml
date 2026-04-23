@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -22,6 +23,7 @@
         <activity
             android:name="org.ntust.app.tigerduck.MainActivity"
             android:exported="true"
+            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.TigerDuck">
             <intent-filter>
@@ -35,12 +37,117 @@
             android:exported="false" />
 
         <receiver
+            android:name="org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name="org.ntust.app.tigerduck.notification.BootReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name="org.ntust.app.tigerduck.widget.WidgetBoundaryReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name="org.ntust.app.tigerduck.widget.receivers.WeekLightWidgetReceiver"
+            android:label="@string/widget_week_light_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_week_light_info" />
+        </receiver>
+
+        <receiver
+            android:name="org.ntust.app.tigerduck.widget.receivers.WeekDarkWidgetReceiver"
+            android:label="@string/widget_week_dark_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_week_dark_info" />
+        </receiver>
+
+        <receiver
+            android:name="org.ntust.app.tigerduck.widget.receivers.TodayLightWidgetReceiver"
+            android:label="@string/widget_today_light_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_today_light_info" />
+        </receiver>
+
+        <receiver
+            android:name="org.ntust.app.tigerduck.widget.receivers.TodayDarkWidgetReceiver"
+            android:label="@string/widget_today_dark_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_today_dark_info" />
+        </receiver>
+
+        <receiver
+            android:name="org.ntust.app.tigerduck.widget.receivers.NextClassLightWidgetReceiver"
+            android:label="@string/widget_next_class_light_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_next_class_light_info" />
+        </receiver>
+
+        <receiver
+            android:name="org.ntust.app.tigerduck.widget.receivers.NextClassDarkWidgetReceiver"
+            android:label="@string/widget_next_class_dark_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_next_class_dark_info" />
+        </receiver>
+
+        <receiver
+            android:name="org.ntust.app.tigerduck.widget.LibraryShortcutWidgetReceiver"
+            android:label="@string/widget_library_shortcut_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_library_shortcut_info" />
+        </receiver>
+
+        <!-- App provides its own WorkManager configuration via Configuration.Provider
+             so Hilt's worker factory is used. Disable the default initializer. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
 
     </application>
 

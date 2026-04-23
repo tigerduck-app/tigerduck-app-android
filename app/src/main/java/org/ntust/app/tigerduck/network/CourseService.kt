@@ -2,18 +2,19 @@ package org.ntust.app.tigerduck.network
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.network.model.CourseSearchRequest
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
-import android.util.Log
-import org.ntust.app.tigerduck.BuildConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.logging.HttpLoggingInterceptor
 import java.util.Calendar
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,23 +28,23 @@ sealed class CourseServiceError : Exception() {
 @Singleton
 class CourseService @Inject constructor(
     private val sessionManager: NtustSessionManager,
-    private val ssoLoginService: SsoLoginService
+    private val ssoLoginService: SsoLoginService,
+    private val dataCache: DataCache,
 ) {
     private val client: OkHttpClient get() = sessionManager.client
     private val gson = Gson()
-    private val plainSearchClient: OkHttpClient by lazy {
-        val interceptor = HttpLoggingInterceptor { message ->
-            Log.d("TigerDuck-HTTP", message)
-        }.apply {
-            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY
-                    else HttpLoggingInterceptor.Level.NONE
-        }
-        OkHttpClient.Builder().addInterceptor(interceptor).build()
-    }
 
     private val courseSelectionRoot = "https://courseselection.ntust.edu.tw/"
     private val courseListUrl = "https://courseselection.ntust.edu.tw/ChooseList/D01/D01"
     private val courseSearchApiUrl = "https://querycourse.ntust.edu.tw/QueryCourse/api/courses"
+
+    // Per-course metadata cache — see DataCache.CourseLookupEntry. Entries
+    // are loaded from disk once on first use and written through on every
+    // successful network fetch so a repeat open of 課表/Home skips the
+    // per-course fan-out to querycourse.ntust.edu.tw entirely.
+    private val lookupCache = ConcurrentHashMap<String, DataCache.CourseLookupEntry>()
+    private val lookupCacheMutex = Mutex()
+    @Volatile private var lookupCacheLoaded = false
 
     suspend fun fetchEnrolledCourseNos(studentId: String, password: String): List<String> =
         withContext(Dispatchers.IO) {
@@ -64,21 +65,46 @@ class CourseService @Inject constructor(
 
     suspend fun lookupCourse(semester: String, courseNo: String): List<CourseSearchResult> =
         withContext(Dispatchers.IO) {
+            ensureLookupCacheLoaded()
+            val key = "${semester}_${courseNo}"
+            lookupCache[key]?.takeIf {
+                System.currentTimeMillis() - it.cachedAt < LOOKUP_TTL_MS
+            }?.let { return@withContext it.results }
+
             val requestBody = gson.toJson(CourseSearchRequest.forCourseNo(courseNo, semester))
                 .toRequestBody("application/json".toMediaType())
 
             val request = Request.Builder()
                 .url(courseSearchApiUrl)
+                .header("Accept", "application/json")
                 .post(requestBody)
                 .build()
 
-            val plainClient = plainSearchClient
-            plainClient.newCall(request).execute().use { response ->
-                val body = response.body?.string() ?: return@withContext emptyList()
+            val fresh = client.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: return@use emptyList()
                 val type = object : TypeToken<List<CourseSearchResult>>() {}.type
-                gson.fromJson(body, type) ?: emptyList()
+                gson.fromJson<List<CourseSearchResult>?>(body, type) ?: emptyList()
             }
+
+            if (fresh.isNotEmpty()) {
+                lookupCache[key] = DataCache.CourseLookupEntry(fresh, System.currentTimeMillis())
+                persistLookupCache()
+            }
+            fresh
         }
+
+    private suspend fun ensureLookupCacheLoaded() {
+        if (lookupCacheLoaded) return
+        lookupCacheMutex.withLock {
+            if (lookupCacheLoaded) return
+            lookupCache.putAll(dataCache.loadCourseLookups())
+            lookupCacheLoaded = true
+        }
+    }
+
+    private suspend fun persistLookupCache() = lookupCacheMutex.withLock {
+        dataCache.saveCourseLookups(lookupCache.toMap())
+    }
 
     suspend fun searchCourses(semester: String, courseName: String): List<CourseSearchResult> =
         withContext(Dispatchers.IO) {
@@ -87,11 +113,29 @@ class CourseService @Inject constructor(
 
             val request = Request.Builder()
                 .url(courseSearchApiUrl)
+                .header("Accept", "application/json")
                 .post(requestBody)
                 .build()
 
-            val plainClient = plainSearchClient
-            plainClient.newCall(request).execute().use { response ->
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: return@withContext emptyList()
+                val type = object : TypeToken<List<CourseSearchResult>>() {}.type
+                gson.fromJson(body, type) ?: emptyList()
+            }
+        }
+
+    suspend fun searchByTeacher(semester: String, teacher: String): List<CourseSearchResult> =
+        withContext(Dispatchers.IO) {
+            val requestBody = gson.toJson(CourseSearchRequest.forCourseTeacher(teacher, semester))
+                .toRequestBody("application/json".toMediaType())
+
+            val request = Request.Builder()
+                .url(courseSearchApiUrl)
+                .header("Accept", "application/json")
+                .post(requestBody)
+                .build()
+
+            client.newCall(request).execute().use { response ->
                 val body = response.body?.string() ?: return@withContext emptyList()
                 val type = object : TypeToken<List<CourseSearchResult>>() {}.type
                 gson.fromJson(body, type) ?: emptyList()
@@ -136,5 +180,13 @@ class CourseService @Inject constructor(
             in 9..12 -> "${rocYear}1"       // Fall semester
             else -> "${rocYear - 1}1"       // January: still in prior fall semester
         }
+    }
+
+    companion object {
+        // Course metadata (name, instructor, schedule, caps) is stable within
+        // a term; only ChooseStudent drifts. 30 min staleness on the enrolment
+        // count is acceptable given the surrounding fields all update live
+        // (assignments, Moodle enrolment list, etc.) on every refresh.
+        private const val LOOKUP_TTL_MS = 30L * 60L * 1000L
     }
 }

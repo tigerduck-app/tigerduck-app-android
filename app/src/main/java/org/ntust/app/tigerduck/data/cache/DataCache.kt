@@ -7,12 +7,15 @@ import com.google.gson.reflect.TypeToken
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.data.model.ScoreReport
+import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,13 +36,107 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         .create()
 
-    // MARK: - Courses
+    // One-shot legacy cache migration is deferred to the first course op so
+    // the file I/O never lands on the main thread via Hilt-driven singleton
+    // construction (would trip StrictMode and risk ANR on slow storage).
+    @Volatile private var legacyCourseCacheAbsorbed = false
 
-    suspend fun saveCourses(courses: List<Course>) = save(courses, "courses.json")
+    // MARK: - Courses (semester-scoped)
 
-    suspend fun loadCourses(): List<Course> {
+    /**
+     * Save courses for a specific semester. Splits the list: remote-fetched
+     * courses go to `cacheDir/courses_<semester>.json` (evictable), manual
+     * courses go to `userDataDir/manual_courses_<semester>.json` (durable).
+     * Manual courses have no remote source — if the cache is evicted they
+     * can only be recovered from userDataDir.
+     */
+    suspend fun saveCourses(courses: List<Course>, semester: String) {
+        absorbLegacyCourseCache()
+        val (manual, remote) = courses.partition { it.isManual }
+        save(remote, coursesFilename(semester))
+        saveToUserData(manual, manualCoursesFilename(semester))
+    }
+
+    /**
+     * Load courses for a specific semester. Merges remote-fetched (cacheDir)
+     * and manual (userDataDir) files; manual courses win on courseNo collision
+     * so the user's isManual flag is preserved even if the remote list was
+     * evicted and a re-fetch has not yet repopulated it.
+     */
+    suspend fun loadCourses(semester: String): List<Course> {
+        absorbLegacyCourseCache()
+        migrateManualCoursesToUserData(semester)
         val type = object : TypeToken<List<Course>>() {}.type
-        return load(type, "courses.json") ?: emptyList()
+        val remote = load<List<Course>>(type, coursesFilename(semester)) ?: emptyList()
+        val manual = loadFromUserData<List<Course>>(type, manualCoursesFilename(semester)) ?: emptyList()
+        if (manual.isEmpty()) return remote
+        val manualNos = manual.map { it.courseNo }.toSet()
+        return remote.filter { it.courseNo !in manualNos } + manual
+    }
+
+    private fun manualCoursesFilename(semester: String): String = "manual_courses_$semester.json"
+
+    /**
+     * One-shot migration for installs that were already writing manual
+     * courses to cacheDir. If the cache still contains isManual entries and
+     * the durable file is empty, copy them across.
+     */
+    private suspend fun migrateManualCoursesToUserData(semester: String) {
+        val userFile = File(userDataDir, manualCoursesFilename(semester))
+        if (userFile.exists()) return
+        val type = object : TypeToken<List<Course>>() {}.type
+        val cached = load<List<Course>>(type, coursesFilename(semester)) ?: return
+        val manual = cached.filter { it.isManual }
+        if (manual.isEmpty()) return
+        saveToUserData(manual, manualCoursesFilename(semester))
+    }
+
+    // MARK: - Courses (current-semester aliases)
+    // Home, BackgroundSyncWorker, LiveActivity, etc. operate on "whatever
+    // the user is studying right now" so we keep a no-arg convenience that
+    // always maps to the actual current semester.
+
+    suspend fun saveCourses(courses: List<Course>) =
+        saveCourses(courses, currentSemesterCode())
+
+    suspend fun loadCourses(): List<Course> =
+        loadCourses(currentSemesterCode())
+
+    private fun coursesFilename(semester: String): String = "courses_$semester.json"
+
+    /**
+     * Pre-semester-scoped format stored at `courses.json`. Move it into the
+     * current-semester file on first launch so existing users don't lose
+     * their timetable when they upgrade; matches iOS's one-shot migration.
+     */
+    private suspend fun absorbLegacyCourseCache() {
+        if (legacyCourseCacheAbsorbed) return
+        cacheMutex.withLock {
+            if (legacyCourseCacheAbsorbed) return@withLock
+            withContext(Dispatchers.IO) {
+                val legacy = File(cacheDir, "courses.json")
+                if (legacy.exists()) {
+                    val target = File(cacheDir, coursesFilename(currentSemesterCode()))
+                    runCatching {
+                        if (!target.exists()) legacy.copyTo(target, overwrite = false)
+                        legacy.delete()
+                    }
+                }
+                legacyCourseCacheAbsorbed = true
+            }
+        }
+    }
+
+    private fun currentSemesterCode(): String {
+        val cal = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ)
+        val year = cal.get(Calendar.YEAR)
+        val month = cal.get(Calendar.MONTH) + 1
+        val rocYear = year - 1911
+        return when (month) {
+            in 2..8 -> "${rocYear - 1}2"
+            in 9..12 -> "${rocYear}1"
+            else -> "${rocYear - 1}1"
+        }
     }
 
     // MARK: - Assignments
@@ -61,6 +158,72 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return loadFromUserData(type, "skipped_dates.json") ?: emptyMap()
     }
 
+    // MARK: - Ignored Assignments (set of assignmentIds)
+    // Stored in filesDir so the user's ignore decisions survive OS cache eviction
+    // and remote re-fetches, mirroring skipped_dates.json handling.
+
+    suspend fun saveIgnoredAssignments(ids: Set<String>) =
+        saveToUserData(ids.toList(), "ignored_assignments.json")
+
+    suspend fun loadIgnoredAssignments(): Set<String> {
+        val type = object : TypeToken<List<String>>() {}.type
+        return loadFromUserData<List<String>>(type, "ignored_assignments.json")?.toSet() ?: emptySet()
+    }
+
+    // MARK: - Marked-Completed Assignments (set of assignmentIds)
+    // Independent from Moodle's `isCompleted`: lets the user manually flag a
+    // homework as done from the swipe gesture even when Moodle hasn't (or
+    // won't) record a submission. Persisted in filesDir alongside the ignore
+    // list so it survives remote re-fetches.
+
+    suspend fun saveMarkedCompletedAssignments(ids: Set<String>) =
+        saveToUserData(ids.toList(), "marked_completed_assignments.json")
+
+    suspend fun loadMarkedCompletedAssignments(): Set<String> {
+        val type = object : TypeToken<List<String>>() {}.type
+        return loadFromUserData<List<String>>(type, "marked_completed_assignments.json")?.toSet() ?: emptySet()
+    }
+
+    // MARK: - Score Report (per studentId)
+
+    data class ScoreReportSnapshot(val report: ScoreReport, val cachedAt: Date)
+
+    suspend fun saveScoreReport(report: ScoreReport, studentId: String) =
+        save(ScoreReportSnapshot(report, Date()), scoreReportFilename(studentId))
+
+    suspend fun loadScoreReport(studentId: String): ScoreReportSnapshot? {
+        val type = object : TypeToken<ScoreReportSnapshot>() {}.type
+        return load(type, scoreReportFilename(studentId))
+    }
+
+    suspend fun invalidateScoreReport(studentId: String) = cacheMutex.withLock {
+        withContext(Dispatchers.IO) {
+            runCatching { File(cacheDir, scoreReportFilename(studentId)).delete() }
+            Unit
+        }
+    }
+
+    private fun scoreReportFilename(studentId: String): String = "score_$studentId.json"
+
+    // MARK: - Course lookup (querycourse.ntust.edu.tw responses)
+    // Course metadata (name, instructor, schedule, caps) is static within a
+    // semester; only ChooseStudent drifts, and drifting by a few minutes is
+    // tolerable for a pull-to-refresh UX. Caching the raw CourseSearchResult
+    // lets a repeat "課表" or Home load skip the per-course fan-out entirely.
+
+    data class CourseLookupEntry(
+        val results: List<CourseSearchResult>,
+        val cachedAt: Long,
+    )
+
+    suspend fun saveCourseLookups(map: Map<String, CourseLookupEntry>) =
+        save(map, "course_lookups.json")
+
+    suspend fun loadCourseLookups(): Map<String, CourseLookupEntry> {
+        val type = object : TypeToken<Map<String, CourseLookupEntry>>() {}.type
+        return load<Map<String, CourseLookupEntry>>(type, "course_lookups.json") ?: emptyMap()
+    }
+
     // MARK: - Calendar Events
 
     suspend fun saveCalendarEvents(events: List<CalendarEvent>) = save(events, "calendar_events.json")
@@ -68,6 +231,49 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     suspend fun loadCalendarEvents(): List<CalendarEvent> {
         val type = object : TypeToken<List<CalendarEvent>>() {}.type
         return load(type, "calendar_events.json") ?: emptyList()
+    }
+
+    // MARK: - Logout cleanup
+
+    /**
+     * Wipe every piece of user-scoped data so the next login does not inherit
+     * the previous user's courses, assignments, calendar events, or skip
+     * marks on the UI. School-wide calendar events are rebuilt on the next
+     * sync, so it is fine to drop them here too.
+     */
+    suspend fun clearAllUserData() {
+        cacheMutex.withLock {
+            withContext(Dispatchers.IO) {
+                listOf("courses.json", "assignments.json", "calendar_events.json", "course_lookups.json").forEach { name ->
+                    runCatching { File(cacheDir, name).delete() }
+                }
+                // Drop every per-semester course bucket so historical data
+                // doesn't bleed across accounts on the same device.
+                runCatching {
+                    cacheDir.listFiles { _, name -> name.startsWith("courses_") && name.endsWith(".json") }
+                        ?.forEach { it.delete() }
+                }
+                runCatching {
+                    cacheDir.listFiles { _, name -> name.startsWith("score_") && name.endsWith(".json") }
+                        ?.forEach { it.delete() }
+                }
+            }
+        }
+        userDataMutex.withLock {
+            withContext(Dispatchers.IO) {
+                listOf(
+                    "skipped_dates.json",
+                    "ignored_assignments.json",
+                    "marked_completed_assignments.json",
+                ).forEach { name ->
+                    runCatching { File(userDataDir, name).delete() }
+                }
+                runCatching {
+                    userDataDir.listFiles { _, name -> name.startsWith("manual_courses_") && name.endsWith(".json") }
+                        ?.forEach { it.delete() }
+                }
+            }
+        }
     }
 
     // MARK: - Private helpers

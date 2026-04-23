@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="80dp"
+    android:height="80dp"
+    android:viewportWidth="80"
+    android:viewportHeight="80">
+    <!-- rounded-square background mirrors the widget surface -->
+    <path
+        android:fillColor="#F5F5F5"
+        android:pathData="M14,4 L66,4 A10,10 0 0 1 76,14 L76,66 A10,10 0 0 1 66,76 L14,76 A10,10 0 0 1 4,66 L4,14 A10,10 0 0 1 14,4 Z" />
+    <!-- accent pill behind the icon -->
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M28,22 L52,22 A8,8 0 0 1 60,30 L60,50 A8,8 0 0 1 52,58 L28,58 A8,8 0 0 1 20,50 L20,30 A8,8 0 0 1 28,22 Z" />
+    <!-- simplified open-book glyph -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,35 C36,33 31,32.5 26,33 L26,49 C31,48.5 36,49 40,51 C44,49 49,48.5 54,49 L54,33 C49,32.5 44,33 40,35 Z M40,35 L40,51" />
+    <!-- label bar beneath -->
+    <path
+        android:fillColor="#1C1C1E"
+        android:pathData="M24,64 L56,64 L56,70 L24,70 Z" />
+</vector>

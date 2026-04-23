@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import org.ntust.app.tigerduck.data.model.AppFeature
+import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.data.model.HomeSection
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -25,24 +26,6 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getInt("accentColorHex", 0x007AFF)
         set(value) = prefs.edit().putInt("accentColorHex", value).apply()
 
-    var rememberAnnouncementFilter: Boolean
-        get() = prefs.getBoolean("rememberAnnouncementFilter", false)
-        set(value) = prefs.edit().putBoolean("rememberAnnouncementFilter", value).apply()
-
-    var savedAnnouncementDepartments: Set<String>
-        get() {
-            val json = prefs.getString("savedAnnouncementDepartments", null) ?: return emptySet()
-            return try {
-                val type = object : TypeToken<List<String>>() {}.type
-                (gson.fromJson<List<String>>(json, type) ?: emptyList()).toSet()
-            } catch (e: Exception) {
-                emptySet()
-            }
-        }
-        set(value) {
-            prefs.edit().putString("savedAnnouncementDepartments", gson.toJson(value.toList())).apply()
-        }
-
     var browserPreference: String
         get() = prefs.getString("browserPreference", "system") ?: "system"
         set(value) = prefs.edit().putString("browserPreference", value).apply()
@@ -55,6 +38,14 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     var showAbsoluteAssignmentTime: Boolean
         get() = prefs.getBoolean("showAbsoluteAssignmentTime", false)
         set(value) = prefs.edit().putBoolean("showAbsoluteAssignmentTime", value).apply()
+
+    var homeAssignmentFilter: AssignmentFilter
+        get() {
+            val raw = prefs.getString("homeAssignmentFilter", null)
+            return AssignmentFilter.entries.firstOrNull { it.name == raw }
+                ?: AssignmentFilter.INCOMPLETE
+        }
+        set(value) = prefs.edit().putString("homeAssignmentFilter", value.name).apply()
 
     var configuredTabs: List<AppFeature>
         get() {
@@ -71,10 +62,6 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         set(value) {
             prefs.edit().putString("configuredTabs", gson.toJson(value.map { it.id })).apply()
         }
-
-    var timeSliderStyle: String
-        get() = prefs.getString("timeSliderStyle", "fluidTrack") ?: "fluidTrack"
-        set(value) = prefs.edit().putString("timeSliderStyle", value).apply()
 
     var invertSliderDirection: Boolean
         get() = prefs.getBoolean("invertSliderDirection", false)
@@ -113,6 +100,30 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     fun clearSsoTimestamp() {
         prefs.edit().remove("ssoLoginTimestamp").apply()
     }
+
+    /**
+     * Monotonic version for on-device user-data layout. Bumped whenever the
+     * app ships a change that needs a one-shot migration (see DataMigration).
+     * 0 covers every pre-migration-system build (fresh install or upgrade).
+     */
+    var dataSchemaVersion: Int
+        get() = prefs.getInt("dataSchemaVersion", 0)
+        set(value) = prefs.edit().putInt("dataSchemaVersion", value).apply()
+
+    /** Wipe every pref key. Used by the full-reset flow only. */
+    fun clearAllPrefs() {
+        prefs.edit().clear().apply()
+    }
+
+    /** Semester the user last viewed in 課表. Null until first pick. */
+    var classTableSelectedSemester: String?
+        get() = prefs.getString("classTableSelectedSemester", null)
+        set(value) {
+            val editor = prefs.edit()
+            if (value == null) editor.remove("classTableSelectedSemester")
+            else editor.putString("classTableSelectedSemester", value)
+            editor.apply()
+        }
 
     companion object {
         /**

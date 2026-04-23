@@ -13,8 +13,8 @@ android {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.1.5"
+        versionCode = 8
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -52,10 +52,6 @@ android {
         compose = true
         buildConfig = true
     }
-
-    ksp {
-        arg("room.schemaLocation", "$projectDir/schemas")
-    }
 }
 
 dependencies {
@@ -77,15 +73,11 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    // Room
-    implementation(libs.room.runtime)
-    implementation(libs.room.ktx)
-    ksp(libs.room.compiler)
-
     // Network
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.gson)
+    implementation(libs.jsoup)
 
     // Security
     implementation(libs.security.crypto)
@@ -96,11 +88,16 @@ dependencies {
     // QR Code
     implementation(libs.zxing.core)
 
-    // Image loading
-    implementation(libs.coil.compose)
-
     // In-app browser (Custom Tabs)
     implementation(libs.androidx.browser)
+
+    // Background work scheduling
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
+
+    // Glance (home screen widgets)
+    implementation(libs.glance.appwidget)
 
     // Testing
     testImplementation(libs.junit)

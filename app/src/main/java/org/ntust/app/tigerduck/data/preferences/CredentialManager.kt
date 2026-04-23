@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package org.ntust.app.tigerduck.data.preferences
 
 import android.content.Context
@@ -14,21 +16,48 @@ class CredentialManager @Inject constructor(@ApplicationContext context: Context
     var isEncrypted: Boolean = false
         private set
 
-    private val prefs: SharedPreferences = run {
-        try {
+    /**
+     * True when [createEncryptedPrefs] had to delete the backing file and
+     * rebuild an empty credential store (keystore corruption, restore-to-new-
+     * device, etc). Callers can use this signal to prompt the user to re-login
+     * rather than silently presenting an unauthenticated app.
+     */
+    var wasRecreatedDueToCorruption: Boolean = false
+        private set
+
+    private val prefs: SharedPreferences = createEncryptedPrefs(context)
+
+    private fun createEncryptedPrefs(context: Context): SharedPreferences {
+        fun attempt(): SharedPreferences {
             val masterKey = MasterKey.Builder(context)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .build()
-            EncryptedSharedPreferences.create(
+            return EncryptedSharedPreferences.create(
                 context,
-                "tigerduck_credentials",
+                PREFS_NAME,
                 masterKey,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            ).also { isEncrypted = true }
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            )
+        }
+        return try {
+            attempt().also { isEncrypted = true }
         } catch (e: Exception) {
-            android.util.Log.e("CredentialManager", "EncryptedSharedPreferences failed", e)
-            throw SecurityException("Cannot create encrypted credential storage", e)
+            // A corrupted prefs file (e.g. after a system restore onto a
+            // device whose keystore doesn't hold the original master key)
+            // makes `create` throw permanently. Wipe and retry once so the
+            // user only loses their stored credentials, not the whole app.
+            android.util.Log.w("CredentialManager", "EncryptedSharedPreferences unusable; resetting", e)
+            runCatching { context.deleteSharedPreferences(PREFS_NAME) }
+            try {
+                attempt().also {
+                    isEncrypted = true
+                    wasRecreatedDueToCorruption = true
+                }
+            } catch (retry: Exception) {
+                android.util.Log.e("CredentialManager", "EncryptedSharedPreferences retry failed", retry)
+                throw SecurityException("Cannot create encrypted credential storage", retry)
+            }
         }
     }
 
@@ -74,10 +103,19 @@ class CredentialManager @Inject constructor(@ApplicationContext context: Context
     val isLibraryTokenValid: Boolean
         get() = libraryToken != null && System.currentTimeMillis() < libraryTokenExpiry
 
+    /** Long-lived Moodle Mobile wstoken, obtained via the OIDC launch flow. */
+    var moodleToken: String?
+        get() = prefs.getString("moodle_token", null)
+        set(value) = if (value != null)
+            prefs.edit().putString("moodle_token", value).apply()
+        else
+            prefs.edit().remove("moodle_token").apply()
+
     fun clearNtustCredentials() {
         prefs.edit()
             .remove("ntust_student_id")
             .remove("ntust_password")
+            .remove("moodle_token")
             .apply()
     }
 
@@ -88,5 +126,14 @@ class CredentialManager @Inject constructor(@ApplicationContext context: Context
             .remove("library_token")
             .remove("library_token_expiry")
             .apply()
+    }
+
+    /** Wipe every credential key. Used by the full-reset flow. */
+    fun clearAll() {
+        prefs.edit().clear().apply()
+    }
+
+    companion object {
+        private const val PREFS_NAME = "tigerduck_credentials"
     }
 }

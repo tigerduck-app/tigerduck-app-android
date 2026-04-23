@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material3.*
@@ -27,16 +28,21 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.text.SimpleDateFormat
@@ -50,14 +56,14 @@ import kotlinx.coroutines.launch
 @Composable
 fun TimeSliderSection(
     courses: List<Course>,
-    sliderStyle: String,
     invertDirection: Boolean,
     skippedDates: Map<String, List<String>> = emptyMap(),
+    isLoggedIn: Boolean = true,
+    initialLoadComplete: Boolean = true,
     onSkipCourse: (Course, Date) -> Unit = { _, _ -> },
     onSelectCourse: (Course) -> Unit
 ) {
-    val sliderScope = rememberCoroutineScope()
-    val viewModel = remember(sliderScope) { TimeSliderViewModel(sliderScope) }
+    val viewModel = remember { TimeSliderViewModel() }
 
     LaunchedEffect(courses.map { it.courseNo }) {
         viewModel.configure(courses)
@@ -72,9 +78,13 @@ fun TimeSliderSection(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Header
+        // Header — fixed height so the 現在 chip appearing doesn't push
+        // the slider and course card below it downward.
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(32.dp)
+                .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -88,13 +98,7 @@ fun TimeSliderSection(
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
-                FilledTonalButton(
-                    onClick = { viewModel.returnToNow() },
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Text("現在", style = MaterialTheme.typography.labelMedium)
-                }
+                JumpToNowChip(label = "現在", onClick = { viewModel.returnToNow() })
             }
         }
 
@@ -119,11 +123,11 @@ fun TimeSliderSection(
                 )
 
                 // Track
-                when (sliderStyle) {
-                    "segmentedBar" -> SegmentedBarTrack(viewModel, invertDirection)
-                    else -> FluidTrack(viewModel, invertDirection)
-                }
+                FluidTrack(viewModel, invertDirection)
             }
+        } else if (isLoggedIn && !initialLoadComplete) {
+            // Cache hasn't been consulted yet — don't flash "目前沒有課程"
+            // while the on-disk cache is still being read.
         } else {
             Column(
                 modifier = Modifier
@@ -133,13 +137,13 @@ fun TimeSliderSection(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
-                    Icons.Filled.CheckCircle,
+                    if (isLoggedIn) Icons.Filled.CheckCircle else Icons.Filled.Lock,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
                     modifier = Modifier.size(32.dp)
                 )
                 Text(
-                    "目前沒有課程",
+                    if (isLoggedIn) "目前沒有課程" else "請先登入以使用這項功能",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
@@ -165,13 +169,16 @@ private fun CourseTimeCard(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
+        // 翹課 feature disabled — the onSkipToggle wiring below is commented out
+        // so SlotCard falls back to its null default and the left-swipe gesture
+        // + "翹課" indicator are inert. Re-enable by restoring the commented lines.
         when (state) {
             is CourseState.InClass -> {
                 SlotCard(
                     slot = state.slot,
                     alpha = 1f,
                     isSkipped = isSkippedFor(state.slot),
-                    onSkipToggle = { onSkipCourse(state.slot.course, state.slot.date) },
+                    // onSkipToggle = { onSkipCourse(state.slot.course, state.slot.date) },
                     onClick = { onSelect(state.slot.course) },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -181,7 +188,7 @@ private fun CourseTimeCard(
                     SlotCard(
                         slot = it, alpha = 0.8f,
                         isSkipped = isSkippedFor(it),
-                        onSkipToggle = { onSkipCourse(it.course, it.date) },
+                        // onSkipToggle = { onSkipCourse(it.course, it.date) },
                         onClick = { onSelect(it.course) },
                         modifier = Modifier.weight(1f)
                     )
@@ -190,7 +197,7 @@ private fun CourseTimeCard(
                     SlotCard(
                         slot = it, alpha = 0.8f,
                         isSkipped = isSkippedFor(it),
-                        onSkipToggle = { onSkipCourse(it.course, it.date) },
+                        // onSkipToggle = { onSkipCourse(it.course, it.date) },
                         onClick = { onSelect(it.course) },
                         modifier = Modifier.weight(1f)
                     )
@@ -200,7 +207,7 @@ private fun CourseTimeCard(
                 SlotCard(
                     slot = state.next, alpha = 0.8f,
                     isSkipped = isSkippedFor(state.next),
-                    onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
+                    // onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
                     onClick = { onSelect(state.next.course) },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -209,7 +216,7 @@ private fun CourseTimeCard(
                 SlotCard(
                     slot = state.previous, alpha = 0.8f,
                     isSkipped = isSkippedFor(state.previous),
-                    onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
+                    // onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
                     onClick = { onSelect(state.previous.course) },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -340,20 +347,19 @@ private fun SlotCard(
             colors = CardDefaults.cardColors(containerColor = slotContainer)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Row {
-                    Text(
-                        timeRange,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                val metaStyle = MaterialTheme.typography.labelSmall
+                val metaBoldStyle = metaStyle.copy(fontWeight = FontWeight.Bold)
+                val metaColor = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                if (isToday) {
+                    Text(timeRange, style = metaBoldStyle, color = metaColor)
+                } else {
+                    FitOrStack(
+                        modifier = Modifier.fillMaxWidth(),
+                        first = { Text(timeRange, style = metaBoldStyle, color = metaColor) },
+                        second = {
+                            Text(formatDateLabel(slot.date), style = metaStyle, color = metaColor)
+                        },
                     )
-                    Spacer(Modifier.weight(1f))
-                    if (!isToday) {
-                        Text(
-                            formatDateLabel(slot.date),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                        )
-                    }
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -363,12 +369,11 @@ private fun SlotCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    "${slot.course.classroom} · ${slot.course.instructor}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                InlineOrStackText(
+                    primary = slot.course.classroom,
+                    secondary = slot.course.instructor,
+                    style = metaStyle,
+                    color = metaColor,
                 )
             }
         }
@@ -382,6 +387,7 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
     val trackHeightDp = TimeSliderViewModel.FLUID_TRACK_HEIGHT.dp
     var widthPx by remember { mutableStateOf(0f) }
 
+    val pxPerDp = with(density) { 1.dp.toPx() }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -397,20 +403,24 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                     onDragEnd = { viewModel.onDragEnded() },
                     onDragCancel = { viewModel.onDragEnded() },
                     onHorizontalDrag = { _, dragAmount ->
-                        viewModel.onDragChanged(dragAmount, invertDirection, context)
+                        viewModel.onDragChanged(dragAmount / pxPerDp, invertDirection, context)
                     }
                 )
             }
             .drawBehind {
                 val centerX = size.width / 2
                 val trackH = size.height
+                val segHeightPx = TimeSliderViewModel.FLUID_SEGMENT_HEIGHT.dp.toPx()
+                val majorMarkerHeightPx = TimeSliderViewModel.MAJOR_MARKER_HEIGHT.dp.toPx()
+                val thumbHeightPx = TimeSliderViewModel.SELECTION_THUMB_HEIGHT.dp.toPx()
+                val minSegWidthPx = TimeSliderViewModel.MIN_SEGMENT_WIDTH.dp.toPx()
 
                 // Draw course segments
                 for (slot in viewModel.timeSlots) {
-                    val startOff = viewModel.xOffset(slot.start)
-                    val endOff = viewModel.xOffset(slot.end)
+                    val startOff = viewModel.xOffset(slot.start) * pxPerDp
+                    val endOff = viewModel.xOffset(slot.end) * pxPerDp
                     val segW = maxOf(
-                        TimeSliderViewModel.MIN_SEGMENT_WIDTH,
+                        minSegWidthPx,
                         endOff - startOff
                     )
                     val segCenterX = centerX + (startOff + endOff) / 2
@@ -426,9 +436,9 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                             ),
                             topLeft = Offset(
                                 left,
-                                (trackH - TimeSliderViewModel.FLUID_SEGMENT_HEIGHT) / 2
+                                (trackH - segHeightPx) / 2
                             ),
-                            size = Size(segW, TimeSliderViewModel.FLUID_SEGMENT_HEIGHT),
+                            size = Size(segW, segHeightPx),
                             cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f)
                         )
                     }
@@ -437,7 +447,7 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                 // Tick marks
                 val markerInterval = (TimeSliderViewModel.MARKER_INTERVAL_MINUTES * 60_000).toLong()
                 val majorInterval = (TimeSliderViewModel.MAJOR_MARKER_INTERVAL_MINUTES * 60_000).toLong()
-                val visibleMinutes = size.width / TimeSliderViewModel.POINTS_PER_MINUTE
+                val visibleMinutes = (size.width / pxPerDp) / TimeSliderViewModel.POINTS_PER_MINUTE
                 val selectedRef = viewModel.selectedTime.time
                 val rangeStart = selectedRef - (visibleMinutes * 60_000).toLong()
                 val rangeEnd = selectedRef + (visibleMinutes * 60_000).toLong()
@@ -445,15 +455,14 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
 
                 while (t <= rangeEnd) {
                     val markerDate = Date(t)
-                    val x = centerX + viewModel.xOffset(markerDate)
+                    val x = centerX + viewModel.xOffset(markerDate) * pxPerDp
                     if (x > -10 && x < size.width + 10) {
                         val isMajor = t % majorInterval == 0L
                         if (isMajor) {
-                            val mh = TimeSliderViewModel.MAJOR_MARKER_HEIGHT
                             drawRect(
                                 color = Color.White.copy(alpha = 0.15f),
-                                topLeft = Offset(x - 0.5f, (trackH - mh) / 2),
-                                size = Size(1f, mh)
+                                topLeft = Offset(x - 0.5f, (trackH - majorMarkerHeightPx) / 2),
+                                size = Size(1f, majorMarkerHeightPx)
                             )
                         } else {
                             val ds = TimeSliderViewModel.MARKER_DOT_SIZE
@@ -469,11 +478,10 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
 
                 // Center indicator
                 val tw = TimeSliderViewModel.SELECTION_THUMB_WIDTH
-                val th = TimeSliderViewModel.SELECTION_THUMB_HEIGHT
                 drawRoundRect(
                     color = Color.White.copy(alpha = 0.7f),
-                    topLeft = Offset(centerX - tw / 2, (trackH - th) / 2),
-                    size = Size(tw, th),
+                    topLeft = Offset(centerX - tw / 2, (trackH - thumbHeightPx) / 2),
+                    size = Size(tw, thumbHeightPx),
                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(1f)
                 )
 
@@ -492,97 +500,6 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
     )
 }
 
-@Composable
-private fun SegmentedBarTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean) {
-    val context = LocalContext.current
-    val barHeightDp = TimeSliderViewModel.SEGMENTED_BAR_HEIGHT.dp
-    var widthPx by remember { mutableStateOf(0f) }
-    val density = LocalDensity.current
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(barHeightDp)
-            .onSizeChanged { widthPx = it.width.toFloat() }
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-            .pointerInput(invertDirection) {
-                val scale = 3f
-                detectHorizontalDragGestures(
-                    onDragStart = { viewModel.onDragStarted() },
-                    onDragEnd = { viewModel.onDragEnded() },
-                    onDragCancel = { viewModel.onDragEnded() },
-                    onHorizontalDrag = { _, dragAmount ->
-                        viewModel.onDragChanged(dragAmount / scale, invertDirection, context)
-                    }
-                )
-            }
-    ) {
-        if (widthPx > 0) {
-            val scale = 3f
-            val centerXDp = with(density) { (widthPx / 2).toDp() }
-
-            viewModel.timeSlots.forEach { slot ->
-                val startOff = viewModel.xOffset(slot.start) * scale
-                val endOff = viewModel.xOffset(slot.end) * scale
-                val segW = maxOf(80f, endOff - startOff)
-                val segCenterX = (startOff + endOff) / 2
-                val leftPx = widthPx / 2 + segCenterX - segW / 2
-
-                if (leftPx + segW > -50 && leftPx < widthPx + 50) {
-                    val isSelected = viewModel.selectedTime >= slot.start && viewModel.selectedTime <= slot.end
-                    val courseColor = TigerDuckTheme.courseColorVibrant(slot.course.courseNo)
-                    val segSurface = MaterialTheme.colorScheme.surface
-                    val segBaseAlpha = if (isSelected) 0.4f else 0.15f
-                    val segBg = if (TigerDuckTheme.isDarkMode) {
-                        courseColor.copy(alpha = (segBaseAlpha * 2.3f).coerceAtMost(1f))
-                            .compositeOver(segSurface)
-                    } else {
-                        courseColor.copy(alpha = segBaseAlpha)
-                    }
-                    val segTextAlpha = TigerDuckTheme.tintAlpha(if (isSelected) 1f else 0.7f)
-                    val segWDp = with(density) { segW.toDp() }
-                    val leftDp = with(density) { leftPx.toDp() }
-
-                    Box(
-                        modifier = Modifier
-                            .absoluteOffset(x = leftDp)
-                            .width(segWDp)
-                            .height(barHeightDp - 4.dp)
-                            .align(Alignment.CenterStart)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(segBg),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = slot.course.courseName,
-                            style = if (isSelected) {
-                                MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                            } else {
-                                MaterialTheme.typography.labelSmall
-                            },
-                            color = courseColor.copy(alpha = segTextAlpha),
-                            maxLines = 1,
-                            overflow = TextOverflow.Clip,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-            }
-
-            // Center indicator
-            Box(
-                modifier = Modifier
-                    .absoluteOffset(x = centerXDp - 1.dp)
-                    .width(2.dp)
-                    .height(barHeightDp - 8.dp)
-                    .align(Alignment.CenterStart)
-                    .background(Color.White.copy(alpha = 0.4f))
-            )
-        }
-    }
-}
-
 private val timeFmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
 private val dateTimeFmt = java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE) HH:mm", Locale.TRADITIONAL_CHINESE)
 private val dateLabelFmt = java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE)", Locale.TRADITIONAL_CHINESE)
@@ -599,3 +516,86 @@ private fun formatTimeLabel(date: Date): String {
 
 private fun formatDateLabel(date: Date): String =
     dateLabelFmt.format(date.toInstant().atZone(AppConstants.TAIPEI_ZONE))
+
+/**
+ * Places [first] at the start and [second] at the end on a single row if both
+ * fit; otherwise stacks them vertically with [first] above [second].
+ */
+@Composable
+private fun FitOrStack(
+    first: @Composable () -> Unit,
+    second: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    minGap: Dp = 8.dp,
+) {
+    SubcomposeLayout(modifier) { constraints ->
+        val unbounded = Constraints()
+        val f = subcompose("first", first).first().measure(unbounded)
+        val s = subcompose("second", second).first().measure(unbounded)
+        val gap = minGap.roundToPx()
+        val width = constraints.maxWidth
+        if (f.width + gap + s.width <= width) {
+            val h = maxOf(f.height, s.height)
+            layout(width, h) {
+                f.place(0, (h - f.height) / 2)
+                s.place(width - s.width, (h - s.height) / 2)
+            }
+        } else {
+            layout(width, f.height + s.height) {
+                f.place(0, 0)
+                s.place(0, f.height)
+            }
+        }
+    }
+}
+
+/**
+ * Renders `"$primary $separator $secondary"` on a single line when it fits;
+ * otherwise stacks [primary] above [secondary] without the separator.
+ */
+@Composable
+private fun InlineOrStackText(
+    primary: String,
+    secondary: String,
+    style: TextStyle,
+    color: Color,
+    separator: String = " · ",
+    modifier: Modifier = Modifier,
+) {
+    SubcomposeLayout(modifier) { constraints ->
+        val unbounded = Constraints()
+        val bounded = constraints.copy(minWidth = 0, maxHeight = Constraints.Infinity)
+        val inline = subcompose("inline") {
+            Text(
+                primary + separator + secondary,
+                style = style,
+                color = color,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Clip,
+            )
+        }.first().measure(unbounded)
+
+        if (inline.width <= constraints.maxWidth) {
+            val w = inline.width.coerceAtMost(constraints.maxWidth)
+            layout(w, inline.height) { inline.place(0, 0) }
+        } else {
+            val p = subcompose("primary") {
+                Text(
+                    primary, style = style, color = color,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }.first().measure(bounded)
+            val s = subcompose("secondary") {
+                Text(
+                    secondary, style = style, color = color,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }.first().measure(bounded)
+            layout(constraints.maxWidth, p.height + s.height) {
+                p.place(0, 0)
+                s.place(0, p.height)
+            }
+        }
+    }
+}

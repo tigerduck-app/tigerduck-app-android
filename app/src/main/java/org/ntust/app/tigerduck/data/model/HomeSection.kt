@@ -11,7 +11,7 @@ data class HomeSection(
 ) {
     enum class HomeSectionType(val defaultTitle: String) {
         TODAY_COURSES("今日課程"),
-        UPCOMING_ASSIGNMENTS("待辦作業"),
+        UPCOMING_ASSIGNMENTS("作業"),
         @Deprecated("Feature temporarily disabled")
         QUICK_WIDGETS("快速功能"),
         CUSTOM("自訂區塊");
@@ -20,7 +20,7 @@ data class HomeSection(
     companion object {
         fun defaults(): List<HomeSection> = listOf(
             HomeSection("today-courses", HomeSectionType.TODAY_COURSES, "今日課程", 0, true),
-            HomeSection("upcoming-assignments", HomeSectionType.UPCOMING_ASSIGNMENTS, "待辦作業", 1, true),
+            HomeSection("upcoming-assignments", HomeSectionType.UPCOMING_ASSIGNMENTS, "作業", 1, true),
             // TODO: 快速功能
 //            HomeSection(
 //                "quick-widgets", HomeSectionType.QUICK_WIDGETS, "快速功能", 2, true,
@@ -28,7 +28,7 @@ data class HomeSection(
 //                    WidgetItem("w1", AppFeature.FREE_LUNCH),
 //                    WidgetItem("w2", AppFeature.EMPTY_CLASSROOM),
 //                    WidgetItem("w3", AppFeature.SCHOLARSHIP),
-//                    WidgetItem("w4", AppFeature.GPA),
+//                    WidgetItem("w4", AppFeature.SCORE),
 //                )
 //            )
         )
