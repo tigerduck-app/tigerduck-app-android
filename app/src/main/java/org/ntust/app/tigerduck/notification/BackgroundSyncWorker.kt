@@ -33,6 +33,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private val notificationScheduler: AssignmentNotificationScheduler,
     private val liveActivityManager: org.ntust.app.tigerduck.liveactivity.LiveActivityManager,
     private val prefs: org.ntust.app.tigerduck.data.preferences.AppPreferences,
+    private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
@@ -49,6 +50,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         if (authService.storedStudentId != studentId) return Result.success()
 
         liveActivityManager.refresh()
+        widgetUpdater.updateAll()
 
         return if (coursesOk || assignmentsOk) Result.success() else Result.retry()
     }
