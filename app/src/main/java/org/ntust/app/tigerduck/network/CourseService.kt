@@ -124,6 +124,24 @@ class CourseService @Inject constructor(
             }
         }
 
+    suspend fun searchByTeacher(semester: String, teacher: String): List<CourseSearchResult> =
+        withContext(Dispatchers.IO) {
+            val requestBody = gson.toJson(CourseSearchRequest.forCourseTeacher(teacher, semester))
+                .toRequestBody("application/json".toMediaType())
+
+            val request = Request.Builder()
+                .url(courseSearchApiUrl)
+                .header("Accept", "application/json")
+                .post(requestBody)
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: return@withContext emptyList()
+                val type = object : TypeToken<List<CourseSearchResult>>() {}.type
+                gson.fromJson(body, type) ?: emptyList()
+            }
+        }
+
     fun parseNodeToSchedule(node: String?): Map<Int, List<String>> {
         if (node.isNullOrEmpty()) return emptyMap()
         val dayMap = mapOf(

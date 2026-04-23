@@ -67,6 +67,15 @@ class HomeViewModel @Inject constructor(
     private val _assignmentFilter = MutableStateFlow(prefs.homeAssignmentFilter)
     val assignmentFilter: StateFlow<AssignmentFilter> = _assignmentFilter
 
+    // "Sticky" visibility for the 已忽略 tab during a single Home visit. Once
+    // the user interacts with the ignored flow we keep the tab on screen even
+    // if the list empties out — so unignoring the last item or switching to
+    // 未完成 doesn't yank the control mid-interaction. Cleared on Home pause.
+    private val _ignoredTabPinned = MutableStateFlow(
+        prefs.homeAssignmentFilter == AssignmentFilter.IGNORED
+    )
+    val ignoredTabPinned: StateFlow<Boolean> = _ignoredTabPinned
+
     val upcomingAssignments: StateFlow<List<Assignment>> = combine(
         _allAssignments,
         _ignoredAssignmentIds,
@@ -382,6 +391,24 @@ class HomeViewModel @Inject constructor(
     fun setAssignmentFilter(filter: AssignmentFilter) {
         _assignmentFilter.value = filter
         prefs.homeAssignmentFilter = filter
+        if (filter == AssignmentFilter.IGNORED) _ignoredTabPinned.value = true
+    }
+
+    /**
+     * Called when the Home screen goes out of foreground. Clears the sticky
+     * 已忽略 tab pin so the next visit only shows the tab if there's
+     * actually ignored data. Also snaps the filter back to INCOMPLETE when
+     * the user left while stuck on an empty 已忽略, so returning to Home
+     * doesn't land on an empty (and invisible) tab.
+     */
+    fun onHomePaused() {
+        _ignoredTabPinned.value = false
+        if (_assignmentFilter.value == AssignmentFilter.IGNORED &&
+            _ignoredAssignmentIds.value.isEmpty()
+        ) {
+            _assignmentFilter.value = AssignmentFilter.INCOMPLETE
+            prefs.homeAssignmentFilter = AssignmentFilter.INCOMPLETE
+        }
     }
 
     fun toggleIgnore(assignment: Assignment) {

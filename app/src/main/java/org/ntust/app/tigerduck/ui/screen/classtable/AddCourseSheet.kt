@@ -15,16 +15,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
-private enum class SearchMode(val label: String) {
-    COURSE_CODE("課程代碼"),
-    COURSE_NAME("課名搜尋")
-}
+// Course codes are ASCII alphanumeric with at least one digit
+// (e.g. "EC1013701", "GE1002101"). Anything else is treated as a name or
+// teacher query — matching the iOS AddCourseSheet heuristic.
+private val courseCodePattern = Regex("^[A-Za-z0-9]+$")
+
+private fun looksLikeCourseCode(text: String): Boolean =
+    courseCodePattern.matches(text) && text.any { it.isDigit() }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,12 +42,12 @@ fun AddCourseSheet(
     onDismiss: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
-    var searchMode by remember { mutableStateOf(SearchMode.COURSE_CODE) }
     var searchText by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<GroupedCourse>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var addedCourseNo by remember { mutableStateOf<String?>(null) }
+    var searchJob by remember { mutableStateOf<Job?>(null) }
 
     fun search() {
         val trimmed = searchText.trim()
@@ -50,14 +56,29 @@ fun AddCourseSheet(
         isSearching = true
         searchResults = emptyList()
         addedCourseNo = null
+        searchJob?.cancel()
 
-        scope.launch {
+        val isCourseCode = looksLikeCourseCode(trimmed)
+        searchJob = scope.launch {
             try {
-                val results = when (searchMode) {
-                    SearchMode.COURSE_CODE -> courseService.lookupCourse(semester, trimmed)
-                    SearchMode.COURSE_NAME -> courseService.searchCourses(semester, trimmed)
+                val raw = if (isCourseCode) {
+                    courseService.lookupCourse(semester, trimmed)
+                } else {
+                    coroutineScope {
+                        // Fire name + teacher queries concurrently, mirroring the
+                        // iOS `async let` flow so a single input covers both.
+                        val byName = async {
+                            runCatching { courseService.searchCourses(semester, trimmed) }
+                                .getOrDefault(emptyList())
+                        }
+                        val byTeacher = async {
+                            runCatching { courseService.searchByTeacher(semester, trimmed) }
+                                .getOrDefault(emptyList())
+                        }
+                        mergeResults(byName.await(), byTeacher.await())
+                    }
                 }
-                searchResults = groupResults(results, courseService)
+                searchResults = groupResults(raw, courseService)
                 if (searchResults.isEmpty()) errorMessage = "找不到符合的課程"
             } catch (e: Exception) {
                 errorMessage = "搜尋失敗：${e.message}"
@@ -89,26 +110,7 @@ fun AddCourseSheet(
 
         Spacer(Modifier.height(12.dp))
 
-        // Search mode picker
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        ) {
-            SearchMode.entries.forEachIndexed { index, mode ->
-                SegmentedButton(
-                    selected = searchMode == mode,
-                    onClick = { searchMode = mode },
-                    shape = SegmentedButtonDefaults.itemShape(index, SearchMode.entries.size)
-                ) {
-                    Text(mode.label)
-                }
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // Search field
+        // Unified search field — detects code / name / teacher from the input.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -119,12 +121,7 @@ fun AddCourseSheet(
             OutlinedTextField(
                 value = searchText,
                 onValueChange = { searchText = it },
-                placeholder = {
-                    Text(
-                        if (searchMode == SearchMode.COURSE_CODE) "例如：EC1013701"
-                        else "例如：微積分"
-                    )
-                },
+                placeholder = { Text("輸入課程代碼、課名或老師") },
                 singleLine = true,
                 modifier = Modifier.weight(1f)
             )
@@ -164,11 +161,19 @@ fun AddCourseSheet(
                     .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    "輸入課程代碼或課名後搜尋",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "輸入課程代碼、課名或老師",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "例如：EC1013701、微積分、王小明",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                    )
+                }
             }
         } else {
             LazyColumn(
@@ -257,6 +262,24 @@ private data class GroupedCourse(
     val schedule: Map<Int, List<String>>,
     val nodeDisplay: String
 )
+
+/**
+ * Merge name-search and teacher-search results, preserving name-first order
+ * and deduping by (courseNo, node). Matches the iOS behaviour so the Android
+ * feature stays in lockstep when the server adds/renames courses.
+ */
+private fun mergeResults(
+    primary: List<CourseSearchResult>,
+    secondary: List<CourseSearchResult>,
+): List<CourseSearchResult> {
+    val seen = mutableSetOf<String>()
+    val merged = mutableListOf<CourseSearchResult>()
+    for (result in primary + secondary) {
+        val key = "${result.courseNo}#${result.node ?: ""}"
+        if (seen.add(key)) merged.add(result)
+    }
+    return merged
+}
 
 private fun groupResults(results: List<CourseSearchResult>, courseService: CourseService): List<GroupedCourse> {
     val seen = mutableMapOf<String, GroupedCourse>()

@@ -1,6 +1,13 @@
 package org.ntust.app.tigerduck.ui.screen.score
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +35,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.drawText
@@ -200,12 +208,12 @@ private fun CreditSummaryCard(summary: CreditSummary) {
             .padding(horizontal = 16.dp, vertical = 4.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(20.dp)) {
             Text(
                 text = "學分統計",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 CreditStat("已實得", summary.earned.total, Modifier.weight(1f))
                 CreditStat("修習中", summary.enrolled.total, Modifier.weight(1f))
@@ -219,20 +227,20 @@ private fun CreditSummaryCard(summary: CreditSummary) {
 private fun CreditStat(label: String, value: Int, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-            .padding(vertical = 10.dp),
+            .padding(vertical = 18.dp, horizontal = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = value.toString(),
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.primary
         )
-        Spacer(Modifier.height(2.dp))
+        Spacer(Modifier.height(6.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
         )
     }
@@ -453,30 +461,107 @@ private fun TrendSummaryRow(
 ) {
     val source = resolvedSelection(rankings, selectedTerm) ?: return
     val stats = rank(source, scope)
-    val gpaTitle = if (selectedTerm != null) "${displayTermShort(source.term)} GPA" else "最新 GPA"
+    // Cumulative mode shows a running total, so the label calls out which
+    // term the value is accumulated *through* — "累計至 114-上". Semester
+    // mode just identifies the pinned term's GPA.
+    val gpaTitle = when {
+        scope == ScoreViewModel.RankingScope.CUMULATIVE ->
+            "累計至 ${displayTermShort(source.term)}"
+        selectedTerm != null -> "${displayTermShort(source.term)} GPA"
+        else -> "最新 GPA"
+    }
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
     ) {
-        SummaryCell(title = gpaTitle, value = stats.gpa?.let { "%.2f".format(it) } ?: "—")
-        SummaryCell(title = "班排名", value = stats.classRank?.toString() ?: "—")
-        SummaryCell(title = "系排名", value = stats.deptRank?.toString() ?: "—")
+        SummaryCell(
+            title = gpaTitle,
+            value = stats.gpa?.let { "%.2f".format(it) } ?: "—",
+            modifier = Modifier.weight(1f)
+        )
+        SummaryCell(
+            title = "班排名",
+            value = stats.classRank?.toString() ?: "—",
+            modifier = Modifier.weight(1f)
+        )
+        SummaryCell(
+            title = "系排名",
+            value = stats.deptRank?.toString() ?: "—",
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
 @Composable
-private fun SummaryCell(title: String, value: String) {
-    Column {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+private fun SummaryCell(title: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        RollingText(
+            value = title,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
         )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(4.dp))
+        RollingText(
+            value = value,
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface,
         )
+    }
+}
+
+/**
+ * Per-character scroll-wheel animation.
+ *
+ * Each position runs its own [AnimatedContent]. When a digit increases
+ * (e.g. 5 → 7) it rolls upward — new digit slides in from below, old digit
+ * slides out upward. When it decreases, it rolls downward. Non-digit swaps
+ * (or digit↔non-digit) default to the upward direction so text transitions
+ * (e.g. "最新 GPA" → "114-上 GPA") stay visually coherent.
+ */
+@Composable
+private fun RollingText(
+    value: String,
+    style: TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        value.forEachIndexed { index, targetChar ->
+            key(index) {
+                AnimatedContent(
+                    targetState = targetChar,
+                    transitionSpec = {
+                        val from = initialState.digitToIntOrNull()
+                        val to = targetState.digitToIntOrNull()
+                        val goingUp = if (from != null && to != null) to >= from else true
+                        val dur = 320
+                        if (goingUp) {
+                            (slideInVertically(tween(dur)) { h -> h } +
+                                fadeIn(tween(dur))) togetherWith
+                                (slideOutVertically(tween(dur)) { h -> -h } +
+                                    fadeOut(tween(dur)))
+                        } else {
+                            (slideInVertically(tween(dur)) { h -> -h } +
+                                fadeIn(tween(dur))) togetherWith
+                                (slideOutVertically(tween(dur)) { h -> h } +
+                                    fadeOut(tween(dur)))
+                        }
+                    },
+                    label = "roll-$index",
+                ) { c ->
+                    Text(text = c.toString(), style = style, color = color)
+                }
+            }
+        }
     }
 }
 

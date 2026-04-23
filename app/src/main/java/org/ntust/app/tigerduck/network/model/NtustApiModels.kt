@@ -83,5 +83,22 @@ data class CourseSearchRequest(
             onlyNode = 0,
             language = "zh"
         )
+
+        fun forCourseTeacher(teacher: String, semester: String) = CourseSearchRequest(
+            semester = semester,
+            courseNo = "",
+            courseName = "",
+            courseTeacher = teacher,
+            dimension = "",
+            courseNotes = "",
+            campusNotes = "",
+            foreignLanguage = 0,
+            onlyGeneral = 0,
+            onlyNtust = 0,
+            onlyMaster = 0,
+            onlyUnderGraduate = 0,
+            onlyNode = 0,
+            language = "zh"
+        )
     }
 }

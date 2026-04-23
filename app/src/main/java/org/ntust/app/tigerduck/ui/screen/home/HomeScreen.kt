@@ -38,10 +38,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -66,6 +68,7 @@ fun HomeScreen(
     val upcomingAssignments by viewModel.upcomingAssignments.collectAsStateWithLifecycle()
     val assignmentFilter by viewModel.assignmentFilter.collectAsStateWithLifecycle()
     val ignoredAssignmentIds by viewModel.ignoredAssignmentIds.collectAsStateWithLifecycle()
+    val ignoredTabPinned by viewModel.ignoredTabPinned.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val initialLoadComplete by viewModel.initialLoadComplete.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
@@ -102,6 +105,21 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) { viewModel.load() }
+
+    // When the Home screen leaves the foreground (tab switch, background),
+    // reset the filter away from 已忽略 if it ended up empty. This makes the
+    // "stay pinned on IGNORED tab while the user might want to undo" behavior
+    // only apply *during* the current visit.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE) {
+                viewModel.onHomePaused()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.syncCompleteEvent.collect {
@@ -203,6 +221,7 @@ fun HomeScreen(
                             allCourses = allCourses,
                             upcomingAssignments = upcomingAssignments,
                             assignmentFilter = assignmentFilter,
+                            showIgnoredTab = ignoredAssignmentIds.isNotEmpty() || ignoredTabPinned,
                             ignoredAssignmentIds = ignoredAssignmentIds,
                             isLoggedIn = isLoggedIn,
                             isLoading = isLoading,
@@ -370,6 +389,7 @@ private fun HomeSectionContent(
     allCourses: List<Course>,
     upcomingAssignments: List<Assignment>,
     assignmentFilter: AssignmentFilter,
+    showIgnoredTab: Boolean,
     ignoredAssignmentIds: Set<String>,
     isLoggedIn: Boolean,
     isLoading: Boolean,
@@ -400,6 +420,7 @@ private fun HomeSectionContent(
                 AssignmentFilterTabs(
                     selected = assignmentFilter,
                     enabled = isLoggedIn,
+                    showIgnoredTab = showIgnoredTab,
                     onSelect = onSelectFilter,
                 )
                 if (upcomingAssignments.isEmpty()) {
@@ -532,9 +553,14 @@ private fun openAssignmentInMoodle(context: Context, assignment: Assignment) {
 private fun AssignmentFilterTabs(
     selected: AssignmentFilter,
     enabled: Boolean,
+    showIgnoredTab: Boolean,
     onSelect: (AssignmentFilter) -> Unit,
 ) {
-    val options = AssignmentFilter.entries
+    // Hide 已忽略 when the user has nothing ignored — unless they're already
+    // on that tab, so clearing the last item doesn't yank the section out
+    // from under them mid-interaction.
+    val options = if (showIgnoredTab) AssignmentFilter.entries
+                  else AssignmentFilter.entries.filter { it != AssignmentFilter.IGNORED }
     SingleChoiceSegmentedButtonRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -628,27 +654,16 @@ private fun SwipeableAssignmentRow(
                 .padding(end = 20.dp),
             contentAlignment = Alignment.CenterEnd,
         ) {
-            Column(
+            Icon(
+                imageVector = if (isIgnored) Icons.AutoMirrored.Filled.Undo
+                              else Icons.Filled.VisibilityOff,
+                contentDescription = if (isIgnored) "取消忽略" else "忽略",
+                tint = actionColor,
                 modifier = Modifier
+                    .size(26.dp)
                     .alpha(progress)
                     .scale(0.5f + 0.5f * progress),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Icon(
-                    imageVector = if (isIgnored) Icons.AutoMirrored.Filled.Undo
-                                  else Icons.Filled.VisibilityOff,
-                    contentDescription = null,
-                    tint = actionColor,
-                    modifier = Modifier.size(22.dp),
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = if (isIgnored) "取消忽略" else "忽略",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                    color = actionColor,
-                    fontSize = 11.sp,
-                )
-            }
+            )
         }
 
         // Opaque row that slides over the indicator. The surface color matches

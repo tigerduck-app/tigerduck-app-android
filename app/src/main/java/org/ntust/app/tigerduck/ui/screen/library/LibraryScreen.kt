@@ -125,15 +125,17 @@ fun LibraryScreen(
             )
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            FeatureCard("討論小間", "即將推出", modifier = Modifier.weight(1f))
-            FeatureCard("圖書館講座", "即將推出", modifier = Modifier.weight(1f))
-        }
+        // 討論小間 / 圖書館講座 — hidden until the backing data sources are
+        // available. Re-enable the row below when ready.
+        // Row(
+        //     modifier = Modifier
+        //         .fillMaxWidth()
+        //         .padding(horizontal = 16.dp),
+        //     horizontalArrangement = Arrangement.spacedBy(12.dp)
+        // ) {
+        //     FeatureCard("討論小間", "即將推出", modifier = Modifier.weight(1f))
+        //     FeatureCard("圖書館講座", "即將推出", modifier = Modifier.weight(1f))
+        // }
 
         Spacer(Modifier.height(16.dp))
     }
