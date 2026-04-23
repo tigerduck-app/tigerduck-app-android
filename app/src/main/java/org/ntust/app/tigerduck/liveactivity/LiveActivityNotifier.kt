@@ -47,7 +47,10 @@ class LiveActivityNotifier @Inject constructor(
             lastScenario = null
             return
         }
-        if (!hasPostPermission()) return
+        if (!hasPostPermission()){
+            lastScenario = null
+            return
+        }
 
         val contentIntent = PendingIntent.getActivity(
             context,
