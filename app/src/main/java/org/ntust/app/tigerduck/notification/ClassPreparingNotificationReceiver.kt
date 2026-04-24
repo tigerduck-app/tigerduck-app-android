@@ -23,7 +23,11 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         val instructor = intent.getStringExtra(EXTRA_INSTRUCTOR).orEmpty()
         val startMs = intent.getLongExtra(EXTRA_START_MS, 0L)
         val endMs = intent.getLongExtra(EXTRA_END_MS, 0L)
-        val slotId = intent.getStringExtra(EXTRA_SLOT_ID) ?: courseName
+        // Stable id injected by the scheduler's persisted code map. Matches the
+        // PendingIntent request code, so two concurrent class alerts never
+        // collide the way slotId.hashCode() could.
+        val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1)
+        if (notificationId < 0) return
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
@@ -52,7 +56,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
             .setAutoCancel(true)
             .build()
 
-        nm.notify(slotId.hashCode() and 0x7FFFFFFF, notification)
+        nm.notify(notificationId, notification)
     }
 
     private fun ensureChannel(nm: NotificationManager) {
@@ -83,6 +87,6 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         const val EXTRA_INSTRUCTOR = "instructor"
         const val EXTRA_START_MS = "start_ms"
         const val EXTRA_END_MS = "end_ms"
-        const val EXTRA_SLOT_ID = "slot_id"
+        const val EXTRA_NOTIFICATION_ID = "notification_id"
     }
 }

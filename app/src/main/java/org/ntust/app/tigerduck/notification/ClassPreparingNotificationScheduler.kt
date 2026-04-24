@@ -48,18 +48,19 @@ class ClassPreparingNotificationScheduler @Inject constructor(
             val triggerTime = slot.startMs - leadTimeSec * 1000
             if (triggerTime <= now) continue
 
+            val requestCode = requestCodeFor(codeMap, slot.id)
             val intent = Intent(context, ClassPreparingNotificationReceiver::class.java).apply {
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_COURSE_NAME, slot.course.courseName)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_CLASSROOM, slot.course.classroom)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_INSTRUCTOR, slot.course.instructor)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_START_MS, slot.startMs)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_END_MS, slot.endMs)
-                putExtra(ClassPreparingNotificationReceiver.EXTRA_SLOT_ID, slot.id)
+                putExtra(ClassPreparingNotificationReceiver.EXTRA_NOTIFICATION_ID, requestCode)
             }
 
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
-                requestCodeFor(codeMap, slot.id),
+                requestCode,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )

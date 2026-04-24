@@ -58,7 +58,16 @@ enum class CreditType {
 enum class GradeStatus {
     GRADED,
     PENDING,
-    PASSED,
+
+    /**
+     * Course is graded on a pass/fail scale. The outcome (passed or failed)
+     * is encoded in the raw `grade` string — `通過` means passed, `不通過`
+     * means failed. Call sites MUST inspect `CourseGrade.grade` before
+     * rendering "passed"/"failed" UI; this status alone does not indicate
+     * success. Mirrors the iOS NTUSTScoreParser bucketing — don't split into
+     * PASSED/FAILED variants without coordinating the same change there.
+     */
+    PASS_FAIL_GRADED,
     WITHDREW,
     EXEMPTED,
     UNKNOWN

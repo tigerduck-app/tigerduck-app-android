@@ -744,7 +744,7 @@ private fun gradeDescriptor(course: CourseGrade): Pair<String, Color> = when (co
     GradeStatus.PENDING -> "未到" to Color(0xFF95A5A6)
     GradeStatus.WITHDREW -> "退選" to Color(0xFF95A5A6)
     GradeStatus.EXEMPTED -> "抵免" to Color(0xFF85C1E9)
-    GradeStatus.PASSED -> if (course.grade == "通過")
+    GradeStatus.PASS_FAIL_GRADED -> if (course.grade == "通過")
         "通過" to Color(0xFF4ECDC4) else "未過" to Color(0xFFE74C3C)
     GradeStatus.GRADED -> course.grade to gradeColor(course.grade)
     GradeStatus.UNKNOWN -> (course.grade.ifEmpty { "—" }) to Color(0xFF95A5A6)
