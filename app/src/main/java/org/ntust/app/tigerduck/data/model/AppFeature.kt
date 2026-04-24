@@ -9,7 +9,7 @@ enum class AppFeature(val id: String) {
     CLASS_TABLE("classTable"),
     CALENDAR("calendar"),
     ANNOUNCEMENTS("announcements"),
-    GPA("gpa"),
+    SCORE("score"),
     COURSE_SELECTION("courseSelection"),
     GRADUATION_REQUIREMENTS("graduationRequirements"),
     LIBRARY("library"),
@@ -30,7 +30,7 @@ enum class AppFeature(val id: String) {
             CALENDAR -> "行事曆"
             ANNOUNCEMENTS -> "公告"
             LIBRARY -> "圖書館"
-            GPA -> "GPA 查詢"
+            SCORE -> "歷年成績"
             COURSE_SELECTION -> "選課系統"
             GRADUATION_REQUIREMENTS -> "畢業門檻"
             DISCUSSION_ROOM -> "討論小間"
@@ -52,7 +52,7 @@ enum class AppFeature(val id: String) {
             CALENDAR -> Icons.Filled.CalendarMonth
             ANNOUNCEMENTS -> Icons.Filled.Campaign
             LIBRARY -> Icons.Filled.MenuBook
-            GPA -> Icons.Filled.BarChart
+            SCORE -> Icons.Filled.BarChart
             COURSE_SELECTION -> Icons.Filled.EditNote
             GRADUATION_REQUIREMENTS -> Icons.Filled.School
             DISCUSSION_ROOM -> Icons.Filled.MeetingRoom
@@ -68,7 +68,7 @@ enum class AppFeature(val id: String) {
 
     val category: FeatureCategory?
         get() = when (this) {
-            CLASS_TABLE, CALENDAR, GPA, COURSE_SELECTION, GRADUATION_REQUIREMENTS -> FeatureCategory.ACADEMIC
+            CLASS_TABLE, CALENDAR, SCORE, COURSE_SELECTION, GRADUATION_REQUIREMENTS -> FeatureCategory.ACADEMIC
             LIBRARY, DISCUSSION_ROOM, LIBRARY_LECTURE -> FeatureCategory.LIBRARY
             ANNOUNCEMENTS, FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP -> FeatureCategory.LIFE
             ENGLISH_VOCAB -> FeatureCategory.LANGUAGE
@@ -84,7 +84,7 @@ enum class AppFeature(val id: String) {
 
         val pinnableFeatures = listOf(
             HOME, CLASS_TABLE, CALENDAR, ANNOUNCEMENTS, LIBRARY,
-            GPA, COURSE_SELECTION, GRADUATION_REQUIREMENTS,
+            SCORE, COURSE_SELECTION, GRADUATION_REQUIREMENTS,
             DISCUSSION_ROOM, LIBRARY_LECTURE,
             FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
             ENGLISH_VOCAB
@@ -92,7 +92,7 @@ enum class AppFeature(val id: String) {
 
         val moreFeatures = listOf(
             CLASS_TABLE, CALENDAR,
-            GPA, COURSE_SELECTION, GRADUATION_REQUIREMENTS,
+            SCORE, COURSE_SELECTION, GRADUATION_REQUIREMENTS,
             LIBRARY, DISCUSSION_ROOM, LIBRARY_LECTURE,
             ANNOUNCEMENTS, FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
             ENGLISH_VOCAB

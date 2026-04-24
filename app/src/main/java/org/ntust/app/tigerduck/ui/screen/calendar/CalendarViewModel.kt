@@ -48,7 +48,23 @@ class CalendarViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    val isLoggedIn: StateFlow<Boolean> = authService.authState
+
     private var hasLoaded = false
+
+    init {
+        viewModelScope.launch {
+            // Clear / refresh in sync with auth changes.
+            authService.authState.collect { isAuthed ->
+                if (!isAuthed) {
+                    _events.value = emptyList()
+                    hasLoaded = false
+                } else {
+                    fetchData()
+                }
+            }
+        }
+    }
 
     val selectedDateEvents: StateFlow<List<CalendarEvent>> = combine(_events, _selectedDate) { events, selectedDate ->
         events
@@ -91,7 +107,9 @@ class CalendarViewModel @Inject constructor(
         hasLoaded = true
         viewModelScope.launch {
             _events.value = dataCache.loadCalendarEvents()
-            fetchData()
+            // The school ICS is public, but the user expects a logged-out
+            // calendar to stay completely idle (no spinner, no network).
+            if (authService.isNtustAuthenticated) fetchData()
         }
     }
 
@@ -102,6 +120,7 @@ class CalendarViewModel @Inject constructor(
     val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
     fun refresh() {
+        if (!authService.isNtustAuthenticated) return
         viewModelScope.launch {
             _isLoading.value = true
             if (!networkChecker.isAvailable()) {
@@ -157,7 +176,8 @@ class CalendarViewModel @Inject constructor(
             if (!authService.ensureAuthenticated()) {
                 return dataCache.loadAssignments().toCalendarEvents()
             }
-            val assignments = moodleService.fetchAssignments(studentId, password)
+            val enrolled = moodleService.fetchEnrolledCourses()
+            val assignments = moodleService.fetchAssignments(enrolled)
             dataCache.saveAssignments(assignments)
             assignments.toCalendarEvents()
         } catch (_: Exception) {

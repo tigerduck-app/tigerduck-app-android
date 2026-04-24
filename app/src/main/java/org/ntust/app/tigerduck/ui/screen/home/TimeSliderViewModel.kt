@@ -9,7 +9,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.ntust.app.tigerduck.data.model.Course
-import kotlinx.coroutines.*
 import java.util.Calendar
 import java.util.Date
 import kotlin.math.abs
@@ -18,7 +17,7 @@ import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
 
-class TimeSliderViewModel(private val scope: CoroutineScope) {
+class TimeSliderViewModel {
 
     var timeSlots by mutableStateOf<List<CourseTimeSlot>>(emptyList())
         private set
@@ -31,7 +30,6 @@ class TimeSliderViewModel(private val scope: CoroutineScope) {
     private var allCourses: List<Course> = emptyList()
     private var timelineCenterDate: Date = Date()
     private var lastHapticSlot: Int = 0
-    private var autoReturnJob: Job? = null
 
     // Compressed position cache
     private var anchors: List<Pair<Date, Float>> = emptyList()
@@ -166,13 +164,11 @@ class TimeSliderViewModel(private val scope: CoroutineScope) {
 
     fun onDragStarted() {
         isUserDragging = true
-        autoReturnJob?.cancel()
         lastHapticSlot = hapticSlot(selectedTime)
     }
 
     fun onDragChanged(dx: Float, invertDirection: Boolean, context: Context?) {
         if (!isUserDragging) onDragStarted()
-        autoReturnJob?.cancel()
         val direction = if (invertDirection) 1f else -1f
 
         val currentX = interpolateX(selectedTime)
@@ -225,33 +221,34 @@ class TimeSliderViewModel(private val scope: CoroutineScope) {
     }
 
     fun onDragEnded() {
-        startAutoReturn()
+        // Keep the user's selected time in place. The 現在 button remains
+        // visible (isUserDragging stays true) until the user taps it.
     }
 
     fun returnToNow() {
-        autoReturnJob?.cancel()
         isUserDragging = false
         selectedTime = Date()
     }
 
-    private fun startAutoReturn() {
-        autoReturnJob?.cancel()
-        autoReturnJob = scope.launch {
-            delay(5000)
-            isUserDragging = false
-            selectedTime = Date()
-        }
-    }
-
     private fun performHaptic(context: Context) {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val mgr = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-                mgr?.defaultVibrator?.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
             } else {
                 @Suppress("DEPRECATION")
-                val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-                vibrator?.vibrate(VibrationEffect.createOneShot(10, VibrationEffect.DEFAULT_AMPLITUDE))
+                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            } ?: return
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                vibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_TICK)
+            ) {
+                val effect = VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.6f)
+                    .compose()
+                vibrator.vibrate(effect)
+            } else {
+                val amp = if (vibrator.hasAmplitudeControl()) 90 else VibrationEffect.DEFAULT_AMPLITUDE
+                vibrator.vibrate(VibrationEffect.createOneShot(6, amp))
             }
         } catch (_: Exception) { }
     }
@@ -267,8 +264,7 @@ class TimeSliderViewModel(private val scope: CoroutineScope) {
         const val HAPTIC_INTERVAL_MINUTES = 15.0
 
         const val FLUID_TRACK_HEIGHT = 36f
-        const val FLUID_SEGMENT_HEIGHT = 20f
-        const val SEGMENTED_BAR_HEIGHT = 44f
+        const val FLUID_SEGMENT_HEIGHT = 18f
         const val MIN_SEGMENT_WIDTH = 28f
         const val SELECTION_THUMB_WIDTH = 2f
         const val SELECTION_THUMB_HEIGHT = 28f

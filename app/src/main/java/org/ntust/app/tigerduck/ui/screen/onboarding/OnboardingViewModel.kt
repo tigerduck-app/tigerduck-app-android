@@ -11,11 +11,12 @@ import javax.inject.Inject
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
     private val appState: AppState,
-    private val authService: AuthService
+    private val authService: AuthService,
 ) : ViewModel() {
 
     val isLoggingIn = authService.isLoggingIn
     val loginError = authService.loginError
+    val systemPermissions = appState.systemPermissions
 
     fun login(studentId: String, password: String, onSuccess: () -> Unit) {
         viewModelScope.launch {

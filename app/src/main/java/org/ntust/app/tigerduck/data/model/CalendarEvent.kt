@@ -1,13 +1,10 @@
 package org.ntust.app.tigerduck.data.model
 
 import androidx.compose.ui.graphics.Color
-import androidx.room.Entity
-import androidx.room.PrimaryKey
 import java.util.Date
 
-@Entity(tableName = "calendar_events")
 data class CalendarEvent(
-    @PrimaryKey val eventId: String,
+    val eventId: String,
     val title: String,
     val date: Date,
     val sourceRaw: String // "moodle", "school", "exam"

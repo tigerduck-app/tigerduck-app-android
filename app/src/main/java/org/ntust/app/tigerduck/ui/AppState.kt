@@ -1,11 +1,14 @@
 package org.ntust.app.tigerduck.ui
 
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
@@ -15,6 +18,7 @@ import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.LoadingState
 import org.ntust.app.tigerduck.network.NtustSessionManager
+import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +38,10 @@ class AppState @Inject constructor(
     val prefs: AppPreferences,
     val credentials: CredentialManager,
     val dataCache: DataCache,
-    val calendarService: CalendarService
+    val calendarService: CalendarService,
+    val systemPermissions: SystemPermissions,
+    private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
+    @param:ApplicationContext private val appContext: Context,
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var syncJob: Job? = null
@@ -42,6 +49,22 @@ class AppState @Inject constructor(
     private val _loadingState = MutableStateFlow(LoadingState.IDLE)
     @Suppress("unused")
     val loadingState: StateFlow<LoadingState> = _loadingState
+
+    /**
+     * `true` when on-device data could not be migrated cleanly (e.g. Keystore
+     * corruption wiped the credential store, or the user downgraded the app).
+     * The UI shows a non-dismissable dialog and calls [performFullReset] on
+     * confirm.
+     */
+    private val _needsUserReset = MutableStateFlow(false)
+    val needsUserReset: StateFlow<Boolean> = _needsUserReset
+
+    init {
+        when (DataMigration(appContext, prefs, credentials).run()) {
+            DataMigration.Outcome.NeedsUserReset -> _needsUserReset.value = true
+            DataMigration.Outcome.Ok -> Unit
+        }
+    }
 
     private var hasCompletedOnboardingState by mutableStateOf(prefs.hasCompletedOnboarding)
 
@@ -61,6 +84,7 @@ class AppState @Inject constructor(
             if (accentColorHexState == value) return
             accentColorHexState = value
             prefs.accentColorHex = value
+            widgetUpdater.requestUpdate()
         }
 
     /**
@@ -76,21 +100,6 @@ class AppState @Inject constructor(
         }
         return Color(0xFF000000L or (hex.toLong() and 0xFFFFFFL))
     }
-
-    private var rememberAnnouncementFilterState by mutableStateOf(prefs.rememberAnnouncementFilter)
-
-    var rememberAnnouncementFilter: Boolean
-        get() = rememberAnnouncementFilterState
-        set(value) {
-            if (rememberAnnouncementFilterState == value) return
-            rememberAnnouncementFilterState = value
-            prefs.rememberAnnouncementFilter = value
-        }
-
-    @Suppress("unused")
-    var savedAnnouncementDepartments: Set<String>
-        get() = prefs.savedAnnouncementDepartments
-        set(value) { prefs.savedAnnouncementDepartments = value }
 
     private var showAbsoluteAssignmentTimeState by mutableStateOf(prefs.showAbsoluteAssignmentTime)
 
@@ -121,16 +130,7 @@ class AppState @Inject constructor(
             if (themeModeState == value) return
             themeModeState = value
             prefs.themeMode = value
-        }
-
-    private var timeSliderStyleState by mutableStateOf(prefs.timeSliderStyle)
-
-    var timeSliderStyle: String
-        get() = timeSliderStyleState
-        set(value) {
-            if (timeSliderStyleState == value) return
-            timeSliderStyleState = value
-            prefs.timeSliderStyle = value
+            widgetUpdater.requestUpdate()
         }
 
     private var invertSliderDirectionState by mutableStateOf(prefs.invertSliderDirection)
@@ -163,6 +163,12 @@ class AppState @Inject constructor(
             prefs.libraryFeatureEnabled = value
         }
 
+    // Transient signal from the library-shortcut widget: when the user taps
+    // the widget while the library feature is disabled, we navigate to
+    // Settings and flip this so SettingsScreen surfaces an "enable first"
+    // dialog. Not persisted — lives only within the process.
+    var pendingLibraryEnablePrompt by mutableStateOf(false)
+
     private var configuredTabsState by mutableStateOf(prefs.configuredTabs)
 
     var configuredTabs: List<AppFeature>
@@ -179,6 +185,36 @@ class AppState @Inject constructor(
 
     fun completeOnboarding() {
         hasCompletedOnboarding = true
+    }
+
+    /**
+     * Wipe every piece of on-device user state (prefs, credentials, JSON
+     * cache) and return the user to onboarding. Called from the reset
+     * dialog after migration returns [DataMigration.Outcome.NeedsUserReset].
+     */
+    fun performFullReset() {
+        scope.launch {
+            runCatching { dataCache.clearAllUserData() }
+            credentials.clearAll()
+            prefs.clearAllPrefs()
+            // Re-stamp the schema so the dialog doesn't re-fire on next launch.
+            prefs.dataSchemaVersion = DataMigration.CURRENT_SCHEMA
+
+            // The mutableState caches above were seeded from prefs at init
+            // time. Re-read so the UI shows defaults instead of ghost values
+            // from the wiped store.
+            hasCompletedOnboardingState = prefs.hasCompletedOnboarding
+            accentColorHexState = prefs.accentColorHex
+            showAbsoluteAssignmentTimeState = prefs.showAbsoluteAssignmentTime
+            browserPreferenceState = prefs.browserPreference
+            themeModeState = prefs.themeMode
+            invertSliderDirectionState = prefs.invertSliderDirection
+            notifyAssignmentsState = prefs.notifyAssignments
+            libraryFeatureEnabledState = prefs.libraryFeatureEnabled
+            configuredTabsState = prefs.configuredTabs
+
+            _needsUserReset.value = false
+        }
     }
 
     @Suppress("unused")

@@ -26,6 +26,14 @@ class AuthService @Inject constructor(
     private val _loginError = MutableStateFlow<String?>(null)
     val loginError: StateFlow<String?> = _loginError
 
+    /**
+     * Observable NTUST auth state. Screens and view-models collect this so
+     * they can reactively clear or reload when the user logs in or out —
+     * [isNtustAuthenticated] is a snapshot, this is the live signal.
+     */
+    private val _authState = MutableStateFlow(credentials.ntustStudentId != null)
+    val authState: StateFlow<Boolean> = _authState
+
     private val loginMutex = Mutex()
 
     val isNtustAuthenticated: Boolean
@@ -47,6 +55,7 @@ class AuthService @Inject constructor(
             if (success) {
                 credentials.ntustStudentId = normalizedId
                 credentials.ntustPassword = password
+                _authState.value = true
 
                 // Auto-attempt library login (best-effort)
                 if (!credentials.isLibraryTokenValid) {
@@ -106,5 +115,6 @@ class AuthService @Inject constructor(
         credentials.clearLibraryCredentials()
         sessionManager.invalidateSession()
         _loginError.value = null
+        _authState.value = false
     }
 }

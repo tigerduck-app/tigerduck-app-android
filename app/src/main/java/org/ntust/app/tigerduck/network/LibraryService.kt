@@ -32,10 +32,12 @@ class LibraryService @Inject constructor(
 ) {
     private val baseUrl = "https://api.lib.ntust.edu.tw/v1"
     private val loggingInterceptor = HttpLoggingInterceptor { message ->
-        Log.d("TigerDuck-HTTP", message)
+        Log.d("TigerDuck-HTTP", NtustSessionManager.redactSensitive(message))
     }.apply {
         level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
                 else HttpLoggingInterceptor.Level.NONE
+        redactHeader("Authorization")
+        redactHeader("Cookie")
     }
 
     private val client = OkHttpClient.Builder()

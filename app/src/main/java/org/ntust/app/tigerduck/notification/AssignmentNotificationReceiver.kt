@@ -1,10 +1,14 @@
 package org.ntust.app.tigerduck.notification
 
+import android.Manifest
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import org.ntust.app.tigerduck.R
 
 class AssignmentNotificationReceiver : BroadcastReceiver() {
@@ -13,6 +17,13 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
         val title = intent.getStringExtra(EXTRA_TITLE) ?: return
         val courseName = intent.getStringExtra(EXTRA_COURSE_NAME) ?: ""
         val assignmentId = intent.getStringExtra(EXTRA_ASSIGNMENT_ID) ?: return
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 

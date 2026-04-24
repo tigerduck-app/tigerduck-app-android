@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,10 +20,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.data.model.CalendarEvent
+import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -36,11 +38,12 @@ import java.util.Locale
 fun CalendarScreen(
     viewModel: CalendarViewModel = hiltViewModel()
 ) {
-    val events by viewModel.events.collectAsState()
-    val selectedDate by viewModel.selectedDate.collectAsState()
-    val displayedMonth by viewModel.displayedMonth.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val dayEvents by viewModel.selectedDateEvents.collectAsState()
+    val events by viewModel.events.collectAsStateWithLifecycle()
+    val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
+    val displayedMonth by viewModel.displayedMonth.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
+    val dayEvents by viewModel.selectedDateEvents.collectAsStateWithLifecycle()
 
     var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -59,22 +62,15 @@ fun CalendarScreen(
         }
     }
 
-    val pullRefreshState = rememberPullToRefreshState()
-    var pullRefreshing by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isLoading) {
-        if (!isLoading) pullRefreshing = false
-    }
+    var pullProgress by remember { mutableFloatStateOf(0f) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-    PullToRefreshBox(
-        state = pullRefreshState,
-        isRefreshing = pullRefreshing,
-        onRefresh = {
-            pullRefreshing = true
-            viewModel.refresh()
-        },
-        modifier = Modifier.fillMaxSize()
+    TigerPullToRefresh(
+        isRefreshing = isLoading,
+        onRefresh = { viewModel.refresh() },
+        onDragProgress = { pullProgress = it },
+        modifier = Modifier.fillMaxSize(),
+        refreshingMessage = "頁面正在刷新，別急～",
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -82,10 +78,13 @@ fun CalendarScreen(
         ) {
             item {
                 PageHeader(title = "行事曆") {
-                    SyncIndicator(isLoading = isLoading, showCheckmark = showCheckmark)
-                    TextButton(onClick = { viewModel.goToToday() }) {
-                        Text("今天", style = MaterialTheme.typography.labelMedium)
-                    }
+                    SyncIndicator(
+                        isLoading = isLoading,
+                        showCheckmark = showCheckmark,
+                        dragProgress = pullProgress,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    JumpToNowChip(label = "今天", onClick = { viewModel.goToToday() })
                 }
             }
 
@@ -111,7 +110,7 @@ fun CalendarScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            "這天沒有活動",
+                            if (isLoggedIn) "這天沒有活動" else "請先登入以使用這項功能",
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                         )
                     }
@@ -251,7 +250,11 @@ private fun MonthCalendar(
 
 @Composable
 private fun EventRow(event: CalendarEvent) {
-    val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val timeFmt = remember {
+        SimpleDateFormat("HH:mm", Locale.TAIWAN).apply {
+            timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
+        }
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()

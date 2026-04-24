@@ -1,14 +1,10 @@
 package org.ntust.app.tigerduck.data.model
 
-import androidx.room.Entity
-import androidx.room.Ignore
-import androidx.room.PrimaryKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
-@Entity(tableName = "courses")
 data class Course(
-    @PrimaryKey val courseNo: String,
+    val courseNo: String,
     val courseName: String,
     val instructor: String = "",
     val credits: Int = 0,
@@ -19,9 +15,14 @@ data class Course(
     val scheduleJson: String = "{}",
     val moodleIdNumber: String? = null,
     /** User-picked tile color as "#RRGGBB". Null means hash-based palette assignment. */
-    val customColorHex: String? = null
+    val customColorHex: String? = null,
+    /**
+     * True when the user added this course manually via the `+` sheet. Manual
+     * courses must survive refreshes even if the NTUST enrolment list or
+     * Moodle list doesn't include them.
+     */
+    val isManual: Boolean = false,
 ) {
-    @Ignore
     @Transient
     @Volatile
     private var _cachedSchedule: Map<Int, List<String>>? = null
@@ -56,7 +57,8 @@ data class Course(
             enrolledCount: Int = 0,
             maxCount: Int = 0,
             schedule: Map<Int, List<String>> = emptyMap(),
-            moodleIdNumber: String? = null
+            moodleIdNumber: String? = null,
+            isManual: Boolean = false,
         ): Course {
             val stringKeyMap = schedule.mapKeys { it.key.toString() }
             val json = scheduleGson.toJson(stringKeyMap)
@@ -69,7 +71,8 @@ data class Course(
                 enrolledCount = enrolledCount,
                 maxCount = maxCount,
                 scheduleJson = json,
-                moodleIdNumber = moodleIdNumber
+                moodleIdNumber = moodleIdNumber,
+                isManual = isManual,
             )
         }
 

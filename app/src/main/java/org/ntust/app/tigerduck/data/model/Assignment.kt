@@ -1,22 +1,21 @@
 package org.ntust.app.tigerduck.data.model
 
-import androidx.room.Entity
-import androidx.room.Index
-import androidx.room.PrimaryKey
 import java.util.Date
 
-@Entity(
-    tableName = "assignments",
-    indices = [Index("dueDate"), Index("courseNo")]
-)
 data class Assignment(
-    @PrimaryKey val assignmentId: String,
+    val assignmentId: String,
     val courseNo: String,
     val courseName: String,
     val title: String,
     val dueDate: Date,
     val isCompleted: Boolean = false,
-    val moodleUrl: String? = null
+    val moodleUrl: String? = null,
+    /** Final cutoff after which Moodle rejects further submissions. Null when
+     *  Moodle reports cutoffdate=0 (late submissions accepted indefinitely). */
+    val cutoffDate: Date? = null,
+    /** Moodle `submission.timemodified` — used to distinguish on-time vs late
+     *  submissions once [isCompleted] is true. */
+    val submittedAt: Date? = null,
 ) {
     val isOverdue: Boolean
         get() = !isCompleted && dueDate.before(Date())
