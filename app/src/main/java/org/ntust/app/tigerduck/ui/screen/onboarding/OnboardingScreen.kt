@@ -94,7 +94,7 @@ fun OnboardingScreen(
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(
-                                autoCorrect = false,
+                                autoCorrectEnabled = false,
                                 keyboardType = KeyboardType.Ascii,
                                 imeAction = ImeAction.Done,
                             ),

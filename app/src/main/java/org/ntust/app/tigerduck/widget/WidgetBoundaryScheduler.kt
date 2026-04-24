@@ -15,7 +15,7 @@ import javax.inject.Singleton
 
 @Singleton
 class WidgetBoundaryScheduler @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) {
     fun scheduleForToday(courses: List<Course>) {
         val alarmManager = context.getSystemService(AlarmManager::class.java)
