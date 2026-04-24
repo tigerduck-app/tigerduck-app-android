@@ -553,7 +553,7 @@ private fun CustomMinutesDialog(
                         imeAction = ImeAction.Done,
                     ),
                     keyboardActions = KeyboardActions(
-                        onDone = { if (valid) onConfirm(parsed) }
+                        onDone = { if (valid && parsed != null) onConfirm(parsed) }
                     ),
                 )
                 Text(
@@ -565,7 +565,7 @@ private fun CustomMinutesDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { if (valid) onConfirm(parsed) },
+                onClick = { if (valid && parsed != null) onConfirm(parsed) },
                 enabled = valid,
             ) { Text("確定") }
         },
