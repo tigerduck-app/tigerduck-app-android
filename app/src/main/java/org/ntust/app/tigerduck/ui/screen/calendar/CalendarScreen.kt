@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
@@ -98,8 +101,7 @@ fun CalendarScreen(
                     selectedDate = selectedDate,
                     events = events,
                     onDateSelected = { viewModel.selectDate(it) },
-                    onPreviousMonth = { viewModel.previousMonth() },
-                    onNextMonth = { viewModel.nextMonth() }
+                    onMonthChanged = { viewModel.setDisplayedMonth(it) }
                 )
             }
 
@@ -138,25 +140,54 @@ private fun MonthCalendar(
     selectedDate: Date,
     events: List<CalendarEvent>,
     onDateSelected: (Date) -> Unit,
-    onPreviousMonth: () -> Unit,
-    onNextMonth: () -> Unit
+    onMonthChanged: (Date) -> Unit
 ) {
     val taipeiTz = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
+    val coroutineScope = rememberCoroutineScope()
+
+    val baseDate = remember {
+        Calendar.getInstance(taipeiTz).apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.time
+    }
+
+    val pagerState = rememberPagerState(initialPage = 1000) { 2000 }
+
+    // Sync pager with ViewModel's displayedMonth
+    LaunchedEffect(displayedMonth) {
+        val diff = getYearMonthDiff(baseDate, displayedMonth)
+        val targetPage = 1000 + diff
+        if (pagerState.currentPage != targetPage) {
+            pagerState.animateScrollToPage(targetPage)
+        }
+    }
+
+    // Sync ViewModel with pager's currentPage
+    LaunchedEffect(pagerState.currentPage) {
+        val diff = pagerState.currentPage - 1000
+        val newMonth = getDateFromDiff(baseDate, diff)
+        if (!isSameMonth(newMonth, displayedMonth)) {
+            onMonthChanged(newMonth)
+        }
+    }
+
     val cal = Calendar.getInstance(taipeiTz).apply { time = displayedMonth }
     val year = cal.get(Calendar.YEAR)
     val month = cal.get(Calendar.MONTH)
     val monthLabel = stringResource(R.string.calendar_month_year, year, month + 1)
 
-    // Build days
-    val firstDay = Calendar.getInstance(taipeiTz).apply { set(year, month, 1) }
-    val daysInMonth = firstDay.getActualMaximum(Calendar.DAY_OF_MONTH)
-    // Sunday = 1, Monday = 2... adjust to Mon-first
-    val startDow = ((firstDay.get(Calendar.DAY_OF_WEEK) - 2 + 7) % 7)
-
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         // Month nav
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onPreviousMonth) {
+            IconButton(onClick = {
+                coroutineScope.launch {
+                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                }
+            }) {
                 Icon(Icons.Filled.ChevronLeft, stringResource(R.string.calendar_previous_month))
             }
             Text(
@@ -165,7 +196,11 @@ private fun MonthCalendar(
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center
             )
-            IconButton(onClick = onNextMonth) {
+            IconButton(onClick = {
+                coroutineScope.launch {
+                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                }
+            }) {
                 Icon(Icons.Filled.ChevronRight, stringResource(R.string.calendar_next_month))
             }
         }
@@ -193,10 +228,46 @@ private fun MonthCalendar(
 
         Spacer(Modifier.height(4.dp))
 
-        // Calendar grid
-        val totalCells = startDow + daysInMonth
-        val rows = (totalCells + 6) / 7
+        // HorizontalPager for the grid
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) { page ->
+            val monthDate = getDateFromDiff(baseDate, page - 1000)
+            CalendarGrid(
+                monthDate = monthDate,
+                selectedDate = selectedDate,
+                events = events,
+                onDateSelected = onDateSelected
+            )
+        }
+    }
+}
 
+@Composable
+private fun CalendarGrid(
+    monthDate: Date,
+    selectedDate: Date,
+    events: List<CalendarEvent>,
+    onDateSelected: (Date) -> Unit
+) {
+    val taipeiTz = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
+    val cal = Calendar.getInstance(taipeiTz).apply { time = monthDate }
+    val year = cal.get(Calendar.YEAR)
+    val month = cal.get(Calendar.MONTH)
+
+    val firstDay = Calendar.getInstance(taipeiTz).apply {
+        set(year, month, 1, 0, 0, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    val daysInMonth = firstDay.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val startDow = ((firstDay.get(Calendar.DAY_OF_WEEK) - 2 + 7) % 7)
+
+    val totalCells = startDow + daysInMonth
+    val rows = (totalCells + 6) / 7
+
+    Column(modifier = Modifier.fillMaxWidth()) {
         repeat(rows) { row ->
             Row(modifier = Modifier.fillMaxWidth()) {
                 repeat(7) { col ->
@@ -258,8 +329,37 @@ private fun MonthCalendar(
                 }
             }
         }
+        // Add empty rows to keep height consistent if needed (e.g., always 6 rows)
+        if (rows < 6) {
+            repeat(6 - rows) {
+                Spacer(modifier = Modifier.height(40.dp))
+            }
+        }
     }
 }
+
+private fun getYearMonthDiff(start: Date, end: Date): Int {
+    val calStart = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = start }
+    val calEnd = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = end }
+    val yearDiff = calEnd.get(Calendar.YEAR) - calStart.get(Calendar.YEAR)
+    val monthDiff = calEnd.get(Calendar.MONTH) - calStart.get(Calendar.MONTH)
+    return yearDiff * 12 + monthDiff
+}
+
+private fun getDateFromDiff(baseDate: Date, monthDiff: Int): Date {
+    return Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply {
+        time = baseDate
+        add(Calendar.MONTH, monthDiff)
+    }.time
+}
+
+private fun isSameMonth(a: Date, b: Date): Boolean {
+    val ca = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = a }
+    val cb = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = b }
+    return ca.get(Calendar.YEAR) == cb.get(Calendar.YEAR) &&
+           ca.get(Calendar.MONTH) == cb.get(Calendar.MONTH)
+}
+
 
 @Composable
 private fun EventRow(event: CalendarEvent) {
