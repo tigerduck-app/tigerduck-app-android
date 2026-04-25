@@ -14,7 +14,12 @@ SOURCE_FILES = {
     "zh-Hant": SOURCE_DIR / "zh-Hant.json",
 }
 
-ANDROID_OUTPUTS = {
+SHARED_ANDROID_OUTPUTS = {
+    "zh-Hant": ROOT / "localization" / "generated" / "android" / "values" / "strings.xml",
+    "en": ROOT / "localization" / "generated" / "android" / "values-en" / "strings.xml",
+}
+
+APP_ANDROID_OUTPUTS = {
     "zh-Hant": ROOT / "app" / "src" / "main" / "res" / "values" / "strings.xml",
     "en": ROOT / "app" / "src" / "main" / "res" / "values-en" / "strings.xml",
 }
@@ -112,7 +117,10 @@ def main() -> int:
         locales = {locale: load_locale(path) for locale, path in SOURCE_FILES.items()}
         ordered_keys = list(validate_keys(locales))
 
-        for locale, output in ANDROID_OUTPUTS.items():
+        for locale, output in SHARED_ANDROID_OUTPUTS.items():
+            write_file(output, generate_android(locales[locale], ordered_keys))
+
+        for locale, output in APP_ANDROID_OUTPUTS.items():
             write_file(output, generate_android(locales[locale], ordered_keys))
 
         for locale, output in IOS_OUTPUTS.items():
@@ -123,7 +131,10 @@ def main() -> int:
 
     print(
         "Localization sync complete: "
-        f"{len(ordered_keys)} keys, {len(ANDROID_OUTPUTS)} Android files, {len(IOS_OUTPUTS)} iOS files."
+        f"{len(ordered_keys)} keys, "
+        f"{len(SHARED_ANDROID_OUTPUTS)} shared Android files, "
+        f"{len(APP_ANDROID_OUTPUTS)} app Android files, "
+        f"{len(IOS_OUTPUTS)} iOS files."
     )
     return 0
 

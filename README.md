@@ -119,7 +119,10 @@ sh ./gradlew :app:installDebug
 - 翻譯原始檔在 `localization/source/`：
   - `en.json`
   - `zh-Hant.json`
-- Android 與 iOS 翻譯檔由腳本自動產生，請不要手動改動生成檔。
+- 共用翻譯輸出在 `localization/generated/`：
+  - Android：`android/values/strings.xml`（繁中預設）、`android/values-en/strings.xml`
+  - iOS：`ios/en.lproj/Localizable.strings`、`ios/zh-Hant.lproj/Localizable.strings`
+- Android App 使用的 `app/src/main/res/values*/strings.xml` 會由同一支腳本同步覆寫，請不要手動改動生成檔。
 
 手動同步一次翻譯：
 
@@ -129,8 +132,8 @@ python3 tools/localization/sync_localizations.py
 
 產出位置：
 
-- Android：`app/src/main/res/values/strings.xml`（繁中預設）、`app/src/main/res/values-en/strings.xml`
-- iOS：`localization/generated/ios/en.lproj/Localizable.strings`、`localization/generated/ios/zh-Hant.lproj/Localizable.strings`
+- 共用翻譯（可獨立推送）：`localization/generated/android/*`、`localization/generated/ios/*`
+- Android App 目標檔：`app/src/main/res/values/strings.xml`（繁中預設）、`app/src/main/res/values-en/strings.xml`
 
 此外，Android build 已綁定自動同步（`preBuild` 依賴 `syncLocalizations`），只要修改 `localization/source/*.json` 就會在編譯前自動更新 Android/iOS 生成檔。
 
