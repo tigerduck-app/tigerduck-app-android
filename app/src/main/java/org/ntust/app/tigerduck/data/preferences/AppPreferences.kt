@@ -35,6 +35,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getString("themeMode", "system") ?: "system"
         set(value) = prefs.edit().putString("themeMode", value).apply()
 
+    /** One of "system", "zh-Hant", "en". */
+    var appLanguage: String
+        get() = AppLanguageManager.normalize(prefs.getString("appLanguage", AppLanguageManager.SYSTEM) ?: AppLanguageManager.SYSTEM)
+        set(value) = prefs.edit().putString("appLanguage", AppLanguageManager.normalize(value)).apply()
+
     var showAbsoluteAssignmentTime: Boolean
         get() = prefs.getBoolean("showAbsoluteAssignmentTime", false)
         set(value) = prefs.edit().putBoolean("showAbsoluteAssignmentTime", value).apply()

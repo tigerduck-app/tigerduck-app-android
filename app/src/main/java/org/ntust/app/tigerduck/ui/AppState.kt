@@ -133,6 +133,18 @@ class AppState @Inject constructor(
             widgetUpdater.requestUpdate()
         }
 
+    private var appLanguageState by mutableStateOf(prefs.appLanguage)
+
+    /** One of "system", "zh-Hant", "en". */
+    var appLanguage: String
+        get() = appLanguageState
+        set(value) {
+            val normalized = org.ntust.app.tigerduck.data.preferences.AppLanguageManager.normalize(value)
+            if (appLanguageState == normalized) return
+            appLanguageState = normalized
+            prefs.appLanguage = normalized
+        }
+
     private var invertSliderDirectionState by mutableStateOf(prefs.invertSliderDirection)
 
     var invertSliderDirection: Boolean
@@ -208,6 +220,7 @@ class AppState @Inject constructor(
             showAbsoluteAssignmentTimeState = prefs.showAbsoluteAssignmentTime
             browserPreferenceState = prefs.browserPreference
             themeModeState = prefs.themeMode
+            appLanguageState = prefs.appLanguage
             invertSliderDirectionState = prefs.invertSliderDirection
             notifyAssignmentsState = prefs.notifyAssignments
             libraryFeatureEnabledState = prefs.libraryFeatureEnabled

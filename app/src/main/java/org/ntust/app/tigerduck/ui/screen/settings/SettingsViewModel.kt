@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
@@ -96,5 +97,11 @@ class SettingsViewModel @Inject constructor(
 
     fun resetCourseColors() {
         viewModelScope.launch { courseColorStore.resetAllColors() }
+    }
+
+    fun setAppLanguage(language: String) {
+        val normalized = AppLanguageManager.normalize(language)
+        appState.appLanguage = normalized
+        AppLanguageManager.apply(normalized)
     }
 }

@@ -27,6 +27,7 @@ import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.data.model.AppFeature
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
@@ -70,6 +71,7 @@ fun SettingsScreen(
     val notifyAssignments = viewModel.appState.notifyAssignments
     val libraryEnabled = viewModel.appState.libraryFeatureEnabled
     val themeMode = viewModel.appState.themeMode
+    val appLanguage = viewModel.appState.appLanguage
 
     var showLibraryWarning by remember { mutableStateOf(false) }
     var showResetColorsConfirm by remember { mutableStateOf(false) }
@@ -199,6 +201,22 @@ fun SettingsScreen(
                     SettingsToggleRow("反轉滑條方向", invertSlider) {
                         viewModel.appState.invertSliderDirection = it
                     }
+                    HorizontalDivider()
+                    SettingsPickerRow(
+                        label = "語言",
+                        value = when (appLanguage) {
+                            AppLanguageManager.TRADITIONAL_CHINESE -> "繁體中文"
+                            AppLanguageManager.ENGLISH -> "English"
+                            else -> "跟隨系統"
+                        },
+                        options = listOf(
+                            AppLanguageManager.SYSTEM to "跟隨系統",
+                            AppLanguageManager.TRADITIONAL_CHINESE to "繁體中文",
+                            AppLanguageManager.ENGLISH to "English",
+                        ),
+                        selectedKey = appLanguage,
+                        onSelect = viewModel::setAppLanguage,
+                    )
                 }
             }
         }
