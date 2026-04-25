@@ -12,6 +12,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
+import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.network.NetworkChecker
@@ -33,6 +34,7 @@ import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
+import java.util.LinkedHashSet
 import javax.inject.Inject
 
 @HiltViewModel
@@ -324,44 +326,59 @@ class HomeViewModel @Inject constructor(
 
         val courseNos = courseNosDef.await()
         val moodleEnrolled = moodleEnrolledDef.await()
+        val moodleForSemester = moodleEnrolled
+            .orEmpty()
+            .filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }
+        val moodleByNo = moodleForSemester.associateBy { it.courseNo }
+        val orderedCourseNos = LinkedHashSet<String>().apply {
+            courseNos?.forEach { add(it) }
+            moodleForSemester.forEach { add(it.courseNo) }
+        }.toList()
+        val rosterCourseNos = orderedCourseNos.toSet()
 
         val coursesDef = async {
-            when {
-                courseNos == null -> null
-                courseNos.isEmpty() -> emptyList()
-                else -> courseNos.map { courseNo ->
-                    async {
-                        try {
-                            val results = courseService.lookupCourse(semester, courseNo)
-                            results.firstOrNull()?.let { r ->
-                                val schedule = courseService.mergeSchedules(
-                                    *results.map { it.node }.toTypedArray()
-                                )
-                                Course.fromSchedule(
-                                    courseNo = r.courseNo,
-                                    courseName = r.courseName,
-                                    instructor = r.courseTeacher,
-                                    credits = r.creditPoint.toIntOrNull() ?: 0,
-                                    classroom = r.classRoomNo ?: "",
-                                    enrolledCount = r.chooseStudent ?: 0,
-                                    maxCount = r.maxEnrollment,
-                                    schedule = schedule,
-                                    moodleIdNumber = "${r.semester}${r.courseNo}"
-                                )
-                            }
-                        } catch (e: Exception) {
-                            Log.e("HomeViewModel", "Failed to lookup course $courseNo", e)
-                            null
+            if (courseNos == null && moodleEnrolled == null) return@async null
+
+            if (orderedCourseNos.isEmpty()) return@async emptyList()
+
+            orderedCourseNos.map { courseNo ->
+                async {
+                    try {
+                        val results = courseService.lookupCourse(semester, courseNo)
+                        if (results.isNotEmpty()) {
+                            val r = results.first()
+                            val schedule = courseService.mergeSchedules(
+                                *results.map { it.node }.toTypedArray()
+                            )
+                            Course.fromSchedule(
+                                courseNo = r.courseNo,
+                                courseName = r.courseName,
+                                instructor = r.courseTeacher,
+                                credits = r.creditPoint.toIntOrNull() ?: 0,
+                                classroom = r.classRoomNo ?: "",
+                                enrolledCount = r.chooseStudent ?: 0,
+                                maxCount = r.maxEnrollment,
+                                schedule = schedule,
+                                moodleIdNumber = moodleByNo[courseNo]?.idnumber ?: "${r.semester}${r.courseNo}"
+                            )
+                        } else {
+                            fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
                         }
+                    } catch (e: Exception) {
+                        Log.e("HomeViewModel", "Failed to lookup course $courseNo", e)
+                        fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
                     }
-                }.awaitAll().filterNotNull()
-            }
+                }
+            }.awaitAll().filterNotNull()
         }
 
         val assignmentsDef = async {
             if (moodleEnrolled == null) return@async null
             try {
-                val remote = moodleService.fetchAssignments(moodleEnrolled)
+                val remote = moodleService.fetchAssignments(
+                    enrolledCourses = moodleEnrolled,
+                    rosterCourseNos = rosterCourseNos
+                )
                 // Safety net: if a transient submission-status call failed and
                 // the remote reports isCompleted=false for something we
                 // previously confirmed as submitted, don't regress the user's
@@ -382,6 +399,15 @@ class HomeViewModel @Inject constructor(
         }
 
         coursesDef.await() to assignmentsDef.await()
+    }
+
+    private fun fallbackCourseFromMoodle(courseNo: String, moodle: MoodleEnrolledCourse?): Course? {
+        moodle ?: return null
+        return Course.fromSchedule(
+            courseNo = courseNo,
+            courseName = moodle.fullname ?: courseNo,
+            moodleIdNumber = moodle.idnumber
+        )
     }
 
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {

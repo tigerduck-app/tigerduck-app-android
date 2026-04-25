@@ -20,6 +20,8 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
+import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
+import java.util.LinkedHashSet
 import java.util.concurrent.TimeUnit
 
 @HiltWorker
@@ -62,15 +64,46 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private suspend fun syncCourses(studentId: String, password: String): Boolean {
         return try {
             val semester = courseService.currentSemesterCode()
-            val courseNos = courseService.fetchEnrolledCourseNos(studentId, password)
-            if (courseNos.isEmpty()) return true
+            val (selectionNos, moodleAll) = coroutineScope {
+                val selectionDef = async {
+                    try {
+                        courseService.fetchEnrolledCourseNos(studentId, password)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to fetch enrolled course numbers", e)
+                        null
+                    }
+                }
+                val moodleDef = async {
+                    try {
+                        moodleService.fetchEnrolledCourses()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to fetch Moodle enrolled courses", e)
+                        null
+                    }
+                }
+                selectionDef.await() to moodleDef.await()
+            }
+
+            if (selectionNos == null && moodleAll == null) return false
+            val moodleForSemester = moodleAll
+                .orEmpty()
+                .filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }
+            val moodleByNo = moodleForSemester.associateBy { it.courseNo }
+
+            val orderedCourseNos = LinkedHashSet<String>().apply {
+                selectionNos?.forEach { add(it) }
+                moodleForSemester.forEach { add(it.courseNo) }
+            }.toList()
+
+            if (orderedCourseNos.isEmpty()) return true
 
             val fetched = coroutineScope {
-                courseNos.map { courseNo ->
+                orderedCourseNos.map { courseNo ->
                     async {
                         try {
                             val results = courseService.lookupCourse(semester, courseNo)
-                            results.firstOrNull()?.let { r ->
+                            if (results.isNotEmpty()) {
+                                val r = results.first()
                                 val schedule = courseService.mergeSchedules(
                                     *results.map { it.node }.toTypedArray()
                                 )
@@ -83,12 +116,14 @@ class BackgroundSyncWorker @AssistedInject constructor(
                                     enrolledCount = r.chooseStudent ?: 0,
                                     maxCount = r.maxEnrollment,
                                     schedule = schedule,
-                                    moodleIdNumber = "${r.semester}${r.courseNo}"
+                                    moodleIdNumber = moodleByNo[courseNo]?.idnumber ?: "${r.semester}${r.courseNo}"
                                 )
+                            } else {
+                                fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
                             }
                         } catch (e: Exception) {
                             Log.w(TAG, "Course lookup failed for $courseNo", e)
-                            null
+                            fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
                         }
                     }
                 }.awaitAll().filterNotNull()
@@ -98,17 +133,17 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 // Preserve user-picked tile colors and manually-added courses
                 // across the background refresh.
                 val cached = dataCache.loadCourses()
-                val existingColors = cached.associate { it.courseNo to it.customColorHex }
-                val fetchedWithColors = fetched.map { c ->
-                    c.copy(customColorHex = existingColors[c.courseNo])
+                val cachedByNo = cached.associateBy { it.courseNo }
+                val fetchedWithState = fetched.map { c ->
+                    val prior = cachedByNo[c.courseNo]
+                    c.copy(
+                        customColorHex = prior?.customColorHex,
+                        isManual = prior?.isManual == true,
+                    )
                 }
-                val fetchedNos = fetchedWithColors.map { it.courseNo }.toSet()
-                val failedNos = courseNos.toSet() - fetchedNos
-                // Carry forward cached remote entries for courses whose lookup
-                // failed this cycle, so a partial fetch doesn't drop them.
-                val cachedFallbacks = cached.filter { !it.isManual && it.courseNo in failedNos }
+                val fetchedNos = fetchedWithState.map { it.courseNo }.toSet()
                 val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
-                val merged = fetchedWithColors + manualLeftovers + cachedFallbacks
+                val merged = fetchedWithState + manualLeftovers
                 dataCache.saveCourses(merged)
             }
             true
@@ -116,6 +151,15 @@ class BackgroundSyncWorker @AssistedInject constructor(
             Log.w(TAG, "Course refresh failed", e)
             false
         }
+    }
+
+    private fun fallbackCourseFromMoodle(courseNo: String, moodle: MoodleEnrolledCourse?): Course? {
+        moodle ?: return null
+        return Course.fromSchedule(
+            courseNo = courseNo,
+            courseName = moodle.fullname ?: courseNo,
+            moodleIdNumber = moodle.idnumber
+        )
     }
 
     private suspend fun syncAssignments(): Boolean {

@@ -629,7 +629,10 @@ class ClassTableViewModel @Inject constructor(
                 val assignmentsJob = if (isCurrentSemester) {
                     launch {
                         try {
-                            val remoteAssignments = moodleService.fetchAssignments(moodleAll)
+                            val remoteAssignments = moodleService.fetchAssignments(
+                                enrolledCourses = moodleAll,
+                                rosterCourseNos = orderedCourseNos.toSet()
+                            )
                             val existingCompleted = _assignments.value
                                 .filter { it.isCompleted }
                                 .map { it.assignmentId }

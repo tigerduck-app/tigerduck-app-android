@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.network
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.network.model.MoodleAssignmentsEnvelope
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
@@ -24,6 +25,7 @@ class MoodleService @Inject constructor(
     private val sessionManager: NtustSessionManager,
     private val tokenService: MoodleTokenService,
     private val courseService: CourseService,
+    private val dataCache: DataCache,
 ) {
     private val client: OkHttpClient get() = sessionManager.client
     private val gson = Gson()
@@ -54,16 +56,30 @@ class MoodleService @Inject constructor(
      * The caller passes in the already-fetched Moodle enrolment list so we
      * don't duplicate `core_enrol_get_users_courses` when the ViewModel has
      * just called `fetchEnrolledCourses` to build the course schedule.
-     * Filtering by `semesterCode` is intentional — we used to intersect with
-     * the NTUST course-selection roster too, but that silently dropped
-     * anything enrolled via a non-standard path (勞作教育, 服務學習, 通識
-     * sections, cross-enrolled extras, etc.).
+     * Mirrors iOS: filter to the current in-app roster when available (so
+     * dropped courses are excluded), else fall back to semesterCode filtering
+     * on first launch when the roster cache is still empty.
      */
     suspend fun fetchAssignments(
         enrolledCourses: List<MoodleEnrolledCourse>,
+        rosterCourseNos: Set<String>? = null,
     ): List<Assignment> = withContext(Dispatchers.IO) {
         val currentSemester = courseService.currentSemesterCode()
-        val relevant = enrolledCourses.filter { it.semesterCode == currentSemester }
+        val relevant = if (rosterCourseNos != null) {
+            if (rosterCourseNos.isEmpty()) {
+                enrolledCourses.filter { it.semesterCode == currentSemester }
+            } else {
+                enrolledCourses.filter { it.courseNo in rosterCourseNos }
+            }
+        } else {
+            val currentCourses = dataCache.loadCourses()
+            val currentCourseNos = currentCourses.map { it.courseNo }.toSet()
+            if (currentCourses.isEmpty()) {
+                enrolledCourses.filter { it.semesterCode == currentSemester }
+            } else {
+                enrolledCourses.filter { it.courseNo in currentCourseNos }
+            }
+        }
         if (relevant.isEmpty()) return@withContext emptyList<Assignment>()
 
         attemptWithTokenRetry { token ->
