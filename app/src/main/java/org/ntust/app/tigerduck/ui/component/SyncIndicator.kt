@@ -16,7 +16,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 @Composable
@@ -45,7 +47,7 @@ fun SyncIndicator(
                 )
                 "checkmark" -> Icon(
                     Icons.Filled.CheckCircle,
-                    contentDescription = "同步成功",
+                    contentDescription = stringResource(R.string.sync_success_content_description),
                     tint = Color(0xFF34C759),
                     modifier = Modifier.size(20.dp)
                 )

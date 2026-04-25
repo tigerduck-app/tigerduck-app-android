@@ -13,9 +13,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
@@ -87,7 +89,7 @@ fun CourseCard(
             if (hasAssignment) {
                 Icon(
                     imageVector = Icons.Filled.Book,
-                    contentDescription = "有作業",
+                    contentDescription = stringResource(R.string.course_card_assignment_content_description),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(8.dp)
@@ -140,7 +142,7 @@ fun CurrentClassCard(
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        text = "現在課程",
+                        text = stringResource(R.string.course_card_current_class),
                         style = MaterialTheme.typography.labelSmall
                             .copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
@@ -188,7 +190,7 @@ fun CurrentClassCard(
             if (hasAssignment) {
                 Icon(
                     imageVector = Icons.Filled.Book,
-                    contentDescription = "有作業",
+                    contentDescription = stringResource(R.string.course_card_assignment_content_description),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(8.dp)

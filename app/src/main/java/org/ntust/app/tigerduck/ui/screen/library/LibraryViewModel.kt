@@ -2,11 +2,14 @@ package org.ntust.app.tigerduck.ui.screen.library
 
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
+import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.LibraryService
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,7 +27,8 @@ import javax.inject.Inject
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val libraryService: LibraryService,
-    private val credentials: CredentialManager
+    private val credentials: CredentialManager,
+    @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _qrBitmap = MutableStateFlow<Bitmap?>(null)
@@ -75,7 +79,7 @@ class LibraryViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _errorMessage.value = e.message ?: "登入失敗"
+                _errorMessage.value = e.message ?: context.getString(R.string.error_login_failed)
             } finally {
                 _isLoggingIn.value = false
             }
@@ -98,7 +102,7 @@ class LibraryViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _errorMessage.value = e.message ?: "QR 碼產生失敗"
+                _errorMessage.value = e.message ?: context.getString(R.string.library_qr_generate_failed)
                 // If the failure means our session is gone, drop back to the
                 // login prompt instead of looping on a dead token.
                 if (!credentials.isLibraryTokenValid) {

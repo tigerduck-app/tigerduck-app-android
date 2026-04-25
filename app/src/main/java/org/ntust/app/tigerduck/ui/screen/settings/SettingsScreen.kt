@@ -22,11 +22,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -83,7 +85,12 @@ fun SettingsScreen(
     // Show network error as snackbar
     LaunchedEffect(ntustLoginError) {
         val error = ntustLoginError ?: return@LaunchedEffect
-        if (error.contains("連線") || error.contains("網路")) {
+        if (
+            error.contains("連線") ||
+            error.contains("網路") ||
+            error.contains("network", ignoreCase = true) ||
+            error.contains("connection", ignoreCase = true)
+        ) {
             snackbarHostState.showSnackbar(error)
         }
     }
@@ -98,16 +105,16 @@ fun SettingsScreen(
         contentPadding = PaddingValues(bottom = 32.dp)
     ) {
         item {
-            PageHeader(title = "設定")
+            PageHeader(title = stringResource(R.string.feature_settings))
         }
 
         // MARK: Account section
-        item { SectionHeader("帳號") }
+        item { SectionHeader(stringResource(R.string.settings_section_account)) }
         item {
             ContentCard {
                 Column {
                     AccountRow(
-                        title = "NTUST 校務系統",
+                        title = stringResource(R.string.settings_account_ntust_system),
                         isLoggedIn = isNtustLoggedIn,
                         subtitle = if (isNtustLoggedIn) viewModel.ntustStudentId else null,
                         isLoggingIn = isNtustLoggingIn,
@@ -122,10 +129,10 @@ fun SettingsScreen(
                             val fmt = SimpleDateFormat("yyyy/MM/dd", Locale.TAIWAN).apply {
                                 timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
                             }
-                            "Token 有效至 " + fmt.format(Date(expiryMs))
+                            stringResource(R.string.settings_token_valid_until, fmt.format(Date(expiryMs)))
                         } else null
                         AccountRow(
-                            title = "圖書館系統",
+                            title = stringResource(R.string.settings_account_library_system),
                             isLoggedIn = isLibraryLoggedIn,
                             subtitle = if (isLibraryLoggedIn) viewModel.libraryUsername else null,
                             extraSubtitle = expirySubtitle,
@@ -139,17 +146,17 @@ fun SettingsScreen(
         }
 
         // MARK: Custom
-        item { SectionHeader("自訂") }
+        item { SectionHeader(stringResource(R.string.settings_section_custom)) }
         item {
             ContentCard {
                 Column {
-                    SettingsLinkRow("Tab 編輯器") { onNavigateToTabEditor() }
+                    SettingsLinkRow(stringResource(R.string.tab_editor_title)) { onNavigateToTabEditor() }
                     HorizontalDivider()
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("主題色", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.settings_accent_color), style = MaterialTheme.typography.bodyMedium)
                         // Show the mode-appropriate display color but always
                         // persist the canonical (light) hex so the pair swaps
                         // when the user toggles 顏色主題.
@@ -182,38 +189,45 @@ fun SettingsScreen(
         }
 
         // MARK: Display
-        item { SectionHeader("顯示") }
+        item { SectionHeader(stringResource(R.string.settings_section_display)) }
         item {
             ContentCard {
                 Column {
-                    SettingsToggleRow("作業截止時間顯示完整日期", showAbsoluteTime) {
+                    SettingsToggleRow(stringResource(R.string.settings_show_absolute_assignment_time), showAbsoluteTime) {
                         viewModel.appState.showAbsoluteAssignmentTime = it
                     }
                     HorizontalDivider()
                     // Link opening method
                     SettingsPickerRow(
-                        label = "開啟連結方式",
-                        value = if (browserPreference == "inApp") "App 內瀏覽器" else "系統預設瀏覽器",
-                        options = listOf("system" to "系統預設瀏覽器", "inApp" to "App 內瀏覽器"),
+                        label = stringResource(R.string.settings_link_opening_method),
+                        value = if (browserPreference == "inApp") {
+                            stringResource(R.string.settings_browser_in_app)
+                        } else {
+                            stringResource(R.string.settings_browser_system_default)
+                        },
+                        options = listOf(
+                            "system" to stringResource(R.string.settings_browser_system_default),
+                            "inApp" to stringResource(R.string.settings_browser_in_app)
+                        ),
                         selectedKey = browserPreference,
                         onSelect = { viewModel.appState.browserPreference = it }
                     )
                     HorizontalDivider()
-                    SettingsToggleRow("反轉滑條方向", invertSlider) {
+                    SettingsToggleRow(stringResource(R.string.settings_invert_slider_direction), invertSlider) {
                         viewModel.appState.invertSliderDirection = it
                     }
                     HorizontalDivider()
                     SettingsPickerRow(
-                        label = "語言",
+                        label = stringResource(R.string.settings_language),
                         value = when (appLanguage) {
-                            AppLanguageManager.TRADITIONAL_CHINESE -> "繁體中文"
-                            AppLanguageManager.ENGLISH -> "English"
-                            else -> "跟隨系統"
+                            AppLanguageManager.TRADITIONAL_CHINESE -> stringResource(R.string.settings_language_traditional_chinese)
+                            AppLanguageManager.ENGLISH -> stringResource(R.string.settings_language_english)
+                            else -> stringResource(R.string.settings_language_follow_system)
                         },
                         options = listOf(
-                            AppLanguageManager.SYSTEM to "跟隨系統",
-                            AppLanguageManager.TRADITIONAL_CHINESE to "繁體中文",
-                            AppLanguageManager.ENGLISH to "English",
+                            AppLanguageManager.SYSTEM to stringResource(R.string.settings_language_follow_system),
+                            AppLanguageManager.TRADITIONAL_CHINESE to stringResource(R.string.settings_language_traditional_chinese),
+                            AppLanguageManager.ENGLISH to stringResource(R.string.settings_language_english),
                         ),
                         selectedKey = appLanguage,
                         onSelect = { selectedLanguage ->
@@ -226,28 +240,28 @@ fun SettingsScreen(
         }
 
         // MARK: Notifications
-        item { SectionHeader("通知") }
+        item { SectionHeader(stringResource(R.string.settings_section_notifications)) }
         item {
             ContentCard {
                 Column {
-                    SettingsToggleRow("作業到期提醒", notifyAssignments) {
+                    SettingsToggleRow(stringResource(R.string.settings_assignment_due_reminder), notifyAssignments) {
                         viewModel.appState.notifyAssignments = it
                         if (!it) viewModel.cancelAllAssignmentNotifications()
                     }
                     HorizontalDivider()
-                    SettingsLinkRow("即時動態") { onNavigateToLiveActivity() }
+                    SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) { onNavigateToLiveActivity() }
                     HorizontalDivider()
-                    SettingsLinkRow("重新設定通知") { onNavigateToNotificationSetup() }
+                    SettingsLinkRow(stringResource(R.string.notification_setup_title)) { onNavigateToNotificationSetup() }
                 }
             }
         }
 
         // MARK: Other features
-        item { SectionHeader("其他功能") }
+        item { SectionHeader(stringResource(R.string.settings_section_other_features)) }
         item {
             ContentCard {
                 Column {
-                SettingsToggleRow("圖書館及相關功能", libraryEnabled) { enabled ->
+                SettingsToggleRow(stringResource(R.string.settings_library_related_features), libraryEnabled) { enabled ->
                     if (enabled) {
                         showLibraryWarning = true
                     } else {
@@ -265,20 +279,20 @@ fun SettingsScreen(
                         .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("重設課表顏色", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.settings_reset_course_colors), style = MaterialTheme.typography.bodyMedium)
                 }
                 HorizontalDivider()
                 SettingsPickerRow(
-                    label = "顏色主題",
+                    label = stringResource(R.string.settings_color_theme),
                     value = when (themeMode) {
-                        "dark" -> "暗色模式"
-                        "light" -> "亮色模式"
-                        else -> "跟隨系統"
+                        "dark" -> stringResource(R.string.settings_theme_dark)
+                        "light" -> stringResource(R.string.settings_theme_light)
+                        else -> stringResource(R.string.settings_theme_system)
                     },
                     options = listOf(
-                        "system" to "跟隨系統",
-                        "dark" to "暗色模式",
-                        "light" to "亮色模式"
+                        "system" to stringResource(R.string.settings_theme_system),
+                        "dark" to stringResource(R.string.settings_theme_dark),
+                        "light" to stringResource(R.string.settings_theme_light)
                     ),
                     selectedKey = themeMode,
                     onSelect = { viewModel.appState.themeMode = it }
@@ -288,25 +302,25 @@ fun SettingsScreen(
         }
 
         // MARK: About
-        item { SectionHeader("關於") }
+        item { SectionHeader(stringResource(R.string.settings_section_about)) }
         item {
             ContentCard {
                 Column {
-                    SettingsRow("版本", appVersion)
+                    SettingsRow(stringResource(R.string.settings_version), appVersion)
                     HorizontalDivider()
-                    SettingsLinkRow("回饋/問題回報") {
+                    SettingsLinkRow(stringResource(R.string.settings_feedback_bug_report)) {
                         openUrl(context, "https://github.com/tigerduck-app/tigerduck-app-android/issues", browserPreference)
                     }
                     HorizontalDivider()
-                    SettingsLinkRow("隱私權政策") {
+                    SettingsLinkRow(stringResource(R.string.settings_privacy_policy)) {
                         openUrl(context, "https://app.ntust.org/tigerduck/privacy", browserPreference)
                     }
                     HorizontalDivider()
-                    SettingsLinkRow("開源授權") {
+                    SettingsLinkRow(stringResource(R.string.settings_open_source_licenses)) {
                         openUrl(context, "https://github.com/tigerduck-app/tigerduck-app-android/blob/main/LICENSE", browserPreference)
                     }
                     HorizontalDivider()
-                    SettingsLinkRow("查看原始碼") {
+                    SettingsLinkRow(stringResource(R.string.settings_view_source_code)) {
                         openUrl(context, "https://github.com/tigerduck-app/tigerduck-app-android", browserPreference)
                     }
                 }
@@ -317,9 +331,9 @@ fun SettingsScreen(
 
     if (showNtustLoginSheet) {
         LoginSheet(
-            title = "NTUST 校務系統",
-            usernamePlaceholder = "學號",
-            passwordPlaceholder = "密碼",
+            title = stringResource(R.string.settings_account_ntust_system),
+            usernamePlaceholder = stringResource(R.string.login_student_id),
+            passwordPlaceholder = stringResource(R.string.login_password),
             uppercaseInput = true,
             isLoggingIn = isNtustLoggingIn,
             loginError = ntustLoginError,
@@ -330,10 +344,10 @@ fun SettingsScreen(
 
     if (showLibraryLoginSheet) {
         LoginSheet(
-            title = "圖書館系統",
-            subtitle = "帳號密碼可能與校務系統不同",
-            usernamePlaceholder = "圖書館帳號",
-            passwordPlaceholder = "圖書館密碼",
+            title = stringResource(R.string.settings_account_library_system),
+            subtitle = stringResource(R.string.settings_library_account_subtitle),
+            usernamePlaceholder = stringResource(R.string.library_login_username),
+            passwordPlaceholder = stringResource(R.string.library_login_password),
             initialUsername = viewModel.ntustStudentId.orEmpty(),
             isLoggingIn = libIsLoggingIn,
             loginError = libLoginError,
@@ -361,11 +375,11 @@ fun SettingsScreen(
     if (viewModel.appState.pendingLibraryEnablePrompt) {
         AlertDialog(
             onDismissRequest = { viewModel.appState.pendingLibraryEnablePrompt = false },
-            title = { Text("圖書館功能未啟用") },
-            text = { Text("請先在下方「其他功能」中開啟「圖書館及相關功能」後，再使用圖書館 QR 捷徑。") },
+            title = { Text(stringResource(R.string.settings_library_feature_disabled_title)) },
+            text = { Text(stringResource(R.string.settings_library_feature_disabled_message)) },
             confirmButton = {
                 TextButton(onClick = { viewModel.appState.pendingLibraryEnablePrompt = false }) {
-                    Text("知道了")
+                    Text(stringResource(R.string.settings_acknowledged))
                 }
             },
         )
@@ -374,16 +388,16 @@ fun SettingsScreen(
     if (showResetColorsConfirm) {
         AlertDialog(
             onDismissRequest = { showResetColorsConfirm = false },
-            title = { Text("確定要重設課表顏色？") },
-            text = { Text("這將會把課表的顏色依照預設顏色隨機重新分配") },
+            title = { Text(stringResource(R.string.settings_reset_course_colors_confirm_title)) },
+            text = { Text(stringResource(R.string.settings_reset_course_colors_confirm_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.resetCourseColors()
                     showResetColorsConfirm = false
-                }) { Text("確定") }
+                }) { Text(stringResource(R.string.action_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { showResetColorsConfirm = false }) { Text("取消") }
+                TextButton(onClick = { showResetColorsConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }
@@ -445,9 +459,9 @@ private fun AccountRow(
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.error,
                 ),
-            ) { Text("登出") }
+            ) { Text(stringResource(R.string.action_logout)) }
         } else {
-            Button(onClick = onLogin) { Text("登入") }
+            Button(onClick = onLogin) { Text(stringResource(R.string.action_login)) }
         }
     }
 }
@@ -613,14 +627,14 @@ private fun LibraryWarningDialog(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    "請注意！",
+                    stringResource(R.string.settings_library_warning_title),
                     color = Color.Red.copy(alpha = flashAlpha),
                     fontWeight = FontWeight.Bold
                 )
             }
         },
         text = {
-            Text("本應用程式非臺科大官方圖書館應用程式，且尚未得到學校圖書館認可，無法保證各項功能的正常使用及其他相關使用後果。\n\n如需使用請謹慎。若使後產生任何負面結果，需自負責任，且與 tigerduck-app 一律無關！")
+            Text(stringResource(R.string.settings_library_warning_message))
         },
         confirmButton = {
             Button(
@@ -632,14 +646,14 @@ private fun LibraryWarningDialog(
                 )
             ) {
                 Text(
-                    if (confirmEnabled) "我願意自負後果"
-                    else "我願意自負後果（$countdown）"
+                    if (confirmEnabled) stringResource(R.string.settings_library_warning_confirm)
+                    else stringResource(R.string.settings_library_warning_confirm_countdown, countdown)
                 )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("退回")
+                Text(stringResource(R.string.settings_library_warning_dismiss))
             }
         }
     )

@@ -170,10 +170,10 @@ fun LiveActivitySettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("即時動態") },
+                title = { Text(stringResource(R.string.live_activity_channel_name)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
             )
@@ -186,55 +186,55 @@ fun LiveActivitySettingsScreen(
         ) {
             item {
                 ContentCard {
-                    SettingToggleRow("啟用即時動態", state.enabled) { viewModel.setEnabled(it) }
+                    SettingToggleRow(stringResource(R.string.live_activity_settings_enable), state.enabled) { viewModel.setEnabled(it) }
                 }
             }
             item {
                 Text(
-                    "即時動態會在通知區顯示當前課程與倒數。「上課中」與「即將上課」僅在 App 開啟時會即時更新；「作業警告」即使 App 已關閉也會準時提醒。",
+                    stringResource(R.string.live_activity_settings_description),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 )
             }
 
-            item { SectionHeader("顯示情境") }
+            item { SectionHeader(stringResource(R.string.live_activity_settings_section_display_scenarios)) }
             item {
                 ContentCard {
                     Column {
                         SettingToggleRow(
-                            "上課中", state.showInClass, enabled = state.enabled,
+                            stringResource(R.string.live_activity_status_in_class), state.showInClass, enabled = state.enabled,
                         ) { viewModel.setShowInClass(it) }
                         HorizontalDivider()
                         SettingToggleRow(
-                            "即將上課", state.showClassPreparing, enabled = state.enabled,
+                            stringResource(R.string.live_activity_status_class_preparing), state.showClassPreparing, enabled = state.enabled,
                         ) { viewModel.setShowClassPreparing(it) }
                         HorizontalDivider()
                         SettingToggleRow(
-                            "作業", state.showAssignment, enabled = state.enabled,
+                            stringResource(R.string.home_section_upcoming_assignments), state.showAssignment, enabled = state.enabled,
                         ) { viewModel.setShowAssignment(it) }
                     }
                 }
             }
 
-            item { SectionHeader("提示音") }
+            item { SectionHeader(stringResource(R.string.live_activity_settings_section_sound)) }
             item {
                 ContentCard {
                     Column {
                         SettingToggleRow(
-                            "上課中 發出提示音",
+                            stringResource(R.string.live_activity_settings_sound_in_class),
                             state.soundInClass,
                             enabled = state.enabled && state.showInClass,
                         ) { viewModel.setSoundInClass(it) }
                         HorizontalDivider()
                         SettingToggleRow(
-                            "即將上課 發出提示音",
+                            stringResource(R.string.live_activity_settings_sound_class_preparing),
                             state.soundClassPreparing,
                             enabled = state.enabled && state.showClassPreparing,
                         ) { viewModel.setSoundClassPreparing(it) }
                         HorizontalDivider()
                         SettingToggleRow(
-                            "作業警告 發出提示音",
+                            stringResource(R.string.live_activity_settings_sound_assignment),
                             state.soundAssignment,
                             enabled = state.enabled && state.showAssignment,
                         ) { viewModel.setSoundAssignment(it) }
@@ -243,18 +243,18 @@ fun LiveActivitySettingsScreen(
             }
             item {
                 Text(
-                    "只有在進入該情境的那一刻會響一次，之後的倒數更新不會再發聲。若要進一步調整音量或勿擾模式，請至系統通知設定中調整「即時動態」頻道。",
+                    stringResource(R.string.live_activity_settings_sound_hint),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 )
             }
 
-            item { SectionHeader("鎖定畫面") }
+            item { SectionHeader(stringResource(R.string.live_activity_settings_section_lock_screen)) }
             item {
                 ContentCard {
                     SettingToggleRow(
-                        "在鎖定畫面顯示詳細內容",
+                        stringResource(R.string.live_activity_settings_show_on_lock_screen),
                         state.showOnLockScreen,
                         enabled = state.enabled,
                     ) { viewModel.setShowOnLockScreen(it) }
@@ -262,19 +262,19 @@ fun LiveActivitySettingsScreen(
             }
             item {
                 Text(
-                    "關閉時鎖定畫面只會顯示「通知已隱藏」類的佔位文字。若開啟後仍無效果，請至系統通知設定中允許在鎖定畫面顯示此類通知。",
+                    stringResource(R.string.live_activity_settings_lock_screen_hint),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 )
             }
 
-            item { SectionHeader("顯示時機") }
+            item { SectionHeader(stringResource(R.string.live_activity_settings_section_timing)) }
             item {
                 ContentCard {
                     Column {
                         LeadTimeRow(
-                            label = "作業警告",
+                            label = stringResource(R.string.live_activity_settings_assignment_warning),
                             valueLabel = formatDuration(state.assignmentLeadMinutes),
                             value = state.assignmentLeadMinutes.toFloat(),
                             range = 60f..(8f * 60f),
@@ -285,8 +285,8 @@ fun LiveActivitySettingsScreen(
                         )
                         HorizontalDivider()
                         LeadTimeRow(
-                            label = "即將上課",
-                            valueLabel = "${state.classLeadMinutes} 分鐘",
+                            label = stringResource(R.string.live_activity_status_class_preparing),
+                            valueLabel = stringResource(R.string.live_activity_settings_minutes_label, state.classLeadMinutes),
                             value = state.classLeadMinutes.toFloat(),
                             range = 5f..60f,
                             steps = 0,
@@ -299,14 +299,14 @@ fun LiveActivitySettingsScreen(
             }
             item {
                 Text(
-                    "滑桿提供常用範圍；如需超出範圍的值（例如 1 天前提醒作業）請點「自訂」。",
+                    stringResource(R.string.live_activity_settings_timing_hint),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 )
             }
 
-            item { SectionHeader("系統權限") }
+            item { SectionHeader(stringResource(R.string.live_activity_settings_section_system_permissions)) }
             item {
                 ContentCard {
                     Column {
@@ -333,7 +333,7 @@ fun LiveActivitySettingsScreen(
             }
             item {
                 Text(
-                    "通知與精確鬧鐘為發送提醒的必要條件；關閉省電限制可確保 App 關閉或背景時仍能準時提醒。",
+                    stringResource(R.string.live_activity_settings_permissions_hint),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
@@ -352,7 +352,7 @@ fun LiveActivitySettingsScreen(
                             contentColor = MaterialTheme.colorScheme.error,
                         ),
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("重置為預設值") }
+                    ) { Text(stringResource(R.string.live_activity_settings_reset_defaults)) }
                 }
             }
         }
@@ -361,24 +361,24 @@ fun LiveActivitySettingsScreen(
     if (showResetConfirm) {
         AlertDialog(
             onDismissRequest = { showResetConfirm = false },
-            title = { Text("重置所有即時動態設定？") },
-            text = { Text("所有情境與顯示時機將還原為預設值。") },
+            title = { Text(stringResource(R.string.live_activity_settings_reset_confirm_title)) },
+            text = { Text(stringResource(R.string.live_activity_settings_reset_confirm_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.resetDefaults()
                     showResetConfirm = false
-                }) { Text("重置") }
+                }) { Text(stringResource(R.string.live_activity_settings_reset)) }
             },
             dismissButton = {
-                TextButton(onClick = { showResetConfirm = false }) { Text("取消") }
+                TextButton(onClick = { showResetConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
 
     if (assignmentCustomOpen) {
         CustomHoursMinutesDialog(
-            title = "自訂作業警告時間",
-            description = "App 會在到期前這麼久開始顯示提醒。",
+            title = stringResource(R.string.live_activity_settings_custom_assignment_title),
+            description = stringResource(R.string.live_activity_settings_custom_assignment_description),
             initialMinutes = state.assignmentLeadMinutes,
             minMinutes = (LiveActivityPreferences.MIN_ASSIGNMENT_LEAD_SEC / 60).toInt(),
             maxMinutes = (LiveActivityPreferences.MAX_ASSIGNMENT_LEAD_SEC / 60).toInt(),
@@ -391,12 +391,15 @@ fun LiveActivitySettingsScreen(
     }
     if (classCustomOpen) {
         CustomMinutesDialog(
-            title = "自訂即將上課時間",
-            description = "App 會在上課前這麼久開始提醒。",
+            title = stringResource(R.string.live_activity_settings_custom_class_title),
+            description = stringResource(R.string.live_activity_settings_custom_class_description),
             initialMinutes = state.classLeadMinutes,
             minMinutes = (LiveActivityPreferences.MIN_CLASS_LEAD_SEC / 60).toInt().coerceAtLeast(1),
             maxMinutes = (LiveActivityPreferences.MAX_CLASS_LEAD_SEC / 60).toInt(),
-            unitHint = "分鐘（最多 ${(LiveActivityPreferences.MAX_CLASS_LEAD_SEC / 60).toInt()} 分鐘）",
+            unitHint = stringResource(
+                R.string.live_activity_settings_custom_class_unit_hint,
+                (LiveActivityPreferences.MAX_CLASS_LEAD_SEC / 60).toInt()
+            ),
             onConfirm = {
                 viewModel.setClassLeadMinutes(it)
                 classCustomOpen = false
@@ -424,14 +427,15 @@ private fun openPermissionPrompt(
     systemPermissions.openSettings(permission)
 }
 
+@Composable
 private fun formatDuration(totalMinutes: Int): String {
-    if (totalMinutes <= 0) return "0 分鐘"
+    if (totalMinutes <= 0) return stringResource(R.string.live_activity_settings_minutes_label, 0)
     val h = totalMinutes / 60
     val m = totalMinutes % 60
     return when {
-        h == 0 -> "$m 分鐘"
-        m == 0 -> "$h 小時"
-        else -> "$h 小時 $m 分"
+        h == 0 -> stringResource(R.string.live_activity_settings_minutes_label, m)
+        m == 0 -> stringResource(R.string.live_activity_settings_hours_label, h)
+        else -> stringResource(R.string.live_activity_settings_hours_minutes_label, h, m)
     }
 }
 
@@ -509,7 +513,7 @@ private fun LeadTimeRow(
                 onClick = onCustomClick,
                 enabled = enabled,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-            ) { Text("自訂", style = MaterialTheme.typography.labelMedium) }
+            ) { Text(stringResource(R.string.color_picker_custom), style = MaterialTheme.typography.labelMedium) }
         }
         Slider(
             value = displayValue,
@@ -559,7 +563,7 @@ private fun CustomMinutesDialog(
                     ),
                 )
                 Text(
-                    "範圍：$minMinutes – $maxMinutes 分鐘",
+                    stringResource(R.string.live_activity_settings_range_minutes, minMinutes, maxMinutes),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                 )
@@ -569,10 +573,10 @@ private fun CustomMinutesDialog(
             TextButton(
                 onClick = { if (valid && parsed != null) onConfirm(parsed) },
                 enabled = valid,
-            ) { Text("確定") }
+            ) { Text(stringResource(R.string.action_confirm)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }
@@ -597,8 +601,16 @@ private fun CustomHoursMinutesDialog(
 
     val maxHours = maxMinutes / 60
     val rangeHint = when {
-        minMinutes >= 60 -> "範圍：${minMinutes / 60} 小時 – $maxHours 小時"
-        else -> "範圍：$minMinutes 分 – $maxHours 小時"
+        minMinutes >= 60 -> stringResource(
+            R.string.live_activity_settings_range_hours,
+            minMinutes / 60,
+            maxHours
+        )
+        else -> stringResource(
+            R.string.live_activity_settings_range_min_to_hours,
+            minMinutes,
+            maxHours
+        )
     }
 
     AlertDialog(
@@ -616,7 +628,7 @@ private fun CustomHoursMinutesDialog(
                         onValueChange = { new ->
                             hoursText = new.filter { it.isDigit() }.take(4)
                         },
-                        label = { Text("小時") },
+                        label = { Text(stringResource(R.string.live_activity_settings_hours_unit)) },
                         singleLine = true,
                         isError = !valid && hoursText.isNotEmpty(),
                         keyboardOptions = KeyboardOptions(
@@ -630,7 +642,7 @@ private fun CustomHoursMinutesDialog(
                         onValueChange = { new ->
                             minutesText = new.filter { it.isDigit() }.take(2)
                         },
-                        label = { Text("分鐘") },
+                        label = { Text(stringResource(R.string.live_activity_settings_minutes_unit)) },
                         singleLine = true,
                         isError = !valid && minutesText.isNotEmpty(),
                         keyboardOptions = KeyboardOptions(
@@ -654,10 +666,10 @@ private fun CustomHoursMinutesDialog(
             TextButton(
                 onClick = { if (valid) onConfirm(total) },
                 enabled = valid,
-            ) { Text("確定") }
+            ) { Text(stringResource(R.string.action_confirm)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }
