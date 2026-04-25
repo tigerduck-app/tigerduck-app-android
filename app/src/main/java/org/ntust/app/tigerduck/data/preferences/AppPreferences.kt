@@ -49,6 +49,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean("showAbsoluteAssignmentTime", false)
         set(value) = prefs.edit().putBoolean("showAbsoluteAssignmentTime", value).apply()
 
+    var useEnglishCourseAbbreviation: Boolean
+        get() = prefs.getBoolean("useEnglishCourseAbbreviation", false)
+        set(value) = prefs.edit().putBoolean("useEnglishCourseAbbreviation", value).apply()
+
     var homeAssignmentFilter: AssignmentFilter
         get() {
             val raw = prefs.getString("homeAssignmentFilter", null)

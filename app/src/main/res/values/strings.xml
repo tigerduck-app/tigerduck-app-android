@@ -314,6 +314,7 @@
     <string name="settings_accent_color">主題色</string>
     <string name="settings_section_display">顯示</string>
     <string name="settings_show_absolute_assignment_time">作業截止時間顯示完整日期</string>
+    <string name="settings_use_english_course_abbreviation">使用英文課名縮寫</string>
     <string name="settings_link_opening_method">開啟連結方式</string>
     <string name="settings_browser_in_app">App 內瀏覽器</string>
     <string name="settings_browser_system_default">系統預設瀏覽器</string>

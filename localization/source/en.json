@@ -312,6 +312,7 @@
   "settings_accent_color": "Accent color",
   "settings_section_display": "Display",
   "settings_show_absolute_assignment_time": "Show full date for assignment due time",
+  "settings_use_english_course_abbreviation": "Use English course abbreviations",
   "settings_link_opening_method": "Open links with",
   "settings_browser_in_app": "In-app browser",
   "settings_browser_system_default": "System default browser",

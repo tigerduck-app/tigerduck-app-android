@@ -71,10 +71,15 @@ fun SettingsScreen(
     val showAbsoluteTime = viewModel.appState.showAbsoluteAssignmentTime
     val browserPreference = viewModel.appState.browserPreference
     val invertSlider = viewModel.appState.invertSliderDirection
+    val useEnglishCourseAbbreviation = viewModel.appState.useEnglishCourseAbbreviation
     val notifyAssignments = viewModel.appState.notifyAssignments
     val libraryEnabled = viewModel.appState.libraryFeatureEnabled
     val themeMode = viewModel.appState.themeMode
     val appLanguage = viewModel.appState.appLanguage
+    val shouldShowEnglishAbbreviationToggle =
+        appLanguage == AppLanguageManager.ENGLISH ||
+            (appLanguage == AppLanguageManager.SYSTEM &&
+                Locale.getDefault().language.equals("en", ignoreCase = true))
 
     var showLibraryWarning by remember { mutableStateOf(false) }
     var showResetColorsConfirm by remember { mutableStateOf(false) }
@@ -235,6 +240,15 @@ fun SettingsScreen(
                             (context as? Activity)?.recreate()
                         },
                     )
+                    if (shouldShowEnglishAbbreviationToggle) {
+                        HorizontalDivider()
+                        SettingsToggleRow(
+                            stringResource(R.string.settings_use_english_course_abbreviation),
+                            useEnglishCourseAbbreviation
+                        ) {
+                            viewModel.appState.useEnglishCourseAbbreviation = it
+                        }
+                    }
                 }
             }
         }

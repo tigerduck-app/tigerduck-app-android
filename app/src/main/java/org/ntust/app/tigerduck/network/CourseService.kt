@@ -78,7 +78,8 @@ class CourseService @Inject constructor(
         withContext(Dispatchers.IO) {
             ensureLookupCacheLoaded()
             val language = preferredCourseApiLanguage()
-            val key = "${semester}_${courseNo}_$language"
+            val abbrMode = if (appPreferences.useEnglishCourseAbbreviation && language == "en") "abbr" else "full"
+            val key = "${semester}_${courseNo}_${language}_$abbrMode"
             lookupCache[key]?.takeIf {
                 System.currentTimeMillis() - it.cachedAt < LOOKUP_TTL_MS
             }?.let { return@withContext applyAbbreviations(it.results, language) }
@@ -97,13 +98,12 @@ class CourseService @Inject constructor(
                 val type = object : TypeToken<List<CourseSearchResult>>() {}.type
                 gson.fromJson<List<CourseSearchResult>?>(body, type) ?: emptyList()
             }
-            val normalized = applyAbbreviations(fresh, language)
 
-            if (normalized.isNotEmpty()) {
-                lookupCache[key] = DataCache.CourseLookupEntry(normalized, System.currentTimeMillis())
+            if (fresh.isNotEmpty()) {
+                lookupCache[key] = DataCache.CourseLookupEntry(fresh, System.currentTimeMillis())
                 persistLookupCache()
             }
-            normalized
+            applyAbbreviations(fresh, language)
         }
 
     private suspend fun ensureLookupCacheLoaded() {

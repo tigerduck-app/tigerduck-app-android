@@ -111,6 +111,16 @@ class AppState @Inject constructor(
             prefs.showAbsoluteAssignmentTime = value
         }
 
+    private var useEnglishCourseAbbreviationState by mutableStateOf(prefs.useEnglishCourseAbbreviation)
+
+    var useEnglishCourseAbbreviation: Boolean
+        get() = useEnglishCourseAbbreviationState
+        set(value) {
+            if (useEnglishCourseAbbreviationState == value) return
+            useEnglishCourseAbbreviationState = value
+            prefs.useEnglishCourseAbbreviation = value
+        }
+
     private var browserPreferenceState by mutableStateOf(prefs.browserPreference)
 
     var browserPreference: String
@@ -218,6 +228,7 @@ class AppState @Inject constructor(
             hasCompletedOnboardingState = prefs.hasCompletedOnboarding
             accentColorHexState = prefs.accentColorHex
             showAbsoluteAssignmentTimeState = prefs.showAbsoluteAssignmentTime
+            useEnglishCourseAbbreviationState = prefs.useEnglishCourseAbbreviation
             browserPreferenceState = prefs.browserPreference
             themeModeState = prefs.themeMode
             appLanguageState = prefs.appLanguage
