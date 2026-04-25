@@ -16,21 +16,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
-import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
+import java.text.SimpleDateFormat
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,6 +47,7 @@ fun CalendarScreen(
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val dayEvents by viewModel.selectedDateEvents.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -58,7 +62,7 @@ fun CalendarScreen(
     }
     LaunchedEffect(Unit) {
         viewModel.noNetworkEvent.collect {
-            snackbarHostState.showSnackbar("無法連線，請檢查網路連線")
+            snackbarHostState.showSnackbar(context.getString(R.string.error_network_unavailable))
         }
     }
 
@@ -70,21 +74,21 @@ fun CalendarScreen(
         onRefresh = { viewModel.refresh() },
         onDragProgress = { pullProgress = it },
         modifier = Modifier.fillMaxSize(),
-        refreshingMessage = "頁面正在刷新，別急～",
+        refreshingMessage = stringResource(R.string.refreshing_message),
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
             item {
-                PageHeader(title = "行事曆") {
+                PageHeader(title = stringResource(R.string.feature_calendar)) {
                     SyncIndicator(
                         isLoading = isLoading,
                         showCheckmark = showCheckmark,
                         dragProgress = pullProgress,
                     )
                     Spacer(Modifier.width(8.dp))
-                    JumpToNowChip(label = "今天", onClick = { viewModel.goToToday() })
+                    JumpToNowChip(label = stringResource(R.string.calendar_today), onClick = { viewModel.goToToday() })
                 }
             }
 
@@ -110,7 +114,8 @@ fun CalendarScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            if (isLoggedIn) "這天沒有活動" else "請先登入以使用這項功能",
+                            if (isLoggedIn) stringResource(R.string.calendar_no_events_on_day)
+                            else stringResource(R.string.common_login_required_feature),
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                         )
                     }
@@ -136,11 +141,11 @@ private fun MonthCalendar(
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit
 ) {
-    val monthFmt = SimpleDateFormat("yyyy年M月", Locale.CHINESE)
     val taipeiTz = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
     val cal = Calendar.getInstance(taipeiTz).apply { time = displayedMonth }
     val year = cal.get(Calendar.YEAR)
     val month = cal.get(Calendar.MONTH)
+    val monthLabel = stringResource(R.string.calendar_month_year, year, month + 1)
 
     // Build days
     val firstDay = Calendar.getInstance(taipeiTz).apply { set(year, month, 1) }
@@ -152,22 +157,30 @@ private fun MonthCalendar(
         // Month nav
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onPreviousMonth) {
-                Icon(Icons.Filled.ChevronLeft, "上個月")
+                Icon(Icons.Filled.ChevronLeft, stringResource(R.string.calendar_previous_month))
             }
             Text(
-                text = monthFmt.format(displayedMonth),
+                text = monthLabel,
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center
             )
             IconButton(onClick = onNextMonth) {
-                Icon(Icons.Filled.ChevronRight, "下個月")
+                Icon(Icons.Filled.ChevronRight, stringResource(R.string.calendar_next_month))
             }
         }
 
         // Day of week headers
         Row {
-            listOf("一", "二", "三", "四", "五", "六", "日").forEach {
+            listOf(
+                stringResource(R.string.weekday_mon_short),
+                stringResource(R.string.weekday_tue_short),
+                stringResource(R.string.weekday_wed_short),
+                stringResource(R.string.weekday_thu_short),
+                stringResource(R.string.weekday_fri_short),
+                stringResource(R.string.weekday_sat_short),
+                stringResource(R.string.weekday_sun_short)
+            ).forEach {
                 Text(
                     text = it,
                     modifier = Modifier.weight(1f),
@@ -272,7 +285,7 @@ private fun EventRow(event: CalendarEvent) {
         Column(modifier = Modifier.weight(1f)) {
             Text(event.title, style = MaterialTheme.typography.bodyMedium)
             Text(
-                event.source.label,
+                stringResource(event.source.labelRes),
                 style = MaterialTheme.typography.labelSmall,
                 color = event.source.color
             )

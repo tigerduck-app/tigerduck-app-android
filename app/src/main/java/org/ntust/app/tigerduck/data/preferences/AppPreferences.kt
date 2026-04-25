@@ -137,25 +137,25 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
          * paired dark variant at the same index so themes swap in-place.
          */
         val themeColors: List<Pair<String, Int>> = listOf(
-            "藍" to 0x007AFF,
-            "紫" to 0xAF52DE,
-            "粉" to 0xFF2D55,
-            "紅" to 0xFF3B30,
-            "橘" to 0xFF9500,
-            "綠" to 0x34C759,
-            "青" to 0x5AC8FA,
-            "靛" to 0x5856D6,
+            "Blue" to 0x007AFF,
+            "Purple" to 0xAF52DE,
+            "Pink" to 0xFF2D55,
+            "Red" to 0xFF3B30,
+            "Orange" to 0xFF9500,
+            "Green" to 0x34C759,
+            "Teal" to 0x5AC8FA,
+            "Indigo" to 0x5856D6,
         )
 
         val themeColorsDark: List<Pair<String, Int>> = listOf(
-            "藍" to 0x0A84FF,
-            "紫" to 0xBF5AF2,
-            "粉" to 0xFF375F,
-            "紅" to 0xFF453A,
-            "橘" to 0xFF9F0A,
-            "綠" to 0x32D74B,
-            "青" to 0x64D2FF,
-            "靛" to 0x5E5CE6,
+            "Blue" to 0x0A84FF,
+            "Purple" to 0xBF5AF2,
+            "Pink" to 0xFF375F,
+            "Red" to 0xFF453A,
+            "Orange" to 0xFF9F0A,
+            "Green" to 0x32D74B,
+            "Teal" to 0x64D2FF,
+            "Indigo" to 0x5E5CE6,
         )
 
         init {

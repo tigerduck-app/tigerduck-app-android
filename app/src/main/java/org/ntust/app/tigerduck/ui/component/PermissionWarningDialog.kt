@@ -31,12 +31,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.notification.AppPermission
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -84,13 +85,13 @@ fun PermissionWarningDialogHost(systemPermissions: SystemPermissions) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Warning, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("偵測到通知權限已關閉", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.permission_warning_title), fontWeight = FontWeight.Bold)
             }
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "以下權限在您之前已允許，但現在已被關閉。關閉後對應的通知與即時動態可能無法正常顯示。",
+                    stringResource(R.string.permission_warning_description),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 revoked.forEachIndexed { idx, p ->
@@ -116,7 +117,9 @@ fun PermissionWarningDialogHost(systemPermissions: SystemPermissions) {
             }
         },
         confirmButton = {
-            TextButton(onClick = { revoked = emptyList() }) { Text("稍後再說") }
+            TextButton(onClick = { revoked = emptyList() }) {
+                Text(stringResource(R.string.permission_warning_action_later))
+            }
         },
     )
 }
@@ -131,11 +134,11 @@ private fun RevokedPermissionItem(
     var muteChecked by remember(permission) { mutableStateOf(systemPermissions.isMuted(permission)) }
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            SystemPermissions.displayName(permission),
+            stringResource(SystemPermissions.displayNameResId(permission)),
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
         )
         Text(
-            SystemPermissions.description(permission),
+            stringResource(SystemPermissions.descriptionResId(permission)),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
             modifier = Modifier.padding(top = 2.dp),
@@ -143,7 +146,7 @@ private fun RevokedPermissionItem(
         TextButton(
             onClick = onOpenSettings,
             contentPadding = PaddingValues(horizontal = 0.dp),
-        ) { Text("前往設定") }
+        ) { Text(stringResource(R.string.action_go_to_settings)) }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -161,7 +164,7 @@ private fun RevokedPermissionItem(
                 },
             )
             Text(
-                "以後不再提醒此項",
+                stringResource(R.string.permission_warning_mute_item),
                 style = MaterialTheme.typography.labelMedium,
             )
         }

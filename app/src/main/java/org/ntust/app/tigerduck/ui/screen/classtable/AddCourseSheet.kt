@@ -17,12 +17,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
@@ -46,6 +49,7 @@ fun AddCourseSheet(
     onDismiss: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     var searchText by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<GroupedCourse>>(emptyList()) }
@@ -84,9 +88,9 @@ fun AddCourseSheet(
                     }
                 }
                 searchResults = groupResults(raw, courseService)
-                if (searchResults.isEmpty()) errorMessage = "找不到符合的課程"
+                if (searchResults.isEmpty()) errorMessage = context.getString(R.string.add_course_not_found)
             } catch (e: Exception) {
-                errorMessage = "搜尋失敗：${e.message}"
+                errorMessage = context.getString(R.string.add_course_search_failed, e.message ?: "")
             } finally {
                 isSearching = false
             }
@@ -106,11 +110,11 @@ fun AddCourseSheet(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "新增課程",
+                stringResource(R.string.add_course_title),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = onDismiss) { Text("關閉") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -126,7 +130,7 @@ fun AddCourseSheet(
             OutlinedTextField(
                 value = searchText,
                 onValueChange = { searchText = it },
-                placeholder = { Text("輸入課程代碼、課名或老師") },
+                placeholder = { Text(stringResource(R.string.add_course_placeholder)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = {
@@ -146,7 +150,7 @@ fun AddCourseSheet(
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
                 } else {
-                    Icon(Icons.Filled.Search, contentDescription = "搜尋")
+                    Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.action_search))
                 }
             }
         }
@@ -181,13 +185,13 @@ fun AddCourseSheet(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        "輸入課程代碼、課名或老師",
+                        stringResource(R.string.add_course_placeholder),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "例如：EC1013701、微積分、王小明",
+                        stringResource(R.string.add_course_example),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                     )
@@ -227,7 +231,12 @@ fun AddCourseSheet(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                             Text(
-                                "${group.courseNo} · ${group.instructor} · ${group.credits}學分",
+                                stringResource(
+                                    R.string.add_course_result_meta,
+                                    group.courseNo,
+                                    group.instructor,
+                                    group.credits
+                                ),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                             )
@@ -249,14 +258,14 @@ fun AddCourseSheet(
                         if (alreadyExists) {
                             Icon(
                                 Icons.Filled.CheckCircle,
-                                contentDescription = "已加入",
+                                contentDescription = stringResource(R.string.add_course_added),
                                 tint = Color(0xFF34C759),
                                 modifier = Modifier.size(24.dp)
                             )
                         } else {
                             Icon(
                                 Icons.Filled.Add,
-                                contentDescription = "新增",
+                                contentDescription = stringResource(R.string.action_add),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(24.dp)
                             )

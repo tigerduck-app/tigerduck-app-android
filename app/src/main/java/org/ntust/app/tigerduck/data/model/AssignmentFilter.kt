@@ -1,7 +1,10 @@
 package org.ntust.app.tigerduck.data.model
 
-enum class AssignmentFilter(val displayName: String) {
-    INCOMPLETE("未完成"),
-    ALL("全部"),
-    IGNORED("已忽略")
+import androidx.annotation.StringRes
+import org.ntust.app.tigerduck.R
+
+enum class AssignmentFilter(@StringRes val displayNameRes: Int) {
+    INCOMPLETE(R.string.assignment_filter_incomplete),
+    ALL(R.string.assignment_filter_all),
+    IGNORED(R.string.assignment_filter_ignored)
 }

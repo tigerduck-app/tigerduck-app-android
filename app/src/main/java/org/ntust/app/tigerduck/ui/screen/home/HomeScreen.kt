@@ -36,6 +36,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.data.model.Course
@@ -134,7 +136,7 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         viewModel.noNetworkEvent.collect {
-            snackbarHostState.showSnackbar("無法連線，請檢查網路連線")
+            snackbarHostState.showSnackbar(context.getString(R.string.error_network_unavailable))
         }
     }
 
@@ -146,7 +148,7 @@ fun HomeScreen(
             onRefresh = { viewModel.refresh() },
             onDragProgress = { pullProgress = it },
             modifier = Modifier.fillMaxSize(),
-            refreshingMessage = "頁面正在刷新，別急～",
+            refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -158,10 +160,10 @@ fun HomeScreen(
                     PageHeader(title = greetingText()) {
                         if (isEditing) {
                             IconButton(onClick = { showAddSectionDialog = true }) {
-                                Icon(Icons.Filled.Add, contentDescription = "新增區塊")
+                                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.home_add_section_title))
                             }
                             TextButton(onClick = { isEditing = false }) {
-                                Text("完成", fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.action_done), fontWeight = FontWeight.SemiBold)
                             }
                         } else {
                             SyncIndicator(
@@ -263,7 +265,7 @@ fun HomeScreen(
         AddSectionDialog(
             existingSections = sections,
             onAddBuiltin = { type ->
-                viewModel.addSection(type, type.defaultTitle)
+                viewModel.addSection(type, context.getString(type.defaultTitleRes))
                 showAddSectionDialog = false
             },
             onAddCustom = { title ->
@@ -364,7 +366,7 @@ private fun ReorderableSection(
                 ) {
                     Icon(
                         Icons.Filled.DragHandle,
-                        contentDescription = "拖曳排序",
+                        contentDescription = stringResource(R.string.tab_editor_drag_reorder),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(24.dp),
                     )
@@ -380,7 +382,7 @@ private fun ReorderableSection(
                 ) {
                     Icon(
                         Icons.Filled.Close,
-                        contentDescription = "移除",
+                        contentDescription = stringResource(R.string.action_remove),
                         tint = MaterialTheme.colorScheme.onError,
                         modifier = Modifier.size(24.dp),
                     )
@@ -425,7 +427,7 @@ private fun HomeSectionContent(
             }
 
             HomeSection.HomeSectionType.UPCOMING_ASSIGNMENTS -> {
-                SectionHeader(title = section.title)
+                SectionHeader(title = if (section.type == HomeSection.HomeSectionType.CUSTOM) section.title else stringResource(section.type.defaultTitleRes))
                 AssignmentFilterTabs(
                     selected = assignmentFilter,
                     enabled = isLoggedIn,
@@ -468,7 +470,7 @@ private fun HomeSectionContent(
             @Suppress("DEPRECATION")
             HomeSection.HomeSectionType.QUICK_WIDGETS,
             HomeSection.HomeSectionType.CUSTOM -> {
-                SectionHeader(title = section.title)
+                SectionHeader(title = if (section.type == HomeSection.HomeSectionType.CUSTOM) section.title else stringResource(section.type.defaultTitleRes))
                 if (section.widgets.isNotEmpty()) {
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
@@ -496,7 +498,7 @@ private fun HomeSectionContent(
                                     )
                                     Spacer(Modifier.height(4.dp))
                                     Text(
-                                        text = widget.feature.displayName,
+                                        text = stringResource(widget.feature.displayNameRes),
                                         style = MaterialTheme.typography.labelSmall,
                                         maxLines = 1
                                     )
@@ -521,12 +523,12 @@ private fun CourseDetailDialog(
         title = { Text(course.courseName) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("講師：${course.instructor}", style = MaterialTheme.typography.bodyMedium)
-                Text("教室：${course.classroom}", style = MaterialTheme.typography.bodyMedium)
-                Text("學分：${course.credits}", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.course_instructor_value, course.instructor), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.course_classroom_value, course.classroom), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.course_credits_value, course.credits), style = MaterialTheme.typography.bodyMedium)
                 if (assignments.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
-                    Text("待辦作業", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.home_pending_assignments), style = MaterialTheme.typography.titleSmall)
                     assignments.forEach { a ->
                         Text("• ${a.title}", style = MaterialTheme.typography.bodySmall)
                     }
@@ -534,7 +536,7 @@ private fun CourseDetailDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("關閉") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
         }
     )
 }
@@ -542,10 +544,10 @@ private fun CourseDetailDialog(
 private fun greetingText(): String {
     val hour = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).get(Calendar.HOUR_OF_DAY)
     return when {
-        hour < 6 -> "還不睡？"
-        hour < 12 -> "早安"
-        hour < 18 -> "午安"
-        else -> "晚安"
+        hour < 6 -> "Stay up late?"
+        hour < 12 -> "Good morning"
+        hour < 18 -> "Good afternoon"
+        else -> "Good evening"
     }
 }
 
@@ -587,7 +589,7 @@ private fun AssignmentFilterTabs(
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
                 colors = segmentColors,
             ) {
-                Text(option.displayName, style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(option.displayNameRes), style = MaterialTheme.typography.labelMedium)
             }
         }
     }
@@ -619,8 +621,8 @@ private fun AssignmentsEmptyState(
     if (!isLoggedIn) {
         EmptyStateView(
             icon = Icons.Filled.Lock,
-            title = "尚未登入",
-            message = "請先登入以使用這項功能",
+            title = stringResource(R.string.common_not_logged_in),
+            message = stringResource(R.string.common_login_required_feature),
         )
         return
     }
@@ -639,18 +641,18 @@ private fun AssignmentsEmptyState(
     when (filter) {
         AssignmentFilter.INCOMPLETE -> EmptyStateView(
             icon = Icons.Filled.CheckCircle,
-            title = "一切順利",
-            message = "沒有作業",
+            title = stringResource(R.string.home_assignments_all_good),
+            message = stringResource(R.string.home_assignments_none),
         )
         AssignmentFilter.ALL -> EmptyStateView(
             icon = Icons.Filled.Inbox,
-            title = "目前沒有作業",
+            title = stringResource(R.string.home_assignments_none_now),
             message = "",
         )
         AssignmentFilter.IGNORED -> EmptyStateView(
             icon = Icons.Filled.VisibilityOff,
-            title = "沒有已忽略的作業",
-            message = "向左滑動作業以將其忽略",
+            title = stringResource(R.string.home_assignments_no_ignored),
+            message = stringResource(R.string.home_assignments_ignore_hint),
         )
     }
 }
@@ -701,7 +703,7 @@ private fun SwipeableAssignmentRow(
                 Icon(
                     imageVector = if (isMarkedCompleted) Icons.AutoMirrored.Filled.Undo
                                   else Icons.Filled.Check,
-                    contentDescription = if (isMarkedCompleted) "取消標示為完成" else "標示為完成",
+                    contentDescription = if (isMarkedCompleted) stringResource(R.string.assignment_mark_complete_undo) else stringResource(R.string.assignment_mark_complete),
                     tint = completeColor,
                     modifier = Modifier
                         .size(26.dp)
@@ -723,7 +725,7 @@ private fun SwipeableAssignmentRow(
                 Icon(
                     imageVector = if (isIgnored) Icons.AutoMirrored.Filled.Undo
                                   else Icons.Filled.VisibilityOff,
-                    contentDescription = if (isIgnored) "取消忽略" else "忽略",
+                    contentDescription = if (isIgnored) stringResource(R.string.assignment_ignore_undo) else stringResource(R.string.assignment_ignore),
                     tint = ignoreColor,
                     modifier = Modifier
                         .size(26.dp)

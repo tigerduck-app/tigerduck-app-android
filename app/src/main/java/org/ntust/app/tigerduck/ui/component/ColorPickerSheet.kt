@@ -31,9 +31,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /**
@@ -87,7 +89,7 @@ fun ColorPickerSheet(
                 .padding(bottom = 24.dp)
         ) {
             Text(
-                text = "選擇顏色",
+                text = stringResource(R.string.color_picker_title),
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -112,7 +114,7 @@ fun ColorPickerSheet(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = courseName.ifBlank { "預覽" },
+                    text = courseName.ifBlank { stringResource(R.string.color_picker_preview_fallback) },
                     color = if (selectedColor.red * 0.299f + selectedColor.green * 0.587f + selectedColor.blue * 0.114f > 0.5f)
                         Color(0xFF1C1C1E) else Color.White,
                     fontWeight = FontWeight.SemiBold,
@@ -124,7 +126,7 @@ fun ColorPickerSheet(
 
             Spacer(Modifier.height(22.dp))
 
-            SectionLabel(text = "預設（若選擇與它科重複顏色會導致該科顏色重新分配）")
+            SectionLabel(text = stringResource(R.string.color_picker_presets_note))
             Spacer(Modifier.height(10.dp))
 
             FlowRow(
@@ -154,7 +156,7 @@ fun ColorPickerSheet(
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                SectionLabel(text = "自訂顏色", modifier = Modifier.weight(1f))
+                SectionLabel(text = stringResource(R.string.color_picker_custom), modifier = Modifier.weight(1f))
                 Icon(
                     imageVector = if (showCustom) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                     contentDescription = null,
@@ -193,11 +195,11 @@ fun ColorPickerSheet(
                 OutlinedButton(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f)
-                ) { Text("取消") }
+                ) { Text(stringResource(R.string.action_cancel)) }
                 Button(
                     onClick = { onApply(selectedColor) },
                     modifier = Modifier.weight(1f)
-                ) { Text("套用") }
+                ) { Text(stringResource(R.string.color_picker_apply)) }
             }
         }
     }
@@ -241,7 +243,7 @@ private fun ColorSwatch(
             if (selected) {
                 Icon(
                     imageVector = Icons.Filled.Check,
-                    contentDescription = "已選",
+                    contentDescription = stringResource(R.string.color_picker_selected),
                     tint = Color.White,
                     modifier = Modifier.size(18.dp)
                 )

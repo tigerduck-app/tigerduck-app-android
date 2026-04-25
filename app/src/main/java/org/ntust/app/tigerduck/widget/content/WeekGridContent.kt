@@ -32,6 +32,7 @@ import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.widget.LayerCourse
 import org.ntust.app.tigerduck.widget.ScheduleCell
@@ -43,7 +44,16 @@ import org.ntust.app.tigerduck.widget.widgetCourseColor
 
 @Composable
 fun WeekGridContent(state: WidgetState, colors: WidgetColors, tapAction: Action) {
-    val dayNames = listOf("一", "二", "三", "四", "五", "六", "日")
+    val context = LocalContext.current
+    val dayNames = listOf(
+        context.getString(R.string.weekday_mon_short),
+        context.getString(R.string.weekday_tue_short),
+        context.getString(R.string.weekday_wed_short),
+        context.getString(R.string.weekday_thu_short),
+        context.getString(R.string.weekday_fri_short),
+        context.getString(R.string.weekday_sat_short),
+        context.getString(R.string.weekday_sun_short),
+    )
     val periodColWidth = 32.dp
     val outerPadding = 6.dp
     val headerHeight = 22.dp
@@ -75,7 +85,11 @@ fun WeekGridContent(state: WidgetState, colors: WidgetColors, tapAction: Action)
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = if (!state.isLoggedIn) "請先登入 TigerDuck" else "尚無課程",
+                    text = if (!state.isLoggedIn) {
+                        context.getString(R.string.widget_sign_in)
+                    } else {
+                        context.getString(R.string.widget_no_courses)
+                    },
                     style = TextStyle(
                         color = ColorProvider(colors.onSurfaceVariant),
                         fontSize = 14.sp,

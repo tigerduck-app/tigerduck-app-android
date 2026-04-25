@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -48,6 +49,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import dagger.hilt.android.lifecycle.HiltViewModel
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.notification.AppPermission
 import org.ntust.app.tigerduck.notification.PermissionState
 import org.ntust.app.tigerduck.notification.SystemPermissions
@@ -69,10 +71,13 @@ fun NotificationSetupScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("重新設定通知") },
+                title = { Text(stringResource(R.string.notification_setup_title)) },
                 navigationIcon = {
                     IconButton(onClick = onDone) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
             )
@@ -82,7 +87,7 @@ fun NotificationSetupScreen(
         NotificationSetupContent(
             systemPermissions = viewModel.systemPermissions,
             modifier = Modifier.padding(padding),
-            finishLabel = "完成",
+            finishLabel = stringResource(R.string.action_done),
             onFinish = onDone,
         )
     }
@@ -127,7 +132,7 @@ fun NotificationSetupContent(
     ) {
         item {
             Text(
-                "設定以下權限可確保作業提醒、即將上課、即時動態在 App 關閉時也能準時送達。",
+                stringResource(R.string.notification_setup_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
@@ -193,11 +198,11 @@ private fun PermissionCard(state: PermissionState, onClick: () -> Unit) {
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    SystemPermissions.displayName(state.permission),
+                    stringResource(SystemPermissions.displayNameResId(state.permission)),
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                 )
                 Text(
-                    SystemPermissions.description(state.permission),
+                    stringResource(SystemPermissions.descriptionResId(state.permission)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     modifier = Modifier.padding(top = 4.dp),
@@ -212,13 +217,13 @@ private fun PermissionCard(state: PermissionState, onClick: () -> Unit) {
                 )
                 state.granted -> Icon(
                     Icons.Filled.Check,
-                    contentDescription = "已允許",
+                    contentDescription = stringResource(R.string.permission_granted),
                     tint = Color(0xFF34C759),
                 )
                 else -> Button(
                     onClick = onClick,
                     colors = ButtonDefaults.buttonColors(),
-                ) { Text("允許") }
+                ) { Text(stringResource(R.string.action_allow)) }
             }
         }
     }

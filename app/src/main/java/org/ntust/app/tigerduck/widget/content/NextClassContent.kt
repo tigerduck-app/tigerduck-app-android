@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceModifier
+import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.Action
 import androidx.glance.action.clickable
@@ -26,6 +27,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.parseHm
 import org.ntust.app.tigerduck.widget.WidgetColors
@@ -42,6 +44,7 @@ fun NextClassContent(state: WidgetState, colors: WidgetColors, tapAction: Action
 
 @Composable
 private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: Action) {
+    val context = LocalContext.current
     val order = AppConstants.Periods.chronologicalOrder
     Row(
         modifier = GlanceModifier
@@ -55,7 +58,7 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
         when {
             !state.isLoggedIn -> {
                 Text(
-                    text = "請先登入 TigerDuck",
+                    text = context.getString(R.string.widget_sign_in),
                     style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 14.sp),
                 )
             }
@@ -71,7 +74,11 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                         .padding(horizontal = 8.dp, vertical = 2.dp),
                 ) {
                     Text(
-                        text = if (ongoing.size > 1) "進行中×${ongoing.size}" else "進行中",
+                        text = if (ongoing.size > 1) {
+                            context.getString(R.string.widget_ongoing_count, ongoing.size)
+                        } else {
+                            context.getString(R.string.widget_ongoing)
+                        },
                         style = TextStyle(color = ColorProvider(Color.White), fontSize = 11.sp, fontWeight = FontWeight.Bold),
                     )
                 }
@@ -85,7 +92,9 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                     val second = ongoing.getOrNull(1)
                     Text(
                         text = if (second != null) second.courseName else buildString {
-                            if (endTime.isNotEmpty()) append("至 $endTime")
+                            if (endTime.isNotEmpty()) {
+                                append(context.getString(R.string.widget_until_time, endTime))
+                            }
                             if (first.classroom.isNotEmpty()) {
                                 if (isNotEmpty()) append("  ")
                                 append(first.classroom)
@@ -106,7 +115,7 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                 val periods = course.schedule[state.currentWeekday]?.sortedBy { order.indexOf(it) } ?: emptyList()
                 val startTime = periods.firstOrNull()?.let { AppConstants.PeriodTimes.mapping[it]?.first } ?: ""
                 Text(
-                    text = "下一堂",
+                    text = context.getString(R.string.widget_next_class_short),
                     style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 12.sp, fontWeight = FontWeight.Bold),
                 )
                 Spacer(GlanceModifier.width(8.dp))
@@ -136,13 +145,13 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                 Spacer(GlanceModifier.defaultWeight())
                 Column(horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
                     Text(
-                        text = name ?: "今日課程已結束",
+                        text = name ?: context.getString(R.string.widget_no_more_classes),
                         style = TextStyle(color = ColorProvider(colors.onSurface), fontSize = 15.sp, fontWeight = FontWeight.Bold),
                         maxLines = 1,
                     )
                     if (name != null && time != null) {
                         Text(
-                            text = "明天 $time",
+                            text = context.getString(R.string.widget_tomorrow_time, time),
                             style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 12.sp),
                             maxLines = 1,
                         )
@@ -156,6 +165,7 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
 
 @Composable
 private fun FullLayout(state: WidgetState, colors: WidgetColors, tapAction: Action) {
+    val context = LocalContext.current
     val ongoing = state.ongoingCourseNos.mapNotNull { no -> state.courses.find { it.courseNo == no } }
     val heightDp = LocalSize.current.height.value
     // Widget is resizable between 2-cell (~110dp) and 4-cell (~250dp) heights.
@@ -173,7 +183,7 @@ private fun FullLayout(state: WidgetState, colors: WidgetColors, tapAction: Acti
         when {
             !state.isLoggedIn -> {
                 Text(
-                    text = "請先登入 TigerDuck",
+                    text = context.getString(R.string.widget_sign_in),
                     style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 15.sp),
                 )
             }
@@ -215,6 +225,7 @@ private fun FullLayout(state: WidgetState, colors: WidgetColors, tapAction: Acti
 
 @Composable
 private fun OngoingCard(course: Course, state: WidgetState, colors: WidgetColors) {
+    val context = LocalContext.current
     val order = AppConstants.Periods.chronologicalOrder
     val weekday = state.currentWeekday
     val periods = course.schedule[weekday]?.sortedBy { order.indexOf(it) } ?: emptyList()
@@ -236,7 +247,7 @@ private fun OngoingCard(course: Course, state: WidgetState, colors: WidgetColors
                 .padding(horizontal = 10.dp, vertical = 3.dp),
         ) {
             Text(
-                text = "進行中",
+                text = context.getString(R.string.widget_ongoing),
                 style = TextStyle(color = ColorProvider(Color.White), fontSize = 12.sp, fontWeight = FontWeight.Bold),
             )
         }
@@ -283,6 +294,7 @@ private fun OngoingCard(course: Course, state: WidgetState, colors: WidgetColors
 
 @Composable
 private fun OngoingMiniCard(course: Course, state: WidgetState, colors: WidgetColors) {
+    val context = LocalContext.current
     val order = AppConstants.Periods.chronologicalOrder
     val weekday = state.currentWeekday
     val periods = course.schedule[weekday]?.sortedBy { order.indexOf(it) } ?: emptyList()
@@ -303,7 +315,7 @@ private fun OngoingMiniCard(course: Course, state: WidgetState, colors: WidgetCo
                 .padding(horizontal = 5.dp, vertical = 1.dp),
         ) {
             Text(
-                text = "進行中",
+                text = context.getString(R.string.widget_ongoing),
                 style = TextStyle(color = ColorProvider(Color.White), fontSize = 9.sp, fontWeight = FontWeight.Bold),
             )
         }
@@ -347,12 +359,13 @@ private fun OngoingMiniCard(course: Course, state: WidgetState, colors: WidgetCo
 
 @Composable
 private fun NextCard(course: Course, state: WidgetState, colors: WidgetColors) {
+    val context = LocalContext.current
     val order = AppConstants.Periods.chronologicalOrder
     val periods = course.schedule[state.currentWeekday]?.sortedBy { order.indexOf(it) } ?: emptyList()
     val startTime = periods.firstOrNull()?.let { AppConstants.PeriodTimes.mapping[it]?.first } ?: ""
 
     Text(
-        text = "下一堂課",
+        text = context.getString(R.string.widget_next_class),
         style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 13.sp, fontWeight = FontWeight.Bold),
     )
     Spacer(GlanceModifier.height(5.dp))
@@ -381,13 +394,14 @@ private fun NextCard(course: Course, state: WidgetState, colors: WidgetColors) {
 
 @Composable
 private fun TomorrowCard(state: WidgetState, colors: WidgetColors) {
+    val context = LocalContext.current
     Box(
         modifier = GlanceModifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
             Text(
-                text = "今日課程已結束",
+                text = context.getString(R.string.widget_no_more_classes),
                 style = TextStyle(
                     color = ColorProvider(colors.onSurface),
                     fontSize = 16.sp,
@@ -399,7 +413,7 @@ private fun TomorrowCard(state: WidgetState, colors: WidgetColors) {
             if (name != null && time != null) {
                 Spacer(GlanceModifier.height(10.dp))
                 Text(
-                    text = "明天",
+                    text = context.getString(R.string.widget_tomorrow),
                     style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 13.sp, fontWeight = FontWeight.Bold),
                 )
                 Text(

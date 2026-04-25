@@ -13,8 +13,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.HomeSection
 
 /**
@@ -44,18 +46,18 @@ fun AddSectionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("新增區塊") },
+        title = { Text(stringResource(R.string.home_add_section_title)) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 if (availableBuiltin.isNotEmpty()) {
-                    Text("內建區塊", style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.home_builtin_sections), style = MaterialTheme.typography.labelMedium)
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         availableBuiltin.forEach { type ->
                             BuiltinSectionRow(
-                                title = type.defaultTitle,
+                                title = stringResource(type.defaultTitleRes),
                                 icon = iconFor(type),
                                 onClick = { onAddBuiltin(type) },
                             )
@@ -63,7 +65,7 @@ fun AddSectionDialog(
                     }
                 }
 
-                Text("自訂區塊", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.home_custom_section), style = MaterialTheme.typography.labelMedium)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -71,7 +73,7 @@ fun AddSectionDialog(
                     OutlinedTextField(
                         value = customTitle,
                         onValueChange = { customTitle = it },
-                        label = { Text("區塊名稱") },
+                        label = { Text(stringResource(R.string.home_section_name)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                     )
@@ -84,7 +86,7 @@ fun AddSectionDialog(
                     ) {
                         Icon(
                             Icons.Filled.AddCircle,
-                            contentDescription = "新增",
+                            contentDescription = stringResource(R.string.action_add),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -92,7 +94,7 @@ fun AddSectionDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }

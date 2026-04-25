@@ -30,10 +30,10 @@ class TigerDuckApp : Application(), Configuration.Provider {
     private fun createNotificationChannels() {
         val channel = NotificationChannel(
             "assignment_due",
-            "作業到期提醒",
+            getString(R.string.notification_assignment_due_channel_name),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "提醒你作業即將到期"
+            description = getString(R.string.notification_assignment_due_channel_description)
         }
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.createNotificationChannel(channel)

@@ -29,7 +29,7 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("作業即將到期")
+            .setContentTitle(context.getString(R.string.notification_assignment_due_title))
             .setContentText("$courseName — $title")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)

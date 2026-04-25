@@ -15,12 +15,14 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import org.ntust.app.tigerduck.R
 
 /**
  * Login prompt rendered as an AlertDialog — matches the class-detail popup
@@ -153,11 +155,13 @@ fun LoginSheet(
                     )
                     Spacer(Modifier.width(6.dp))
                 }
-                Text("登入")
+                Text(stringResource(R.string.action_login))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isLoggingIn) { Text("取消") }
+            TextButton(onClick = onDismiss, enabled = !isLoggingIn) {
+                Text(stringResource(R.string.action_cancel))
+            }
         },
     )
 }

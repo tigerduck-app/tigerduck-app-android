@@ -1,6 +1,8 @@
 package org.ntust.app.tigerduck.data.model
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
+import org.ntust.app.tigerduck.R
 import java.util.Date
 
 data class CalendarEvent(
@@ -18,11 +20,12 @@ enum class EventSource(val raw: String) {
     SCHOOL("school"),
     EXAM("exam");
 
-    val label: String
+    @get:StringRes
+    val labelRes: Int
         get() = when (this) {
-            MOODLE -> "Moodle"
-            SCHOOL -> "學校"
-            EXAM -> "考試"
+            MOODLE -> R.string.calendar_source_moodle
+            SCHOOL -> R.string.calendar_source_school
+            EXAM -> R.string.calendar_source_exam
         }
 
     val color: Color
