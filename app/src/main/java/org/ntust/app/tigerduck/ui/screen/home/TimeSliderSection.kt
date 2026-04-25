@@ -45,6 +45,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
+import org.ntust.app.tigerduck.ui.component.courseNameForDisplay
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.text.SimpleDateFormat
@@ -373,7 +374,7 @@ private fun SlotCard(
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    slot.course.courseName,
+                    courseNameForDisplay(slot.course.courseName, maxChars = 30),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = if (isSkipped) Color(0xFFFF2D55) else Color.Unspecified,
                     maxLines = 2,

@@ -46,6 +46,8 @@ import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.component.isEnglishUiLanguage
+import org.ntust.app.tigerduck.ui.component.middleEllipsize
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
@@ -663,15 +665,11 @@ private fun SoloCourseCell(
                 },
             ),
     ) {
-        Text(
+        ClassTableCourseNameText(
             text = course.courseName,
-            style = MaterialTheme.typography.labelSmall,
             color = cellTextColor,
-            textAlign = TextAlign.Center,
             maxLines = if (spanCount >= 2) 3 else 2,
-            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(2.dp).align(Alignment.Center),
-            fontSize = 10.sp,
         )
         if (hasAssignment) {
             Icon(
@@ -821,14 +819,10 @@ private fun ConflictCourseCell(
                     .padding(vertical = 2.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
+                ClassTableCourseNameText(
                     text = role.courseA.courseName,
-                    style = MaterialTheme.typography.labelSmall,
                     color = textColor,
-                    textAlign = TextAlign.Center,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    fontSize = 10.sp,
                 )
             }
             if (hasAssignmentA) {
@@ -867,14 +861,10 @@ private fun ConflictCourseCell(
                     .padding(vertical = 2.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
+                ClassTableCourseNameText(
                     text = role.courseB.courseName,
-                    style = MaterialTheme.typography.labelSmall,
                     color = textColor,
-                    textAlign = TextAlign.Center,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    fontSize = 10.sp,
                 )
             }
             if (hasAssignmentB) {
@@ -935,4 +925,35 @@ private fun ConflictCourseCell(
         }
         } // BoxWithConstraints
     }
+}
+
+@Composable
+private fun ClassTableCourseNameText(
+    text: String,
+    color: Color,
+    maxLines: Int,
+    modifier: Modifier = Modifier,
+) {
+    val useMiddle = isEnglishUiLanguage()
+    var displayText by remember(text, useMiddle) { mutableStateOf(text) }
+    Text(
+        text = displayText,
+        style = MaterialTheme.typography.labelSmall,
+        color = color,
+        textAlign = TextAlign.Center,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier,
+        fontSize = 10.sp,
+        onTextLayout = { layout ->
+            if (!useMiddle) {
+                if (displayText != text) displayText = text
+                return@Text
+            }
+            if (!layout.hasVisualOverflow) return@Text
+            val capacity = layout.getLineEnd((maxLines - 1).coerceAtLeast(0), visibleEnd = true)
+            val next = middleEllipsize(text, capacity.coerceAtLeast(5))
+            if (next != displayText) displayText = next
+        }
+    )
 }

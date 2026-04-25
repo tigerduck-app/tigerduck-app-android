@@ -95,7 +95,7 @@ fun ColorPickerSheet(
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = courseName,
+                text = courseNameForDisplay(courseName, maxChars = 40),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                 maxLines = 1,
@@ -114,7 +114,10 @@ fun ColorPickerSheet(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = courseName.ifBlank { stringResource(R.string.color_picker_preview_fallback) },
+                    text = courseNameForDisplay(
+                        courseName.ifBlank { stringResource(R.string.color_picker_preview_fallback) },
+                        maxChars = 30
+                    ),
                     color = if (selectedColor.red * 0.299f + selectedColor.green * 0.587f + selectedColor.blue * 0.114f > 0.5f)
                         Color(0xFF1C1C1E) else Color.White,
                     fontWeight = FontWeight.SemiBold,

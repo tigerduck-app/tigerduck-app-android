@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.ui.component.courseNameForDisplay
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
@@ -58,7 +59,7 @@ fun CourseCard(
                     .padding(12.dp)
             ) {
                 Text(
-                    text = course.courseName,
+                    text = courseNameForDisplay(course.courseName, maxChars = 28),
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = textAlpha),
                     maxLines = 2,
@@ -150,7 +151,7 @@ fun CurrentClassCard(
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = course.courseName,
+                    text = courseNameForDisplay(course.courseName, maxChars = 28),
                     style = MaterialTheme.typography.bodyMedium
                         .copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface,
