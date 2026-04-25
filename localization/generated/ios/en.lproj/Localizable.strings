@@ -1,0 +1,23 @@
+/* Generated from localization/source/*.json. Do not edit directly. */
+"app_name" = "TigerDuck";
+"widget_week_light_label" = "Schedule (Week)";
+"widget_week_dark_label" = "Schedule (Week)";
+"widget_today_light_label" = "Schedule (Today)";
+"widget_today_dark_label" = "Schedule (Today)";
+"widget_next_class_light_label" = "Next Class";
+"widget_next_class_dark_label" = "Next Class";
+"widget_week_light_desc" = "Full schedule for this week. Theme follows app setting.";
+"widget_week_dark_desc" = "Full schedule for this week. Theme follows app setting.";
+"widget_today_light_desc" = "Today's class list. Theme follows app setting.";
+"widget_today_dark_desc" = "Today's class list. Theme follows app setting.";
+"widget_next_class_light_desc" = "Current or next class. Theme follows app setting.";
+"widget_next_class_dark_desc" = "Current or next class. Theme follows app setting.";
+"widget_library_shortcut_label" = "Library QR Shortcut";
+"widget_library_shortcut_desc" = "Open the virtual library pass QR code in one tap";
+"widget_no_classes_today" = "No classes today";
+"widget_no_classes_weekend" = "No classes this weekend. See you Monday!";
+"widget_no_more_classes" = "No more classes today";
+"widget_sign_in" = "Please sign in to TigerDuck first";
+"widget_ongoing" = "Ongoing";
+"widget_tomorrow" = "Tomorrow";
+"widget_next_class" = "Next class";

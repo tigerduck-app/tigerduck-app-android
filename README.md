@@ -114,6 +114,26 @@ sh ./gradlew :app:installDebug
 
 也可直接使用 Android Studio 開啟專案並執行 `app` 模組。
 
+### 多語系翻譯（Android + iOS 共用）
+
+- 翻譯原始檔在 `localization/source/`：
+  - `en.json`
+  - `zh-Hant.json`
+- Android 與 iOS 翻譯檔由腳本自動產生，請不要手動改動生成檔。
+
+手動同步一次翻譯：
+
+```bash
+python3 tools/localization/sync_localizations.py
+```
+
+產出位置：
+
+- Android：`app/src/main/res/values/strings.xml`（繁中預設）、`app/src/main/res/values-en/strings.xml`
+- iOS：`localization/generated/ios/en.lproj/Localizable.strings`、`localization/generated/ios/zh-Hant.lproj/Localizable.strings`
+
+此外，Android build 已綁定自動同步（`preBuild` 依賴 `syncLocalizations`），只要修改 `localization/source/*.json` 就會在編譯前自動更新 Android/iOS 生成檔。
+
 ## 技術棧
 
 | 層級     | 技術                                |

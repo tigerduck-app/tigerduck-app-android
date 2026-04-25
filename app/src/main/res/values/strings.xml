@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="app_name">TigerDuck</string>
-
-    <!-- Widget picker labels and descriptions. Light/dark variants coexist
-         for backward compat with widgets already placed on users' home
-         screens, but both now follow the app's theme setting. -->
     <string name="widget_week_light_label">課表 週視圖</string>
     <string name="widget_week_dark_label">課表 週視圖</string>
     <string name="widget_today_light_label">課表 今日</string>
@@ -19,8 +16,6 @@
     <string name="widget_next_class_dark_desc">進行中或下一堂課，主題跟隨 App 設定</string>
     <string name="widget_library_shortcut_label">圖書館 QR 捷徑</string>
     <string name="widget_library_shortcut_desc">一鍵開啟虛擬入館證 QR Code</string>
-
-    <!-- Widget UI strings -->
     <string name="widget_no_classes_today">今日沒有課</string>
     <string name="widget_no_classes_weekend">週末沒有課，週一見！</string>
     <string name="widget_no_more_classes">今日課程已結束</string>

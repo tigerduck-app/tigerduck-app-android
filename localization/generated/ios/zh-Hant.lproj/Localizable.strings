@@ -1,0 +1,23 @@
+/* Generated from localization/source/*.json. Do not edit directly. */
+"app_name" = "TigerDuck";
+"widget_week_light_label" = "課表 週視圖";
+"widget_week_dark_label" = "課表 週視圖";
+"widget_today_light_label" = "課表 今日";
+"widget_today_dark_label" = "課表 今日";
+"widget_next_class_light_label" = "下一堂課";
+"widget_next_class_dark_label" = "下一堂課";
+"widget_week_light_desc" = "本週完整課表，主題跟隨 App 設定";
+"widget_week_dark_desc" = "本週完整課表，主題跟隨 App 設定";
+"widget_today_light_desc" = "今日課程清單，主題跟隨 App 設定";
+"widget_today_dark_desc" = "今日課程清單，主題跟隨 App 設定";
+"widget_next_class_light_desc" = "進行中或下一堂課，主題跟隨 App 設定";
+"widget_next_class_dark_desc" = "進行中或下一堂課，主題跟隨 App 設定";
+"widget_library_shortcut_label" = "圖書館 QR 捷徑";
+"widget_library_shortcut_desc" = "一鍵開啟虛擬入館證 QR Code";
+"widget_no_classes_today" = "今日沒有課";
+"widget_no_classes_weekend" = "週末沒有課，週一見！";
+"widget_no_more_classes" = "今日課程已結束";
+"widget_sign_in" = "請先登入 TigerDuck";
+"widget_ongoing" = "進行中";
+"widget_tomorrow" = "明天";
+"widget_next_class" = "下一堂課";

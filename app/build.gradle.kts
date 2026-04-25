@@ -90,6 +90,7 @@ dependencies {
 
     // In-app browser (Custom Tabs)
     implementation(libs.androidx.browser)
+    implementation(libs.androidx.appcompat)
 
     // Background work scheduling
     implementation(libs.androidx.work.runtime.ktx)
@@ -109,3 +110,13 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 }
 
+val syncLocalizations by tasks.registering(Exec::class) {
+    group = "localization"
+    description = "Generate Android and iOS localization files from shared JSON sources."
+    workingDir = rootProject.projectDir
+    commandLine("python3", "tools/localization/sync_localizations.py")
+}
+
+tasks.named("preBuild") {
+    dependsOn(syncLocalizations)
+}

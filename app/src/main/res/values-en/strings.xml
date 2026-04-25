@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
+    <string name="app_name">TigerDuck</string>
+    <string name="widget_week_light_label">Schedule (Week)</string>
+    <string name="widget_week_dark_label">Schedule (Week)</string>
+    <string name="widget_today_light_label">Schedule (Today)</string>
+    <string name="widget_today_dark_label">Schedule (Today)</string>
+    <string name="widget_next_class_light_label">Next Class</string>
+    <string name="widget_next_class_dark_label">Next Class</string>
+    <string name="widget_week_light_desc">Full schedule for this week. Theme follows app setting.</string>
+    <string name="widget_week_dark_desc">Full schedule for this week. Theme follows app setting.</string>
+    <string name="widget_today_light_desc">Today\'s class list. Theme follows app setting.</string>
+    <string name="widget_today_dark_desc">Today\'s class list. Theme follows app setting.</string>
+    <string name="widget_next_class_light_desc">Current or next class. Theme follows app setting.</string>
+    <string name="widget_next_class_dark_desc">Current or next class. Theme follows app setting.</string>
+    <string name="widget_library_shortcut_label">Library QR Shortcut</string>
+    <string name="widget_library_shortcut_desc">Open the virtual library pass QR code in one tap</string>
+    <string name="widget_no_classes_today">No classes today</string>
+    <string name="widget_no_classes_weekend">No classes this weekend. See you Monday!</string>
+    <string name="widget_no_more_classes">No more classes today</string>
+    <string name="widget_sign_in">Please sign in to TigerDuck first</string>
+    <string name="widget_ongoing">Ongoing</string>
+    <string name="widget_tomorrow">Tomorrow</string>
+    <string name="widget_next_class">Next class</string>
+</resources>
