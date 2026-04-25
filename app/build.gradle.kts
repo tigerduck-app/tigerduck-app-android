@@ -52,6 +52,12 @@ android {
         compose = true
         buildConfig = true
     }
+
+    sourceSets {
+        getByName("main") {
+            assets.directories.add(rootProject.file("course-name-abbr").path)
+        }
+    }
 }
 
 dependencies {

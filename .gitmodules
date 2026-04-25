@@ -1,0 +1,3 @@
+[submodule "course-name-abbr"]
+	path = course-name-abbr
+	url = https://github.com/tigerduck-app/course-name-abbr

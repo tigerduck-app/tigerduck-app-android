@@ -1,7 +1,10 @@
 package org.ntust.app.tigerduck.network
 
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -30,6 +33,7 @@ sealed class CourseServiceError : Exception() {
 
 @Singleton
 class CourseService @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val sessionManager: NtustSessionManager,
     private val ssoLoginService: SsoLoginService,
     private val dataCache: DataCache,
@@ -49,6 +53,9 @@ class CourseService @Inject constructor(
     private val lookupCache = ConcurrentHashMap<String, DataCache.CourseLookupEntry>()
     private val lookupCacheMutex = Mutex()
     @Volatile private var lookupCacheLoaded = false
+    @Volatile private var abbreviationCacheLoaded = false
+    @Volatile private var courseNameAbbr: Map<String, String> = emptyMap()
+    @Volatile private var classroomNameAbbr: Map<String, String> = emptyMap()
 
     suspend fun fetchEnrolledCourseNos(studentId: String, password: String): List<String> =
         withContext(Dispatchers.IO) {
@@ -74,7 +81,7 @@ class CourseService @Inject constructor(
             val key = "${semester}_${courseNo}_$language"
             lookupCache[key]?.takeIf {
                 System.currentTimeMillis() - it.cachedAt < LOOKUP_TTL_MS
-            }?.let { return@withContext it.results }
+            }?.let { return@withContext applyAbbreviations(it.results, language) }
 
             val requestBody = gson.toJson(CourseSearchRequest.forCourseNo(courseNo, semester, language))
                 .toRequestBody("application/json".toMediaType())
@@ -90,12 +97,13 @@ class CourseService @Inject constructor(
                 val type = object : TypeToken<List<CourseSearchResult>>() {}.type
                 gson.fromJson<List<CourseSearchResult>?>(body, type) ?: emptyList()
             }
+            val normalized = applyAbbreviations(fresh, language)
 
-            if (fresh.isNotEmpty()) {
-                lookupCache[key] = DataCache.CourseLookupEntry(fresh, System.currentTimeMillis())
+            if (normalized.isNotEmpty()) {
+                lookupCache[key] = DataCache.CourseLookupEntry(normalized, System.currentTimeMillis())
                 persistLookupCache()
             }
-            fresh
+            normalized
         }
 
     private suspend fun ensureLookupCacheLoaded() {
@@ -126,7 +134,8 @@ class CourseService @Inject constructor(
             client.newCall(request).execute().use { response ->
                 val body = response.body?.string() ?: return@withContext emptyList()
                 val type = object : TypeToken<List<CourseSearchResult>>() {}.type
-                gson.fromJson(body, type) ?: emptyList()
+                val parsed: List<CourseSearchResult> = gson.fromJson(body, type) ?: emptyList()
+                applyAbbreviations(parsed, language)
             }
         }
 
@@ -145,7 +154,8 @@ class CourseService @Inject constructor(
             client.newCall(request).execute().use { response ->
                 val body = response.body?.string() ?: return@withContext emptyList()
                 val type = object : TypeToken<List<CourseSearchResult>>() {}.type
-                gson.fromJson(body, type) ?: emptyList()
+                val parsed: List<CourseSearchResult> = gson.fromJson(body, type) ?: emptyList()
+                applyAbbreviations(parsed, language)
             }
         }
 
@@ -209,4 +219,69 @@ class CourseService @Inject constructor(
     private fun courseSearchApiUrl(language: String): String {
         return if (language == "en") "$courseSearchApiBaseUrl?lang=en" else courseSearchApiBaseUrl
     }
+
+    private fun applyAbbreviations(results: List<CourseSearchResult>, language: String): List<CourseSearchResult> {
+        if (language != "en" || results.isEmpty() || !appPreferences.useEnglishCourseAbbreviation) return results
+        ensureAbbreviationCacheLoaded()
+        if (courseNameAbbr.isEmpty() && classroomNameAbbr.isEmpty()) return results
+
+        return results.map { result ->
+            val shortenedCourseName = courseNameAbbr[result.courseName] ?: result.courseName
+            val shortenedClassroom = result.classRoomNo?.let { abbreviateClassroomNames(it) }
+            if (shortenedCourseName == result.courseName && shortenedClassroom == result.classRoomNo) {
+                result
+            } else {
+                result.copy(
+                    courseName = shortenedCourseName,
+                    classRoomNo = shortenedClassroom
+                )
+            }
+        }
+    }
+
+    private fun abbreviateClassroomNames(raw: String): String {
+        if (raw.isBlank()) return raw
+        return raw.split(",")
+            .map { part ->
+                val trimmed = part.trim()
+                classroomNameAbbr[trimmed] ?: trimmed
+            }
+            .joinToString(", ")
+    }
+
+    private fun ensureAbbreviationCacheLoaded() {
+        if (abbreviationCacheLoaded) return
+        synchronized(this) {
+            if (abbreviationCacheLoaded) return
+            courseNameAbbr = loadCourseNameAbbr()
+            classroomNameAbbr = loadClassroomNameAbbr()
+            abbreviationCacheLoaded = true
+        }
+    }
+
+    private fun loadCourseNameAbbr(): Map<String, String> {
+        return runCatching {
+            context.assets.open("class-name-abbr.json").use { stream ->
+                val type = object : TypeToken<Map<String, String>>() {}.type
+                gson.fromJson<Map<String, String>>(stream.reader(Charsets.UTF_8), type).orEmpty()
+            }
+        }.getOrDefault(emptyMap())
+    }
+
+    private fun loadClassroomNameAbbr(): Map<String, String> {
+        return runCatching {
+            context.assets.open("classroom-name-abbr.json").use { stream ->
+                val type = object : TypeToken<Map<String, ClassroomAbbrEntry>>() {}.type
+                val raw = gson.fromJson<Map<String, ClassroomAbbrEntry>>(stream.reader(Charsets.UTF_8), type).orEmpty()
+                raw.mapNotNull { (name, entry) ->
+                    val short = entry.shortenedName?.trim().orEmpty()
+                    if (short.isEmpty()) null else name to short
+                }.toMap()
+            }
+        }.getOrDefault(emptyMap())
+    }
+
+    private data class ClassroomAbbrEntry(
+        @SerializedName("shortened_name") val shortenedName: String? = null
+    )
 }
