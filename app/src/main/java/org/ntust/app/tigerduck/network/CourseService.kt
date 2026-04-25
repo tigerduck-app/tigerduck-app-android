@@ -3,6 +3,8 @@ package org.ntust.app.tigerduck.network
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.model.CourseSearchRequest
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +16,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.Calendar
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,13 +33,14 @@ class CourseService @Inject constructor(
     private val sessionManager: NtustSessionManager,
     private val ssoLoginService: SsoLoginService,
     private val dataCache: DataCache,
+    private val appPreferences: AppPreferences,
 ) {
     private val client: OkHttpClient get() = sessionManager.client
     private val gson = Gson()
 
     private val courseSelectionRoot = "https://courseselection.ntust.edu.tw/"
     private val courseListUrl = "https://courseselection.ntust.edu.tw/ChooseList/D01/D01"
-    private val courseSearchApiUrl = "https://querycourse.ntust.edu.tw/QueryCourse/api/courses"
+    private val courseSearchApiBaseUrl = "https://querycourse.ntust.edu.tw/QueryCourse/api/courses"
 
     // Per-course metadata cache — see DataCache.CourseLookupEntry. Entries
     // are loaded from disk once on first use and written through on every
@@ -66,16 +70,17 @@ class CourseService @Inject constructor(
     suspend fun lookupCourse(semester: String, courseNo: String): List<CourseSearchResult> =
         withContext(Dispatchers.IO) {
             ensureLookupCacheLoaded()
-            val key = "${semester}_${courseNo}"
+            val language = preferredCourseApiLanguage()
+            val key = "${semester}_${courseNo}_$language"
             lookupCache[key]?.takeIf {
                 System.currentTimeMillis() - it.cachedAt < LOOKUP_TTL_MS
             }?.let { return@withContext it.results }
 
-            val requestBody = gson.toJson(CourseSearchRequest.forCourseNo(courseNo, semester))
+            val requestBody = gson.toJson(CourseSearchRequest.forCourseNo(courseNo, semester, language))
                 .toRequestBody("application/json".toMediaType())
 
             val request = Request.Builder()
-                .url(courseSearchApiUrl)
+                .url(courseSearchApiUrl(language))
                 .header("Accept", "application/json")
                 .post(requestBody)
                 .build()
@@ -108,11 +113,12 @@ class CourseService @Inject constructor(
 
     suspend fun searchCourses(semester: String, courseName: String): List<CourseSearchResult> =
         withContext(Dispatchers.IO) {
-            val requestBody = gson.toJson(CourseSearchRequest.forCourseName(courseName, semester))
+            val language = preferredCourseApiLanguage()
+            val requestBody = gson.toJson(CourseSearchRequest.forCourseName(courseName, semester, language))
                 .toRequestBody("application/json".toMediaType())
 
             val request = Request.Builder()
-                .url(courseSearchApiUrl)
+                .url(courseSearchApiUrl(language))
                 .header("Accept", "application/json")
                 .post(requestBody)
                 .build()
@@ -126,11 +132,12 @@ class CourseService @Inject constructor(
 
     suspend fun searchByTeacher(semester: String, teacher: String): List<CourseSearchResult> =
         withContext(Dispatchers.IO) {
-            val requestBody = gson.toJson(CourseSearchRequest.forCourseTeacher(teacher, semester))
+            val language = preferredCourseApiLanguage()
+            val requestBody = gson.toJson(CourseSearchRequest.forCourseTeacher(teacher, semester, language))
                 .toRequestBody("application/json".toMediaType())
 
             val request = Request.Builder()
-                .url(courseSearchApiUrl)
+                .url(courseSearchApiUrl(language))
                 .header("Accept", "application/json")
                 .post(requestBody)
                 .build()
@@ -188,5 +195,18 @@ class CourseService @Inject constructor(
         // count is acceptable given the surrounding fields all update live
         // (assignments, Moodle enrolment list, etc.) on every refresh.
         private const val LOOKUP_TTL_MS = 30L * 60L * 1000L
+    }
+
+    private fun preferredCourseApiLanguage(): String {
+        val configured = AppLanguageManager.normalize(appPreferences.appLanguage)
+        return when (configured) {
+            AppLanguageManager.ENGLISH -> "en"
+            AppLanguageManager.SYSTEM -> if (Locale.getDefault().language.equals("en", ignoreCase = true)) "en" else "zh"
+            else -> "zh"
+        }
+    }
+
+    private fun courseSearchApiUrl(language: String): String {
+        return if (language == "en") "$courseSearchApiBaseUrl?lang=en" else courseSearchApiBaseUrl
     }
 }
