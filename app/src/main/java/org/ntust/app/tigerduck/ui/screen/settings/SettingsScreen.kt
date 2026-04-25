@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
+import android.app.Activity
 import android.content.Intent
 import org.ntust.app.tigerduck.BuildConfig
 import androidx.browser.customtabs.CustomTabsIntent
@@ -215,7 +216,10 @@ fun SettingsScreen(
                             AppLanguageManager.ENGLISH to "English",
                         ),
                         selectedKey = appLanguage,
-                        onSelect = viewModel::setAppLanguage,
+                        onSelect = { selectedLanguage ->
+                            viewModel.setAppLanguage(selectedLanguage)
+                            (context as? Activity)?.recreate()
+                        },
                     )
                 }
             }

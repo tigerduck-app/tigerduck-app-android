@@ -37,7 +37,12 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
 
     /** One of "system", "zh-Hant", "en". */
     var appLanguage: String
-        get() = AppLanguageManager.normalize(prefs.getString("appLanguage", AppLanguageManager.SYSTEM) ?: AppLanguageManager.SYSTEM)
+        get() {
+            // Keep existing user choice, but default fresh installs to Traditional Chinese.
+            val stored = prefs.getString("appLanguage", null)
+                ?: AppLanguageManager.TRADITIONAL_CHINESE
+            return AppLanguageManager.normalize(stored)
+        }
         set(value) = prefs.edit().putString("appLanguage", AppLanguageManager.normalize(value)).apply()
 
     var showAbsoluteAssignmentTime: Boolean
