@@ -98,7 +98,7 @@ fun LoginSheet(
                         .fillMaxWidth()
                         .focusRequester(passwordFocusRequester),
                     keyboardOptions = KeyboardOptions(
-                        autoCorrect = false,
+                        autoCorrectEnabled = false,
                         keyboardType = KeyboardType.Ascii,
                         imeAction = ImeAction.Go,
                     ),

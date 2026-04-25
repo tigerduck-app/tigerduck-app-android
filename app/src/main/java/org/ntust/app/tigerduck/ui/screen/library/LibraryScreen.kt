@@ -313,7 +313,7 @@ private fun LoginPromptCard(
                 // ASCII-only keyboard + no autocorrect. The onPasswordChange
                 // filter also strips any non-ASCII the IME or paste slips in.
                 keyboardOptions = KeyboardOptions(
-                    autoCorrect = false,
+                    autoCorrectEnabled = false,
                     keyboardType = KeyboardType.Ascii,
                     capitalization = KeyboardCapitalization.None,
                     imeAction = ImeAction.Go,
