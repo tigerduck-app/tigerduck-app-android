@@ -142,8 +142,13 @@ class BackgroundSyncWorker @AssistedInject constructor(
                     )
                 }
                 val fetchedNos = fetchedWithState.map { it.courseNo }.toSet()
+                val rosterNos = orderedCourseNos.toSet()
+                val unresolvedNos = rosterNos - fetchedNos
                 val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
-                val merged = fetchedWithState + manualLeftovers
+                // Keep stale non-manual cache entries only for courses still in
+                // this cycle's roster but unresolved due to transient lookup failures.
+                val cachedRemoteFallbacks = cached.filter { !it.isManual && it.courseNo in unresolvedNos }
+                val merged = fetchedWithState + manualLeftovers + cachedRemoteFallbacks
                 dataCache.saveCourses(merged)
             }
             true

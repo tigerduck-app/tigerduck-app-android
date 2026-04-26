@@ -42,6 +42,7 @@ class MoodleTokenService @Inject constructor(
     private val credentialManager: CredentialManager,
 ) {
     private val mutex = Mutex()
+    private val moodleBaseUrl = "https://moodle2.ntust.edu.tw".toHttpUrl()
 
     private val moodleUa =
         "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) " +
@@ -110,9 +111,9 @@ class MoodleTokenService @Inject constructor(
         // so keep this one copy and reuse it for both the query param and the
         // signature check after the final token triple arrives.
         val passport = (Random.nextDouble(0.0, 1.0) * 1000.0).toString()
-        val launchUrl = "https://moodle2.ntust.edu.tw/admin/tool/mobile/launch.php"
-            .toHttpUrl()
+        val launchUrl = moodleBaseUrl
             .newBuilder()
+            .addPathSegments("admin/tool/mobile/launch.php")
             .addQueryParameter("service", "moodle_mobile_app")
             .addQueryParameter("passport", passport)
             .addQueryParameter("urlscheme", "moodlemobile")
@@ -124,6 +125,7 @@ class MoodleTokenService @Inject constructor(
         resolveTokenTriple(
             html = html,
             responseUrl = finalUrl,
+            moodleBaseUrl = moodleBaseUrl,
             studentId = studentId,
             password = password,
             passport = passport,
@@ -134,6 +136,7 @@ class MoodleTokenService @Inject constructor(
     private suspend fun resolveTokenTriple(
         html: String,
         responseUrl: HttpUrl,
+        moodleBaseUrl: HttpUrl,
         studentId: String,
         password: String,
         passport: String,
@@ -153,14 +156,23 @@ class MoodleTokenService @Inject constructor(
         // from the OIDC IdP back to Moodle.
         parseOIDCBridge(html)?.let { bridge ->
             val url = when {
-                bridge.action.startsWith("/") && responseUrl.host.contains("ssoam2.ntust.edu.tw") ->
-                    "https://moodle2.ntust.edu.tw${bridge.action}".toHttpUrl()
+                bridge.action.startsWith("/") ->
+                    moodleBaseUrl.resolve(bridge.action)
+                        ?: throw MoodleWebserviceError.MalformedResponse("Invalid bridge action: ${bridge.action}")
                 else -> responseUrl.resolve(bridge.action)
                     ?: throw MoodleWebserviceError.MalformedResponse("Invalid bridge action: ${bridge.action}")
             }
             Log.i("MoodleTokenService", "posting OIDC bridge → ${url.redactForLog()}")
             val (nextHtml, nextUrl) = postForm(url, bridge.payload, referer = responseUrl.toString())
-            return resolveTokenTriple(nextHtml, nextUrl, studentId, password, passport, remainingSteps - 1)
+            return resolveTokenTriple(
+                html = nextHtml,
+                responseUrl = nextUrl,
+                moodleBaseUrl = moodleBaseUrl,
+                studentId = studentId,
+                password = password,
+                passport = passport,
+                remainingSteps = remainingSteps - 1,
+            )
         }
 
         // SSO login step: we landed on ssoam2.ntust.edu.tw with a form.
@@ -202,7 +214,15 @@ class MoodleTokenService @Inject constructor(
             ) {
                 throw MoodleWebserviceError.SsoLoginRejected(extractLoginError(nextHtml))
             }
-            return resolveTokenTriple(nextHtml, nextUrl, studentId, password, passport, remainingSteps - 1)
+            return resolveTokenTriple(
+                html = nextHtml,
+                responseUrl = nextUrl,
+                moodleBaseUrl = moodleBaseUrl,
+                studentId = studentId,
+                password = password,
+                passport = passport,
+                remainingSteps = remainingSteps - 1,
+            )
         }
 
         // Redact secrets before they hit logs/crash reports: the URL goes
