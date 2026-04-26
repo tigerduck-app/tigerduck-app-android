@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -199,7 +200,15 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
                     val route = feature.toRoute()
                     NavigationBarItem(
                         icon = { Icon(feature.icon, contentDescription = stringResource(feature.displayNameRes)) },
-                        label = { Text(stringResource(feature.displayNameRes)) },
+                        label = {
+                            Text(
+                                text = stringResource(feature.displayNameRes),
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        alwaysShowLabel = true,
                         selected = selectedTabRoute == route,
                         onClick = {
                             if (currentRoute == route) return@NavigationBarItem
