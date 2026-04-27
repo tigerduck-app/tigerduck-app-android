@@ -52,6 +52,7 @@ class CourseService @Inject constructor(
     // per-course fan-out to querycourse.ntust.edu.tw entirely.
     private val lookupCache = ConcurrentHashMap<String, DataCache.CourseLookupEntry>()
     private val lookupCacheMutex = Mutex()
+    private val abbreviationCacheMutex = Mutex()
     @Volatile private var lookupCacheLoaded = false
     @Volatile private var abbreviationCacheLoaded = false
     @Volatile private var courseNameAbbr: Map<String, String> = emptyMap()
@@ -230,7 +231,7 @@ class CourseService @Inject constructor(
      * with no cached lookup (manual entries, Moodle-only fallbacks) are
      * returned unchanged.
      */
-    fun relabelCoursesForCurrentAbbrSetting(semester: String, courses: List<Course>): List<Course> {
+    suspend fun relabelCoursesForCurrentAbbrSetting(semester: String, courses: List<Course>): List<Course> {
         if (!lookupCacheLoaded || courses.isEmpty()) return courses
         val language = preferredCourseApiLanguage()
         return courses.map { course ->
@@ -246,7 +247,7 @@ class CourseService @Inject constructor(
         }
     }
 
-    private fun applyAbbreviations(results: List<CourseSearchResult>, language: String): List<CourseSearchResult> {
+    private suspend fun applyAbbreviations(results: List<CourseSearchResult>, language: String): List<CourseSearchResult> {
         if (language != "en" || results.isEmpty() || !appPreferences.useEnglishCourseAbbreviation) return results
         ensureAbbreviationCacheLoaded()
         if (courseNameAbbr.isEmpty() && classroomNameAbbr.isEmpty()) return results
@@ -275,9 +276,9 @@ class CourseService @Inject constructor(
             .joinToString(", ")
     }
 
-    private fun ensureAbbreviationCacheLoaded() {
+    private suspend fun ensureAbbreviationCacheLoaded() {
         if (abbreviationCacheLoaded) return
-        synchronized(this) {
+        abbreviationCacheMutex.withLock {
             if (abbreviationCacheLoaded) return
             courseNameAbbr = loadCourseNameAbbr()
             classroomNameAbbr = loadClassroomNameAbbr()

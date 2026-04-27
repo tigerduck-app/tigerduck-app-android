@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.data.preferences
 import android.content.res.Resources
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import java.util.Locale
 
 object AppLanguageManager {
     const val SYSTEM = "system"
@@ -23,7 +24,7 @@ object AppLanguageManager {
      * Chinese strings.
      */
     fun resolvedSystemLanguage(): String {
-        val device = Resources.getSystem().configuration.locales[0]
+        val device = Resources.getSystem().configuration.locales[0] ?: Locale.getDefault()
         return if (device.language.equals("zh", ignoreCase = true)) "zh" else "en"
     }
 
