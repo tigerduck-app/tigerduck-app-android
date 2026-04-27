@@ -6,6 +6,7 @@ import com.google.gson.reflect.TypeToken
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.model.CourseSearchRequest
@@ -19,7 +20,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.Calendar
-import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,7 +33,7 @@ sealed class CourseServiceError : Exception() {
 
 @Singleton
 class CourseService @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val sessionManager: NtustSessionManager,
     private val ssoLoginService: SsoLoginService,
     private val dataCache: DataCache,
@@ -78,8 +78,10 @@ class CourseService @Inject constructor(
         withContext(Dispatchers.IO) {
             ensureLookupCacheLoaded()
             val language = preferredCourseApiLanguage()
-            val abbrMode = if (appPreferences.useEnglishCourseAbbreviation && language == "en") "abbr" else "full"
-            val key = "${semester}_${courseNo}_${language}_$abbrMode"
+            // Cached results are always the raw API payload (full names);
+            // applyAbbreviations runs at access time, so toggling the abbr
+            // setting reuses the same cache entry and never refetches.
+            val key = "${semester}_${courseNo}_${language}"
             lookupCache[key]?.takeIf {
                 System.currentTimeMillis() - it.cachedAt < LOOKUP_TTL_MS
             }?.let { return@withContext applyAbbreviations(it.results, language) }
@@ -211,13 +213,37 @@ class CourseService @Inject constructor(
         val configured = AppLanguageManager.normalize(appPreferences.appLanguage)
         return when (configured) {
             AppLanguageManager.ENGLISH -> "en"
-            AppLanguageManager.SYSTEM -> if (Locale.getDefault().language.equals("en", ignoreCase = true)) "en" else "zh"
+            AppLanguageManager.SYSTEM -> AppLanguageManager.resolvedSystemLanguage()
             else -> "zh"
         }
     }
 
     private fun courseSearchApiUrl(language: String): String {
         return if (language == "en") "$courseSearchApiBaseUrl?lang=en" else courseSearchApiBaseUrl
+    }
+
+    /**
+     * Re-derive courseName / classroom for the given courses using whatever
+     * is already in the lookup cache and the current abbreviation toggle.
+     * Used when the user flips "Use English course abbreviations" so the
+     * class table updates instantly without hitting the network. Courses
+     * with no cached lookup (manual entries, Moodle-only fallbacks) are
+     * returned unchanged.
+     */
+    fun relabelCoursesForCurrentAbbrSetting(semester: String, courses: List<Course>): List<Course> {
+        if (!lookupCacheLoaded || courses.isEmpty()) return courses
+        val language = preferredCourseApiLanguage()
+        return courses.map { course ->
+            val cached = lookupCache["${semester}_${course.courseNo}_$language"]
+                ?.results
+                ?.takeIf { it.isNotEmpty() }
+                ?: return@map course
+            val updated = applyAbbreviations(cached, language).first()
+            course.copy(
+                courseName = updated.courseName,
+                classroom = updated.classRoomNo ?: course.classroom,
+            )
+        }
     }
 
     private fun applyAbbreviations(results: List<CourseSearchResult>, language: String): List<CourseSearchResult> {

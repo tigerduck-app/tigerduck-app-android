@@ -21,7 +21,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ScoreViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val authService: AuthService,
     private val scoreService: NtustScoreService,
     private val networkChecker: NetworkChecker,

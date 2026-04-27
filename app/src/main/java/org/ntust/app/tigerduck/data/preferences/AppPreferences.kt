@@ -4,6 +4,10 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.data.model.HomeSection
@@ -17,6 +21,23 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("tigerduck_prefs", Context.MODE_PRIVATE)
     private val gson = Gson()
+
+    // Language change forces a full network re-fetch so course names come
+    // back in the new locale.
+    private val _appLanguageChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val appLanguageChanged: SharedFlow<Unit> = _appLanguageChanged.asSharedFlow()
+
+    // Abbreviation toggle is purely a display transform — subscribers
+    // re-derive names from the in-memory cache, no network call.
+    private val _useEnglishCourseAbbreviationChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val useEnglishCourseAbbreviationChanged: SharedFlow<Unit> =
+        _useEnglishCourseAbbreviationChanged.asSharedFlow()
 
     var hasCompletedOnboarding: Boolean
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
@@ -43,7 +64,12 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
                 ?: AppLanguageManager.TRADITIONAL_CHINESE
             return AppLanguageManager.normalize(stored)
         }
-        set(value) = prefs.edit().putString("appLanguage", AppLanguageManager.normalize(value)).apply()
+        set(value) {
+            val normalized = AppLanguageManager.normalize(value)
+            val previous = appLanguage
+            prefs.edit().putString("appLanguage", normalized).apply()
+            if (normalized != previous) _appLanguageChanged.tryEmit(Unit)
+        }
 
     var showAbsoluteAssignmentTime: Boolean
         get() = prefs.getBoolean("showAbsoluteAssignmentTime", false)
@@ -51,7 +77,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
 
     var useEnglishCourseAbbreviation: Boolean
         get() = prefs.getBoolean("useEnglishCourseAbbreviation", false)
-        set(value) = prefs.edit().putBoolean("useEnglishCourseAbbreviation", value).apply()
+        set(value) {
+            val previous = useEnglishCourseAbbreviation
+            prefs.edit().putBoolean("useEnglishCourseAbbreviation", value).apply()
+            if (value != previous) _useEnglishCourseAbbreviationChanged.tryEmit(Unit)
+        }
 
     var homeAssignmentFilter: AssignmentFilter
         get() {

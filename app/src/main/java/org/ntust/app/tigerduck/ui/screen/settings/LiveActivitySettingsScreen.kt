@@ -537,8 +537,8 @@ private fun CustomMinutesDialog(
     onDismiss: () -> Unit,
 ) {
     var text by remember { mutableStateOf(initialMinutes.toString()) }
-    val parsed = text.toIntOrNull()
-    val valid = parsed != null && parsed in minMinutes..maxMinutes
+    val parsed = text.toIntOrNull()?.takeIf { it in minMinutes..maxMinutes }
+    val valid = parsed != null
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -559,7 +559,7 @@ private fun CustomMinutesDialog(
                         imeAction = ImeAction.Done,
                     ),
                     keyboardActions = KeyboardActions(
-                        onDone = { if (valid && parsed != null) onConfirm(parsed) }
+                        onDone = { parsed?.let(onConfirm) }
                     ),
                 )
                 Text(
@@ -571,7 +571,7 @@ private fun CustomMinutesDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { if (valid && parsed != null) onConfirm(parsed) },
+                onClick = { parsed?.let(onConfirm) },
                 enabled = valid,
             ) { Text(stringResource(R.string.action_confirm)) }
         },

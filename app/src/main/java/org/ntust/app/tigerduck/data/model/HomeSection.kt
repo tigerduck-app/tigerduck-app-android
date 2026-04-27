@@ -14,7 +14,7 @@ data class HomeSection(
 ) {
     enum class HomeSectionType(
         val defaultTitleKey: String,
-        @StringRes val defaultTitleRes: Int,
+        @param:StringRes val defaultTitleRes: Int,
     ) {
         TODAY_COURSES("today-courses", R.string.home_section_today_courses),
         UPCOMING_ASSIGNMENTS("upcoming-assignments", R.string.home_section_upcoming_assignments),

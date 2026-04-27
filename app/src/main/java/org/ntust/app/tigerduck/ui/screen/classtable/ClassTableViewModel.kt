@@ -114,6 +114,28 @@ class ClassTableViewModel @Inject constructor(
                 }
             }
         }
+        viewModelScope.launch {
+            // Language change → re-fetch from the network so course names
+            // come back in the new locale.
+            appPreferences.appLanguageChanged.collect {
+                if (authService.authState.value) refresh()
+            }
+        }
+        viewModelScope.launch {
+            // Abbreviation toggle is a pure display transform — re-derive
+            // names from the lookup cache without a network call.
+            appPreferences.useEnglishCourseAbbreviationChanged.collect {
+                val semester = _currentSemester.value
+                val relabeled = courseService.relabelCoursesForCurrentAbbrSetting(
+                    semester, _courses.value
+                )
+                if (relabeled != _courses.value) {
+                    _courses.value = relabeled
+                    dataCache.saveCourses(relabeled, semester)
+                    TigerDuckTheme.buildCourseColorMap(relabeled)
+                }
+            }
+        }
     }
 
     private fun currentDayTime(): DayTime {

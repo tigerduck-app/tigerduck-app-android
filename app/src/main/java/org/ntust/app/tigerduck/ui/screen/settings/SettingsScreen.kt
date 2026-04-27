@@ -1,6 +1,5 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
-import android.app.Activity
 import android.content.Intent
 import org.ntust.app.tigerduck.BuildConfig
 import androidx.browser.customtabs.CustomTabsIntent
@@ -28,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
@@ -49,6 +49,7 @@ fun SettingsScreen(
     onNavigateToNotificationSetup: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsState()
     val ntustLoginError by viewModel.ntustLoginError.collectAsState()
     val libIsLoggingIn by viewModel.libIsLoggingIn.collectAsState()
@@ -79,7 +80,7 @@ fun SettingsScreen(
     val shouldShowEnglishAbbreviationToggle =
         appLanguage == AppLanguageManager.ENGLISH ||
             (appLanguage == AppLanguageManager.SYSTEM &&
-                Locale.getDefault().language.equals("en", ignoreCase = true))
+                AppLanguageManager.resolvedSystemLanguage() == "en")
 
     var showLibraryWarning by remember { mutableStateOf(false) }
     var showResetColorsConfirm by remember { mutableStateOf(false) }
@@ -235,9 +236,15 @@ fun SettingsScreen(
                             AppLanguageManager.ENGLISH to stringResource(R.string.settings_language_english),
                         ),
                         selectedKey = appLanguage,
+                        // Wait for the dropdown's exit animation to finish
+                        // before applying the locale — overlapping the
+                        // dropdown fade with the activity-wide config change
+                        // looks glitchy.
                         onSelect = { selectedLanguage ->
-                            viewModel.setAppLanguage(selectedLanguage)
-                            (context as? Activity)?.recreate()
+                            coroutineScope.launch {
+                                delay(220)
+                                viewModel.setAppLanguage(selectedLanguage)
+                            }
                         },
                     )
                     if (shouldShowEnglishAbbreviationToggle) {
