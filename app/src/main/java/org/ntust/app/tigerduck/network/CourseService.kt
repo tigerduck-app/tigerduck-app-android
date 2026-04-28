@@ -226,12 +226,7 @@ class CourseService @Inject constructor(
     }
 
     private fun preferredCourseApiLanguage(): String {
-        val configured = AppLanguageManager.normalize(appPreferences.appLanguage)
-        return when (configured) {
-            AppLanguageManager.ENGLISH -> "en"
-            AppLanguageManager.SYSTEM -> AppLanguageManager.resolvedSystemLanguage()
-            else -> "zh"
-        }
+        return AppLanguageManager.resolvedCourseApiLanguage(appPreferences.appLanguage)
     }
 
     private fun courseSearchApiUrl(language: String): String {

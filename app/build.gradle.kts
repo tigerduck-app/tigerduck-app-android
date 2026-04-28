@@ -142,6 +142,27 @@ val syncLocalizations by tasks.registering(Exec::class) {
     }
 }
 
+val copyGeneratedAndroidLocalizations by tasks.registering(Copy::class) {
+    group = "localization"
+    description = "Copy localization/generated/android values-* resources into app/src/main/res."
+
+    // Ensure the generator ran first.
+    dependsOn(syncLocalizations)
+
+    val sourceDir = rootProject.layout.projectDirectory.dir("localization/generated/android")
+    val destDir = layout.projectDirectory.dir("src/main/res")
+
+    // Only copy valid Android resource qualifier directories.
+    from(sourceDir) {
+        include("values*/strings.xml")
+        include("values-b+*/strings.xml")
+    }
+
+    into(destDir)
+    includeEmptyDirs = false
+}
+
 tasks.named("preBuild") {
     dependsOn(syncLocalizations)
+    dependsOn(copyGeneratedAndroidLocalizations)
 }

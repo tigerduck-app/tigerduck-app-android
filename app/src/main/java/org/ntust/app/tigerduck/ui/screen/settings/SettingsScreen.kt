@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
@@ -45,11 +44,11 @@ import java.util.Locale
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onNavigateToTabEditor: () -> Unit = {},
+    onNavigateToLanguagePicker: () -> Unit = {},
     onNavigateToLiveActivity: () -> Unit = {},
     onNavigateToNotificationSetup: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsState()
     val ntustLoginError by viewModel.ntustLoginError.collectAsState()
     val libIsLoggingIn by viewModel.libIsLoggingIn.collectAsState()
@@ -77,10 +76,7 @@ fun SettingsScreen(
     val libraryEnabled = viewModel.appState.libraryFeatureEnabled
     val themeMode = viewModel.appState.themeMode
     val appLanguage = viewModel.appState.appLanguage
-    val shouldShowEnglishAbbreviationToggle =
-        appLanguage == AppLanguageManager.ENGLISH ||
-            (appLanguage == AppLanguageManager.SYSTEM &&
-                AppLanguageManager.resolvedSystemLanguage() == "en")
+    val shouldShowEnglishAbbreviationToggle = AppLanguageManager.isCourseApiEnglish(appLanguage)
 
     var showLibraryWarning by remember { mutableStateOf(false) }
     var showResetColorsConfirm by remember { mutableStateOf(false) }
@@ -223,29 +219,18 @@ fun SettingsScreen(
                         viewModel.appState.invertSliderDirection = it
                     }
                     HorizontalDivider()
-                    SettingsPickerRow(
+                    SettingsLinkRowWithValue(
                         label = stringResource(R.string.settings_language),
-                        value = when (appLanguage) {
-                            AppLanguageManager.TRADITIONAL_CHINESE -> stringResource(R.string.settings_language_traditional_chinese)
-                            AppLanguageManager.ENGLISH -> stringResource(R.string.settings_language_english)
-                            else -> stringResource(R.string.settings_language_follow_system)
-                        },
-                        options = listOf(
-                            AppLanguageManager.SYSTEM to stringResource(R.string.settings_language_follow_system),
-                            AppLanguageManager.TRADITIONAL_CHINESE to stringResource(R.string.settings_language_traditional_chinese),
-                            AppLanguageManager.ENGLISH to stringResource(R.string.settings_language_english),
-                        ),
-                        selectedKey = appLanguage,
-                        // Wait for the dropdown's exit animation to finish
-                        // before applying the locale — overlapping the
-                        // dropdown fade with the activity-wide config change
-                        // looks glitchy.
-                        onSelect = { selectedLanguage ->
-                            coroutineScope.launch {
-                                delay(220)
-                                viewModel.setAppLanguage(selectedLanguage)
+                        value = run {
+                            val normalized = AppLanguageManager.normalize(appLanguage)
+                            if (normalized == AppLanguageManager.SYSTEM) {
+                                stringResource(R.string.settings_language_follow_system)
+                            } else {
+                                val locale = Locale.forLanguageTag(normalized)
+                                locale.getDisplayName(locale).ifBlank { normalized }
                             }
                         },
+                        onClick = onNavigateToLanguagePicker,
                     )
                     if (shouldShowEnglishAbbreviationToggle) {
                         HorizontalDivider()
@@ -586,6 +571,33 @@ private fun SettingsLinkRow(label: String, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        Icon(
+            Icons.Filled.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+@Composable
+private fun SettingsLinkRowWithValue(label: String, value: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(SettingRowHeight)
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            value,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+            maxLines = 1,
+        )
+        Spacer(Modifier.width(8.dp))
         Icon(
             Icons.Filled.ChevronRight,
             contentDescription = null,

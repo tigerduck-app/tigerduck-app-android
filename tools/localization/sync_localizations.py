@@ -4,31 +4,58 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Set
 
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE_DIR = ROOT / "localization" / "source"
+CONFIG_PATH = ROOT / "localization" / "config" / "locales.json"
 
-SOURCE_FILES = {
-    "en": SOURCE_DIR / "en.json",
-    "zh-Hant": SOURCE_DIR / "zh-Hant.json",
-}
 
-SHARED_ANDROID_OUTPUTS = {
-    "zh-Hant": ROOT / "localization" / "generated" / "android" / "values" / "strings.xml",
-    "en": ROOT / "localization" / "generated" / "android" / "values-en" / "strings.xml",
-}
+def discover_source_files() -> Dict[str, Path]:
+    files: Dict[str, Path] = {}
+    for path in sorted(SOURCE_DIR.glob("*.json")):
+        files[path.stem] = path
+    if "en" not in files:
+        raise ValueError("localization/source must contain en.json")
+    return files
 
-APP_ANDROID_OUTPUTS = {
-    "zh-Hant": ROOT / "app" / "src" / "main" / "res" / "values" / "strings.xml",
-    "en": ROOT / "app" / "src" / "main" / "res" / "values-en" / "strings.xml",
-}
 
-IOS_OUTPUTS = {
-    "en": ROOT / "localization" / "generated" / "ios" / "en.lproj" / "Localizable.strings",
-    "zh-Hant": ROOT / "localization" / "generated" / "ios" / "zh-Hant.lproj" / "Localizable.strings",
-}
+def android_values_dir(locale: str) -> str:
+    # Keep Traditional Chinese as the app's base locale.
+    if locale == "zh-Hant":
+        return "values"
+    if locale == "en":
+        return "values-en"
+    # Prefer region defaults for script-based Chinese so Android matches the
+    # canonical qualifiers (values-zh-rCN / values-zh-rTW).
+    if locale == "zh-Hans":
+        return "values-zh-rCN"
+
+    parts = locale.split("-")
+    if len(parts) == 1:
+        return f"values-{parts[0]}"
+    if len(parts) == 2 and len(parts[1]) == 2:
+        lang, region = parts
+        return f"values-{lang}-r{region.upper()}"
+
+    # Fallback to BCP-47 qualifier form when needed.
+    # https://developer.android.com/guide/topics/resources/providing-resources#QualifierRules
+    bcp = "+".join([p for p in parts if p])
+    return f"values-b+{bcp}"
+
+
+def android_outputs(root: Path, locales: Iterable[str]) -> Dict[str, Path]:
+    return {
+        locale: root / android_values_dir(locale) / "strings.xml" for locale in locales
+    }
+
+
+def ios_outputs(locales: Iterable[str]) -> Dict[str, Path]:
+    out_root = ROOT / "localization" / "generated" / "ios"
+    return {
+        locale: out_root / f"{locale}.lproj" / "Localizable.strings" for locale in locales
+    }
 
 
 def load_locale(path: Path) -> Dict[str, str]:
@@ -44,6 +71,11 @@ def load_locale(path: Path) -> Dict[str, str]:
         raise ValueError(f"{path} has non-string key/value entries: {joined}")
 
     return data
+
+
+def load_locale_config() -> dict:
+    with CONFIG_PATH.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 def validate_keys(locales: Dict[str, Dict[str, str]]) -> Iterable[str]:
@@ -97,6 +129,48 @@ def write_file(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def generate_android_locale_config(locales: Iterable[str]) -> str:
+    lines = [
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>",
+        "<!-- Generated from localization/source/*.json. Do not edit directly. -->",
+        "<locale-config xmlns:android=\"http://schemas.android.com/apk/res/android\">",
+    ]
+    for locale in sorted(locales):
+        # BCP-47 language tags.
+        lines.append(f"    <locale android:name=\"{locale}\" />")
+    lines.append("</locale-config>")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def discover_android_values_locales(generated_android_dir: Path, default_dir_locale: str) -> Set[str]:
+    """Return BCP-47 tags represented by values* directories under generated/android."""
+    tags: Set[str] = set()
+    for path in generated_android_dir.glob("*/strings.xml"):
+        dir_name = path.parent.name
+        if dir_name == "values":
+            tags.add(default_dir_locale)
+            continue
+        if not dir_name.startswith("values-"):
+            continue
+
+        qualifier = dir_name[len("values-"):]
+        if qualifier.startswith("b+"):
+            # values-b+sr+Latn+RS -> sr-Latn-RS
+            tags.add(qualifier[len("b+"):].replace("+", "-"))
+            continue
+
+        # values-en, values-en-rGB
+        parts = qualifier.split("-r", 1)
+        if len(parts) == 1:
+            tags.add(parts[0])
+        else:
+            lang, region = parts
+            tags.add(f"{lang}-{region}")
+
+    return tags
+
+
 def generate_android(locale_values: Dict[str, str], ordered_keys: Iterable[str]) -> str:
     lines = [
         "<?xml version=\"1.0\" encoding=\"utf-8\"?>",
@@ -128,17 +202,38 @@ def generate_ios(locale_values: Dict[str, str], ordered_keys: Iterable[str]) -> 
 
 def main() -> int:
     try:
-        locales = {locale: load_locale(path) for locale, path in SOURCE_FILES.items()}
+        cfg = load_locale_config()
+        android_cfg = cfg.get("android", {})
+        default_dir_locale = android_cfg.get("defaultDirLocale", "zh-Hant")
+
+        source_files = discover_source_files()
+        locales = {locale: load_locale(path) for locale, path in source_files.items()}
         ordered_keys = list(validate_keys(locales))
 
-        for locale, output in SHARED_ANDROID_OUTPUTS.items():
+        shared_android = android_outputs(ROOT / "localization" / "generated" / "android", locales.keys())
+        app_android = android_outputs(ROOT / "app" / "src" / "main" / "res", locales.keys())
+        ios = ios_outputs(locales.keys())
+
+        for locale, output in shared_android.items():
             write_file(output, generate_android(locales[locale], ordered_keys))
 
-        for locale, output in APP_ANDROID_OUTPUTS.items():
+        for locale, output in app_android.items():
             write_file(output, generate_android(locales[locale], ordered_keys))
 
-        for locale, output in IOS_OUTPUTS.items():
+        for locale, output in ios.items():
             write_file(output, generate_ios(locales[locale], ordered_keys))
+
+        # Android 13+ system "App language" picker reads android:localeConfig.
+        # The repo also ships many resource *aliases* (values-aa, values-en-rGB,
+        # values-iw, ...) so build the list from generated Android outputs.
+        android_locale_tags = discover_android_values_locales(
+            ROOT / "localization" / "generated" / "android",
+            default_dir_locale=default_dir_locale,
+        )
+        write_file(
+            ROOT / "app" / "src" / "main" / "res" / "xml" / "locales_config.xml",
+            generate_android_locale_config(android_locale_tags),
+        )
     except Exception as error:
         print(f"Localization sync failed: {error}", file=sys.stderr)
         return 1
@@ -146,9 +241,9 @@ def main() -> int:
     print(
         "Localization sync complete: "
         f"{len(ordered_keys)} keys, "
-        f"{len(SHARED_ANDROID_OUTPUTS)} shared Android files, "
-        f"{len(APP_ANDROID_OUTPUTS)} app Android files, "
-        f"{len(IOS_OUTPUTS)} iOS files."
+        f"{len(locales)} shared Android files, "
+        f"{len(locales)} app Android files, "
+        f"{len(locales)} iOS files."
     )
     return 0
 

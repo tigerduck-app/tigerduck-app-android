@@ -49,6 +49,7 @@ import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
 import org.ntust.app.tigerduck.ui.screen.score.ScoreScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
@@ -63,6 +64,7 @@ sealed class Screen(val route: String) {
     object More : Screen("more")
     object Settings : Screen("settings")
     object TabEditor : Screen("tabEditor")
+    object LanguagePicker : Screen("languagePicker")
     object LiveActivitySettings : Screen("liveActivitySettings")
     object NotificationSetup : Screen("notificationSetup")
 }
@@ -252,9 +254,13 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
+                    onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
                     onNavigateToNotificationSetup = { navController.navigate(Screen.NotificationSetup.route) },
                 )
+            }
+            composable(Screen.LanguagePicker.route) {
+                LanguagePickerScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.NotificationSetup.route) {
                 NotificationSetupScreen(onDone = { navController.popBackStack() })
