@@ -11,6 +11,7 @@ import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.model.CourseSearchRequest
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
+import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -208,6 +209,20 @@ class CourseService @Inject constructor(
         // count is acceptable given the surrounding fields all update live
         // (assignments, Moodle enrolment list, etc.) on every refresh.
         private const val LOOKUP_TTL_MS = 30L * 60L * 1000L
+
+        /**
+         * Build a stub [Course] from Moodle enrolment metadata when QueryCourse
+         * has no record (typically historical terms). Returns null when the
+         * Moodle enrolment is itself missing.
+         */
+        fun fallbackCourseFromMoodle(courseNo: String, moodle: MoodleEnrolledCourse?): Course? {
+            moodle ?: return null
+            return Course.fromSchedule(
+                courseNo = courseNo,
+                courseName = moodle.fullname ?: courseNo,
+                moodleIdNumber = moodle.idnumber,
+            )
+        }
     }
 
     private fun preferredCourseApiLanguage(): String {

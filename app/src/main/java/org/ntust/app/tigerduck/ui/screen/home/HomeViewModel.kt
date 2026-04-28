@@ -12,7 +12,6 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
-import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.network.NetworkChecker
@@ -362,11 +361,11 @@ class HomeViewModel @Inject constructor(
                                 moodleIdNumber = moodleByNo[courseNo]?.idnumber ?: "${r.semester}${r.courseNo}"
                             )
                         } else {
-                            fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
+                            CourseService.fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
                         }
                     } catch (e: Exception) {
                         Log.e("HomeViewModel", "Failed to lookup course $courseNo", e)
-                        fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
+                        CourseService.fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
                     }
                 }
             }.awaitAll().filterNotNull()
@@ -399,15 +398,6 @@ class HomeViewModel @Inject constructor(
         }
 
         coursesDef.await() to assignmentsDef.await()
-    }
-
-    private fun fallbackCourseFromMoodle(courseNo: String, moodle: MoodleEnrolledCourse?): Course? {
-        moodle ?: return null
-        return Course.fromSchedule(
-            courseNo = courseNo,
-            courseName = moodle.fullname ?: courseNo,
-            moodleIdNumber = moodle.idnumber
-        )
     }
 
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {

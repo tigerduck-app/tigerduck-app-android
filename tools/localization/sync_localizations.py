@@ -64,6 +64,13 @@ def validate_keys(locales: Dict[str, Dict[str, str]]) -> Iterable[str]:
 
 
 def escape_android(value: str) -> str:
+    # NOTE: bare "%" is not escaped to "%%" here. Today every "%" in the
+    # source JSON is part of a positional format specifier (e.g. "%1$s",
+    # "%1$d") that must reach Android verbatim. If a future translation
+    # adds a literal percent sign (e.g. "Score: 100%"), getString(id, ...)
+    # with format args will throw MissingFormatArgumentException. When that
+    # happens, switch this function to a regex-based pass that protects
+    # specifiers, escapes other "%" as "%%", then restores the specifiers.
     return (
         value.replace("&", "&amp;")
         .replace("<", "&lt;")

@@ -20,7 +20,6 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
-import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import java.util.LinkedHashSet
 import java.util.concurrent.TimeUnit
 
@@ -119,11 +118,11 @@ class BackgroundSyncWorker @AssistedInject constructor(
                                     moodleIdNumber = moodleByNo[courseNo]?.idnumber ?: "${r.semester}${r.courseNo}"
                                 )
                             } else {
-                                fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
+                                CourseService.fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
                             }
                         } catch (e: Exception) {
                             Log.w(TAG, "Course lookup failed for $courseNo", e)
-                            fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
+                            CourseService.fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
                         }
                     }
                 }.awaitAll().filterNotNull()
@@ -158,14 +157,6 @@ class BackgroundSyncWorker @AssistedInject constructor(
         }
     }
 
-    private fun fallbackCourseFromMoodle(courseNo: String, moodle: MoodleEnrolledCourse?): Course? {
-        moodle ?: return null
-        return Course.fromSchedule(
-            courseNo = courseNo,
-            courseName = moodle.fullname ?: courseNo,
-            moodleIdNumber = moodle.idnumber
-        )
-    }
 
     private suspend fun syncAssignments(): Boolean {
         return try {
