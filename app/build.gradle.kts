@@ -120,7 +120,26 @@ val syncLocalizations by tasks.registering(Exec::class) {
     group = "localization"
     description = "Generate Android and iOS localization files from shared JSON sources."
     workingDir = rootProject.projectDir
+    // Placeholder; the real interpreter is resolved in doFirst so detection
+    // happens at execution time, not project sync.
     commandLine("python3", "tools/localization/sync_localizations.py")
+    doFirst {
+        val script = "tools/localization/sync_localizations.py"
+        // Probe the common Python 3 launchers across Linux / macOS / Windows.
+        val python = listOf("python3", "python", "py").firstOrNull { candidate ->
+            runCatching {
+                val proc = ProcessBuilder(candidate, "--version")
+                    .redirectErrorStream(true)
+                    .start()
+                val output = proc.inputStream.readBytes().toString(Charsets.UTF_8)
+                proc.waitFor() == 0 && output.contains("Python 3")
+            }.getOrDefault(false)
+        } ?: throw GradleException(
+            "syncLocalizations requires Python 3 on PATH (tried python3, python, py). " +
+                "Install Python 3 from https://www.python.org/ and re-run."
+        )
+        commandLine(python, script)
+    }
 }
 
 tasks.named("preBuild") {

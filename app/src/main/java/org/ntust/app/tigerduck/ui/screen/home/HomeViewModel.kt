@@ -198,6 +198,13 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+        viewModelScope.launch {
+            // Language change → re-fetch so today's courses and assignment
+            // names render in the new locale.
+            prefs.appLanguageChanged.collect {
+                if (authService.authState.value) refresh()
+            }
+        }
     }
 
     private var hasLoaded = false
