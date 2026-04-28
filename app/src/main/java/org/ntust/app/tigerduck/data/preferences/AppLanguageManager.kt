@@ -29,14 +29,13 @@ object AppLanguageManager {
     }
 
     fun apply(language: String) {
-        val normalized = normalize(language)
-        val locales = when (normalized) {
+        val locales = when (normalize(language)) {
             ENGLISH -> LocaleListCompat.forLanguageTags("en")
             TRADITIONAL_CHINESE -> LocaleListCompat.forLanguageTags("zh-Hant-TW")
-            else -> when (resolvedSystemLanguage()) {
-                "zh" -> LocaleListCompat.getEmptyLocaleList()
-                else -> LocaleListCompat.forLanguageTags("en")
-            }
+            // SYSTEM: empty list lets Android track the device locale live.
+            // Pinning a tag here would persist across a system-locale change
+            // and make "Follow system" stop following.
+            else -> LocaleListCompat.getEmptyLocaleList()
         }
         AppCompatDelegate.setApplicationLocales(locales)
     }

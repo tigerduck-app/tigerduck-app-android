@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Dict, Iterable
@@ -63,15 +64,20 @@ def validate_keys(locales: Dict[str, Dict[str, str]]) -> Iterable[str]:
     return locales[base_locale].keys()
 
 
+# Matches Android format specifiers (positional like %1$s, simple like %d),
+# already-escaped %%, or a bare %. Order in the alternation matters: longer
+# tokens win at each position, so specifiers and %% pass through untouched
+# and only a bare "%" gets doubled.
+_ANDROID_PERCENT_RE = re.compile(r"%\d+\$[sdf]|%%|%[sdf]|%")
+
+
+def _escape_percent(match: "re.Match[str]") -> str:
+    token = match.group(0)
+    return "%%" if token == "%" else token
+
+
 def escape_android(value: str) -> str:
-    # NOTE: bare "%" is not escaped to "%%" here. Today every "%" in the
-    # source JSON is part of a positional format specifier (e.g. "%1$s",
-    # "%1$d") that must reach Android verbatim. If a future translation
-    # adds a literal percent sign (e.g. "Score: 100%"), getString(id, ...)
-    # with format args will throw MissingFormatArgumentException. When that
-    # happens, switch this function to a regex-based pass that protects
-    # specifiers, escapes other "%" as "%%", then restores the specifiers.
-    return (
+    escaped = (
         value.replace("&", "&amp;")
         .replace("<", "&lt;")
         .replace(">", "&gt;")
@@ -79,6 +85,7 @@ def escape_android(value: str) -> str:
         .replace('"', '\\"')
         .replace("\n", "\\n")
     )
+    return _ANDROID_PERCENT_RE.sub(_escape_percent, escaped)
 
 
 def escape_ios(value: str) -> str:
