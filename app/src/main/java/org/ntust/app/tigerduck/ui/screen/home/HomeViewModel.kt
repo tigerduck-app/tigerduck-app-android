@@ -202,6 +202,7 @@ class HomeViewModel @Inject constructor(
             // Language change → re-fetch so today's courses and assignment
             // names render in the new locale.
             prefs.appLanguageChanged.collect {
+                courseService.clearInMemoryLookupCache()
                 if (authService.authState.value) refresh()
             }
         }

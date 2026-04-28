@@ -118,6 +118,7 @@ class ClassTableViewModel @Inject constructor(
             // Language change → re-fetch from the network so course names
             // come back in the new locale.
             appPreferences.appLanguageChanged.collect {
+                courseService.clearInMemoryLookupCache()
                 if (authService.authState.value) refresh()
             }
         }

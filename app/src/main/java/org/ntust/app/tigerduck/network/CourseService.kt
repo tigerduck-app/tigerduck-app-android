@@ -239,6 +239,17 @@ class CourseService @Inject constructor(
     }
 
     /**
+     * Drops every in-memory lookup entry. Called when the API language
+     * flips so the per-language keys ("..._zh", "..._en") don't accumulate
+     * across a session. Persisted disk state catches up on the next
+     * successful fetch — `lookupCourse` writes the whole map via
+     * [persistLookupCache] after each new entry.
+     */
+    fun clearInMemoryLookupCache() {
+        lookupCache.clear()
+    }
+
+    /**
      * Returns the full (un-abbreviated) course name from the in-memory
      * lookup cache, or null when no lookup entry exists (manual entries,
      * Moodle-only fallbacks, or cache not yet hydrated). Used by the
