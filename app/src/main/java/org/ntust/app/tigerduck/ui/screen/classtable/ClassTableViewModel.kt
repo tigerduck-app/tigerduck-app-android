@@ -225,6 +225,18 @@ class ClassTableViewModel @Inject constructor(
             return order.filter { it in periodIds }.mapNotNull { TimetablePeriod.byId[it] }
         }
 
+    /**
+     * Full (un-abbreviated) name of the selected course, looked up from the
+     * course-detail cache. Falls back to null when no lookup entry exists
+     * (manual entries, Moodle-only fallbacks); the popup uses the stored
+     * [Course.courseName] in that case.
+     */
+    val selectedCourseFullName: String?
+        get() {
+            val course = _selectedCourse.value ?: return null
+            return courseService.cachedFullCourseName(_currentSemester.value, course.courseNo)
+        }
+
     val selectedCourseTimeRange: String?
         get() {
             val course = _selectedCourse.value ?: return null

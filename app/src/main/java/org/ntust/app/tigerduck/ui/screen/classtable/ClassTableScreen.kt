@@ -280,7 +280,7 @@ fun ClassTableScreen(
     selectedCourse?.let { course ->
         AlertDialog(
             onDismissRequest = { viewModel.clearSelection() },
-            title = { Text(course.courseName) },
+            title = { Text(viewModel.selectedCourseFullName ?: course.courseName) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stringResource(R.string.class_table_course_no_value, course.courseNo))

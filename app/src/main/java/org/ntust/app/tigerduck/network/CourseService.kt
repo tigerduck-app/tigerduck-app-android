@@ -239,6 +239,21 @@ class CourseService @Inject constructor(
     }
 
     /**
+     * Returns the full (un-abbreviated) course name from the in-memory
+     * lookup cache, or null when no lookup entry exists (manual entries,
+     * Moodle-only fallbacks, or cache not yet hydrated). Used by the
+     * class-table popup so it always shows the full name regardless of
+     * the abbreviation toggle.
+     */
+    fun cachedFullCourseName(semester: String, courseNo: String): String? {
+        val language = preferredCourseApiLanguage()
+        return lookupCache["${semester}_${courseNo}_$language"]
+            ?.results
+            ?.firstOrNull()
+            ?.courseName
+    }
+
+    /**
      * Re-derive courseName / classroom for the given courses using whatever
      * is already in the lookup cache and the current abbreviation toggle.
      * Used when the user flips "Use English course abbreviations" so the
