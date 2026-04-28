@@ -135,9 +135,11 @@ class LiveActivityNotifier @Inject constructor(
 
     private fun statusLine(snapshot: LiveActivitySnapshot): String {
         val prefix = when (snapshot.scenario) {
-            LiveActivityScenario.IN_CLASS -> "上課中"
-            LiveActivityScenario.CLASS_PREPARING -> "即將上課"
-            LiveActivityScenario.ASSIGNMENT_URGENT -> "作業即將到期"
+            LiveActivityScenario.IN_CLASS -> context.getString(R.string.live_activity_status_in_class)
+            LiveActivityScenario.CLASS_PREPARING ->
+                context.getString(R.string.live_activity_status_class_preparing)
+            LiveActivityScenario.ASSIGNMENT_URGENT ->
+                context.getString(R.string.live_activity_status_assignment_urgent)
         }
         return if (snapshot.subtitle.isNotBlank()) "$prefix · ${snapshot.subtitle}" else prefix
     }
@@ -155,10 +157,10 @@ class LiveActivityNotifier @Inject constructor(
         if (existing != null) return
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "即時動態",
+            context.getString(R.string.live_activity_channel_name),
             NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
-            description = "顯示當前課程、即將上課與作業倒數；可在 App 設定中調整各情境是否發出提示音"
+            description = context.getString(R.string.live_activity_channel_description)
             setShowBadge(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }

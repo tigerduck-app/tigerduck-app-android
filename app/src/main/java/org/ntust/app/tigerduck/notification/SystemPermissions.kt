@@ -11,9 +11,11 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.content.ActivityNotFoundException
+import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.R
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -187,19 +189,21 @@ class SystemPermissions @Inject constructor(
     companion object {
         private const val PREFS_NAME = "tigerduck_permissions"
 
-        fun displayName(p: AppPermission): String = when (p) {
-            AppPermission.NOTIFICATIONS -> "通知權限"
-            AppPermission.EXACT_ALARM -> "精確鬧鐘"
-            AppPermission.BATTERY_OPTIMIZATION -> "背景活動限制"
+        @StringRes
+        fun displayNameResId(p: AppPermission): Int = when (p) {
+            AppPermission.NOTIFICATIONS -> R.string.permission_notifications_name
+            AppPermission.EXACT_ALARM -> R.string.permission_exact_alarm_name
+            AppPermission.BATTERY_OPTIMIZATION -> R.string.permission_battery_optimization_name
         }
 
-        fun description(p: AppPermission): String = when (p) {
+        @StringRes
+        fun descriptionResId(p: AppPermission): Int = when (p) {
             AppPermission.NOTIFICATIONS ->
-                "允許 App 顯示通知，否則所有通知與即時動態都不會出現。"
+                R.string.permission_notifications_description
             AppPermission.EXACT_ALARM ->
-                "允許 App 在精確的時間送出作業與上課提醒；關閉後提醒可能延後數分鐘至十幾分鐘。"
+                R.string.permission_exact_alarm_description
             AppPermission.BATTERY_OPTIMIZATION ->
-                "建議在系統的電池/背景活動設定中，將 TigerDuck 設為不受限制（或不要限制背景活動），以降低提醒延遲。"
+                R.string.permission_battery_optimization_description
         }
     }
 }

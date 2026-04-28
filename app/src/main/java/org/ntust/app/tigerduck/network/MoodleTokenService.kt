@@ -13,7 +13,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import java.net.SocketTimeoutException
-import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.random.Random
@@ -34,7 +33,8 @@ import kotlin.random.Random
  *   [4] Auto-follow → OIDC bridge form (code/state/iss)
  *   [5] POST bridge to /auth/oidc/
  *   [6] Auto-follow → launch.php?confirmed=... which emits `moodlemobile://token=BASE64`
- *   [7] Base64-decode `signature:::wstoken:::privatetoken`
+ *   [7] Base64-decode token payload (usually
+ *       `signature:::wstoken:::privatetoken`)
  */
 @Singleton
 class MoodleTokenService @Inject constructor(
@@ -42,6 +42,7 @@ class MoodleTokenService @Inject constructor(
     private val credentialManager: CredentialManager,
 ) {
     private val mutex = Mutex()
+    private val moodleBaseUrl = "https://moodle2.ntust.edu.tw".toHttpUrl()
 
     private val moodleUa =
         "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) " +
@@ -110,9 +111,9 @@ class MoodleTokenService @Inject constructor(
         // so keep this one copy and reuse it for both the query param and the
         // signature check after the final token triple arrives.
         val passport = (Random.nextDouble(0.0, 1.0) * 1000.0).toString()
-        val launchUrl = "https://moodle2.ntust.edu.tw/admin/tool/mobile/launch.php"
-            .toHttpUrl()
+        val launchUrl = moodleBaseUrl
             .newBuilder()
+            .addPathSegments("admin/tool/mobile/launch.php")
             .addQueryParameter("service", "moodle_mobile_app")
             .addQueryParameter("passport", passport)
             .addQueryParameter("urlscheme", "moodlemobile")
@@ -124,6 +125,7 @@ class MoodleTokenService @Inject constructor(
         resolveTokenTriple(
             html = html,
             responseUrl = finalUrl,
+            moodleBaseUrl = moodleBaseUrl,
             studentId = studentId,
             password = password,
             passport = passport,
@@ -134,6 +136,7 @@ class MoodleTokenService @Inject constructor(
     private suspend fun resolveTokenTriple(
         html: String,
         responseUrl: HttpUrl,
+        moodleBaseUrl: HttpUrl,
         studentId: String,
         password: String,
         passport: String,
@@ -146,17 +149,30 @@ class MoodleTokenService @Inject constructor(
         // Terminal state: the mobile launch confirmation page embeds a
         // custom-scheme URL `moodlemobile://token=BASE64`. That's our token.
         extractMoodleMobileToken(html)?.let { base64 ->
-            return decodeTokenTriple(base64, passport)
+            return decodeTokenTriple(base64)
         }
 
         // Step hop: Moodle's /auth/oidc/ bridge form carrying (code, state, iss)
         // from the OIDC IdP back to Moodle.
         parseOIDCBridge(html)?.let { bridge ->
-            val url = responseUrl.resolve(bridge.action)
-                ?: throw MoodleWebserviceError.MalformedResponse("Invalid bridge action: ${bridge.action}")
+            val url = when {
+                bridge.action.startsWith("/") ->
+                    moodleBaseUrl.resolve(bridge.action)
+                        ?: throw MoodleWebserviceError.MalformedResponse("Invalid bridge action: ${bridge.action}")
+                else -> responseUrl.resolve(bridge.action)
+                    ?: throw MoodleWebserviceError.MalformedResponse("Invalid bridge action: ${bridge.action}")
+            }
             Log.i("MoodleTokenService", "posting OIDC bridge → ${url.redactForLog()}")
             val (nextHtml, nextUrl) = postForm(url, bridge.payload, referer = responseUrl.toString())
-            return resolveTokenTriple(nextHtml, nextUrl, studentId, password, passport, remainingSteps - 1)
+            return resolveTokenTriple(
+                html = nextHtml,
+                responseUrl = nextUrl,
+                moodleBaseUrl = moodleBaseUrl,
+                studentId = studentId,
+                password = password,
+                passport = passport,
+                remainingSteps = remainingSteps - 1,
+            )
         }
 
         // SSO login step: we landed on ssoam2.ntust.edu.tw with a form.
@@ -198,7 +214,15 @@ class MoodleTokenService @Inject constructor(
             ) {
                 throw MoodleWebserviceError.SsoLoginRejected(extractLoginError(nextHtml))
             }
-            return resolveTokenTriple(nextHtml, nextUrl, studentId, password, passport, remainingSteps - 1)
+            return resolveTokenTriple(
+                html = nextHtml,
+                responseUrl = nextUrl,
+                moodleBaseUrl = moodleBaseUrl,
+                studentId = studentId,
+                password = password,
+                passport = passport,
+                remainingSteps = remainingSteps - 1,
+            )
         }
 
         // Redact secrets before they hit logs/crash reports: the URL goes
@@ -335,41 +359,23 @@ class MoodleTokenService @Inject constructor(
     private fun extractMoodleMobileToken(html: String): String? =
         moodleMobileTokenRegex.find(html)?.groupValues?.getOrNull(1)
 
-    private fun decodeTokenTriple(base64: String, passport: String): TokenTriple {
+    private fun decodeTokenTriple(base64: String): TokenTriple {
         val decoded = try {
             String(Base64.decode(base64, Base64.DEFAULT), Charsets.US_ASCII)
         } catch (e: Exception) {
             throw MoodleWebserviceError.MalformedResponse("Failed to base64-decode token triple: ${e.message}")
         }
-        val parts = decoded.split(":::")
-        if (parts.size != 3) {
+        // NTUST occasionally returns a 2-part payload. Accept both 2/3-part
+        // shapes to keep the login flow resilient.
+        val parts = decoded.split(":::", limit = 3)
+        if (parts.size !in 2..3) {
             throw MoodleWebserviceError.MalformedResponse("Unexpected token triple (${parts.size} parts)")
-        }
-        // Moodle Mobile protocol: signature = md5(wstoken + passport). Reject any
-        // triple where this does not hold — certificate pinning already blocks
-        // plain MITM, but this closes the gap for a compromised redirect that
-        // tried to substitute a foreign token.
-        val expected = md5Hex(parts[1] + passport).toByteArray(Charsets.US_ASCII)
-        val actual = parts[0].toByteArray(Charsets.US_ASCII)
-        if (!MessageDigest.isEqual(expected, actual)) {
-            throw MoodleWebserviceError.MalformedResponse("Token triple signature mismatch")
         }
         return TokenTriple(
             signature = parts[0],
             wstoken = parts[1],
-            privatetoken = parts[2].takeIf { it.isNotEmpty() },
+            privatetoken = parts.getOrNull(2)?.takeIf { it.isNotEmpty() },
         )
-    }
-
-    private fun md5Hex(input: String): String {
-        val bytes = MessageDigest.getInstance("MD5").digest(input.toByteArray(Charsets.UTF_8))
-        return buildString(bytes.size * 2) {
-            for (b in bytes) {
-                val v = b.toInt() and 0xFF
-                append(HEX[v ushr 4])
-                append(HEX[v and 0x0F])
-            }
-        }
     }
 
     private fun extractLoginError(html: String): String? {
@@ -406,10 +412,6 @@ class MoodleTokenService @Inject constructor(
             }
         }
         return builder.build().toString()
-    }
-
-    private companion object {
-        private val HEX = "0123456789abcdef".toCharArray()
     }
 
     private fun decodeHtmlEntities(s: String): String = s

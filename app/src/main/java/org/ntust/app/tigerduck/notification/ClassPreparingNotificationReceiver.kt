@@ -37,7 +37,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         }
 
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        ensureChannel(nm)
+        ensureChannel(context, nm)
 
         val timeRange = formatTimeRange(startMs, endMs)
         val detail = listOfNotNull(
@@ -48,8 +48,14 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("即將上課：$courseName")
-            .setContentText(detail.ifBlank { "課程即將開始" })
+            .setContentTitle(
+                context.getString(R.string.notification_class_preparing_title, courseName)
+            )
+            .setContentText(
+                detail.ifBlank {
+                    context.getString(R.string.notification_class_preparing_content_fallback)
+                }
+            )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -59,14 +65,14 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         nm.notify(notificationId, notification)
     }
 
-    private fun ensureChannel(nm: NotificationManager) {
+    private fun ensureChannel(context: Context, nm: NotificationManager) {
         if (nm.getNotificationChannel(CHANNEL_ID) != null) return
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "即將上課提醒",
+            context.getString(R.string.notification_class_preparing_channel_name),
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
-            description = "在每堂課開始前依設定的時間送出提醒"
+            description = context.getString(R.string.notification_class_preparing_channel_description)
             setShowBadge(false)
         }
         nm.createNotificationChannel(channel)

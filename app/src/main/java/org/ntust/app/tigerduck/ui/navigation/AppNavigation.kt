@@ -21,11 +21,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.AppConstants
 import java.time.Instant
 import androidx.navigation.NavType
@@ -79,17 +82,13 @@ fun AppNavigation(appState: AppState, widgetStartRoute: String? = null) {
         // only way forward is to reset and walk through onboarding again.
         AlertDialog(
             onDismissRequest = {},
-            title = { Text("需要重新設定") },
+            title = { Text(stringResource(R.string.app_reset_required_title)) },
             text = {
-                Text(
-                    "您的登入狀態與偏好設定已無法讀取，" +
-                        "可能因為裝置升級、備份還原或儲存空間異常。\n\n" +
-                        "請點選「重新設定」以清除舊資料，然後重新登入並重新配置偏好。"
-                )
+                Text(stringResource(R.string.app_reset_required_message))
             },
             confirmButton = {
                 TextButton(onClick = { appState.performFullReset() }) {
-                    Text("重新設定")
+                    Text(stringResource(R.string.app_reset_required_action))
                 }
             },
             properties = DialogProperties(
@@ -150,6 +149,8 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
     }
 
     val context = LocalContext.current
+    val backPressExitHint = stringResource(R.string.app_exit_confirm_toast)
+    val nonTaipeiTimezoneHint = stringResource(R.string.app_non_taipei_timezone_hint)
     val bottomItems = configuredTabs + listOf(AppFeature.MORE)
     // NavHost startDestination must not change mid-session, so freeze it on
     // first composition. popUpTo, in contrast, needs the *current* first tab
@@ -169,7 +170,7 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
             (context as? Activity)?.finish()
         } else {
             lastBackPressMs = now
-            Toast.makeText(context, "再次返回以退出應用程式", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, backPressExitHint, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -184,7 +185,7 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
             Column {
                 if (isNonTaipeiTz) {
                     Text(
-                        text = "您目前不在臺灣時區，此 APP 已自動使用臺灣時區。\n請注意日期與時間，並敬祝您旅途平安！",
+                        text = nonTaipeiTimezoneHint,
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(Color(0xFFFFF3B0))
@@ -198,8 +199,16 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
                 bottomItems.forEach { feature ->
                     val route = feature.toRoute()
                     NavigationBarItem(
-                        icon = { Icon(feature.icon, contentDescription = feature.displayName) },
-                        label = { Text(feature.displayName) },
+                        icon = { Icon(feature.icon, contentDescription = stringResource(feature.displayNameRes)) },
+                        label = {
+                            Text(
+                                text = stringResource(feature.displayNameRes),
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        alwaysShowLabel = true,
                         selected = selectedTabRoute == route,
                         onClick = {
                             if (currentRoute == route) return@NavigationBarItem

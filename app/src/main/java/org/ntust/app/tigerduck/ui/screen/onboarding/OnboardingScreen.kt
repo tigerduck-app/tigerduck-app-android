@@ -23,8 +23,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupContent
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun OnboardingScreen(
@@ -52,19 +54,19 @@ fun OnboardingScreen(
             when (page) {
                 0 -> OnboardingPage(
                     icon = "🎓",
-                    title = "歡迎使用 TigerDuck",
-                    subtitle = "你的臺科大校園助手"
+                    title = stringResource(R.string.onboarding_welcome_title),
+                    subtitle = stringResource(R.string.onboarding_welcome_subtitle)
                 ) {
                     Button(
                         onClick = { goToPage(1) },
                         modifier = Modifier.fillMaxWidth(0.6f)
-                    ) { Text("下一步") }
+                    ) { Text(stringResource(R.string.action_next)) }
                 }
 
                 1 -> OnboardingPage(
                     icon = "🔑",
-                    title = "登入帳號",
-                    subtitle = "使用 NTUST SSO 登入以存取課表、Moodle 等功能"
+                    title = stringResource(R.string.onboarding_login_title),
+                    subtitle = stringResource(R.string.onboarding_login_subtitle)
                 ) {
                     val focusManager = LocalFocusManager.current
                     Column(
@@ -75,7 +77,7 @@ fun OnboardingScreen(
                         OutlinedTextField(
                             value = studentId,
                             onValueChange = { studentId = it.uppercase() },
-                            label = { Text("學號") },
+                            label = { Text(stringResource(R.string.login_student_id)) },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(
                                 capitalization = KeyboardCapitalization.Characters,
@@ -90,7 +92,7 @@ fun OnboardingScreen(
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it },
-                            label = { Text("密碼") },
+                            label = { Text(stringResource(R.string.login_password)) },
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(
@@ -129,12 +131,12 @@ fun OnboardingScreen(
                                     color = MaterialTheme.colorScheme.onPrimary
                                 )
                             } else {
-                                Text("登入 NTUST SSO")
+                                Text(stringResource(R.string.onboarding_login_button))
                             }
                         }
                         TextButton(onClick = { goToPage(2) }) {
                             Text(
-                                "暫時跳過",
+                                stringResource(R.string.onboarding_skip_for_now),
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY)
                             )
                         }
@@ -143,13 +145,13 @@ fun OnboardingScreen(
 
                 2 -> OnboardingPage(
                     icon = "⚙️",
-                    title = "選擇功能",
-                    subtitle = "你可以之後在設定中隨時調整"
+                    title = stringResource(R.string.onboarding_choose_features_title),
+                    subtitle = stringResource(R.string.onboarding_choose_features_subtitle)
                 ) {
                     Button(
                         onClick = { goToPage(3) },
                         modifier = Modifier.fillMaxWidth(0.6f)
-                    ) { Text("下一步") }
+                    ) { Text(stringResource(R.string.action_next)) }
                 }
 
                 3 -> PermissionsPage(
@@ -159,13 +161,13 @@ fun OnboardingScreen(
 
                 4 -> OnboardingPage(
                     icon = "✅",
-                    title = "準備就緒！",
-                    subtitle = "開始探索你的校園生活"
+                    title = stringResource(R.string.onboarding_ready_title),
+                    subtitle = stringResource(R.string.onboarding_ready_subtitle)
                 ) {
                     Button(
                         onClick = { viewModel.completeOnboarding() },
                         modifier = Modifier.fillMaxWidth(0.6f)
-                    ) { Text("開始使用 TigerDuck") }
+                    ) { Text(stringResource(R.string.onboarding_start_button)) }
                 }
             }
         }
@@ -209,13 +211,13 @@ private fun PermissionsPage(
     ) {
         Text("🔔", style = MaterialTheme.typography.displayMedium)
         Text(
-            "通知與提醒權限",
+            stringResource(R.string.onboarding_permissions_title),
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onBackground,
         )
         Text(
-            "允許以下權限後，即使 App 關閉，作業與即將上課提醒也能準時送達。可之後在設定中調整。",
+            stringResource(R.string.onboarding_permissions_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
@@ -224,7 +226,7 @@ private fun PermissionsPage(
         Spacer(Modifier.height(8.dp))
         NotificationSetupContent(
             systemPermissions = systemPermissions,
-            finishLabel = "下一步",
+            finishLabel = stringResource(R.string.action_next),
             onFinish = onContinue,
             modifier = Modifier.fillMaxSize(),
         )

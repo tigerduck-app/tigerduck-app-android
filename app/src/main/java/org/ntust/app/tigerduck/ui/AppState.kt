@@ -111,6 +111,16 @@ class AppState @Inject constructor(
             prefs.showAbsoluteAssignmentTime = value
         }
 
+    private var useEnglishCourseAbbreviationState by mutableStateOf(prefs.useEnglishCourseAbbreviation)
+
+    var useEnglishCourseAbbreviation: Boolean
+        get() = useEnglishCourseAbbreviationState
+        set(value) {
+            if (useEnglishCourseAbbreviationState == value) return
+            useEnglishCourseAbbreviationState = value
+            prefs.useEnglishCourseAbbreviation = value
+        }
+
     private var browserPreferenceState by mutableStateOf(prefs.browserPreference)
 
     var browserPreference: String
@@ -131,6 +141,18 @@ class AppState @Inject constructor(
             themeModeState = value
             prefs.themeMode = value
             widgetUpdater.requestUpdate()
+        }
+
+    private var appLanguageState by mutableStateOf(prefs.appLanguage)
+
+    /** One of "system", "zh-Hant", "en". */
+    var appLanguage: String
+        get() = appLanguageState
+        set(value) {
+            val normalized = org.ntust.app.tigerduck.data.preferences.AppLanguageManager.normalize(value)
+            if (appLanguageState == normalized) return
+            appLanguageState = normalized
+            prefs.appLanguage = normalized
         }
 
     private var invertSliderDirectionState by mutableStateOf(prefs.invertSliderDirection)
@@ -206,8 +228,10 @@ class AppState @Inject constructor(
             hasCompletedOnboardingState = prefs.hasCompletedOnboarding
             accentColorHexState = prefs.accentColorHex
             showAbsoluteAssignmentTimeState = prefs.showAbsoluteAssignmentTime
+            useEnglishCourseAbbreviationState = prefs.useEnglishCourseAbbreviation
             browserPreferenceState = prefs.browserPreference
             themeModeState = prefs.themeMode
+            appLanguageState = prefs.appLanguage
             invertSliderDirectionState = prefs.invertSliderDirection
             notifyAssignmentsState = prefs.notifyAssignments
             libraryFeatureEnabledState = prefs.libraryFeatureEnabled

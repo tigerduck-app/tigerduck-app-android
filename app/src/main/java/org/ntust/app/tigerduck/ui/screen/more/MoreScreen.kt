@@ -13,9 +13,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.ComingSoonDialog
@@ -50,12 +52,12 @@ fun MoreScreen(navController: NavController, appState: AppState) {
         contentPadding = PaddingValues(bottom = 32.dp)
     ) {
         item {
-            PageHeader(title = "更多") {
+            PageHeader(title = stringResource(R.string.feature_more)) {
                 IconButton(
                     onClick = { navController.navigate(Screen.Settings.route) }
                 ) {
                     Icon(
-                        Icons.Filled.Settings, "設定",
+                        Icons.Filled.Settings, stringResource(R.string.feature_settings),
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -63,7 +65,7 @@ fun MoreScreen(navController: NavController, appState: AppState) {
         }
 
         // 頁面 section (first section)
-        item { SectionHeader(title = "頁面") }
+        item { SectionHeader(title = stringResource(R.string.more_section_pages)) }
         item {
             FeatureGrid(
                 features = pageFeatures,
@@ -76,7 +78,8 @@ fun MoreScreen(navController: NavController, appState: AppState) {
         grouped.forEachIndexed { index, (category, features) ->
             item {
                 SectionHeader(
-                    title = category?.displayName ?: "其他",
+                    title = category?.let { stringResource(it.displayNameRes) }
+                        ?: stringResource(R.string.more_section_other),
                     modifier = Modifier.padding(top = 16.dp)
                 )
             }
@@ -164,7 +167,7 @@ private fun FeatureGrid(
                                 modifier = Modifier.size(32.dp)
                             )
                             Text(
-                                text = feature.displayName,
+                                text = stringResource(feature.displayNameRes),
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.SemiBold
                                 )

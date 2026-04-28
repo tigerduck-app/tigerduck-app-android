@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -47,6 +48,7 @@ import androidx.compose.ui.window.DialogProperties
 import kotlin.math.roundToInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.CreditSummary
 import org.ntust.app.tigerduck.data.model.CreditType
@@ -81,14 +83,14 @@ fun ScoreScreen(viewModel: ScoreViewModel = hiltViewModel()) {
             onRefresh = { viewModel.triggerRefresh() },
             onDragProgress = { pullProgress = it },
             modifier = Modifier.fillMaxSize(),
-            refreshingMessage = "頁面正在刷新，別急～",
+            refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                PageHeader(title = "歷年成績") {
+                PageHeader(title = stringResource(R.string.feature_score)) {
                     SyncIndicator(
                         isLoading = isRefreshing,
                         showCheckmark = false,
@@ -99,14 +101,14 @@ fun ScoreScreen(viewModel: ScoreViewModel = hiltViewModel()) {
                 when {
                     !isLoggedIn -> EmptyStateView(
                         icon = Icons.Filled.Lock,
-                        title = "尚未登入",
-                        message = "尚未登入，無法查看歷年成績",
+                        title = stringResource(R.string.common_not_logged_in),
+                        message = stringResource(R.string.score_not_logged_in_message),
                         modifier = Modifier.padding(top = 32.dp)
                     )
                     !viewModel.hasContent && !isRefreshing -> EmptyStateView(
                         icon = Icons.Filled.Search,
-                        title = "沒有成績資料",
-                        message = errorMessage ?: "下拉以重新整理，或稍後再試",
+                        title = stringResource(R.string.score_empty_title),
+                        message = errorMessage ?: stringResource(R.string.score_empty_message),
                         modifier = Modifier.padding(top = 32.dp)
                     )
                     else -> {
@@ -177,12 +179,12 @@ private fun StudentHeaderCard(student: String, currentTerm: String) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = student.ifEmpty { "歷年成績" },
+                    text = student.ifEmpty { stringResource(R.string.feature_score) },
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
                 if (currentTerm.isNotEmpty()) {
                     Text(
-                        text = formatCurrentTerm(currentTerm),
+                        text = formatCurrentTerm(stringResource(R.string.score_term_format), currentTerm),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                     )
@@ -192,12 +194,12 @@ private fun StudentHeaderCard(student: String, currentTerm: String) {
     }
 }
 
-private fun formatCurrentTerm(code: String): String {
+private fun formatCurrentTerm(pattern: String, code: String): String {
     if (code.length != 4) return code
     val year = code.take(3)
     val sem = code.last()
-    val label = when (sem) { '1' -> "上"; '2' -> "下"; else -> sem.toString() }
-    return "$year 學年度 · ${label}學期"
+    val label = when (sem) { '1' -> "1"; '2' -> "2"; else -> sem.toString() }
+    return pattern.format(year, label)
 }
 
 // MARK: - Credit summary
@@ -212,14 +214,14 @@ private fun CreditSummaryCard(summary: CreditSummary) {
     ) {
         Column(Modifier.padding(20.dp)) {
             Text(
-                text = "學分統計",
+                text = stringResource(R.string.score_credit_summary_title),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
             )
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CreditStat("已實得", summary.earned.total, Modifier.weight(1f))
-                CreditStat("修習中", summary.enrolled.total, Modifier.weight(1f))
-                CreditStat("合計", summary.total.total, Modifier.weight(1f))
+                CreditStat(stringResource(R.string.score_credit_earned), summary.earned.total, Modifier.weight(1f))
+                CreditStat(stringResource(R.string.score_credit_enrolled), summary.enrolled.total, Modifier.weight(1f))
+                CreditStat(stringResource(R.string.score_credit_total), summary.total.total, Modifier.weight(1f))
             }
         }
     }
@@ -271,7 +273,7 @@ private fun RankingsTrendCard(
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "GPA 趨勢",
+                    text = stringResource(R.string.score_gpa_trend_title),
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                     modifier = Modifier.weight(1f)
                 )
@@ -297,7 +299,13 @@ private fun RankingsTrendCard(
                             ),
                             colors = segmentColors,
                         ) {
-                            Text(option.displayName, style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                when (option) {
+                                    ScoreViewModel.RankingScope.SEMESTER -> stringResource(R.string.score_scope_semester)
+                                    ScoreViewModel.RankingScope.CUMULATIVE -> stringResource(R.string.score_scope_cumulative)
+                                },
+                                style = MaterialTheme.typography.labelMedium
+                            )
                         }
                     }
                 }
@@ -305,7 +313,7 @@ private fun RankingsTrendCard(
 
             if (rankings.isEmpty()) {
                 Text(
-                    text = "尚無排名資料",
+                    text = stringResource(R.string.score_no_ranking_data),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     modifier = Modifier
@@ -480,9 +488,9 @@ private fun TrendSummaryRow(
     // mode just identifies the pinned term's GPA.
     val gpaTitle = when {
         scope == ScoreViewModel.RankingScope.CUMULATIVE ->
-            "累計至 ${displayTermShort(source.term)}"
-        selectedTerm != null -> "${displayTermShort(source.term)} GPA"
-        else -> "最新 GPA"
+            stringResource(R.string.score_gpa_cumulative_to, displayTermShort(source.term))
+        selectedTerm != null -> stringResource(R.string.score_gpa_term_label, displayTermShort(source.term))
+        else -> stringResource(R.string.score_gpa_latest)
     }
     Row(
         modifier = Modifier
@@ -497,12 +505,12 @@ private fun TrendSummaryRow(
             modifier = Modifier.weight(1f)
         )
         SummaryCell(
-            title = "班排名",
+            title = stringResource(R.string.score_rank_class),
             value = stats.classRank?.toString() ?: "—",
             modifier = Modifier.weight(1f)
         )
         SummaryCell(
-            title = "系排名",
+            title = stringResource(R.string.score_rank_department),
             value = stats.deptRank?.toString() ?: "—",
             modifier = Modifier.weight(1f)
         )
@@ -611,7 +619,7 @@ private fun displayTermShort(code: String): String {
     if (code.length != 4) return code
     val year = code.take(3)
     val sem = code.last()
-    val label = when (sem) { '1' -> "上"; '2' -> "下"; else -> sem.toString() }
+    val label = when (sem) { '1' -> "1"; '2' -> "2"; else -> sem.toString() }
     return "$year-$label"
 }
 
@@ -648,11 +656,11 @@ private fun SemesterSection(
                     Spacer(Modifier.height(2.dp))
                     val totalCredits = courses.sumOf { it.credits ?: 0 }
                     val parts = buildList {
-                        add("$totalCredits 學分")
+                        add(stringResource(R.string.score_semester_total_credits, totalCredits))
                         ranking?.semester?.gpa?.let { add("GPA %.2f".format(it)) }
                         ranking?.semester?.let {
                             if (it.classRank != null && it.deptRank != null) {
-                                add("排名 ${it.deptRank}(${it.classRank})")
+                                add(stringResource(R.string.score_semester_ranking, it.deptRank, it.classRank))
                             }
                         }
                     }
@@ -704,9 +712,9 @@ private fun CourseRow(course: CourseGrade, onClick: () -> Unit) {
             Spacer(Modifier.height(2.dp))
             val meta = buildList {
                 add(course.code)
-                add("${course.credits ?: 0} 學分")
+                add(stringResource(R.string.score_course_credits, course.credits ?: 0))
                 course.geDimension?.let { add(it) }
-                if (course.distanceLearning) add("遠距")
+                if (course.distanceLearning) add(stringResource(R.string.score_distance_learning))
                 creditTypeLabel(course.creditType)?.let { add(it) }
             }
             Text(
@@ -740,12 +748,14 @@ private fun GradeChip(course: CourseGrade) {
     }
 }
 
+@Composable
 private fun gradeDescriptor(course: CourseGrade): Pair<String, Color> = when (course.status) {
-    GradeStatus.PENDING -> "未到" to Color(0xFF95A5A6)
-    GradeStatus.WITHDREW -> "退選" to Color(0xFF95A5A6)
-    GradeStatus.EXEMPTED -> "抵免" to Color(0xFF85C1E9)
+    GradeStatus.PENDING -> stringResource(R.string.score_grade_pending) to Color(0xFF95A5A6)
+    GradeStatus.WITHDREW -> stringResource(R.string.score_grade_withdrew) to Color(0xFF95A5A6)
+    GradeStatus.EXEMPTED -> stringResource(R.string.score_grade_exempted) to Color(0xFF85C1E9)
     GradeStatus.PASS_FAIL_GRADED -> if (course.grade == "通過")
-        "通過" to Color(0xFF4ECDC4) else "未過" to Color(0xFFE74C3C)
+        stringResource(R.string.score_grade_passed) to Color(0xFF4ECDC4)
+    else stringResource(R.string.score_grade_failed) to Color(0xFFE74C3C)
     GradeStatus.GRADED -> course.grade to gradeColor(course.grade)
     GradeStatus.UNKNOWN -> (course.grade.ifEmpty { "—" }) to Color(0xFF95A5A6)
 }
@@ -762,11 +772,12 @@ private fun gradeColor(grade: String): Color {
     }
 }
 
+@Composable
 private fun creditTypeLabel(type: CreditType): String? = when (type) {
-    CreditType.EDUCATION_PROGRAM -> "教育學程"
-    CreditType.NOT_COUNTED -> "不計入"
-    CreditType.NOT_REQUIRED -> "非必修"
-    CreditType.NOT_EARNED -> "未取得"
+    CreditType.EDUCATION_PROGRAM -> stringResource(R.string.score_credit_type_education_program)
+    CreditType.NOT_COUNTED -> stringResource(R.string.score_credit_type_not_counted)
+    CreditType.NOT_REQUIRED -> stringResource(R.string.score_credit_type_not_required)
+    CreditType.NOT_EARNED -> stringResource(R.string.score_credit_type_not_earned)
     CreditType.NORMAL, CreditType.UNKNOWN -> null
 }
 
@@ -777,19 +788,24 @@ private fun CourseDetailDialog(course: CourseGrade, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("關閉") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
         },
         title = { Text(course.name) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                InfoLine("課號", course.code)
-                InfoLine("學期", displayTerm(course.term))
-                InfoLine("學分", "${course.credits ?: 0}")
-                creditTypeLabel(course.creditType)?.let { InfoLine("學分類型", it) }
-                course.geDimension?.let { InfoLine("通識向度", it) }
-                InfoLine("成績", gradeDescriptor(course).first)
-                if (course.distanceLearning) InfoLine("授課方式", "遠距")
-                if (course.remark.isNotEmpty()) InfoLine("備註", course.remark)
+                InfoLine(stringResource(R.string.score_info_course_code), course.code)
+                InfoLine(stringResource(R.string.score_info_term), displayTerm(course.term))
+                InfoLine(stringResource(R.string.score_info_credits), "${course.credits ?: 0}")
+                creditTypeLabel(course.creditType)?.let { InfoLine(stringResource(R.string.score_info_credit_type), it) }
+                course.geDimension?.let { InfoLine(stringResource(R.string.score_info_general_dimension), it) }
+                InfoLine(stringResource(R.string.score_info_grade), gradeDescriptor(course).first)
+                if (course.distanceLearning) {
+                    InfoLine(
+                        stringResource(R.string.score_info_teaching_method),
+                        stringResource(R.string.score_distance_learning)
+                    )
+                }
+                if (course.remark.isNotEmpty()) InfoLine(stringResource(R.string.score_info_note), course.remark)
             }
         },
         properties = DialogProperties()
@@ -813,12 +829,17 @@ private fun InfoLine(label: String, value: String) {
     }
 }
 
+@Composable
 private fun displayTerm(code: String): String {
     if (code.length != 4) return code
     val year = code.take(3)
     val sem = code.last()
-    val label = when (sem) { '1' -> "上"; '2' -> "下"; else -> sem.toString() }
-    return "$year 學年度 ${label}學期"
+    val label = when (sem) {
+        '1' -> stringResource(R.string.score_semester_upper)
+        '2' -> stringResource(R.string.score_semester_lower)
+        else -> sem.toString()
+    }
+    return stringResource(R.string.score_academic_year_semester, year, label)
 }
 
 /**

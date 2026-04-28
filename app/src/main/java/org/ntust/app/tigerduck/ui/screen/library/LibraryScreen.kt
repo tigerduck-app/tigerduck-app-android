@@ -28,11 +28,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -78,7 +80,7 @@ fun LibraryScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        PageHeader(title = "圖書館") {
+        PageHeader(title = stringResource(R.string.feature_library)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
@@ -88,7 +90,8 @@ fun LibraryScreen(
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = if (isLoggedIn) "已登入" else "未登入",
+                    text = if (isLoggedIn) stringResource(R.string.library_status_logged_in)
+                           else stringResource(R.string.library_status_not_logged_in),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
@@ -172,7 +175,7 @@ private fun LibraryQRCodeCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "虛擬入館證",
+                    text = stringResource(R.string.library_virtual_pass_title),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -203,7 +206,7 @@ private fun LibraryQRCodeCard(
                     qrBitmap != null -> {
                         Image(
                             bitmap = qrBitmap.asImageBitmap(),
-                            contentDescription = "入館 QR 碼",
+                            contentDescription = stringResource(R.string.library_qr_content_description),
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(RoundedCornerShape(12.dp)),
@@ -213,7 +216,7 @@ private fun LibraryQRCodeCard(
                     }
                     else -> {
                         Text(
-                            "尚未產生 QR 碼",
+                            stringResource(R.string.library_qr_not_generated),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                         )
@@ -255,7 +258,7 @@ private fun CountdownIndicator(countdown: Int) {
             )
         }
         Text(
-            text = "${countdown} 秒後更新",
+            text = stringResource(R.string.library_qr_refresh_in_seconds, countdown),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
         )
@@ -283,18 +286,18 @@ private fun LoginPromptCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                "登入以使用 QR 入館",
+                stringResource(R.string.library_login_prompt_title),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
             Text(
-                "密碼可能與校務系統不同",
+                stringResource(R.string.library_login_prompt_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
             )
             OutlinedTextField(
                 value = username,
                 onValueChange = onUsernameChange,
-                label = { Text("圖書館帳號") },
+                label = { Text(stringResource(R.string.library_login_username)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(
@@ -305,7 +308,7 @@ private fun LoginPromptCard(
             OutlinedTextField(
                 value = password,
                 onValueChange = onPasswordChange,
-                label = { Text("圖書館密碼") },
+                label = { Text(stringResource(R.string.library_login_password)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
@@ -334,7 +337,7 @@ private fun LoginPromptCard(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text("登入圖書館")
+                    Text(stringResource(R.string.library_login_button))
                 }
             }
         }

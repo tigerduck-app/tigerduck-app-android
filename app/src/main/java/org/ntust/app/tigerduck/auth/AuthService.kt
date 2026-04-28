@@ -1,5 +1,8 @@
 package org.ntust.app.tigerduck.auth
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.LibraryService
 import org.ntust.app.tigerduck.network.NtustSessionManager
@@ -15,6 +18,7 @@ import javax.inject.Singleton
 
 @Singleton
 class AuthService @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val sessionManager: NtustSessionManager,
     private val ssoLoginService: SsoLoginService,
     private val libraryService: LibraryService,
@@ -74,9 +78,9 @@ class AuthService @Inject constructor(
             throw e
         } catch (e: Exception) {
             _loginError.value = if (e is SsoLoginError.NetworkError) {
-                "無法連線，請檢查網路連線"
+                context.getString(R.string.error_network_unavailable)
             } else {
-                e.message ?: "登入失敗"
+                e.message ?: context.getString(R.string.error_login_failed)
             }
             _isLoggingIn.value = false
             false

@@ -1,8 +1,10 @@
 package org.ntust.app.tigerduck.data.model
 
+import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
+import org.ntust.app.tigerduck.R
 
 enum class AppFeature(val id: String) {
     HOME("home"),
@@ -23,25 +25,26 @@ enum class AppFeature(val id: String) {
     MORE("more"),
     SETTINGS("settings");
 
-    val displayName: String
+    @get:StringRes
+    val displayNameRes: Int
         get() = when (this) {
-            HOME -> "首頁"
-            CLASS_TABLE -> "課表"
-            CALENDAR -> "行事曆"
-            ANNOUNCEMENTS -> "公告"
-            LIBRARY -> "圖書館"
-            SCORE -> "歷年成績"
-            COURSE_SELECTION -> "選課系統"
-            GRADUATION_REQUIREMENTS -> "畢業門檻"
-            DISCUSSION_ROOM -> "討論小間"
-            LIBRARY_LECTURE -> "圖書館講座"
-            FREE_LUNCH -> "免費便當"
-            CLUBS -> "社團活動"
-            EMPTY_CLASSROOM -> "空教室"
-            SCHOLARSHIP -> "獎學金"
-            ENGLISH_VOCAB -> "英文單字測驗"
-            MORE -> "更多"
-            SETTINGS -> "設定"
+            HOME -> R.string.feature_home
+            CLASS_TABLE -> R.string.feature_class_table
+            CALENDAR -> R.string.feature_calendar
+            ANNOUNCEMENTS -> R.string.feature_announcements
+            LIBRARY -> R.string.feature_library
+            SCORE -> R.string.feature_score
+            COURSE_SELECTION -> R.string.feature_course_selection
+            GRADUATION_REQUIREMENTS -> R.string.feature_graduation_requirements
+            DISCUSSION_ROOM -> R.string.feature_discussion_room
+            LIBRARY_LECTURE -> R.string.feature_library_lecture
+            FREE_LUNCH -> R.string.feature_free_lunch
+            CLUBS -> R.string.feature_clubs
+            EMPTY_CLASSROOM -> R.string.feature_empty_classroom
+            SCHOLARSHIP -> R.string.feature_scholarship
+            ENGLISH_VOCAB -> R.string.feature_english_vocab
+            MORE -> R.string.feature_more
+            SETTINGS -> R.string.feature_settings
         }
 
     @Suppress("DEPRECATION")
@@ -105,12 +108,13 @@ enum class AppFeature(val id: String) {
 enum class FeatureCategory {
     ACADEMIC, LIBRARY, LIFE, LANGUAGE, SYSTEM;
 
-    val displayName: String
+    @get:StringRes
+    val displayNameRes: Int
         get() = when (this) {
-            ACADEMIC -> "學業"
-            LIBRARY -> "圖書館"
-            LIFE -> "生活"
-            LANGUAGE -> "語言"
-            SYSTEM -> "系統"
+            ACADEMIC -> R.string.feature_category_academic
+            LIBRARY -> R.string.feature_category_library
+            LIFE -> R.string.feature_category_life
+            LANGUAGE -> R.string.feature_category_language
+            SYSTEM -> R.string.feature_category_system
         }
 }

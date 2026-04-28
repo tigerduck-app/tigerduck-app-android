@@ -1,5 +1,5 @@
 [versions]
-agp = "9.2.0"
+agp = "9.1.0"
 kotlin = "2.3.0"
 coreKtx = "1.13.1"
 lifecycleRuntimeKtx = "2.8.7"
@@ -15,6 +15,7 @@ securityCrypto = "1.1.0"
 coroutines = "1.9.0"
 zxing = "3.5.3"
 browser = "1.8.0"
+appcompat = "1.7.1"
 work = "2.10.0"
 jsoup = "1.18.3"
 hiltWork = "1.2.0"
@@ -49,6 +50,7 @@ security-crypto = { group = "androidx.security", name = "security-crypto", versi
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
 androidx-hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hiltWork" }
 androidx-hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hiltWork" }
