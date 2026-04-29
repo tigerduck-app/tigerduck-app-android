@@ -245,10 +245,11 @@ private fun CourseTimeCard(
 
 /**
  * Lays children out in a single row, splitting available width equally and
- * forcing every child to the tallest natural height in the group. Unlike
- * `Modifier.height(IntrinsicSize.Min)`, this works even when children use
- * `SubcomposeLayout` internally (e.g. SlotCard's FitOrStack), because we
- * remeasure children with explicit constraints rather than querying intrinsics.
+ * forcing every child to the tallest natural height in the group. Avoids
+ * `Modifier.height(IntrinsicSize.Min)` which crashes for SubcomposeLayout
+ * children (SlotCard contains FitOrStack / InlineOrStackText). Uses two
+ * subcompositions — one to probe natural heights, one for placement —
+ * because Compose only permits a single `measure()` call per Measurable.
  */
 @Composable
 private fun EqualHeightRow(
@@ -257,24 +258,23 @@ private fun EqualHeightRow(
     content: @Composable () -> Unit,
 ) {
     SubcomposeLayout(modifier) { constraints ->
-        val measurables = subcompose(Unit, content)
-        val n = measurables.size
-        if (n == 0) return@SubcomposeLayout layout(constraints.maxWidth, 0) {}
         val spacingPx = spacing.roundToPx()
+        val probeMeasurables = subcompose(EqualHeightSlot.Probe, content)
+        val n = probeMeasurables.size
+        if (n == 0) return@SubcomposeLayout layout(constraints.maxWidth, 0) {}
         val totalSpacing = if (n > 1) spacingPx * (n - 1) else 0
         val widthPerChild = ((constraints.maxWidth - totalSpacing) / n).coerceAtLeast(0)
-        // Pass 1: find each child's natural height at the assigned width.
         val probeConstraints = Constraints(
             minWidth = widthPerChild, maxWidth = widthPerChild,
             minHeight = 0, maxHeight = Constraints.Infinity,
         )
-        val maxH = measurables.maxOf { it.measure(probeConstraints).height }
-        // Pass 2: re-measure with a fixed height so each child fills the row.
+        val maxH = probeMeasurables.maxOf { it.measure(probeConstraints).height }
+        val finalMeasurables = subcompose(EqualHeightSlot.Place, content)
         val finalConstraints = Constraints(
             minWidth = widthPerChild, maxWidth = widthPerChild,
             minHeight = maxH, maxHeight = maxH,
         )
-        val placeables = measurables.map { it.measure(finalConstraints) }
+        val placeables = finalMeasurables.map { it.measure(finalConstraints) }
         layout(constraints.maxWidth, maxH) {
             var x = 0
             placeables.forEach { p ->
@@ -284,6 +284,8 @@ private fun EqualHeightRow(
         }
     }
 }
+
+private enum class EqualHeightSlot { Probe, Place }
 
 @Composable
 private fun SlotCard(
