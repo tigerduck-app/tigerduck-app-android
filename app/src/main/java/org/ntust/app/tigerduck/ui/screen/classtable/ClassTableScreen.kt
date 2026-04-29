@@ -420,14 +420,17 @@ fun ClassTableScreen(
     }
 
     if (showAddCourse) {
+        val addCourseSheetState = rememberModalBottomSheetState()
         ModalBottomSheet(
-            onDismissRequest = { showAddCourse = false }
+            onDismissRequest = { showAddCourse = false },
+            sheetState = addCourseSheetState
         ) {
             val currentSemester by viewModel.currentSemester.collectAsStateWithLifecycle()
             AddCourseSheet(
                 semester = currentSemester,
                 existingCourseNos = viewModel.existingCourseNos,
                 courseService = viewModel.courseService,
+                sheetState = addCourseSheetState,
                 onAdd = { viewModel.addCourse(it) },
                 onDismiss = { showAddCourse = false }
             )

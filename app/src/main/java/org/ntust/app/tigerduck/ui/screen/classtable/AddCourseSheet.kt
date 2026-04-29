@@ -18,7 +18,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
@@ -45,12 +47,27 @@ fun AddCourseSheet(
     semester: String,
     existingCourseNos: Set<String>,
     courseService: CourseService,
+    sheetState: SheetState,
     onAdd: (Course) -> Unit,
     onDismiss: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    // Total available sheet container height (screen height). The sheet's
+    // animated offset measures distance from this container's top, so the
+    // currently visible sheet height = containerHeight - sheetOffset.
+    val containerHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+    // Reactively track the visible portion of the sheet so the placeholder
+    // overlay can re-center as the user drags between partial and full.
+    val visibleHeightDp by remember(sheetState, containerHeightPx) {
+        derivedStateOf {
+            val offset = runCatching { sheetState.requireOffset() }.getOrDefault(0f)
+            with(density) { (containerHeightPx - offset).coerceAtLeast(0f).toDp() }
+        }
+    }
     var searchText by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<GroupedCourse>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
@@ -97,111 +114,84 @@ fun AddCourseSheet(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .padding(top = 16.dp)
     ) {
-        // Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                stringResource(R.string.add_course_title),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                modifier = Modifier.weight(1f)
-            )
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        // Unified search field — detects code / name / teacher from the input.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedTextField(
-                value = searchText,
-                onValueChange = { searchText = it },
-                placeholder = { Text(stringResource(R.string.add_course_placeholder)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = {
-                    keyboardController?.hide()
-                    search()
-                }),
-                modifier = Modifier.weight(1f)
-            )
-            FilledIconButton(
-                onClick = { search() },
-                enabled = searchText.isNotBlank() && !isSearching
-            ) {
-                if (isSearching) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                } else {
-                    Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.action_search))
-                }
-            }
-        }
-
-        errorMessage?.let {
-            Text(
-                it,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // Results
-        if (isSearching) {
-            Box(
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                CircularProgressIndicator()
+                Text(
+                    stringResource(R.string.add_course_title),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
             }
-        } else if (searchResults.isEmpty()) {
-            Box(
+
+            Spacer(Modifier.height(12.dp))
+
+            // Unified search field — detects code / name / teacher from the input.
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        stringResource(R.string.add_course_placeholder),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        stringResource(R.string.add_course_example),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                    )
+                OutlinedTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    placeholder = { Text(stringResource(R.string.add_course_placeholder)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = {
+                        keyboardController?.hide()
+                        search()
+                    }),
+                    modifier = Modifier.weight(1f)
+                )
+                FilledIconButton(
+                    onClick = { search() },
+                    enabled = searchText.isNotBlank() && !isSearching
+                ) {
+                    if (isSearching) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    } else {
+                        Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.action_search))
+                    }
                 }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 16.dp)
-            ) {
+
+            errorMessage?.let {
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // Results list — only present when we have results. For empty/loading
+            // states the Column expands to fill the sheet via the Spacer below so
+            // the centered overlay can position relative to the full sheet height.
+            if (!isSearching && searchResults.isNotEmpty()) {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 16.dp)
+                ) {
                 items(searchResults) { group ->
                     val alreadyExists = group.courseNo in existingCourseNos || group.courseNo == addedCourseNo
 
@@ -272,6 +262,41 @@ fun AddCourseSheet(
                         }
                     }
                     HorizontalDivider()
+                }
+                }
+            } else {
+                // Take all remaining vertical space so the parent Box can
+                // center its overlay relative to the full sheet height.
+                Spacer(modifier = Modifier.weight(1f))
+            }
+        }
+
+        // Overlay constrained to the *visible* sheet height so the contents
+        // sit at the visual middle of whatever portion is currently on
+        // screen — partial, fully expanded, or anywhere mid-drag.
+        if (isSearching || searchResults.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(visibleHeightDp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSearching) {
+                    CircularProgressIndicator()
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            stringResource(R.string.add_course_placeholder),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            stringResource(R.string.add_course_example),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                        )
+                    }
                 }
             }
         }
