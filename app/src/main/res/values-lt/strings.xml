@@ -453,6 +453,14 @@
     <string name="settings_version">Versija</string>
     <string name="settings_view_source_code">Peržiūrėti šaltinio kodą</string>
     <string name="settings_visual_preset_label">Interface style</string>
+    <string name="source_code_picker_current_app_badge">Ši programa</string>
+    <string name="source_code_picker_org_description">Organizacija</string>
+    <string name="source_code_picker_repo_android_description">Android</string>
+    <string name="source_code_picker_repo_apple_description">Apple</string>
+    <string name="source_code_picker_repo_name_abbr_description">Kursų ir auditorijų pavadinimų santrumpos</string>
+    <string name="source_code_picker_repo_translation_description">Sąsajos vertimas</string>
+    <string name="source_code_picker_repo_web_description">Oficialus tinklalapis</string>
+    <string name="source_code_picker_section_repositories">Saugyklos</string>
     <string name="sync_success_content_description">Sinchronizavimas sėkmingas</string>
     <string name="tab_editor_apply_action">Apply</string>
     <string name="tab_editor_drag_reorder">Vilkite, kad pertvarkytumėte</string>

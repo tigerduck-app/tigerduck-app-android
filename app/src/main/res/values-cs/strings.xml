@@ -453,6 +453,14 @@
     <string name="settings_version">Verze</string>
     <string name="settings_view_source_code">Zobrazit zdrojový kód</string>
     <string name="settings_visual_preset_label">Interface style</string>
+    <string name="source_code_picker_current_app_badge">Aktuální aplikace</string>
+    <string name="source_code_picker_org_description">Organizace</string>
+    <string name="source_code_picker_repo_android_description">Android</string>
+    <string name="source_code_picker_repo_apple_description">Apple</string>
+    <string name="source_code_picker_repo_name_abbr_description">Zkratky názvů kurzů a učeben</string>
+    <string name="source_code_picker_repo_translation_description">Překlad rozhraní</string>
+    <string name="source_code_picker_repo_web_description">Oficiální webová stránka</string>
+    <string name="source_code_picker_section_repositories">Repozitáře</string>
     <string name="sync_success_content_description">Synchronizace úspěšná</string>
     <string name="tab_editor_apply_action">Apply</string>
     <string name="tab_editor_drag_reorder">Přetažením změníte pořadí</string>

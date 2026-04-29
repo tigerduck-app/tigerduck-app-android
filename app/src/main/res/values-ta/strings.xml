@@ -453,6 +453,14 @@
     <string name="settings_version">பதிப்பு</string>
     <string name="settings_view_source_code">மூல குறியீட்டை காண்</string>
     <string name="settings_visual_preset_label">Interface style</string>
+    <string name="source_code_picker_current_app_badge">தற்போதைய செயலி</string>
+    <string name="source_code_picker_org_description">நிறுவனம்</string>
+    <string name="source_code_picker_repo_android_description">Android</string>
+    <string name="source_code_picker_repo_apple_description">Apple</string>
+    <string name="source_code_picker_repo_name_abbr_description">பாடம் மற்றும் வகுப்பறை பெயர் சுருக்கங்கள்</string>
+    <string name="source_code_picker_repo_translation_description">UI மொழிபெயர்ப்பு</string>
+    <string name="source_code_picker_repo_web_description">அதிகாரப்பூர்வ வலைத்தளம்</string>
+    <string name="source_code_picker_section_repositories">களஞ்சியங்கள்</string>
     <string name="sync_success_content_description">ஒத்திசைவு வெற்றி</string>
     <string name="tab_editor_apply_action">Apply</string>
     <string name="tab_editor_drag_reorder">மறுவரிசைப்படுத்த இழுக்கவும்</string>

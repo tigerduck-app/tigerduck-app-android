@@ -52,6 +52,7 @@ import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.SourceCodePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
 
 sealed class Screen(val route: String) {
@@ -67,6 +68,7 @@ sealed class Screen(val route: String) {
     object LanguagePicker : Screen("languagePicker")
     object LiveActivitySettings : Screen("liveActivitySettings")
     object NotificationSetup : Screen("notificationSetup")
+    object SourceCodePicker : Screen("sourceCodePicker")
 }
 
 @Composable
@@ -257,6 +259,7 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
                     onNavigateToNotificationSetup = { navController.navigate(Screen.NotificationSetup.route) },
+                    onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
                 )
             }
             composable(Screen.LanguagePicker.route) {
@@ -273,6 +276,9 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
             }
             composable(Screen.LiveActivitySettings.route) {
                 LiveActivitySettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.SourceCodePicker.route) {
+                SourceCodePickerScreen(onBack = { navController.popBackStack() })
             }
             composable("placeholder/{feature}",
                 arguments = listOf(navArgument("feature") { type = NavType.StringType })

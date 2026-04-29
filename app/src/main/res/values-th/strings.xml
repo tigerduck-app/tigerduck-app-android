@@ -453,6 +453,14 @@
     <string name="settings_version">เวอร์ชัน</string>
     <string name="settings_view_source_code">ดูซอร์สโค้ด</string>
     <string name="settings_visual_preset_label">Interface style</string>
+    <string name="source_code_picker_current_app_badge">แอปนี้</string>
+    <string name="source_code_picker_org_description">องค์กร</string>
+    <string name="source_code_picker_repo_android_description">Android</string>
+    <string name="source_code_picker_repo_apple_description">Apple</string>
+    <string name="source_code_picker_repo_name_abbr_description">ชื่อย่อรายวิชาและห้องเรียน</string>
+    <string name="source_code_picker_repo_translation_description">การแปล UI</string>
+    <string name="source_code_picker_repo_web_description">เว็บไซต์อย่างเป็นทางการ</string>
+    <string name="source_code_picker_section_repositories">รีโพซิทอรี</string>
     <string name="sync_success_content_description">ซิงค์สำเร็จ</string>
     <string name="tab_editor_apply_action">Apply</string>
     <string name="tab_editor_drag_reorder">ลากเพื่อจัดเรียง</string>

@@ -453,6 +453,14 @@
     <string name="settings_version">ಆವೃತ್ತಿ</string>
     <string name="settings_view_source_code">ಮೂಲ ಕೋಡ್ ವೀಕ್ಷಿಸಿ</string>
     <string name="settings_visual_preset_label">Interface style</string>
+    <string name="source_code_picker_current_app_badge">ಪ್ರಸ್ತುತ ಅಪ್ಲಿಕೇಶನ್</string>
+    <string name="source_code_picker_org_description">ಸಂಸ್ಥೆ</string>
+    <string name="source_code_picker_repo_android_description">Android</string>
+    <string name="source_code_picker_repo_apple_description">Apple</string>
+    <string name="source_code_picker_repo_name_abbr_description">ಕೋರ್ಸ್ ಮತ್ತು ತರಗತಿ ಕೊಠಡಿ ಹೆಸರಿನ ಸಂಕ್ಷೇಪಣ</string>
+    <string name="source_code_picker_repo_translation_description">UI ಅನುವಾದ</string>
+    <string name="source_code_picker_repo_web_description">ಅಧಿಕೃತ ವೆಬ್‌ಪೇಜ್</string>
+    <string name="source_code_picker_section_repositories">ರಿಪಾಸಿಟರಿಗಳು</string>
     <string name="sync_success_content_description">ಸಿಂಕ್ ಯಶಸ್ವಿಯಾಗಿದೆ</string>
     <string name="tab_editor_apply_action">Apply</string>
     <string name="tab_editor_drag_reorder">ಮರುಕ್ರಮಿಸಲು ಎಳೆಯಿರಿ</string>

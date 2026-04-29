@@ -47,6 +47,7 @@ fun SettingsScreen(
     onNavigateToLanguagePicker: () -> Unit = {},
     onNavigateToLiveActivity: () -> Unit = {},
     onNavigateToNotificationSetup: () -> Unit = {},
+    onNavigateToSourceCode: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsState()
@@ -326,9 +327,7 @@ fun SettingsScreen(
                         openUrl(context, "https://github.com/tigerduck-app/tigerduck-app-android/blob/main/LICENSE", browserPreference)
                     }
                     HorizontalDivider()
-                    SettingsLinkRow(stringResource(R.string.settings_view_source_code)) {
-                        openUrl(context, "https://github.com/tigerduck-app/tigerduck-app-android", browserPreference)
-                    }
+                    SettingsLinkRow(stringResource(R.string.settings_view_source_code)) { onNavigateToSourceCode() }
                 }
             }
         }

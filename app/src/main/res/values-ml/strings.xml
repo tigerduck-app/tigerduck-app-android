@@ -453,6 +453,14 @@
     <string name="settings_version">പതിപ്പ്</string>
     <string name="settings_view_source_code">സോഴ്‌സ് കോഡ് കാണുക</string>
     <string name="settings_visual_preset_label">Interface style</string>
+    <string name="source_code_picker_current_app_badge">നിലവിലെ ആപ്പ്</string>
+    <string name="source_code_picker_org_description">ഓർഗനൈസേഷൻ</string>
+    <string name="source_code_picker_repo_android_description">Android</string>
+    <string name="source_code_picker_repo_apple_description">Apple</string>
+    <string name="source_code_picker_repo_name_abbr_description">കോഴ്‌സ്, ക്ലാസ്‌റൂം പേര് ചുരുക്കങ്ങൾ</string>
+    <string name="source_code_picker_repo_translation_description">UI വിവർത്തനം</string>
+    <string name="source_code_picker_repo_web_description">ഔദ്യോഗിക വെബ്‌പേജ്</string>
+    <string name="source_code_picker_section_repositories">റിപ്പോസിറ്ററികൾ</string>
     <string name="sync_success_content_description">സമന്വയം വിജയകരം</string>
     <string name="tab_editor_apply_action">Apply</string>
     <string name="tab_editor_drag_reorder">ക്രമമാക്കാൻ വലിക്കുക</string>

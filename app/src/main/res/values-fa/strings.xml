@@ -453,6 +453,14 @@
     <string name="settings_version">نسخه</string>
     <string name="settings_view_source_code">مشاهده کد منبع</string>
     <string name="settings_visual_preset_label">Interface style</string>
+    <string name="source_code_picker_current_app_badge">اپ فعلی</string>
+    <string name="source_code_picker_org_description">سازمان</string>
+    <string name="source_code_picker_repo_android_description">Android</string>
+    <string name="source_code_picker_repo_apple_description">Apple</string>
+    <string name="source_code_picker_repo_name_abbr_description">مخفف نام درس‌ها و کلاس‌ها</string>
+    <string name="source_code_picker_repo_translation_description">ترجمه رابط کاربری</string>
+    <string name="source_code_picker_repo_web_description">صفحه وب رسمی</string>
+    <string name="source_code_picker_section_repositories">مخازن</string>
     <string name="sync_success_content_description">همگام‌سازی موفق بود</string>
     <string name="tab_editor_apply_action">Apply</string>
     <string name="tab_editor_drag_reorder">برای تغییر ترتیب بکشید</string>

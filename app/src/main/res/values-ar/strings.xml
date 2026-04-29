@@ -453,6 +453,14 @@
     <string name="settings_version">الإصدار</string>
     <string name="settings_view_source_code">عرض الكود المصدري</string>
     <string name="settings_visual_preset_label">Interface style</string>
+    <string name="source_code_picker_current_app_badge">التطبيق الحالي</string>
+    <string name="source_code_picker_org_description">منظمة</string>
+    <string name="source_code_picker_repo_android_description">Android</string>
+    <string name="source_code_picker_repo_apple_description">Apple</string>
+    <string name="source_code_picker_repo_name_abbr_description">اختصارات أسماء المقررات والقاعات</string>
+    <string name="source_code_picker_repo_translation_description">ترجمة الواجهة</string>
+    <string name="source_code_picker_repo_web_description">الموقع الرسمي</string>
+    <string name="source_code_picker_section_repositories">المستودعات</string>
     <string name="sync_success_content_description">تمت المزامنة بنجاح</string>
     <string name="tab_editor_apply_action">Apply</string>
     <string name="tab_editor_drag_reorder">اسحب لإعادة الترتيب</string>

@@ -453,6 +453,14 @@
     <string name="settings_version">Έκδοση</string>
     <string name="settings_view_source_code">Προβολή πηγαίου κώδικα</string>
     <string name="settings_visual_preset_label">Interface style</string>
+    <string name="source_code_picker_current_app_badge">Τρέχουσα εφαρμογή</string>
+    <string name="source_code_picker_org_description">Οργανισμός</string>
+    <string name="source_code_picker_repo_android_description">Android</string>
+    <string name="source_code_picker_repo_apple_description">Apple</string>
+    <string name="source_code_picker_repo_name_abbr_description">Συντομεύσεις ονομάτων μαθημάτων και αιθουσών</string>
+    <string name="source_code_picker_repo_translation_description">Μετάφραση διεπαφής</string>
+    <string name="source_code_picker_repo_web_description">Επίσημη ιστοσελίδα</string>
+    <string name="source_code_picker_section_repositories">Αποθετήρια</string>
     <string name="sync_success_content_description">Επιτυχής συγχρονισμός</string>
     <string name="tab_editor_apply_action">Apply</string>
     <string name="tab_editor_drag_reorder">Σύρετε για αναδιάταξη</string>

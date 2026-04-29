@@ -453,6 +453,14 @@
     <string name="settings_version">વર્ઝન</string>
     <string name="settings_view_source_code">સોર્સ કોડ જુઓ</string>
     <string name="settings_visual_preset_label">Interface style</string>
+    <string name="source_code_picker_current_app_badge">વર્તમાન એપ</string>
+    <string name="source_code_picker_org_description">સંગઠન</string>
+    <string name="source_code_picker_repo_android_description">Android</string>
+    <string name="source_code_picker_repo_apple_description">Apple</string>
+    <string name="source_code_picker_repo_name_abbr_description">કોર્સ અને ક્લાસરૂમ નામ સંક્ષિપ્ત</string>
+    <string name="source_code_picker_repo_translation_description">UI અનુવાદ</string>
+    <string name="source_code_picker_repo_web_description">સત્તાવાર વેબપેજ</string>
+    <string name="source_code_picker_section_repositories">રિપોઝિટરી</string>
     <string name="sync_success_content_description">સિંક સફળ</string>
     <string name="tab_editor_apply_action">Apply</string>
     <string name="tab_editor_drag_reorder">ક્રમ બદલવા ખેંચો</string>

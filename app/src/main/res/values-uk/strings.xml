@@ -453,6 +453,14 @@
     <string name="settings_version">Версія</string>
     <string name="settings_view_source_code">Переглянути вихідний код</string>
     <string name="settings_visual_preset_label">Interface style</string>
+    <string name="source_code_picker_current_app_badge">Поточний застосунок</string>
+    <string name="source_code_picker_org_description">Організація</string>
+    <string name="source_code_picker_repo_android_description">Android</string>
+    <string name="source_code_picker_repo_apple_description">Apple</string>
+    <string name="source_code_picker_repo_name_abbr_description">Скорочення назв курсів і аудиторій</string>
+    <string name="source_code_picker_repo_translation_description">Переклад інтерфейсу</string>
+    <string name="source_code_picker_repo_web_description">Офіційна веб-сторінка</string>
+    <string name="source_code_picker_section_repositories">Репозиторії</string>
     <string name="sync_success_content_description">Синхронізація успішна</string>
     <string name="tab_editor_apply_action">Apply</string>
     <string name="tab_editor_drag_reorder">Перетягніть, щоб змінити порядок</string>

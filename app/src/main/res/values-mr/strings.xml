@@ -453,6 +453,14 @@
     <string name="settings_version">आवृत्ती</string>
     <string name="settings_view_source_code">स्रोत कोड पहा</string>
     <string name="settings_visual_preset_label">Interface style</string>
+    <string name="source_code_picker_current_app_badge">सध्याचे अ‍ॅप</string>
+    <string name="source_code_picker_org_description">संस्था</string>
+    <string name="source_code_picker_repo_android_description">Android</string>
+    <string name="source_code_picker_repo_apple_description">Apple</string>
+    <string name="source_code_picker_repo_name_abbr_description">कोर्स आणि वर्गखोली नावांचे संक्षिप्त रूप</string>
+    <string name="source_code_picker_repo_translation_description">UI भाषांतर</string>
+    <string name="source_code_picker_repo_web_description">अधिकृत वेबपेज</string>
+    <string name="source_code_picker_section_repositories">रिपॉझिटरी</string>
     <string name="sync_success_content_description">सिंक यशस्वी</string>
     <string name="tab_editor_apply_action">Apply</string>
     <string name="tab_editor_drag_reorder">क्रम बदलण्यासाठी ड्रॅग करा</string>
