@@ -414,6 +414,10 @@
     <string name="settings_assignment_due_reminder">Ödev teslim hatırlatıcıları</string>
     <string name="settings_browser_in_app">Uygulama içi tarayıcı</string>
     <string name="settings_browser_system_default">Sistem varsayılan tarayıcısı</string>
+    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
+    <string name="settings_classroom_mandarin_display_original">Display original</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
+    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">Renk teması</string>
     <string name="settings_feedback_bug_report">Geri bildirim / Sorun bildir</string>
     <string name="settings_invert_slider_direction">Kaydırıcı yönünü ters çevir</string>
@@ -449,6 +453,7 @@
     <string name="settings_theme_light">Açık mod</string>
     <string name="settings_theme_system">Sistemi takip et</string>
     <string name="settings_token_valid_until">Token şu tarihe kadar geçerli: %1$s</string>
+    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
     <string name="settings_use_english_course_abbreviation">İngilizce ders kısaltmalarını kullan</string>
     <string name="settings_version">Sürüm</string>
     <string name="settings_view_source_code">Kaynak kodunu görüntüle</string>

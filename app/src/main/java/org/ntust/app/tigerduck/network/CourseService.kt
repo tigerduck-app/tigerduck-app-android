@@ -57,7 +57,7 @@ class CourseService @Inject constructor(
     @Volatile private var lookupCacheLoaded = false
     @Volatile private var abbreviationCacheLoaded = false
     @Volatile private var courseNameAbbr: Map<String, String> = emptyMap()
-    @Volatile private var classroomNameAbbr: Map<String, String> = emptyMap()
+    @Volatile private var classroomNameAbbr: Map<String, ClassroomAbbrEntry> = emptyMap()
 
     suspend fun fetchEnrolledCourseNos(studentId: String, password: String): List<String> =
         withContext(Dispatchers.IO) {
@@ -284,30 +284,46 @@ class CourseService @Inject constructor(
     }
 
     private suspend fun applyAbbreviations(results: List<CourseSearchResult>, language: String): List<CourseSearchResult> {
-        if (language != "en" || results.isEmpty() || !appPreferences.useEnglishCourseAbbreviation) return results
+        if (language != "en" || results.isEmpty()) return results
+        val courseToggle = appPreferences.useEnglishCourseAbbreviation
+        val classroomToggle = appPreferences.useEnglishClassroomAbbreviation
+        if (!courseToggle && !classroomToggle) return results
         ensureAbbreviationCacheLoaded()
         if (courseNameAbbr.isEmpty() && classroomNameAbbr.isEmpty()) return results
 
+        val mandarinDisplay = appPreferences.classroomMandarinDisplay
         return results.map { result ->
-            val shortenedCourseName = courseNameAbbr[result.courseName] ?: result.courseName
-            val shortenedClassroom = result.classRoomNo?.let { abbreviateClassroomNames(it) }
-            if (shortenedCourseName == result.courseName && shortenedClassroom == result.classRoomNo) {
+            val newName = if (courseToggle) {
+                courseNameAbbr[result.courseName] ?: result.courseName
+            } else result.courseName
+            val newRoom = if (classroomToggle) {
+                result.classRoomNo?.let { abbreviateClassroomNames(it, mandarinDisplay) }
+            } else result.classRoomNo
+            if (newName == result.courseName && newRoom == result.classRoomNo) {
                 result
             } else {
-                result.copy(
-                    courseName = shortenedCourseName,
-                    classRoomNo = shortenedClassroom
-                )
+                result.copy(courseName = newName, classRoomNo = newRoom)
             }
         }
     }
 
-    private fun abbreviateClassroomNames(raw: String): String {
+    private fun abbreviateClassroomNames(raw: String, mandarinDisplay: String): String {
         if (raw.isBlank()) return raw
         return raw.split(",")
             .map { part ->
                 val trimmed = part.trim()
-                classroomNameAbbr[trimmed] ?: trimmed
+                val entry = classroomNameAbbr[trimmed] ?: return@map trimmed
+                val short = entry.shortenedName?.trim().orEmpty()
+                val pinyin = entry.pinyin?.trim().orEmpty()
+                val translated = entry.translated?.trim().orEmpty()
+                val fallback = short.ifEmpty { trimmed }
+                when (mandarinDisplay) {
+                    AppPreferences.CLASSROOM_MANDARIN_DISPLAY_PINYIN ->
+                        pinyin.ifEmpty { fallback }
+                    AppPreferences.CLASSROOM_MANDARIN_DISPLAY_TRANSLATED ->
+                        translated.ifEmpty { fallback }
+                    else -> fallback
+                }
             }
             .joinToString(", ")
     }
@@ -331,20 +347,18 @@ class CourseService @Inject constructor(
         }.getOrDefault(emptyMap())
     }
 
-    private fun loadClassroomNameAbbr(): Map<String, String> {
+    private fun loadClassroomNameAbbr(): Map<String, ClassroomAbbrEntry> {
         return runCatching {
             context.assets.open("classroom-name-abbr.json").use { stream ->
                 val type = object : TypeToken<Map<String, ClassroomAbbrEntry>>() {}.type
-                val raw = gson.fromJson<Map<String, ClassroomAbbrEntry>>(stream.reader(Charsets.UTF_8), type).orEmpty()
-                raw.mapNotNull { (name, entry) ->
-                    val short = entry.shortenedName?.trim().orEmpty()
-                    if (short.isEmpty()) null else name to short
-                }.toMap()
+                gson.fromJson<Map<String, ClassroomAbbrEntry>>(stream.reader(Charsets.UTF_8), type).orEmpty()
             }
         }.getOrDefault(emptyMap())
     }
 
     private data class ClassroomAbbrEntry(
-        @SerializedName("shortened_name") val shortenedName: String? = null
+        @SerializedName("shortened_name") val shortenedName: String? = null,
+        @SerializedName("pinyin") val pinyin: String? = null,
+        @SerializedName("translated") val translated: String? = null,
     )
 }

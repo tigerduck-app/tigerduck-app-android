@@ -39,6 +39,20 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     val useEnglishCourseAbbreviationChanged: SharedFlow<Unit> =
         _useEnglishCourseAbbreviationChanged.asSharedFlow()
 
+    private val _useEnglishClassroomAbbreviationChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val useEnglishClassroomAbbreviationChanged: SharedFlow<Unit> =
+        _useEnglishClassroomAbbreviationChanged.asSharedFlow()
+
+    private val _classroomMandarinDisplayChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val classroomMandarinDisplayChanged: SharedFlow<Unit> =
+        _classroomMandarinDisplayChanged.asSharedFlow()
+
     var hasCompletedOnboarding: Boolean
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
         set(value) = prefs.edit().putBoolean("hasCompletedOnboarding", value).apply()
@@ -82,6 +96,28 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
             val previous = useEnglishCourseAbbreviation
             prefs.edit().putBoolean("useEnglishCourseAbbreviation", value).apply()
             if (value != previous) _useEnglishCourseAbbreviationChanged.tryEmit(Unit)
+        }
+
+    var useEnglishClassroomAbbreviation: Boolean
+        get() = prefs.getBoolean("useEnglishClassroomAbbreviation", false)
+        set(value) {
+            val previous = useEnglishClassroomAbbreviation
+            prefs.edit().putBoolean("useEnglishClassroomAbbreviation", value).apply()
+            if (value != previous) _useEnglishClassroomAbbreviationChanged.tryEmit(Unit)
+        }
+
+    /** One of "original" (Mandarin shortened_name), "pinyin", "translated". */
+    var classroomMandarinDisplay: String
+        get() = prefs.getString("classroomMandarinDisplay", null)
+            ?.takeIf { it in CLASSROOM_MANDARIN_DISPLAY_OPTIONS }
+            ?: CLASSROOM_MANDARIN_DISPLAY_ORIGINAL
+        set(value) {
+            val normalized = if (value in CLASSROOM_MANDARIN_DISPLAY_OPTIONS) {
+                value
+            } else CLASSROOM_MANDARIN_DISPLAY_ORIGINAL
+            val previous = classroomMandarinDisplay
+            prefs.edit().putString("classroomMandarinDisplay", normalized).apply()
+            if (normalized != previous) _classroomMandarinDisplayChanged.tryEmit(Unit)
         }
 
     var homeAssignmentFilter: AssignmentFilter
@@ -171,6 +207,15 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         }
 
     companion object {
+        const val CLASSROOM_MANDARIN_DISPLAY_ORIGINAL = "original"
+        const val CLASSROOM_MANDARIN_DISPLAY_PINYIN = "pinyin"
+        const val CLASSROOM_MANDARIN_DISPLAY_TRANSLATED = "translated"
+        val CLASSROOM_MANDARIN_DISPLAY_OPTIONS = setOf(
+            CLASSROOM_MANDARIN_DISPLAY_ORIGINAL,
+            CLASSROOM_MANDARIN_DISPLAY_PINYIN,
+            CLASSROOM_MANDARIN_DISPLAY_TRANSLATED,
+        )
+
         /**
          * Accent color palette — canonical (light-mode) hex. The user's pick
          * is always stored as the light hex; [themeColorsDark] provides the

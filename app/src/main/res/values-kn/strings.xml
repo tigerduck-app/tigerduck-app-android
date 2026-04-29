@@ -414,6 +414,10 @@
     <string name="settings_assignment_due_reminder">ಕಾರ್ಯ ಗಡುವು ಜ್ಞಾಪನೆಗಳು</string>
     <string name="settings_browser_in_app">ಅಪ್ಲಿಕೇಶನ್ ಒಳಗಿನ ಬ್ರೌಸರ್</string>
     <string name="settings_browser_system_default">ಸಿಸ್ಟಂ ಡೀಫಾಲ್ಟ್ ಬ್ರೌಸರ್</string>
+    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
+    <string name="settings_classroom_mandarin_display_original">Display original</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
+    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">ಬಣ್ಣ ಥೀಮ್</string>
     <string name="settings_feedback_bug_report">ಪ್ರತಿಕ್ರಿಯೆ / ಸಮಸ್ಯೆ ವರದಿ</string>
     <string name="settings_invert_slider_direction">ಸ್ಲೈಡರ್ ದಿಕ್ಕು ತಿರುಗಿಸಿ</string>
@@ -449,6 +453,7 @@
     <string name="settings_theme_light">ಲೈಟ್ ಮೋಡ್</string>
     <string name="settings_theme_system">ಸಿಸ್ಟಂ ಅನುಸರಿಸಿ</string>
     <string name="settings_token_valid_until">ಟೋಕನ್ %1$s ವರೆಗೆ ಮಾನ್ಯ</string>
+    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
     <string name="settings_use_english_course_abbreviation">ಇಂಗ್ಲಿಷ್ ಕೋರ್ಸ್ ಸಂಕ್ಷೇಪಣಗಳನ್ನು ಬಳಸಿ</string>
     <string name="settings_version">ಆವೃತ್ತಿ</string>
     <string name="settings_view_source_code">ಮೂಲ ಕೋಡ್ ವೀಕ್ಷಿಸಿ</string>

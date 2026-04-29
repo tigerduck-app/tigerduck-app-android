@@ -121,6 +121,27 @@ class AppState @Inject constructor(
             prefs.useEnglishCourseAbbreviation = value
         }
 
+    private var useEnglishClassroomAbbreviationState by mutableStateOf(prefs.useEnglishClassroomAbbreviation)
+
+    var useEnglishClassroomAbbreviation: Boolean
+        get() = useEnglishClassroomAbbreviationState
+        set(value) {
+            if (useEnglishClassroomAbbreviationState == value) return
+            useEnglishClassroomAbbreviationState = value
+            prefs.useEnglishClassroomAbbreviation = value
+        }
+
+    private var classroomMandarinDisplayState by mutableStateOf(prefs.classroomMandarinDisplay)
+
+    /** One of "original", "pinyin", "translated". */
+    var classroomMandarinDisplay: String
+        get() = classroomMandarinDisplayState
+        set(value) {
+            if (classroomMandarinDisplayState == value) return
+            classroomMandarinDisplayState = value
+            prefs.classroomMandarinDisplay = value
+        }
+
     private var browserPreferenceState by mutableStateOf(prefs.browserPreference)
 
     var browserPreference: String
@@ -229,6 +250,8 @@ class AppState @Inject constructor(
             accentColorHexState = prefs.accentColorHex
             showAbsoluteAssignmentTimeState = prefs.showAbsoluteAssignmentTime
             useEnglishCourseAbbreviationState = prefs.useEnglishCourseAbbreviation
+            useEnglishClassroomAbbreviationState = prefs.useEnglishClassroomAbbreviation
+            classroomMandarinDisplayState = prefs.classroomMandarinDisplay
             browserPreferenceState = prefs.browserPreference
             themeModeState = prefs.themeMode
             appLanguageState = prefs.appLanguage

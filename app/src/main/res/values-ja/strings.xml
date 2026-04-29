@@ -414,6 +414,10 @@
     <string name="settings_assignment_due_reminder">課題の期限リマインダー</string>
     <string name="settings_browser_in_app">アプリ内ブラウザ</string>
     <string name="settings_browser_system_default">システム標準ブラウザ</string>
+    <string name="settings_classroom_mandarin_display">教室名が中国語の場合</string>
+    <string name="settings_classroom_mandarin_display_original">原文を表示</string>
+    <string name="settings_classroom_mandarin_display_pinyin">ピンインを表示</string>
+    <string name="settings_classroom_mandarin_display_translated">翻訳を表示</string>
     <string name="settings_color_theme">カラーテーマ</string>
     <string name="settings_feedback_bug_report">フィードバック / 不具合報告</string>
     <string name="settings_invert_slider_direction">スライダーの方向を反転</string>
@@ -449,6 +453,7 @@
     <string name="settings_theme_light">ライトモード</string>
     <string name="settings_theme_system">システムに従う</string>
     <string name="settings_token_valid_until">トークンの有効期限：%1$s</string>
+    <string name="settings_use_english_classroom_abbreviation">英語の教室名略称を使用</string>
     <string name="settings_use_english_course_abbreviation">英語の授業名略称を使用</string>
     <string name="settings_version">バージョン</string>
     <string name="settings_view_source_code">ソースコードを見る</string>

@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -204,6 +205,25 @@ class HomeViewModel @Inject constructor(
             prefs.appLanguageChanged.collect {
                 courseService.clearInMemoryLookupCache()
                 if (authService.authState.value) refresh()
+            }
+        }
+        viewModelScope.launch {
+            // Abbreviation toggles + Mandarin classroom display picker — pure
+            // display transforms. Re-derive names from the lookup cache so the
+            // time-slider card and today list update without a network call.
+            merge(
+                prefs.useEnglishCourseAbbreviationChanged,
+                prefs.useEnglishClassroomAbbreviationChanged,
+                prefs.classroomMandarinDisplayChanged,
+            ).collect {
+                val semester = courseService.currentSemesterCode()
+                val relabeled = courseService.relabelCoursesForCurrentAbbrSetting(
+                    semester, _allCourses.value
+                )
+                if (relabeled != _allCourses.value) {
+                    updateCoursesAndAssignments(relabeled, _allAssignments.value)
+                    dataCache.saveCourses(relabeled)
+                }
             }
         }
     }

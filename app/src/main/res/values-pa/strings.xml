@@ -414,6 +414,10 @@
     <string name="settings_assignment_due_reminder">ਅਸਾਈਨਮੈਂਟ ਦੀ ਮਿਆਦ ਦੇ ਰੀਮਾਈਂਡਰ</string>
     <string name="settings_browser_in_app">ਐਪ ਦੇ ਅੰਦਰ ਬ੍ਰਾਊਜ਼ਰ</string>
     <string name="settings_browser_system_default">ਸਿਸਟਮ ਡਿਫੌਲਟ ਬ੍ਰਾਊਜ਼ਰ</string>
+    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
+    <string name="settings_classroom_mandarin_display_original">Display original</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
+    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">ਰੰਗ ਥੀਮ</string>
     <string name="settings_feedback_bug_report">ਫੀਡਬੈਕ / ਸਮੱਸਿਆ ਰਿਪੋਰਟ ਕਰੋ</string>
     <string name="settings_invert_slider_direction">ਸਲਾਈਡਰ ਦਿਸ਼ਾ ਉਲਟੀ ਕਰੋ</string>
@@ -449,6 +453,7 @@
     <string name="settings_theme_light">ਲਾਈਟ ਮੋਡ</string>
     <string name="settings_theme_system">ਸਿਸਟਮ ਮੁਤਾਬਕ</string>
     <string name="settings_token_valid_until">ਟੋਕਨ %1$s ਤੱਕ ਵੈਧ</string>
+    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
     <string name="settings_use_english_course_abbreviation">ਅੰਗਰੇਜ਼ੀ ਕੋਰਸ ਸੰਖੇਪ ਵਰਤੋ</string>
     <string name="settings_version">ਵਰਜ਼ਨ</string>
     <string name="settings_view_source_code">ਸੋਰਸ ਕੋਡ ਦੇਖੋ</string>

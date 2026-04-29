@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -124,8 +125,14 @@ class ClassTableViewModel @Inject constructor(
         }
         viewModelScope.launch {
             // Abbreviation toggle is a pure display transform — re-derive
-            // names from the lookup cache without a network call.
-            appPreferences.useEnglishCourseAbbreviationChanged.collect {
+            // names from the lookup cache without a network call. Course toggle,
+            // classroom toggle, and the Mandarin classroom display picker all
+            // feed the same relabel pass.
+            merge(
+                appPreferences.useEnglishCourseAbbreviationChanged,
+                appPreferences.useEnglishClassroomAbbreviationChanged,
+                appPreferences.classroomMandarinDisplayChanged,
+            ).collect {
                 val semester = _currentSemester.value
                 val relabeled = courseService.relabelCoursesForCurrentAbbrSetting(
                     semester, _courses.value

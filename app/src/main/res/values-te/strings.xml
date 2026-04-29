@@ -414,6 +414,10 @@
     <string name="settings_assignment_due_reminder">అసైన్‌మెంట్ గడువు రిమైండర్లు</string>
     <string name="settings_browser_in_app">యాప్ లోపల బ్రౌజర్</string>
     <string name="settings_browser_system_default">సిస్టమ్ డిఫాల్ట్ బ్రౌజర్</string>
+    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
+    <string name="settings_classroom_mandarin_display_original">Display original</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
+    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">రంగు థీమ్</string>
     <string name="settings_feedback_bug_report">ఫీడ్‌బ్యాక్ / సమస్య నివేదించు</string>
     <string name="settings_invert_slider_direction">స్లైడర్ దిశ తిరగబెట్టండి</string>
@@ -449,6 +453,7 @@
     <string name="settings_theme_light">లైట్ మోడ్</string>
     <string name="settings_theme_system">సిస్టమ్‌ను అనుసరించండి</string>
     <string name="settings_token_valid_until">టోకెన్ %1$s వరకు చెల్లుతుంది</string>
+    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
     <string name="settings_use_english_course_abbreviation">ఇంగ్లీష్ కోర్సు సంక్షేపాలు వాడండి</string>
     <string name="settings_version">వెర్షన్</string>
     <string name="settings_view_source_code">సోర్స్ కోడ్ చూడండి</string>

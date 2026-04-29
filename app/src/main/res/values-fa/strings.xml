@@ -414,6 +414,10 @@
     <string name="settings_assignment_due_reminder">یادآورهای موعد تکلیف</string>
     <string name="settings_browser_in_app">مرورگر داخل برنامه</string>
     <string name="settings_browser_system_default">مرورگر پیش‌فرض سیستم</string>
+    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
+    <string name="settings_classroom_mandarin_display_original">Display original</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
+    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">تم رنگ</string>
     <string name="settings_feedback_bug_report">بازخورد / گزارش مشکل</string>
     <string name="settings_invert_slider_direction">معکوس کردن جهت لغزنده</string>
@@ -449,6 +453,7 @@
     <string name="settings_theme_light">حالت روشن</string>
     <string name="settings_theme_system">همگام با سیستم</string>
     <string name="settings_token_valid_until">توکن تا %1$s معتبر است</string>
+    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
     <string name="settings_use_english_course_abbreviation">استفاده از مخفف انگلیسی نام درس</string>
     <string name="settings_version">نسخه</string>
     <string name="settings_view_source_code">مشاهده کد منبع</string>

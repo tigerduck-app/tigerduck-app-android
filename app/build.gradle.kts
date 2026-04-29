@@ -55,7 +55,7 @@ android {
 
     sourceSets {
         getByName("main") {
-            assets.directories.add(rootProject.file("course-name-abbr").path)
+            assets.directories.add(rootProject.file("name-abbr").path)
         }
     }
 }

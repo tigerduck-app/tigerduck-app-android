@@ -414,6 +414,10 @@
     <string name="settings_assignment_due_reminder">অ্যাসাইনমেন্টের সময়সীমার স্মরণিকা</string>
     <string name="settings_browser_in_app">অ্যাপ-ইন ব্রাউজার</string>
     <string name="settings_browser_system_default">সিস্টেম ডিফল্ট ব্রাউজার</string>
+    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
+    <string name="settings_classroom_mandarin_display_original">Display original</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
+    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">রং থিম</string>
     <string name="settings_feedback_bug_report">মতামত / সমস্যা রিপোর্ট করুন</string>
     <string name="settings_invert_slider_direction">স্লাইডারের দিক উল্টান</string>
@@ -449,6 +453,7 @@
     <string name="settings_theme_light">লাইট মোড</string>
     <string name="settings_theme_system">সিস্টেম অনুসরণ করুন</string>
     <string name="settings_token_valid_until">টোকেন %1$s পর্যন্ত বৈধ</string>
+    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
     <string name="settings_use_english_course_abbreviation">ইংরেজি কোর্স সংক্ষেপ ব্যবহার করুন</string>
     <string name="settings_version">ভার্সন</string>
     <string name="settings_view_source_code">সোর্স কোড দেখুন</string>

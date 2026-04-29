@@ -414,6 +414,10 @@
     <string name="settings_assignment_due_reminder">Lembretes de prazo de trabalhos</string>
     <string name="settings_browser_in_app">Navegador integrado</string>
     <string name="settings_browser_system_default">Navegador predefinido do sistema</string>
+    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
+    <string name="settings_classroom_mandarin_display_original">Display original</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
+    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">Tema de cores</string>
     <string name="settings_feedback_bug_report">Comentários / Reportar problema</string>
     <string name="settings_invert_slider_direction">Inverter direção do cursor</string>
@@ -449,6 +453,7 @@
     <string name="settings_theme_light">Modo claro</string>
     <string name="settings_theme_system">Seguir o sistema</string>
     <string name="settings_token_valid_until">Token válido até %1$s</string>
+    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
     <string name="settings_use_english_course_abbreviation">Usar abreviaturas em inglês das cadeiras</string>
     <string name="settings_version">Versão</string>
     <string name="settings_view_source_code">Ver código-fonte</string>

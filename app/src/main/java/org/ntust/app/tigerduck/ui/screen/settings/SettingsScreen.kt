@@ -73,6 +73,8 @@ fun SettingsScreen(
     val browserPreference = viewModel.appState.browserPreference
     val invertSlider = viewModel.appState.invertSliderDirection
     val useEnglishCourseAbbreviation = viewModel.appState.useEnglishCourseAbbreviation
+    val useEnglishClassroomAbbreviation = viewModel.appState.useEnglishClassroomAbbreviation
+    val classroomMandarinDisplay = viewModel.appState.classroomMandarinDisplay
     val notifyAssignments = viewModel.appState.notifyAssignments
     val libraryEnabled = viewModel.appState.libraryFeatureEnabled
     val themeMode = viewModel.appState.themeMode
@@ -240,6 +242,37 @@ fun SettingsScreen(
                             useEnglishCourseAbbreviation
                         ) {
                             viewModel.appState.useEnglishCourseAbbreviation = it
+                        }
+                        HorizontalDivider()
+                        SettingsToggleRow(
+                            stringResource(R.string.settings_use_english_classroom_abbreviation),
+                            useEnglishClassroomAbbreviation
+                        ) {
+                            viewModel.appState.useEnglishClassroomAbbreviation = it
+                        }
+                        if (useEnglishClassroomAbbreviation) {
+                            HorizontalDivider()
+                            SettingsPickerRow(
+                                label = stringResource(R.string.settings_classroom_mandarin_display),
+                                value = when (classroomMandarinDisplay) {
+                                    AppPreferences.CLASSROOM_MANDARIN_DISPLAY_PINYIN ->
+                                        stringResource(R.string.settings_classroom_mandarin_display_pinyin)
+                                    AppPreferences.CLASSROOM_MANDARIN_DISPLAY_TRANSLATED ->
+                                        stringResource(R.string.settings_classroom_mandarin_display_translated)
+                                    else ->
+                                        stringResource(R.string.settings_classroom_mandarin_display_original)
+                                },
+                                options = listOf(
+                                    AppPreferences.CLASSROOM_MANDARIN_DISPLAY_ORIGINAL to
+                                        stringResource(R.string.settings_classroom_mandarin_display_original),
+                                    AppPreferences.CLASSROOM_MANDARIN_DISPLAY_PINYIN to
+                                        stringResource(R.string.settings_classroom_mandarin_display_pinyin),
+                                    AppPreferences.CLASSROOM_MANDARIN_DISPLAY_TRANSLATED to
+                                        stringResource(R.string.settings_classroom_mandarin_display_translated),
+                                ),
+                                selectedKey = classroomMandarinDisplay,
+                                onSelect = { viewModel.appState.classroomMandarinDisplay = it }
+                            )
                         }
                     }
                 }

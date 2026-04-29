@@ -414,6 +414,10 @@
     <string name="settings_assignment_due_reminder">作業到期提醒</string>
     <string name="settings_browser_in_app">App 內瀏覽器</string>
     <string name="settings_browser_system_default">系統預設瀏覽器</string>
+    <string name="settings_classroom_mandarin_display">教室名稱為中文時</string>
+    <string name="settings_classroom_mandarin_display_original">顯示原文</string>
+    <string name="settings_classroom_mandarin_display_pinyin">顯示拼音</string>
+    <string name="settings_classroom_mandarin_display_translated">顯示翻譯</string>
     <string name="settings_color_theme">顏色主題</string>
     <string name="settings_feedback_bug_report">回饋/問題回報</string>
     <string name="settings_invert_slider_direction">反轉滑條方向</string>
@@ -449,6 +453,7 @@
     <string name="settings_theme_light">亮色模式</string>
     <string name="settings_theme_system">跟隨系統</string>
     <string name="settings_token_valid_until">Token 有效至 %1$s</string>
+    <string name="settings_use_english_classroom_abbreviation">使用英文教室名稱縮寫</string>
     <string name="settings_use_english_course_abbreviation">使用英文課名縮寫</string>
     <string name="settings_version">版本</string>
     <string name="settings_view_source_code">查看原始碼</string>
