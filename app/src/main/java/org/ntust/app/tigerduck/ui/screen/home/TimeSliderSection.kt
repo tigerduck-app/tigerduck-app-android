@@ -183,8 +183,8 @@ private fun CourseTimeCard(
             .fillMaxWidth()
             .heightIn(min = minHeightDp)
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        EqualHeightRow(
+            spacing = 8.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .onSizeChanged {
@@ -202,7 +202,6 @@ private fun CourseTimeCard(
                         isSkipped = isSkippedFor(state.slot),
                         // onSkipToggle = { onSkipCourse(state.slot.course, state.slot.date) },
                         onClick = { onSelect(state.slot.course) },
-                        modifier = Modifier.fillMaxWidth()
                     )
                 }
                 is CourseState.Between -> {
@@ -212,7 +211,6 @@ private fun CourseTimeCard(
                             isSkipped = isSkippedFor(it),
                             // onSkipToggle = { onSkipCourse(it.course, it.date) },
                             onClick = { onSelect(it.course) },
-                            modifier = Modifier.weight(1f)
                         )
                     }
                     state.next?.let {
@@ -221,7 +219,6 @@ private fun CourseTimeCard(
                             isSkipped = isSkippedFor(it),
                             // onSkipToggle = { onSkipCourse(it.course, it.date) },
                             onClick = { onSelect(it.course) },
-                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
@@ -231,7 +228,6 @@ private fun CourseTimeCard(
                         isSkipped = isSkippedFor(state.next),
                         // onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
                         onClick = { onSelect(state.next.course) },
-                        modifier = Modifier.fillMaxWidth()
                     )
                 }
                 is CourseState.AfterLast -> {
@@ -240,9 +236,50 @@ private fun CourseTimeCard(
                         isSkipped = isSkippedFor(state.previous),
                         // onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
                         onClick = { onSelect(state.previous.course) },
-                        modifier = Modifier.fillMaxWidth()
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Lays children out in a single row, splitting available width equally and
+ * forcing every child to the tallest natural height in the group. Unlike
+ * `Modifier.height(IntrinsicSize.Min)`, this works even when children use
+ * `SubcomposeLayout` internally (e.g. SlotCard's FitOrStack), because we
+ * remeasure children with explicit constraints rather than querying intrinsics.
+ */
+@Composable
+private fun EqualHeightRow(
+    spacing: Dp,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    SubcomposeLayout(modifier) { constraints ->
+        val measurables = subcompose(Unit, content)
+        val n = measurables.size
+        if (n == 0) return@SubcomposeLayout layout(constraints.maxWidth, 0) {}
+        val spacingPx = spacing.roundToPx()
+        val totalSpacing = if (n > 1) spacingPx * (n - 1) else 0
+        val widthPerChild = ((constraints.maxWidth - totalSpacing) / n).coerceAtLeast(0)
+        // Pass 1: find each child's natural height at the assigned width.
+        val probeConstraints = Constraints(
+            minWidth = widthPerChild, maxWidth = widthPerChild,
+            minHeight = 0, maxHeight = Constraints.Infinity,
+        )
+        val maxH = measurables.maxOf { it.measure(probeConstraints).height }
+        // Pass 2: re-measure with a fixed height so each child fills the row.
+        val finalConstraints = Constraints(
+            minWidth = widthPerChild, maxWidth = widthPerChild,
+            minHeight = maxH, maxHeight = maxH,
+        )
+        val placeables = measurables.map { it.measure(finalConstraints) }
+        layout(constraints.maxWidth, maxH) {
+            var x = 0
+            placeables.forEach { p ->
+                p.place(x, 0)
+                x += p.width + spacingPx
             }
         }
     }
@@ -329,7 +366,7 @@ private fun SlotCard(
 
         val cardModifier = if (onSkipToggle != null) {
             Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .offset { IntOffset(swipeOffset.value.roundToInt(), 0) }
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
@@ -355,7 +392,7 @@ private fun SlotCard(
                     )
                 }
         } else {
-            Modifier.fillMaxWidth()
+            Modifier.fillMaxSize()
         }
 
         val slotSurface = MaterialTheme.colorScheme.surface
