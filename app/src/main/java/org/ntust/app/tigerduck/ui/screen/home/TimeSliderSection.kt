@@ -172,61 +172,77 @@ private fun CourseTimeCard(
         skippedDates[slot.course.courseNo]?.contains(dateKey) == true
     }
 
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth()
+    // Pin the card area to the tallest height seen this session so the slider
+    // track below doesn't bob up and down as the user scrubs across states
+    // with different card layouts. `remember` resets on Home tab destruction.
+    var maxHeightPx by remember { mutableIntStateOf(0) }
+    val minHeightDp = with(LocalDensity.current) { maxHeightPx.toDp() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = minHeightDp)
     ) {
-        // 翹課 feature disabled — the onSkipToggle wiring below is commented out
-        // so SlotCard falls back to its null default and the left-swipe gesture
-        // + "翹課" indicator are inert. Re-enable by restoring the commented lines.
-        when (state) {
-            is CourseState.InClass -> {
-                SlotCard(
-                    slot = state.slot,
-                    alpha = 1f,
-                    isSkipped = isSkippedFor(state.slot),
-                    // onSkipToggle = { onSkipCourse(state.slot.course, state.slot.date) },
-                    onClick = { onSelect(state.slot.course) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            is CourseState.Between -> {
-                state.previous?.let {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onSizeChanged {
+                    if (it.height > maxHeightPx) maxHeightPx = it.height
+                }
+        ) {
+            // 翹課 feature disabled — the onSkipToggle wiring below is commented out
+            // so SlotCard falls back to its null default and the left-swipe gesture
+            // + "翹課" indicator are inert. Re-enable by restoring the commented lines.
+            when (state) {
+                is CourseState.InClass -> {
                     SlotCard(
-                        slot = it, alpha = 0.8f,
-                        isSkipped = isSkippedFor(it),
-                        // onSkipToggle = { onSkipCourse(it.course, it.date) },
-                        onClick = { onSelect(it.course) },
-                        modifier = Modifier.weight(1f)
+                        slot = state.slot,
+                        alpha = 1f,
+                        isSkipped = isSkippedFor(state.slot),
+                        // onSkipToggle = { onSkipCourse(state.slot.course, state.slot.date) },
+                        onClick = { onSelect(state.slot.course) },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-                state.next?.let {
+                is CourseState.Between -> {
+                    state.previous?.let {
+                        SlotCard(
+                            slot = it, alpha = 0.8f,
+                            isSkipped = isSkippedFor(it),
+                            // onSkipToggle = { onSkipCourse(it.course, it.date) },
+                            onClick = { onSelect(it.course) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    state.next?.let {
+                        SlotCard(
+                            slot = it, alpha = 0.8f,
+                            isSkipped = isSkippedFor(it),
+                            // onSkipToggle = { onSkipCourse(it.course, it.date) },
+                            onClick = { onSelect(it.course) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                is CourseState.BeforeFirst -> {
                     SlotCard(
-                        slot = it, alpha = 0.8f,
-                        isSkipped = isSkippedFor(it),
-                        // onSkipToggle = { onSkipCourse(it.course, it.date) },
-                        onClick = { onSelect(it.course) },
-                        modifier = Modifier.weight(1f)
+                        slot = state.next, alpha = 0.8f,
+                        isSkipped = isSkippedFor(state.next),
+                        // onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
+                        onClick = { onSelect(state.next.course) },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-            }
-            is CourseState.BeforeFirst -> {
-                SlotCard(
-                    slot = state.next, alpha = 0.8f,
-                    isSkipped = isSkippedFor(state.next),
-                    // onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
-                    onClick = { onSelect(state.next.course) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            is CourseState.AfterLast -> {
-                SlotCard(
-                    slot = state.previous, alpha = 0.8f,
-                    isSkipped = isSkippedFor(state.previous),
-                    // onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
-                    onClick = { onSelect(state.previous.course) },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                is CourseState.AfterLast -> {
+                    SlotCard(
+                        slot = state.previous, alpha = 0.8f,
+                        isSkipped = isSkippedFor(state.previous),
+                        // onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
+                        onClick = { onSelect(state.previous.course) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
     }
