@@ -36,9 +36,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -541,13 +543,14 @@ private fun CourseDetailDialog(
     )
 }
 
+@Composable
 private fun greetingText(): String {
     val hour = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).get(Calendar.HOUR_OF_DAY)
     return when {
-        hour < 6 -> "Stay up late?"
-        hour < 12 -> "Good morning"
-        hour < 18 -> "Good afternoon"
-        else -> "Good evening"
+        hour < 6 -> stringResource(R.string.greeting_very_early)
+        hour < 12 -> stringResource(R.string.greeting_morning)
+        hour < 18 -> stringResource(R.string.greeting_afternoon)
+        else -> stringResource(R.string.greeting_evening)
     }
 }
 
@@ -683,6 +686,10 @@ private fun SwipeableAssignmentRow(
     val thresholdPx = with(density) { 100.dp.toPx() }
     val swipeOffset = remember(assignment.assignmentId) { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
+    // Modifier.offset { ... } and Alignment.CenterStart/End are rtl-aware,
+    // but pointer deltas are raw screen-space. Negate in RTL so swipeOffset
+    // stays "logical" (positive = start) and the visual row tracks the finger.
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val ignoreColor = Color(0xFFFF9500)
     val completeColor = Color(0xFF34C759)
 
@@ -773,8 +780,9 @@ private fun SwipeableAssignmentRow(
                             }
                         },
                         onHorizontalDrag = { _, delta ->
+                            val signedDelta = if (isRtl) -delta else delta
                             coroutineScope.launch {
-                                swipeOffset.snapTo(swipeOffset.value + delta * 0.6f)
+                                swipeOffset.snapTo(swipeOffset.value + signedDelta * 0.6f)
                             }
                         },
                     )

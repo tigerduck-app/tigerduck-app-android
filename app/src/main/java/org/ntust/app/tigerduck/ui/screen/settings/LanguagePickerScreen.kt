@@ -2,26 +2,46 @@ package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.content.Context
 import org.xmlpull.v1.XmlPullParser
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
+import org.ntust.app.tigerduck.ui.component.ContentCard
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.text.Collator
 import java.util.Locale
 
@@ -102,8 +122,11 @@ fun LanguagePickerScreen(
         }
     }
 
+    val scrollState = rememberScrollState()
+
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_language)) },
@@ -122,56 +145,151 @@ fun LanguagePickerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(scrollState)
+                .scrollbar(scrollState)
+                .padding(top = 4.dp, bottom = 32.dp),
         ) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                singleLine = true,
-                label = { Text(stringResource(R.string.action_search)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            Text(
+                text = stringResource(R.string.language_picker_ai_translation_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 32.dp)
-            ) {
-                item {
+            SearchField(
+                query = query,
+                onQueryChange = { query = it },
+                placeholder = stringResource(R.string.action_search),
+            )
+
+            ContentCard {
+                Column {
                     LanguagePickerRow(
                         title = stringResource(R.string.settings_language_follow_system),
                         subtitle = null,
                         selected = selectedTag == AppLanguageManager.SYSTEM,
                         onClick = {
                             coroutineScope.launch {
-                                // Delay slightly so the tap ripple and list
-                                // state settle before the configuration
-                                // change kicks in.
                                 delay(120)
                                 viewModel.setAppLanguage(AppLanguageManager.SYSTEM)
                                 onBack()
                             }
                         }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
-                }
-
-                items(filteredRows, key = { it.tag }) { row ->
-                    LanguagePickerRow(
-                        title = row.nativeName,
-                        subtitle = if (row.nativeName != row.localizedName) row.localizedName else null,
-                        selected = selectedTag == row.tag,
-                        onClick = {
-                            coroutineScope.launch {
-                                delay(120)
-                                viewModel.setAppLanguage(row.tag)
-                                onBack()
-                            }
-                        }
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                 }
             }
+
+            if (filteredRows.isNotEmpty()) {
+                ContentCard {
+                    Column {
+                        filteredRows.forEachIndexed { index, row ->
+                            LanguagePickerRow(
+                                title = row.nativeName,
+                                subtitle = if (row.nativeName != row.localizedName) row.localizedName else null,
+                                selected = selectedTag == row.tag,
+                                onClick = {
+                                    coroutineScope.launch {
+                                        delay(120)
+                                        viewModel.setAppLanguage(row.tag)
+                                        onBack()
+                                    }
+                                }
+                            )
+                            if (index < filteredRows.lastIndex) {
+                                HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Modifier.scrollbar(
+    state: ScrollState,
+    width: Dp = 3.dp,
+    inset: Dp = 2.dp,
+): Modifier {
+    val targetAlpha = if (state.isScrollInProgress) 1f else 0f
+    val duration = if (state.isScrollInProgress) 150 else 500
+    val alpha by animateFloatAsState(
+        targetValue = targetAlpha,
+        animationSpec = tween(durationMillis = duration),
+        label = "scrollbar_alpha",
+    )
+    val barColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+    return drawWithContent {
+        drawContent()
+        val maxValue = state.maxValue
+        if (maxValue <= 0 || alpha <= 0f) return@drawWithContent
+        val viewportH = size.height
+        val totalH = viewportH + maxValue
+        val thumbH = (viewportH * viewportH / totalH).coerceAtLeast(40f)
+        val thumbY = (state.value.toFloat() / maxValue) * (viewportH - thumbH)
+        val barWidthPx = width.toPx()
+        val insetPx = inset.toPx()
+        drawRoundRect(
+            color = barColor.copy(alpha = barColor.alpha * alpha),
+            topLeft = Offset(size.width - barWidthPx - insetPx, thumbY),
+            size = Size(barWidthPx, thumbH),
+            cornerRadius = CornerRadius(barWidthPx / 2f, barWidthPx / 2f),
+        )
+    }
+}
+
+@Composable
+private fun SearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    placeholder: String,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Filled.Search,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Box(modifier = Modifier.weight(1f)) {
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    color = MaterialTheme.colorScheme.onSurface,
+                ),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (query.isEmpty()) {
+                Text(
+                    text = placeholder,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+                )
+            }
+        }
+        if (query.isNotEmpty()) {
+            Icon(
+                Icons.Filled.Clear,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+                modifier = Modifier
+                    .size(18.dp)
+                    .clickable { onQueryChange("") },
+            )
         }
     }
 }
@@ -195,7 +313,7 @@ private fun LanguagePickerRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -203,7 +321,7 @@ private fun LanguagePickerRow(
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

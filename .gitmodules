@@ -1,6 +1,6 @@
 [submodule "course-name-abbr"]
 	path = course-name-abbr
-	url = https://github.com/tigerduck-app/course-name-abbr
+	url = https://github.com/tigerduck-app/name-abbr
 [submodule "localization"]
 	path = localization
 	url = https://github.com/tigerduck-app/app-translation
