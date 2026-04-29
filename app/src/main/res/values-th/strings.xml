@@ -414,10 +414,10 @@
     <string name="settings_assignment_due_reminder">การแจ้งเตือนการบ้านใกล้ครบกำหนด</string>
     <string name="settings_browser_in_app">เบราว์เซอร์ในแอป</string>
     <string name="settings_browser_system_default">เบราว์เซอร์เริ่มต้นของระบบ</string>
-    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
-    <string name="settings_classroom_mandarin_display_original">Display original</string>
-    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
-    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
+    <string name="settings_classroom_mandarin_display">เมื่อชื่อห้องเรียนเป็นภาษาจีน</string>
+    <string name="settings_classroom_mandarin_display_original">แสดงต้นฉบับ</string>
+    <string name="settings_classroom_mandarin_display_pinyin">แสดงพินอิน</string>
+    <string name="settings_classroom_mandarin_display_translated">แสดงคำแปล</string>
     <string name="settings_color_theme">ธีมสี</string>
     <string name="settings_feedback_bug_report">ความคิดเห็น / รายงานปัญหา</string>
     <string name="settings_invert_slider_direction">สลับทิศทางแถบเลื่อน</string>
@@ -453,7 +453,7 @@
     <string name="settings_theme_light">โหมดสว่าง</string>
     <string name="settings_theme_system">ตามระบบ</string>
     <string name="settings_token_valid_until">Token ใช้ได้ถึง %1$s</string>
-    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
+    <string name="settings_use_english_classroom_abbreviation">ใช้ตัวย่อห้องเรียนภาษาอังกฤษ</string>
     <string name="settings_use_english_course_abbreviation">ใช้ตัวย่อรายวิชาภาษาอังกฤษ</string>
     <string name="settings_version">เวอร์ชัน</string>
     <string name="settings_view_source_code">ดูซอร์สโค้ด</string>

@@ -414,10 +414,10 @@
     <string name="settings_assignment_due_reminder">Mga paalala sa takdang-aralin</string>
     <string name="settings_browser_in_app">Browser sa loob ng app</string>
     <string name="settings_browser_system_default">Default na browser ng sistema</string>
-    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
-    <string name="settings_classroom_mandarin_display_original">Display original</string>
-    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
-    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
+    <string name="settings_classroom_mandarin_display">Kapag ang pangalan ng silid-aralan ay nasa Mandarin</string>
+    <string name="settings_classroom_mandarin_display_original">Ipakita ang orihinal</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Ipakita ang pinyin</string>
+    <string name="settings_classroom_mandarin_display_translated">Ipakita ang salin</string>
     <string name="settings_color_theme">Kulay na tema</string>
     <string name="settings_feedback_bug_report">Feedback / Mag-ulat ng isyu</string>
     <string name="settings_invert_slider_direction">I-invert ang direksyon ng slider</string>
@@ -453,7 +453,7 @@
     <string name="settings_theme_light">Maliwanag na mode</string>
     <string name="settings_theme_system">Sundan ang sistema</string>
     <string name="settings_token_valid_until">Valid ang token hanggang %1$s</string>
-    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
+    <string name="settings_use_english_classroom_abbreviation">Gamitin ang English na pagdadaglat ng silid-aralan</string>
     <string name="settings_use_english_course_abbreviation">Gumamit ng English na abbreviation ng kurso</string>
     <string name="settings_version">Bersyon</string>
     <string name="settings_view_source_code">Tingnan ang source code</string>

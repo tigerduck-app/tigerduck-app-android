@@ -414,10 +414,10 @@
     <string name="settings_assignment_due_reminder">അസൈൻമെന്റ് സമയ ഓർമ്മപ്പെടുത്തലുകൾ</string>
     <string name="settings_browser_in_app">ആപ്പ് ഇൻ-ബ്രൗസർ</string>
     <string name="settings_browser_system_default">സിസ്റ്റം ഡിഫോൾട്ട് ബ്രൗസർ</string>
-    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
-    <string name="settings_classroom_mandarin_display_original">Display original</string>
-    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
-    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
+    <string name="settings_classroom_mandarin_display">ക്ലാസ് മുറിയുടെ പേര് ചൈനീസിലായിരിക്കുമ്പോൾ</string>
+    <string name="settings_classroom_mandarin_display_original">യഥാർത്ഥം കാണിക്കുക</string>
+    <string name="settings_classroom_mandarin_display_pinyin">പിൻയിൻ കാണിക്കുക</string>
+    <string name="settings_classroom_mandarin_display_translated">വിവർത്തനം കാണിക്കുക</string>
     <string name="settings_color_theme">നിറ തീം</string>
     <string name="settings_feedback_bug_report">ഫീഡ്‌ബാക്ക് / പ്രശ്‌നം റിപ്പോർട്ട് ചെയ്യുക</string>
     <string name="settings_invert_slider_direction">സ്ലൈഡർ ദിശ നേർമാറ്റം ചെയ്യുക</string>
@@ -453,7 +453,7 @@
     <string name="settings_theme_light">ലൈറ്റ് മോഡ്</string>
     <string name="settings_theme_system">സിസ്റ്റം പിന്തുടരുക</string>
     <string name="settings_token_valid_until">ടോക്കൺ %1$s വരെ സാധുവാണ്</string>
-    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
+    <string name="settings_use_english_classroom_abbreviation">ക്ലാസ് മുറിയുടെ ഇംഗ്ലീഷ് ചുരുക്കരൂപങ്ങൾ ഉപയോഗിക്കുക</string>
     <string name="settings_use_english_course_abbreviation">ഇംഗ്ലീഷ് കോഴ്‌സ് ചുരുക്കങ്ങൾ ഉപയോഗിക്കുക</string>
     <string name="settings_version">പതിപ്പ്</string>
     <string name="settings_view_source_code">സോഴ്‌സ് കോഡ് കാണുക</string>

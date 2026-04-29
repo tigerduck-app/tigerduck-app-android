@@ -453,7 +453,7 @@
     <string name="settings_theme_light">亮色模式</string>
     <string name="settings_theme_system">跟隨系統</string>
     <string name="settings_token_valid_until">Token 有效至 %1$s</string>
-    <string name="settings_use_english_classroom_abbreviation">使用英文教室名稱縮寫</string>
+    <string name="settings_use_english_classroom_abbreviation">使用英文課室名縮寫</string>
     <string name="settings_use_english_course_abbreviation">使用英文課名縮寫</string>
     <string name="settings_version">版本</string>
     <string name="settings_view_source_code">查看原始碼</string>

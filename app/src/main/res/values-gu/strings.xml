@@ -414,10 +414,10 @@
     <string name="settings_assignment_due_reminder">અસાઇનમેન્ટ ડ્યૂ રિમાઇન્ડર</string>
     <string name="settings_browser_in_app">App ની અંદર બ્રાઉઝર</string>
     <string name="settings_browser_system_default">સિસ્ટમ ડિફૉલ્ટ બ્રાઉઝર</string>
-    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
-    <string name="settings_classroom_mandarin_display_original">Display original</string>
-    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
-    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
+    <string name="settings_classroom_mandarin_display">જ્યારે વર્ગખંડનું નામ ચાઇનીઝમાં હોય</string>
+    <string name="settings_classroom_mandarin_display_original">મૂળ બતાવો</string>
+    <string name="settings_classroom_mandarin_display_pinyin">પિનયિન બતાવો</string>
+    <string name="settings_classroom_mandarin_display_translated">અનુવાદ બતાવો</string>
     <string name="settings_color_theme">કલર થીમ</string>
     <string name="settings_feedback_bug_report">ફીડબૅક / સમસ્યા જણાવો</string>
     <string name="settings_invert_slider_direction">સ્લાઇડર દિશા ઊંધી કરો</string>
@@ -453,7 +453,7 @@
     <string name="settings_theme_light">લાઇટ મોડ</string>
     <string name="settings_theme_system">સિસ્ટમ પ્રમાણે</string>
     <string name="settings_token_valid_until">Token %1$s સુધી માન્ય</string>
-    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
+    <string name="settings_use_english_classroom_abbreviation">વર્ગખંડના અંગ્રેજી સંક્ષેપનો ઉપયોગ કરો</string>
     <string name="settings_use_english_course_abbreviation">અંગ્રેજી કોર્સ સંક્ષેપ ઉપયોગ કરો</string>
     <string name="settings_version">વર્ઝન</string>
     <string name="settings_view_source_code">સોર્સ કોડ જુઓ</string>

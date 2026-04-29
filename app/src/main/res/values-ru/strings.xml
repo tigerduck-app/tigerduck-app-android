@@ -414,10 +414,10 @@
     <string name="settings_assignment_due_reminder">Напоминания о сроках сдачи заданий</string>
     <string name="settings_browser_in_app">Встроенный браузер</string>
     <string name="settings_browser_system_default">Системный браузер по умолчанию</string>
-    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
-    <string name="settings_classroom_mandarin_display_original">Display original</string>
-    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
-    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
+    <string name="settings_classroom_mandarin_display">Когда название аудитории на китайском языке</string>
+    <string name="settings_classroom_mandarin_display_original">Показать оригинал</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Показать пиньинь</string>
+    <string name="settings_classroom_mandarin_display_translated">Показать перевод</string>
     <string name="settings_color_theme">Цветовая тема</string>
     <string name="settings_feedback_bug_report">Отзыв / Сообщить о проблеме</string>
     <string name="settings_invert_slider_direction">Инвертировать направление ползунка</string>
@@ -453,7 +453,7 @@
     <string name="settings_theme_light">Светлый режим</string>
     <string name="settings_theme_system">Как в системе</string>
     <string name="settings_token_valid_until">Токен действителен до %1$s</string>
-    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
+    <string name="settings_use_english_classroom_abbreviation">Использовать английские сокращения названий аудиторий</string>
     <string name="settings_use_english_course_abbreviation">Использовать английские сокращения названий курсов</string>
     <string name="settings_version">Версия</string>
     <string name="settings_view_source_code">Посмотреть исходный код</string>

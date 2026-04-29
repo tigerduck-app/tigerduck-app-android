@@ -414,10 +414,10 @@
     <string name="settings_assignment_due_reminder">Nhắc bài tập sắp đến hạn</string>
     <string name="settings_browser_in_app">Trình duyệt trong ứng dụng</string>
     <string name="settings_browser_system_default">Trình duyệt mặc định của hệ thống</string>
-    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
-    <string name="settings_classroom_mandarin_display_original">Display original</string>
-    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
-    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
+    <string name="settings_classroom_mandarin_display">Khi tên phòng học bằng tiếng Trung</string>
+    <string name="settings_classroom_mandarin_display_original">Hiển thị nguyên gốc</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Hiển thị Bính âm</string>
+    <string name="settings_classroom_mandarin_display_translated">Hiển thị bản dịch</string>
     <string name="settings_color_theme">Chủ đề màu</string>
     <string name="settings_feedback_bug_report">Phản hồi / Báo lỗi</string>
     <string name="settings_invert_slider_direction">Đảo hướng thanh trượt</string>
@@ -453,7 +453,7 @@
     <string name="settings_theme_light">Chế độ sáng</string>
     <string name="settings_theme_system">Theo hệ thống</string>
     <string name="settings_token_valid_until">Token có hiệu lực đến %1$s</string>
-    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
+    <string name="settings_use_english_classroom_abbreviation">Dùng tên viết tắt tiếng Anh cho phòng học</string>
     <string name="settings_use_english_course_abbreviation">Dùng tên viết tắt tiếng Anh cho môn học</string>
     <string name="settings_version">Phiên bản</string>
     <string name="settings_view_source_code">Xem mã nguồn</string>

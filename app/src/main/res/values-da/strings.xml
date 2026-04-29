@@ -414,10 +414,10 @@
     <string name="settings_assignment_due_reminder">Påmindelser om opgavefrist</string>
     <string name="settings_browser_in_app">Indbygget browser</string>
     <string name="settings_browser_system_default">Systemets standardbrowser</string>
-    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
-    <string name="settings_classroom_mandarin_display_original">Display original</string>
-    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
-    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
+    <string name="settings_classroom_mandarin_display">Når klasselokalets navn er på kinesisk</string>
+    <string name="settings_classroom_mandarin_display_original">Vis original</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Vis pinyin</string>
+    <string name="settings_classroom_mandarin_display_translated">Vis oversættelse</string>
     <string name="settings_color_theme">Farvetema</string>
     <string name="settings_feedback_bug_report">Feedback / Rapportér problem</string>
     <string name="settings_invert_slider_direction">Inverter skyderretning</string>
@@ -453,7 +453,7 @@
     <string name="settings_theme_light">Lys tilstand</string>
     <string name="settings_theme_system">Følg system</string>
     <string name="settings_token_valid_until">Token gyldigt til %1$s</string>
-    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
+    <string name="settings_use_english_classroom_abbreviation">Brug engelske forkortelser for klasselokaler</string>
     <string name="settings_use_english_course_abbreviation">Brug engelske kursusabbreviationer</string>
     <string name="settings_version">Version</string>
     <string name="settings_view_source_code">Se kildekode</string>

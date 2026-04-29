@@ -414,10 +414,10 @@
     <string name="settings_assignment_due_reminder">Peringatan tugasan hampir tamat</string>
     <string name="settings_browser_in_app">Pelayar dalam aplikasi</string>
     <string name="settings_browser_system_default">Pelayar lalai sistem</string>
-    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
-    <string name="settings_classroom_mandarin_display_original">Display original</string>
-    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
-    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
+    <string name="settings_classroom_mandarin_display">Apabila nama bilik darjah dalam bahasa Mandarin</string>
+    <string name="settings_classroom_mandarin_display_original">Papar asal</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Papar pinyin</string>
+    <string name="settings_classroom_mandarin_display_translated">Papar terjemahan</string>
     <string name="settings_color_theme">Tema warna</string>
     <string name="settings_feedback_bug_report">Maklum balas / Laporkan isu</string>
     <string name="settings_invert_slider_direction">Songsangkan arah gelongsor</string>
@@ -453,7 +453,7 @@
     <string name="settings_theme_light">Mod cerah</string>
     <string name="settings_theme_system">Ikut sistem</string>
     <string name="settings_token_valid_until">Token sah hingga %1$s</string>
-    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
+    <string name="settings_use_english_classroom_abbreviation">Gunakan singkatan bilik darjah dalam bahasa Inggeris</string>
     <string name="settings_use_english_course_abbreviation">Gunakan singkatan kursus Inggeris</string>
     <string name="settings_version">Versi</string>
     <string name="settings_view_source_code">Lihat kod sumber</string>

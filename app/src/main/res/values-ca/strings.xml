@@ -414,10 +414,10 @@
     <string name="settings_assignment_due_reminder">Recordatoris de venciment de tasques</string>
     <string name="settings_browser_in_app">Navegador de l\'aplicació</string>
     <string name="settings_browser_system_default">Navegador predeterminat del sistema</string>
-    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
-    <string name="settings_classroom_mandarin_display_original">Display original</string>
-    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
-    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
+    <string name="settings_classroom_mandarin_display">Quan la sala és en mandarí</string>
+    <string name="settings_classroom_mandarin_display_original">Mostra l\'original</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Mostra pinyin</string>
+    <string name="settings_classroom_mandarin_display_translated">Mostra traducció</string>
     <string name="settings_color_theme">Tema de color</string>
     <string name="settings_feedback_bug_report">Comentaris / Informeu d\'un problema</string>
     <string name="settings_invert_slider_direction">Inverteix la direcció del control lliscant</string>
@@ -453,7 +453,7 @@
     <string name="settings_theme_light">Mode clar</string>
     <string name="settings_theme_system">Segueix el sistema</string>
     <string name="settings_token_valid_until">Token vàlid fins a %1$s</string>
-    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
+    <string name="settings_use_english_classroom_abbreviation">Usa abreviatures de sales en anglès</string>
     <string name="settings_use_english_course_abbreviation">Usa abreviatures de cursos en anglès</string>
     <string name="settings_version">Versió</string>
     <string name="settings_view_source_code">Visualitza el codi font</string>

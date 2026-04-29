@@ -414,10 +414,10 @@
     <string name="settings_assignment_due_reminder">Ülesande tähtaja meeldetuletused</string>
     <string name="settings_browser_in_app">Rakendusesisene brauser</string>
     <string name="settings_browser_system_default">Süsteemi vaikebrauser</string>
-    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
-    <string name="settings_classroom_mandarin_display_original">Display original</string>
-    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
-    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
+    <string name="settings_classroom_mandarin_display">Kui klassiruumi nimi on hiina keeles</string>
+    <string name="settings_classroom_mandarin_display_original">Kuva originaal</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Kuva pinyin</string>
+    <string name="settings_classroom_mandarin_display_translated">Kuva tõlge</string>
     <string name="settings_color_theme">Värvi teema</string>
     <string name="settings_feedback_bug_report">Tagasiside / Vea aruanne</string>
     <string name="settings_invert_slider_direction">Pööra liuguri suund ümber</string>
@@ -453,7 +453,7 @@
     <string name="settings_theme_light">Hele režiim</string>
     <string name="settings_theme_system">Järgi süsteemi</string>
     <string name="settings_token_valid_until">Token kehtib kuni %1$s</string>
-    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
+    <string name="settings_use_english_classroom_abbreviation">Kasuta klassiruumide ingliskeelseid lühendeid</string>
     <string name="settings_use_english_course_abbreviation">Kasuta ingliskeelseid kursuste lühendeid</string>
     <string name="settings_version">Versioon</string>
     <string name="settings_view_source_code">Vaata lähtekoodi</string>

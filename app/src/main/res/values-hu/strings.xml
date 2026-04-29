@@ -414,10 +414,10 @@
     <string name="settings_assignment_due_reminder">Házi feladat határidő emlékeztetők</string>
     <string name="settings_browser_in_app">Alkalmazáson belüli böngésző</string>
     <string name="settings_browser_system_default">Rendszer alapértelmezett böngésző</string>
-    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
-    <string name="settings_classroom_mandarin_display_original">Display original</string>
-    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
-    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
+    <string name="settings_classroom_mandarin_display">Ha a tanterem neve kínaiul van</string>
+    <string name="settings_classroom_mandarin_display_original">Eredeti megjelenítése</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Pinyin megjelenítése</string>
+    <string name="settings_classroom_mandarin_display_translated">Fordítás megjelenítése</string>
     <string name="settings_color_theme">Színtéma</string>
     <string name="settings_feedback_bug_report">Visszajelzés / Hibabejelentés</string>
     <string name="settings_invert_slider_direction">Csúszka irányának megfordítása</string>
@@ -453,7 +453,7 @@
     <string name="settings_theme_light">Világos mód</string>
     <string name="settings_theme_system">Rendszer szerint</string>
     <string name="settings_token_valid_until">Token érvényes eddig: %1$s</string>
-    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
+    <string name="settings_use_english_classroom_abbreviation">Tantermek angol rövidítéseinek használata</string>
     <string name="settings_use_english_course_abbreviation">Angol kurzusnév rövidítések használata</string>
     <string name="settings_version">Verzió</string>
     <string name="settings_view_source_code">Forráskód megtekintése</string>

@@ -414,10 +414,10 @@
     <string name="settings_assignment_due_reminder">Užduočių terminų priminimai</string>
     <string name="settings_browser_in_app">Programos vidaus naršyklė</string>
     <string name="settings_browser_system_default">Numatytoji sistemos naršyklė</string>
-    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
-    <string name="settings_classroom_mandarin_display_original">Display original</string>
-    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
-    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
+    <string name="settings_classroom_mandarin_display">Kai klasės pavadinimas yra kinų kalba</string>
+    <string name="settings_classroom_mandarin_display_original">Rodyti originalą</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Rodyti pinyin</string>
+    <string name="settings_classroom_mandarin_display_translated">Rodyti vertimą</string>
     <string name="settings_color_theme">Spalvų tema</string>
     <string name="settings_feedback_bug_report">Atsiliepimai / Pranešti apie klaidą</string>
     <string name="settings_invert_slider_direction">Apversti slankiklio kryptį</string>
@@ -453,7 +453,7 @@
     <string name="settings_theme_light">Šviesus režimas</string>
     <string name="settings_theme_system">Pagal sistemą</string>
     <string name="settings_token_valid_until">Žetonas galioja iki %1$s</string>
-    <string name="settings_use_english_classroom_abbreviation">Use English classroom abbreviations</string>
+    <string name="settings_use_english_classroom_abbreviation">Naudoti angliškus klasių santrumpus</string>
     <string name="settings_use_english_course_abbreviation">Naudoti anglų kalbos kursų santrumpas</string>
     <string name="settings_version">Versija</string>
     <string name="settings_view_source_code">Peržiūrėti šaltinio kodą</string>

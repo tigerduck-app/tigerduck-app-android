@@ -414,7 +414,7 @@
     <string name="settings_assignment_due_reminder">Assignment due reminders</string>
     <string name="settings_browser_in_app">In-app browser</string>
     <string name="settings_browser_system_default">System default browser</string>
-    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
+    <string name="settings_classroom_mandarin_display">When classroom name is in Chinese</string>
     <string name="settings_classroom_mandarin_display_original">Display original</string>
     <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Display translated</string>
