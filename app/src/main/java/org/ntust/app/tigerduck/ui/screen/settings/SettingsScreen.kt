@@ -531,7 +531,10 @@ private fun SettingsToggleRow(label: String, checked: Boolean, onCheckedChange: 
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         // iOS-style switch colors: the default M3 unchecked thumb is `outline`
         // which collapses to near-invisible dark gray on the dark track in
-        // dark mode. Force a white thumb and a neutral track instead.
+        // dark mode. Force a white thumb and a neutral track instead. The
+        // dark unchecked track has to be noticeably darker than the card
+        // surface (#3A3A3C) so the off-state still reads as a control —
+        // using #39393D made it disappear into the card.
         val isDark = TigerDuckTheme.isDarkMode
         Switch(
             checked = checked,
@@ -541,7 +544,7 @@ private fun SettingsToggleRow(label: String, checked: Boolean, onCheckedChange: 
                 checkedTrackColor = MaterialTheme.colorScheme.primary,
                 checkedBorderColor = Color.Transparent,
                 uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = if (isDark) Color(0xFF39393D) else Color(0xFFE9E9EB),
+                uncheckedTrackColor = if (isDark) Color(0xFF1C1C1E) else Color(0xFFE9E9EB),
                 uncheckedBorderColor = Color.Transparent,
             )
         )
