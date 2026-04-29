@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -287,6 +288,22 @@ private fun EqualHeightRow(
 
 private enum class EqualHeightSlot { Probe, Place }
 
+/**
+ * Expands a child to its parent's max height only when the parent supplies a
+ * bounded height constraint. Lets EqualHeightRow's place pass stretch the
+ * Card to the equalized slot height while still allowing the probe pass
+ * (unbounded max height) to measure natural content height without crashing.
+ */
+private fun Modifier.fillBoundedHeight(): Modifier = layout { measurable, constraints ->
+    val adjusted = if (constraints.hasBoundedHeight) {
+        constraints.copy(minHeight = constraints.maxHeight)
+    } else {
+        constraints
+    }
+    val placeable = measurable.measure(adjusted)
+    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+}
+
 @Composable
 private fun SlotCard(
     slot: CourseTimeSlot,
@@ -368,7 +385,8 @@ private fun SlotCard(
 
         val cardModifier = if (onSkipToggle != null) {
             Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .fillBoundedHeight()
                 .offset { IntOffset(swipeOffset.value.roundToInt(), 0) }
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
@@ -394,7 +412,9 @@ private fun SlotCard(
                     )
                 }
         } else {
-            Modifier.fillMaxSize()
+            Modifier
+                .fillMaxWidth()
+                .fillBoundedHeight()
         }
 
         val slotSurface = MaterialTheme.colorScheme.surface
