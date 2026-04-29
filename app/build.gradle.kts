@@ -118,7 +118,7 @@ dependencies {
 
 val syncLocalizations by tasks.registering(Exec::class) {
     group = "localization"
-    description = "Generate Android and iOS localization files from shared JSON sources."
+    description = "Generate Android localization files from shared JSON sources."
     workingDir = rootProject.projectDir
     // Placeholder; the real interpreter is resolved in doFirst so detection
     // happens at execution time, not project sync.
@@ -142,12 +142,39 @@ val syncLocalizations by tasks.registering(Exec::class) {
     }
 }
 
+val cleanCopiedAndroidLocalizations by tasks.registering(Delete::class) {
+    group = "localization"
+    description = "Remove previously copied localized strings.xml resources from app/src/main/res."
+
+    val resDir = layout.projectDirectory.dir("src/main/res")
+
+    // Delete generated strings.xml files first.
+    delete(fileTree(resDir) {
+        include("values*/strings.xml")
+        include("values-b+*/strings.xml")
+    })
+
+    // Then remove any now-empty locale-specific values-* directories.
+    doLast {
+        val root = resDir.asFile
+        root.listFiles()
+            ?.filter { it.isDirectory && (it.name.startsWith("values-") || it.name.startsWith("values-b+")) }
+            ?.forEach { dir ->
+                val remaining = dir.listFiles()
+                if (remaining == null || remaining.isEmpty()) {
+                    dir.delete()
+                }
+            }
+    }
+}
+
 val copyGeneratedAndroidLocalizations by tasks.registering(Copy::class) {
     group = "localization"
     description = "Copy localization/generated/android values-* resources into app/src/main/res."
 
     // Ensure the generator ran first.
     dependsOn(syncLocalizations)
+    dependsOn(cleanCopiedAndroidLocalizations)
 
     val sourceDir = rootProject.layout.projectDirectory.dir("localization/generated/android")
     val destDir = layout.projectDirectory.dir("src/main/res")
