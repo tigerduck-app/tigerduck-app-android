@@ -442,6 +442,7 @@
     <string name="settings_reset_course_colors">Reset course colors</string>
     <string name="settings_reset_course_colors_confirm_message">This will randomly reassign class table colors using default presets.</string>
     <string name="settings_reset_course_colors_confirm_title">Reset class table colors?</string>
+    <string name="settings_section_abbreviation">Abbreviations</string>
     <string name="settings_section_about">About</string>
     <string name="settings_section_account">Account</string>
     <string name="settings_section_custom">Customization</string>

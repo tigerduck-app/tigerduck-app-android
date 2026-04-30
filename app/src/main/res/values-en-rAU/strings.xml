@@ -414,7 +414,7 @@
     <string name="settings_assignment_due_reminder">Assignment due reminders</string>
     <string name="settings_browser_in_app">In-app browser</string>
     <string name="settings_browser_system_default">System default browser</string>
-    <string name="settings_classroom_mandarin_display">When classroom name is in Chinese</string>
+    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
     <string name="settings_classroom_mandarin_display_original">Display original</string>
     <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Display translated</string>
@@ -442,6 +442,7 @@
     <string name="settings_reset_course_colors">Reset course colours</string>
     <string name="settings_reset_course_colors_confirm_message">This will randomly reassign class table colours using default presets.</string>
     <string name="settings_reset_course_colors_confirm_title">Reset class table colours?</string>
+    <string name="settings_section_abbreviation">Abbreviations</string>
     <string name="settings_section_about">About</string>
     <string name="settings_section_account">Account</string>
     <string name="settings_section_custom">Customisation</string>

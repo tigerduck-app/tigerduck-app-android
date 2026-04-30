@@ -343,7 +343,7 @@
     <string name="push_server_last_sync">上次同步</string>
     <string name="push_server_latest_error">最近錯誤</string>
     <string name="push_server_notification_status_authorized">已授權</string>
-    <string name="push_server_notification_status_denied_hint">被拒(至 iOS 設定開啟)</string>
+    <string name="push_server_notification_status_denied_hint">被拒(至系統設定開啟)</string>
     <string name="push_server_notification_status_ephemeral">暫時授權</string>
     <string name="push_server_notification_status_provisional">靜默授權</string>
     <string name="push_server_notification_status_undetermined">尚未詢問</string>
@@ -414,14 +414,14 @@
     <string name="settings_assignment_due_reminder">作業到期提醒</string>
     <string name="settings_browser_in_app">App 內瀏覽器</string>
     <string name="settings_browser_system_default">系統預設瀏覽器</string>
-    <string name="settings_classroom_mandarin_display">教室名稱為中文時</string>
-    <string name="settings_classroom_mandarin_display_original">顯示原文</string>
-    <string name="settings_classroom_mandarin_display_pinyin">顯示拼音</string>
-    <string name="settings_classroom_mandarin_display_translated">顯示翻譯</string>
+    <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
+    <string name="settings_classroom_mandarin_display_original">Display original</string>
+    <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
+    <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">顏色主題</string>
     <string name="settings_feedback_bug_report">回饋/問題回報</string>
     <string name="settings_invert_slider_direction">反轉滑條方向</string>
-    <string name="settings_language">語言</string>
+    <string name="settings_language">語言 (Language)</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_follow_system">跟隨系統（備用英文）</string>
     <string name="settings_language_traditional_chinese">繁體中文</string>
@@ -442,6 +442,7 @@
     <string name="settings_reset_course_colors">重設課表顏色</string>
     <string name="settings_reset_course_colors_confirm_message">這將會把課表的顏色依照預設顏色隨機重新分配</string>
     <string name="settings_reset_course_colors_confirm_title">確定要重設課表顏色？</string>
+    <string name="settings_section_abbreviation">縮寫</string>
     <string name="settings_section_about">關於</string>
     <string name="settings_section_account">帳號</string>
     <string name="settings_section_custom">自訂</string>
