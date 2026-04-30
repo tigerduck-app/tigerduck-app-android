@@ -38,6 +38,9 @@ import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.widget.LibraryShortcutWidget
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
+import org.ntust.app.tigerduck.announcements.AnnouncementDetailScreen
+import org.ntust.app.tigerduck.announcements.AnnouncementsScreen
+import org.ntust.app.tigerduck.announcements.SubscriptionSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarScreen
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarViewModel
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableScreen
@@ -60,6 +63,10 @@ sealed class Screen(val route: String) {
     object ClassTable : Screen("classTable")
     object Calendar : Screen("calendar")
     object Announcements : Screen("announcements")
+    object AnnouncementDetail : Screen("announcement/{id}") {
+        fun route(id: Int) = "announcement/$id"
+    }
+    object AnnouncementSubscriptions : Screen("announcement/subscriptions")
     object Library : Screen("library")
     object Score : Screen("score")
     object More : Screen("more")
@@ -249,7 +256,30 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
             composable(Screen.Calendar.route) {
                 CalendarScreen(viewModel = calendarViewModel)
             }
-            composable(Screen.Announcements.route) { PlaceholderScreen(AppFeature.ANNOUNCEMENTS) }
+            composable(Screen.Announcements.route) {
+                AnnouncementsScreen(
+                    onOpenBulletin = { id ->
+                        navController.navigate(Screen.AnnouncementDetail.route(id))
+                    },
+                    onOpenSubscriptions = {
+                        navController.navigate(Screen.AnnouncementSubscriptions.route)
+                    },
+                )
+            }
+            composable(
+                Screen.AnnouncementDetail.route,
+                arguments = listOf(navArgument("id") { type = NavType.IntType }),
+                deepLinks = listOf(
+                    androidx.navigation.navDeepLink {
+                        uriPattern = "tigerduck://announcement/{id}"
+                    },
+                ),
+            ) {
+                AnnouncementDetailScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.AnnouncementSubscriptions.route) {
+                SubscriptionSettingsScreen(onBack = { navController.popBackStack() })
+            }
             composable(Screen.Library.route) { LibraryScreen() }
             composable(Screen.Score.route) { ScoreScreen() }
             composable(Screen.More.route) { MoreScreen(navController, appState) }

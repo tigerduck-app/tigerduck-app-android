@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_bulletin_channel_description">Realaus laiko push pranešimai apie naujus NTUST biuletenius, atitinkančius jūsų prenumeratas</string>
+    <string name="notification_bulletin_channel_name">Mokyklos biuleteniai</string>
     <string name="notification_class_preparing_channel_description">Siunčia priminimus prieš kiekvienos paskaitos pradžią</string>
     <string name="notification_class_preparing_channel_name">Paskaitų pradžios priminimai</string>
     <string name="notification_class_preparing_content_fallback">Paskaita tuoj prasidės</string>

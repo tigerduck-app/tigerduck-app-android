@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Trễ rồi... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Vẫn còn kịp sửa! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Nhắc nhở bài tập: %1$s</string>
+    <string name="notification_bulletin_channel_description">Đẩy thông báo theo thời gian thực cho các bản tin NTUST mới khớp với đăng ký của bạn</string>
+    <string name="notification_bulletin_channel_name">Thông báo trường học</string>
     <string name="notification_class_preparing_channel_description">Gửi nhắc nhở trước khi mỗi lớp học bắt đầu</string>
     <string name="notification_class_preparing_channel_name">Nhắc sắp vào lớp</string>
     <string name="notification_class_preparing_content_fallback">Lớp học sắp bắt đầu</string>

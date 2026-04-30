@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">فات الأوان...%1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">لا يزال الوقت لإصلاحه! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">تذكير بالمهمة: %1$s</string>
+    <string name="notification_bulletin_channel_description">إشعارات فورية بنشرات NTUST الجديدة المطابقة لاشتراكاتك</string>
+    <string name="notification_bulletin_channel_name">نشرات المدرسة</string>
     <string name="notification_class_preparing_channel_description">يرسل تذكيرات قبل بدء كل محاضرة</string>
     <string name="notification_class_preparing_channel_name">تذكيرات بدء المحاضرات</string>
     <string name="notification_class_preparing_content_fallback">ستبدأ المحاضرة قريبًا</string>

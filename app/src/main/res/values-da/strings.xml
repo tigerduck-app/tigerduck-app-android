@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">For sent... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Stadig tid til at rette det! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Opgavepåmindelse: %1$s</string>
+    <string name="notification_bulletin_channel_description">Realtidspush for nye NTUST-bulletiner, der matcher dine abonnementer</string>
+    <string name="notification_bulletin_channel_name">Skolebulletiner</string>
     <string name="notification_class_preparing_channel_description">Sender påmindelser inden hver undervisningsgang begynder</string>
     <string name="notification_class_preparing_channel_name">Påmindelser om kommende undervisning</string>
     <string name="notification_class_preparing_content_fallback">Undervisningen er ved at begynde</string>

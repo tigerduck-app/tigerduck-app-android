@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Too late... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Still time to fix it! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Assignment reminder: %1$s</string>
+    <string name="notification_bulletin_channel_description">Real-time push for new NTUST bulletins matching your subscriptions</string>
+    <string name="notification_bulletin_channel_name">School bulletins</string>
     <string name="notification_class_preparing_channel_description">Sends reminders before each class starts</string>
     <string name="notification_class_preparing_channel_name">Class preparing reminders</string>
     <string name="notification_class_preparing_content_fallback">Class is about to start</string>

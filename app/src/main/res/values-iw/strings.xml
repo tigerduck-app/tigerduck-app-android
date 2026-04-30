@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">מאוחר מדי... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">עדיין לא מאוחר לתקן את זה! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">תזכורת למשימה: %1$s</string>
+    <string name="notification_bulletin_channel_description">דחיפה בזמן אמת לעלוני NTUST חדשים התואמים למנויים שלך</string>
+    <string name="notification_bulletin_channel_name">עלוני בית הספר</string>
     <string name="notification_class_preparing_channel_description">שולח תזכורות לפני תחילת כל שיעור</string>
     <string name="notification_class_preparing_channel_name">תזכורות לפני שיעור</string>
     <string name="notification_class_preparing_content_fallback">השיעור עומד להתחיל</string>

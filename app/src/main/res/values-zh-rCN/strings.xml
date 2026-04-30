@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_bulletin_channel_description">符合您订阅规则的台湾科技大学公告实时推送</string>
+    <string name="notification_bulletin_channel_name">校园公告</string>
     <string name="notification_class_preparing_channel_description">在每堂课开始前依设置的时间送出提醒</string>
     <string name="notification_class_preparing_channel_name">即将上课提醒</string>
     <string name="notification_class_preparing_content_fallback">课程即将开始</string>

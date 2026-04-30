@@ -8,6 +8,7 @@ import org.ntust.app.tigerduck.network.LibraryService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.network.SsoLoginError
 import org.ntust.app.tigerduck.network.SsoLoginService
+import org.ntust.app.tigerduck.push.PushRegistrationService
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +23,8 @@ class AuthService @Inject constructor(
     private val sessionManager: NtustSessionManager,
     private val ssoLoginService: SsoLoginService,
     private val libraryService: LibraryService,
-    private val credentials: CredentialManager
+    private val credentials: CredentialManager,
+    private val pushRegistration: PushRegistrationService,
 ) {
     private val _isLoggingIn = MutableStateFlow(false)
     val isLoggingIn: StateFlow<Boolean> = _isLoggingIn
@@ -60,6 +62,7 @@ class AuthService @Inject constructor(
                 credentials.ntustStudentId = normalizedId
                 credentials.ntustPassword = password
                 _authState.value = true
+                runCatching { pushRegistration.onSignedIn(normalizedId) }
 
                 // Auto-attempt library login (best-effort)
                 if (!credentials.isLibraryTokenValid) {
@@ -120,5 +123,6 @@ class AuthService @Inject constructor(
         sessionManager.invalidateSession()
         _loginError.value = null
         _authState.value = false
+        pushRegistration.unregister()
     }
 }

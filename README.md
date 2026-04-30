@@ -16,6 +16,7 @@
 <!-- <img align="right" width="330" alt="portrait" src="https://github.com/user-attachments/assets/c2b24060-969a-4132-bb72-347d9227f1b4" /> -->
 <img align="right" width="260" alt="screenshot-portrait" src="https://github.com/user-attachments/assets/21c7e61d-d2a4-4103-aa23-dddc275aa582" />
 
+# TODO: 更新截圖
 
 TigerDuck 是由學生共同開發的台科大校園助手 Android App。  
 目標是把課表、作業、行事曆、公告、圖書館等零散服務整合在同一個流暢的原生介面中。
@@ -63,7 +64,7 @@ TigerDuck 是由學生共同開發的台科大校園助手 Android App。
 - [x] Moodle 作業同步
 - [x] 課表同步（選課系統）
 - [x] 行事曆整合（校方 + Moodle）
-- [ ] 歷年 GPA / 排名查詢
+- [x] 歷年 GPA / 排名查詢
 - [ ] 畢業門檻學分檢核
 
 ### 📚 圖書館服務

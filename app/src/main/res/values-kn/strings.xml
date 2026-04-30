@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">ತಡವಾಗಿದೆ... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">ಸರಿಪಡಿಸಲು ಇನ್ನೂ ಸಮಯವಿದೆ! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">ಕಾರ್ಯಯೋಜನೆ ಜ್ಞಾಪನೆ: %1$s</string>
+    <string name="notification_bulletin_channel_description">ನಿಮ್ಮ ಚಂದಾದಾರಿಕೆಗಳಿಗೆ ಹೊಂದಿಕೆಯಾಗುವ ಹೊಸ NTUST ಬುಲೆಟಿನ್‌ಗಳಿಗೆ ನೈಜ-ಸಮಯದ ಪುಶ್</string>
+    <string name="notification_bulletin_channel_name">ಶಾಲೆಯ ಬುಲೆಟಿನ್‌ಗಳು</string>
     <string name="notification_class_preparing_channel_description">ಪ್ರತಿ ತರಗತಿ ಆರಂಭಕ್ಕೂ ಮುನ್ನ ಜ್ಞಾಪನೆಗಳನ್ನು ಕಳುಹಿಸುತ್ತದೆ</string>
     <string name="notification_class_preparing_channel_name">ತರಗತಿ ಸಿದ್ಧತೆ ಜ್ಞಾಪನೆಗಳು</string>
     <string name="notification_class_preparing_content_fallback">ತರಗತಿ ಆರಂಭವಾಗಲಿದೆ</string>

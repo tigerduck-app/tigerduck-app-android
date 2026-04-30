@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Massa tard... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Encara sou a temps d\'arreglar-ho! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Recordatori de la tasca: %1$s</string>
+    <string name="notification_bulletin_channel_description">Notificacions push en temps real per als nous butlletins de NTUST que coincideixen amb les vostres subscripcions</string>
+    <string name="notification_bulletin_channel_name">Butlletins escolars</string>
     <string name="notification_class_preparing_channel_description">Envia recordatoris abans que comenci cada classe</string>
     <string name="notification_class_preparing_channel_name">Recordatoris de classe</string>
     <string name="notification_class_preparing_content_fallback">La classe està a punt de començar</string>

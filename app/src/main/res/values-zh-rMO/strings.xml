@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">涼了... %1$s「%2$s」</string>
     <string name="notification_assignment_reminder_body_multi_hour">還來得及補救!%1$s「%2$s」</string>
     <string name="notification_assignment_reminder_title">作業提醒:%1$s</string>
+    <string name="notification_bulletin_channel_description">符合您訂閱規則的臺科大公告即時推播</string>
+    <string name="notification_bulletin_channel_name">校園公告</string>
     <string name="notification_class_preparing_channel_description">喺每堂課開始前按設定時間發出提醒</string>
     <string name="notification_class_preparing_channel_name">就快上堂提醒</string>
     <string name="notification_class_preparing_content_fallback">就快開始上堂</string>

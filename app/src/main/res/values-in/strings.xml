@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Terlambat... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Masih ada waktu untuk memperbaikinya! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Pengingat tugas: %1$s</string>
+    <string name="notification_bulletin_channel_description">Push real-time untuk buletin NTUST baru yang sesuai dengan langganan Anda</string>
+    <string name="notification_bulletin_channel_name">Buletin sekolah</string>
     <string name="notification_class_preparing_channel_description">Mengirim pengingat sebelum setiap kelas dimulai</string>
     <string name="notification_class_preparing_channel_name">Pengingat sebelum kelas</string>
     <string name="notification_class_preparing_content_fallback">Kelas akan segera dimulai</string>

@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Çok geç... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Düzeltmek için hâlâ zaman var! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Ödev hatırlatıcısı: %1$s</string>
+    <string name="notification_bulletin_channel_description">Aboneliklerinizle eşleşen yeni NTUST bültenleri için gerçek zamanlı push bildirimleri</string>
+    <string name="notification_bulletin_channel_name">Okul bültenleri</string>
     <string name="notification_class_preparing_channel_description">Her ders başlamadan önce hatırlatma gönderir</string>
     <string name="notification_class_preparing_channel_name">Ders başlangıç hatırlatıcıları</string>
     <string name="notification_class_preparing_content_fallback">Ders birazdan başlayacak</string>

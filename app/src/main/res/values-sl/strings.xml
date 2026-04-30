@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Prepozno... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Še čas za popravek! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Opomnik za nalogo: %1$s</string>
+    <string name="notification_bulletin_channel_description">Push obvestila v realnem času za nove biltene NTUST, ki ustrezajo vašim naročninam</string>
+    <string name="notification_bulletin_channel_name">Šolski bilteni</string>
     <string name="notification_class_preparing_channel_description">Pošlje opomnik pred začetkom vsake ure</string>
     <string name="notification_class_preparing_channel_name">Opomniki za začetek ure</string>
     <string name="notification_class_preparing_content_fallback">Ura se bo kmalu začela</string>

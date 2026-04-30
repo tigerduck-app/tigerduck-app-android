@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Liiga hilja... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Ikka aega parandada! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Ülesande meeldetuletus: %1$s</string>
+    <string name="notification_bulletin_channel_description">Reaalajas tõuketeated uute NTUST bülletäänide kohta, mis vastavad teie tellimustele</string>
+    <string name="notification_bulletin_channel_name">Koolibülletäänid</string>
     <string name="notification_class_preparing_channel_description">Saadab meeldetuletuse enne iga tunni algust</string>
     <string name="notification_class_preparing_channel_name">Tunni alguse meeldetuletused</string>
     <string name="notification_class_preparing_content_fallback">Tund on kohe algamas</string>

@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Слишком поздно… %1$s «%2$s»</string>
     <string name="notification_assignment_reminder_body_multi_hour">Ещё можно всё исправить! %1$s «%2$s»</string>
     <string name="notification_assignment_reminder_title">Напоминание о задании: %1$s</string>
+    <string name="notification_bulletin_channel_description">Уведомления в реальном времени о новых бюллетенях NTUST, соответствующих вашим подпискам</string>
+    <string name="notification_bulletin_channel_name">Школьные бюллетени</string>
     <string name="notification_class_preparing_channel_description">Отправляет напоминания перед началом каждого занятия</string>
     <string name="notification_class_preparing_channel_name">Напоминания о начале занятий</string>
     <string name="notification_class_preparing_content_fallback">Занятие скоро начнётся</string>

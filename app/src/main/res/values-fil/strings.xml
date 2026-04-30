@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Huli na... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Oras pa para ayusin ito! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Paalala sa takdang-aralin: %1$s</string>
+    <string name="notification_bulletin_channel_description">Real-time na push para sa mga bagong bulletin ng NTUST na tumutugma sa iyong mga subscription</string>
+    <string name="notification_bulletin_channel_name">Mga bulletin ng paaralan</string>
     <string name="notification_class_preparing_channel_description">Nagpapadala ng paalala bago magsimula ang bawat klase</string>
     <string name="notification_class_preparing_channel_name">Mga paalala bago mag-klase</string>
     <string name="notification_class_preparing_content_fallback">Malapit nang magsimula ang klase</string>

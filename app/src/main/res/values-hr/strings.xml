@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_bulletin_channel_description">Push obavijesti u stvarnom vremenu za nove NTUST biltene koji odgovaraju vašim pretplatama</string>
+    <string name="notification_bulletin_channel_name">Školski bilteni</string>
     <string name="notification_class_preparing_channel_description">Šalje podsjetnike prije početka svakog predavanja</string>
     <string name="notification_class_preparing_channel_name">Podsjetnici za predavanja</string>
     <string name="notification_class_preparing_content_fallback">Predavanje uskoro počinje</string>

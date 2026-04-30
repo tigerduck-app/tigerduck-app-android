@@ -196,6 +196,24 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         prefs.edit().clear().apply()
     }
 
+    fun getString(key: String): String? = prefs.getString(key, null)
+
+    fun putString(key: String, value: String) {
+        prefs.edit().putString(key, value).apply()
+    }
+
+    /**
+     * Read [key], or generate-and-persist a value via [factory] if absent.
+     * Used by [org.ntust.app.tigerduck.push.PushIdentity] to mint a stable
+     * device id on first launch.
+     */
+    fun getOrCreateString(key: String, factory: () -> String): String {
+        prefs.getString(key, null)?.let { return it }
+        val created = factory()
+        prefs.edit().putString(key, created).apply()
+        return created
+    }
+
     /** Semester the user last viewed in 課表. Null until first pick. */
     var classTableSelectedSemester: String?
         get() = prefs.getString("classTableSelectedSemester", null)

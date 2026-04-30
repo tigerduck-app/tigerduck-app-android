@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_bulletin_channel_description">Valós idejű push értesítések az előfizetéseinek megfelelő új NTUST értesítőkről</string>
+    <string name="notification_bulletin_channel_name">Iskolai értesítők</string>
     <string name="notification_class_preparing_channel_description">Emlékeztetőt küld minden óra kezdete előtt</string>
     <string name="notification_class_preparing_channel_name">Órakezdés emlékeztetők</string>
     <string name="notification_class_preparing_content_fallback">Az óra hamarosan kezdődik</string>

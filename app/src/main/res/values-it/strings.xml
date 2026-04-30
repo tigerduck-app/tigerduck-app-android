@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Troppo tardi... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Hai ancora tempo per sistemarlo! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Promemoria compito: %1$s</string>
+    <string name="notification_bulletin_channel_description">Notifiche in tempo reale per i nuovi bollettini NTUST corrispondenti ai tuoi abbonamenti</string>
+    <string name="notification_bulletin_channel_name">Bollettini scolastici</string>
     <string name="notification_class_preparing_channel_description">Invia promemoria prima dell\'inizio di ogni lezione</string>
     <string name="notification_class_preparing_channel_name">Promemoria preparazione lezioni</string>
     <string name="notification_class_preparing_content_fallback">La lezione sta per iniziare</string>

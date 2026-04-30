@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_bulletin_channel_description">Rauntíma push tilkynningar fyrir nýjar NTUST tilkynningar sem passa við áskriftir þínar</string>
+    <string name="notification_bulletin_channel_name">Skólabréf</string>
     <string name="notification_class_preparing_channel_description">Sendir áminningu áður en hver tími byrjar</string>
     <string name="notification_class_preparing_channel_name">Áminningar um komandi tíma</string>
     <string name="notification_class_preparing_content_fallback">Tíminn er að byrja</string>

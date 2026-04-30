@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">너무 늦었습니다... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">아직 수정할 시간이 있습니다! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">과제 알림: %1$s</string>
+    <string name="notification_bulletin_channel_description">구독 규칙에 맞는 NTUST 공지를 실시간으로 푸시 알림</string>
+    <string name="notification_bulletin_channel_name">학교 공지</string>
     <string name="notification_class_preparing_channel_description">각 수업 시작 전에 알림을 보냅니다</string>
     <string name="notification_class_preparing_channel_name">수업 시작 알림</string>
     <string name="notification_class_preparing_content_fallback">수업이 곧 시작됩니다</string>

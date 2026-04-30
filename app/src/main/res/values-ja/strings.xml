@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">もう遅い… %1$s「%2$s」</string>
     <string name="notification_assignment_reminder_body_multi_hour">まだ間に合います！ %1$s「%2$s」</string>
     <string name="notification_assignment_reminder_title">課題リマインダー：%1$s</string>
+    <string name="notification_bulletin_channel_description">台湾科技大学（NTUST）の掲示板でサブスクリプションに一致する新着をリアルタイムでプッシュ通知</string>
+    <string name="notification_bulletin_channel_name">学内掲示板</string>
     <string name="notification_class_preparing_channel_description">各授業の開始前に設定した時間でリマインダーを送信します</string>
     <string name="notification_class_preparing_channel_name">授業開始前のリマインダー</string>
     <string name="notification_class_preparing_content_fallback">まもなく授業が始まります</string>

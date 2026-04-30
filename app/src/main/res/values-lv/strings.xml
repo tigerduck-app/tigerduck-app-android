@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Par vēlu... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Vēl ir laiks labot! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Uzdevuma atgādinājums: %1$s</string>
+    <string name="notification_bulletin_channel_description">Reāllaika push paziņojumi par jauniem NTUST biļeteniem, kas atbilst jūsu abonementiem</string>
+    <string name="notification_bulletin_channel_name">Skolas biļeteni</string>
     <string name="notification_class_preparing_channel_description">Sūta atgādinājumus pirms katras nodarbības sākuma</string>
     <string name="notification_class_preparing_channel_name">Nodarbības atgādinājumi</string>
     <string name="notification_class_preparing_content_fallback">Nodarbība drīz sāksies</string>

@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Liian myöhäistä... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Vielä ehtii korjata! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Tehtävämuistutus: %1$s</string>
+    <string name="notification_bulletin_channel_description">Reaaliaikainen push uusille NTUST-tiedotteille, jotka vastaavat tilauksiasi</string>
+    <string name="notification_bulletin_channel_name">Koulutiedotteet</string>
     <string name="notification_class_preparing_channel_description">Lähettää muistutuksen ennen jokaisen tunnin alkua</string>
     <string name="notification_class_preparing_channel_name">Tunnin alkamismuistutukset</string>
     <string name="notification_class_preparing_content_fallback">Tunti alkaa pian</string>

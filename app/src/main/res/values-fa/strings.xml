@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">خیلی دیر... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">هنوز زمان برای تعمیر آن است! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">یادآوری تکلیف: %1$s</string>
+    <string name="notification_bulletin_channel_description">اعلان‌های فوری برای اطلاعیه‌های جدید NTUST مطابق با اشتراک‌های شما</string>
+    <string name="notification_bulletin_channel_name">اطلاعیه‌های مدرسه</string>
     <string name="notification_class_preparing_channel_description">پیش از شروع هر کلاس، مطابق تنظیمات به شما یادآوری می‌فرستد</string>
     <string name="notification_class_preparing_channel_name">یادآورهای شروع کلاس</string>
     <string name="notification_class_preparing_content_fallback">کلاس در شُرف شروع است</string>

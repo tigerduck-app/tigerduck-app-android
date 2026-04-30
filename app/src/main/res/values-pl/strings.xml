@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_bulletin_channel_description">Powiadomienia w czasie rzeczywistym o nowych biuletynach NTUST pasujących do Twoich subskrypcji</string>
+    <string name="notification_bulletin_channel_name">Biuletyny szkolne</string>
     <string name="notification_class_preparing_channel_description">Wysyła przypomnienia przed rozpoczęciem każdych zajęć</string>
     <string name="notification_class_preparing_channel_name">Przypomnienia o nadchodzących zajęciach</string>
     <string name="notification_class_preparing_content_fallback">Zajęcia wkrótce się rozpoczną</string>

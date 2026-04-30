@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Te laat… %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Nog tijd om het te verbeteren! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Opdrachtherinnering: %1$s</string>
+    <string name="notification_bulletin_channel_description">Realtime push voor nieuwe NTUST-bulletins die overeenkomen met uw abonnementen</string>
+    <string name="notification_bulletin_channel_name">Schoolbulletins</string>
     <string name="notification_class_preparing_channel_description">Stuurt herinneringen voordat elke les begint</string>
     <string name="notification_class_preparing_channel_name">Herinneringen voor lessen die zo beginnen</string>
     <string name="notification_class_preparing_content_fallback">Les begint zo</string>

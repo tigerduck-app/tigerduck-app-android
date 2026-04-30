@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Кеш қалды... %1$s «%2$s»</string>
     <string name="notification_assignment_reminder_body_multi_hour">Түзетуге уақыт бар! %1$s «%2$s»</string>
     <string name="notification_assignment_reminder_title">Тапсырма еске салғышы: %1$s</string>
+    <string name="notification_bulletin_channel_description">Жазылымдарыңызға сәйкес жаңа NTUST бюллетендері үшін нақты уақыттағы push хабарландырулар</string>
+    <string name="notification_bulletin_channel_name">Мектеп бюллетендері</string>
     <string name="notification_class_preparing_channel_description">Әр сабақ басталмас бұрын еске салу жіберіледі</string>
     <string name="notification_class_preparing_channel_name">Сабақ басталу еске салулары</string>
     <string name="notification_class_preparing_content_fallback">Сабақ жақын басталады</string>

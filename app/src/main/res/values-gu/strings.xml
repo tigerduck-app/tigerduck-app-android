@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">ખૂબ મોડું થઈ ગયું... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">તેને ઠીક કરવાનો હજી સમય છે! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">સોંપણી રીમાઇન્ડર: %1$s</string>
+    <string name="notification_bulletin_channel_description">તમારી સદસ્યતા સાથે મેળ ખાતા નવા NTUST બુલેટિન માટે રીઅલ-ટાઇમ પુશ</string>
+    <string name="notification_bulletin_channel_name">શાળા બુલેટિન</string>
     <string name="notification_class_preparing_channel_description">દરેક ક્લાસ શરૂ થાય તે પહેલાં રિમાઇન્ડર મોકલે છે</string>
     <string name="notification_class_preparing_channel_name">ક્લાસ તૈયારી રિમાઇન્ડર</string>
     <string name="notification_class_preparing_content_fallback">ક્લાસ શરૂ થવાની તૈયારીમાં છે</string>

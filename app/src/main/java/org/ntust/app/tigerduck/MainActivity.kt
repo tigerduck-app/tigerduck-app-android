@@ -53,7 +53,7 @@ class MainActivity : AppCompatActivity() {
             BackgroundSyncWorker.schedule(applicationContext)
         }
 
-        widgetStartRoute.value = intent?.getStringExtra("start_route")
+        widgetStartRoute.value = resolveStartRoute(intent)
 
         setContent {
             val systemDark = isSystemInDarkTheme()
@@ -79,7 +79,23 @@ class MainActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        widgetStartRoute.value = intent.getStringExtra("start_route")
+        widgetStartRoute.value = resolveStartRoute(intent)
+    }
+
+    /**
+     * Map intent input — widget extras and `tigerduck://announcement/<id>`
+     * deep links from a tapped FCM bulletin notification — onto a NavHost
+     * route. `widgetStartRoute` then drives the LaunchedEffect that
+     * navigates once Compose is ready.
+     */
+    private fun resolveStartRoute(intent: Intent?): String? {
+        intent?.getStringExtra("start_route")?.let { return it }
+        val data = intent?.data ?: return null
+        if (data.scheme == "tigerduck" && data.host == "announcement") {
+            val id = data.lastPathSegment?.toIntOrNull() ?: return null
+            return "announcement/$id"
+        }
+        return null
     }
 
     private fun requestNotificationPermissionIfNeeded() {

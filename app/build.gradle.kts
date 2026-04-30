@@ -1,9 +1,42 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
 }
+
+// google-services plugin is consumed only by the `play` flavor. The JSON
+// lives under src/play/ (not app root) so the plugin's per-variant scanner
+// only registers a `process<Variant>GoogleServices` task for play* — fdroid
+// variants stay clean and don't trip on the package-id mismatch caused by
+// our `.fdroid` applicationIdSuffix. The plugin still has to be applied at
+// project level, which we gate on the JSON's presence so a fresh checkout
+// without it (e.g. the F-Droid buildserver) is buildable end-to-end.
+val hasGoogleServices = file("src/play/google-services.json").exists() ||
+    file("google-services.json").exists()
+if (hasGoogleServices) {
+    apply(plugin = libs.plugins.google.services.get().pluginId)
+    // Without this, building the fdroid flavor fails because the plugin
+    // walks every variant and demands a google-services.json for each. With
+    // the JSON only under src/play/, fdroid* variants now warn instead of
+    // erroring; play* variants still pick up the file and process it.
+    extensions.configure<com.google.gms.googleservices.GoogleServicesPlugin.GoogleServicesPluginConfig> {
+        missingGoogleServicesStrategy =
+            com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy.IGNORE
+    }
+}
+
+// Pull dev push-server config out of root-level local.properties so the URL
+// + shared secret never end up in VCS. project.findProperty() only reads
+// gradle.properties, so do it manually here.
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun localProp(key: String, default: String = ""): String =
+    localProps.getProperty(key) ?: (project.findProperty(key) as? String) ?: default
 
 android {
     namespace = "org.ntust.app.tigerduck"
@@ -29,6 +62,18 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField(
+                "String",
+                "PUSH_BASE_URL",
+                "\"${localProp("pushBaseUrl", "https://api.tigerduck.app")}\"",
+            )
+            buildConfigField(
+                "String",
+                "PUSH_SHARED_SECRET",
+                "\"${localProp("pushSharedSecret")}\"",
+            )
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -40,6 +85,16 @@ android {
             if (keystoreFile.exists() && System.getenv("KEYSTORE_PASSWORD")?.isNotEmpty() == true) {
                 signingConfig = signingConfigs.getByName("release")
             }
+            buildConfigField(
+                "String",
+                "PUSH_BASE_URL",
+                "\"${localProp("pushBaseUrlRelease", "https://api.tigerduck.app")}\"",
+            )
+            buildConfigField(
+                "String",
+                "PUSH_SHARED_SECRET",
+                "\"${System.getenv("PUSH_SHARED_SECRET") ?: ""}\"",
+            )
         }
     }
 
@@ -51,6 +106,25 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    // Two distribution channels:
+    //   * play   — Google Play Store + sideload. Uses FCM for real-time push.
+    //   * fdroid — F-Droid. 100% FOSS, no Google Play Services. The
+    //              announcements list still works (manual refresh / open-app
+    //              poll); push is simply absent. Add UnifiedPush here later
+    //              if real-time delivery becomes a requirement.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("play") {
+            dimension = "distribution"
+            // No suffix — this is the canonical applicationId.
+        }
+        create("fdroid") {
+            dimension = "distribution"
+            applicationIdSuffix = ".fdroid"
+            versionNameSuffix = "-fdroid"
+        }
     }
 
     sourceSets {
@@ -93,6 +167,13 @@ dependencies {
 
     // QR Code
     implementation(libs.zxing.core)
+
+    // Firebase Cloud Messaging — confined to the `play` flavor so the
+    // F-Droid APK contains zero Google Play Services code. FcmService.kt
+    // and FcmBootstrap.kt live under src/play/ and are not compiled when
+    // building fdroid* variants.
+    "playImplementation"(platform(libs.firebase.bom))
+    "playImplementation"(libs.firebase.messaging.ktx)
 
     // In-app browser (Custom Tabs)
     implementation(libs.androidx.browser)

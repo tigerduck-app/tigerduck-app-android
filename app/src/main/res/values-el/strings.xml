@@ -305,6 +305,8 @@
     <string name="notification_assignment_reminder_body_5m">Πολύ αργά... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Ακόμα καιρός να το φτιάξουμε! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Υπενθύμιση εργασίας: %1$s</string>
+    <string name="notification_bulletin_channel_description">Push ειδοποιήσεις σε πραγματικό χρόνο για νέα δελτία NTUST που ταιριάζουν στις συνδρομές σας</string>
+    <string name="notification_bulletin_channel_name">Σχολικά δελτία</string>
     <string name="notification_class_preparing_channel_description">Αποστέλλει υπενθυμίσεις πριν από κάθε μάθημα</string>
     <string name="notification_class_preparing_channel_name">Υπενθυμίσεις έναρξης μαθήματος</string>
     <string name="notification_class_preparing_content_fallback">Το μάθημα πρόκειται να ξεκινήσει</string>
