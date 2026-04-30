@@ -6,21 +6,34 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.push.PushDiagnostic
 import org.ntust.app.tigerduck.push.PushIdentity
+import org.ntust.app.tigerduck.push.PushRegistrationService
 import javax.inject.Inject
 
 /**
- * Drives SubscriptionSettingsScreen. Rules are edited as a draft list and
- * PUT to the server as one snapshot (matching the iOS contract). Save and
- * load both cover the first-launch race where the device row isn't
- * registered yet — load() returns an empty list, save() surfaces the error.
+ * Drives SubscriptionSettingsScreen.
+ *
+ * Behaviour mirrors iOS BulletinNotificationSettingsView:
+ *  - Rules are auto-saved (PUT replaces the whole snapshot) after every
+ *    upsert / delete / toggle. The user never taps a save button — matches
+ *    the Settings/Notes app idiom of "I tweaked, I swiped back, it's saved".
+ *  - The "default seed" path applies a starter rule from the taxonomy's
+ *    `default_tags` when the rule list is empty and the user explicitly opts
+ *    in. iOS uses the same `seedDefault(from:)` shape.
+ *  - Push diagnostics (FCM token present, server registration timestamp,
+ *    last error) are exposed verbatim so the screen can render the same
+ *    green-tick / orange-warning status rows that iOS shows.
  */
 @HiltViewModel
 class SubscriptionSettingsViewModel @Inject constructor(
     private val api: BulletinApiClient,
     private val identity: PushIdentity,
+    private val pushRegistration: PushRegistrationService,
 ) : ViewModel() {
 
     sealed interface LoadState {
@@ -41,7 +54,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
         val taxonomy: TaxonomyResponse? = null,
         val loadState: LoadState = LoadState.Loading,
         val saveState: SaveState = SaveState.Idle,
-        val isDirty: Boolean = false,
+        val diagnostic: PushDiagnostic = PushDiagnostic(false, false, null, null),
     )
 
     private val _state = MutableStateFlow(State())
@@ -50,6 +63,9 @@ class SubscriptionSettingsViewModel @Inject constructor(
     init {
         viewModelScope.launch { fetchTaxonomy() }
         load()
+        pushRegistration.diagnostic
+            .onEach { d -> _state.update { it.copy(diagnostic = d) } }
+            .launchIn(viewModelScope)
     }
 
     private suspend fun fetchTaxonomy() {
@@ -58,13 +74,12 @@ class SubscriptionSettingsViewModel @Inject constructor(
     }
 
     fun load() {
-        if (_state.value.isDirty) return
         viewModelScope.launch {
             _state.update { it.copy(loadState = LoadState.Loading) }
             try {
                 val response = api.fetchSubscriptions(identity.deviceId())
                 _state.update {
-                    it.copy(rules = response.rules, loadState = LoadState.Loaded, isDirty = false)
+                    it.copy(rules = response.rules, loadState = LoadState.Loaded)
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(loadState = LoadState.Failed(e.message ?: "error")) }
@@ -80,40 +95,69 @@ class SubscriptionSettingsViewModel @Inject constructor(
             } else {
                 rules += rule
             }
-            s.copy(rules = rules, isDirty = true)
+            s.copy(rules = rules)
         }
+        save()
     }
 
     fun deleteRule(index: Int) {
-        _state.update { s ->
-            if (index !in s.rules.indices) s
-            else s.copy(rules = s.rules.toMutableList().also { it.removeAt(index) }, isDirty = true)
+        val s = _state.value
+        if (index !in s.rules.indices) return
+        _state.update {
+            it.copy(rules = it.rules.toMutableList().also { l -> l.removeAt(index) })
         }
+        save()
     }
 
     fun toggleEnabled(index: Int) {
-        _state.update { s ->
-            if (index !in s.rules.indices) s
-            else s.copy(
-                rules = s.rules.mapIndexed { i, r ->
+        val s = _state.value
+        if (index !in s.rules.indices) return
+        _state.update {
+            it.copy(
+                rules = it.rules.mapIndexed { i, r ->
                     if (i == index) r.copy(enabled = !r.enabled) else r
                 },
-                isDirty = true,
             )
         }
+        save()
     }
 
-    fun save() {
+    /**
+     * Seed a "follow the defaults" rule when the user starts from zero.
+     * No-op if the rules list is non-empty or the taxonomy hasn't loaded —
+     * matches iOS `seedDefault(from:)`.
+     */
+    fun applyDefaultRules() {
+        val s = _state.value
+        if (s.rules.isNotEmpty()) return
+        val tax = s.taxonomy ?: return
+        if (tax.defaultTags.isEmpty()) return
+        val seeded = SubscriptionRule(
+            name = null,
+            orgs = emptyList(),
+            tags = tax.defaultTags,
+            mode = "OR",
+            enabled = true,
+        )
+        _state.update { it.copy(rules = listOf(seeded)) }
+        save()
+    }
+
+    private fun save() {
         viewModelScope.launch {
             _state.update { it.copy(saveState = SaveState.Saving) }
             try {
                 val response = api.putSubscriptions(identity.deviceId(), _state.value.rules)
                 _state.update {
-                    it.copy(rules = response.rules, saveState = SaveState.Saved, isDirty = false)
+                    it.copy(rules = response.rules, saveState = SaveState.Saved)
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(saveState = SaveState.Failed(e.message ?: "error")) }
             }
         }
+    }
+
+    fun clearSaveState() {
+        _state.update { it.copy(saveState = SaveState.Idle) }
     }
 }

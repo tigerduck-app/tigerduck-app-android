@@ -21,7 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun AnnouncementDetailScreen(
     onBack: () -> Unit,
@@ -90,14 +90,18 @@ fun AnnouncementDetailScreen(
                         }
                     }
                 }
-                is AnnouncementDetailViewModel.State.Loaded -> DetailBody(s.detail)
+                is AnnouncementDetailViewModel.State.Loaded -> DetailBody(s.detail, s.taxonomy)
             }
         }
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun DetailBody(detail: BulletinDetail) {
+private fun DetailBody(
+    detail: BulletinDetail,
+    taxonomy: TaxonomyResponse?,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -105,22 +109,45 @@ private fun DetailBody(detail: BulletinDetail) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        // Meta row: 處室 reads as attribution (accent-color caption), kept
+        // visually separate from the 類別 hashtag strip in the footer.
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            detail.canonicalOrg?.let { orgId ->
+                Text(
+                    text = taxonomy?.orgLabel(orgId) ?: orgId,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            if (detail.importance == "high") {
+                Text(
+                    text = stringResource(R.string.bulletin_importance_high_badge),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = androidx.compose.ui.graphics.Color(0xFFFF9500),
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            if (detail.isDeleted) {
+                Text(
+                    text = stringResource(R.string.bulletin_withdrawn_badge),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            detail.postedAt?.let {
+                Text(
+                    text = it.substringBefore('T'),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline,
+                )
+            }
+        }
         Text(
             text = detail.displayTitle,
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
         )
-        val tagText = buildList {
-            detail.canonicalOrg?.let { add(it) }
-            addAll(detail.contentTags)
-            detail.rawPublisher?.takeIf { it.isNotBlank() }?.let { add(it) }
-        }.joinToString(" · ")
-        if (tagText.isNotEmpty()) {
-            Text(
-                text = tagText,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.outline,
-            )
-        }
         // Body content stays in Mandarin (server-side, original language).
         // Prefer the cleaned plain text; fall back to markdown source if that
         // is the only thing the LLM produced for this row.
@@ -130,6 +157,29 @@ private fun DetailBody(detail: BulletinDetail) {
                 text = body,
                 style = MaterialTheme.typography.bodyMedium,
             )
+        }
+        // Footer: hashtag strip — wraps multi-line for posts with many tags.
+        if (detail.contentTags.isNotEmpty()) {
+            HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+            androidx.compose.foundation.layout.FlowRow(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                detail.contentTags.forEach { id ->
+                    Surface(
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    ) {
+                        Text(
+                            text = "#${taxonomy?.tagLabel(id) ?: id}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        )
+                    }
+                }
+            }
         }
     }
 }

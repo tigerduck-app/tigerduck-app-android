@@ -1,18 +1,25 @@
 package org.ntust.app.tigerduck.announcements
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.FilterAltOff
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,8 +42,28 @@ fun AnnouncementsScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         PageHeader(title = stringResource(R.string.feature_announcements)) {
+            if (state.unreadOnly && state.hasUnread) {
+                IconButton(onClick = viewModel::markAllRead) {
+                    Icon(
+                        Icons.Filled.DoneAll,
+                        contentDescription = stringResource(R.string.bulletin_mark_all_read_action),
+                    )
+                }
+            }
+            IconButton(onClick = { viewModel.setUnreadOnly(!state.unreadOnly) }) {
+                Icon(
+                    if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
+                    contentDescription = stringResource(
+                        if (state.unreadOnly) R.string.bulletin_show_all_action
+                        else R.string.bulletin_show_unread_only_action
+                    ),
+                )
+            }
             IconButton(onClick = onOpenSubscriptions) {
-                Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.bulletin_notifications_title))
+                Icon(
+                    Icons.Filled.Settings,
+                    contentDescription = stringResource(R.string.bulletin_notifications_title),
+                )
             }
         }
 
@@ -45,7 +72,7 @@ fun AnnouncementsScreen(
             onValueChange = viewModel::setSearch,
         )
 
-        FilterChipRow(
+        FilterSection(
             taxonomy = state.taxonomy,
             selectedOrgs = state.selectedOrgs,
             selectedTags = state.selectedTags,
@@ -60,16 +87,20 @@ fun AnnouncementsScreen(
             modifier = Modifier.fillMaxSize(),
             refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
+            val displayed = state.displayed
             when {
-                state.filtered.isEmpty() && state.loadState is AnnouncementsViewModel.LoadState.Loaded -> {
+                displayed.isEmpty() && state.loadState is AnnouncementsViewModel.LoadState.Loaded -> {
                     EmptyStateView(
                         icon = Icons.Filled.Campaign,
-                        title = stringResource(R.string.bulletin_no_bulletins_title),
+                        title = stringResource(
+                            if (state.unreadOnly) R.string.bulletin_no_unread_title
+                            else R.string.bulletin_no_bulletins_title
+                        ),
                         message = stringResource(R.string.bulletin_no_bulletins_message),
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
-                state.filtered.isEmpty() && state.loadState is AnnouncementsViewModel.LoadState.Failed -> {
+                displayed.isEmpty() && state.loadState is AnnouncementsViewModel.LoadState.Failed -> {
                     EmptyStateView(
                         icon = Icons.Filled.Campaign,
                         title = stringResource(R.string.bulletin_load_failed_title),
@@ -78,9 +109,12 @@ fun AnnouncementsScreen(
                     )
                 }
                 else -> BulletinList(
-                    items = state.filtered,
+                    items = displayed,
+                    taxonomy = state.taxonomy,
+                    readIds = state.readIds,
                     isPaginating = state.isPaginating,
                     onClick = onOpenBulletin,
+                    onToggleRead = viewModel::toggleRead,
                     onLastVisible = viewModel::loadMoreIfNeeded,
                 )
             }
@@ -103,8 +137,14 @@ private fun SearchBar(value: String, onValueChange: (String) -> Unit) {
     )
 }
 
+/**
+ * Two labeled chip rows mirroring iOS `BulletinFilterBar` — one for 處室
+ * (department / org), one for 類別 (category / tag). Keeping the dimensions
+ * visually separate is what tells users that the same bulletin can carry both
+ * a department and one or more categories.
+ */
 @Composable
-private fun FilterChipRow(
+private fun FilterSection(
     taxonomy: TaxonomyResponse?,
     selectedOrgs: Set<String>,
     selectedTags: Set<String>,
@@ -112,36 +152,64 @@ private fun FilterChipRow(
     onTagsChange: (Set<String>) -> Unit,
 ) {
     if (taxonomy == null) return
-    LazyRow(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        items(taxonomy.orgs) { org ->
-            FilterChip(
-                selected = org.id in selectedOrgs,
-                onClick = {
-                    onOrgsChange(
-                        if (org.id in selectedOrgs) selectedOrgs - org.id
-                        else selectedOrgs + org.id
-                    )
+        if (taxonomy.orgs.isNotEmpty()) {
+            ChipRow(
+                title = stringResource(R.string.bulletin_filter_dept),
+                items = taxonomy.orgs.map { it.id to it.label },
+                selected = selectedOrgs,
+                onToggle = { id ->
+                    onOrgsChange(if (id in selectedOrgs) selectedOrgs - id else selectedOrgs + id)
                 },
-                label = { Text(org.label) },
             )
         }
-        items(taxonomy.tags) { tag ->
-            FilterChip(
-                selected = tag.id in selectedTags,
-                onClick = {
-                    onTagsChange(
-                        if (tag.id in selectedTags) selectedTags - tag.id
-                        else selectedTags + tag.id
-                    )
+        if (taxonomy.tags.isNotEmpty()) {
+            ChipRow(
+                title = stringResource(R.string.bulletin_filter_tag),
+                items = taxonomy.tags.map { it.id to it.label },
+                selected = selectedTags,
+                onToggle = { id ->
+                    onTagsChange(if (id in selectedTags) selectedTags - id else selectedTags + id)
                 },
-                label = { Text(tag.label) },
             )
+        }
+    }
+}
+
+@Composable
+private fun ChipRow(
+    title: String,
+    items: List<Pair<String, String>>,
+    selected: Set<String>,
+    onToggle: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+        ) {
+            items(items) { (id, label) ->
+                FilterChip(
+                    selected = id in selected,
+                    onClick = { onToggle(id) },
+                    label = { Text(label) },
+                )
+            }
         }
     }
 }
@@ -149,8 +217,11 @@ private fun FilterChipRow(
 @Composable
 private fun BulletinList(
     items: List<BulletinSummary>,
+    taxonomy: TaxonomyResponse?,
+    readIds: Set<Int>,
     isPaginating: Boolean,
     onClick: (Int) -> Unit,
+    onToggleRead: (Int) -> Unit,
     onLastVisible: (BulletinSummary) -> Unit,
 ) {
     LazyColumn(
@@ -160,7 +231,13 @@ private fun BulletinList(
     ) {
         items(items, key = { it.id }) { item ->
             LaunchedEffect(item.id) { onLastVisible(item) }
-            BulletinCard(item = item, onClick = { onClick(item.id) })
+            BulletinCard(
+                item = item,
+                taxonomy = taxonomy,
+                isRead = item.id in readIds,
+                onClick = { onClick(item.id) },
+                onToggleRead = { onToggleRead(item.id) },
+            )
         }
         if (isPaginating) {
             item {
@@ -173,9 +250,29 @@ private fun BulletinList(
     }
 }
 
+/**
+ * Card layout mirrors iOS `BulletinCardView`:
+ *  - Top row: unread dot, **filled accent badge for org (處室)**, importance
+ *    badge, withdrawn badge, posted date.
+ *  - Title row, semibold when unread.
+ *  - Optional summary.
+ *  - Bottom-right hashtag strip for content tags (類別).
+ *
+ * The org badge and tag strip are intentionally different visual styles so
+ * 處室 reads as the primary source attribution while 類別 reads as
+ * secondary metadata. The earlier mash-everything-into-one-line layout was
+ * what made the user say "department is mixing with category".
+ */
 @Composable
-private fun BulletinCard(item: BulletinSummary, onClick: () -> Unit) {
+private fun BulletinCard(
+    item: BulletinSummary,
+    taxonomy: TaxonomyResponse?,
+    isRead: Boolean,
+    onClick: () -> Unit,
+    onToggleRead: () -> Unit,
+) {
     val container = MaterialTheme.colorScheme.surfaceVariant
+    val cs = MaterialTheme.colorScheme
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
@@ -183,47 +280,174 @@ private fun BulletinCard(item: BulletinSummary, onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
+            // --- Top row: unread dot + org + importance + withdrawn + date.
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (item.importance == "high") {
-                    AssistChip(
-                        onClick = {},
-                        label = { Text(stringResource(R.string.bulletin_importance_high_badge)) },
+                if (!isRead) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(cs.primary),
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(6.dp))
+                }
+                item.canonicalOrg?.let { orgId ->
+                    OrgBadge(label = taxonomy?.orgLabel(orgId) ?: orgId)
+                    Spacer(Modifier.width(6.dp))
+                }
+                if (item.importance == "high") {
+                    ImportanceBadge()
+                    Spacer(Modifier.width(6.dp))
                 }
                 if (item.isDeleted) {
-                    AssistChip(
-                        onClick = {},
-                        label = { Text(stringResource(R.string.bulletin_withdrawn_badge)) },
+                    WithdrawnBadge()
+                }
+                Spacer(Modifier.weight(1f))
+                item.postedAt?.let {
+                    Text(
+                        text = formatShortDate(it),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = cs.outline,
                     )
                 }
             }
+            Spacer(Modifier.height(6.dp))
             Text(
                 text = item.displayTitle,
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = if (isRead) FontWeight.Normal else FontWeight.SemiBold
+                ),
+                color = cs.onSurface,
+                maxLines = 2,
             )
             item.summary?.takeIf { it.isNotBlank() }?.let { summary ->
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = summary,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 3,
+                    color = cs.onSurfaceVariant,
+                    maxLines = 2,
                 )
             }
-            Spacer(Modifier.height(6.dp))
-            val tagText = buildList {
-                item.canonicalOrg?.let { add(it) }
-                addAll(item.contentTags)
-            }.joinToString(" · ")
-            if (tagText.isNotEmpty()) {
-                Text(
-                    text = tagText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline,
+            // --- Bottom-right: hashtag strip for category tags.
+            if (item.contentTags.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                TagStrip(
+                    tags = item.contentTags,
+                    taxonomy = taxonomy,
                 )
+            }
+            // --- Read/unread quick-toggle (Compose has no per-row swipe action
+            // pattern that matches iOS's swipeActions cleanly without a heavy
+            // SwipeBox dep, so surface a compact text button instead).
+            Spacer(Modifier.height(4.dp))
+            Row {
+                Spacer(Modifier.weight(1f))
+                TextButton(
+                    onClick = onToggleRead,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (isRead) R.string.bulletin_mark_as_unread_action
+                            else R.string.bulletin_mark_as_read_action
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun OrgBadge(label: String) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.primary,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+        )
+    }
+}
+
+@Composable
+private fun ImportanceBadge() {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = Color(0xFFFFA500).copy(alpha = 0.18f),
+    ) {
+        Text(
+            text = stringResource(R.string.bulletin_importance_high_badge),
+            style = MaterialTheme.typography.labelSmall,
+            color = Color(0xFFFF9500),
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+        )
+    }
+}
+
+@Composable
+private fun WithdrawnBadge() {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+    ) {
+        Text(
+            text = stringResource(R.string.bulletin_withdrawn_badge),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.outline,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+        )
+    }
+}
+
+@Composable
+private fun TagStrip(tags: List<String>, taxonomy: TaxonomyResponse?) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+    ) {
+        val visible = tags.take(3)
+        val overflow = tags.size - visible.size
+        visible.forEach { id ->
+            Text(
+                text = "#${taxonomy?.tagLabel(id) ?: id}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(start = 6.dp),
+            )
+        }
+        if (overflow > 0) {
+            Text(
+                text = "+$overflow",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(start = 6.dp),
+            )
+        }
+    }
+}
+
+internal fun TaxonomyResponse.orgLabel(id: String): String =
+    orgs.firstOrNull { it.id == id }?.label ?: id
+
+internal fun TaxonomyResponse.tagLabel(id: String): String =
+    tags.firstOrNull { it.id == id }?.label ?: id
+
+private fun formatShortDate(raw: String): String {
+    // Server emits ISO-8601 with Z; show just the date portion. Falling back
+    // to the raw string preserves whatever the server sent if parsing fails.
+    return try {
+        val instant = java.time.Instant.parse(raw)
+        java.time.format.DateTimeFormatter
+            .ofPattern("M/d")
+            .withZone(java.time.ZoneId.systemDefault())
+            .format(instant)
+    } catch (_: Exception) {
+        raw.substringBefore('T')
     }
 }

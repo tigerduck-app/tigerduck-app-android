@@ -8,6 +8,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -23,6 +26,7 @@ import javax.inject.Inject
 class AnnouncementsViewModel @Inject constructor(
     private val api: BulletinApiClient,
     private val cache: BulletinCache,
+    private val readState: BulletinReadStateStore,
 ) : ViewModel() {
 
     sealed interface LoadState {
@@ -43,10 +47,25 @@ class AnnouncementsViewModel @Inject constructor(
         val selectedTags: Set<String> = emptySet(),
         val searchText: String = "",
         val showDeleted: Boolean = false,
-    )
+        val unreadOnly: Boolean = false,
+        val readIds: Set<Int> = emptySet(),
+    ) {
+        /** Items to display after applying the read-only filter on top of [filtered]. */
+        val displayed: List<BulletinSummary>
+            get() = if (unreadOnly) filtered.filter { it.id !in readIds } else filtered
+
+        val hasUnread: Boolean
+            get() = filtered.any { it.id !in readIds }
+    }
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
+
+    init {
+        readState.readIds
+            .onEach { ids -> _state.update { it.copy(readIds = ids) } }
+            .launchIn(viewModelScope)
+    }
 
     private var nextCursor: Int? = null
     private var inflight: Job? = null
@@ -163,6 +182,16 @@ class AnnouncementsViewModel @Inject constructor(
 
     fun setSearch(text: String) =
         _state.update { applyFilters(it.copy(searchText = text)) }
+
+    fun setUnreadOnly(value: Boolean) =
+        _state.update { it.copy(unreadOnly = value) }
+
+    fun toggleRead(id: Int) = readState.toggleRead(id)
+
+    fun markAllRead() {
+        val visibleIds = _state.value.filtered.map { it.id }
+        readState.markAllRead(visibleIds)
+    }
 
     private fun applyFilters(s: State): State {
         val text = s.searchText.trim()
