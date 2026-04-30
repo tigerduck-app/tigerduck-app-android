@@ -759,7 +759,7 @@ private fun SwipeableAssignmentRow(
                                             -2000f,
                                             animationSpec = tween(durationMillis = 200),
                                         )
-                                        latestOnToggleIgnore()
+                                        if (isRtl) latestOnMarkCompleted() else latestOnToggleIgnore()
                                         swipeOffset.snapTo(0f)
                                     }
                                     swipeOffset.value >= thresholdPx -> {
@@ -767,7 +767,7 @@ private fun SwipeableAssignmentRow(
                                             2000f,
                                             animationSpec = tween(durationMillis = 200),
                                         )
-                                        latestOnMarkCompleted()
+                                        if (isRtl) latestOnToggleIgnore() else latestOnMarkCompleted()
                                         swipeOffset.snapTo(0f)
                                     }
                                     else -> swipeOffset.animateTo(0f, animationSpec = spring())
