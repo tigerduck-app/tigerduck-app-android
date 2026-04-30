@@ -221,22 +221,16 @@ fun SettingsScreen(
                     SettingsToggleRow(stringResource(R.string.settings_invert_slider_direction), invertSlider) {
                         viewModel.appState.invertSliderDirection = it
                     }
-                    HorizontalDivider()
-                    SettingsLinkRowWithValue(
-                        label = stringResource(R.string.settings_language),
-                        value = run {
-                            val normalized = AppLanguageManager.normalize(appLanguage)
-                            if (normalized == AppLanguageManager.SYSTEM) {
-                                stringResource(R.string.settings_language_follow_system)
-                            } else {
-                                val locale = Locale.forLanguageTag(normalized)
-                                locale.getDisplayName(locale).ifBlank { normalized }
-                            }
-                        },
-                        onClick = onNavigateToLanguagePicker,
-                    )
-                    if (shouldShowEnglishAbbreviationToggle) {
-                        HorizontalDivider()
+                }
+            }
+        }
+
+        // MARK: Abbreviations
+        if (shouldShowEnglishAbbreviationToggle) {
+            item { SectionHeader(stringResource(R.string.settings_section_abbreviation)) }
+            item {
+                ContentCard {
+                    Column {
                         SettingsToggleRow(
                             stringResource(R.string.settings_use_english_course_abbreviation),
                             useEnglishCourseAbbreviation
@@ -338,6 +332,26 @@ fun SettingsScreen(
                     onSelect = { viewModel.appState.themeMode = it }
                 )
                 } // Column
+            }
+        }
+
+        // MARK: Language
+        item { SectionHeader(stringResource(R.string.feature_category_language)) }
+        item {
+            ContentCard {
+                SettingsLinkRowWithValue(
+                    label = stringResource(R.string.settings_language),
+                    value = run {
+                        val normalized = AppLanguageManager.normalize(appLanguage)
+                        if (normalized == AppLanguageManager.SYSTEM) {
+                            stringResource(R.string.settings_language_follow_system)
+                        } else {
+                            val locale = Locale.forLanguageTag(normalized)
+                            locale.getDisplayName(locale).ifBlank { normalized }
+                        }
+                    },
+                    onClick = onNavigateToLanguagePicker,
+                )
             }
         }
 
