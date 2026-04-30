@@ -61,6 +61,8 @@
     <string name="bulletin_apply_default_rules_action">Guna peraturan lalai</string>
     <string name="bulletin_body_load_failed">Tidak dapat memuatkan kandungan</string>
     <string name="bulletin_default_rules_footer">Langganan lalai: Free Lunch, Scholarship, Fees, Exams, Maintenance.</string>
+    <string name="bulletin_fdroid_no_push_body">The F-Droid build ships without Google Play Services, so real-time bulletin push is unavailable. Install the Play Store build if you need notifications — you can still pull the latest bulletins manually from the announcements tab.</string>
+    <string name="bulletin_fdroid_no_push_title">Push not available on F-Droid</string>
     <string name="bulletin_filter_dept">Jabatan</string>
     <string name="bulletin_filter_tag">Kategori</string>
     <string name="bulletin_importance_high_badge">Penting</string>
@@ -78,13 +80,17 @@
     <string name="bulletin_push_enable_action">Hidupkan tolak buletin</string>
     <string name="bulletin_push_enable_description">Apabila tolak diaktifkan, TigerDuck akan memberitahu anda apabila buletin sepadan dengan peraturan langganan anda.</string>
     <string name="bulletin_push_footer">Pemberitahuan tolak dihantar oleh pelayan TigerDuck berdasarkan peraturan anda. Pengecam peranti dihantar sebagai UUID tanpa nama — ID pelajar anda tidak pernah dimuat naik.</string>
+    <string name="bulletin_push_reopen_settings">Re-enable in System Settings</string>
     <string name="bulletin_push_requesting">Meminta…</string>
     <string name="bulletin_push_settings_header">Tetapan tolak</string>
     <string name="bulletin_push_status_denied">Dinafikan</string>
     <string name="bulletin_push_status_ephemeral">Sementara</string>
     <string name="bulletin_push_status_label">Pemberitahuan tolak</string>
     <string name="bulletin_push_status_provisional">Sementara bersyarat</string>
+    <string name="bulletin_push_status_registration_done">Done</string>
+    <string name="bulletin_push_status_registration_pending">Waiting for token</string>
     <string name="bulletin_push_status_undetermined">Belum diputuskan</string>
+    <string name="bulletin_push_status_unknown">Unknown</string>
     <string name="bulletin_rule_add_action">Tambah peraturan</string>
     <string name="bulletin_rule_add_title">Tambah peraturan</string>
     <string name="bulletin_rule_all_orgs">Semua jabatan</string>
@@ -106,6 +112,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d dipilih</string>
     <string name="bulletin_rule_editor_tag_section">Kategori</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> dan </string>
     <string name="bulletin_rule_join_or"> atau </string>
     <string name="bulletin_rule_orgs_prefix">Jabatan: </string>
@@ -120,6 +127,7 @@
     <string name="bulletin_show_all_action">Tunjukkan semua buletin</string>
     <string name="bulletin_show_unread_only_action">Belum dibaca sahaja</string>
     <string name="bulletin_source_link_label">Lihat asal</string>
+    <string name="bulletin_subscription_default_seed_name">Default recommendations</string>
     <string name="bulletin_taxonomy_clear_selection">Kosongkan pilihan (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Tidak memilih apa-apa bermaksud \"padankan semua\" untuk dimensi ini.</string>
     <string name="bulletin_unread_dot_label">Belum dibaca</string>
@@ -349,11 +357,14 @@
     <string name="push_server_notification_status_ephemeral">Kebenaran sementara</string>
     <string name="push_server_notification_status_provisional">Sementara</string>
     <string name="push_server_notification_status_undetermined">Belum ditanya</string>
+    <string name="push_server_notification_status_unknown">Unknown</string>
     <string name="push_server_pending_incomplete">Belum selesai</string>
     <string name="push_server_settings_title">Tolak pelayan</string>
+    <string name="push_server_status_device_registration">Device registration</string>
     <string name="push_server_status_done">Selesai</string>
     <string name="push_server_status_enabled">Diaktifkan</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Waiting for System to assign a token</string>
     <string name="push_server_sync_now_action">Segerak sekarang</string>
     <string name="refreshing_message">Menyegar semula… sila tunggu</string>
     <string name="score_academic_year_semester">Tahun Akademik %1$s %2$s</string>

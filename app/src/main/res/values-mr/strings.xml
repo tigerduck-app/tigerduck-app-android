@@ -61,6 +61,8 @@
     <string name="bulletin_apply_default_rules_action">डीफॉल्ट नियम लागू करा</string>
     <string name="bulletin_body_load_failed">सामग्री लोड करण्यात अयशस्वी</string>
     <string name="bulletin_default_rules_footer">डीफॉल्ट सदस्यता: Free Lunch, Scholarship, Fees, Exams, Maintenance.</string>
+    <string name="bulletin_fdroid_no_push_body">The F-Droid build ships without Google Play Services, so real-time bulletin push is unavailable. Install the Play Store build if you need notifications — you can still pull the latest bulletins manually from the announcements tab.</string>
+    <string name="bulletin_fdroid_no_push_title">Push not available on F-Droid</string>
     <string name="bulletin_filter_dept">विभाग</string>
     <string name="bulletin_filter_tag">श्रेणी</string>
     <string name="bulletin_importance_high_badge">महत्त्वाचे</string>
@@ -78,13 +80,17 @@
     <string name="bulletin_push_enable_action">बुलेटिन पुश चालू करा</string>
     <string name="bulletin_push_enable_description">पुश सक्षम असताना, तुमच्या सदस्यता नियमांशी बुलेटिन जुळल्यावर TigerDuck तुम्हाला सूचित करेल.</string>
     <string name="bulletin_push_footer">पुश सूचना तुमच्या नियमांनुसार TigerDuck सर्व्हरद्वारे दिल्या जातात. डिव्हाइस ओळखकर्ता अनामित UUID म्हणून पाठवला जातो — तुमचा विद्यार्थी ID कधीही अपलोड केला जात नाही.</string>
+    <string name="bulletin_push_reopen_settings">Re-enable in System Settings</string>
     <string name="bulletin_push_requesting">विनंती करत आहे…</string>
     <string name="bulletin_push_settings_header">पुश सेटिंग्ज</string>
     <string name="bulletin_push_status_denied">नाकारले</string>
     <string name="bulletin_push_status_ephemeral">तात्पुरते</string>
     <string name="bulletin_push_status_label">पुश सूचना</string>
     <string name="bulletin_push_status_provisional">तात्पुरत्या स्वरूपाचे</string>
+    <string name="bulletin_push_status_registration_done">Done</string>
+    <string name="bulletin_push_status_registration_pending">Waiting for token</string>
     <string name="bulletin_push_status_undetermined">अद्याप निर्णय नाही</string>
+    <string name="bulletin_push_status_unknown">Unknown</string>
     <string name="bulletin_rule_add_action">नियम जोडा</string>
     <string name="bulletin_rule_add_title">नियम जोडा</string>
     <string name="bulletin_rule_all_orgs">सर्व विभाग</string>
@@ -106,6 +112,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d निवडले</string>
     <string name="bulletin_rule_editor_tag_section">श्रेणी</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> आणि </string>
     <string name="bulletin_rule_join_or"> किंवा </string>
     <string name="bulletin_rule_orgs_prefix">विभाग: </string>
@@ -120,6 +127,7 @@
     <string name="bulletin_show_all_action">सर्व बुलेटिन दाखवा</string>
     <string name="bulletin_show_unread_only_action">फक्त न वाचलेले</string>
     <string name="bulletin_source_link_label">मूळ पहा</string>
+    <string name="bulletin_subscription_default_seed_name">Default recommendations</string>
     <string name="bulletin_taxonomy_clear_selection">निवड साफ करा (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">काहीही न निवडणे म्हणजे या परिमाणासाठी \"सर्व जुळवा\".</string>
     <string name="bulletin_unread_dot_label">न वाचलेले</string>
@@ -349,11 +357,14 @@
     <string name="push_server_notification_status_ephemeral">तात्पुरती अधिकृतता</string>
     <string name="push_server_notification_status_provisional">तात्पुरते</string>
     <string name="push_server_notification_status_undetermined">अद्याप विचारले नाही</string>
+    <string name="push_server_notification_status_unknown">Unknown</string>
     <string name="push_server_pending_incomplete">अद्याप पूर्ण झाले नाही</string>
     <string name="push_server_settings_title">सर्व्हर पुश</string>
+    <string name="push_server_status_device_registration">Device registration</string>
     <string name="push_server_status_done">पूर्ण</string>
     <string name="push_server_status_enabled">सक्षम</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Waiting for System to assign a token</string>
     <string name="push_server_sync_now_action">आत्ता समक्रमित करा</string>
     <string name="refreshing_message">रिफ्रेश होत आहे… थांबा</string>
     <string name="score_academic_year_semester">शैक्षणिक वर्ष %1$s %2$s</string>

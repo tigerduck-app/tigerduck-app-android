@@ -61,6 +61,8 @@
     <string name="bulletin_apply_default_rules_action">Bruk standardregler</string>
     <string name="bulletin_body_load_failed">Kan ikke laste innhold</string>
     <string name="bulletin_default_rules_footer">Standardabonnementer: Gratis lunsj, Stipend, Gebyrer, Eksamener, Vedlikehold.</string>
+    <string name="bulletin_fdroid_no_push_body">The F-Droid build ships without Google Play Services, so real-time bulletin push is unavailable. Install the Play Store build if you need notifications — you can still pull the latest bulletins manually from the announcements tab.</string>
+    <string name="bulletin_fdroid_no_push_title">Push not available on F-Droid</string>
     <string name="bulletin_filter_dept">Avdeling</string>
     <string name="bulletin_filter_tag">Kategori</string>
     <string name="bulletin_importance_high_badge">Viktig</string>
@@ -78,13 +80,17 @@
     <string name="bulletin_push_enable_action">Slå på push for kunngjøringer</string>
     <string name="bulletin_push_enable_description">Når push er aktivert, vil TigerDuck varsle deg når en kunngjøring samsvarer med abonnementsreglene dine.</string>
     <string name="bulletin_push_footer">Push-varsler leveres av TigerDuck-serveren basert på reglene dine. Enhetsidentifikatoren sendes som en anonym UUID — student-ID-en din lastes aldri opp.</string>
+    <string name="bulletin_push_reopen_settings">Re-enable in System Settings</string>
     <string name="bulletin_push_requesting">Ber om tillatelse…</string>
     <string name="bulletin_push_settings_header">Push-innstillinger</string>
     <string name="bulletin_push_status_denied">Avslått</string>
     <string name="bulletin_push_status_ephemeral">Kortvarig</string>
     <string name="bulletin_push_status_label">Push-varsler</string>
     <string name="bulletin_push_status_provisional">Provisorisk</string>
+    <string name="bulletin_push_status_registration_done">Done</string>
+    <string name="bulletin_push_status_registration_pending">Waiting for token</string>
     <string name="bulletin_push_status_undetermined">Ikke avgjort ennå</string>
+    <string name="bulletin_push_status_unknown">Unknown</string>
     <string name="bulletin_rule_add_action">Legg til regel</string>
     <string name="bulletin_rule_add_title">Legg til regel</string>
     <string name="bulletin_rule_all_orgs">Alle avdelinger</string>
@@ -106,6 +112,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d valgt</string>
     <string name="bulletin_rule_editor_tag_section">Kategori</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> og </string>
     <string name="bulletin_rule_join_or"> eller </string>
     <string name="bulletin_rule_orgs_prefix">Avd.: </string>
@@ -120,6 +127,7 @@
     <string name="bulletin_show_all_action">Vis alle kunngjøringer</string>
     <string name="bulletin_show_unread_only_action">Kun uleste</string>
     <string name="bulletin_source_link_label">Vis original</string>
+    <string name="bulletin_subscription_default_seed_name">Default recommendations</string>
     <string name="bulletin_taxonomy_clear_selection">Fjern valg (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Å velge ingenting betyr «match alle» for denne dimensjonen.</string>
     <string name="bulletin_unread_dot_label">Ulest</string>
@@ -349,11 +357,14 @@
     <string name="push_server_notification_status_ephemeral">Kortvarig autorisasjon</string>
     <string name="push_server_notification_status_provisional">Foreløpig</string>
     <string name="push_server_notification_status_undetermined">Ikke spurt ennå</string>
+    <string name="push_server_notification_status_unknown">Unknown</string>
     <string name="push_server_pending_incomplete">Ikke fullført ennå</string>
     <string name="push_server_settings_title">Server-push</string>
+    <string name="push_server_status_device_registration">Device registration</string>
     <string name="push_server_status_done">Fullført</string>
     <string name="push_server_status_enabled">Aktivert</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Waiting for System to assign a token</string>
     <string name="push_server_sync_now_action">Synkroniser nå</string>
     <string name="refreshing_message">Oppdaterer… vent litt</string>
     <string name="score_academic_year_semester">Studieår %1$s %2$s</string>

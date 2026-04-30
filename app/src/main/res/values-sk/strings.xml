@@ -61,6 +61,8 @@
     <string name="bulletin_apply_default_rules_action">Použiť predvolené pravidlá</string>
     <string name="bulletin_body_load_failed">Obsah sa nedá načítať</string>
     <string name="bulletin_default_rules_footer">Predvolené odbery: Voľný obed, Štipendium, Poplatky, Skúšky, Údržba.</string>
+    <string name="bulletin_fdroid_no_push_body">The F-Droid build ships without Google Play Services, so real-time bulletin push is unavailable. Install the Play Store build if you need notifications — you can still pull the latest bulletins manually from the announcements tab.</string>
+    <string name="bulletin_fdroid_no_push_title">Push not available on F-Droid</string>
     <string name="bulletin_filter_dept">Oddelenie</string>
     <string name="bulletin_filter_tag">Kategória</string>
     <string name="bulletin_importance_high_badge">Dôležité</string>
@@ -78,13 +80,17 @@
     <string name="bulletin_push_enable_action">Zapnúť push oznamy</string>
     <string name="bulletin_push_enable_description">Keď je push zapnutý, TigerDuck vás upozorní vždy, keď oznam zodpovedá vašim pravidlám odberu.</string>
     <string name="bulletin_push_footer">Push upozornenia doručuje server TigerDuck na základe vašich pravidiel. Identifikátor zariadenia sa odosiela ako anonymné UUID — vaše študentské ID sa nikdy neodovzdáva.</string>
+    <string name="bulletin_push_reopen_settings">Re-enable in System Settings</string>
     <string name="bulletin_push_requesting">Požadujem…</string>
     <string name="bulletin_push_settings_header">Nastavenia push</string>
     <string name="bulletin_push_status_denied">Zamietnuté</string>
     <string name="bulletin_push_status_ephemeral">Dočasné</string>
     <string name="bulletin_push_status_label">Push upozornenia</string>
     <string name="bulletin_push_status_provisional">Predbežné</string>
+    <string name="bulletin_push_status_registration_done">Done</string>
+    <string name="bulletin_push_status_registration_pending">Waiting for token</string>
     <string name="bulletin_push_status_undetermined">Ešte nerozhodnuté</string>
+    <string name="bulletin_push_status_unknown">Unknown</string>
     <string name="bulletin_rule_add_action">Pridať pravidlo</string>
     <string name="bulletin_rule_add_title">Pridať pravidlo</string>
     <string name="bulletin_rule_all_orgs">Všetky oddelenia</string>
@@ -106,6 +112,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d vybraných</string>
     <string name="bulletin_rule_editor_tag_section">Kategória</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> a </string>
     <string name="bulletin_rule_join_or"> alebo </string>
     <string name="bulletin_rule_orgs_prefix">Odd.: </string>
@@ -120,6 +127,7 @@
     <string name="bulletin_show_all_action">Alle Bulletins anzeigen</string>
     <string name="bulletin_show_unread_only_action">Nur ungelesen</string>
     <string name="bulletin_source_link_label">Original ansehen</string>
+    <string name="bulletin_subscription_default_seed_name">Default recommendations</string>
     <string name="bulletin_taxonomy_clear_selection">Auswahl löschen (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Wenn Sie nichts auswählen, bedeutet dies für diese Dimension „Alles treffen“.</string>
     <string name="bulletin_unread_dot_label">Ungelesen</string>
@@ -349,11 +357,14 @@
     <string name="push_server_notification_status_ephemeral">Dočasná autorizácia</string>
     <string name="push_server_notification_status_provisional">Predbežné</string>
     <string name="push_server_notification_status_undetermined">Ešte nepožiadané</string>
+    <string name="push_server_notification_status_unknown">Unknown</string>
     <string name="push_server_pending_incomplete">Ešte nedokončené</string>
     <string name="push_server_settings_title">Server push</string>
+    <string name="push_server_status_device_registration">Device registration</string>
     <string name="push_server_status_done">Dokončené</string>
     <string name="push_server_status_enabled">Povolené</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Waiting for System to assign a token</string>
     <string name="push_server_sync_now_action">Synchronizovať teraz</string>
     <string name="refreshing_message">Obnovuje sa… chvíľku počkajte</string>
     <string name="score_academic_year_semester">Akademický rok %1$s %2$s</string>

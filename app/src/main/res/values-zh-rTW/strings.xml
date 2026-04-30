@@ -61,6 +61,8 @@
     <string name="bulletin_apply_default_rules_action">套用預設規則</string>
     <string name="bulletin_body_load_failed">無法載入內文</string>
     <string name="bulletin_default_rules_footer">預設會訂閱:免費便當、獎助學金、繳費、考試、維修。</string>
+    <string name="bulletin_fdroid_no_push_body">F-Droid 版本不含 Google Play 服務,因此無法接收即時公告推播。需要即時通知請改安裝 Play 商店版本;F-Droid 版本仍可在公告頁手動拉取最新公告。</string>
+    <string name="bulletin_fdroid_no_push_title">F-Droid 版不支援推播</string>
     <string name="bulletin_filter_dept">處室</string>
     <string name="bulletin_filter_tag">類別</string>
     <string name="bulletin_importance_high_badge">重要</string>
@@ -78,13 +80,17 @@
     <string name="bulletin_push_enable_action">開啟公告推播</string>
     <string name="bulletin_push_enable_description">開啟推播後,當有符合你設定規則的公告時,老虎鴨會即時通知你。</string>
     <string name="bulletin_push_footer">推播通知由 TigerDuck 伺服器根據你選的規則派送。設備標識以匿名 UUID 傳送,不會上傳學號。</string>
+    <string name="bulletin_push_reopen_settings">在系統設定中重新開啟</string>
     <string name="bulletin_push_requesting">請求中…</string>
     <string name="bulletin_push_settings_header">推播設定</string>
     <string name="bulletin_push_status_denied">已被拒絕</string>
     <string name="bulletin_push_status_ephemeral">臨時</string>
     <string name="bulletin_push_status_label">推播通知</string>
     <string name="bulletin_push_status_provisional">寧靜通知</string>
+    <string name="bulletin_push_status_registration_done">已完成</string>
+    <string name="bulletin_push_status_registration_pending">等待 Token</string>
     <string name="bulletin_push_status_undetermined">尚未決定</string>
+    <string name="bulletin_push_status_unknown">未知</string>
     <string name="bulletin_rule_add_action">新增規則</string>
     <string name="bulletin_rule_add_title">新增規則</string>
     <string name="bulletin_rule_all_orgs">全部處室</string>
@@ -106,6 +112,7 @@
     <string name="bulletin_rule_editor_name_section">名稱</string>
     <string name="bulletin_rule_editor_selected_count">已選 %1$d 個</string>
     <string name="bulletin_rule_editor_tag_section">類別</string>
+    <string name="bulletin_rule_filter_separator">、</string>
     <string name="bulletin_rule_join_and"> 且 </string>
     <string name="bulletin_rule_join_or"> 或 </string>
     <string name="bulletin_rule_orgs_prefix">處室:</string>
@@ -120,6 +127,7 @@
     <string name="bulletin_show_all_action">顯示全部公告</string>
     <string name="bulletin_show_unread_only_action">只看未讀</string>
     <string name="bulletin_source_link_label">原文公告</string>
+    <string name="bulletin_subscription_default_seed_name">預設推薦</string>
     <string name="bulletin_taxonomy_clear_selection">清除選取 (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">若不選任何項目,該維度視為「全部」。</string>
     <string name="bulletin_unread_dot_label">未讀</string>
@@ -349,11 +357,14 @@
     <string name="push_server_notification_status_ephemeral">暫時授權</string>
     <string name="push_server_notification_status_provisional">靜默授權</string>
     <string name="push_server_notification_status_undetermined">尚未詢問</string>
+    <string name="push_server_notification_status_unknown">未知</string>
     <string name="push_server_pending_incomplete">尚未完成</string>
     <string name="push_server_settings_title">伺服器推播</string>
+    <string name="push_server_status_device_registration">裝置註冊</string>
     <string name="push_server_status_done">完成</string>
     <string name="push_server_status_enabled">已啟用</string>
     <string name="push_server_status_section">狀態</string>
+    <string name="push_server_status_waiting_token">等系統指派 token</string>
     <string name="push_server_sync_now_action">立即同步一次</string>
     <string name="refreshing_message">頁面正在刷新，別急～</string>
     <string name="score_academic_year_semester">%1$s 學年度 %2$s學期</string>

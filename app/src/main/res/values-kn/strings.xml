@@ -61,6 +61,8 @@
     <string name="bulletin_apply_default_rules_action">ಡಿಫಾಲ್ಟ್ ನಿಯಮಗಳನ್ನು ಅನ್ವಯಿಸಿ</string>
     <string name="bulletin_body_load_failed">ವಿಷಯವನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ</string>
     <string name="bulletin_default_rules_footer">ಡಿಫಾಲ್ಟ್ ಚಂದಾದಾರಿಕೆಗಳು: ಉಚಿತ ಊಟ, ವಿದ್ಯಾರ್ಥಿವೇತನ, ಶುಲ್ಕಗಳು, ಪರೀಕ್ಷೆಗಳು, ನಿರ್ವಹಣೆ.</string>
+    <string name="bulletin_fdroid_no_push_body">The F-Droid build ships without Google Play Services, so real-time bulletin push is unavailable. Install the Play Store build if you need notifications — you can still pull the latest bulletins manually from the announcements tab.</string>
+    <string name="bulletin_fdroid_no_push_title">Push not available on F-Droid</string>
     <string name="bulletin_filter_dept">ವಿಭಾಗ</string>
     <string name="bulletin_filter_tag">ವರ್ಗ</string>
     <string name="bulletin_importance_high_badge">ಮುಖ್ಯವಾದದ್ದು</string>
@@ -78,13 +80,17 @@
     <string name="bulletin_push_enable_action">ಬುಲೆಟಿನ್ ಪುಶ್ ಆನ್ ಮಾಡಿ</string>
     <string name="bulletin_push_enable_description">ಪುಶ್ ಸಕ್ರಿಯವಾಗಿದ್ದಾಗ, ಬುಲೆಟಿನ್ ನಿಮ್ಮ ಚಂದಾದಾರಿಕೆ ನಿಯಮಗಳಿಗೆ ಹೊಂದಿಕೆಯಾದಾಗಲೆಲ್ಲ TigerDuck ನಿಮಗೆ ತಿಳಿಸುತ್ತದೆ.</string>
     <string name="bulletin_push_footer">ನಿಮ್ಮ ನಿಯಮಗಳ ಆಧಾರದ ಮೇಲೆ TigerDuck ಸರ್ವರ್ ಪುಶ್ ಅಧಿಸೂಚನೆಗಳನ್ನು ತಲುಪಿಸುತ್ತದೆ. ಸಾಧನ ಗುರುತಿಸುವಿಕೆಯನ್ನು ಅನಾಮಧೇಯ UUID ಆಗಿ ಕಳುಹಿಸಲಾಗುತ್ತದೆ — ನಿಮ್ಮ ವಿದ್ಯಾರ್ಥಿ ID ಎಂದಿಗೂ ಅಪ್‌ಲೋಡ್ ಆಗುವುದಿಲ್ಲ.</string>
+    <string name="bulletin_push_reopen_settings">Re-enable in System Settings</string>
     <string name="bulletin_push_requesting">ವಿನಂತಿಸಲಾಗುತ್ತಿದೆ…</string>
     <string name="bulletin_push_settings_header">ಪುಶ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳು</string>
     <string name="bulletin_push_status_denied">ನಿರಾಕರಿಸಲಾಗಿದೆ</string>
     <string name="bulletin_push_status_ephemeral">ತಾತ್ಕಾಲಿಕ</string>
     <string name="bulletin_push_status_label">ಪುಶ್ ಅಧಿಸೂಚನೆಗಳು</string>
     <string name="bulletin_push_status_provisional">ತಾತ್ಕಾಲಿಕ ಅನುಮತಿ</string>
+    <string name="bulletin_push_status_registration_done">Done</string>
+    <string name="bulletin_push_status_registration_pending">Waiting for token</string>
     <string name="bulletin_push_status_undetermined">ಇನ್ನೂ ನಿರ್ಧರಿಸಿಲ್ಲ</string>
+    <string name="bulletin_push_status_unknown">Unknown</string>
     <string name="bulletin_rule_add_action">ನಿಯಮ ಸೇರಿಸಿ</string>
     <string name="bulletin_rule_add_title">ನಿಯಮ ಸೇರಿಸಿ</string>
     <string name="bulletin_rule_all_orgs">ಎಲ್ಲಾ ವಿಭಾಗಗಳು</string>
@@ -106,6 +112,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d ಆಯ್ಕೆಮಾಡಲಾಗಿದೆ</string>
     <string name="bulletin_rule_editor_tag_section">ವರ್ಗ</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> ಮತ್ತು </string>
     <string name="bulletin_rule_join_or"> ಅಥವಾ </string>
     <string name="bulletin_rule_orgs_prefix">ವಿಭಾಗ: </string>
@@ -120,6 +127,7 @@
     <string name="bulletin_show_all_action">ಎಲ್ಲಾ ಬುಲೆಟಿನ್‌ಗಳನ್ನು ತೋರಿಸಿ</string>
     <string name="bulletin_show_unread_only_action">ಓದದ್ದು ಮಾತ್ರ</string>
     <string name="bulletin_source_link_label">ಮೂಲ ನೋಡಿ</string>
+    <string name="bulletin_subscription_default_seed_name">Default recommendations</string>
     <string name="bulletin_taxonomy_clear_selection">ಆಯ್ಕೆ ತೆರವುಗೊಳಿಸಿ (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">ಏನನ್ನೂ ಆಯ್ಕೆ ಮಾಡದಿರುವುದು ಈ ಆಯಾಮಕ್ಕೆ \"ಎಲ್ಲವನ್ನೂ ಹೊಂದಿಸು\" ಎಂದರ್ಥ.</string>
     <string name="bulletin_unread_dot_label">ಓದಿಲ್ಲ</string>
@@ -349,11 +357,14 @@
     <string name="push_server_notification_status_ephemeral">ತಾತ್ಕಾಲಿಕ ಅಧಿಕಾರ</string>
     <string name="push_server_notification_status_provisional">ತಾತ್ಕಾಲಿಕ</string>
     <string name="push_server_notification_status_undetermined">ಇನ್ನೂ ಕೇಳಿಲ್ಲ</string>
+    <string name="push_server_notification_status_unknown">Unknown</string>
     <string name="push_server_pending_incomplete">ಇನ್ನೂ ಮುಗಿದಿಲ್ಲ</string>
     <string name="push_server_settings_title">ಸರ್ವರ್ ಪುಶ್</string>
+    <string name="push_server_status_device_registration">Device registration</string>
     <string name="push_server_status_done">ಪೂರ್ಣಗೊಂಡಿದೆ</string>
     <string name="push_server_status_enabled">ಸಕ್ರಿಯಗೊಳಿಸಲಾಗಿದೆ</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Waiting for System to assign a token</string>
     <string name="push_server_sync_now_action">ಈಗ ಸಿಂಕ್ ಮಾಡಿ</string>
     <string name="refreshing_message">ರಿಫ್ರೆಶ್ ಆಗುತ್ತಿದೆ… ಸ್ವಲ್ಪ ನಿರೀಕ್ಷಿಸಿ</string>
     <string name="score_academic_year_semester">ಶೈಕ್ಷಣಿಕ ವರ್ಷ %1$s %2$s</string>

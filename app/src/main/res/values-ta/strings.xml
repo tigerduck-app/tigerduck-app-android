@@ -61,6 +61,8 @@
     <string name="bulletin_apply_default_rules_action">இயல்புநிலை விதிகளைப் பயன்படுத்து</string>
     <string name="bulletin_body_load_failed">உள்ளடக்கத்தை ஏற்ற முடியவில்லை</string>
     <string name="bulletin_default_rules_footer">இயல்புநிலை குழுசேர்வுகள்: இலவச மதிய உணவு, உதவித்தொகை, கட்டணங்கள், தேர்வுகள், பராமரிப்பு.</string>
+    <string name="bulletin_fdroid_no_push_body">The F-Droid build ships without Google Play Services, so real-time bulletin push is unavailable. Install the Play Store build if you need notifications — you can still pull the latest bulletins manually from the announcements tab.</string>
+    <string name="bulletin_fdroid_no_push_title">Push not available on F-Droid</string>
     <string name="bulletin_filter_dept">துறை</string>
     <string name="bulletin_filter_tag">வகை</string>
     <string name="bulletin_importance_high_badge">முக்கியமானது</string>
@@ -78,13 +80,17 @@
     <string name="bulletin_push_enable_action">அறிவிப்பு புஷ்ஷை இயக்கு</string>
     <string name="bulletin_push_enable_description">புஷ் இயக்கப்பட்டால், உங்கள் குழுசேர்வு விதிகளுக்கு ஒரு அறிவிப்பு பொருந்தும்போது TigerDuck உங்களுக்கு தெரிவிக்கும்.</string>
     <string name="bulletin_push_footer">புஷ் அறிவிப்புகள் உங்கள் விதிகளின் அடிப்படையில் TigerDuck சேவையகத்தால் வழங்கப்படுகின்றன. சாதன அடையாளம் அநாமதேய UUID ஆக அனுப்பப்படுகிறது — உங்கள் மாணவர் அடையாள எண் ஒருபோதும் பதிவேற்றப்படாது.</string>
+    <string name="bulletin_push_reopen_settings">Re-enable in System Settings</string>
     <string name="bulletin_push_requesting">கோருகிறது…</string>
     <string name="bulletin_push_settings_header">புஷ் அமைப்புகள்</string>
     <string name="bulletin_push_status_denied">மறுக்கப்பட்டது</string>
     <string name="bulletin_push_status_ephemeral">தற்காலிகம்</string>
     <string name="bulletin_push_status_label">புஷ் அறிவிப்புகள்</string>
     <string name="bulletin_push_status_provisional">தற்காலிக அனுமதி</string>
+    <string name="bulletin_push_status_registration_done">Done</string>
+    <string name="bulletin_push_status_registration_pending">Waiting for token</string>
     <string name="bulletin_push_status_undetermined">இன்னும் தீர்மானிக்கப்படவில்லை</string>
+    <string name="bulletin_push_status_unknown">Unknown</string>
     <string name="bulletin_rule_add_action">விதி சேர்</string>
     <string name="bulletin_rule_add_title">விதி சேர்</string>
     <string name="bulletin_rule_all_orgs">அனைத்து துறைகளும்</string>
@@ -106,6 +112,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d தேர்ந்தெடுக்கப்பட்டது</string>
     <string name="bulletin_rule_editor_tag_section">வகை</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> மற்றும் </string>
     <string name="bulletin_rule_join_or"> அல்லது </string>
     <string name="bulletin_rule_orgs_prefix">துறை: </string>
@@ -120,6 +127,7 @@
     <string name="bulletin_show_all_action">அனைத்து அறிவிப்புகளையும் காட்டு</string>
     <string name="bulletin_show_unread_only_action">படிக்காதவை மட்டும்</string>
     <string name="bulletin_source_link_label">மூலத்தைக் காண்க</string>
+    <string name="bulletin_subscription_default_seed_name">Default recommendations</string>
     <string name="bulletin_taxonomy_clear_selection">தேர்வை அழி (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">எதுவும் தேர்வு செய்யாமல் விடுவது இந்த பரிமாணத்தில் \"அனைத்தையும் பொருத்து\" என்று அர்த்தம்.</string>
     <string name="bulletin_unread_dot_label">படிக்காதது</string>
@@ -349,11 +357,14 @@
     <string name="push_server_notification_status_ephemeral">தற்காலிக அங்கீகாரம்</string>
     <string name="push_server_notification_status_provisional">தற்காலிகம்</string>
     <string name="push_server_notification_status_undetermined">இன்னும் கேட்கவில்லை</string>
+    <string name="push_server_notification_status_unknown">Unknown</string>
     <string name="push_server_pending_incomplete">இன்னும் முடிக்கவில்லை</string>
     <string name="push_server_settings_title">சேவையக புஷ்</string>
+    <string name="push_server_status_device_registration">Device registration</string>
     <string name="push_server_status_done">முடிந்தது</string>
     <string name="push_server_status_enabled">இயக்கப்பட்டது</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Waiting for System to assign a token</string>
     <string name="push_server_sync_now_action">இப்போது ஒத்திசை</string>
     <string name="refreshing_message">புதுப்பிக்கிறோம்… கொஞ்சம் காத்திருங்கள்</string>
     <string name="score_academic_year_semester">கல்வியாண்டு %1$s %2$s</string>

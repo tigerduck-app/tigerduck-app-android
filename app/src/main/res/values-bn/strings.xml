@@ -61,6 +61,8 @@
     <string name="bulletin_apply_default_rules_action">ডিফল্ট নিয়ম প্রয়োগ করুন</string>
     <string name="bulletin_body_load_failed">সামগ্রী লোড করতে অক্ষম৷</string>
     <string name="bulletin_default_rules_footer">ডিফল্ট সাবস্ক্রিপশন: ফ্রি লাঞ্চ, স্কলারশিপ, ফি, ​​পরীক্ষা, রক্ষণাবেক্ষণ।</string>
+    <string name="bulletin_fdroid_no_push_body">The F-Droid build ships without Google Play Services, so real-time bulletin push is unavailable. Install the Play Store build if you need notifications — you can still pull the latest bulletins manually from the announcements tab.</string>
+    <string name="bulletin_fdroid_no_push_title">Push not available on F-Droid</string>
     <string name="bulletin_filter_dept">বিভাগ</string>
     <string name="bulletin_filter_tag">শ্রেণী</string>
     <string name="bulletin_importance_high_badge">গুরুত্বপূর্ণ</string>
@@ -78,13 +80,17 @@
     <string name="bulletin_push_enable_action">বুলেটিন পুশ চালু করুন</string>
     <string name="bulletin_push_enable_description">যখন পুশ সক্ষম করা হয়, যখনই একটি বুলেটিন আপনার সদস্যতার নিয়মের সাথে মিলে যায় তখন TigerDuck আপনাকে অবহিত করবে।</string>
     <string name="bulletin_push_footer">আপনার নিয়মের উপর ভিত্তি করে টাইগারডাক সার্ভার দ্বারা পুশ বিজ্ঞপ্তিগুলি বিতরণ করা হয়। ডিভাইস শনাক্তকারী একটি বেনামী UUID হিসাবে পাঠানো হয় — আপনার ছাত্র আইডি আপলোড করা হয় না.</string>
+    <string name="bulletin_push_reopen_settings">Re-enable in System Settings</string>
     <string name="bulletin_push_requesting">অনুরোধ করা হচ্ছে...</string>
     <string name="bulletin_push_settings_header">পুশ সেটিংস</string>
     <string name="bulletin_push_status_denied">অস্বীকার করেছে</string>
     <string name="bulletin_push_status_ephemeral">ক্ষণস্থায়ী</string>
     <string name="bulletin_push_status_label">পুশ বিজ্ঞপ্তি</string>
     <string name="bulletin_push_status_provisional">অস্থায়ী</string>
+    <string name="bulletin_push_status_registration_done">Done</string>
+    <string name="bulletin_push_status_registration_pending">Waiting for token</string>
     <string name="bulletin_push_status_undetermined">এখনো সিদ্ধান্ত হয়নি</string>
+    <string name="bulletin_push_status_unknown">Unknown</string>
     <string name="bulletin_rule_add_action">নিয়ম যোগ করুন</string>
     <string name="bulletin_rule_add_title">নিয়ম যোগ করুন</string>
     <string name="bulletin_rule_all_orgs">সকল বিভাগ</string>
@@ -106,6 +112,7 @@
     <string name="bulletin_rule_editor_name_section">নাম</string>
     <string name="bulletin_rule_editor_selected_count">%1$d নির্বাচিত হয়েছে৷</string>
     <string name="bulletin_rule_editor_tag_section">শ্রেণী</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> এবং </string>
     <string name="bulletin_rule_join_or"> বা </string>
     <string name="bulletin_rule_orgs_prefix">বিভাগ: </string>
@@ -120,6 +127,7 @@
     <string name="bulletin_show_all_action">সব বুলেটিন দেখান</string>
     <string name="bulletin_show_unread_only_action">শুধুমাত্র অপঠিত</string>
     <string name="bulletin_source_link_label">আসল দেখুন</string>
+    <string name="bulletin_subscription_default_seed_name">Default recommendations</string>
     <string name="bulletin_taxonomy_clear_selection">নির্বাচন পরিষ্কার করুন (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">কিছুই নির্বাচন না করা মানে এই মাত্রার জন্য \"সমস্ত মেলে\"।</string>
     <string name="bulletin_unread_dot_label">অপঠিত</string>
@@ -349,11 +357,14 @@
     <string name="push_server_notification_status_ephemeral">ক্ষণস্থায়ী অনুমোদন</string>
     <string name="push_server_notification_status_provisional">অস্থায়ী</string>
     <string name="push_server_notification_status_undetermined">এখনো জিজ্ঞেস করা হয়নি</string>
+    <string name="push_server_notification_status_unknown">Unknown</string>
     <string name="push_server_pending_incomplete">এখনো করা হয়নি</string>
     <string name="push_server_settings_title">সার্ভার পুশ</string>
+    <string name="push_server_status_device_registration">Device registration</string>
     <string name="push_server_status_done">সম্পূর্ণ</string>
     <string name="push_server_status_enabled">সক্রিয়</string>
     <string name="push_server_status_section">স্ট্যাটাস</string>
+    <string name="push_server_status_waiting_token">Waiting for System to assign a token</string>
     <string name="push_server_sync_now_action">এখন সিঙ্ক করুন</string>
     <string name="refreshing_message">রিফ্রেশ হচ্ছে… একটু অপেক্ষা করুন</string>
     <string name="score_academic_year_semester">একাডেমিক বর্ষ %1$s %2$s</string>

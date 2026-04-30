@@ -61,6 +61,8 @@
     <string name="bulletin_apply_default_rules_action">Прилагане на правила по подразбиране</string>
     <string name="bulletin_body_load_failed">Не може да се зареди съдържание</string>
     <string name="bulletin_default_rules_footer">Абонаменти по подразбиране: безплатен обяд, стипендия, такси, изпити, поддръжка.</string>
+    <string name="bulletin_fdroid_no_push_body">The F-Droid build ships without Google Play Services, so real-time bulletin push is unavailable. Install the Play Store build if you need notifications — you can still pull the latest bulletins manually from the announcements tab.</string>
+    <string name="bulletin_fdroid_no_push_title">Push not available on F-Droid</string>
     <string name="bulletin_filter_dept">Отдел</string>
     <string name="bulletin_filter_tag">Категория</string>
     <string name="bulletin_importance_high_badge">важно</string>
@@ -78,13 +80,17 @@
     <string name="bulletin_push_enable_action">Включете натискането на бюлетин</string>
     <string name="bulletin_push_enable_description">Когато push е активиран, TigerDuck ще ви уведомява всеки път, когато даден бюлетин отговаря на вашите правила за абонамент.</string>
     <string name="bulletin_push_footer">Push известията се доставят от сървъра TigerDuck въз основа на вашите правила. Идентификаторът на устройството се изпраща като анонимен UUID — студентският ви идентификатор никога не се качва.</string>
+    <string name="bulletin_push_reopen_settings">Re-enable in System Settings</string>
     <string name="bulletin_push_requesting">Заявка...</string>
     <string name="bulletin_push_settings_header">Push настройки</string>
     <string name="bulletin_push_status_denied">Отказано</string>
     <string name="bulletin_push_status_ephemeral">Ефимерно</string>
     <string name="bulletin_push_status_label">Push известия</string>
     <string name="bulletin_push_status_provisional">Временно</string>
+    <string name="bulletin_push_status_registration_done">Done</string>
+    <string name="bulletin_push_status_registration_pending">Waiting for token</string>
     <string name="bulletin_push_status_undetermined">Все още не е решено</string>
+    <string name="bulletin_push_status_unknown">Unknown</string>
     <string name="bulletin_rule_add_action">Добавете правило</string>
     <string name="bulletin_rule_add_title">Добавете правило</string>
     <string name="bulletin_rule_all_orgs">Всички отдели</string>
@@ -106,6 +112,7 @@
     <string name="bulletin_rule_editor_name_section">Име</string>
     <string name="bulletin_rule_editor_selected_count">Избран %1$d</string>
     <string name="bulletin_rule_editor_tag_section">Категория</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> и </string>
     <string name="bulletin_rule_join_or"> или </string>
     <string name="bulletin_rule_orgs_prefix">Отдел: </string>
@@ -120,6 +127,7 @@
     <string name="bulletin_show_all_action">Показване на всички бюлетини</string>
     <string name="bulletin_show_unread_only_action">Само непрочетени</string>
     <string name="bulletin_source_link_label">Вижте оригинала</string>
+    <string name="bulletin_subscription_default_seed_name">Default recommendations</string>
     <string name="bulletin_taxonomy_clear_selection">Изчистване на селекцията (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Избирането на нищо означава „съвпадение на всички“ за това измерение.</string>
     <string name="bulletin_unread_dot_label">Непрочетено</string>
@@ -349,11 +357,14 @@
     <string name="push_server_notification_status_ephemeral">Ефимерно разрешение</string>
     <string name="push_server_notification_status_provisional">Временно</string>
     <string name="push_server_notification_status_undetermined">Все още не е поискано</string>
+    <string name="push_server_notification_status_unknown">Unknown</string>
     <string name="push_server_pending_incomplete">Все още не е готово</string>
     <string name="push_server_settings_title">Натискане на сървъра</string>
+    <string name="push_server_status_device_registration">Device registration</string>
     <string name="push_server_status_done">Завършено</string>
     <string name="push_server_status_enabled">Активирано</string>
     <string name="push_server_status_section">Статус</string>
+    <string name="push_server_status_waiting_token">Waiting for System to assign a token</string>
     <string name="push_server_sync_now_action">Синхронизиране сега</string>
     <string name="refreshing_message">Опресняване… моля изчакайте</string>
     <string name="score_academic_year_semester">Учебна година %1$s %2$s</string>

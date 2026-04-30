@@ -61,6 +61,8 @@
     <string name="bulletin_apply_default_rules_action">Εφαρμόστε προεπιλεγμένους κανόνες</string>
     <string name="bulletin_body_load_failed">Δεν είναι δυνατή η φόρτωση περιεχομένου</string>
     <string name="bulletin_default_rules_footer">Προεπιλεγμένες συνδρομές: Δωρεάν μεσημεριανό γεύμα, Υποτροφία, Δίδακτρα, Εξετάσεις, Συντήρηση.</string>
+    <string name="bulletin_fdroid_no_push_body">The F-Droid build ships without Google Play Services, so real-time bulletin push is unavailable. Install the Play Store build if you need notifications — you can still pull the latest bulletins manually from the announcements tab.</string>
+    <string name="bulletin_fdroid_no_push_title">Push not available on F-Droid</string>
     <string name="bulletin_filter_dept">Τμήμα</string>
     <string name="bulletin_filter_tag">Κατηγορία</string>
     <string name="bulletin_importance_high_badge">Σπουδαίος</string>
@@ -78,13 +80,17 @@
     <string name="bulletin_push_enable_action">Ενεργοποιήστε το bulletin push</string>
     <string name="bulletin_push_enable_description">Όταν το push είναι ενεργοποιημένο, το TigerDuck θα σας ειδοποιεί κάθε φορά που ένα δελτίο ταιριάζει με τους κανόνες συνδρομής σας.</string>
     <string name="bulletin_push_footer">Οι ειδοποιήσεις push παραδίδονται από τον διακομιστή TigerDuck με βάση τους κανόνες σας. Το αναγνωριστικό συσκευής αποστέλλεται ως ανώνυμο UUID — το φοιτητικό σας αναγνωριστικό δεν μεταφορτώνεται ποτέ.</string>
+    <string name="bulletin_push_reopen_settings">Re-enable in System Settings</string>
     <string name="bulletin_push_requesting">Αίτημα…</string>
     <string name="bulletin_push_settings_header">Ρυθμίσεις ώθησης</string>
     <string name="bulletin_push_status_denied">Αρνήθηκε</string>
     <string name="bulletin_push_status_ephemeral">Εφήμερος</string>
     <string name="bulletin_push_status_label">Push ειδοποιήσεις</string>
     <string name="bulletin_push_status_provisional">Προσωρινός</string>
+    <string name="bulletin_push_status_registration_done">Done</string>
+    <string name="bulletin_push_status_registration_pending">Waiting for token</string>
     <string name="bulletin_push_status_undetermined">Δεν έχει ακόμη αποφασιστεί</string>
+    <string name="bulletin_push_status_unknown">Unknown</string>
     <string name="bulletin_rule_add_action">Προσθήκη κανόνα</string>
     <string name="bulletin_rule_add_title">Προσθήκη κανόνα</string>
     <string name="bulletin_rule_all_orgs">Όλα τα τμήματα</string>
@@ -106,6 +112,7 @@
     <string name="bulletin_rule_editor_name_section">Ονομα</string>
     <string name="bulletin_rule_editor_selected_count">Επιλέχθηκε το %1$d</string>
     <string name="bulletin_rule_editor_tag_section">Κατηγορία</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> και </string>
     <string name="bulletin_rule_join_or"> ή </string>
     <string name="bulletin_rule_orgs_prefix">Τμήμα: </string>
@@ -120,6 +127,7 @@
     <string name="bulletin_show_all_action">Εμφάνιση όλων των δελτίων</string>
     <string name="bulletin_show_unread_only_action">Μόνο αδιάβαστο</string>
     <string name="bulletin_source_link_label">Δείτε το πρωτότυπο</string>
+    <string name="bulletin_subscription_default_seed_name">Default recommendations</string>
     <string name="bulletin_taxonomy_clear_selection">Εκκαθάριση επιλογής (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Η επιλογή τίποτα σημαίνει \"ταίριασμα όλων\" για αυτήν τη διάσταση.</string>
     <string name="bulletin_unread_dot_label">Αδιάβαστος</string>
@@ -349,11 +357,14 @@
     <string name="push_server_notification_status_ephemeral">Εφήμερη εξουσιοδότηση</string>
     <string name="push_server_notification_status_provisional">Προσωρινός</string>
     <string name="push_server_notification_status_undetermined">Δεν ρωτήθηκε ακόμα</string>
+    <string name="push_server_notification_status_unknown">Unknown</string>
     <string name="push_server_pending_incomplete">Δεν έχει γίνει ακόμα</string>
     <string name="push_server_settings_title">ώθηση διακομιστή</string>
+    <string name="push_server_status_device_registration">Device registration</string>
     <string name="push_server_status_done">Πλήρης</string>
     <string name="push_server_status_enabled">Ενεργοποιημένο</string>
     <string name="push_server_status_section">Κατάσταση</string>
+    <string name="push_server_status_waiting_token">Waiting for System to assign a token</string>
     <string name="push_server_sync_now_action">Συγχρονισμός τώρα</string>
     <string name="refreshing_message">Ανανέωση… παρακαλώ περιμένετε</string>
     <string name="score_academic_year_semester">Ακαδημαϊκό Έτος %1$s %2$s</string>

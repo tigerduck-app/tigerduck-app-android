@@ -61,6 +61,8 @@
     <string name="bulletin_apply_default_rules_action">Aplicar reglas predeterminadas</string>
     <string name="bulletin_body_load_failed">No se puede cargar contenido</string>
     <string name="bulletin_default_rules_footer">Suscripciones predeterminadas: almuerzo gratis, becas, tarifas, exámenes, mantenimiento.</string>
+    <string name="bulletin_fdroid_no_push_body">The F-Droid build ships without Google Play Services, so real-time bulletin push is unavailable. Install the Play Store build if you need notifications — you can still pull the latest bulletins manually from the announcements tab.</string>
+    <string name="bulletin_fdroid_no_push_title">Push not available on F-Droid</string>
     <string name="bulletin_filter_dept">Departamento</string>
     <string name="bulletin_filter_tag">Categoría</string>
     <string name="bulletin_importance_high_badge">Importante</string>
@@ -78,13 +80,17 @@
     <string name="bulletin_push_enable_action">Activar envío de boletines</string>
     <string name="bulletin_push_enable_description">Cuando la inserción está habilitada, TigerDuck le notificará cada vez que un boletín coincida con sus reglas de suscripción.</string>
     <string name="bulletin_push_footer">Las notificaciones automáticas las entrega el servidor TigerDuck según sus reglas. El identificador del dispositivo se envía como un UUID anónimo: su identificación de estudiante nunca se carga.</string>
+    <string name="bulletin_push_reopen_settings">Re-enable in System Settings</string>
     <string name="bulletin_push_requesting">Solicitando…</string>
     <string name="bulletin_push_settings_header">Configuración push</string>
     <string name="bulletin_push_status_denied">Denegado</string>
     <string name="bulletin_push_status_ephemeral">Efímero</string>
     <string name="bulletin_push_status_label">Notificaciones push</string>
     <string name="bulletin_push_status_provisional">Provisional</string>
+    <string name="bulletin_push_status_registration_done">Done</string>
+    <string name="bulletin_push_status_registration_pending">Waiting for token</string>
     <string name="bulletin_push_status_undetermined">Aún no decidido</string>
+    <string name="bulletin_push_status_unknown">Unknown</string>
     <string name="bulletin_rule_add_action">Agregar regla</string>
     <string name="bulletin_rule_add_title">Agregar regla</string>
     <string name="bulletin_rule_all_orgs">Todos los departamentos</string>
@@ -106,6 +112,7 @@
     <string name="bulletin_rule_editor_name_section">Nombre</string>
     <string name="bulletin_rule_editor_selected_count">%1$d seleccionado</string>
     <string name="bulletin_rule_editor_tag_section">Categoría</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> y </string>
     <string name="bulletin_rule_join_or"> o </string>
     <string name="bulletin_rule_orgs_prefix">Departamento: </string>
@@ -120,6 +127,7 @@
     <string name="bulletin_show_all_action">Mostrar todos los boletines</string>
     <string name="bulletin_show_unread_only_action">Sólo sin leer</string>
     <string name="bulletin_source_link_label">Ver original</string>
+    <string name="bulletin_subscription_default_seed_name">Default recommendations</string>
     <string name="bulletin_taxonomy_clear_selection">Borrar selección (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">No seleccionar nada significa \"coincidir con todo\" para esta dimensión.</string>
     <string name="bulletin_unread_dot_label">No leído</string>
@@ -349,11 +357,14 @@
     <string name="push_server_notification_status_ephemeral">Autorización efímera</string>
     <string name="push_server_notification_status_provisional">Provisional</string>
     <string name="push_server_notification_status_undetermined">Aún no preguntado</string>
+    <string name="push_server_notification_status_unknown">Unknown</string>
     <string name="push_server_pending_incomplete">aún no hecho</string>
     <string name="push_server_settings_title">Empuje del servidor</string>
+    <string name="push_server_status_device_registration">Device registration</string>
     <string name="push_server_status_done">Completo</string>
     <string name="push_server_status_enabled">Activado</string>
     <string name="push_server_status_section">Estado</string>
+    <string name="push_server_status_waiting_token">Waiting for System to assign a token</string>
     <string name="push_server_sync_now_action">Sincronizar ahora</string>
     <string name="refreshing_message">Actualizando… espera un momento</string>
     <string name="score_academic_year_semester">Año académico %1$s %2$s</string>

@@ -61,6 +61,8 @@
     <string name="bulletin_apply_default_rules_action">ใช้กฎเริ่มต้น</string>
     <string name="bulletin_body_load_failed">ไม่สามารถโหลดเนื้อหาได้</string>
     <string name="bulletin_default_rules_footer">การสมัครรับข้อมูลเริ่มต้น: อาหารฟรี, ทุนการศึกษา, ค่าธรรมเนียม, การสอบ, การบำรุงรักษา</string>
+    <string name="bulletin_fdroid_no_push_body">The F-Droid build ships without Google Play Services, so real-time bulletin push is unavailable. Install the Play Store build if you need notifications — you can still pull the latest bulletins manually from the announcements tab.</string>
+    <string name="bulletin_fdroid_no_push_title">Push not available on F-Droid</string>
     <string name="bulletin_filter_dept">ภาควิชา</string>
     <string name="bulletin_filter_tag">หมวดหมู่</string>
     <string name="bulletin_importance_high_badge">สำคัญ</string>
@@ -78,13 +80,17 @@
     <string name="bulletin_push_enable_action">เปิดการแจ้งเตือนแบบพุชสำหรับประกาศ</string>
     <string name="bulletin_push_enable_description">เมื่อเปิดใช้งานพุช TigerDuck จะแจ้งเตือนคุณทุกครั้งที่มีประกาศตรงกับกฎการสมัครรับข้อมูลของคุณ</string>
     <string name="bulletin_push_footer">การแจ้งเตือนแบบพุชจะถูกส่งโดยเซิร์ฟเวอร์ TigerDuck ตามกฎของคุณ ตัวระบุอุปกรณ์จะถูกส่งในรูปแบบ UUID นิรนาม — รหัสนักศึกษาของคุณจะไม่ถูกอัปโหลดเด็ดขาด</string>
+    <string name="bulletin_push_reopen_settings">Re-enable in System Settings</string>
     <string name="bulletin_push_requesting">กำลังร้องขอ…</string>
     <string name="bulletin_push_settings_header">การตั้งค่าพุช</string>
     <string name="bulletin_push_status_denied">ถูกปฏิเสธ</string>
     <string name="bulletin_push_status_ephemeral">ชั่วคราว</string>
     <string name="bulletin_push_status_label">การแจ้งเตือนแบบพุช</string>
     <string name="bulletin_push_status_provisional">ทดลองใช้</string>
+    <string name="bulletin_push_status_registration_done">Done</string>
+    <string name="bulletin_push_status_registration_pending">Waiting for token</string>
     <string name="bulletin_push_status_undetermined">ยังไม่ได้ตัดสินใจ</string>
+    <string name="bulletin_push_status_unknown">Unknown</string>
     <string name="bulletin_rule_add_action">เพิ่มกฎ</string>
     <string name="bulletin_rule_add_title">เพิ่มกฎ</string>
     <string name="bulletin_rule_all_orgs">ทุกภาควิชา</string>
@@ -106,6 +112,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d รายการที่เลือก</string>
     <string name="bulletin_rule_editor_tag_section">หมวดหมู่</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> และ </string>
     <string name="bulletin_rule_join_or"> หรือ </string>
     <string name="bulletin_rule_orgs_prefix">ภาควิชา: </string>
@@ -120,6 +127,7 @@
     <string name="bulletin_show_all_action">Alle Bulletins anzeigen</string>
     <string name="bulletin_show_unread_only_action">Nur ungelesen</string>
     <string name="bulletin_source_link_label">Original ansehen</string>
+    <string name="bulletin_subscription_default_seed_name">Default recommendations</string>
     <string name="bulletin_taxonomy_clear_selection">Auswahl löschen (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Wenn Sie nichts auswählen, bedeutet dies für diese Dimension „Alles treffen“.</string>
     <string name="bulletin_unread_dot_label">Ungelesen</string>
@@ -349,11 +357,14 @@
     <string name="push_server_notification_status_ephemeral">การอนุญาตชั่วคราว</string>
     <string name="push_server_notification_status_provisional">การอนุญาตเบื้องต้น</string>
     <string name="push_server_notification_status_undetermined">ยังไม่ได้ถาม</string>
+    <string name="push_server_notification_status_unknown">Unknown</string>
     <string name="push_server_pending_incomplete">ยังไม่เสร็จสิ้น</string>
     <string name="push_server_settings_title">Server push</string>
+    <string name="push_server_status_device_registration">Device registration</string>
     <string name="push_server_status_done">เสร็จสมบูรณ์</string>
     <string name="push_server_status_enabled">เปิดใช้งาน</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Waiting for System to assign a token</string>
     <string name="push_server_sync_now_action">ซิงค์เดี๋ยวนี้</string>
     <string name="refreshing_message">กำลังรีเฟรช… โปรดรอสักครู่</string>
     <string name="score_academic_year_semester">ปีการศึกษา %1$s %2$s</string>
