@@ -49,6 +49,7 @@ import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.courseNameForDisplay
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import androidx.core.os.LocaleListCompat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -587,8 +588,11 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
 }
 
 private val timeFmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
-private fun dateTimeFmt() = java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE) HH:mm", Locale.getDefault())
-private fun dateLabelFmt() = java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE)", Locale.getDefault())
+private fun appLocale(): java.util.Locale =
+    LocaleListCompat.getAdjustedDefault()[0] ?: java.util.Locale.getDefault()
+
+private fun dateTimeFmt() = java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE) HH:mm", appLocale())
+private fun dateLabelFmt() = java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE)", appLocale())
 
 private fun formatTimeLabel(date: Date): String {
     val instant = date.toInstant().atZone(AppConstants.TAIPEI_ZONE)

@@ -101,8 +101,6 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setAppLanguage(language: String) {
-        val normalized = AppLanguageManager.normalize(language)
-        appState.appLanguage = normalized
-        AppLanguageManager.apply(normalized)
+        appState.appLanguage = language
     }
 }

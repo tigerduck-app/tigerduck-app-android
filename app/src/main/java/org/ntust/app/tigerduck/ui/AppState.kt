@@ -13,6 +13,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import org.ntust.app.tigerduck.data.model.AppFeature
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.CalendarService
@@ -170,10 +171,11 @@ class AppState @Inject constructor(
     var appLanguage: String
         get() = appLanguageState
         set(value) {
-            val normalized = org.ntust.app.tigerduck.data.preferences.AppLanguageManager.normalize(value)
+            val normalized = AppLanguageManager.normalize(value)
             if (appLanguageState == normalized) return
             appLanguageState = normalized
             prefs.appLanguage = normalized
+            AppLanguageManager.apply(normalized)
         }
 
     private var invertSliderDirectionState by mutableStateOf(prefs.invertSliderDirection)
