@@ -33,6 +33,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          PUSH_SHARED_SECRET: ${{ secrets.PUSH_SHARED_SECRET }}
         run: ./gradlew bundleRelease assembleRelease
 
       - name: Rename build outputs
