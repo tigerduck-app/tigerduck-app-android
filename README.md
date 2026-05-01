@@ -15,7 +15,11 @@
 
 <!-- <img align="right" width="330" alt="portrait" src="https://github.com/user-attachments/assets/c2b24060-969a-4132-bb72-347d9227f1b4" /> -->
 <!-- <img align="right" width="260" alt="screenshot-portrait" src="https://github.com/user-attachments/assets/21c7e61d-d2a4-4103-aa23-dddc275aa582" /> -->
-<img align="right" width="323" height="682" alt="Dark" src="https://github.com/user-attachments/assets/3d72e0c6-0cc3-4bd5-ad1f-078d4b863fd8" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/0557da5b-f168-48b1-ab88-5f038ede7642">
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/521e2b57-eb1c-46d2-99e8-b16de026578c">
+  <img align="right" width="323" height="682" alt="Dark" src="https://github.com/user-attachments/assets/521e2b57-eb1c-46d2-99e8-b16de026578c">
+</picture>
 
 
 TigerDuck 是由學生共同開發的台科大校園助手 Android App。  
