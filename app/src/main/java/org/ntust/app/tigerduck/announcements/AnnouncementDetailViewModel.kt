@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -118,6 +119,8 @@ class AnnouncementDetailViewModel @Inject constructor(
                 repository.putDetail(detail)
                 cache.saveDetail(detail)
                 _state.update { State.Loaded(detail, repository.taxonomy()) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.update { current ->
                     // Offline-first: when we already have a body on screen,
