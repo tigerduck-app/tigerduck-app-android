@@ -187,6 +187,9 @@ dependencies {
     // Glance (home screen widgets)
     implementation(libs.glance.appwidget)
 
+    // Markdown rendering for announcement bodies
+    implementation(libs.markdown.renderer.m3)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

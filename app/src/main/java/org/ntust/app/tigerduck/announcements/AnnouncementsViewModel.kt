@@ -26,6 +26,7 @@ import javax.inject.Inject
 class AnnouncementsViewModel @Inject constructor(
     private val api: BulletinApiClient,
     private val cache: BulletinCache,
+    private val repository: BulletinRepository,
     private val readState: BulletinReadStateStore,
 ) : ViewModel() {
 
@@ -78,6 +79,7 @@ class AnnouncementsViewModel @Inject constructor(
         viewModelScope.launch {
             val cached = cache.load()
             if (cached.isNotEmpty()) {
+                repository.putSummaries(cached)
                 _state.update { applyFilters(it.copy(items = sortedUnique(cached))) }
             }
             refresh()
@@ -87,7 +89,13 @@ class AnnouncementsViewModel @Inject constructor(
 
     private suspend fun fetchTaxonomyOnce() {
         if (_state.value.taxonomy != null) return
+        val cached = repository.taxonomy()
+        if (cached != null) {
+            _state.update { it.copy(taxonomy = cached) }
+            return
+        }
         val tax = runCatching { api.fetchTaxonomy() }.getOrNull() ?: return
+        repository.setTaxonomy(tax)
         _state.update { it.copy(taxonomy = tax) }
     }
 
@@ -104,6 +112,7 @@ class AnnouncementsViewModel @Inject constructor(
                 )
                 val merged = sortedUnique(response.items + _state.value.items)
                 nextCursor = response.nextCursor
+                repository.putSummaries(merged)
                 _state.update {
                     applyFilters(
                         it.copy(
@@ -137,6 +146,7 @@ class AnnouncementsViewModel @Inject constructor(
                 }.getOrNull() ?: break
                 val merged = sortedUnique(_state.value.items + response.items)
                 nextCursor = response.nextCursor
+                repository.putSummaries(merged)
                 _state.update {
                     applyFilters(it.copy(items = merged, hasMore = response.nextCursor != null))
                 }
@@ -158,6 +168,7 @@ class AnnouncementsViewModel @Inject constructor(
                 val response = api.fetchList(cursor = cursor, includeDeleted = s.showDeleted)
                 val merged = sortedUnique(_state.value.items + response.items)
                 nextCursor = response.nextCursor
+                repository.putSummaries(merged)
                 _state.update {
                     applyFilters(
                         it.copy(

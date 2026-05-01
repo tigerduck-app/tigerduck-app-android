@@ -21,6 +21,7 @@ jsoup = "1.18.3"
 hiltWork = "1.2.0"
 glance = "1.1.1"
 firebaseBom = "33.5.0"
+markdownRenderer = "0.27.0"
 googleServices = "4.4.2"
 junit = "4.13.2"
 junitVersion = "1.2.1"
@@ -60,6 +61,7 @@ glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", versi
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging-ktx = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
+markdown-renderer-m3 = { group = "com.mikepenz", name = "multiplatform-markdown-renderer-m3", version.ref = "markdownRenderer" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
