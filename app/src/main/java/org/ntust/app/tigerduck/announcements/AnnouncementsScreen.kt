@@ -1,6 +1,10 @@
 package org.ntust.app.tigerduck.announcements
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -8,7 +12,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.FilterAltOff
@@ -18,13 +24,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
@@ -231,7 +247,7 @@ private fun BulletinList(
     ) {
         items(items, key = { it.id }) { item ->
             LaunchedEffect(item.id) { onLastVisible(item) }
-            BulletinCard(
+            SwipeableBulletinCard(
                 item = item,
                 taxonomy = taxonomy,
                 isRead = item.id in readIds,
@@ -269,7 +285,6 @@ private fun BulletinCard(
     taxonomy: TaxonomyResponse?,
     isRead: Boolean,
     onClick: () -> Unit,
-    onToggleRead: () -> Unit,
 ) {
     val container = MaterialTheme.colorScheme.surfaceVariant
     val cs = MaterialTheme.colorScheme
@@ -337,25 +352,128 @@ private fun BulletinCard(
                     taxonomy = taxonomy,
                 )
             }
-            // --- Read/unread quick-toggle (Compose has no per-row swipe action
-            // pattern that matches iOS's swipeActions cleanly without a heavy
-            // SwipeBox dep, so surface a compact text button instead).
-            Spacer(Modifier.height(4.dp))
-            Row {
-                Spacer(Modifier.weight(1f))
-                TextButton(
-                    onClick = onToggleRead,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                ) {
-                    Text(
-                        text = stringResource(
-                            if (isRead) R.string.bulletin_mark_as_unread_action
-                            else R.string.bulletin_mark_as_read_action
-                        ),
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                }
+        }
+    }
+}
+
+/**
+ * Bulletin row with bidirectional swipe-to-toggle-read, mirroring the
+ * SwipeableAssignmentRow pattern on the home screen (100dp threshold,
+ * 0.6× drag damping, fling-out + snap-reset on commit, spring-back
+ * otherwise). Either swipe direction toggles read state — the leading or
+ * trailing icon flips between Check (will mark read) and Undo (will mark
+ * unread) based on current state.
+ */
+@Composable
+private fun SwipeableBulletinCard(
+    item: BulletinSummary,
+    taxonomy: TaxonomyResponse?,
+    isRead: Boolean,
+    onClick: () -> Unit,
+    onToggleRead: () -> Unit,
+) {
+    val latestOnToggleRead by rememberUpdatedState(onToggleRead)
+    val density = LocalDensity.current
+    val thresholdPx = with(density) { 100.dp.toPx() }
+    val swipeOffset = remember(item.id) { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val actionColor = Color(0xFF34C759)
+    val icon = if (isRead) Icons.Filled.Check else Icons.AutoMirrored.Filled.Undo
+    val iconDesc = stringResource(
+        if (isRead) R.string.bulletin_mark_as_unread_action
+        else R.string.bulletin_mark_as_read_action
+    )
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        val progress = (abs(swipeOffset.value) / thresholdPx).coerceIn(0f, 1f)
+
+        if (swipeOffset.value > 0f) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .padding(start = 20.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = iconDesc,
+                    tint = actionColor,
+                    modifier = Modifier
+                        .size(26.dp)
+                        .alpha(progress)
+                        .scale(0.5f + 0.5f * progress),
+                )
             }
+        }
+        if (swipeOffset.value < 0f) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .padding(end = 20.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = iconDesc,
+                    tint = actionColor,
+                    modifier = Modifier
+                        .size(26.dp)
+                        .alpha(progress)
+                        .scale(0.5f + 0.5f * progress),
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(swipeOffset.value.roundToInt(), 0) }
+                .pointerInput(item.id) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            coroutineScope.launch {
+                                when {
+                                    swipeOffset.value <= -thresholdPx -> {
+                                        swipeOffset.animateTo(
+                                            -2000f,
+                                            animationSpec = tween(durationMillis = 200),
+                                        )
+                                        latestOnToggleRead()
+                                        swipeOffset.snapTo(0f)
+                                    }
+                                    swipeOffset.value >= thresholdPx -> {
+                                        swipeOffset.animateTo(
+                                            2000f,
+                                            animationSpec = tween(durationMillis = 200),
+                                        )
+                                        latestOnToggleRead()
+                                        swipeOffset.snapTo(0f)
+                                    }
+                                    else -> swipeOffset.animateTo(0f, animationSpec = spring())
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            coroutineScope.launch {
+                                swipeOffset.animateTo(0f, animationSpec = spring())
+                            }
+                        },
+                        onHorizontalDrag = { _, delta ->
+                            val signedDelta = if (isRtl) -delta else delta
+                            coroutineScope.launch {
+                                swipeOffset.snapTo(swipeOffset.value + signedDelta * 0.6f)
+                            }
+                        },
+                    )
+                },
+        ) {
+            BulletinCard(
+                item = item,
+                taxonomy = taxonomy,
+                isRead = isRead,
+                onClick = onClick,
+            )
         }
     }
 }
