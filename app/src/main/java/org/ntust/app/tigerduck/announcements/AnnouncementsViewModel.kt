@@ -71,6 +71,7 @@ class AnnouncementsViewModel @Inject constructor(
     private var nextCursor: Int? = null
     private var inflight: Job? = null
     private var prefetch: Job? = null
+    private var loadMoreJob: Job? = null
     private var hasLoaded = false
 
     fun load() {
@@ -102,6 +103,7 @@ class AnnouncementsViewModel @Inject constructor(
     fun refresh() {
         inflight?.cancel()
         prefetch?.cancel()
+        loadMoreJob?.cancel()
         nextCursor = null
         inflight = viewModelScope.launch {
             _state.update { it.copy(loadState = LoadState.Loading) }
@@ -162,8 +164,9 @@ class AnnouncementsViewModel @Inject constructor(
         val tail = s.filtered.takeLast(5).map { it.id }
         if (item.id !in tail) return
         val cursor = nextCursor ?: return
+        prefetch?.cancel()
         _state.update { it.copy(isPaginating = true) }
-        viewModelScope.launch {
+        loadMoreJob = viewModelScope.launch {
             try {
                 val response = api.fetchList(cursor = cursor, includeDeleted = s.showDeleted)
                 val merged = sortedUnique(_state.value.items + response.items)
