@@ -128,6 +128,8 @@
     <string name="bulletin_show_unread_only_action">只看未讀</string>
     <string name="bulletin_source_link_label">原文公告</string>
     <string name="bulletin_subscription_default_seed_name">預設推薦</string>
+    <string name="bulletin_subscription_mode_and">全部符合</string>
+    <string name="bulletin_subscription_mode_or">任一符合</string>
     <string name="bulletin_taxonomy_clear_selection">清除選取 (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">若不選任何項目,該維度視為「全部」。</string>
     <string name="bulletin_unread_dot_label">未讀</string>

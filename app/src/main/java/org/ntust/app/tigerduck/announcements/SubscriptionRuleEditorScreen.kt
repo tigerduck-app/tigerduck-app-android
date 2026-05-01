@@ -117,12 +117,12 @@ fun SubscriptionRuleEditorScreen(
                     selected = mode == "AND",
                     onClick = { mode = "AND" },
                     shape = SegmentedButtonDefaults.itemShape(0, 2),
-                ) { Text("AND") }
+                ) { Text(stringResource(R.string.bulletin_subscription_mode_and)) }
                 SegmentedButton(
                     selected = mode == "OR",
                     onClick = { mode = "OR" },
                     shape = SegmentedButtonDefaults.itemShape(1, 2),
-                ) { Text("OR") }
+                ) { Text(stringResource(R.string.bulletin_subscription_mode_or)) }
             }
             Text(
                 text = stringResource(

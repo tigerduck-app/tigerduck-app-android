@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.push.PushDiagnostic
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.push.PushRegistrationService
@@ -34,6 +35,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
     private val api: BulletinApiClient,
     private val identity: PushIdentity,
     private val pushRegistration: PushRegistrationService,
+    val systemPermissions: SystemPermissions,
 ) : ViewModel() {
 
     sealed interface LoadState {

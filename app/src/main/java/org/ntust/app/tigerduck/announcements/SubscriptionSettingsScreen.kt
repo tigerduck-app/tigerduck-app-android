@@ -5,16 +5,20 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.WarningAmber
@@ -22,6 +26,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -29,7 +34,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.ntust.app.tigerduck.notification.AppPermission
+import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import java.text.DateFormat
@@ -58,6 +68,9 @@ fun SubscriptionSettingsScreen(
     // Scaffold (with its own top bar) without the AlertDialog's overflow
     // bug that produced the original "toggle overlapping selector" report.
     editing?.let { target ->
+        // System back must collapse the editor back to the settings page,
+        // not pop the whole route up to the announcements list.
+        BackHandler(enabled = true) { editing = null }
         SubscriptionRuleEditorScreen(
             initial = target.rule,
             isNew = target.replacingIndex == null,
@@ -91,18 +104,6 @@ fun SubscriptionSettingsScreen(
                 },
             )
         },
-        floatingActionButton = {
-            // Hide the FAB in fdroid (no rules section) and once the rule
-            // ceiling is reached.
-            val maxRules = 32
-            if (!isFdroidFlavor && state.rules.size < maxRules) {
-                FloatingActionButton(onClick = {
-                    editing = EditingTarget(SubscriptionRule(), replacingIndex = null)
-                }) {
-                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.bulletin_rule_add_action))
-                }
-            }
-        },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             LazyColumn(
@@ -115,6 +116,12 @@ fun SubscriptionSettingsScreen(
                         FdroidNoticeCard()
                     } else {
                         PushStatusCard(state.diagnostic)
+                    }
+                }
+
+                if (!isFdroidFlavor) {
+                    item {
+                        NotificationPermissionCard(viewModel.systemPermissions)
                     }
                 }
 
@@ -149,20 +156,26 @@ fun SubscriptionSettingsScreen(
                             }
                         }
                         SubscriptionSettingsViewModel.LoadState.Loaded -> {
-                            if (state.rules.isEmpty()) {
-                                item { DefaultRulesBanner(state.taxonomy, viewModel::applyDefaultRules) }
-                            } else {
-                                items(state.rules.size) { idx ->
-                                    val rule = state.rules[idx]
-                                    RuleRow(
-                                        rule = rule,
-                                        taxonomy = state.taxonomy,
-                                        onClick = {
-                                            editing = EditingTarget(rule, replacingIndex = idx)
-                                        },
-                                        onToggle = { viewModel.toggleEnabled(idx) },
-                                        onDelete = { viewModel.deleteRule(idx) },
-                                    )
+                            items(state.rules.size) { idx ->
+                                val rule = state.rules[idx]
+                                RuleRow(
+                                    rule = rule,
+                                    taxonomy = state.taxonomy,
+                                    onClick = {
+                                        editing = EditingTarget(rule, replacingIndex = idx)
+                                    },
+                                    onToggle = { viewModel.toggleEnabled(idx) },
+                                    onDelete = { viewModel.deleteRule(idx) },
+                                )
+                            }
+                            // Inline "Add rule" entry, mirrors iOS layout.
+                            // Capped at 32 rules to match server-side ceiling.
+                            val maxRules = 32
+                            if (state.rules.size < maxRules) {
+                                item {
+                                    AddRuleRow(onClick = {
+                                        editing = EditingTarget(SubscriptionRule(), replacingIndex = null)
+                                    })
                                 }
                             }
                             item {
@@ -172,6 +185,9 @@ fun SubscriptionSettingsScreen(
                                     color = MaterialTheme.colorScheme.outline,
                                     modifier = Modifier.padding(top = 8.dp),
                                 )
+                            }
+                            if (state.rules.isEmpty()) {
+                                item { DefaultRulesBanner(state.taxonomy, viewModel::applyDefaultRules) }
                             }
                         }
                     }
@@ -455,6 +471,112 @@ private fun ruleSubtitle(rule: SubscriptionRule, taxonomy: TaxonomyResponse?): S
         rule.orgs.isNotEmpty() -> orgsLabel
         rule.tags.isNotEmpty() -> tagsLabel
         else -> stringResource(R.string.bulletin_rule_all_title)
+    }
+}
+
+@Composable
+private fun NotificationPermissionCard(systemPermissions: SystemPermissions) {
+    val context = LocalContext.current
+    var state by remember { mutableStateOf(systemPermissions.state(AppPermission.NOTIFICATIONS)) }
+
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) systemPermissions.recordCurrentGrants()
+        state = systemPermissions.state(AppPermission.NOTIFICATIONS)
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                systemPermissions.recordCurrentGrants()
+                state = systemPermissions.state(AppPermission.NOTIFICATIONS)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    ContentCard {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(
+                        when {
+                            !state.applicable -> Color(0xFFB0B0B0)
+                            state.granted -> Color(0xFF34C759)
+                            else -> Color(0xFFFF3B30)
+                        }
+                    )
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(SystemPermissions.displayNameResId(AppPermission.NOTIFICATIONS)),
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                )
+                Text(
+                    text = stringResource(SystemPermissions.descriptionResId(AppPermission.NOTIFICATIONS)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            when {
+                !state.applicable -> Text(
+                    "N/A",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
+                state.granted -> Icon(
+                    Icons.Filled.Check,
+                    contentDescription = stringResource(R.string.permission_granted),
+                    tint = Color(0xFF34C759),
+                )
+                else -> Button(onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        systemPermissions.openSettings(AppPermission.NOTIFICATIONS)
+                    }
+                }) {
+                    Text(stringResource(R.string.action_allow))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddRuleRow(onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Filled.Add,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.bulletin_rule_add_action),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 
