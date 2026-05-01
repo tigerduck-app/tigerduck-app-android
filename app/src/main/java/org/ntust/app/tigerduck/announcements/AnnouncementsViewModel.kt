@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.announcements
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -106,7 +107,7 @@ class AnnouncementsViewModel @Inject constructor(
         loadMoreJob?.cancel()
         nextCursor = null
         inflight = viewModelScope.launch {
-            _state.update { it.copy(loadState = LoadState.Loading) }
+            _state.update { it.copy(loadState = LoadState.Loading, isPaginating = false) }
             try {
                 val response = api.fetchList(
                     cursor = null,
@@ -127,6 +128,8 @@ class AnnouncementsViewModel @Inject constructor(
                 cache.save(merged)
                 readState.prune(merged.map { it.id })
                 if (response.nextCursor != null) startBackgroundPrefetch()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.update { it.copy(loadState = LoadState.Failed(e.message ?: "error")) }
             }
@@ -144,9 +147,13 @@ class AnnouncementsViewModel @Inject constructor(
                 pages++
                 delay(150)
                 val cursor = nextCursor ?: break
-                val response = runCatching {
+                val response = try {
                     api.fetchList(cursor = cursor, includeDeleted = _state.value.showDeleted)
-                }.getOrNull() ?: break
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    break
+                }
                 val merged = sortedUnique(_state.value.items + response.items)
                 nextCursor = response.nextCursor
                 repository.putSummaries(merged)
@@ -183,6 +190,8 @@ class AnnouncementsViewModel @Inject constructor(
                     )
                 }
                 cache.save(merged)
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
                 _state.update { it.copy(isPaginating = false) }
             }

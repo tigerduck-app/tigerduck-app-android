@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.announcements
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -157,6 +158,8 @@ class SubscriptionSettingsViewModel @Inject constructor(
                 _state.update {
                     it.copy(rules = response.rules, saveState = SaveState.Saved)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.update { it.copy(saveState = SaveState.Failed(e.message ?: "error")) }
             }
