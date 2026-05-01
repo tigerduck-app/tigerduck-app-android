@@ -7,8 +7,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -42,8 +44,10 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import org.ntust.app.tigerduck.R
+import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 
 @Composable
@@ -55,9 +59,35 @@ fun AnnouncementsScreen(
     LaunchedEffect(Unit) { viewModel.load() }
     val state by viewModel.state.collectAsStateWithLifecycle()
     var pullProgress by remember { mutableFloatStateOf(0f) }
+    val listState = rememberLazyListState()
+    val isLoading = state.loadState is AnnouncementsViewModel.LoadState.Loading
+    var showCheckmark by remember { mutableStateOf(false) }
+    var sawLoading by remember { mutableStateOf(false) }
+    LaunchedEffect(state.loadState) {
+        when (state.loadState) {
+            is AnnouncementsViewModel.LoadState.Loading -> sawLoading = true
+            is AnnouncementsViewModel.LoadState.Loaded -> {
+                if (sawLoading) {
+                    sawLoading = false
+                    showCheckmark = true
+                    delay(2000)
+                    showCheckmark = false
+                }
+            }
+            else -> sawLoading = false
+        }
+    }
+    LaunchedEffect(state.unreadOnly) {
+        listState.scrollToItem(0)
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         PageHeader(title = stringResource(R.string.feature_announcements)) {
+            SyncIndicator(
+                isLoading = isLoading,
+                showCheckmark = showCheckmark,
+                dragProgress = pullProgress,
+            )
             if (state.unreadOnly && state.hasUnread) {
                 IconButton(onClick = viewModel::markAllRead) {
                     Icon(
@@ -129,6 +159,7 @@ fun AnnouncementsScreen(
                     taxonomy = state.taxonomy,
                     readIds = state.readIds,
                     isPaginating = state.isPaginating,
+                    listState = listState,
                     onClick = onOpenBulletin,
                     onToggleRead = viewModel::toggleRead,
                     onLastVisible = viewModel::loadMoreIfNeeded,
@@ -236,11 +267,13 @@ private fun BulletinList(
     taxonomy: TaxonomyResponse?,
     readIds: Set<Int>,
     isPaginating: Boolean,
+    listState: LazyListState,
     onClick: (Int) -> Unit,
     onToggleRead: (Int) -> Unit,
     onLastVisible: (BulletinSummary) -> Unit,
 ) {
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
