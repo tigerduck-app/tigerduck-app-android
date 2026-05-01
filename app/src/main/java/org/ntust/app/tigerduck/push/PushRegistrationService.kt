@@ -67,6 +67,17 @@ class PushRegistrationService @Inject constructor(
         scheduleRegister()
     }
 
+    private suspend fun scheduleRegister() {
+        mutex.withLock {
+            debounceJob?.cancel()
+            debounceJob = scope.launch {
+                // Coalesce the token + sign-in arrivals so we only POST once.
+                delay(250)
+                performRegister()
+            }
+        }
+    }
+
     fun unregister() {
         scope.launch {
             val deviceId = identity.deviceId()
@@ -81,15 +92,6 @@ class PushRegistrationService @Inject constructor(
                     lastError = null,
                 )
             }
-        }
-    }
-
-    private fun scheduleRegister() {
-        debounceJob?.cancel()
-        debounceJob = scope.launch {
-            // Coalesce the token + sign-in arrivals so we only POST once.
-            delay(250)
-            performRegister()
         }
     }
 

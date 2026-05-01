@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.announcements
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -145,8 +146,11 @@ class SubscriptionSettingsViewModel @Inject constructor(
         save()
     }
 
+    private var saveJob: Job? = null
+
     private fun save() {
-        viewModelScope.launch {
+        saveJob?.cancel()
+        saveJob = viewModelScope.launch {
             _state.update { it.copy(saveState = SaveState.Saving) }
             try {
                 val response = api.putSubscriptions(identity.deviceId(), _state.value.rules)

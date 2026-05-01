@@ -25,8 +25,14 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
     private val file = File(dir, "summaries.json")
     private val detailDir: File = File(dir, "details").also { it.mkdirs() }
     private val mutex = Mutex()
+    private val detailLocks = mutableMapOf<Int, Mutex>()
+    private val detailLocksGuard = Mutex()
     private val gson = Gson()
     private val listType = object : TypeToken<List<BulletinSummary>>() {}.type
+
+    private suspend fun detailLock(id: Int): Mutex = detailLocksGuard.withLock {
+        detailLocks.getOrPut(id) { Mutex() }
+    }
 
     suspend fun load(): List<BulletinSummary> = mutex.withLock {
         withContext(Dispatchers.IO) {
@@ -49,18 +55,22 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
 
     /** One JSON file per id mirrors iOS DataCache.bulletinDetailDir(); keeps
      *  writes small and avoids rewriting an aggregated file on every open. */
-    suspend fun loadDetail(id: Int): BulletinDetail? = withContext(Dispatchers.IO) {
-        val f = File(detailDir, "$id.json")
-        try {
-            if (f.exists()) gson.fromJson(f.readText(), BulletinDetail::class.java) else null
-        } catch (_: Exception) {
-            null
+    suspend fun loadDetail(id: Int): BulletinDetail? = detailLock(id).withLock {
+        withContext(Dispatchers.IO) {
+            val f = File(detailDir, "$id.json")
+            try {
+                if (f.exists()) gson.fromJson(f.readText(), BulletinDetail::class.java) else null
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 
-    suspend fun saveDetail(detail: BulletinDetail) = withContext(Dispatchers.IO) {
-        try {
-            File(detailDir, "${detail.id}.json").writeText(gson.toJson(detail))
-        } catch (_: Exception) { }
+    suspend fun saveDetail(detail: BulletinDetail) = detailLock(detail.id).withLock {
+        withContext(Dispatchers.IO) {
+            try {
+                File(detailDir, "${detail.id}.json").writeText(gson.toJson(detail))
+            } catch (_: Exception) { }
+        }
     }
 }

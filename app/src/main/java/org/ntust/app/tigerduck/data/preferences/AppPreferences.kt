@@ -207,10 +207,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
      * Used by [org.ntust.app.tigerduck.push.PushIdentity] to mint a stable
      * device id on first launch.
      */
+    @Synchronized
     fun getOrCreateString(key: String, factory: () -> String): String {
         prefs.getString(key, null)?.let { return it }
         val created = factory()
-        prefs.edit().putString(key, created).apply()
+        prefs.edit().putString(key, created).commit()
         return created
     }
 
