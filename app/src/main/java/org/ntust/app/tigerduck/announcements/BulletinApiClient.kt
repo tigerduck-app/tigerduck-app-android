@@ -47,14 +47,16 @@ class BulletinApiClient @Inject constructor() {
         .addInterceptor(logging)
         .build()
 
-    private fun authedClient(): OkHttpClient = client.newBuilder()
-        .addInterceptor { chain ->
-            val req = if (sharedSecret.isNotEmpty()) {
-                chain.request().newBuilder().header("X-Push-Token", sharedSecret).build()
-            } else chain.request()
-            chain.proceed(req)
-        }
-        .build()
+    private val authedClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .addInterceptor { chain ->
+                val req = if (sharedSecret.isNotEmpty()) {
+                    chain.request().newBuilder().header("X-Push-Token", sharedSecret).build()
+                } else chain.request()
+                chain.proceed(req)
+            }
+            .build()
+    }
 
     suspend fun fetchTaxonomy(): TaxonomyResponse = getJson("$baseUrl/bulletins/taxonomy")
 
@@ -85,7 +87,7 @@ class BulletinApiClient @Inject constructor() {
             .url("$baseUrl/devices/$deviceId/subscriptions")
             .put(body)
             .build()
-        authedClient().newCall(request).execute().use { response ->
+        authedClient.newCall(request).execute().use { response ->
             val text = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
                 throw BulletinApiException("subscriptions PUT failed: HTTP ${response.code}")
@@ -97,7 +99,7 @@ class BulletinApiClient @Inject constructor() {
 
     private suspend inline fun <reified T> getJson(url: String, authed: Boolean = false): T =
         withContext(Dispatchers.IO) {
-            val c = if (authed) authedClient() else client
+            val c = if (authed) authedClient else client
             val request = Request.Builder().url(url).get().build()
             c.newCall(request).execute().use { response ->
                 val text = response.body?.string().orEmpty()

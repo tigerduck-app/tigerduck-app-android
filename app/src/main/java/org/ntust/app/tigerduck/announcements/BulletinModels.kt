@@ -17,7 +17,7 @@ data class BulletinSummary(
     @SerializedName("content_tags") val contentTags: List<String> = emptyList(),
     val importance: String?,
     val summary: String?,
-    @SerializedName("source_url") val sourceUrl: String,
+    @SerializedName("source_url") val sourceUrl: String?,
     @SerializedName("posted_at") val postedAt: String?,
     @SerializedName("is_deleted") val isDeleted: Boolean = false,
 ) {
@@ -34,7 +34,7 @@ data class BulletinDetail(
     @SerializedName("content_tags") val contentTags: List<String> = emptyList(),
     val importance: String?,
     val summary: String?,
-    @SerializedName("source_url") val sourceUrl: String,
+    @SerializedName("source_url") val sourceUrl: String?,
     @SerializedName("posted_at") val postedAt: String?,
     @SerializedName("is_deleted") val isDeleted: Boolean = false,
     @SerializedName("body_clean") val bodyClean: String?,
