@@ -91,7 +91,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         set(value) = prefs.edit().putBoolean("showAbsoluteAssignmentTime", value).apply()
 
     var useEnglishCourseAbbreviation: Boolean
-        get() = prefs.getBoolean("useEnglishCourseAbbreviation", false)
+        get() = prefs.getBoolean("useEnglishCourseAbbreviation", true)
         set(value) {
             val previous = useEnglishCourseAbbreviation
             prefs.edit().putBoolean("useEnglishCourseAbbreviation", value).apply()
@@ -99,7 +99,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         }
 
     var useEnglishClassroomAbbreviation: Boolean
-        get() = prefs.getBoolean("useEnglishClassroomAbbreviation", false)
+        get() = prefs.getBoolean("useEnglishClassroomAbbreviation", true)
         set(value) {
             val previous = useEnglishClassroomAbbreviation
             prefs.edit().putBoolean("useEnglishClassroomAbbreviation", value).apply()
