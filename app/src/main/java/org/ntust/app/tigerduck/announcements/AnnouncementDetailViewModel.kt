@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -107,8 +108,11 @@ class AnnouncementDetailViewModel @Inject constructor(
         refresh()
     }
 
+    private var refreshJob: Job? = null
+
     private fun refresh() {
-        viewModelScope.launch {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
             try {
                 val detail = api.fetchDetail(bulletinId)
                 repository.putDetail(detail)

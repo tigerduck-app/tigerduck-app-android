@@ -125,6 +125,7 @@ class AnnouncementsViewModel @Inject constructor(
                     )
                 }
                 cache.save(merged)
+                readState.prune(merged.map { it.id })
                 if (response.nextCursor != null) startBackgroundPrefetch()
             } catch (e: Exception) {
                 _state.update { it.copy(loadState = LoadState.Failed(e.message ?: "error")) }
