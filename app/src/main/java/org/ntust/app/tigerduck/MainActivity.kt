@@ -66,7 +66,11 @@ class MainActivity : AppCompatActivity() {
 
             TigerDuckAppTheme(darkTheme = dark, accentColor = appState.accentColor(dark)) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    AppNavigation(appState = appState, widgetStartRoute = widgetStartRoute.value)
+                    AppNavigation(
+                        appState = appState,
+                        widgetStartRoute = widgetStartRoute.value,
+                        onStartRouteConsumed = { widgetStartRoute.value = null },
+                    )
                 }
             }
         }
@@ -79,6 +83,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        // Keep getIntent() in sync with the latest delivered intent so anything
+        // that re-reads it (Compose recomposition, lifecycle observers) sees
+        // the deep-link URI rather than the launcher MAIN intent.
+        setIntent(intent)
         widgetStartRoute.value = resolveStartRoute(intent)
     }
 

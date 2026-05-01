@@ -95,8 +95,11 @@ class PushRegistrationService @Inject constructor(
 
     private suspend fun performRegister() {
         val token = mutex.withLock { fcmToken } ?: return
-        val userId = identity.userId() ?: return
         val deviceId = identity.deviceId()
+        // Bulletin push is opt-in via subscriptions, not gated on sign-in.
+        // Without a signed-in user we register under an anonymous user_id
+        // so the device row exists and subscriptions PUT doesn't 404.
+        val userId = identity.userId() ?: "anon-$deviceId"
         runCatching {
             api.register(
                 DeviceRegisterRequest(

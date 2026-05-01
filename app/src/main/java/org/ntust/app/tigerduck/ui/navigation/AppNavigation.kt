@@ -79,11 +79,19 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun AppNavigation(appState: AppState, widgetStartRoute: String? = null) {
+fun AppNavigation(
+    appState: AppState,
+    widgetStartRoute: String? = null,
+    onStartRouteConsumed: () -> Unit = {},
+) {
     if (!appState.hasCompletedOnboarding) {
         OnboardingScreen()
     } else {
-        MainNavigation(appState, widgetStartRoute)
+        MainNavigation(
+            appState = appState,
+            widgetStartRoute = widgetStartRoute,
+            onStartRouteConsumed = onStartRouteConsumed,
+        )
         PermissionWarningDialogHost(appState.systemPermissions)
     }
 
@@ -111,7 +119,11 @@ fun AppNavigation(appState: AppState, widgetStartRoute: String? = null) {
 }
 
 @Composable
-fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
+fun MainNavigation(
+    appState: AppState,
+    widgetStartRoute: String? = null,
+    onStartRouteConsumed: () -> Unit = {},
+) {
     val navController = rememberNavController()
     LaunchedEffect(widgetStartRoute) {
         widgetStartRoute ?: return@LaunchedEffect
@@ -132,6 +144,10 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
         navController.navigate(target) {
             launchSingleTop = true
         }
+        // Consume so that re-tapping the same notification (which delivers the
+        // identical route string) re-fires this LaunchedEffect instead of
+        // being deduped by the same key.
+        onStartRouteConsumed()
     }
     // Hoist Home / ClassTable / Calendar VMs to the activity scope so they
     // exist from app open and survive tab switches. load() is called once
