@@ -50,9 +50,7 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
 
     suspend fun save(items: List<BulletinSummary>) = mutex.withLock {
         withContext(Dispatchers.IO) {
-            try {
-                file.writeText(gson.toJson(items))
-            } catch (_: Exception) { }
+            writeAtomically(file, gson.toJson(items))
         }
     }
 
@@ -71,9 +69,22 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
 
     suspend fun saveDetail(detail: BulletinDetail) = detailLock(detail.id).withLock {
         withContext(Dispatchers.IO) {
-            try {
-                File(detailDir, "${detail.id}.json").writeText(gson.toJson(detail))
-            } catch (_: Exception) { }
+            writeAtomically(File(detailDir, "${detail.id}.json"), gson.toJson(detail))
+        }
+    }
+
+    /** Truncating writeText leaves a partial file if the process dies mid-write,
+     *  which fails JSON parse on next launch and discards the whole cache. */
+    private fun writeAtomically(target: File, content: String) {
+        val tmp = File(target.parentFile, "${target.name}.tmp")
+        try {
+            tmp.writeText(content)
+            if (!tmp.renameTo(target)) {
+                target.delete()
+                tmp.renameTo(target)
+            }
+        } catch (_: Exception) {
+            tmp.delete()
         }
     }
 
