@@ -162,8 +162,8 @@ class AnnouncementsViewModel @Inject constructor(
         val tail = s.filtered.takeLast(5).map { it.id }
         if (item.id !in tail) return
         val cursor = nextCursor ?: return
+        _state.update { it.copy(isPaginating = true) }
         viewModelScope.launch {
-            _state.update { it.copy(isPaginating = true) }
             try {
                 val response = api.fetchList(cursor = cursor, includeDeleted = s.showDeleted)
                 val merged = sortedUnique(_state.value.items + response.items)

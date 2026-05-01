@@ -6,6 +6,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,17 +30,15 @@ class BulletinReadStateStore @Inject constructor(
     fun isRead(id: Int): Boolean = id in _readIds.value
 
     fun markRead(id: Int) {
-        val current = _readIds.value
-        if (id in current) return
-        _readIds.value = current + id
-        persist()
+        val before = _readIds.value
+        _readIds.update { if (id in it) it else it + id }
+        if (_readIds.value !== before) persist()
     }
 
     fun markUnread(id: Int) {
-        val current = _readIds.value
-        if (id !in current) return
-        _readIds.value = current - id
-        persist()
+        val before = _readIds.value
+        _readIds.update { if (id !in it) it else it - id }
+        if (_readIds.value !== before) persist()
     }
 
     fun toggleRead(id: Int) {
@@ -48,19 +47,23 @@ class BulletinReadStateStore @Inject constructor(
 
     fun markAllRead(ids: Iterable<Int>) {
         val incoming = ids.toSet()
-        val merged = _readIds.value + incoming
-        if (merged.size == _readIds.value.size) return
-        _readIds.value = merged
-        persist()
+        val before = _readIds.value
+        _readIds.update { current ->
+            val merged = current + incoming
+            if (merged.size == current.size) current else merged
+        }
+        if (_readIds.value !== before) persist()
     }
 
     /** Drop ids that are no longer in [keep] so prefs don't grow unbounded. */
     fun prune(keep: Iterable<Int>) {
         val alive = keep.toSet()
-        val trimmed = _readIds.value.intersect(alive)
-        if (trimmed.size == _readIds.value.size) return
-        _readIds.value = trimmed
-        persist()
+        val before = _readIds.value
+        _readIds.update { current ->
+            val trimmed = current.intersect(alive)
+            if (trimmed.size == current.size) current else trimmed
+        }
+        if (_readIds.value !== before) persist()
     }
 
     private fun persist() {

@@ -25,7 +25,10 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
     private val file = File(dir, "summaries.json")
     private val detailDir: File = File(dir, "details").also { it.mkdirs() }
     private val mutex = Mutex()
-    private val detailLocks = mutableMapOf<Int, Mutex>()
+    private val detailLocks = object : LinkedHashMap<Int, Mutex>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: Map.Entry<Int, Mutex>): Boolean =
+            size > MAX_DETAIL_LOCKS
+    }
     private val detailLocksGuard = Mutex()
     private val gson = Gson()
     private val listType = object : TypeToken<List<BulletinSummary>>() {}.type
@@ -72,5 +75,9 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
                 File(detailDir, "${detail.id}.json").writeText(gson.toJson(detail))
             } catch (_: Exception) { }
         }
+    }
+
+    private companion object {
+        const val MAX_DETAIL_LOCKS = 128
     }
 }

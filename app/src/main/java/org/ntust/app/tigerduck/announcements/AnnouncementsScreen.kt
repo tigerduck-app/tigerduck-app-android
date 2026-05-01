@@ -77,7 +77,7 @@ fun AnnouncementsScreen(
             else -> sawLoading = false
         }
     }
-    LaunchedEffect(state.unreadOnly) {
+    LaunchedEffect(state.unreadOnly, state.selectedOrgs, state.selectedTags, state.searchText) {
         listState.scrollToItem(0)
     }
 
