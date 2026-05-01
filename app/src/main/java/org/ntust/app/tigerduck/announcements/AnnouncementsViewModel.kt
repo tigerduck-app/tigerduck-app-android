@@ -112,7 +112,7 @@ class AnnouncementsViewModel @Inject constructor(
                     cursor = null,
                     includeDeleted = _state.value.showDeleted,
                 )
-                val merged = sortedUnique(response.items + _state.value.items)
+                val merged = sortedUnique(_state.value.items + response.items)
                 nextCursor = response.nextCursor
                 repository.putSummaries(merged)
                 _state.update {
