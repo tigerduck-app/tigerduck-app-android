@@ -15,7 +15,7 @@
 
 <!-- <img align="right" width="330" alt="portrait" src="https://github.com/user-attachments/assets/c2b24060-969a-4132-bb72-347d9227f1b4" /> -->
 <!-- <img align="right" width="260" alt="screenshot-portrait" src="https://github.com/user-attachments/assets/21c7e61d-d2a4-4103-aa23-dddc275aa582" /> -->
-<img align="right" width="969" height="2048" alt="Dark" src="https://github.com/user-attachments/assets/3d72e0c6-0cc3-4bd5-ad1f-078d4b863fd8" />
+<img align="right" width="300" height="2048" alt="Dark" src="https://github.com/user-attachments/assets/3d72e0c6-0cc3-4bd5-ad1f-078d4b863fd8" />
 
 
 
