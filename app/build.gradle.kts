@@ -181,7 +181,7 @@ dependencies {
     // and FcmBootstrap.kt live under src/play/ and are not compiled when
     // building fdroid* variants.
     "playImplementation"(platform(libs.firebase.bom))
-    "playImplementation"(libs.firebase.messaging.ktx)
+    "playImplementation"(libs.firebase.messaging)
 
     // In-app browser (Custom Tabs)
     implementation(libs.androidx.browser)
