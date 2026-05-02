@@ -210,7 +210,7 @@ class AnnouncementsViewModel @Inject constructor(
     fun loadMoreIfNeeded(item: BulletinSummary) {
         val s = _state.value
         if (!s.hasMore || s.isPaginating) return
-        val tail = s.filtered.takeLast(5).map { it.id }
+        val tail = s.displayed.takeLast(5).map { it.id }
         if (item.id !in tail) return
         val cursor = nextCursor ?: return
         prefetch?.cancel()
