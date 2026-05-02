@@ -99,6 +99,9 @@ class BulletinApiClient @Inject constructor(
             if (!response.isSuccessful) {
                 throw BulletinApiException("subscriptions PUT failed: HTTP ${response.code}")
             }
+            // Gson throws JsonSyntaxException on "" instead of returning null,
+            // so the null branch alone wouldn't surface our message.
+            if (text.isBlank()) throw BulletinApiException("subscriptions PUT: empty body")
             gson.fromJson(text, SubscriptionsResponse::class.java)
                 ?: throw BulletinApiException("subscriptions PUT: empty body")
         }
@@ -113,6 +116,9 @@ class BulletinApiClient @Inject constructor(
                 if (!response.isSuccessful) {
                     throw BulletinApiException("GET $url failed: HTTP ${response.code}")
                 }
+                // Gson throws JsonSyntaxException on "" instead of returning
+                // null, so the null branch alone wouldn't surface our message.
+                if (text.isBlank()) throw BulletinApiException("GET $url: empty body")
                 gson.fromJson(text, T::class.java)
                     ?: throw BulletinApiException("GET $url: empty body")
             }

@@ -63,6 +63,9 @@ class PushApiClient @Inject constructor(
                 if (!response.isSuccessful) {
                     throw PushApiException("register failed: HTTP ${response.code} $text")
                 }
+                // Gson throws JsonSyntaxException on "" instead of returning
+                // null, so the null branch alone wouldn't surface our message.
+                if (text.isBlank()) throw PushApiException("register: empty body")
                 gson.fromJson(text, DeviceRegisterResponse::class.java)
                     ?: throw PushApiException("register: empty body")
             }

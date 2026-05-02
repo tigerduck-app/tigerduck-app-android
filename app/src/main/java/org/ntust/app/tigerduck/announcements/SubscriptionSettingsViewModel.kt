@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -155,6 +156,13 @@ class SubscriptionSettingsViewModel @Inject constructor(
     private fun save() {
         saveJob?.cancel()
         saveJob = viewModelScope.launch {
+            // Coalesce rapid edits into a single PUT. Cancelling the coroutine
+            // does NOT abort an in-flight OkHttp call (execute() is a blocking
+            // I/O call; the cancel only fires once it returns), so two
+            // back-to-back edits would race on the wire and the older PUT
+            // could land last, leaving server state stale. The delay lets the
+            // cancel-on-relaunch land before any request is sent.
+            delay(SAVE_DEBOUNCE_MS)
             // updateAndGet pins the rules snapshot atomically with the
             // Saving flip so a concurrent upsert/delete can't shrink the PUT
             // body between the state read and the network call, which would
@@ -177,5 +185,9 @@ class SubscriptionSettingsViewModel @Inject constructor(
 
     fun clearSaveState() {
         _state.update { it.copy(saveState = SaveState.Idle) }
+    }
+
+    companion object {
+        private const val SAVE_DEBOUNCE_MS = 300L
     }
 }
