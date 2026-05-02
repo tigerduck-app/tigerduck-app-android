@@ -11,12 +11,15 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -78,8 +81,10 @@ fun LoginSheet(
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(usernameFocusRequester),
+                        .focusRequester(usernameFocusRequester)
+                        .semantics { contentType = ContentType.Username },
                     keyboardOptions = KeyboardOptions(
+                        autoCorrectEnabled = false,
                         capitalization = if (uppercaseInput) KeyboardCapitalization.Characters
                             else KeyboardCapitalization.None,
                         keyboardType = KeyboardType.Ascii,
@@ -98,10 +103,11 @@ fun LoginSheet(
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(passwordFocusRequester),
+                        .focusRequester(passwordFocusRequester)
+                        .semantics { contentType = ContentType.Password },
                     keyboardOptions = KeyboardOptions(
                         autoCorrectEnabled = false,
-                        keyboardType = KeyboardType.Ascii,
+                        keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Go,
                     ),
                     keyboardActions = KeyboardActions(onGo = { submit() }),

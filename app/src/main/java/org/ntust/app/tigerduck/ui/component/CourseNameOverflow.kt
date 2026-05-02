@@ -1,7 +1,7 @@
 package org.ntust.app.tigerduck.ui.component
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import java.util.Locale
 
 @Composable
@@ -24,8 +24,7 @@ fun middleEllipsize(text: String, maxChars: Int): String {
 
 @Composable
 fun isEnglishUiLanguage(): Boolean {
-    val context = LocalContext.current
-    val locales = context.resources.configuration.locales
+    val locales = LocalConfiguration.current.locales
     val active = if (!locales.isEmpty) locales[0] else Locale.getDefault()
     return active.language.equals("en", ignoreCase = true)
 }

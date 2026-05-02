@@ -14,7 +14,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -80,6 +83,7 @@ fun OnboardingScreen(
                             label = { Text(stringResource(R.string.login_student_id)) },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(
+                                autoCorrectEnabled = false,
                                 capitalization = KeyboardCapitalization.Characters,
                                 keyboardType = KeyboardType.Ascii,
                                 imeAction = ImeAction.Next
@@ -87,7 +91,9 @@ fun OnboardingScreen(
                             keyboardActions = KeyboardActions(
                                 onNext = { focusManager.moveFocus(FocusDirection.Down) }
                             ),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .semantics { contentType = ContentType.Username }
                         )
                         OutlinedTextField(
                             value = password,
@@ -97,7 +103,7 @@ fun OnboardingScreen(
                             visualTransformation = PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(
                                 autoCorrectEnabled = false,
-                                keyboardType = KeyboardType.Ascii,
+                                keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Done,
                             ),
                             keyboardActions = KeyboardActions(
@@ -108,7 +114,9 @@ fun OnboardingScreen(
                                     }
                                 }
                             ),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .semantics { contentType = ContentType.Password }
                         )
                         if (loginError != null) {
                             Text(
