@@ -238,6 +238,12 @@ class AnnouncementsViewModel @Inject constructor(
     fun setUnreadOnly(value: Boolean) =
         _state.update { withDisplayed(it.copy(unreadOnly = value)) }
 
+    fun setShowDeleted(value: Boolean) {
+        if (_state.value.showDeleted == value) return
+        _state.update { applyFilters(it.copy(showDeleted = value)) }
+        refresh()
+    }
+
     fun toggleRead(id: Int) = readState.toggleRead(id)
 
     fun markAllRead() {

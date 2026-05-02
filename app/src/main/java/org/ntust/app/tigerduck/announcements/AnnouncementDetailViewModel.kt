@@ -68,6 +68,12 @@ class AnnouncementDetailViewModel @Inject constructor(
                 val disk = cache.loadDetail(bulletinId) ?: return@launch
                 if (repository.detail(bulletinId) != null) return@launch
                 repository.putDetail(disk)
+                // Race note: this runs concurrently with refresh() below. The
+                // `current is State.Loaded` guard yields to the network result
+                // if it arrived first; if disk wins the race, refresh() will
+                // still overwrite this with the fresher payload when it
+                // resolves. Don't "fix" the early-return — the network must
+                // always be allowed to win.
                 _state.update { current ->
                     if (current is State.Loaded) current
                     else State.Loaded(disk, repository.taxonomy())

@@ -189,6 +189,12 @@ class SubscriptionSettingsViewModel @Inject constructor(
                     _state.update {
                         it.copy(rules = response.rules, saveState = SaveState.Saved)
                     }
+                } else {
+                    // Superseded: drop our Saving flag so the UI isn't stuck
+                    // on a stale spinner during the gap between this PUT
+                    // returning and the new job's debounce expiring. The new
+                    // job will re-flip Saving when it actually fires.
+                    _state.update { it.copy(saveState = SaveState.Idle) }
                 }
             } catch (e: CancellationException) {
                 // A new save() is replacing this one; reset Saving so the UI

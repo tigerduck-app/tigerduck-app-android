@@ -3,9 +3,15 @@ package org.ntust.app.tigerduck.announcements
 import android.content.Context
 import android.content.SharedPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,6 +32,12 @@ class BulletinReadStateStore @Inject constructor(
     private val lock = Any()
     private val _readIds = MutableStateFlow(loadFromPrefs())
     val readIds: StateFlow<Set<Int>> = _readIds.asStateFlow()
+
+    // Debounce per-toggle persists so a rapid series of swipes coalesces into
+    // one disk write instead of N. markAllRead/prune still persist immediately
+    // since those are batched user actions.
+    private val persistScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var pendingPersist: Job? = null
 
     fun isRead(id: Int): Boolean = id in _readIds.value
 
@@ -49,7 +61,7 @@ class BulletinReadStateStore @Inject constructor(
             val merged = current + ids
             if (merged.size == current.size) return
             _readIds.value = merged
-            persist()
+            persistNow()
         }
     }
 
@@ -60,7 +72,7 @@ class BulletinReadStateStore @Inject constructor(
             val trimmed = current.intersect(keep.toSet())
             if (trimmed.size == current.size) return
             _readIds.value = trimmed
-            persist()
+            persistNow()
         }
     }
 
@@ -68,17 +80,31 @@ class BulletinReadStateStore @Inject constructor(
         val current = _readIds.value
         if (id in current) return
         _readIds.value = current + id
-        persist()
+        persistDebounced()
     }
 
     private fun markUnreadLocked(id: Int) {
         val current = _readIds.value
         if (id !in current) return
         _readIds.value = current - id
-        persist()
+        persistDebounced()
     }
 
-    private fun persist() {
+    private fun persistDebounced() {
+        pendingPersist?.cancel()
+        pendingPersist = persistScope.launch {
+            delay(PERSIST_DEBOUNCE_MS)
+            synchronized(lock) { writeToPrefs() }
+        }
+    }
+
+    private fun persistNow() {
+        pendingPersist?.cancel()
+        pendingPersist = null
+        writeToPrefs()
+    }
+
+    private fun writeToPrefs() {
         prefs.edit()
             .putStringSet(KEY_READ_IDS, _readIds.value.map(Int::toString).toSet())
             .apply()
@@ -92,5 +118,6 @@ class BulletinReadStateStore @Inject constructor(
 
     private companion object {
         const val KEY_READ_IDS = "read_ids"
+        const val PERSIST_DEBOUNCE_MS = 300L
     }
 }
