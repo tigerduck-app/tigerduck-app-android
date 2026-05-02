@@ -55,8 +55,8 @@ jobs:
           TAG="${{ github.event.inputs.tag }}"
           mv app/build/outputs/apk/play/release/app-play-release.apk "app/build/outputs/apk/play/release/TigerDuck.apk"
           mv app/build/outputs/apk/fdroid/release/app-fdroid-release.apk "app/build/outputs/apk/fdroid/release/TigerDuck-fdroid.apk"
-          mv app/build/outputs/bundle/play/release/app-play-release.aab "app/build/outputs/bundle/play/release/TigerDuck.aab"
-          mv app/build/outputs/bundle/fdroid/release/app-fdroid-release.aab "app/build/outputs/bundle/fdroid/release/TigerDuck-fdroid.aab"
+          mv app/build/outputs/bundle/playRelease/app-play-release.aab "app/build/outputs/bundle/playRelease/TigerDuck.aab"
+          mv app/build/outputs/bundle/fdroidRelease/app-fdroid-release.aab "app/build/outputs/bundle/fdroidRelease/TigerDuck-fdroid.aab"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2
@@ -65,8 +65,8 @@ jobs:
           files: |
             app/build/outputs/apk/play/release/*.apk
             app/build/outputs/apk/fdroid/release/*.apk
-            app/build/outputs/bundle/play/release/*.aab
-            app/build/outputs/bundle/fdroid/release/*.aab
+            app/build/outputs/bundle/playRelease/*.aab
+            app/build/outputs/bundle/fdroidRelease/*.aab
 
       - name: Upload to Google Play
         uses: r0adkll/upload-google-play@935ef9c68bb393a8e6116b1575626a7f5be3a7fb # v1
@@ -75,7 +75,7 @@ jobs:
           packageName: org.ntust.app.tigerduck
           # Restrict to the play-flavor AAB; fdroid has applicationIdSuffix
           # ".fdroid" and would be rejected by the Play Console.
-          releaseFiles: app/build/outputs/bundle/play/release/*.aab
+          releaseFiles: app/build/outputs/bundle/playRelease/*.aab
           track: production
           status: inProgress
           userFraction: 0.1
