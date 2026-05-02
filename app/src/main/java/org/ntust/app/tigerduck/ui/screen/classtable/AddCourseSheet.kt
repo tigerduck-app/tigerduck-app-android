@@ -17,8 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
@@ -52,7 +52,7 @@ fun AddCourseSheet(
     onDismiss: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
@@ -105,9 +105,9 @@ fun AddCourseSheet(
                     }
                 }
                 searchResults = groupResults(raw, courseService)
-                if (searchResults.isEmpty()) errorMessage = context.getString(R.string.add_course_not_found)
+                if (searchResults.isEmpty()) errorMessage = resources.getString(R.string.add_course_not_found)
             } catch (e: Exception) {
-                errorMessage = context.getString(R.string.add_course_search_failed, e.message ?: "")
+                errorMessage = resources.getString(R.string.add_course_search_failed, e.message ?: "")
             } finally {
                 isSearching = false
             }

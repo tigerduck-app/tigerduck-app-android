@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
@@ -69,6 +70,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val sections by viewModel.sections.collectAsStateWithLifecycle()
     val allCourses by viewModel.allCourses.collectAsStateWithLifecycle()
     val upcomingAssignments by viewModel.upcomingAssignments.collectAsStateWithLifecycle()
@@ -141,7 +143,7 @@ fun HomeScreen(
 
     LaunchedEffect(viewModel) {
         viewModel.noNetworkEvent.collect {
-            snackbarHostState.showSnackbar(context.getString(R.string.error_network_unavailable))
+            snackbarHostState.showSnackbar(resources.getString(R.string.error_network_unavailable))
         }
     }
 
@@ -276,7 +278,7 @@ fun HomeScreen(
         AddSectionDialog(
             existingSections = sections,
             onAddBuiltin = { type ->
-                viewModel.addSection(type, context.getString(type.defaultTitleRes))
+                viewModel.addSection(type, resources.getString(type.defaultTitleRes))
                 showAddSectionDialog = false
             },
             onAddCustom = { title ->
