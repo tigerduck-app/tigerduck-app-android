@@ -218,6 +218,7 @@ class AnnouncementsViewModel @Inject constructor(
                 cache.save(merged)
                 if (response.nextCursor == null) readState.prune(merged.map { it.id })
             } catch (e: CancellationException) {
+                _state.update { it.copy(isPaginating = false) }
                 throw e
             } catch (_: Exception) {
                 _state.update { it.copy(isPaginating = false) }

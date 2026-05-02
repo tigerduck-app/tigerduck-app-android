@@ -50,16 +50,18 @@ import java.util.Locale
 private fun supportedLanguageTagsFromLocaleConfig(context: Context): List<String> {
     val parser = context.resources.getXml(R.xml.locales_config)
     val tags = mutableListOf<String>()
-    while (true) {
-        when (parser.next()) {
-            XmlPullParser.END_DOCUMENT -> return tags
-            XmlPullParser.START_TAG -> {
-                if (parser.name == "locale") {
-                    val tag = parser.getAttributeValue(
-                        "http://schemas.android.com/apk/res/android",
-                        "name",
-                    )
-                    if (!tag.isNullOrBlank()) tags.add(tag)
+    parser.use {
+        while (true) {
+            when (parser.next()) {
+                XmlPullParser.END_DOCUMENT -> return tags
+                XmlPullParser.START_TAG -> {
+                    if (parser.name == "locale") {
+                        val tag = parser.getAttributeValue(
+                            "http://schemas.android.com/apk/res/android",
+                            "name",
+                        )
+                        if (!tag.isNullOrBlank()) tags.add(tag)
+                    }
                 }
             }
         }

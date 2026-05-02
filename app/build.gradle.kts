@@ -273,7 +273,9 @@ val copyGeneratedAndroidLocalizations by tasks.registering(Copy::class) {
     }
 }
 
-tasks.named("preBuild") {
-    dependsOn(syncLocalizations)
-    dependsOn(copyGeneratedAndroidLocalizations)
+if (providers.gradleProperty("syncLocalizations").isPresent) {
+    tasks.named("preBuild") {
+        dependsOn(syncLocalizations)
+        dependsOn(copyGeneratedAndroidLocalizations)
+    }
 }
