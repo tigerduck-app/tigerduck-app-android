@@ -11,14 +11,15 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import org.ntust.app.tigerduck.BuildConfig
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
 class BulletinApiException(message: String) : Exception(message)
 
 @Singleton
-class BulletinApiClient @Inject constructor() {
+class BulletinApiClient @Inject constructor(
+    baseClient: OkHttpClient,
+) {
 
     private val baseUrl = BuildConfig.PUSH_BASE_URL.trimEnd('/')
     private val sharedSecret = BuildConfig.PUSH_SHARED_SECRET
@@ -33,10 +34,7 @@ class BulletinApiClient @Inject constructor() {
         redactHeader("X-Push-Token")
     }
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
+    private val client = baseClient.newBuilder()
         .addInterceptor { chain ->
             chain.proceed(
                 chain.request().newBuilder()
