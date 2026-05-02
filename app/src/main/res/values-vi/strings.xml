@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">Ứng dụng này không phải là ứng dụng thư viện chính thức của NTUST và chưa được thư viện trường phê duyệt. Chúng tôi không thể đảm bảo hoạt động bình thường hay bất kỳ hậu quả nào của việc sử dụng.\n\nHãy sử dụng theo quyết định của riêng bạn. Mọi hậu quả tiêu cực do bạn tự chịu trách nhiệm và không liên quan đến tigerduck-app.</string>
     <string name="settings_library_warning_title">Vui lòng lưu ý!</string>
     <string name="settings_link_opening_method">Mở liên kết bằng</string>
+    <string name="settings_official_website">Trang web chính thức</string>
     <string name="settings_open_source_licenses">Giấy phép mã nguồn mở</string>
     <string name="settings_privacy_policy">Chính sách quyền riêng tư</string>
     <string name="settings_push_server_nav_label">Đẩy máy chủ (Thử nghiệm)</string>

@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">本应用程序非台科大官方图书馆应用程序，且尚未得到学校图书馆认可，无法保证各项功能的正常使用及其他相关使用后果。\n\n如需使用请谨慎。若使用后产生任何负面结果，需自负责任，且与 tigerduck-app 一律无关！</string>
     <string name="settings_library_warning_title">请注意！</string>
     <string name="settings_link_opening_method">打开链接方式</string>
+    <string name="settings_official_website">官网</string>
     <string name="settings_open_source_licenses">开源授权</string>
     <string name="settings_privacy_policy">隐私权政策</string>
     <string name="settings_push_server_nav_label">服务器推送（实验性）</string>

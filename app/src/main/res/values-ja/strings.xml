@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">本アプリは NTUST 公式の図書館アプリではなく、学校図書館の認可も得ていません。各機能の正常動作および使用結果について保証することはできません。\n\nご利用は慎重にお願いします。利用後に発生したいかなる悪影響についてもご自身の責任となり、tigerduck-app とは一切関係ありません。</string>
     <string name="settings_library_warning_title">ご注意ください！</string>
     <string name="settings_link_opening_method">リンクを開く方法</string>
+    <string name="settings_official_website">公式ウェブサイト</string>
     <string name="settings_open_source_licenses">オープンソースライセンス</string>
     <string name="settings_privacy_policy">プライバシーポリシー</string>
     <string name="settings_push_server_nav_label">サーバープッシュ（試験的）</string>

@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">Tämä sovellus ei ole virallinen NTUST-kirjastosovellus eikä koulun kirjasto ole hyväksynyt sitä. Emme voi taata normaalia toimintaa tai käytön seurauksia.\n\nKäytä omalla harkinnalla. Mahdolliset negatiiviset seuraukset ovat omalla vastuullasi eivätkä liity tigerduck-app-sovellukseen.</string>
     <string name="settings_library_warning_title">Huomio!</string>
     <string name="settings_link_opening_method">Avaa linkit</string>
+    <string name="settings_official_website">Virallinen verkkosivusto</string>
     <string name="settings_open_source_licenses">Avoimen lähdekoodin lisenssit</string>
     <string name="settings_privacy_policy">Tietosuojakäytäntö</string>
     <string name="settings_push_server_nav_label">Palvelimen push (kokeellinen)</string>

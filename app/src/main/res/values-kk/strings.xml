@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">Бұл қолданба NTUST-тің ресми кітапхана қолданбасы емес және мектеп кітапханасы мақұлдамаған. Қалыпты жұмысты немесе пайдалану салдарын кепілдендіре алмаймыз.\n\nОз қалауыңызша пайдаланыңыз. Кез келген теріс нәтижелер сіздің жауапкершілігіңізде болады және tigerduck-app-қа қатысы жоқ.</string>
     <string name="settings_library_warning_title">Назар аударыңыз!</string>
     <string name="settings_link_opening_method">Сілтемелерді ашу</string>
+    <string name="settings_official_website">Ресми веб-сайт</string>
     <string name="settings_open_source_licenses">Ашық бастапқы лицензиялар</string>
     <string name="settings_privacy_policy">Құпиялылық саясаты</string>
     <string name="settings_push_server_nav_label">Серверді итеру (Эксперименталды)</string>

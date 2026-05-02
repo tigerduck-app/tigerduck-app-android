@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">این برنامه یک برنامه رسمی کتابخانه NTUST نیست و مورد تأیید کتابخانه دانشگاه قرار نگرفته است. ما عملکرد عادی یا هر پیامدی از استفاده را تضمین نمی‌کنیم.\n\nمسئولیت استفاده با خود شماست. هر نتیجه منفی بر عهده شماست و هیچ ارتباطی با tigerduck-app ندارد.</string>
     <string name="settings_library_warning_title">لطفاً توجه کنید!</string>
     <string name="settings_link_opening_method">باز کردن لینک‌ها با</string>
+    <string name="settings_official_website">وب‌سایت رسمی</string>
     <string name="settings_open_source_licenses">مجوزهای متن‌باز</string>
     <string name="settings_privacy_policy">سیاست حریم خصوصی</string>
     <string name="settings_push_server_nav_label">فشار سرور (تجربی)</string>

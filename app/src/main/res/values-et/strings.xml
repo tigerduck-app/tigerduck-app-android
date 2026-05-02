@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">See rakendus ei ole NTUST-i ametlik raamatukogu rakendus ja kooli raamatukogu pole seda heaks kiitnud. Me ei saa tagada normaalset toimimist ega kasutamisest tulenevaid tagajärgi.\n\nKasutage omal vastutusel. Negatiivsed tagajärjed on teie enda vastutus ja ei ole seotud tigerduck-appiga.</string>
     <string name="settings_library_warning_title">Pange tähele!</string>
     <string name="settings_link_opening_method">Ava lingid rakendusega</string>
+    <string name="settings_official_website">Ametlik veebisait</string>
     <string name="settings_open_source_licenses">Avatud lähtekoodiga litsentsid</string>
     <string name="settings_privacy_policy">Privaatsuspoliitika</string>
     <string name="settings_push_server_nav_label">Serveri tõuge (eksperimentaalne)</string>

@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">Tato aplikace není oficiální aplikací knihovny NTUST a nebyla schválena školní knihovnou. Nemůžeme zaručit její bezproblémový provoz ani jakékoli důsledky používání.\n\nPoužívejte na vlastní uvážení. Případné negativní následky jsou vaší vlastní odpovědností a nesouvisí s tigerduck-app.</string>
     <string name="settings_library_warning_title">Upozornění!</string>
     <string name="settings_link_opening_method">Otevírat odkazy v</string>
+    <string name="settings_official_website">Oficiální web</string>
     <string name="settings_open_source_licenses">Open-source licence</string>
     <string name="settings_privacy_policy">Zásady ochrany osobních údajů</string>
     <string name="settings_push_server_nav_label">Server push (experimentální)</string>

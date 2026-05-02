@@ -371,6 +371,10 @@ fun SettingsScreen(
                 Column {
                     SettingsRow(stringResource(R.string.settings_version), appVersion)
                     HorizontalDivider()
+                    SettingsLinkRow(stringResource(R.string.settings_official_website)) {
+                        openUrl(context, "https://tigerduck.app/", browserPreference)
+                    }
+                    HorizontalDivider()
                     SettingsLinkRow(stringResource(R.string.settings_feedback_bug_report)) {
                         openUrl(context, "https://github.com/tigerduck-app/tigerduck-app-android/issues", browserPreference)
                     }

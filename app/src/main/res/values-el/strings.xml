@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">Αυτή η εφαρμογή δεν είναι επίσημη εφαρμογή βιβλιοθήκης NTUST και δεν έχει εγκριθεί από τη βιβλιοθήκη του σχολείου. Δεν μπορούμε να εγγυηθούμε κανονική λειτουργία ή οποιαδήποτε συνέπεια χρήσης.\n\nΧρησιμοποιείτε κατά την κρίση σας. Τυχόν αρνητικά αποτελέσματα είναι δική σας ευθύνη και δεν σχετίζονται με το tigerduck-app.</string>
     <string name="settings_library_warning_title">Παρακαλώ σημειώστε!</string>
     <string name="settings_link_opening_method">Άνοιγμα συνδέσμων με</string>
+    <string name="settings_official_website">Επίσημος ιστότοπος</string>
     <string name="settings_open_source_licenses">Άδειες ανοιχτού κώδικα</string>
     <string name="settings_privacy_policy">Πολιτική απορρήτου</string>
     <string name="settings_push_server_nav_label">Push διακομιστή (Πειραματικό)</string>

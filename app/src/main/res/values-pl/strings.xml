@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">Ta aplikacja nie jest oficjalną aplikacją biblioteki NTUST i nie została zatwierdzona przez bibliotekę uczelnianą. Nie możemy zagwarantować poprawnego działania ani jakichkolwiek skutków korzystania z niej.\n\nKorzystanie odbywa się na własne ryzyko. Wszelkie negatywne skutki są wyłączną odpowiedzialnością użytkownika i nie mają związku z tigerduck-app.</string>
     <string name="settings_library_warning_title">Uwaga!</string>
     <string name="settings_link_opening_method">Otwieraj linki w</string>
+    <string name="settings_official_website">Oficjalna strona</string>
     <string name="settings_open_source_licenses">Licencje open source</string>
     <string name="settings_privacy_policy">Polityka prywatności</string>
     <string name="settings_push_server_nav_label">Push serwera (eksperymentalne)</string>

@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">Aquesta aplicació no és l\'aplicació oficial de la biblioteca de NTUST i no ha estat aprovada per la biblioteca de l\'escola. No podem garantir el funcionament normal ni les conseqüències de l\'ús.\n\nUseu-la a criteri propi. Qualsevol resultat negatiu és responsabilitat vostra i no té relació amb tigerduck-app.</string>
     <string name="settings_library_warning_title">Atenció!</string>
     <string name="settings_link_opening_method">Obriu els enllaços amb</string>
+    <string name="settings_official_website">Lloc web oficial</string>
     <string name="settings_open_source_licenses">Llicències de codi obert</string>
     <string name="settings_privacy_policy">Política de privadesa</string>
     <string name="settings_push_server_nav_label">Push del servidor (experimental)</string>

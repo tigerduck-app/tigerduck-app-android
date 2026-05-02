@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">Bu uygulama resmi bir NTUST kütüphane uygulaması değildir ve okul kütüphanesi tarafından onaylanmamıştır. Normal çalışmayı veya kullanımdan doğacak sonuçları garanti edemeyiz.\n\nKendi takdirinizle kullanın. Olumsuz sonuçların tüm sorumluluğu size aittir ve tigerduck-app ile ilgisi yoktur.</string>
     <string name="settings_library_warning_title">Lütfen dikkat!</string>
     <string name="settings_link_opening_method">Bağlantıları şununla aç</string>
+    <string name="settings_official_website">Resmi web sitesi</string>
     <string name="settings_open_source_licenses">Açık kaynak lisansları</string>
     <string name="settings_privacy_policy">Gizlilik politikası</string>
     <string name="settings_push_server_nav_label">Sunucu push (Deneysel)</string>

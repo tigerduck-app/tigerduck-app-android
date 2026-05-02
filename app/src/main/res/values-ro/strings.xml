@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">Această aplicație nu este aplicația oficială de bibliotecă NTUST și nu a fost aprobată de biblioteca școlii. Nu putem garanta funcționarea normală sau consecințele utilizării.\n\nFolosește pe propria răspundere. Orice rezultat negativ este responsabilitatea ta și nu are legătură cu tigerduck-app.</string>
     <string name="settings_library_warning_title">Atenție!</string>
     <string name="settings_link_opening_method">Deschide linkurile cu</string>
+    <string name="settings_official_website">Site web oficial</string>
     <string name="settings_open_source_licenses">Licențe open-source</string>
     <string name="settings_privacy_policy">Politică de confidențialitate</string>
     <string name="settings_push_server_nav_label">Push server (Experimental)</string>

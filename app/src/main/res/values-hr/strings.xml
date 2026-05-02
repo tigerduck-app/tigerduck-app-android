@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">Ova aplikacija nije službena NTUST aplikacija knjižnice i nije odobrena od strane školske knjižnice. Ne možemo jamčiti normalan rad niti posljedice korištenja.\n\nKoristite po vlastitoj procjeni. Za sve negativne ishode snosite osobnu odgovornost, bez veze s tigerduck-app.</string>
     <string name="settings_library_warning_title">Molimo obratite pažnju!</string>
     <string name="settings_link_opening_method">Otvaranje veza s</string>
+    <string name="settings_official_website">Službena web stranica</string>
     <string name="settings_open_source_licenses">Licence otvorenog koda</string>
     <string name="settings_privacy_policy">Pravila privatnosti</string>
     <string name="settings_push_server_nav_label">Poslužiteljski push (eksperimentalno)</string>

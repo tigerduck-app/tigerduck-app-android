@@ -451,6 +451,7 @@
     <string name="settings_library_warning_message">Ez az alkalmazás nem az NTUST könyvtár hivatalos alkalmazása, és a könyvtár nem hagyta jóvá. Nem garantálhatjuk a normál működést vagy a használat következményeit.\n\nSaját belátása szerint használja. Minden negatív következményért Ön felel, és az nem kapcsolódik a tigerduck-app alkalmazáshoz.</string>
     <string name="settings_library_warning_title">Figyelem!</string>
     <string name="settings_link_opening_method">Hivatkozások megnyitása ezzel:</string>
+    <string name="settings_official_website">Hivatalos weboldal</string>
     <string name="settings_open_source_licenses">Nyílt forráskódú licencek</string>
     <string name="settings_privacy_policy">Adatvédelmi irányelvek</string>
     <string name="settings_push_server_nav_label">Szerver push (Kísérleti)</string>
