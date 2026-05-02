@@ -7,7 +7,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -97,16 +99,21 @@ class PushRegistrationService @Inject constructor(
                 isUnregistering = true
             }
             val deviceId = identity.deviceId()
-            runCatching { api.unregister(deviceId) }
-                .onFailure { e ->
-                    if (e is CancellationException) throw e
-                    Log.w(TAG, "unregister failed", e)
+            try {
+                runCatching { api.unregister(deviceId) }
+                    .onFailure { e ->
+                        if (e is CancellationException) throw e
+                        Log.w(TAG, "unregister failed", e)
+                    }
+            } finally {
+                // Always reset state so a cancelled coroutine (e.g. test scope
+                // cancellation) can't leave isUnregistering latched true and
+                // block all future scheduleRegister() calls.
+                identity.clearUserId()
+                withContext(NonCancellable) {
+                    mutex.withLock { isUnregistering = false }
                 }
-            // Drop the cached user_id so the next FcmBootstrap.start() falls
-            // back to anon-$deviceId instead of re-registering under the
-            // signed-out user.
-            identity.clearUserId()
-            mutex.withLock { isUnregistering = false }
+            }
             updateDiagnostic {
                 PushDiagnostic(
                     hasFcmToken = false,

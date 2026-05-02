@@ -91,6 +91,12 @@ class BulletinReadStateStore @Inject constructor(
         persistDebounced()
     }
 
+    // Cancelling pendingPersist only interrupts a job that's still in delay();
+    // once it's inside synchronized(lock) in writeToPrefs(), JVM monitors are
+    // not cancellation-aware, so a superseding persistNow()/persistDebounced()
+    // can run writeToPrefs() concurrently. Both paths write the same
+    // KEY_READ_IDS via SharedPreferences.apply(), so last-write-wins on the
+    // current snapshot of _readIds is acceptable — no data is lost.
     private fun persistDebounced() {
         pendingPersist?.cancel()
         pendingPersist = persistScope.launch {

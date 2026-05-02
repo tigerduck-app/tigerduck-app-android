@@ -164,6 +164,7 @@ class AnnouncementsViewModel @Inject constructor(
             // a load spinner mid-scroll. Cap at 5 pages — anything older is
             // legitimately a "load more" tap.
             var pages = 0
+            var latest: List<BulletinSummary>? = null
             while (pages < 5 && nextCursor != null) {
                 pages++
                 delay(150)
@@ -182,12 +183,15 @@ class AnnouncementsViewModel @Inject constructor(
                 _state.update {
                     applyFilters(it.copy(items = merged, hasMore = response.nextCursor != null))
                 }
-                cache.save(merged)
+                latest = merged
                 if (response.nextCursor == null) {
                     readState.prune(merged.map { it.id })
                     break
                 }
             }
+            // Persist the final merged snapshot once when the prefetch chain
+            // settles, instead of rewriting summaries.json on every page.
+            latest?.let { cache.save(it) }
         }
     }
 
