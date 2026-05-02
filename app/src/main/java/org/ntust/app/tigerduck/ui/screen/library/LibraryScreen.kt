@@ -13,12 +13,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
@@ -154,7 +160,7 @@ fun LibraryScreen(
                 username = libUsername,
                 password = libPassword,
                 isLoggingIn = isLoggingIn,
-                onUsernameChange = { libUsername = it.uppercase() },
+                onUsernameChange = { libUsername = it.filter { ch -> !ch.isWhitespace() } },
                 // Library credentials are provisioned against an ASCII-only
                 // backend — strip anything the IME or paste inserts outside
                 // printable ASCII so silent non-ASCII chars can't poison the
@@ -316,6 +322,8 @@ private fun LoginPromptCard(
     onPasswordChange: (String) -> Unit,
     onSubmit: () -> Unit,
 ) {
+    val focusManager = LocalFocusManager.current
+    val passwordFocusRequester = remember { FocusRequester() }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -340,8 +348,9 @@ private fun LoginPromptCard(
                 value = username,
                 onValueChange = onUsernameChange,
                 label = stringResource(R.string.library_login_username),
-                capitalization = KeyboardCapitalization.Characters,
+                capitalization = KeyboardCapitalization.Sentences,
                 imeAction = ImeAction.Next,
+                onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
                 autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -351,8 +360,20 @@ private fun LoginPromptCard(
                 label = { Text(stringResource(R.string.library_login_password)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
+                trailingIcon = if (!isLoggingIn && password.isNotEmpty()) {
+                    {
+                        IconButton(onClick = { onPasswordChange("") }) {
+                            Icon(
+                                imageVector = Icons.Filled.Cancel,
+                                contentDescription = stringResource(R.string.action_clear_text),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                } else null,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .focusRequester(passwordFocusRequester)
                     .semantics { contentType = ContentType.Password },
                 // KeyboardType.Password disables the IME suggestion strip and
                 // typed-character preview. The onPasswordChange filter still
