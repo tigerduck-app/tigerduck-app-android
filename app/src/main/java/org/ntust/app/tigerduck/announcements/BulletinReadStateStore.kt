@@ -6,12 +6,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.di.ApplicationScope
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,6 +26,7 @@ import javax.inject.Singleton
 @Singleton
 class BulletinReadStateStore @Inject constructor(
     @ApplicationContext context: Context,
+    @param:ApplicationScope private val persistScope: CoroutineScope,
 ) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("bulletin_read_state", Context.MODE_PRIVATE)
@@ -36,7 +38,6 @@ class BulletinReadStateStore @Inject constructor(
     // Debounce per-toggle persists so a rapid series of swipes coalesces into
     // one disk write instead of N. markAllRead/prune still persist immediately
     // since those are batched user actions.
-    private val persistScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pendingPersist: Job? = null
 
     fun isRead(id: Int): Boolean = id in _readIds.value
@@ -94,14 +95,18 @@ class BulletinReadStateStore @Inject constructor(
         pendingPersist?.cancel()
         pendingPersist = persistScope.launch {
             delay(PERSIST_DEBOUNCE_MS)
-            synchronized(lock) { writeToPrefs() }
+            withContext(Dispatchers.IO) {
+                synchronized(lock) { writeToPrefs() }
+            }
         }
     }
 
     private fun persistNow() {
         pendingPersist?.cancel()
         pendingPersist = persistScope.launch {
-            synchronized(lock) { writeToPrefs() }
+            withContext(Dispatchers.IO) {
+                synchronized(lock) { writeToPrefs() }
+            }
         }
     }
 

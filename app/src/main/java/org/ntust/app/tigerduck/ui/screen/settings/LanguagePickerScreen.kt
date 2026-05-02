@@ -37,8 +37,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.ui.component.ContentCard
@@ -91,8 +93,11 @@ fun LanguagePickerScreen(
         configuration.locales[0] ?: Locale.getDefault()
     }
 
-    val supportedTags = remember {
-        supportedLanguageTagsFromLocaleConfig(context)
+    var supportedTags by remember { mutableStateOf(emptyList<String>()) }
+    LaunchedEffect(Unit) {
+        supportedTags = withContext(Dispatchers.IO) {
+            supportedLanguageTagsFromLocaleConfig(context)
+        }
     }
 
     val allRows = remember(currentLocale, supportedTags) {

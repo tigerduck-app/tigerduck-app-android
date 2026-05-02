@@ -68,11 +68,13 @@ class SubscriptionSettingsViewModel @Inject constructor(
     val state: StateFlow<State> = _state.asStateFlow()
 
     init {
-        viewModelScope.launch { fetchTaxonomy() }
-        load()
+        // Wire the diagnostic observer first so it's robust against future
+        // refactors that might move load() / fetchTaxonomy() above it.
         pushRegistration.diagnostic
             .onEach { d -> _state.update { it.copy(diagnostic = d) } }
             .launchIn(viewModelScope)
+        viewModelScope.launch { fetchTaxonomy() }
+        load()
     }
 
     private suspend fun fetchTaxonomy() {
