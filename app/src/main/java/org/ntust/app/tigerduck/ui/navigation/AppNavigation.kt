@@ -63,10 +63,10 @@ sealed class Screen(val route: String) {
     object ClassTable : Screen("classTable")
     object Calendar : Screen("calendar")
     object Announcements : Screen("announcements")
-    object AnnouncementDetail : Screen("announcement/{id}") {
-        fun route(id: Int) = "announcement/$id"
+    object AnnouncementDetail : Screen("announcements/detail/{id}") {
+        fun route(id: Int) = "announcements/detail/$id"
     }
-    object AnnouncementSubscriptions : Screen("announcement/subscriptions")
+    object AnnouncementSubscriptions : Screen("announcements/subscriptions")
     object Library : Screen("library")
     object Score : Screen("score")
     object More : Screen("more")

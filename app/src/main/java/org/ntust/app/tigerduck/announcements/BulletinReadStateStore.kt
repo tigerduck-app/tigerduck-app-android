@@ -32,13 +32,17 @@ class BulletinReadStateStore @Inject constructor(
     fun markRead(id: Int) {
         val before = _readIds.value
         _readIds.update { if (id in it) it else it + id }
-        if (_readIds.value !== before) persist()
+        // Structural !=, not referential: a concurrent update could race between
+        // update{} and this read and produce an equal-but-distinct reference,
+        // making !== falsely true (extra persist) — or, after a B→A revert,
+        // falsely false (silently dropped disk write). Set equality is cheap.
+        if (_readIds.value != before) persist()
     }
 
     fun markUnread(id: Int) {
         val before = _readIds.value
         _readIds.update { if (id !in it) it else it - id }
-        if (_readIds.value !== before) persist()
+        if (_readIds.value != before) persist()
     }
 
     fun toggleRead(id: Int) {
@@ -52,7 +56,7 @@ class BulletinReadStateStore @Inject constructor(
             val merged = current + incoming
             if (merged.size == current.size) current else merged
         }
-        if (_readIds.value !== before) persist()
+        if (_readIds.value != before) persist()
     }
 
     /** Drop ids that are no longer in [keep] so prefs don't grow unbounded. */
@@ -63,7 +67,7 @@ class BulletinReadStateStore @Inject constructor(
             val trimmed = current.intersect(alive)
             if (trimmed.size == current.size) current else trimmed
         }
-        if (_readIds.value !== before) persist()
+        if (_readIds.value != before) persist()
     }
 
     private fun persist() {

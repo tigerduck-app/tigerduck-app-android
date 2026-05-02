@@ -111,7 +111,7 @@ class MainActivity : AppCompatActivity() {
         val data = intent?.data ?: return null
         if (data.scheme == "tigerduck" && data.host == "announcement") {
             val id = data.lastPathSegment?.toIntOrNull() ?: return null
-            return "announcement/$id"
+            return "announcements/detail/$id"
         }
         return null
     }

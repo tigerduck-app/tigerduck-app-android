@@ -126,8 +126,14 @@ class AnnouncementsViewModel @Inject constructor(
                     )
                 }
                 cache.save(merged)
-                readState.prune(merged.map { it.id })
-                if (response.nextCursor != null) startBackgroundPrefetch()
+                // Only prune when the cursor chain is exhausted — pruning on the
+                // first page would drop read-IDs for older bulletins not yet
+                // fetched (e.g., after Auto Backup restore on reinstall).
+                if (response.nextCursor == null) {
+                    readState.prune(merged.map { it.id })
+                } else {
+                    startBackgroundPrefetch()
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -161,7 +167,10 @@ class AnnouncementsViewModel @Inject constructor(
                     applyFilters(it.copy(items = merged, hasMore = response.nextCursor != null))
                 }
                 cache.save(merged)
-                if (response.nextCursor == null) break
+                if (response.nextCursor == null) {
+                    readState.prune(merged.map { it.id })
+                    break
+                }
             }
         }
     }
@@ -190,6 +199,7 @@ class AnnouncementsViewModel @Inject constructor(
                     )
                 }
                 cache.save(merged)
+                if (response.nextCursor == null) readState.prune(merged.map { it.id })
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {

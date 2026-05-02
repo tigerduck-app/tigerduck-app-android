@@ -34,25 +34,34 @@ class BulletinApiClient @Inject constructor(
         redactHeader("X-Push-Token")
     }
 
+    private val acceptInterceptor = okhttp3.Interceptor { chain ->
+        chain.proceed(
+            chain.request().newBuilder()
+                .header("Accept", "application/json")
+                .build()
+        )
+    }
+
+    private val authInterceptor = okhttp3.Interceptor { chain ->
+        val req = if (sharedSecret.isNotEmpty()) {
+            chain.request().newBuilder().header("X-Push-Token", sharedSecret).build()
+        } else chain.request()
+        chain.proceed(req)
+    }
+
     private val client = baseClient.newBuilder()
-        .addInterceptor { chain ->
-            chain.proceed(
-                chain.request().newBuilder()
-                    .header("Accept", "application/json")
-                    .build()
-            )
-        }
+        .addInterceptor(acceptInterceptor)
         .addInterceptor(logging)
         .build()
 
+    // Auth interceptor must be added BEFORE logging so the X-Push-Token header
+    // is present when the logger sees the request — otherwise redactHeader is
+    // a no-op (the header is added downstream and never passes the logger).
     private val authedClient: OkHttpClient by lazy {
-        client.newBuilder()
-            .addInterceptor { chain ->
-                val req = if (sharedSecret.isNotEmpty()) {
-                    chain.request().newBuilder().header("X-Push-Token", sharedSecret).build()
-                } else chain.request()
-                chain.proceed(req)
-            }
+        baseClient.newBuilder()
+            .addInterceptor(acceptInterceptor)
+            .addInterceptor(authInterceptor)
+            .addInterceptor(logging)
             .build()
     }
 
