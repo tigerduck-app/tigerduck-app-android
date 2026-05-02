@@ -7,6 +7,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
@@ -80,9 +82,11 @@ fun OnboardingScreen(
                     ) {
                         OutlinedAccountIdField(
                             value = studentId,
-                            onValueChange = { studentId = it.uppercase() },
+                            onValueChange = { raw ->
+                                studentId = raw.filter { ch -> !ch.isWhitespace() }.uppercase()
+                            },
                             label = stringResource(R.string.login_student_id),
-                            capitalization = KeyboardCapitalization.Characters,
+                            capitalization = KeyboardCapitalization.Sentences,
                             imeAction = ImeAction.Next,
                             onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
                             autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
@@ -94,6 +98,18 @@ fun OnboardingScreen(
                             label = { Text(stringResource(R.string.login_password)) },
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation(),
+                            trailingIcon = if (!isLoggingIn && password.isNotEmpty()) {
+                                {
+                                    IconButton(onClick = { password = "" }) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Cancel,
+                                            contentDescription = stringResource(R.string.action_clear_text),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            } else null,
+                            enabled = !isLoggingIn,
                             keyboardOptions = KeyboardOptions(
                                 autoCorrectEnabled = false,
                                 keyboardType = KeyboardType.Password,
