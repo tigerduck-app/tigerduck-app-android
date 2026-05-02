@@ -39,6 +39,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
     private val api: BulletinApiClient,
     private val identity: PushIdentity,
     private val pushRegistration: PushRegistrationService,
+    private val repository: BulletinRepository,
     val systemPermissions: SystemPermissions,
 ) : ViewModel() {
 
@@ -75,8 +76,10 @@ class SubscriptionSettingsViewModel @Inject constructor(
     }
 
     private suspend fun fetchTaxonomy() {
-        runCatching { api.fetchTaxonomy() }
-            .onSuccess { tax -> _state.update { it.copy(taxonomy = tax) } }
+        val tax = repository.getOrFetchTaxonomy {
+            runCatching { api.fetchTaxonomy() }.getOrNull()
+        } ?: return
+        _state.update { it.copy(taxonomy = tax) }
     }
 
     private var loadJob: Job? = null

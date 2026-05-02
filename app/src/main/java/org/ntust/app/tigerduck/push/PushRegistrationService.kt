@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -97,7 +98,10 @@ class PushRegistrationService @Inject constructor(
             }
             val deviceId = identity.deviceId()
             runCatching { api.unregister(deviceId) }
-                .onFailure { Log.w(TAG, "unregister failed", it) }
+                .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    Log.w(TAG, "unregister failed", e)
+                }
             // Drop the cached user_id so the next FcmBootstrap.start() falls
             // back to anon-$deviceId instead of re-registering under the
             // signed-out user.
