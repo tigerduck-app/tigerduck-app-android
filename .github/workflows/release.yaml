@@ -38,9 +38,8 @@ jobs:
 
       - name: Rename build outputs
         run: |
-          VERSION=$(echo "${GITHUB_REF_NAME#v}" | tr '.' '_')
-          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/TigerDuck_v${VERSION}.apk"
-          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/TigerDuck_v${VERSION}.aab"
+          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/TigerDuck.apk"
+          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/TigerDuck.aab"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2
