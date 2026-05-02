@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Suivre le système (Anglais de secours)</string>
     <string name="settings_language_traditional_chinese">Chinois traditionnel</string>
     <string name="settings_library_account_subtitle">Le mot de passe peut différer de celui du système universitaire ; par défaut, il s\'agit de votre numéro de carte d\'identité</string>
-    <string name="settings_library_feature_disabled_message">Activez d\'abord « Bibliothèque et fonctionnalités associées » dans « Autres fonctionnalités », puis utilisez le raccourci QR de la bibliothèque.</string>
+    <string name="settings_library_feature_disabled_message">Activez d\'abord « Bibliothèque et fonctionnalités associées » dans « Autres paramètres », puis utilisez le raccourci QR de la bibliothèque.</string>
     <string name="settings_library_feature_disabled_title">La fonctionnalité Bibliothèque est désactivée</string>
     <string name="settings_library_related_features">Bibliothèque et fonctionnalités associées</string>
     <string name="settings_library_warning_confirm">J\'accepte le risque</string>

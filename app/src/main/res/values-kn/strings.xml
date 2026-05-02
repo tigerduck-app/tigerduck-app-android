@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">ಸಿಸ್ಟಂ ಅನುಸರಿಸಿ (ಫಾಲ್‌ಬ್ಯಾಕ್ ಇಂಗ್ಲಿಷ್)</string>
     <string name="settings_language_traditional_chinese">ಸಾಂಪ್ರದಾಯಿಕ ಚೀನೀ</string>
     <string name="settings_library_account_subtitle">ಪಾಸ್‌ವರ್ಡ್ ಶಾಲಾ ವ್ಯವಸ್ಥೆಯಿಂದ ಭಿನ್ನವಾಗಿರಬಹುದು; ಡೀಫಾಲ್ಟ್ ರಾಷ್ಟ್ರೀಯ ID ಸಂಖ್ಯೆ</string>
-    <string name="settings_library_feature_disabled_message">\"ಇತರ ವೈಶಿಷ್ಟ್ಯಗಳು\"ದ ಅಡಿಯಲ್ಲಿ \"ಗ್ರಂಥಾಲಯ ಮತ್ತು ಸಂಬಂಧಿತ ವೈಶಿಷ್ಟ್ಯಗಳು\" ಮೊದಲು ಸಕ್ರಿಯಗೊಳಿಸಿ, ನಂತರ ಗ್ರಂಥಾಲಯ QR ಶಾರ್ಟ್‌ಕಟ್ ಬಳಸಿ.</string>
+    <string name="settings_library_feature_disabled_message">\"ಇತರ ಸೆಟ್ಟಿಂಗ್‌ಗಳು\"ದ ಅಡಿಯಲ್ಲಿ \"ಗ್ರಂಥಾಲಯ ಮತ್ತು ಸಂಬಂಧಿತ ವೈಶಿಷ್ಟ್ಯಗಳು\" ಮೊದಲು ಸಕ್ರಿಯಗೊಳಿಸಿ, ನಂತರ ಗ್ರಂಥಾಲಯ QR ಶಾರ್ಟ್‌ಕಟ್ ಬಳಸಿ.</string>
     <string name="settings_library_feature_disabled_title">ಗ್ರಂಥಾಲಯ ವೈಶಿಷ್ಟ್ಯ ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಲಾಗಿದೆ</string>
     <string name="settings_library_related_features">ಗ್ರಂಥಾಲಯ ಮತ್ತು ಸಂಬಂಧಿತ ವೈಶಿಷ್ಟ್ಯಗಳು</string>
     <string name="settings_library_warning_confirm">ಅಪಾಯ ಒಪ್ಪುತ್ತೇನೆ</string>

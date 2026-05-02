@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Systeem volgen (Reserve Engels)</string>
     <string name="settings_language_traditional_chinese">Traditioneel Chinees</string>
     <string name="settings_library_account_subtitle">Wachtwoord kan afwijken van het studentenportaal; standaard je nationale ID-nummer</string>
-    <string name="settings_library_feature_disabled_message">Schakel eerst \"Bibliotheek en gerelateerde functies\" in onder \"Overige functies\" en gebruik daarna de bibliotheek QR-snelkoppeling.</string>
+    <string name="settings_library_feature_disabled_message">Schakel eerst \"Bibliotheek en gerelateerde functies\" in onder \"Overige instellingen\" en gebruik daarna de bibliotheek QR-snelkoppeling.</string>
     <string name="settings_library_feature_disabled_title">Bibliotheekfunctie is uitgeschakeld</string>
     <string name="settings_library_related_features">Bibliotheek en gerelateerde functies</string>
     <string name="settings_library_warning_confirm">Ik aanvaard het risico</string>

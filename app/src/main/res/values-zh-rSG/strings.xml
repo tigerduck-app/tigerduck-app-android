@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">跟随系统（备用英文）</string>
     <string name="settings_language_traditional_chinese">繁体中文</string>
     <string name="settings_library_account_subtitle">密码可能与校务系统不同，缺省为身分证字号</string>
-    <string name="settings_library_feature_disabled_message">请先在下方「其他功能」中打开「图书馆及相关功能」后，再使用图书馆 QR 捷径。</string>
+    <string name="settings_library_feature_disabled_message">请先在下方「其他设置」中打开「图书馆及相关功能」后，再使用图书馆 QR 捷径。</string>
     <string name="settings_library_feature_disabled_title">图书馆功能未激活</string>
     <string name="settings_library_related_features">图书馆及相关功能</string>
     <string name="settings_library_warning_confirm">我愿意自负后果</string>

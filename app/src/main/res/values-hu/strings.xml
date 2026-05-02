@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Rendszer szerint (tartalék: angol)</string>
     <string name="settings_language_traditional_chinese">Hagyományos kínai</string>
     <string name="settings_library_account_subtitle">A jelszó eltérhet a tanulmányi rendszerétől; alapértelmezés szerint a személyi azonosítószáma</string>
-    <string name="settings_library_feature_disabled_message">Először engedélyezze a \"Könyvtár és kapcsolódó funkciók\" opciót az \"Egyéb funkciók\" alatt, majd használja a könyvtári QR-kód parancsikont.</string>
+    <string name="settings_library_feature_disabled_message">Először engedélyezze a \"Könyvtár és kapcsolódó funkciók\" opciót az \"Egyéb beállítások\" alatt, majd használja a könyvtári QR-kód parancsikont.</string>
     <string name="settings_library_feature_disabled_title">A könyvtári funkció le van tiltva</string>
     <string name="settings_library_related_features">Könyvtár és kapcsolódó funkciók</string>
     <string name="settings_library_warning_confirm">Elfogadom a kockázatot</string>

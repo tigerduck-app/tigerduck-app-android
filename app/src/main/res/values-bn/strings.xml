@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">সিস্টেম অনুসরণ করুন (ফলব্যাক ইংরেজি)</string>
     <string name="settings_language_traditional_chinese">ঐতিহ্যবাহী চীনা</string>
     <string name="settings_library_account_subtitle">পাসওয়ার্ড একাডেমিক সিস্টেম থেকে আলাদা হতে পারে; ডিফল্টভাবে আপনার জাতীয় পরিচয় নম্বর</string>
-    <string name="settings_library_feature_disabled_message">প্রথমে \"অন্যান্য ফিচার\"-এ \"লাইব্রেরি ও সম্পর্কিত ফিচার\" চালু করুন, তারপর লাইব্রেরি QR শর্টকাট ব্যবহার করুন।</string>
+    <string name="settings_library_feature_disabled_message">প্রথমে \"অন্যান্য সেটিংস\"-এ \"লাইব্রেরি ও সম্পর্কিত ফিচার\" চালু করুন, তারপর লাইব্রেরি QR শর্টকাট ব্যবহার করুন।</string>
     <string name="settings_library_feature_disabled_title">লাইব্রেরি ফিচার অক্ষম</string>
     <string name="settings_library_related_features">লাইব্রেরি ও সম্পর্কিত ফিচার</string>
     <string name="settings_library_warning_confirm">আমি ঝুঁকি গ্রহণ করছি</string>

@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">システムに従う（フォールバックは英語）</string>
     <string name="settings_language_traditional_chinese">繁體中文</string>
     <string name="settings_library_account_subtitle">パスワードは校務システムと異なる場合があります。デフォルトは身分証番号です</string>
-    <string name="settings_library_feature_disabled_message">まず「その他の機能」の「図書館および関連機能」を有効にしてから、図書館 QR ショートカットを使用してください。</string>
+    <string name="settings_library_feature_disabled_message">まず「その他の設定」の「図書館および関連機能」を有効にしてから、図書館 QR ショートカットを使用してください。</string>
     <string name="settings_library_feature_disabled_title">図書館機能は無効です</string>
     <string name="settings_library_related_features">図書館および関連機能</string>
     <string name="settings_library_warning_confirm">リスクを承知のうえで利用します</string>

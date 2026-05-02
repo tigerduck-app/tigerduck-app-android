@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Seguir o sistema (Inglês como reserva)</string>
     <string name="settings_language_traditional_chinese">Chinês tradicional</string>
     <string name="settings_library_account_subtitle">A palavra-passe pode ser diferente da do sistema académico; por predefinição é o número do bilhete de identidade</string>
-    <string name="settings_library_feature_disabled_message">Ativa primeiro \"Biblioteca e funcionalidades relacionadas\" em \"Outras funcionalidades\" e, depois, usa o atalho QR da biblioteca.</string>
+    <string name="settings_library_feature_disabled_message">Ativa primeiro \"Biblioteca e funcionalidades relacionadas\" em \"Outras definições\" e, depois, usa o atalho QR da biblioteca.</string>
     <string name="settings_library_feature_disabled_title">A funcionalidade da biblioteca está desativada</string>
     <string name="settings_library_related_features">Biblioteca e funcionalidades relacionadas</string>
     <string name="settings_library_warning_confirm">Aceito o risco</string>

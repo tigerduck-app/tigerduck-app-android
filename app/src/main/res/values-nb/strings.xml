@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Følg system (reserve: engelsk)</string>
     <string name="settings_language_traditional_chinese">Tradisjonell kinesisk</string>
     <string name="settings_library_account_subtitle">Passordet kan avvike fra studentportalen; standard er ditt nasjonale ID-nummer</string>
-    <string name="settings_library_feature_disabled_message">Aktiver «Bibliotek og relaterte funksjoner» under «Andre funksjoner» først, og bruk deretter bibliotek-QR-snarveien.</string>
+    <string name="settings_library_feature_disabled_message">Aktiver «Bibliotek og relaterte funksjoner» under «Andre innstillinger» først, og bruk deretter bibliotek-QR-snarveien.</string>
     <string name="settings_library_feature_disabled_title">Bibliotekfunksjon er deaktivert</string>
     <string name="settings_library_related_features">Bibliotek og relaterte funksjoner</string>
     <string name="settings_library_warning_confirm">Jeg aksepterer risikoen</string>

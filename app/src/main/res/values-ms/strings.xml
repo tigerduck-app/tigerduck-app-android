@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Ikut sistem (Sandaran: Inggeris)</string>
     <string name="settings_language_traditional_chinese">Cina Tradisional</string>
     <string name="settings_library_account_subtitle">Kata laluan mungkin berbeza daripada sistem akademik; lalai ialah nombor kad pengenalan anda</string>
-    <string name="settings_library_feature_disabled_message">Aktifkan \"Perpustakaan dan ciri berkaitan\" di bawah \"Ciri lain\" dahulu, kemudian gunakan pintasan Kod QR perpustakaan.</string>
+    <string name="settings_library_feature_disabled_message">Aktifkan \"Perpustakaan dan ciri berkaitan\" di bawah \"Tetapan lain\" dahulu, kemudian gunakan pintasan Kod QR perpustakaan.</string>
     <string name="settings_library_feature_disabled_title">Ciri perpustakaan dilumpuhkan</string>
     <string name="settings_library_related_features">Perpustakaan dan ciri berkaitan</string>
     <string name="settings_library_warning_confirm">Saya menerima risiko ini</string>

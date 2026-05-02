@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Sistemi takip et (Yedek: İngilizce)</string>
     <string name="settings_language_traditional_chinese">Geleneksel Çince</string>
     <string name="settings_library_account_subtitle">Parola, öğrenci bilgi sisteminden farklı olabilir; varsayılan olarak kimlik numaranızdır</string>
-    <string name="settings_library_feature_disabled_message">Önce \"Diğer özellikler\" altındaki \"Kütüphane ve ilgili özellikler\"i etkinleştirin, ardından kütüphane QR kısayolunu kullanın.</string>
+    <string name="settings_library_feature_disabled_message">Önce \"Diğer ayarlar\" altındaki \"Kütüphane ve ilgili özellikler\"i etkinleştirin, ardından kütüphane QR kısayolunu kullanın.</string>
     <string name="settings_library_feature_disabled_title">Kütüphane özelliği devre dışı</string>
     <string name="settings_library_related_features">Kütüphane ve ilgili özellikler</string>
     <string name="settings_library_warning_confirm">Riski kabul ediyorum</string>

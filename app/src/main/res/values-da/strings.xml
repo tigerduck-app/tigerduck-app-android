@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Følg system (reserve: engelsk)</string>
     <string name="settings_language_traditional_chinese">Traditionel kinesisk</string>
     <string name="settings_library_account_subtitle">Adgangskoden kan adskille sig fra studentportalen; standard er dit nationale ID-nummer</string>
-    <string name="settings_library_feature_disabled_message">Aktivér \"Bibliotek og relaterede funktioner\" under \"Andre funktioner\" først, og brug derefter biblioteks QR-kode-genvejen.</string>
+    <string name="settings_library_feature_disabled_message">Aktivér \"Bibliotek og relaterede funktioner\" under \"Andre indstillinger\" først, og brug derefter biblioteks QR-kode-genvejen.</string>
     <string name="settings_library_feature_disabled_title">Biblioteksfunktion er deaktiveret</string>
     <string name="settings_library_related_features">Bibliotek og relaterede funktioner</string>
     <string name="settings_library_warning_confirm">Jeg accepterer risikoen</string>

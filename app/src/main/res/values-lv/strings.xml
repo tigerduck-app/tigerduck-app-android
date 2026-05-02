@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Sekot sistēmai (rezerves angļu)</string>
     <string name="settings_language_traditional_chinese">Tradicionālais ķīniešu</string>
     <string name="settings_library_account_subtitle">Parole var atšķirties no akadēmiskās sistēmas; pēc noklusējuma ir personas kods</string>
-    <string name="settings_library_feature_disabled_message">Vispirms iespējojiet \"Bibliotēka un saistītās funkcijas\" sadaļā \"Citas funkcijas\", pēc tam izmantojiet bibliotēkas QR saīsni.</string>
+    <string name="settings_library_feature_disabled_message">Vispirms iespējojiet \"Bibliotēka un saistītās funkcijas\" sadaļā \"Citi iestatījumi\", pēc tam izmantojiet bibliotēkas QR saīsni.</string>
     <string name="settings_library_feature_disabled_title">Bibliotēkas funkcija ir atspējota</string>
     <string name="settings_library_related_features">Bibliotēka un saistītās funkcijas</string>
     <string name="settings_library_warning_confirm">Pieņemu risku</string>

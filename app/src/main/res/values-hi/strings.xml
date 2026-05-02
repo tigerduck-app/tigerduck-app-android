@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">सिस्टम का अनुसरण करें (फ़ॉलबैक अंग्रेज़ी)</string>
     <string name="settings_language_traditional_chinese">परंपरागत चीनी</string>
     <string name="settings_library_account_subtitle">पासवर्ड शैक्षणिक प्रणाली से अलग हो सकता है; डिफ़ॉल्ट रूप से आपका राष्ट्रीय ID नंबर है</string>
-    <string name="settings_library_feature_disabled_message">पहले \"अन्य फीचर\" के अंतर्गत \"पुस्तकालय और संबंधित फीचर\" सक्षम करें, फिर पुस्तकालय QR Code शॉर्टकट का उपयोग करें।</string>
+    <string name="settings_library_feature_disabled_message">पहले \"अन्य सेटिंग्स\" के अंतर्गत \"पुस्तकालय और संबंधित फीचर\" सक्षम करें, फिर पुस्तकालय QR Code शॉर्टकट का उपयोग करें।</string>
     <string name="settings_library_feature_disabled_title">पुस्तकालय फीचर अक्षम है</string>
     <string name="settings_library_related_features">पुस्तकालय और संबंधित फीचर</string>
     <string name="settings_library_warning_confirm">मैं जोखिम स्वीकार करता/करती हूँ</string>

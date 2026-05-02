@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">跟系統</string>
     <string name="settings_language_traditional_chinese">繁體中文</string>
     <string name="settings_library_account_subtitle">密碼可能與校務系統不同，預設為身分證字號</string>
-    <string name="settings_library_feature_disabled_message">請先在下方「其他功能」中開啟「圖書館及相關功能」後，再使用圖書館 QR 捷徑。</string>
+    <string name="settings_library_feature_disabled_message">請先在下方「其他設定」中開啟「圖書館及相關功能」後，再使用圖書館 QR 捷徑。</string>
     <string name="settings_library_feature_disabled_title">圖書館功能未啟用</string>
     <string name="settings_library_related_features">圖書館及相關功能</string>
     <string name="settings_library_warning_confirm">我願意自負後果</string>

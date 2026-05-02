@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Как в системе (резервный: английский)</string>
     <string name="settings_language_traditional_chinese">Традиционный китайский</string>
     <string name="settings_library_account_subtitle">Пароль может отличаться от пароля школьной системы; по умолчанию используется номер удостоверения личности</string>
-    <string name="settings_library_feature_disabled_message">Сначала включите «Библиотека и связанные функции» в разделе «Прочие функции», а затем используйте ярлык QR библиотеки.</string>
+    <string name="settings_library_feature_disabled_message">Сначала включите «Библиотека и связанные функции» в разделе «Прочие настройки», а затем используйте ярлык QR библиотеки.</string>
     <string name="settings_library_feature_disabled_title">Функция библиотеки отключена</string>
     <string name="settings_library_related_features">Библиотека и связанные функции</string>
     <string name="settings_library_warning_confirm">Принимаю риск</string>

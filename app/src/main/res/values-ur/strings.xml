@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">سسٹم کے مطابق (متبادل: انگریزی)</string>
     <string name="settings_language_traditional_chinese">روایتی چینی</string>
     <string name="settings_library_account_subtitle">پاس ورڈ اکیڈمک سسٹم سے مختلف ہو سکتا ہے؛ ڈیفالٹ آپ کا قومی شناختی نمبر ہے</string>
-    <string name="settings_library_feature_disabled_message">پہلے \"دیگر فیچرز\" کے تحت \"لائبریری اور متعلقہ فیچرز\" فعال کریں، پھر لائبریری QR شارٹ کٹ استعمال کریں۔</string>
+    <string name="settings_library_feature_disabled_message">پہلے \"دیگر ترتیبات\" کے تحت \"لائبریری اور متعلقہ فیچرز\" فعال کریں، پھر لائبریری QR شارٹ کٹ استعمال کریں۔</string>
     <string name="settings_library_feature_disabled_title">لائبریری فیچر بند ہے</string>
     <string name="settings_library_related_features">لائبریری اور متعلقہ فیچرز</string>
     <string name="settings_library_warning_confirm">میں خطرہ قبول کرتا ہوں</string>

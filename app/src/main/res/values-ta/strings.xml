@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">கணினியைப் பின்பற்று (மாற்று: ஆங்கிலம்)</string>
     <string name="settings_language_traditional_chinese">பாரம்பரிய சீனம்</string>
     <string name="settings_library_account_subtitle">பாஸ்வேர்ட் கல்வி அமைப்பிலிருந்து வேறுபடலாம்; இயல்புநிலை உங்கள் தேசிய அடையாள எண்</string>
-    <string name="settings_library_feature_disabled_message">நூலக QR Code குறுக்குவழியை பயன்படுத்த முதலில் \"மற்ற அம்சங்கள்\" கீழ் \"நூலகம் மற்றும் தொடர்பான அம்சங்கள்\" இயக்கவும்.</string>
+    <string name="settings_library_feature_disabled_message">நூலக QR Code குறுக்குவழியை பயன்படுத்த முதலில் \"பிற அமைப்புகள்\" கீழ் \"நூலகம் மற்றும் தொடர்பான அம்சங்கள்\" இயக்கவும்.</string>
     <string name="settings_library_feature_disabled_title">நூலக அம்சம் முடக்கப்பட்டுள்ளது</string>
     <string name="settings_library_related_features">நூலகம் மற்றும் தொடர்பான அம்சங்கள்</string>
     <string name="settings_library_warning_confirm">நான் ஆபத்தை ஏற்கிறேன்</string>

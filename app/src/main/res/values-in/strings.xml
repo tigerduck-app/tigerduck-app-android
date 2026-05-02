@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Ikuti sistem (Cadangan: Inggris)</string>
     <string name="settings_language_traditional_chinese">Tionghoa Tradisional</string>
     <string name="settings_library_account_subtitle">Kata sandi mungkin berbeda dari sistem akademik; default-nya adalah nomor KTP kamu</string>
-    <string name="settings_library_feature_disabled_message">Aktifkan \"Perpustakaan dan fitur terkait\" di bawah \"Fitur lainnya\" terlebih dahulu, lalu gunakan pintasan QR perpustakaan.</string>
+    <string name="settings_library_feature_disabled_message">Aktifkan \"Perpustakaan dan fitur terkait\" di bawah \"Pengaturan lainnya\" terlebih dahulu, lalu gunakan pintasan QR perpustakaan.</string>
     <string name="settings_library_feature_disabled_title">Fitur perpustakaan dinonaktifkan</string>
     <string name="settings_library_related_features">Perpustakaan dan fitur terkait</string>
     <string name="settings_library_warning_confirm">Saya menerima risikonya</string>

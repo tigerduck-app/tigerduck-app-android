@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Seuraa järjestelmää (varakieli: englanti)</string>
     <string name="settings_language_traditional_chinese">Perinteinen kiina</string>
     <string name="settings_library_account_subtitle">Salasana voi olla eri kuin opiskelijaportaalissa; oletuksena on henkilötunnuksesi</string>
-    <string name="settings_library_feature_disabled_message">Ota ensin käyttöön \"Kirjasto ja siihen liittyvät ominaisuudet\" kohdasta \"Muut ominaisuudet\", sitten käytä kirjaston QR-koodi-pikakuvaketta.</string>
+    <string name="settings_library_feature_disabled_message">Ota ensin käyttöön \"Kirjasto ja siihen liittyvät ominaisuudet\" kohdasta \"Muut asetukset\", sitten käytä kirjaston QR-koodi-pikakuvaketta.</string>
     <string name="settings_library_feature_disabled_title">Kirjasto-ominaisuus on poistettu käytöstä</string>
     <string name="settings_library_related_features">Kirjasto ja siihen liittyvät ominaisuudet</string>
     <string name="settings_library_warning_confirm">Hyväksyn riskin</string>

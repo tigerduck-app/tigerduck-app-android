@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">సిస్టమ్‌ను అనుసరించండి (ఫాల్‌బ్యాక్ ఇంగ్లీష్)</string>
     <string name="settings_language_traditional_chinese">సాంప్రదాయ చైనీస్</string>
     <string name="settings_library_account_subtitle">పాస్‌వర్డ్ అకాడెమిక్ సిస్టమ్ కంటే భిన్నంగా ఉండవచ్చు; డిఫాల్ట్ మీ జాతీయ ID నంబర్</string>
-    <string name="settings_library_feature_disabled_message">\'ఇతర ఫీచర్లు\' కింద \'లైబ్రరీ మరియు సంబంధిత ఫీచర్లు\' ముందు ఆన్ చేయండి, తర్వాత లైబ్రరీ QR Code షార్ట్‌కట్ వాడండి.</string>
+    <string name="settings_library_feature_disabled_message">\'ఇతర సెట్టింగులు\' కింద \'లైబ్రరీ మరియు సంబంధిత ఫీచర్లు\' ముందు ఆన్ చేయండి, తర్వాత లైబ్రరీ QR Code షార్ట్‌కట్ వాడండి.</string>
     <string name="settings_library_feature_disabled_title">లైబ్రరీ ఫీచర్ నిష్క్రియంగా ఉంది</string>
     <string name="settings_library_related_features">లైబ్రరీ మరియు సంబంధిత ఫీచర్లు</string>
     <string name="settings_library_warning_confirm">నేను రిస్క్ అంగీకరిస్తాను</string>

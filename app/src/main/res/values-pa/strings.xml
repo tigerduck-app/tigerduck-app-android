@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">ਸਿਸਟਮ ਮੁਤਾਬਕ (ਫਾਲਬੈਕ ਅੰਗਰੇਜ਼ੀ)</string>
     <string name="settings_language_traditional_chinese">ਰਵਾਇਤੀ ਚੀਨੀ</string>
     <string name="settings_library_account_subtitle">ਪਾਸਵਰਡ ਅਕਾਦਮਿਕ ਸਿਸਟਮ ਤੋਂ ਵੱਖਰਾ ਹੋ ਸਕਦਾ ਹੈ; ਡਿਫੌਲਟ ਤੁਹਾਡਾ ਰਾਸ਼ਟਰੀ ID ਨੰਬਰ ਹੈ</string>
-    <string name="settings_library_feature_disabled_message">ਪਹਿਲਾਂ \"ਹੋਰ ਫੀਚਰ\" ਵਿੱਚ \"ਲਾਇਬ੍ਰੇਰੀ ਅਤੇ ਸੰਬੰਧਿਤ ਫੀਚਰ\" ਚਾਲੂ ਕਰੋ, ਫਿਰ ਲਾਇਬ੍ਰੇਰੀ QR ਸ਼ਾਰਟਕੱਟ ਵਰਤੋ।</string>
+    <string name="settings_library_feature_disabled_message">ਪਹਿਲਾਂ \"ਹੋਰ ਸੈਟਿੰਗਾਂ\" ਵਿੱਚ \"ਲਾਇਬ੍ਰੇਰੀ ਅਤੇ ਸੰਬੰਧਿਤ ਫੀਚਰ\" ਚਾਲੂ ਕਰੋ, ਫਿਰ ਲਾਇਬ੍ਰੇਰੀ QR ਸ਼ਾਰਟਕੱਟ ਵਰਤੋ।</string>
     <string name="settings_library_feature_disabled_title">ਲਾਇਬ੍ਰੇਰੀ ਫੀਚਰ ਅਯੋਗ ਹੈ</string>
     <string name="settings_library_related_features">ਲਾਇਬ੍ਰੇਰੀ ਅਤੇ ਸੰਬੰਧਿਤ ਫੀਚਰ</string>
     <string name="settings_library_warning_confirm">ਮੈਂ ਜੋਖਮ ਸਵੀਕਾਰ ਕਰਦਾ ਹਾਂ</string>

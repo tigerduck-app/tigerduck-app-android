@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Segueix el sistema (Anglès de reserva)</string>
     <string name="settings_language_traditional_chinese">Xinès tradicional</string>
     <string name="settings_library_account_subtitle">La contrasenya pot diferir de la del sistema acadèmic; el valor predeterminat és el vostre número d\'identitat nacional</string>
-    <string name="settings_library_feature_disabled_message">Activeu primer «Biblioteca i funcions relacionades» a «Altres funcions» i, a continuació, useu la drecera QR de la biblioteca.</string>
+    <string name="settings_library_feature_disabled_message">Activeu primer «Biblioteca i funcions relacionades» a «Altres ajustos» i, a continuació, useu la drecera QR de la biblioteca.</string>
     <string name="settings_library_feature_disabled_title">La funció de biblioteca està desactivada</string>
     <string name="settings_library_related_features">Biblioteca i funcions relacionades</string>
     <string name="settings_library_warning_confirm">Accepto el risc</string>

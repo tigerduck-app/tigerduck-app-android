@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Följ systemet (Reserv: engelska)</string>
     <string name="settings_language_traditional_chinese">Traditionell kinesiska</string>
     <string name="settings_library_account_subtitle">Lösenordet kan skilja sig från studentportalen; standard är ditt nationella ID-nummer</string>
-    <string name="settings_library_feature_disabled_message">Aktivera \"Bibliotek och relaterade funktioner\" under \"Övriga funktioner\" först, och använd sedan bibliotekets QR-kod-genväg.</string>
+    <string name="settings_library_feature_disabled_message">Aktivera \"Bibliotek och relaterade funktioner\" under \"Övriga inställningar\" först, och använd sedan bibliotekets QR-kod-genväg.</string>
     <string name="settings_library_feature_disabled_title">Biblioteksfunktionen är inaktiverad</string>
     <string name="settings_library_related_features">Bibliotek och relaterade funktioner</string>
     <string name="settings_library_warning_confirm">Jag accepterar risken</string>

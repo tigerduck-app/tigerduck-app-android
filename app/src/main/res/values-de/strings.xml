@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">System folgen (Ersatz: Englisch)</string>
     <string name="settings_language_traditional_chinese">Traditionelles Chinesisch</string>
     <string name="settings_library_account_subtitle">Das Passwort kann sich vom Hochschulsystem unterscheiden; Standard ist Ihre nationale Ausweisnummer</string>
-    <string name="settings_library_feature_disabled_message">Aktivieren Sie zuerst „Bibliothek und zugehörige Funktionen“ unter „Weitere Funktionen“, dann verwenden Sie die Bibliothek-QR-Verknüpfung.</string>
+    <string name="settings_library_feature_disabled_message">Aktivieren Sie zuerst „Bibliothek und zugehörige Funktionen“ unter „Weitere Einstellungen“, dann verwenden Sie die Bibliothek-QR-Verknüpfung.</string>
     <string name="settings_library_feature_disabled_title">Bibliotheksfunktion ist deaktiviert</string>
     <string name="settings_library_related_features">Bibliothek und zugehörige Funktionen</string>
     <string name="settings_library_warning_confirm">Ich akzeptiere das Risiko</string>

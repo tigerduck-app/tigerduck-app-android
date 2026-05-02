@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Prati sustav (Rezervno engleski)</string>
     <string name="settings_language_traditional_chinese">Tradicionalni kineski</string>
     <string name="settings_library_account_subtitle">Lozinka se može razlikovati od one za akademski sustav; zadana je Vaš nacionalni identifikacijski broj</string>
-    <string name="settings_library_feature_disabled_message">Najprije omogućite „Knjižnica i srodne funkcije“ pod „Ostale funkcije“, a zatim koristite QR kod prečac knjižnice.</string>
+    <string name="settings_library_feature_disabled_message">Najprije omogućite „Knjižnica i srodne funkcije“ pod „Ostale postavke“, a zatim koristite QR kod prečac knjižnice.</string>
     <string name="settings_library_feature_disabled_title">Funkcija knjižnice je onemogućena</string>
     <string name="settings_library_related_features">Knjižnica i srodne funkcije</string>
     <string name="settings_library_warning_confirm">Prihvaćam rizik</string>

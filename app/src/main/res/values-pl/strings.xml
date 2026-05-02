@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Zgodnie z systemem (rezerwowy: angielski)</string>
     <string name="settings_language_traditional_chinese">Chiński tradycyjny</string>
     <string name="settings_library_account_subtitle">Hasło może różnić się od hasła systemu uczelnianego; domyślnie jest to numer dowodu tożsamości</string>
-    <string name="settings_library_feature_disabled_message">Najpierw włączyć „Bibliotekę i funkcje powiązane” w sekcji „Inne funkcje”, a następnie skorzystać ze skrótu QR biblioteki.</string>
+    <string name="settings_library_feature_disabled_message">Najpierw włączyć „Bibliotekę i funkcje powiązane” w sekcji „Inne ustawienia”, a następnie skorzystać ze skrótu QR biblioteki.</string>
     <string name="settings_library_feature_disabled_title">Funkcja biblioteki jest wyłączona</string>
     <string name="settings_library_related_features">Biblioteka i funkcje powiązane</string>
     <string name="settings_library_warning_confirm">Akceptuję ryzyko</string>

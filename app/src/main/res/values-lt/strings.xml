@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Pagal sistemą (atsarginė anglų)</string>
     <string name="settings_language_traditional_chinese">Tradicinė kinų</string>
     <string name="settings_library_account_subtitle">Slaptažodis gali skirtis nuo mokyklos sistemos; numatytasis – jūsų asmens kodas</string>
-    <string name="settings_library_feature_disabled_message">Pirmiausia įjunkite \"Biblioteka ir susijusios funkcijos\" skiltyje \"Kitos funkcijos\", tada naudokite bibliotekos QR spartinį.</string>
+    <string name="settings_library_feature_disabled_message">Pirmiausia įjunkite \"Biblioteka ir susijusios funkcijos\" skiltyje \"Kiti nustatymai\", tada naudokite bibliotekos QR spartinį.</string>
     <string name="settings_library_feature_disabled_title">Bibliotekos funkcija išjungta</string>
     <string name="settings_library_related_features">Biblioteka ir susijusios funkcijos</string>
     <string name="settings_library_warning_confirm">Prisiimti riziką</string>

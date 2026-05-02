@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Sundan ang sistema (Fallback Ingles)</string>
     <string name="settings_language_traditional_chinese">Traditional Chinese</string>
     <string name="settings_library_account_subtitle">Maaaring magkaiba ang password sa sistemang akademiko; ang default ay ang iyong national ID number</string>
-    <string name="settings_library_feature_disabled_message">I-enable muna ang \"Aklatan at mga kaugnay na feature\" sa ilalim ng \"Iba pang feature\", pagkatapos ay gamitin ang library QR shortcut.</string>
+    <string name="settings_library_feature_disabled_message">I-enable muna ang \"Aklatan at mga kaugnay na feature\" sa ilalim ng \"Iba pang setting\", pagkatapos ay gamitin ang library QR shortcut.</string>
     <string name="settings_library_feature_disabled_title">Naka-disable ang library feature</string>
     <string name="settings_library_related_features">Aklatan at mga kaugnay na feature</string>
     <string name="settings_library_warning_confirm">Tinatanggap ko ang panganib</string>

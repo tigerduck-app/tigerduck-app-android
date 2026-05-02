@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">ตามระบบ (ภาษาสำรอง: อังกฤษ)</string>
     <string name="settings_language_traditional_chinese">จีนตัวเต็ม</string>
     <string name="settings_library_account_subtitle">รหัสผ่านอาจแตกต่างจากระบบสารสนเทศนักศึกษา ค่าเริ่มต้นคือเลขบัตรประชาชนของคุณ</string>
-    <string name="settings_library_feature_disabled_message">เปิด \"ห้องสมุดและฟีเจอร์ที่เกี่ยวข้อง\" ใน \"ฟีเจอร์อื่นๆ\" ก่อน จากนั้นจึงใช้ทางลัด QR ห้องสมุดได้</string>
+    <string name="settings_library_feature_disabled_message">เปิด \"ห้องสมุดและฟีเจอร์ที่เกี่ยวข้อง\" ใน \"การตั้งค่าอื่นๆ\" ก่อน จากนั้นจึงใช้ทางลัด QR ห้องสมุดได้</string>
     <string name="settings_library_feature_disabled_title">ฟีเจอร์ห้องสมุดถูกปิดอยู่</string>
     <string name="settings_library_related_features">ห้องสมุดและฟีเจอร์ที่เกี่ยวข้อง</string>
     <string name="settings_library_warning_confirm">ฉันยอมรับความเสี่ยง</string>

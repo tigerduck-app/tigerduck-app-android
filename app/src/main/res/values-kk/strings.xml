@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Жүйеге сәйкес (Қор: ағылшын)</string>
     <string name="settings_language_traditional_chinese">Дәстүрлі қытайша</string>
     <string name="settings_library_account_subtitle">Құпия сөз оқу жүйесінен өзгеше болуы мүмкін; әдепкі — жеке куәлік нөмірі</string>
-    <string name="settings_library_feature_disabled_message">Алдымен «Басқа мүмкіндіктер» бөлімінде «Кітапхана және байланысты мүмкіндіктер» опциясын қосыңыз, содан кейін кітапхана QR таңбашасын пайдаланыңыз.</string>
+    <string name="settings_library_feature_disabled_message">Алдымен «Басқа параметрлер» бөлімінде «Кітапхана және байланысты мүмкіндіктер» опциясын қосыңыз, содан кейін кітапхана QR таңбашасын пайдаланыңыз.</string>
     <string name="settings_library_feature_disabled_title">Кітапхана мүмкіндігі өшірілген</string>
     <string name="settings_library_related_features">Кітапхана және байланысты мүмкіндіктер</string>
     <string name="settings_library_warning_confirm">Тәуекелді қабылдаймын</string>

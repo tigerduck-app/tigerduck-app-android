@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">اتباع النظام (الإنجليزية كلغة احتياطية)</string>
     <string name="settings_language_traditional_chinese">الصينية التقليدية</string>
     <string name="settings_library_account_subtitle">قد تختلف كلمة المرور عن النظام الأكاديمي؛ افتراضيًا هي رقم الهوية الوطنية</string>
-    <string name="settings_library_feature_disabled_message">فعّل أولًا \"المكتبة والميزات ذات الصلة\" ضمن \"ميزات أخرى\"، ثم استخدم اختصار QR Code للمكتبة.</string>
+    <string name="settings_library_feature_disabled_message">فعّل أولًا \"المكتبة والميزات ذات الصلة\" ضمن \"إعدادات أخرى\"، ثم استخدم اختصار QR Code للمكتبة.</string>
     <string name="settings_library_feature_disabled_title">ميزة المكتبة معطّلة</string>
     <string name="settings_library_related_features">المكتبة والميزات ذات الصلة</string>
     <string name="settings_library_warning_confirm">أقبل المخاطرة</string>

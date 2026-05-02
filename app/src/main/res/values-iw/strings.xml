@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">עקוב אחר המערכת (אנגלית כשפת גיבוי)</string>
     <string name="settings_language_traditional_chinese">סינית מסורתית</string>
     <string name="settings_library_account_subtitle">הסיסמה עשויה להיות שונה ממערכת אקדמית; ברירת המחדל היא מספר תעודת הזהות שלך</string>
-    <string name="settings_library_feature_disabled_message">הפעל \"ספרייה ותכונות קשורות\" תחת \"תכונות נוספות\" תחילה, ולאחר מכן השתמש בקיצור הדרך QR Code של הספרייה.</string>
+    <string name="settings_library_feature_disabled_message">הפעל \"ספרייה ותכונות קשורות\" תחת \"הגדרות נוספות\" תחילה, ולאחר מכן השתמש בקיצור הדרך QR Code של הספרייה.</string>
     <string name="settings_library_feature_disabled_title">תכונת הספרייה מושבתת</string>
     <string name="settings_library_related_features">ספרייה ותכונות קשורות</string>
     <string name="settings_library_warning_confirm">אני מקבל את הסיכון</string>

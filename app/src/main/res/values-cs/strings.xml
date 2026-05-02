@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">Podle systému (záložní angličtina)</string>
     <string name="settings_language_traditional_chinese">Tradiční čínština</string>
     <string name="settings_library_account_subtitle">Heslo se může lišit od školního systému; výchozí je vaše rodné číslo</string>
-    <string name="settings_library_feature_disabled_message">Nejprve zapněte „Knihovna a související funkce“ v sekci „Další funkce“ a poté použijte zkratku QR knihovny.</string>
+    <string name="settings_library_feature_disabled_message">Nejprve zapněte „Knihovna a související funkce“ v sekci „Další nastavení“ a poté použijte zkratku QR knihovny.</string>
     <string name="settings_library_feature_disabled_title">Funkce knihovny je vypnutá</string>
     <string name="settings_library_related_features">Knihovna a související funkce</string>
     <string name="settings_library_warning_confirm">Přijímám riziko</string>

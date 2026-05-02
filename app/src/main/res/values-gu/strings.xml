@@ -462,7 +462,7 @@
     <string name="settings_language_follow_system">સિસ્ટમ પ્રમાણે (ફોલબૅક અંગ્રેજી)</string>
     <string name="settings_language_traditional_chinese">Traditional Chinese</string>
     <string name="settings_library_account_subtitle">પાસવર્ડ શૈક્ષણિક સિસ્ટમ થી અલગ હોઈ શકે; ડિફૉલ્ટ National ID નંબર છે</string>
-    <string name="settings_library_feature_disabled_message">\"Other features\" હેઠળ \"Library and related features\" ચાલુ કરો, પછી QR Code શૉર્ટકટ ઉપયોગ કરો.</string>
+    <string name="settings_library_feature_disabled_message">\"અન્ય સેટિંગ્સ\" હેઠળ \"Library and related features\" ચાલુ કરો, પછી QR Code શૉર્ટકટ ઉપયોગ કરો.</string>
     <string name="settings_library_feature_disabled_title">લાઇબ્રેરી ફીચર બંધ છે</string>
     <string name="settings_library_related_features">લાઇબ્રેરી અને સંબંધિત ફીચર</string>
     <string name="settings_library_warning_confirm">હું જોખમ સ્વીકારું છું</string>
