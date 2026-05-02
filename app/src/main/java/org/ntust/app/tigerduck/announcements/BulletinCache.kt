@@ -89,6 +89,23 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
+    /** Delete detail files for ids no longer in [keep]. Called when the cursor
+     *  chain is exhausted so we know [keep] is the complete known set, mirroring
+     *  [BulletinReadStateStore.prune]. Per-id locks prevent racing a concurrent
+     *  saveDetail/loadDetail for the same id. */
+    suspend fun pruneDetails(keep: Set<Int>) = withContext(Dispatchers.IO) {
+        val files = detailDir.listFiles() ?: return@withContext
+        for (f in files) {
+            val id = f.nameWithoutExtension.toIntOrNull() ?: continue
+            if (id in keep) continue
+            withDetailLock(id) {
+                // Re-check existence under the lock — saveDetail may have just
+                // (re)created the file for an id that's about to be re-added.
+                if (f.exists() && id !in keep) f.delete()
+            }
+        }
+    }
+
     /** Truncating writeText leaves a partial file if the process dies mid-write,
      *  which fails JSON parse on next launch and discards the whole cache. */
     private fun writeAtomically(target: File, content: String) {

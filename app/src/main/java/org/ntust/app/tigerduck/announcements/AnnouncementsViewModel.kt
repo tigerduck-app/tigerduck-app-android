@@ -140,7 +140,9 @@ class AnnouncementsViewModel @Inject constructor(
                 // first page would drop read-IDs for older bulletins not yet
                 // fetched (e.g., after Auto Backup restore on reinstall).
                 if (response.nextCursor == null) {
-                    readState.prune(merged.map { it.id })
+                    val ids = merged.map { it.id }
+                    readState.prune(ids)
+                    cache.pruneDetails(ids.toSet())
                 } else {
                     startBackgroundPrefetch(includeDeleted)
                 }
@@ -185,7 +187,9 @@ class AnnouncementsViewModel @Inject constructor(
                 }
                 latest = merged
                 if (response.nextCursor == null) {
-                    readState.prune(merged.map { it.id })
+                    val ids = merged.map { it.id }
+                    readState.prune(ids)
+                    cache.pruneDetails(ids.toSet())
                     break
                 }
             }
@@ -220,7 +224,11 @@ class AnnouncementsViewModel @Inject constructor(
                     )
                 }
                 cache.save(merged)
-                if (response.nextCursor == null) readState.prune(merged.map { it.id })
+                if (response.nextCursor == null) {
+                    val ids = merged.map { it.id }
+                    readState.prune(ids)
+                    cache.pruneDetails(ids.toSet())
+                }
             } catch (e: CancellationException) {
                 _state.update { it.copy(isPaginating = false) }
                 throw e

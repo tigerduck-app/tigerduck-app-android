@@ -61,6 +61,7 @@ class AuthService @Inject constructor(
                 credentials.ntustPassword = password
                 _authState.value = true
                 runCatching { pushRegistration.onSignedIn(normalizedId) }
+                    .onFailure { e -> if (e is CancellationException) throw e }
             }
 
             _isLoggingIn.value = false
