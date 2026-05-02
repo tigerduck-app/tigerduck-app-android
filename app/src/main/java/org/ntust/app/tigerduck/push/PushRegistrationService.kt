@@ -143,6 +143,7 @@ class PushRegistrationService @Inject constructor(
                 )
             }
         }.onFailure { e ->
+            if (e is CancellationException) throw e
             Log.w(TAG, "register failed", e)
             updateDiagnostic { it.copy(lastError = e.message ?: e::class.java.simpleName) }
         }

@@ -217,19 +217,33 @@ fun SubscriptionSettingsScreen(
 @Composable
 private fun PushStatusCard(diagnostic: org.ntust.app.tigerduck.push.PushDiagnostic) {
     val context = LocalContext.current
-    val notificationGranted = remember {
+    fun checkNotificationGranted(): Boolean =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.POST_NOTIFICATIONS,
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         } else true
-    }
-    var permissionGranted by remember { mutableStateOf(notificationGranted) }
+
+    var permissionGranted by remember { mutableStateOf(checkNotificationGranted()) }
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> permissionGranted = granted }
+
+    // Re-check on ON_RESUME so revoking POST_NOTIFICATIONS in system settings
+    // and returning to this screen reflects the current grant, not the stale
+    // value captured on first composition.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                permissionGranted = checkNotificationGranted()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     ContentCard {
         Column(modifier = Modifier.padding(12.dp)) {
