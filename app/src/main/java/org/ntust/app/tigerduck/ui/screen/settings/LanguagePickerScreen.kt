@@ -115,18 +115,16 @@ fun LanguagePickerScreen(
         rows
     }
 
-    val filteredRows by remember(query, allRows) {
-        derivedStateOf {
-            val trimmed = query.trim()
-            if (trimmed.isEmpty()) {
-                allRows
-            } else {
-                val q = trimmed.lowercase(Locale.ROOT)
-                allRows.filter { row ->
-                    row.tag.lowercase(Locale.ROOT).contains(q) ||
-                        row.nativeName.lowercase(Locale.ROOT).contains(q) ||
-                        row.localizedName.lowercase(Locale.ROOT).contains(q)
-                }
+    val filteredRows = remember(query, allRows) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) {
+            allRows
+        } else {
+            val q = trimmed.lowercase(Locale.ROOT)
+            allRows.filter { row ->
+                row.tag.lowercase(Locale.ROOT).contains(q) ||
+                    row.nativeName.lowercase(Locale.ROOT).contains(q) ||
+                    row.localizedName.lowercase(Locale.ROOT).contains(q)
             }
         }
     }

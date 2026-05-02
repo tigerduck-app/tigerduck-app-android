@@ -225,7 +225,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     fun getOrCreateString(key: String, factory: () -> String): String {
         prefs.getString(key, null)?.let { return it }
         val created = factory()
-        prefs.edit().putString(key, created).commit()
+        prefs.edit().putString(key, created).apply()
         return created
     }
 
