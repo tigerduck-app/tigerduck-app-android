@@ -1,0 +1,25 @@
+Categories:
+  - Science & Education
+License: AGPL-3.0-only
+AuthorName: tigerduck-app
+AuthorWebSite: https://github.com/tigerduck-app
+SourceCode: https://github.com/tigerduck-app/tigerduck-app-android
+IssueTracker: https://github.com/tigerduck-app/tigerduck-app-android/issues
+
+AutoName: TigerDuck
+
+RepoType: git
+Repo: https://github.com/tigerduck-app/tigerduck-app-android.git
+
+Builds:
+  - versionName: 1.3.0-fdroid
+    versionCode: 9
+    commit: <replace with commit hash when pr to F-Droid>
+    subdir: app
+    gradle:
+      - fdroid
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 1.3.0-fdroid
+CurrentVersionCode: 9

@@ -2,6 +2,8 @@ package org.ntust.app.tigerduck.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwitchColors
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -180,6 +182,27 @@ private fun parseHexOrNull(hex: String?): Color? {
     } catch (_: IllegalArgumentException) {
         null
     }
+}
+
+// The default M3 unchecked thumb is `outline`, which collapses to near-invisible
+// dark gray on the dark track in dark mode — so we force a white thumb and a
+// neutral track. The dark unchecked track has to be noticeably darker than the
+// card surface (#3A3A3C) so the off-state still reads as a control; using
+// #39393D made it disappear into the card.
+private val SwitchUncheckedTrackLight = Color(0xFFD1D1D6)
+private val SwitchUncheckedTrackDark = Color(0xFF1C1C1E)
+
+@Composable
+fun tigerDuckSwitchColors(): SwitchColors {
+    val isDark = TigerDuckTheme.isDarkMode
+    return SwitchDefaults.colors(
+        checkedThumbColor = Color.White,
+        checkedTrackColor = MaterialTheme.colorScheme.primary,
+        checkedBorderColor = Color.Transparent,
+        uncheckedThumbColor = Color.White,
+        uncheckedTrackColor = if (isDark) SwitchUncheckedTrackDark else SwitchUncheckedTrackLight,
+        uncheckedBorderColor = Color.Transparent,
+    )
 }
 
 object ContentAlpha {

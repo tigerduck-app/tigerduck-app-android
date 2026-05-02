@@ -27,12 +27,14 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
+import java.util.LinkedHashSet
 import javax.inject.Inject
 
 @HiltViewModel
@@ -197,6 +199,33 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+        viewModelScope.launch {
+            // Language change → re-fetch so today's courses and assignment
+            // names render in the new locale.
+            prefs.appLanguageChanged.collect {
+                courseService.clearInMemoryLookupCache()
+                if (authService.authState.value) refresh()
+            }
+        }
+        viewModelScope.launch {
+            // Abbreviation toggles + Mandarin classroom display picker — pure
+            // display transforms. Re-derive names from the lookup cache so the
+            // time-slider card and today list update without a network call.
+            merge(
+                prefs.useEnglishCourseAbbreviationChanged,
+                prefs.useEnglishClassroomAbbreviationChanged,
+                prefs.classroomMandarinDisplayChanged,
+            ).collect {
+                val semester = courseService.currentSemesterCode()
+                val relabeled = courseService.relabelCoursesForCurrentAbbrSetting(
+                    semester, _allCourses.value
+                )
+                if (relabeled != _allCourses.value) {
+                    updateCoursesAndAssignments(relabeled, _allAssignments.value)
+                    dataCache.saveCourses(relabeled)
+                }
+            }
+        }
     }
 
     private var hasLoaded = false
@@ -324,44 +353,59 @@ class HomeViewModel @Inject constructor(
 
         val courseNos = courseNosDef.await()
         val moodleEnrolled = moodleEnrolledDef.await()
+        val moodleForSemester = moodleEnrolled
+            .orEmpty()
+            .filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }
+        val moodleByNo = moodleForSemester.associateBy { it.courseNo }
+        val orderedCourseNos = LinkedHashSet<String>().apply {
+            courseNos?.forEach { add(it) }
+            moodleForSemester.forEach { add(it.courseNo) }
+        }.toList()
+        val rosterCourseNos = orderedCourseNos.toSet()
 
         val coursesDef = async {
-            when {
-                courseNos == null -> null
-                courseNos.isEmpty() -> emptyList()
-                else -> courseNos.map { courseNo ->
-                    async {
-                        try {
-                            val results = courseService.lookupCourse(semester, courseNo)
-                            results.firstOrNull()?.let { r ->
-                                val schedule = courseService.mergeSchedules(
-                                    *results.map { it.node }.toTypedArray()
-                                )
-                                Course.fromSchedule(
-                                    courseNo = r.courseNo,
-                                    courseName = r.courseName,
-                                    instructor = r.courseTeacher,
-                                    credits = r.creditPoint.toIntOrNull() ?: 0,
-                                    classroom = r.classRoomNo ?: "",
-                                    enrolledCount = r.chooseStudent ?: 0,
-                                    maxCount = r.maxEnrollment,
-                                    schedule = schedule,
-                                    moodleIdNumber = "${r.semester}${r.courseNo}"
-                                )
-                            }
-                        } catch (e: Exception) {
-                            Log.e("HomeViewModel", "Failed to lookup course $courseNo", e)
-                            null
+            if (courseNos == null && moodleEnrolled == null) return@async null
+
+            if (orderedCourseNos.isEmpty()) return@async emptyList()
+
+            orderedCourseNos.map { courseNo ->
+                async {
+                    try {
+                        val results = courseService.lookupCourse(semester, courseNo)
+                        if (results.isNotEmpty()) {
+                            val r = results.first()
+                            val schedule = courseService.mergeSchedules(
+                                *results.map { it.node }.toTypedArray()
+                            )
+                            Course.fromSchedule(
+                                courseNo = r.courseNo,
+                                courseName = r.courseName,
+                                instructor = r.courseTeacher,
+                                credits = r.creditPoint.toIntOrNull() ?: 0,
+                                classroom = r.classRoomNo ?: "",
+                                enrolledCount = r.chooseStudent ?: 0,
+                                maxCount = r.maxEnrollment,
+                                schedule = schedule,
+                                moodleIdNumber = moodleByNo[courseNo]?.idnumber ?: "${r.semester}${r.courseNo}"
+                            )
+                        } else {
+                            CourseService.fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
                         }
+                    } catch (e: Exception) {
+                        Log.e("HomeViewModel", "Failed to lookup course $courseNo", e)
+                        CourseService.fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
                     }
-                }.awaitAll().filterNotNull()
-            }
+                }
+            }.awaitAll().filterNotNull()
         }
 
         val assignmentsDef = async {
             if (moodleEnrolled == null) return@async null
             try {
-                val remote = moodleService.fetchAssignments(moodleEnrolled)
+                val remote = moodleService.fetchAssignments(
+                    enrolledCourses = moodleEnrolled,
+                    rosterCourseNos = rosterCourseNos
+                )
                 // Safety net: if a transient submission-status call failed and
                 // the remote reports isCompleted=false for something we
                 // previously confirmed as submitted, don't regress the user's

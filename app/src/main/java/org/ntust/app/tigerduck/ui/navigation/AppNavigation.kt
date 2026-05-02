@@ -21,20 +21,29 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.AppConstants
 import java.time.Instant
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import androidx.navigation.navArgument
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.widget.LibraryShortcutWidget
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
+import org.ntust.app.tigerduck.announcements.AnnouncementDetailScreen
+import org.ntust.app.tigerduck.announcements.AnnouncementsScreen
+import org.ntust.app.tigerduck.announcements.SubscriptionSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarScreen
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarViewModel
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableScreen
@@ -46,8 +55,11 @@ import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
 import org.ntust.app.tigerduck.ui.screen.score.ScoreScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
+import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.SourceCodePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
 
 sealed class Screen(val route: String) {
@@ -55,21 +67,36 @@ sealed class Screen(val route: String) {
     object ClassTable : Screen("classTable")
     object Calendar : Screen("calendar")
     object Announcements : Screen("announcements")
+    object AnnouncementDetail : Screen("announcements/detail/{id}") {
+        fun route(id: Int) = "announcements/detail/$id"
+    }
+    object AnnouncementSubscriptions : Screen("announcements/subscriptions")
     object Library : Screen("library")
     object Score : Screen("score")
     object More : Screen("more")
     object Settings : Screen("settings")
     object TabEditor : Screen("tabEditor")
+    object LanguagePicker : Screen("languagePicker")
     object LiveActivitySettings : Screen("liveActivitySettings")
     object NotificationSetup : Screen("notificationSetup")
+    object SourceCodePicker : Screen("sourceCodePicker")
+    object OtherSettings : Screen("otherSettings")
 }
 
 @Composable
-fun AppNavigation(appState: AppState, widgetStartRoute: String? = null) {
+fun AppNavigation(
+    appState: AppState,
+    widgetStartRoute: String? = null,
+    onStartRouteConsumed: () -> Unit = {},
+) {
     if (!appState.hasCompletedOnboarding) {
         OnboardingScreen()
     } else {
-        MainNavigation(appState, widgetStartRoute)
+        MainNavigation(
+            appState = appState,
+            widgetStartRoute = widgetStartRoute,
+            onStartRouteConsumed = onStartRouteConsumed,
+        )
         PermissionWarningDialogHost(appState.systemPermissions)
     }
 
@@ -79,17 +106,13 @@ fun AppNavigation(appState: AppState, widgetStartRoute: String? = null) {
         // only way forward is to reset and walk through onboarding again.
         AlertDialog(
             onDismissRequest = {},
-            title = { Text("需要重新設定") },
+            title = { Text(stringResource(R.string.app_reset_required_title)) },
             text = {
-                Text(
-                    "您的登入狀態與偏好設定已無法讀取，" +
-                        "可能因為裝置升級、備份還原或儲存空間異常。\n\n" +
-                        "請點選「重新設定」以清除舊資料，然後重新登入並重新配置偏好。"
-                )
+                Text(stringResource(R.string.app_reset_required_message))
             },
             confirmButton = {
                 TextButton(onClick = { appState.performFullReset() }) {
-                    Text("重新設定")
+                    Text(stringResource(R.string.app_reset_required_action))
                 }
             },
             properties = DialogProperties(
@@ -101,7 +124,11 @@ fun AppNavigation(appState: AppState, widgetStartRoute: String? = null) {
 }
 
 @Composable
-fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
+fun MainNavigation(
+    appState: AppState,
+    widgetStartRoute: String? = null,
+    onStartRouteConsumed: () -> Unit = {},
+) {
     val navController = rememberNavController()
     LaunchedEffect(widgetStartRoute) {
         widgetStartRoute ?: return@LaunchedEffect
@@ -119,9 +146,21 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
         } else {
             widgetStartRoute
         }
+        // Cold-start path: this effect can fire in the same composition that
+        // first declares the NavHost (further down). navigate() before the
+        // graph is registered silently no-ops, so block on the first back-stack
+        // entry — which only appears once NavHost has installed its graph and
+        // routed to startDestination.
+        snapshotFlow { navController.currentBackStackEntry }
+            .filterNotNull()
+            .first()
         navController.navigate(target) {
             launchSingleTop = true
         }
+        // Consume so that re-tapping the same notification (which delivers the
+        // identical route string) re-fires this LaunchedEffect instead of
+        // being deduped by the same key.
+        onStartRouteConsumed()
     }
     // Hoist Home / ClassTable / Calendar VMs to the activity scope so they
     // exist from app open and survive tab switches. load() is called once
@@ -150,6 +189,8 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
     }
 
     val context = LocalContext.current
+    val backPressExitHint = stringResource(R.string.app_exit_confirm_toast)
+    val nonTaipeiTimezoneHint = stringResource(R.string.app_non_taipei_timezone_hint)
     val bottomItems = configuredTabs + listOf(AppFeature.MORE)
     // NavHost startDestination must not change mid-session, so freeze it on
     // first composition. popUpTo, in contrast, needs the *current* first tab
@@ -169,14 +210,33 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
             (context as? Activity)?.finish()
         } else {
             lastBackPressMs = now
-            Toast.makeText(context, "再次返回以退出應用程式", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, backPressExitHint, Toast.LENGTH_SHORT).show()
         }
     }
 
-    val isNonTaipeiTz = remember {
-        val now = Instant.now()
-        java.util.TimeZone.getDefault().getOffset(now.toEpochMilli()) !=
-            AppConstants.TAIPEI_TZ.getOffset(now.toEpochMilli())
+    // Reactive: a frozen `remember {}` would miss timezone changes while the
+    // app is backgrounded. Listen for ACTION_TIMEZONE_CHANGED so the banner
+    // appears/clears when the user travels.
+    var isNonTaipeiTz by remember { mutableStateOf(false) }
+    DisposableEffect(context) {
+        val recompute = {
+            val now = Instant.now()
+            isNonTaipeiTz = java.util.TimeZone.getDefault().getOffset(now.toEpochMilli()) !=
+                AppConstants.TAIPEI_TZ.getOffset(now.toEpochMilli())
+        }
+        recompute()
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context?, i: android.content.Intent?) {
+                recompute()
+            }
+        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            android.content.IntentFilter(android.content.Intent.ACTION_TIMEZONE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
 
     Scaffold(
@@ -184,7 +244,7 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
             Column {
                 if (isNonTaipeiTz) {
                     Text(
-                        text = "您目前不在臺灣時區，此 APP 已自動使用臺灣時區。\n請注意日期與時間，並敬祝您旅途平安！",
+                        text = nonTaipeiTimezoneHint,
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(Color(0xFFFFF3B0))
@@ -198,8 +258,16 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
                 bottomItems.forEach { feature ->
                     val route = feature.toRoute()
                     NavigationBarItem(
-                        icon = { Icon(feature.icon, contentDescription = feature.displayName) },
-                        label = { Text(feature.displayName) },
+                        icon = { Icon(feature.icon, contentDescription = stringResource(feature.displayNameRes)) },
+                        label = {
+                            Text(
+                                text = stringResource(feature.shortDisplayNameRes),
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        alwaysShowLabel = true,
                         selected = selectedTabRoute == route,
                         onClick = {
                             if (currentRoute == route) return@NavigationBarItem
@@ -236,16 +304,45 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
             composable(Screen.Calendar.route) {
                 CalendarScreen(viewModel = calendarViewModel)
             }
-            composable(Screen.Announcements.route) { PlaceholderScreen(AppFeature.ANNOUNCEMENTS) }
+            composable(Screen.Announcements.route) {
+                AnnouncementsScreen(
+                    onOpenBulletin = { id ->
+                        navController.navigate(Screen.AnnouncementDetail.route(id))
+                    },
+                    onOpenSubscriptions = {
+                        navController.navigate(Screen.AnnouncementSubscriptions.route)
+                    },
+                )
+            }
+            composable(
+                Screen.AnnouncementDetail.route,
+                arguments = listOf(navArgument("id") { type = NavType.IntType }),
+            ) {
+                AnnouncementDetailScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.AnnouncementSubscriptions.route) {
+                SubscriptionSettingsScreen(onBack = { navController.popBackStack() })
+            }
             composable(Screen.Library.route) { LibraryScreen() }
             composable(Screen.Score.route) { ScoreScreen() }
             composable(Screen.More.route) { MoreScreen(navController, appState) }
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
+                    onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
-                    onNavigateToNotificationSetup = { navController.navigate(Screen.NotificationSetup.route) },
+                    onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
                 )
+            }
+            composable(Screen.OtherSettings.route) {
+                OtherSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToNotificationSetup = { navController.navigate(Screen.NotificationSetup.route) },
+                    onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
+                )
+            }
+            composable(Screen.LanguagePicker.route) {
+                LanguagePickerScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.NotificationSetup.route) {
                 NotificationSetupScreen(onDone = { navController.popBackStack() })
@@ -258,6 +355,9 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
             }
             composable(Screen.LiveActivitySettings.route) {
                 LiveActivitySettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.SourceCodePicker.route) {
+                SourceCodePickerScreen(onBack = { navController.popBackStack() })
             }
             composable("placeholder/{feature}",
                 arguments = listOf(navArgument("feature") { type = NavType.StringType })

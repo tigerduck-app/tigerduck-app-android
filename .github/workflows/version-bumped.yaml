@@ -1,0 +1,98 @@
+name: Version bumped
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Check versionCode and versionName are bumped
+        run: |
+          set -e
+          base="origin/${{ github.base_ref }}"
+          git fetch origin "${{ github.base_ref }}" --quiet --depth=1
+
+          gradle_file="app/build.gradle.kts"
+          fdroid_file="metadata/org.ntust.app.tigerduck.fdroid.yml"
+
+          extract_gradle_code() { grep -E '^[[:space:]]*versionCode[[:space:]]*=' "$1" | head -n1 | sed -E 's/.*=[[:space:]]*([0-9]+).*/\1/'; }
+          extract_gradle_name() { grep -E '^[[:space:]]*versionName[[:space:]]*=' "$1" | head -n1 | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/'; }
+          extract_fdroid_code()    { grep -E '^[[:space:]]*-?[[:space:]]*versionCode:' "$1" | head -n1 | sed -E 's/.*versionCode:[[:space:]]*([0-9]+).*/\1/'; }
+          extract_fdroid_name()    { grep -E '^[[:space:]]*-?[[:space:]]*versionName:' "$1" | head -n1 | sed -E 's/.*versionName:[[:space:]]*"?([^"[:space:]]+)"?.*/\1/'; }
+          extract_fdroid_current_code() { grep -E '^CurrentVersionCode:' "$1" | head -n1 | sed -E 's/.*:[[:space:]]*([0-9]+).*/\1/'; }
+          extract_fdroid_current_name() { grep -E '^CurrentVersion:' "$1" | head -n1 | sed -E 's/.*:[[:space:]]*"?([^"[:space:]]+)"?.*/\1/'; }
+
+          # Semver-ish compare: returns 0 iff $1 > $2 (numeric per dot-segment, ignores -suffix).
+          version_gt() {
+            local a="${1%%-*}" b="${2%%-*}"
+            [ "$a" = "$b" ] && return 1
+            [ "$(printf '%s\n%s\n' "$a" "$b" | sort -V | tail -n1)" = "$a" ]
+          }
+
+          new_code=$(extract_gradle_code "$gradle_file")
+          new_name=$(extract_gradle_name "$gradle_file")
+          old_code=$(git show "$base:$gradle_file" | { extract_gradle_code /dev/stdin; } )
+          old_name=$(git show "$base:$gradle_file" | { extract_gradle_name /dev/stdin; } )
+
+          new_fcode=$(extract_fdroid_code "$fdroid_file")
+          new_fname=$(extract_fdroid_name "$fdroid_file")
+          new_fcur_code=$(extract_fdroid_current_code "$fdroid_file")
+          new_fcur_name=$(extract_fdroid_current_name "$fdroid_file")
+          old_fcode=$(git show "$base:$fdroid_file" | { extract_fdroid_code /dev/stdin; } )
+          old_fname=$(git show "$base:$fdroid_file" | { extract_fdroid_name /dev/stdin; } )
+          old_fcur_code=$(git show "$base:$fdroid_file" | { extract_fdroid_current_code /dev/stdin; } )
+          old_fcur_name=$(git show "$base:$fdroid_file" | { extract_fdroid_current_name /dev/stdin; } )
+
+          echo "gradle versionCode: $old_code -> $new_code"
+          echo "gradle versionName: $old_name -> $new_name"
+          echo "fdroid Builds.versionCode: $old_fcode -> $new_fcode"
+          echo "fdroid Builds.versionName: $old_fname -> $new_fname"
+          echo "fdroid CurrentVersionCode: $old_fcur_code -> $new_fcur_code"
+          echo "fdroid CurrentVersion: $old_fcur_name -> $new_fcur_name"
+
+          fail=0
+
+          if [ "$new_code" -le "$old_code" ] 2>/dev/null; then
+            echo "::error file=$gradle_file::versionCode must be bumped (current $new_code, base $old_code)"
+            fail=1
+          fi
+          if ! version_gt "$new_name" "$old_name"; then
+            echo "::error file=$gradle_file::versionName must be bumped (current $new_name, base $old_name)"
+            fail=1
+          fi
+          if [ "$new_fcode" -le "$old_fcode" ] 2>/dev/null; then
+            echo "::error file=$fdroid_file::Builds.versionCode must be bumped (current $new_fcode, base $old_fcode)"
+            fail=1
+          fi
+          if [ "$new_fcur_code" -le "$old_fcur_code" ] 2>/dev/null; then
+            echo "::error file=$fdroid_file::CurrentVersionCode must be bumped (current $new_fcur_code, base $old_fcur_code)"
+            fail=1
+          fi
+          if ! version_gt "$new_fname" "$old_fname"; then
+            echo "::error file=$fdroid_file::Builds.versionName must be bumped (current $new_fname, base $old_fname)"
+            fail=1
+          fi
+          if ! version_gt "$new_fcur_name" "$old_fcur_name"; then
+            echo "::error file=$fdroid_file::CurrentVersion must be bumped (current $new_fcur_name, base $old_fcur_name)"
+            fail=1
+          fi
+
+          # Cross-file consistency: gradle and fdroid must agree on code, and fdroid name must be "<gradle>-fdroid".
+          if [ "$new_code" != "$new_fcode" ] || [ "$new_code" != "$new_fcur_code" ]; then
+            echo "::error::versionCode mismatch: gradle=$new_code fdroid.Builds=$new_fcode fdroid.Current=$new_fcur_code"
+            fail=1
+          fi
+          expected_fname="${new_name}-fdroid"
+          if [ "$new_fname" != "$expected_fname" ] || [ "$new_fcur_name" != "$expected_fname" ]; then
+            echo "::error::versionName mismatch: expected '$expected_fname' but fdroid.Builds='$new_fname' fdroid.Current='$new_fcur_name'"
+            fail=1
+          fi
+
+          exit $fail

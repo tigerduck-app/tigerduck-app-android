@@ -14,8 +14,6 @@ object AppConstants {
         val defaultVisible = listOf("1", "2", "3", "4", "6", "7", "8", "9")
         val extended = listOf("5", "10", "A", "B", "C", "D")
         val chronologicalOrder = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "A", "B", "C", "D")
-        val weekdays = listOf("一", "二", "三", "四", "五")
-        val weekendDays = listOf("六", "日")
     }
 
     object PeriodTimes {

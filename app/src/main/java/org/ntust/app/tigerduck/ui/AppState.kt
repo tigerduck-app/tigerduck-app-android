@@ -13,6 +13,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import org.ntust.app.tigerduck.data.model.AppFeature
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.CalendarService
@@ -64,6 +65,15 @@ class AppState @Inject constructor(
             DataMigration.Outcome.NeedsUserReset -> _needsUserReset.value = true
             DataMigration.Outcome.Ok -> Unit
         }
+        // TODO: remove in a future release once unfinished features ship (or
+        // enough time has passed that no users still have these entries
+        // persisted). Strips features that were once tab-pinnable but route
+        // to a placeholder, so the bottom bar never shows a "coming soon" tab.
+        val saved = prefs.configuredTabs
+        val cleaned = saved.filterNot { it in AppFeature.unfinishedFeatures }
+        if (cleaned != saved) {
+            prefs.configuredTabs = cleaned.ifEmpty { AppFeature.defaultTabs }
+        }
     }
 
     private var hasCompletedOnboardingState by mutableStateOf(prefs.hasCompletedOnboarding)
@@ -111,6 +121,37 @@ class AppState @Inject constructor(
             prefs.showAbsoluteAssignmentTime = value
         }
 
+    private var useEnglishCourseAbbreviationState by mutableStateOf(prefs.useEnglishCourseAbbreviation)
+
+    var useEnglishCourseAbbreviation: Boolean
+        get() = useEnglishCourseAbbreviationState
+        set(value) {
+            if (useEnglishCourseAbbreviationState == value) return
+            useEnglishCourseAbbreviationState = value
+            prefs.useEnglishCourseAbbreviation = value
+        }
+
+    private var useEnglishClassroomAbbreviationState by mutableStateOf(prefs.useEnglishClassroomAbbreviation)
+
+    var useEnglishClassroomAbbreviation: Boolean
+        get() = useEnglishClassroomAbbreviationState
+        set(value) {
+            if (useEnglishClassroomAbbreviationState == value) return
+            useEnglishClassroomAbbreviationState = value
+            prefs.useEnglishClassroomAbbreviation = value
+        }
+
+    private var classroomMandarinDisplayState by mutableStateOf(prefs.classroomMandarinDisplay)
+
+    /** One of "original", "pinyin", "translated". */
+    var classroomMandarinDisplay: String
+        get() = classroomMandarinDisplayState
+        set(value) {
+            if (classroomMandarinDisplayState == value) return
+            classroomMandarinDisplayState = value
+            prefs.classroomMandarinDisplay = value
+        }
+
     private var browserPreferenceState by mutableStateOf(prefs.browserPreference)
 
     var browserPreference: String
@@ -133,6 +174,19 @@ class AppState @Inject constructor(
             widgetUpdater.requestUpdate()
         }
 
+    private var appLanguageState by mutableStateOf(prefs.appLanguage)
+
+    /** One of "system", "zh-Hant", "en". */
+    var appLanguage: String
+        get() = appLanguageState
+        set(value) {
+            val normalized = AppLanguageManager.normalize(value)
+            if (appLanguageState == normalized) return
+            appLanguageState = normalized
+            prefs.appLanguage = normalized
+            AppLanguageManager.apply(normalized)
+        }
+
     private var invertSliderDirectionState by mutableStateOf(prefs.invertSliderDirection)
 
     var invertSliderDirection: Boolean
@@ -141,6 +195,17 @@ class AppState @Inject constructor(
             if (invertSliderDirectionState == value) return
             invertSliderDirectionState = value
             prefs.invertSliderDirection = value
+        }
+
+    private var rotationModeState by mutableStateOf(prefs.rotationMode)
+
+    /** One of "auto", "enabled", "disabled". */
+    var rotationMode: String
+        get() = rotationModeState
+        set(value) {
+            if (rotationModeState == value) return
+            rotationModeState = value
+            prefs.rotationMode = value
         }
 
     private var notifyAssignmentsState by mutableStateOf(prefs.notifyAssignments)
@@ -206,9 +271,14 @@ class AppState @Inject constructor(
             hasCompletedOnboardingState = prefs.hasCompletedOnboarding
             accentColorHexState = prefs.accentColorHex
             showAbsoluteAssignmentTimeState = prefs.showAbsoluteAssignmentTime
+            useEnglishCourseAbbreviationState = prefs.useEnglishCourseAbbreviation
+            useEnglishClassroomAbbreviationState = prefs.useEnglishClassroomAbbreviation
+            classroomMandarinDisplayState = prefs.classroomMandarinDisplay
             browserPreferenceState = prefs.browserPreference
             themeModeState = prefs.themeMode
+            appLanguageState = prefs.appLanguage
             invertSliderDirectionState = prefs.invertSliderDirection
+            rotationModeState = prefs.rotationMode
             notifyAssignmentsState = prefs.notifyAssignments
             libraryFeatureEnabledState = prefs.libraryFeatureEnabled
             configuredTabsState = prefs.configuredTabs

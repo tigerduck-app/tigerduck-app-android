@@ -1,13 +1,11 @@
 package org.ntust.app.tigerduck.network
 
-import com.google.gson.Gson
-import org.ntust.app.tigerduck.data.preferences.CredentialManager
-import org.ntust.app.tigerduck.network.model.LibraryLoginRequest
-import org.ntust.app.tigerduck.network.model.LibraryLoginResponse
-import org.ntust.app.tigerduck.network.model.LibraryQRRequest
-import org.ntust.app.tigerduck.network.model.LibraryQRResponse
+import android.content.Context
 import android.util.Log
-import org.ntust.app.tigerduck.BuildConfig
+import com.google.gson.Gson
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -17,8 +15,13 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
-import javax.inject.Inject
-import javax.inject.Singleton
+import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.network.model.LibraryLoginRequest
+import org.ntust.app.tigerduck.network.model.LibraryLoginResponse
+import org.ntust.app.tigerduck.network.model.LibraryQRRequest
+import org.ntust.app.tigerduck.network.model.LibraryQRResponse
+import org.ntust.app.tigerduck.BuildConfig
 
 sealed class LibraryServiceError : Exception() {
     object CredentialsNotFound : LibraryServiceError()
@@ -28,6 +31,7 @@ sealed class LibraryServiceError : Exception() {
 
 @Singleton
 class LibraryService @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val credentials: CredentialManager
 ) {
     private val baseUrl = "https://api.lib.ntust.edu.tw/v1"
@@ -61,11 +65,13 @@ class LibraryService @Inject constructor(
 
         client.newCall(request).execute().use { response ->
             val responseBody = response.body?.string()
-                ?: throw LibraryServiceError.LoginFailed("無回應")
+                ?: throw LibraryServiceError.LoginFailed(context.getString(R.string.error_no_response))
             val loginResponse = gson.fromJson(responseBody, LibraryLoginResponse::class.java)
 
             if (loginResponse.data == null || loginResponse.error?.code?.let { it != 0 } == true) {
-                throw LibraryServiceError.LoginFailed(loginResponse.error?.message ?: "未知錯誤")
+                throw LibraryServiceError.LoginFailed(
+                    loginResponse.error?.message ?: context.getString(R.string.error_unknown)
+                )
             }
 
             credentials.libraryUsername = username
@@ -101,11 +107,13 @@ class LibraryService @Inject constructor(
 
         client.newCall(request).execute().use { response ->
             val responseBody = response.body?.string()
-                ?: throw LibraryServiceError.QRGenerationFailed("無回應")
+                ?: throw LibraryServiceError.QRGenerationFailed(context.getString(R.string.error_no_response))
             val qrResponse = gson.fromJson(responseBody, LibraryQRResponse::class.java)
 
             if (qrResponse.data == null || qrResponse.error?.code?.let { it != 0 } == true) {
-                throw LibraryServiceError.QRGenerationFailed(qrResponse.error?.message ?: "未知錯誤")
+                throw LibraryServiceError.QRGenerationFailed(
+                    qrResponse.error?.message ?: context.getString(R.string.error_unknown)
+                )
             }
             qrResponse.data
         }

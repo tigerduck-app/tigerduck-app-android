@@ -2,9 +2,11 @@ package org.ntust.app.tigerduck.ui.screen.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
@@ -76,7 +78,7 @@ class SettingsViewModel @Inject constructor(
                 libraryService.login(username, password)
                 _isLibraryLoggedIn.value = true
             } catch (e: Exception) {
-                _libLoginError.value = e.message ?: "登入失敗"
+                _libLoginError.value = e.message ?: context.getString(R.string.error_login_failed)
             } finally {
                 _libIsLoggingIn.value = false
             }
@@ -94,7 +96,13 @@ class SettingsViewModel @Inject constructor(
 
     fun cancelAllAssignmentNotifications() = notificationScheduler.cancelAllTracked()
 
+    fun clearNtustLoginError() = authService.clearLoginError()
+
     fun resetCourseColors() {
         viewModelScope.launch { courseColorStore.resetAllColors() }
+    }
+
+    fun setAppLanguage(language: String) {
+        appState.appLanguage = language
     }
 }

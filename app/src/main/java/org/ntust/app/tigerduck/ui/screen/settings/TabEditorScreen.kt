@@ -20,8 +20,10 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.ContentCard
@@ -61,15 +63,15 @@ fun TabEditorScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                title = { Text("Tab 編輯器") },
+                title = { Text(stringResource(R.string.tab_editor_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
                 actions = {
                     TextButton(onClick = { save(AppFeature.defaultTabs) }) {
-                        Text("恢復預設")
+                        Text(stringResource(R.string.tab_editor_reset_default))
                     }
                 }
             )
@@ -79,11 +81,11 @@ fun TabEditorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(bottom = 32.dp)
+            contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp)
         ) {
             // ── Section: 目前的 Tab ──
             item {
-                SectionHeader(title = "目前的 Tab")
+                SectionHeader(title = stringResource(R.string.tab_editor_section_current_tabs))
             }
 
             item {
@@ -173,14 +175,14 @@ fun TabEditorScreen(
                             )
                             Spacer(Modifier.width(12.dp))
                             Text(
-                                AppFeature.MORE.displayName,
+                                stringResource(AppFeature.MORE.displayNameRes),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                                 modifier = Modifier.weight(1f)
                             )
                             Icon(
                                 Icons.Filled.Lock,
-                                contentDescription = "固定",
+                                contentDescription = stringResource(R.string.tab_editor_locked),
                                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
                                 modifier = Modifier.size(18.dp)
                             )
@@ -191,7 +193,7 @@ fun TabEditorScreen(
 
             item {
                 Text(
-                    "底部導覽列最多 ${MAX_CUSTOM_TABS + 1} 個項目（含「更多」）。長按拖動可調整順序。",
+                    stringResource(R.string.tab_editor_max_items_hint, MAX_CUSTOM_TABS + 1),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -201,7 +203,7 @@ fun TabEditorScreen(
             // ── Section: 其他可用的 Tab ──
             if (availableTabs.isNotEmpty()) {
                 item {
-                    SectionHeader(title = "其他可用的 Tab")
+                    SectionHeader(title = stringResource(R.string.tab_editor_section_available_tabs))
                 }
 
                 item {
@@ -247,7 +249,7 @@ private fun ActiveTabRow(
         ) {
             Icon(
                 Icons.Filled.RemoveCircle,
-                contentDescription = "移除",
+                contentDescription = stringResource(R.string.action_remove),
                 tint = MaterialTheme.colorScheme.error,
                 modifier = Modifier.size(24.dp)
             )
@@ -263,7 +265,7 @@ private fun ActiveTabRow(
         )
         Spacer(Modifier.width(12.dp))
         Text(
-            feature.displayName,
+            stringResource(feature.displayNameRes),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f)
         )
@@ -286,7 +288,7 @@ private fun ActiveTabRow(
         ) {
             Icon(
                 Icons.Filled.DragHandle,
-                contentDescription = "拖動排序",
+                contentDescription = stringResource(R.string.tab_editor_drag_reorder),
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
                 modifier = Modifier.size(24.dp)
             )
@@ -314,7 +316,7 @@ private fun AvailableTabRow(
         ) {
             Icon(
                 Icons.Filled.Add,
-                contentDescription = "新增",
+                contentDescription = stringResource(R.string.action_add),
                 tint = if (canAdd) MaterialTheme.colorScheme.primary
                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
                 modifier = Modifier.size(24.dp)
@@ -331,7 +333,7 @@ private fun AvailableTabRow(
         )
         Spacer(Modifier.width(12.dp))
         Text(
-            feature.displayName,
+            stringResource(feature.displayNameRes),
             style = MaterialTheme.typography.bodyMedium
         )
     }

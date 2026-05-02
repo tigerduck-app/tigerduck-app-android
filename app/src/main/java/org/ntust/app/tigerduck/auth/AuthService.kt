@@ -1,10 +1,14 @@
 package org.ntust.app.tigerduck.auth
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.LibraryService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.network.SsoLoginError
 import org.ntust.app.tigerduck.network.SsoLoginService
+import org.ntust.app.tigerduck.push.PushRegistrationService
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,10 +19,12 @@ import javax.inject.Singleton
 
 @Singleton
 class AuthService @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val sessionManager: NtustSessionManager,
     private val ssoLoginService: SsoLoginService,
     private val libraryService: LibraryService,
-    private val credentials: CredentialManager
+    private val credentials: CredentialManager,
+    private val pushRegistration: PushRegistrationService,
 ) {
     private val _isLoggingIn = MutableStateFlow(false)
     val isLoggingIn: StateFlow<Boolean> = _isLoggingIn
@@ -48,23 +54,14 @@ class AuthService @Inject constructor(
 
         try {
             val normalizedId = studentId.trim().uppercase()
-            val serviceUrl = "https://courseselection.ntust.edu.tw/"
-
-            val success = ssoLoginService.ensureServiceLogin(serviceUrl, normalizedId, password)
+            val success = performSsoLoginUnlocked(normalizedId, password)
 
             if (success) {
                 credentials.ntustStudentId = normalizedId
                 credentials.ntustPassword = password
                 _authState.value = true
-
-                // Auto-attempt library login (best-effort)
-                if (!credentials.isLibraryTokenValid) {
-                    try {
-                        libraryService.login(normalizedId, password)
-                    } catch (e: Exception) {
-                        // Ignore — library credentials may differ
-                    }
-                }
+                runCatching { pushRegistration.onSignedIn(normalizedId) }
+                    .onFailure { e -> if (e is CancellationException) throw e }
             }
 
             _isLoggingIn.value = false
@@ -74,9 +71,9 @@ class AuthService @Inject constructor(
             throw e
         } catch (e: Exception) {
             _loginError.value = if (e is SsoLoginError.NetworkError) {
-                "無法連線，請檢查網路連線"
+                context.getString(R.string.error_network_unavailable)
             } else {
-                e.message ?: "登入失敗"
+                e.message ?: context.getString(R.string.error_login_failed)
             }
             _isLoggingIn.value = false
             false
@@ -90,24 +87,34 @@ class AuthService @Inject constructor(
         if (sessionManager.cookiesValid) return@withLock true
 
         try {
-            val normalizedId = studentId.trim().uppercase()
-            val serviceUrl = "https://courseselection.ntust.edu.tw/"
-            val success = ssoLoginService.ensureServiceLogin(serviceUrl, normalizedId, password)
-
-            if (success) {
-                if (!credentials.isLibraryTokenValid) {
-                    try {
-                        libraryService.login(normalizedId, password)
-                    } catch (_: Exception) { }
-                }
-            }
-
-            success
+            performSsoLoginUnlocked(studentId.trim().uppercase(), password)
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
             false
         }
+    }
+
+    /**
+     * Shared SSO + library login work. Caller MUST already hold [loginMutex] —
+     * Kotlin `Mutex` is non-reentrant, so the public entry points each acquire
+     * the lock once and delegate here, avoiding the deadlock that would happen
+     * if one path called the other.
+     */
+    private suspend fun performSsoLoginUnlocked(
+        normalizedId: String,
+        password: String,
+    ): Boolean {
+        val serviceUrl = "https://courseselection.ntust.edu.tw/"
+        val success = ssoLoginService.ensureServiceLogin(serviceUrl, normalizedId, password)
+        if (success && !credentials.isLibraryTokenValid) {
+            // Best-effort: library credentials may differ from NTUST SSO.
+            try {
+                libraryService.login(normalizedId, password)
+            } catch (_: Exception) {
+            }
+        }
+        return success
     }
 
     fun logout() {
@@ -116,5 +123,10 @@ class AuthService @Inject constructor(
         sessionManager.invalidateSession()
         _loginError.value = null
         _authState.value = false
+        pushRegistration.unregister()
+    }
+
+    fun clearLoginError() {
+        _loginError.value = null
     }
 }

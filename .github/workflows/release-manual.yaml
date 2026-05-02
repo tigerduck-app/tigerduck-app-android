@@ -4,7 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release (e.g. v1.0.0)'
+        description: 'Tag to release (e.g. v1.0.0). Created if it does not exist.'
+        required: true
+      ref:
+        description: 'Branch to tag from when the tag does not exist (e.g. main). Ignored if the tag already exists.'
         required: true
 
 permissions:
@@ -15,9 +18,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Resolve checkout ref
+        id: resolve
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          set -e
+          if git ls-remote --exit-code --tags "https://github.com/${{ github.repository }}.git" "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "tag_exists=true" >> "$GITHUB_OUTPUT"
+            echo "checkout_ref=$TAG" >> "$GITHUB_OUTPUT"
+            echo "Tag $TAG already exists; will checkout the tag and attach artifacts."
+          else
+            echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+            echo "checkout_ref=${{ github.event.inputs.ref }}" >> "$GITHUB_OUTPUT"
+            echo "Tag $TAG not found; will tag '${{ github.event.inputs.ref }}' and create the release."
+          fi
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
         with:
-          ref: ${{ github.event.inputs.tag }}
+          ref: ${{ steps.resolve.outputs.checkout_ref }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Capture build SHA
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Set up JDK 17
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4
@@ -38,22 +63,68 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          PUSH_SHARED_SECRET: ${{ secrets.PUSH_SHARED_SECRET }}
         run: ./gradlew bundleRelease assembleRelease
 
       - name: Rename build outputs
         run: |
-          TAG="${{ github.event.inputs.tag }}"
-          VERSION=$(echo "${TAG#v}" | tr '.' '_')
-          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/TigerDuck_v${VERSION}.apk"
-          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/TigerDuck_v${VERSION}.aab"
+          mv app/build/outputs/apk/play/release/app-play-release.apk "app/build/outputs/apk/play/release/TigerDuck.apk"
+          mv app/build/outputs/apk/fdroid/release/app-fdroid-release.apk "app/build/outputs/apk/fdroid/release/TigerDuck-fdroid.apk"
+          mv app/build/outputs/bundle/play/release/app-play-release.aab "app/build/outputs/bundle/play/release/TigerDuck.aab"
+          mv app/build/outputs/bundle/fdroid/release/app-fdroid-release.aab "app/build/outputs/bundle/fdroid/release/TigerDuck-fdroid.aab"
 
-      - name: Create GitHub Release
+      - name: Create and push tag
+        if: steps.resolve.outputs.tag_exists == 'false'
+        env:
+          TAG: ${{ github.event.inputs.tag }}
+          SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" "$SHA" -m "$TAG"
+          git push origin "refs/tags/$TAG"
+
+      - name: Update F-Droid metadata commit hash
+        if: steps.resolve.outputs.tag_exists == 'false'
+        env:
+          SHA: ${{ steps.sha.outputs.sha }}
+          BRANCH: ${{ github.event.inputs.ref }}
+        run: |
+          set -e
+          file="metadata/org.ntust.app.tigerduck.fdroid.yml"
+          sed -i -E "s|^([[:space:]]*commit:).*|\1 ${SHA}|" "$file"
+          if git diff --quiet -- "$file"; then
+            echo "No change to $file; skipping commit."
+            exit 0
+          fi
+          git add "$file"
+          git commit -m "chore(fdroid): pin metadata commit to ${SHA} for ${{ github.event.inputs.tag }}"
+          # Build can take minutes; another commit may have landed on ${BRANCH}
+          # in the meantime. Rebase our single metadata commit on top before
+          # pushing so a non-fast-forward doesn't leave the release half-done
+          # (tag + artifacts published but fdroid.yml stale).
+          for attempt in 1 2 3; do
+            git pull --rebase origin "${BRANCH}"
+            if git push origin "HEAD:${BRANCH}"; then
+              break
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo "Failed to push fdroid metadata after 3 attempts" >&2
+              exit 1
+            fi
+            echo "Push rejected; retrying after rebase (attempt $attempt)"
+          done
+
+      - name: Create or update GitHub Release
         uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2
         with:
           tag_name: ${{ github.event.inputs.tag }}
           files: |
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/bundle/release/*.aab
+            app/build/outputs/apk/play/release/*.apk
+            app/build/outputs/apk/fdroid/release/*.apk
+            app/build/outputs/bundle/play/release/*.aab
+            app/build/outputs/bundle/fdroid/release/*.aab
 
       - name: Clean up keystore
         if: always()

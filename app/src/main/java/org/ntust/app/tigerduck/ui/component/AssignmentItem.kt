@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentStatus
 import org.ntust.app.tigerduck.data.model.status
@@ -92,12 +94,12 @@ private fun AssignmentTrailing(
     showAbsoluteTime: Boolean,
     markedCompleted: Boolean,
 ) {
-    // Show the Moodle-derived badge AND the manual "標示為完成" tag side-
-    // by-side when both apply (e.g. an overdue assignment the user manually
-    // marked done renders as "逾期 標示為完成"). The two badges are
+    // Show the Moodle-derived badge and the manual completion tag side-by-side
+    // when both apply. The two badges are
     // independent signals — one is from Moodle, the other from the user.
     val moodleBadge = statusBadge(status)
-    val markedBadge: Pair<String, Color>? = if (markedCompleted) "標示為完成" to BadgeGreen else null
+    val markCompleteLabel = stringResource(R.string.assignment_mark_complete)
+    val markedBadge: Pair<String, Color>? = if (markedCompleted) markCompleteLabel to BadgeGreen else null
     val isOverdue = status == AssignmentStatus.OVERDUE_ACCEPTABLE ||
             status == AssignmentStatus.OVERDUE_REJECTED
     val emphasise = status == AssignmentStatus.OVERDUE_REJECTED
@@ -110,7 +112,7 @@ private fun AssignmentTrailing(
                     Text(
                         text = label,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = if (emphasise && label != "標示為完成") FontWeight.Bold
+                            fontWeight = if (emphasise && label != markCompleteLabel) FontWeight.Bold
                                          else FontWeight.SemiBold,
                         ),
                         color = color,
@@ -136,12 +138,13 @@ private fun AssignmentTrailing(
 }
 
 /** iOS `AssignmentStatus.badgeLabel` + `.tint`, ported verbatim. */
+@Composable
 private fun statusBadge(status: AssignmentStatus): Pair<String, Color>? = when (status) {
     AssignmentStatus.PENDING -> null
-    AssignmentStatus.SUBMITTED -> "已繳交" to BadgeGreen
-    AssignmentStatus.SUBMITTED_LATE -> "已遲交" to BadgeOrange
-    AssignmentStatus.OVERDUE_ACCEPTABLE -> "逾期" to BadgeRed
-    AssignmentStatus.OVERDUE_REJECTED -> "逾期拒收" to BadgeRed
+    AssignmentStatus.SUBMITTED -> stringResource(R.string.assignment_status_submitted) to BadgeGreen
+    AssignmentStatus.SUBMITTED_LATE -> stringResource(R.string.assignment_status_submitted_late) to BadgeOrange
+    AssignmentStatus.OVERDUE_ACCEPTABLE -> stringResource(R.string.assignment_status_overdue) to BadgeRed
+    AssignmentStatus.OVERDUE_REJECTED -> stringResource(R.string.assignment_status_overdue_rejected) to BadgeRed
 }
 
 private fun formatAbsolute(date: Date): String =
@@ -150,19 +153,21 @@ private fun formatAbsolute(date: Date): String =
 /**
  * Port of iOS `Date.relativeTimeString(from:)`. Steps units naturally so the
  * reader can see how overdue (or how soon) something is at a glance, instead
- * of a flat "已逾期" / "已過期" string.
+ * of a flat overdue string.
  */
+@Composable
 private fun formatRelative(date: Date, now: Date): String {
     val diffMs = date.time - now.time
     val isPast = diffMs < 0
-    val suffix = if (isPast) "前" else "後"
+    val suffix = if (isPast) stringResource(R.string.assignment_time_suffix_ago)
+                 else stringResource(R.string.assignment_time_suffix_later)
     val absMs = abs(diffMs)
     val days = TimeUnit.MILLISECONDS.toDays(absMs).toInt()
-    if (days > 3) return "$days 天$suffix"
+    if (days > 3) return stringResource(R.string.assignment_time_days_with_suffix, days, suffix)
     val hours = TimeUnit.MILLISECONDS.toHours(absMs).toInt()
-    if (hours > 0) return "$hours 小時$suffix"
+    if (hours > 0) return stringResource(R.string.assignment_time_hours_with_suffix, hours, suffix)
     val minutes = TimeUnit.MILLISECONDS.toMinutes(absMs).toInt()
-    if (minutes > 0) return "$minutes 分鐘$suffix"
+    if (minutes > 0) return stringResource(R.string.assignment_time_minutes_with_suffix, minutes, suffix)
     val seconds = TimeUnit.MILLISECONDS.toSeconds(absMs).toInt()
-    return "$seconds 秒鐘$suffix"
+    return stringResource(R.string.assignment_time_seconds_with_suffix, seconds, suffix)
 }

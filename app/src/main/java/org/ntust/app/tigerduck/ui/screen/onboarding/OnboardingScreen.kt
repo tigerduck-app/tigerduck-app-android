@@ -1,5 +1,11 @@
 package org.ntust.app.tigerduck.ui.screen.onboarding
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -7,14 +13,27 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -23,8 +42,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupContent
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun OnboardingScreen(
@@ -51,20 +73,22 @@ fun OnboardingScreen(
         ) { page ->
             when (page) {
                 0 -> OnboardingPage(
-                    icon = "🎓",
-                    title = "歡迎使用 TigerDuck",
-                    subtitle = "你的臺科大校園助手"
+                    icon = Icons.Filled.School,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    title = stringResource(R.string.onboarding_welcome_title),
+                    subtitle = stringResource(R.string.onboarding_welcome_subtitle)
                 ) {
                     Button(
                         onClick = { goToPage(1) },
                         modifier = Modifier.fillMaxWidth(0.6f)
-                    ) { Text("下一步") }
+                    ) { Text(stringResource(R.string.action_next)) }
                 }
 
                 1 -> OnboardingPage(
-                    icon = "🔑",
-                    title = "登入帳號",
-                    subtitle = "使用 NTUST SSO 登入以存取課表、Moodle 等功能"
+                    icon = Icons.Filled.Key,
+                    iconTint = Color(0xFF2E7D32),
+                    title = stringResource(R.string.onboarding_login_title),
+                    subtitle = stringResource(R.string.onboarding_login_subtitle)
                 ) {
                     val focusManager = LocalFocusManager.current
                     Column(
@@ -72,30 +96,39 @@ fun OnboardingScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxWidth(0.8f)
                     ) {
-                        OutlinedTextField(
+                        OutlinedAccountIdField(
                             value = studentId,
-                            onValueChange = { studentId = it.uppercase() },
-                            label = { Text("學號") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(
-                                capitalization = KeyboardCapitalization.Characters,
-                                keyboardType = KeyboardType.Ascii,
-                                imeAction = ImeAction.Next
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                            ),
-                            modifier = Modifier.fillMaxWidth()
+                            onValueChange = { raw ->
+                                studentId = raw.filter { ch -> !ch.isWhitespace() }.uppercase()
+                            },
+                            label = stringResource(R.string.login_student_id),
+                            capitalization = KeyboardCapitalization.Sentences,
+                            imeAction = ImeAction.Next,
+                            onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+                            autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it },
-                            label = { Text("密碼") },
+                            label = { Text(stringResource(R.string.login_password)) },
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation(),
+                            trailingIcon = if (!isLoggingIn && password.isNotEmpty()) {
+                                {
+                                    IconButton(onClick = { password = "" }) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Cancel,
+                                            contentDescription = stringResource(R.string.action_clear_text),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            } else null,
+                            enabled = !isLoggingIn,
                             keyboardOptions = KeyboardOptions(
-                                autoCorrect = false,
-                                keyboardType = KeyboardType.Ascii,
+                                autoCorrectEnabled = false,
+                                keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Done,
                             ),
                             keyboardActions = KeyboardActions(
@@ -106,7 +139,9 @@ fun OnboardingScreen(
                                     }
                                 }
                             ),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .semantics { contentType = ContentType.Password }
                         )
                         if (loginError != null) {
                             Text(
@@ -129,12 +164,12 @@ fun OnboardingScreen(
                                     color = MaterialTheme.colorScheme.onPrimary
                                 )
                             } else {
-                                Text("登入 NTUST SSO")
+                                Text(stringResource(R.string.onboarding_login_button))
                             }
                         }
                         TextButton(onClick = { goToPage(2) }) {
                             Text(
-                                "暫時跳過",
+                                stringResource(R.string.onboarding_skip_for_now),
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY)
                             )
                         }
@@ -142,14 +177,15 @@ fun OnboardingScreen(
                 }
 
                 2 -> OnboardingPage(
-                    icon = "⚙️",
-                    title = "選擇功能",
-                    subtitle = "你可以之後在設定中隨時調整"
+                    icon = Icons.Filled.Tune,
+                    iconTint = Color(0xFFEF6C00),
+                    title = stringResource(R.string.onboarding_choose_features_title),
+                    subtitle = stringResource(R.string.onboarding_choose_features_subtitle)
                 ) {
                     Button(
                         onClick = { goToPage(3) },
                         modifier = Modifier.fillMaxWidth(0.6f)
-                    ) { Text("下一步") }
+                    ) { Text(stringResource(R.string.action_next)) }
                 }
 
                 3 -> PermissionsPage(
@@ -158,14 +194,15 @@ fun OnboardingScreen(
                 )
 
                 4 -> OnboardingPage(
-                    icon = "✅",
-                    title = "準備就緒！",
-                    subtitle = "開始探索你的校園生活"
+                    icon = Icons.Filled.CheckCircle,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    title = stringResource(R.string.onboarding_ready_title),
+                    subtitle = stringResource(R.string.onboarding_ready_subtitle)
                 ) {
                     Button(
                         onClick = { viewModel.completeOnboarding() },
                         modifier = Modifier.fillMaxWidth(0.6f)
-                    ) { Text("開始使用 TigerDuck") }
+                    ) { Text(stringResource(R.string.onboarding_start_button)) }
                 }
             }
         }
@@ -207,15 +244,18 @@ private fun PermissionsPage(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("🔔", style = MaterialTheme.typography.displayMedium)
+        PulsingIcon(
+            icon = Icons.Filled.Notifications,
+            tint = MaterialTheme.colorScheme.tertiary,
+        )
         Text(
-            "通知與提醒權限",
+            stringResource(R.string.onboarding_permissions_title),
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onBackground,
         )
         Text(
-            "允許以下權限後，即使 App 關閉，作業與即將上課提醒也能準時送達。可之後在設定中調整。",
+            stringResource(R.string.onboarding_permissions_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
@@ -224,7 +264,7 @@ private fun PermissionsPage(
         Spacer(Modifier.height(8.dp))
         NotificationSetupContent(
             systemPermissions = systemPermissions,
-            finishLabel = "下一步",
+            finishLabel = stringResource(R.string.action_next),
             onFinish = onContinue,
             modifier = Modifier.fillMaxSize(),
         )
@@ -233,7 +273,8 @@ private fun PermissionsPage(
 
 @Composable
 private fun OnboardingPage(
-    icon: String,
+    icon: ImageVector,
+    iconTint: Color,
     title: String,
     subtitle: String,
     content: @Composable ColumnScope.() -> Unit
@@ -246,7 +287,7 @@ private fun OnboardingPage(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(text = icon, style = MaterialTheme.typography.displayMedium)
+        PulsingIcon(icon = icon, tint = iconTint)
         Text(
             text = title,
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
@@ -262,4 +303,36 @@ private fun OnboardingPage(
         Spacer(Modifier.height(16.dp))
         content()
     }
+}
+
+@Composable
+private fun PulsingIcon(
+    icon: ImageVector,
+    tint: Color,
+    modifier: Modifier = Modifier,
+) {
+    val transition = rememberInfiniteTransition(label = "onboarding-pulse")
+    val pulse by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "onboarding-pulse-fraction",
+    )
+    val alpha = 0.45f + 0.55f * pulse
+    val scale = 0.94f + 0.08f * pulse
+    Icon(
+        imageVector = icon,
+        contentDescription = null,
+        tint = tint,
+        modifier = modifier
+            .size(72.dp)
+            .graphicsLayer {
+                this.alpha = alpha
+                scaleX = scale
+                scaleY = scale
+            },
+    )
 }

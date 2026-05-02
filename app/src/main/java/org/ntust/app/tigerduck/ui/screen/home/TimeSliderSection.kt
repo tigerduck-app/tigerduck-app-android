@@ -29,9 +29,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,11 +42,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
+import org.ntust.app.tigerduck.ui.component.courseNameForDisplay
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import androidx.core.os.LocaleListCompat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -88,7 +93,7 @@ fun TimeSliderSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "時光機",
+                stringResource(R.string.home_time_slider_title),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -98,7 +103,7 @@ fun TimeSliderSection(
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
-                JumpToNowChip(label = "現在", onClick = { viewModel.returnToNow() })
+                JumpToNowChip(label = stringResource(R.string.home_time_slider_now), onClick = { viewModel.returnToNow() })
             }
         }
 
@@ -143,7 +148,11 @@ fun TimeSliderSection(
                     modifier = Modifier.size(32.dp)
                 )
                 Text(
-                    if (isLoggedIn) "目前沒有課程" else "請先登入以使用這項功能",
+                    if (isLoggedIn) {
+                        stringResource(R.string.home_time_slider_no_courses)
+                    } else {
+                        stringResource(R.string.common_login_required_feature)
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
@@ -165,64 +174,135 @@ private fun CourseTimeCard(
         skippedDates[slot.course.courseNo]?.contains(dateKey) == true
     }
 
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth()
+    // Pin the card area to the tallest height seen this session so the slider
+    // track below doesn't bob up and down as the user scrubs across states
+    // with different card layouts. `remember` resets on Home tab destruction.
+    var maxHeightPx by remember { mutableIntStateOf(0) }
+    val minHeightDp = with(LocalDensity.current) { maxHeightPx.toDp() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = minHeightDp)
     ) {
-        // 翹課 feature disabled — the onSkipToggle wiring below is commented out
-        // so SlotCard falls back to its null default and the left-swipe gesture
-        // + "翹課" indicator are inert. Re-enable by restoring the commented lines.
-        when (state) {
-            is CourseState.InClass -> {
-                SlotCard(
-                    slot = state.slot,
-                    alpha = 1f,
-                    isSkipped = isSkippedFor(state.slot),
-                    // onSkipToggle = { onSkipCourse(state.slot.course, state.slot.date) },
-                    onClick = { onSelect(state.slot.course) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            is CourseState.Between -> {
-                state.previous?.let {
+        EqualHeightRow(
+            spacing = 8.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .onSizeChanged {
+                    if (it.height > maxHeightPx) maxHeightPx = it.height
+                }
+        ) {
+            // 翹課 feature disabled — the onSkipToggle wiring below is commented out
+            // so SlotCard falls back to its null default and the left-swipe gesture
+            // + "翹課" indicator are inert. Re-enable by restoring the commented lines.
+            when (state) {
+                is CourseState.InClass -> {
                     SlotCard(
-                        slot = it, alpha = 0.8f,
-                        isSkipped = isSkippedFor(it),
-                        // onSkipToggle = { onSkipCourse(it.course, it.date) },
-                        onClick = { onSelect(it.course) },
-                        modifier = Modifier.weight(1f)
+                        slot = state.slot,
+                        alpha = 1f,
+                        isSkipped = isSkippedFor(state.slot),
+                        // onSkipToggle = { onSkipCourse(state.slot.course, state.slot.date) },
+                        onClick = { onSelect(state.slot.course) },
                     )
                 }
-                state.next?.let {
+                is CourseState.Between -> {
+                    state.previous?.let {
+                        SlotCard(
+                            slot = it, alpha = 0.8f,
+                            isSkipped = isSkippedFor(it),
+                            // onSkipToggle = { onSkipCourse(it.course, it.date) },
+                            onClick = { onSelect(it.course) },
+                        )
+                    }
+                    state.next?.let {
+                        SlotCard(
+                            slot = it, alpha = 0.8f,
+                            isSkipped = isSkippedFor(it),
+                            // onSkipToggle = { onSkipCourse(it.course, it.date) },
+                            onClick = { onSelect(it.course) },
+                        )
+                    }
+                }
+                is CourseState.BeforeFirst -> {
                     SlotCard(
-                        slot = it, alpha = 0.8f,
-                        isSkipped = isSkippedFor(it),
-                        // onSkipToggle = { onSkipCourse(it.course, it.date) },
-                        onClick = { onSelect(it.course) },
-                        modifier = Modifier.weight(1f)
+                        slot = state.next, alpha = 0.8f,
+                        isSkipped = isSkippedFor(state.next),
+                        // onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
+                        onClick = { onSelect(state.next.course) },
                     )
                 }
-            }
-            is CourseState.BeforeFirst -> {
-                SlotCard(
-                    slot = state.next, alpha = 0.8f,
-                    isSkipped = isSkippedFor(state.next),
-                    // onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
-                    onClick = { onSelect(state.next.course) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            is CourseState.AfterLast -> {
-                SlotCard(
-                    slot = state.previous, alpha = 0.8f,
-                    isSkipped = isSkippedFor(state.previous),
-                    // onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
-                    onClick = { onSelect(state.previous.course) },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                is CourseState.AfterLast -> {
+                    SlotCard(
+                        slot = state.previous, alpha = 0.8f,
+                        isSkipped = isSkippedFor(state.previous),
+                        // onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
+                        onClick = { onSelect(state.previous.course) },
+                    )
+                }
             }
         }
     }
+}
+
+/**
+ * Lays children out in a single row, splitting available width equally and
+ * forcing every child to the tallest natural height in the group. Avoids
+ * `Modifier.height(IntrinsicSize.Min)` which crashes for SubcomposeLayout
+ * children (SlotCard contains FitOrStack / InlineOrStackText). Uses two
+ * subcompositions — one to probe natural heights, one for placement —
+ * because Compose only permits a single `measure()` call per Measurable.
+ */
+@Composable
+private fun EqualHeightRow(
+    spacing: Dp,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    SubcomposeLayout(modifier) { constraints ->
+        val spacingPx = spacing.roundToPx()
+        val probeMeasurables = subcompose(EqualHeightSlot.Probe, content)
+        val n = probeMeasurables.size
+        if (n == 0) return@SubcomposeLayout layout(constraints.maxWidth, 0) {}
+        val totalSpacing = if (n > 1) spacingPx * (n - 1) else 0
+        val widthPerChild = ((constraints.maxWidth - totalSpacing) / n).coerceAtLeast(0)
+        val probeConstraints = Constraints(
+            minWidth = widthPerChild, maxWidth = widthPerChild,
+            minHeight = 0, maxHeight = Constraints.Infinity,
+        )
+        val maxH = probeMeasurables.maxOf { it.measure(probeConstraints).height }
+        val finalMeasurables = subcompose(EqualHeightSlot.Place, content)
+        val finalConstraints = Constraints(
+            minWidth = widthPerChild, maxWidth = widthPerChild,
+            minHeight = maxH, maxHeight = maxH,
+        )
+        val placeables = finalMeasurables.map { it.measure(finalConstraints) }
+        layout(constraints.maxWidth, maxH) {
+            var x = 0
+            placeables.forEach { p ->
+                p.place(x, 0)
+                x += p.width + spacingPx
+            }
+        }
+    }
+}
+
+private enum class EqualHeightSlot { Probe, Place }
+
+/**
+ * Expands a child to its parent's max height only when the parent supplies a
+ * bounded height constraint. Lets EqualHeightRow's place pass stretch the
+ * Card to the equalized slot height while still allowing the probe pass
+ * (unbounded max height) to measure natural content height without crashing.
+ */
+private fun Modifier.fillBoundedHeight(): Modifier = layout { measurable, constraints ->
+    val adjusted = if (constraints.hasBoundedHeight) {
+        constraints.copy(minHeight = constraints.maxHeight)
+    } else {
+        constraints
+    }
+    val placeable = measurable.measure(adjusted)
+    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
 }
 
 @Composable
@@ -290,7 +370,11 @@ private fun SlotCard(
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = if (isSkipped) "取消翹課" else "翹課",
+                        text = if (isSkipped) {
+                            stringResource(R.string.home_skip_course_undo)
+                        } else {
+                            stringResource(R.string.home_skip_course)
+                        },
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                         color = if (isSkipped) MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                                 else Color(0xFFFF2D55),
@@ -303,6 +387,7 @@ private fun SlotCard(
         val cardModifier = if (onSkipToggle != null) {
             Modifier
                 .fillMaxWidth()
+                .fillBoundedHeight()
                 .offset { IntOffset(swipeOffset.value.roundToInt(), 0) }
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
@@ -328,7 +413,9 @@ private fun SlotCard(
                     )
                 }
         } else {
-            Modifier.fillMaxWidth()
+            Modifier
+                .fillMaxWidth()
+                .fillBoundedHeight()
         }
 
         val slotSurface = MaterialTheme.colorScheme.surface
@@ -363,7 +450,7 @@ private fun SlotCard(
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    slot.course.courseName,
+                    courseNameForDisplay(slot.course.courseName, maxChars = 30),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = if (isSkipped) Color(0xFFFF2D55) else Color.Unspecified,
                     maxLines = 2,
@@ -501,8 +588,11 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
 }
 
 private val timeFmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
-private val dateTimeFmt = java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE) HH:mm", Locale.TRADITIONAL_CHINESE)
-private val dateLabelFmt = java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE)", Locale.TRADITIONAL_CHINESE)
+private fun appLocale(): java.util.Locale =
+    LocaleListCompat.getAdjustedDefault()[0] ?: java.util.Locale.getDefault()
+
+private fun dateTimeFmt() = java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE) HH:mm", appLocale())
+private fun dateLabelFmt() = java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE)", appLocale())
 
 private fun formatTimeLabel(date: Date): String {
     val instant = date.toInstant().atZone(AppConstants.TAIPEI_ZONE)
@@ -510,12 +600,12 @@ private fun formatTimeLabel(date: Date): String {
     return if (instant.toLocalDate() == today) {
         timeFmt.format(instant)
     } else {
-        dateTimeFmt.format(instant)
+        dateTimeFmt().format(instant)
     }
 }
 
 private fun formatDateLabel(date: Date): String =
-    dateLabelFmt.format(date.toInstant().atZone(AppConstants.TAIPEI_ZONE))
+    dateLabelFmt().format(date.toInstant().atZone(AppConstants.TAIPEI_ZONE))
 
 /**
  * Places [first] at the start and [second] at the end on a single row if both

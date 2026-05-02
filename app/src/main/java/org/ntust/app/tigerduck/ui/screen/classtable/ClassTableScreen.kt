@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.ui.graphics.toArgb
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.ColorPickerSheet
 import org.ntust.app.tigerduck.ui.component.ConflictCoursePickerSheet
@@ -44,6 +46,8 @@ import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.component.isEnglishUiLanguage
+import org.ntust.app.tigerduck.ui.component.middleEllipsize
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
@@ -66,6 +70,11 @@ fun ClassTableScreen(
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val currentMinute by viewModel.currentMinute.collectAsStateWithLifecycle()
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
+    // Hoisted alongside the other top-level subscriptions: a second
+    // collectAsStateWithLifecycle for the same flow inside a conditional
+    // body invites readers from the wrong scope and is fragile if the
+    // condition changes.
+    val selectedSemester by viewModel.currentSemester.collectAsStateWithLifecycle()
     val todayCourses = remember(courses, currentMinute) { viewModel.todayCourses }
     val ongoingCourses = remember(courses, currentMinute) { viewModel.ongoingCourses }
     val activePeriods = remember(courses) { viewModel.activePeriods }
@@ -78,21 +87,33 @@ fun ClassTableScreen(
     var conflictPicker by remember { mutableStateOf<ConflictPickerTarget?>(null) }
     var tripleConflictError by remember { mutableStateOf<ClassTableViewModel.TripleConflictError?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val errorNetworkUnavailable = stringResource(R.string.error_network_unavailable)
+    val refreshingMessage = stringResource(R.string.refreshing_message)
+    val weekdayShortLabels = listOf(
+        "",
+        stringResource(R.string.weekday_mon_short),
+        stringResource(R.string.weekday_tue_short),
+        stringResource(R.string.weekday_wed_short),
+        stringResource(R.string.weekday_thu_short),
+        stringResource(R.string.weekday_fri_short),
+        stringResource(R.string.weekday_sat_short),
+        stringResource(R.string.weekday_sun_short),
+    )
 
-    LaunchedEffect(Unit) { viewModel.load() }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) { viewModel.load() }
+    LaunchedEffect(viewModel) {
         viewModel.syncCompleteEvent.collect {
             showCheckmark = true
             kotlinx.coroutines.delay(2000)
             showCheckmark = false
         }
     }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) {
         viewModel.noNetworkEvent.collect {
-            snackbarHostState.showSnackbar("無法連線，請檢查網路連線")
+            snackbarHostState.showSnackbar(errorNetworkUnavailable)
         }
     }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) {
         viewModel.tripleConflictEvent.collect { tripleConflictError = it }
     }
 
@@ -104,14 +125,14 @@ fun ClassTableScreen(
         onRefresh = { viewModel.refresh() },
         onDragProgress = { pullProgress = it },
         modifier = Modifier.fillMaxSize(),
-        refreshingMessage = "頁面正在刷新，別急～",
+        refreshingMessage = refreshingMessage,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            PageHeader(title = "課表") {
+            PageHeader(title = stringResource(R.string.feature_class_table)) {
                 SyncIndicator(
                     isLoading = isLoading,
                     showCheckmark = showCheckmark,
@@ -123,7 +144,7 @@ fun ClassTableScreen(
                 ) {
                     Icon(
                         Icons.Filled.Add,
-                        contentDescription = "新增課程",
+                        contentDescription = stringResource(R.string.add_course_title),
                         tint = MaterialTheme.colorScheme.onSurface.copy(
                             alpha = if (isLoggedIn) ContentAlpha.SECONDARY else ContentAlpha.DISABLED
                         )
@@ -131,13 +152,22 @@ fun ClassTableScreen(
                 }
             }
 
+            if (!isLoggedIn) {
+                org.ntust.app.tigerduck.ui.component.EmptyStateView(
+                    icon = Icons.Filled.Lock,
+                    title = stringResource(R.string.common_not_logged_in),
+                    message = stringResource(R.string.common_login_required_feature),
+                )
+                Spacer(Modifier.height(32.dp))
+                return@Column
+            }
+
             // Today's courses carousel — only meaningful when the user is
             // viewing the live semester. Past semesters are historical
             // records, so "現在課程 / 今日課程" don't apply there.
-            val selectedSemester by viewModel.currentSemester.collectAsStateWithLifecycle()
             val isLiveSemester = selectedSemester == viewModel.liveSemesterCode
             if (isLiveSemester && todayCourses.isNotEmpty()) {
-                SectionHeader(title = "今日課程")
+                SectionHeader(title = stringResource(R.string.home_section_today_courses))
                 val today = java.util.Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).get(java.util.Calendar.DAY_OF_WEEK)
                 val dayIndex = when (today) {
                     java.util.Calendar.MONDAY -> 1; java.util.Calendar.TUESDAY -> 2
@@ -220,7 +250,7 @@ fun ClassTableScreen(
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    text = "${viewModel.totalCredits} 學分",
+                    text = stringResource(R.string.class_table_total_credits_value, viewModel.totalCredits),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
@@ -246,12 +276,6 @@ fun ClassTableScreen(
                         conflictPicker = ConflictPickerTarget(a, b, weekday, periodId)
                     },
                 )
-            } else if (!isLoggedIn) {
-                org.ntust.app.tigerduck.ui.component.EmptyStateView(
-                    icon = Icons.Filled.Lock,
-                    title = "尚未登入",
-                    message = "請先登入以使用這項功能",
-                )
             }
 
             Spacer(Modifier.height(32.dp))
@@ -264,21 +288,30 @@ fun ClassTableScreen(
     selectedCourse?.let { course ->
         AlertDialog(
             onDismissRequest = { viewModel.clearSelection() },
-            title = { Text(course.courseName) },
+            title = { Text(viewModel.selectedCourseFullName ?: course.courseName) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("課號：${course.courseNo}")
-                    Text("講師：${course.instructor}")
-                    Text("教室：${course.classroom}")
-                    Text("學分：${course.credits}")
-                    Text("修課人數：${course.enrolledCount}/${course.maxCount}")
+                    Text(stringResource(R.string.class_table_course_no_value, course.courseNo))
+                    Text(stringResource(R.string.course_instructor_value, course.instructor))
+                    Text(stringResource(R.string.course_classroom_value, course.classroom))
+                    Text(stringResource(R.string.course_credits_value, course.credits))
+                    Text(
+                        stringResource(
+                            R.string.class_table_enrolled_count_value,
+                            course.enrolledCount,
+                            course.maxCount,
+                        )
+                    )
                     viewModel.selectedCourseTimeRange?.let {
-                        Text("上課時間：$it")
+                        Text(stringResource(R.string.class_table_course_time_value, it))
                     }
                     val assignments = viewModel.assignmentsFor(course.courseNo)
                     if (assignments.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
-                        Text("待辦作業", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            stringResource(R.string.home_pending_assignments),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
                         assignments.forEach { a ->
                             Text("• ${a.title}", style = MaterialTheme.typography.bodySmall)
                         }
@@ -286,7 +319,9 @@ fun ClassTableScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.clearSelection() }) { Text("關閉") }
+                TextButton(onClick = { viewModel.clearSelection() }) {
+                    Text(stringResource(R.string.action_close))
+                }
             }
         )
     }
@@ -294,12 +329,12 @@ fun ClassTableScreen(
     courseToRename?.let { course ->
         AlertDialog(
             onDismissRequest = { courseToRename = null },
-            title = { Text("重新命名") },
+            title = { Text(stringResource(R.string.class_table_rename_title)) },
             text = {
                 OutlinedTextField(
                     value = renameText,
                     onValueChange = { renameText = it },
-                    label = { Text("課程名稱") },
+                    label = { Text(stringResource(R.string.class_table_course_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -308,10 +343,12 @@ fun ClassTableScreen(
                 TextButton(onClick = {
                     viewModel.renameCourse(course.courseNo, renameText)
                     courseToRename = null
-                }) { Text("確認") }
+                }) { Text(stringResource(R.string.action_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { courseToRename = null }) { Text("取消") }
+                TextButton(onClick = { courseToRename = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         )
     }
@@ -366,32 +403,42 @@ fun ClassTableScreen(
     }
 
     tripleConflictError?.let { err ->
-        val dayLabel = listOf("", "一", "二", "三", "四", "五", "六", "日").getOrElse(err.weekday) { err.weekday.toString() }
+        val dayLabel = weekdayShortLabels.getOrElse(err.weekday) { err.weekday.toString() }
         AlertDialog(
             onDismissRequest = { tripleConflictError = null },
-            title = { Text("無法加入") },
+            title = { Text(stringResource(R.string.class_table_conflict_add_failed_title)) },
             text = {
                 Text(
-                    "${err.newCourseName} 的時段（週$dayLabel 第${err.periodId}節）已有兩堂課程：" +
-                        "${err.existingA.courseName} 和 ${err.existingB.courseName}。" +
-                        "系統不支援三堂以上衝堂。",
+                    stringResource(
+                        R.string.class_table_conflict_add_failed_message,
+                        err.newCourseName,
+                        dayLabel,
+                        err.periodId,
+                        err.existingA.courseName,
+                        err.existingB.courseName,
+                    ),
                 )
             },
             confirmButton = {
-                TextButton(onClick = { tripleConflictError = null }) { Text("確認") }
+                TextButton(onClick = { tripleConflictError = null }) {
+                    Text(stringResource(R.string.action_confirm))
+                }
             },
         )
     }
 
     if (showAddCourse) {
+        val addCourseSheetState = rememberModalBottomSheetState()
         ModalBottomSheet(
-            onDismissRequest = { showAddCourse = false }
+            onDismissRequest = { showAddCourse = false },
+            sheetState = addCourseSheetState
         ) {
             val currentSemester by viewModel.currentSemester.collectAsStateWithLifecycle()
             AddCourseSheet(
                 semester = currentSemester,
                 existingCourseNos = viewModel.existingCourseNos,
                 courseService = viewModel.courseService,
+                sheetState = addCourseSheetState,
                 onAdd = { viewModel.addCourse(it) },
                 onDismiss = { showAddCourse = false }
             )
@@ -411,7 +458,16 @@ private fun TimetableGrid(
     onPickConflict: (Course, Course, Int, String) -> Unit = { _, _, _, _ -> },
 ) {
     val haptic = LocalHapticFeedback.current
-    val dayLabels = listOf("", "一", "二", "三", "四", "五", "六", "日")
+    val dayLabels = listOf(
+        "",
+        stringResource(R.string.weekday_mon_short),
+        stringResource(R.string.weekday_tue_short),
+        stringResource(R.string.weekday_wed_short),
+        stringResource(R.string.weekday_thu_short),
+        stringResource(R.string.weekday_fri_short),
+        stringResource(R.string.weekday_sat_short),
+        stringResource(R.string.weekday_sun_short),
+    )
     val cellHeight = 52.dp
     val periodColWidth = 36.dp
 
@@ -620,15 +676,11 @@ private fun SoloCourseCell(
                 },
             ),
     ) {
-        Text(
+        ClassTableCourseNameText(
             text = course.courseName,
-            style = MaterialTheme.typography.labelSmall,
             color = cellTextColor,
-            textAlign = TextAlign.Center,
             maxLines = if (spanCount >= 2) 3 else 2,
-            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(2.dp).align(Alignment.Center),
-            fontSize = 10.sp,
         )
         if (hasAssignment) {
             Icon(
@@ -647,15 +699,20 @@ private fun SoloCourseCell(
             shape = RoundedCornerShape(12.dp),
         ) {
             DropdownMenuItem(
-                text = { Text("重新命名") },
+                text = { Text(stringResource(R.string.class_table_rename_title)) },
                 onClick = { showMenu = false; onRename(course) },
             )
             DropdownMenuItem(
-                text = { Text("選擇顏色") },
+                text = { Text(stringResource(R.string.class_table_pick_color)) },
                 onClick = { showMenu = false; onPickColor(course) },
             )
             DropdownMenuItem(
-                text = { Text("刪除", color = MaterialTheme.colorScheme.error) },
+                text = {
+                    Text(
+                        stringResource(R.string.class_table_delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                },
                 onClick = { showMenu = false; onDelete(course) },
             )
         }
@@ -773,14 +830,10 @@ private fun ConflictCourseCell(
                     .padding(vertical = 2.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
+                ClassTableCourseNameText(
                     text = role.courseA.courseName,
-                    style = MaterialTheme.typography.labelSmall,
                     color = textColor,
-                    textAlign = TextAlign.Center,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    fontSize = 10.sp,
                 )
             }
             if (hasAssignmentA) {
@@ -819,14 +872,10 @@ private fun ConflictCourseCell(
                     .padding(vertical = 2.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
+                ClassTableCourseNameText(
                     text = role.courseB.courseName,
-                    style = MaterialTheme.typography.labelSmall,
                     color = textColor,
-                    textAlign = TextAlign.Center,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    fontSize = 10.sp,
                 )
             }
             if (hasAssignmentB) {
@@ -850,17 +899,34 @@ private fun ConflictCourseCell(
             listOf(role.courseA, role.courseB).forEachIndexed { idx, course ->
                 if (idx > 0) HorizontalDivider()
                 DropdownMenuItem(
-                    text = { Text("重新命名 — ${course.courseName}") },
+                    text = {
+                        Text(
+                            stringResource(
+                                R.string.class_table_rename_with_course,
+                                course.courseName,
+                            )
+                        )
+                    },
                     onClick = { showMenu = false; onRename(course) },
                 )
                 DropdownMenuItem(
-                    text = { Text("選擇顏色 — ${course.courseName}") },
+                    text = {
+                        Text(
+                            stringResource(
+                                R.string.class_table_pick_color_with_course,
+                                course.courseName,
+                            )
+                        )
+                    },
                     onClick = { showMenu = false; onPickColor(course) },
                 )
                 DropdownMenuItem(
                     text = {
                         Text(
-                            "刪除 — ${course.courseName}",
+                            stringResource(
+                                R.string.class_table_delete_with_course,
+                                course.courseName,
+                            ),
                             color = MaterialTheme.colorScheme.error,
                         )
                     },
@@ -872,3 +938,33 @@ private fun ConflictCourseCell(
     }
 }
 
+@Composable
+private fun ClassTableCourseNameText(
+    text: String,
+    color: Color,
+    maxLines: Int,
+    modifier: Modifier = Modifier,
+) {
+    val useMiddle = isEnglishUiLanguage()
+    var displayText by remember(text, useMiddle) { mutableStateOf(text) }
+    Text(
+        text = displayText,
+        style = MaterialTheme.typography.labelSmall,
+        color = color,
+        textAlign = TextAlign.Center,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier,
+        fontSize = 10.sp,
+        onTextLayout = { layout ->
+            if (!useMiddle) {
+                if (displayText != text) displayText = text
+                return@Text
+            }
+            if (!layout.hasVisualOverflow) return@Text
+            val capacity = layout.getLineEnd((maxLines - 1).coerceAtLeast(0), visibleEnd = true)
+            val next = middleEllipsize(text, capacity.coerceAtLeast(5))
+            if (next != displayText) displayText = next
+        }
+    )
+}

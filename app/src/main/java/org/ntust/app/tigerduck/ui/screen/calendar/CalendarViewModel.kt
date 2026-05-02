@@ -96,6 +96,10 @@ class CalendarViewModel @Inject constructor(
         _displayedMonth.value = cal.time
     }
 
+    fun setDisplayedMonth(date: Date) {
+        _displayedMonth.value = date
+    }
+
     fun goToToday() {
         val today = Date()
         _selectedDate.value = today

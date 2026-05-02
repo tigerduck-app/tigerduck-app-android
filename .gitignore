@@ -697,6 +697,10 @@ mono_crash.*
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
+# The bracket patterns above (from a Visual Studio template) accidentally
+# swallow Android's per-build-type source set directories. Un-ignore them.
+!app/src/debug/
+!app/src/release/
 x64/
 x86/
 [Ww][Ii][Nn]32/
@@ -707,6 +711,7 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+tigerduck-app-ios/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/

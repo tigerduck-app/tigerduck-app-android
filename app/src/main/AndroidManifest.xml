@@ -17,20 +17,29 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.TigerDuck"
+        android:localeConfig="@xml/locales_config"
         android:networkSecurityConfig="@xml/network_security_config"
         android:usesCleartextTraffic="false">
 
         <activity
             android:name="org.ntust.app.tigerduck.MainActivity"
             android:exported="true"
-            android:screenOrientation="portrait"
+            android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize"
+            android:configChanges="locale|layoutDirection|screenSize|screenLayout|smallestScreenSize|orientation"
             android:theme="@style/Theme.TigerDuck">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="tigerduck" android:host="announcement" />
+            </intent-filter>
         </activity>
+
 
         <receiver
             android:name="org.ntust.app.tigerduck.notification.AssignmentNotificationReceiver"

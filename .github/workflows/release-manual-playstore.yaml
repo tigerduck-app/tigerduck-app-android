@@ -47,29 +47,35 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          PUSH_SHARED_SECRET: ${{ secrets.PUSH_SHARED_SECRET }}
         run: ./gradlew bundleRelease assembleRelease
 
       - name: Rename build outputs
         run: |
           TAG="${{ github.event.inputs.tag }}"
-          VERSION=$(echo "${TAG#v}" | tr '.' '_')
-          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/TigerDuck_v${VERSION}.apk"
-          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/TigerDuck_v${VERSION}.aab"
+          mv app/build/outputs/apk/play/release/app-play-release.apk "app/build/outputs/apk/play/release/TigerDuck.apk"
+          mv app/build/outputs/apk/fdroid/release/app-fdroid-release.apk "app/build/outputs/apk/fdroid/release/TigerDuck-fdroid.apk"
+          mv app/build/outputs/bundle/play/release/app-play-release.aab "app/build/outputs/bundle/play/release/TigerDuck.aab"
+          mv app/build/outputs/bundle/fdroid/release/app-fdroid-release.aab "app/build/outputs/bundle/fdroid/release/TigerDuck-fdroid.aab"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2
         with:
           tag_name: ${{ github.event.inputs.tag }}
           files: |
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/bundle/release/*.aab
+            app/build/outputs/apk/play/release/*.apk
+            app/build/outputs/apk/fdroid/release/*.apk
+            app/build/outputs/bundle/play/release/*.aab
+            app/build/outputs/bundle/fdroid/release/*.aab
 
       - name: Upload to Google Play
         uses: r0adkll/upload-google-play@935ef9c68bb393a8e6116b1575626a7f5be3a7fb # v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: org.ntust.app.tigerduck
-          releaseFiles: app/build/outputs/bundle/release/*.aab
+          # Restrict to the play-flavor AAB; fdroid has applicationIdSuffix
+          # ".fdroid" and would be rejected by the Play Console.
+          releaseFiles: app/build/outputs/bundle/play/release/*.aab
           track: production
           status: inProgress
           userFraction: 0.1

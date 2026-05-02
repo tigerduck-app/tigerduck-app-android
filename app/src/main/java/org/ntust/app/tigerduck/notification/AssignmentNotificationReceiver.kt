@@ -29,7 +29,7 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("作業即將到期")
+            .setContentTitle(context.getString(R.string.notification_assignment_due_title))
             .setContentText("$courseName — $title")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
@@ -39,7 +39,7 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val CHANNEL_ID = "assignment_due"
+        const val CHANNEL_ID = NotificationChannels.ASSIGNMENT_DUE
         const val EXTRA_TITLE = "title"
         const val EXTRA_COURSE_NAME = "course_name"
         const val EXTRA_ASSIGNMENT_ID = "assignment_id"

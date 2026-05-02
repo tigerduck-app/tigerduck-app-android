@@ -50,7 +50,7 @@ data class CourseSearchRequest(
     @SerializedName("Language") val language: String
 ) {
     companion object {
-        fun forCourseNo(courseNo: String, semester: String) = CourseSearchRequest(
+        fun forCourseNo(courseNo: String, semester: String, language: String = "zh") = CourseSearchRequest(
             semester = semester,
             courseNo = courseNo,
             courseName = "",
@@ -64,10 +64,10 @@ data class CourseSearchRequest(
             onlyMaster = 0,
             onlyUnderGraduate = 0,
             onlyNode = 0,
-            language = "zh"
+            language = language
         )
 
-        fun forCourseName(courseName: String, semester: String) = CourseSearchRequest(
+        fun forCourseName(courseName: String, semester: String, language: String = "zh") = CourseSearchRequest(
             semester = semester,
             courseNo = "",
             courseName = courseName,
@@ -81,10 +81,10 @@ data class CourseSearchRequest(
             onlyMaster = 0,
             onlyUnderGraduate = 0,
             onlyNode = 0,
-            language = "zh"
+            language = language
         )
 
-        fun forCourseTeacher(teacher: String, semester: String) = CourseSearchRequest(
+        fun forCourseTeacher(teacher: String, semester: String, language: String = "zh") = CourseSearchRequest(
             semester = semester,
             courseNo = "",
             courseName = "",
@@ -98,7 +98,7 @@ data class CourseSearchRequest(
             onlyMaster = 0,
             onlyUnderGraduate = 0,
             onlyNode = 0,
-            language = "zh"
+            language = language
         )
     }
 }

@@ -6,6 +6,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.action.Action
 import androidx.glance.GlanceModifier
+import androidx.glance.LocalContext
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.background
@@ -22,13 +23,23 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.widget.WidgetColors
 import org.ntust.app.tigerduck.widget.WidgetState
 
 @Composable
 fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action) {
+    val context = LocalContext.current
     val today = state.currentWeekday
-    val dayNames = listOf("一", "二", "三", "四", "五", "六", "日")
+    val dayNames = listOf(
+        context.getString(R.string.weekday_mon_short),
+        context.getString(R.string.weekday_tue_short),
+        context.getString(R.string.weekday_wed_short),
+        context.getString(R.string.weekday_thu_short),
+        context.getString(R.string.weekday_fri_short),
+        context.getString(R.string.weekday_sat_short),
+        context.getString(R.string.weekday_sun_short),
+    )
     val isWeekend = today == 6 || today == 7
     val order = AppConstants.Periods.chronologicalOrder
 
@@ -48,7 +59,11 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
             .clickable(tapAction),
     ) {
         Text(
-            text = if (today in 1..7) "星期${dayNames[today - 1]}" else "今日課表",
+            text = if (today in 1..7) {
+                context.getString(R.string.widget_today_weekday_title, dayNames[today - 1])
+            } else {
+                context.getString(R.string.widget_today_schedule_title)
+            },
             style = TextStyle(
                 color = ColorProvider(colors.onSurface),
                 fontSize = 15.sp,
@@ -64,7 +79,7 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "請先登入 TigerDuck",
+                        text = context.getString(R.string.widget_sign_in),
                         style = TextStyle(
                             color = ColorProvider(colors.onSurfaceVariant),
                             fontSize = 14.sp,
@@ -74,13 +89,13 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
             }
             todayCourses.isEmpty() && isWeekend -> {
                 Text(
-                    text = "週末沒有課，週一見！",
+                    text = context.getString(R.string.widget_no_classes_weekend),
                     style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 14.sp),
                 )
             }
             todayCourses.isEmpty() -> {
                 Text(
-                    text = "今日沒有課",
+                    text = context.getString(R.string.widget_no_classes_today),
                     style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 14.sp),
                 )
             }

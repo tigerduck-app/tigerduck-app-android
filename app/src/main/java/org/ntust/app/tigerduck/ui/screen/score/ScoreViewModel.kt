@@ -1,12 +1,15 @@
 package org.ntust.app.tigerduck.ui.screen.score
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.ScoreReport
@@ -18,14 +21,13 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ScoreViewModel @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val authService: AuthService,
     private val scoreService: NtustScoreService,
     private val networkChecker: NetworkChecker,
 ) : ViewModel() {
 
-    enum class RankingScope { SEMESTER, CUMULATIVE;
-        val displayName: String get() = if (this == SEMESTER) "學期" else "累計"
-    }
+    enum class RankingScope { SEMESTER, CUMULATIVE }
 
     private val _report = MutableStateFlow(ScoreReport.EMPTY)
     val report: StateFlow<ScoreReport> = _report.asStateFlow()
@@ -100,7 +102,7 @@ class ScoreViewModel @Inject constructor(
         val studentId = authService.storedStudentId
         val password = authService.storedPassword
         if (studentId == null || password == null) {
-            _errorMessage.value = "未登入"
+            _errorMessage.value = context.getString(R.string.common_not_logged_in)
             return
         }
         if (!networkChecker.isAvailable()) return
@@ -113,13 +115,13 @@ class ScoreViewModel @Inject constructor(
             applyDefaultCollapseRule()
         } catch (e: NtustScoreError) {
             _errorMessage.value = when (e) {
-                is NtustScoreError.NotAuthenticated -> "未登入"
-                is NtustScoreError.RedirectedToSSO -> "登入已過期"
-                is NtustScoreError.InvalidResponse -> "伺服器回應異常"
-                is NtustScoreError.ParseFailed -> "無法解析成績資料"
+                is NtustScoreError.NotAuthenticated -> context.getString(R.string.common_not_logged_in)
+                is NtustScoreError.RedirectedToSSO -> context.getString(R.string.score_error_login_expired)
+                is NtustScoreError.InvalidResponse -> context.getString(R.string.score_error_invalid_response)
+                is NtustScoreError.ParseFailed -> context.getString(R.string.score_error_parse_failed)
             }
         } catch (e: Exception) {
-            _errorMessage.value = e.message ?: "載入失敗"
+            _errorMessage.value = e.message ?: context.getString(R.string.score_error_load_failed)
         } finally {
             _isRefreshing.value = false
         }

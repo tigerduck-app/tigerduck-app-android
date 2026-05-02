@@ -79,6 +79,7 @@ private fun LibraryShortcutContent(
 ) {
     val background = if (isDark) Color(0xFF1C1C1E) else Color.White
     val onSurface = if (isDark) Color.White else Color(0xFF1C1C1E)
+    val context = androidx.glance.LocalContext.current
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -115,7 +116,7 @@ private fun LibraryShortcutContent(
                 }
                 Box(modifier = GlanceModifier.height(4.dp)) {}
                 Text(
-                    text = "圖書館",
+                    text = context.getString(R.string.widget_library_shortcut_title),
                     style = TextStyle(
                         color = ColorProvider(onSurface),
                         fontSize = 11.sp,

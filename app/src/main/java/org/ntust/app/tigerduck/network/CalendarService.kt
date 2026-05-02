@@ -18,7 +18,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class CalendarService @Inject constructor() {
+class CalendarService @Inject constructor(
+    baseClient: OkHttpClient,
+) {
 
     private val calendarPageUrl = "https://r.xinshou.tw/ntust-calender"
 
@@ -29,7 +31,10 @@ class CalendarService @Inject constructor() {
                 else HttpLoggingInterceptor.Level.NONE
     }
 
-    private val browserClient = OkHttpClient.Builder()
+    // Share the connection pool/dispatcher/timeouts from NetworkModule's
+    // OkHttpClient instead of spinning up a second client; layer the
+    // calendar-specific UA + logging on top via newBuilder().
+    private val browserClient = baseClient.newBuilder()
         .addInterceptor { chain ->
             chain.proceed(
                 chain.request().newBuilder()

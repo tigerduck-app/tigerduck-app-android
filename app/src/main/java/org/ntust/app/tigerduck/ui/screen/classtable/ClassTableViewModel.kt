@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -111,6 +112,35 @@ class ClassTableViewModel @Inject constructor(
                     TigerDuckTheme.buildCourseColorMap(emptyList())
                 } else {
                     fetchData()
+                }
+            }
+        }
+        viewModelScope.launch {
+            // Language change → re-fetch from the network so course names
+            // come back in the new locale.
+            appPreferences.appLanguageChanged.collect {
+                courseService.clearInMemoryLookupCache()
+                if (authService.authState.value) refresh()
+            }
+        }
+        viewModelScope.launch {
+            // Abbreviation toggle is a pure display transform — re-derive
+            // names from the lookup cache without a network call. Course toggle,
+            // classroom toggle, and the Mandarin classroom display picker all
+            // feed the same relabel pass.
+            merge(
+                appPreferences.useEnglishCourseAbbreviationChanged,
+                appPreferences.useEnglishClassroomAbbreviationChanged,
+                appPreferences.classroomMandarinDisplayChanged,
+            ).collect {
+                val semester = _currentSemester.value
+                val relabeled = courseService.relabelCoursesForCurrentAbbrSetting(
+                    semester, _courses.value
+                )
+                if (relabeled != _courses.value) {
+                    _courses.value = relabeled
+                    dataCache.saveCourses(relabeled, semester)
+                    TigerDuckTheme.buildCourseColorMap(relabeled)
                 }
             }
         }
@@ -201,6 +231,18 @@ class ClassTableViewModel @Inject constructor(
             }
             val order = AppConstants.Periods.chronologicalOrder
             return order.filter { it in periodIds }.mapNotNull { TimetablePeriod.byId[it] }
+        }
+
+    /**
+     * Full (un-abbreviated) name of the selected course, looked up from the
+     * course-detail cache. Falls back to null when no lookup entry exists
+     * (manual entries, Moodle-only fallbacks); the popup uses the stored
+     * [Course.courseName] in that case.
+     */
+    val selectedCourseFullName: String?
+        get() {
+            val course = _selectedCourse.value ?: return null
+            return courseService.cachedFullCourseName(_currentSemester.value, course.courseNo)
         }
 
     val selectedCourseTimeRange: String?
@@ -629,7 +671,10 @@ class ClassTableViewModel @Inject constructor(
                 val assignmentsJob = if (isCurrentSemester) {
                     launch {
                         try {
-                            val remoteAssignments = moodleService.fetchAssignments(moodleAll)
+                            val remoteAssignments = moodleService.fetchAssignments(
+                                enrolledCourses = moodleAll,
+                                rosterCourseNos = orderedCourseNos.toSet()
+                            )
                             val existingCompleted = _assignments.value
                                 .filter { it.isCompleted }
                                 .map { it.assignmentId }
