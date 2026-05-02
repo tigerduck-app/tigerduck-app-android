@@ -23,6 +23,10 @@ class PushIdentity @Inject constructor(
         prefs.putString(KEY_USER_ID, id)
     }
 
+    fun clearUserId() {
+        prefs.remove(KEY_USER_ID)
+    }
+
     private companion object {
         const val KEY_DEVICE_ID = "push.device_id"
         const val KEY_USER_ID = "push.user_id"

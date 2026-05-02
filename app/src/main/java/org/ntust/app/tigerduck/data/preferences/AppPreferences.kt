@@ -212,6 +212,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         prefs.edit().putString(key, value).apply()
     }
 
+    fun remove(key: String) {
+        prefs.edit().remove(key).apply()
+    }
+
     /**
      * Read [key], or generate-and-persist a value via [factory] if absent.
      * Used by [org.ntust.app.tigerduck.push.PushIdentity] to mint a stable

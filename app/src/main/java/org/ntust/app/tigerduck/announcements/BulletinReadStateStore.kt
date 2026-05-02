@@ -30,21 +30,11 @@ class BulletinReadStateStore @Inject constructor(
     fun isRead(id: Int): Boolean = id in _readIds.value
 
     fun markRead(id: Int) {
-        synchronized(lock) {
-            val current = _readIds.value
-            if (id in current) return
-            _readIds.value = current + id
-            persist()
-        }
+        synchronized(lock) { markReadLocked(id) }
     }
 
     fun markUnread(id: Int) {
-        synchronized(lock) {
-            val current = _readIds.value
-            if (id !in current) return
-            _readIds.value = current - id
-            persist()
-        }
+        synchronized(lock) { markUnreadLocked(id) }
     }
 
     fun toggleRead(id: Int) {

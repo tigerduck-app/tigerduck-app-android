@@ -72,10 +72,14 @@ class AnnouncementsViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
+    // Main-thread-only: read/written from coroutines launched on
+    // viewModelScope, which inherits Dispatchers.Main.immediate. Do not
+    // touch from a non-Main dispatcher without adding synchronisation.
     private var nextCursor: Int? = null
     private var inflight: Job? = null
     private var prefetch: Job? = null
     private var loadMoreJob: Job? = null
+    // Main-thread-only — see nextCursor.
     private var hasLoaded = false
 
     fun load() {

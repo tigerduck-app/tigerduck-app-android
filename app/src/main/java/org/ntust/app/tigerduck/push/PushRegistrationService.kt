@@ -98,6 +98,10 @@ class PushRegistrationService @Inject constructor(
             val deviceId = identity.deviceId()
             runCatching { api.unregister(deviceId) }
                 .onFailure { Log.w(TAG, "unregister failed", it) }
+            // Drop the cached user_id so the next FcmBootstrap.start() falls
+            // back to anon-$deviceId instead of re-registering under the
+            // signed-out user.
+            identity.clearUserId()
             mutex.withLock { isUnregistering = false }
             updateDiagnostic {
                 PushDiagnostic(
