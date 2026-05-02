@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Αυτή η λειτουργία δεν έχει υλοποιηθεί ακόμα. Μείνετε συντονισμένοι!</string>
     <string name="coming_soon_title">Έρχεται σύντομα</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Αυτόματο</string>
+    <string name="common_disabled">Απενεργοποιημένο</string>
+    <string name="common_enabled">Ενεργοποιημένο</string>
     <string name="common_login_required_feature">Παρακαλώ συνδεθείτε για να χρησιμοποιήσετε αυτή τη λειτουργία</string>
     <string name="common_not_logged_in">Δεν έχετε συνδεθεί</string>
     <string name="conflict_course_picker_title">Επιλογή μαθήματος</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Εμφάνιση πινγίν</string>
     <string name="settings_classroom_mandarin_display_translated">Εμφάνιση μετάφρασης</string>
     <string name="settings_color_theme">Θέμα χρωμάτων</string>
-    <string name="settings_enable_rotation">Ενεργοποίηση περιστροφής οθόνης (ενεργό από προεπιλογή σε tablet)</string>
     <string name="settings_feedback_bug_report">Σχόλια / Αναφορά προβλήματος</string>
     <string name="settings_invert_slider_direction">Αντιστροφή κατεύθυνσης ρυθμιστικού</string>
     <string name="settings_language">Γλώσσα (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Επαναφορά χρωμάτων μαθημάτων</string>
     <string name="settings_reset_course_colors_confirm_message">Αυτό θα αναθέσει τυχαία τα χρώματα του προγράμματος μαθημάτων χρησιμοποιώντας προεπιλεγμένες παλέτες.</string>
     <string name="settings_reset_course_colors_confirm_title">Επαναφορά χρωμάτων προγράμματος μαθημάτων;</string>
+    <string name="settings_screen_rotation">Περιστροφή οθόνης</string>
     <string name="settings_section_abbreviation">Συντομογραφίες</string>
     <string name="settings_section_about">Σχετικά</string>
     <string name="settings_section_account">Λογαριασμός</string>

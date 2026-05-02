@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Ciri ini belum dilaksanakan lagi. Nantikan!</string>
     <string name="coming_soon_title">Akan datang</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automatik</string>
+    <string name="common_disabled">Dinyahdayakan</string>
+    <string name="common_enabled">Didayakan</string>
     <string name="common_login_required_feature">Sila log masuk untuk menggunakan ciri ini</string>
     <string name="common_not_logged_in">Belum log masuk</string>
     <string name="conflict_course_picker_title">Pilih kursus</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Papar pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Papar terjemahan</string>
     <string name="settings_color_theme">Tema warna</string>
-    <string name="settings_enable_rotation">Dayakan putaran skrin (lalai dihidupkan pada tablet)</string>
     <string name="settings_feedback_bug_report">Maklum balas / Laporkan isu</string>
     <string name="settings_invert_slider_direction">Songsangkan arah gelongsor</string>
     <string name="settings_language">Bahasa (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Tetapkan semula warna kursus</string>
     <string name="settings_reset_course_colors_confirm_message">Ini akan mengagihkan semula warna jadual kelas secara rawak menggunakan praset lalai.</string>
     <string name="settings_reset_course_colors_confirm_title">Tetapkan semula warna jadual kelas?</string>
+    <string name="settings_screen_rotation">Putaran skrin</string>
     <string name="settings_section_abbreviation">Singkatan</string>
     <string name="settings_section_about">Perihal</string>
     <string name="settings_section_account">Akaun</string>

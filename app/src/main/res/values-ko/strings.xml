@@ -168,6 +168,9 @@
     <string name="coming_soon_message">이 기능은 아직 구현되지 않았습니다. 기대해 주세요!</string>
     <string name="coming_soon_title">곧 만나요</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">자동</string>
+    <string name="common_disabled">사용 안 함</string>
+    <string name="common_enabled">사용</string>
     <string name="common_login_required_feature">이 기능을 사용하려면 로그인해 주세요</string>
     <string name="common_not_logged_in">로그인되어 있지 않습니다</string>
     <string name="conflict_course_picker_title">수업 선택</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">병음 표시</string>
     <string name="settings_classroom_mandarin_display_translated">번역 표시</string>
     <string name="settings_color_theme">색상 테마</string>
-    <string name="settings_enable_rotation">화면 회전 사용 (태블릿에서 기본 활성화)</string>
     <string name="settings_feedback_bug_report">피드백 / 문제 신고</string>
     <string name="settings_invert_slider_direction">슬라이더 방향 반전</string>
     <string name="settings_language">언어 (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">수업 색상 재설정</string>
     <string name="settings_reset_course_colors_confirm_message">기본 프리셋을 사용해 시간표 색상이 무작위로 다시 할당됩니다.</string>
     <string name="settings_reset_course_colors_confirm_title">시간표 색상을 재설정할까요?</string>
+    <string name="settings_screen_rotation">화면 회전</string>
     <string name="settings_section_abbreviation">약어</string>
     <string name="settings_section_about">정보</string>
     <string name="settings_section_account">계정</string>

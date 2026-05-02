@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Ši funkcija dar neįdiegta. Sekite naujienas!</string>
     <string name="coming_soon_title">Netrukus</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automatinis</string>
+    <string name="common_disabled">Išjungta</string>
+    <string name="common_enabled">Įjungta</string>
     <string name="common_login_required_feature">Prisijunkite, kad galėtumėte naudoti šią funkciją</string>
     <string name="common_not_logged_in">Neprisijungta</string>
     <string name="conflict_course_picker_title">Pasirinkti kursą</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Rodyti pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Rodyti vertimą</string>
     <string name="settings_color_theme">Spalvų tema</string>
-    <string name="settings_enable_rotation">Įjungti ekrano sukimą (planšetėse įjungta pagal numatytuosius)</string>
     <string name="settings_feedback_bug_report">Atsiliepimai / Pranešti apie klaidą</string>
     <string name="settings_invert_slider_direction">Apversti slankiklio kryptį</string>
     <string name="settings_language">Kalba (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Atstatyti kursų spalvas</string>
     <string name="settings_reset_course_colors_confirm_message">Tvarkaraščio spalvos bus atsitiktinai iš naujo priskirtos naudojant numatytąsias spalvas.</string>
     <string name="settings_reset_course_colors_confirm_title">Atstatyti tvarkaraščio spalvas?</string>
+    <string name="settings_screen_rotation">Ekrano pasukimas</string>
     <string name="settings_section_abbreviation">Santrumpos</string>
     <string name="settings_section_about">Apie</string>
     <string name="settings_section_account">Paskyra</string>

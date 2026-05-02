@@ -168,6 +168,9 @@
     <string name="coming_soon_message">یہ فیچر ابھی تیار نہیں ہے۔ انتظار کریں!</string>
     <string name="coming_soon_title">جلد آ رہا ہے</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">خودکار</string>
+    <string name="common_disabled">غیر فعال</string>
+    <string name="common_enabled">فعال</string>
     <string name="common_login_required_feature">یہ فیچر استعمال کرنے کے لیے سائن ان کریں</string>
     <string name="common_not_logged_in">سائن ان نہیں ہے</string>
     <string name="conflict_course_picker_title">کورس منتخب کریں</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">پنین دکھائیں</string>
     <string name="settings_classroom_mandarin_display_translated">ترجمہ دکھائیں</string>
     <string name="settings_color_theme">رنگ تھیم</string>
-    <string name="settings_enable_rotation">اسکرین گردش فعال کریں (ٹیبلیٹس پر بطور ڈیفالٹ آن)</string>
     <string name="settings_feedback_bug_report">رائے / مسئلہ رپورٹ کریں</string>
     <string name="settings_invert_slider_direction">سلائیڈر کی سمت پلٹائیں</string>
     <string name="settings_language">(Language) زبان</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">کورس رنگ ری سیٹ کریں</string>
     <string name="settings_reset_course_colors_confirm_message">یہ ڈیفالٹ پری سیٹس کا استعمال کرتے ہوئے کلاس شیڈول کے رنگ بے ترتیب سے دوبارہ تفویض کرے گا۔</string>
     <string name="settings_reset_course_colors_confirm_title">کلاس شیڈول کے رنگ ری سیٹ کریں؟</string>
+    <string name="settings_screen_rotation">اسکرین گردش</string>
     <string name="settings_section_abbreviation">مخفف</string>
     <string name="settings_section_about">کے بارے میں</string>
     <string name="settings_section_account">اکاؤنٹ</string>

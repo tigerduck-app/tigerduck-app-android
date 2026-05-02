@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Ова функција још није имплементирана. Будите стрпљиви!</string>
     <string name="coming_soon_title">Ускоро</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Аутоматски</string>
+    <string name="common_disabled">Онемогућено</string>
+    <string name="common_enabled">Омогућено</string>
     <string name="common_login_required_feature">Пријавите се да бисте користили ову функцију</string>
     <string name="common_not_logged_in">Нисте пријављени</string>
     <string name="conflict_course_picker_title">Одаберите курс</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Приказ пињина</string>
     <string name="settings_classroom_mandarin_display_translated">Приказ превода</string>
     <string name="settings_color_theme">Тема боја</string>
-    <string name="settings_enable_rotation">Омогући ротацију екрана (подразумевано укључено на таблетима)</string>
     <string name="settings_feedback_bug_report">Повратне информације / Пријави проблем</string>
     <string name="settings_invert_slider_direction">Обрни смер клизача</string>
     <string name="settings_language">Језик (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Ресетуј боје курсева</string>
     <string name="settings_reset_course_colors_confirm_message">Ово ће насумично поново доделити боје распореда користећи подразумеване поставке.</string>
     <string name="settings_reset_course_colors_confirm_title">Ресетовати боје распореда?</string>
+    <string name="settings_screen_rotation">Ротација екрана</string>
     <string name="settings_section_abbreviation">Скраћенице</string>
     <string name="settings_section_about">О апликацији</string>
     <string name="settings_section_account">Налог</string>

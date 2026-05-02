@@ -168,6 +168,9 @@
     <string name="coming_soon_message">ਇਹ ਫੀਚਰ ਅਜੇ ਲਾਗੂ ਨਹੀਂ ਕੀਤਾ ਗਿਆ। ਉਡੀਕ ਕਰੋ!</string>
     <string name="coming_soon_title">ਜਲਦੀ ਆ ਰਿਹਾ ਹੈ</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">ਆਟੋਮੈਟਿਕ</string>
+    <string name="common_disabled">ਅਯੋਗ</string>
+    <string name="common_enabled">ਯੋਗ</string>
     <string name="common_login_required_feature">ਇਹ ਫੀਚਰ ਵਰਤਣ ਲਈ ਕਿਰਪਾ ਕਰਕੇ ਸਾਈਨ ਇਨ ਕਰੋ</string>
     <string name="common_not_logged_in">ਸਾਈਨ ਇਨ ਨਹੀਂ ਕੀਤਾ</string>
     <string name="conflict_course_picker_title">ਕੋਰਸ ਚੁਣੋ</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">ਪਿਨਯਿਨ ਵਿਖਾਓ</string>
     <string name="settings_classroom_mandarin_display_translated">ਅਨੁਵਾਦ ਵਿਖਾਓ</string>
     <string name="settings_color_theme">ਰੰਗ ਥੀਮ</string>
-    <string name="settings_enable_rotation">ਸਕ੍ਰੀਨ ਘੁਮਾਉਣਾ ਚਾਲੂ ਕਰੋ (ਟੈਬਲੇਟਾਂ ਤੇ ਮੂਲ ਰੂਪ ਵਿੱਚ ਚਾਲੂ)</string>
     <string name="settings_feedback_bug_report">ਫੀਡਬੈਕ / ਸਮੱਸਿਆ ਰਿਪੋਰਟ ਕਰੋ</string>
     <string name="settings_invert_slider_direction">ਸਲਾਈਡਰ ਦਿਸ਼ਾ ਉਲਟੀ ਕਰੋ</string>
     <string name="settings_language">ਭਾਸ਼ਾ (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">ਕੋਰਸ ਰੰਗ ਰੀਸੈੱਟ ਕਰੋ</string>
     <string name="settings_reset_course_colors_confirm_message">ਇਹ ਡਿਫੌਲਟ ਪ੍ਰੀਸੈੱਟ ਵਰਤ ਕੇ ਕਲਾਸ ਸਾਰਣੀ ਦੇ ਰੰਗ ਬੇਤਰਤੀਬੇ ਢੰਗ ਨਾਲ ਦੁਬਾਰਾ ਨਿਰਧਾਰਿਤ ਕਰੇਗਾ।</string>
     <string name="settings_reset_course_colors_confirm_title">ਕਲਾਸ ਸਾਰਣੀ ਦੇ ਰੰਗ ਰੀਸੈੱਟ ਕਰੋ?</string>
+    <string name="settings_screen_rotation">ਸਕਰੀਨ ਘੁੰਮਾਓ</string>
     <string name="settings_section_abbreviation">ਸੰਖੇਪ</string>
     <string name="settings_section_about">ਬਾਰੇ</string>
     <string name="settings_section_account">ਖਾਤਾ</string>

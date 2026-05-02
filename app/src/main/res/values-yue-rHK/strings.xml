@@ -168,6 +168,9 @@
     <string name="coming_soon_message">此功能尚未實現，敬請期待～</string>
     <string name="coming_soon_title">快了快了</string>
     <string name="common_auto_login_failed">自動登入失敗</string>
+    <string name="common_automatic">自動</string>
+    <string name="common_disabled">停用</string>
+    <string name="common_enabled">啟用</string>
     <string name="common_login_required_feature">請先登入以使用這項功能</string>
     <string name="common_not_logged_in">尚未登入</string>
     <string name="conflict_course_picker_title">選擇課程</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">顏色主題</string>
-    <string name="settings_enable_rotation">啟用螢幕翻轉（平板預設開啟）</string>
     <string name="settings_feedback_bug_report">回饋/問題回報</string>
     <string name="settings_invert_slider_direction">反轉滑條方向</string>
     <string name="settings_language">語言 (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">重設課表顏色</string>
     <string name="settings_reset_course_colors_confirm_message">這將會把課表的顏色依照預設顏色隨機重新分配</string>
     <string name="settings_reset_course_colors_confirm_title">確定要重設課表顏色？</string>
+    <string name="settings_screen_rotation">螢幕旋轉</string>
     <string name="settings_section_abbreviation">縮寫</string>
     <string name="settings_section_about">關於</string>
     <string name="settings_section_account">帳號</string>

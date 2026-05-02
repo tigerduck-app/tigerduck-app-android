@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Tính năng này chưa được triển khai. Hãy chờ đón nhé!</string>
     <string name="coming_soon_title">Sắp ra mắt</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Tự động</string>
+    <string name="common_disabled">Đã tắt</string>
+    <string name="common_enabled">Đã bật</string>
     <string name="common_login_required_feature">Vui lòng đăng nhập để sử dụng tính năng này</string>
     <string name="common_not_logged_in">Chưa đăng nhập</string>
     <string name="conflict_course_picker_title">Chọn một môn học</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Hiển thị Bính âm</string>
     <string name="settings_classroom_mandarin_display_translated">Hiển thị bản dịch</string>
     <string name="settings_color_theme">Chủ đề màu</string>
-    <string name="settings_enable_rotation">Bật xoay màn hình (mặc định bật trên máy tính bảng)</string>
     <string name="settings_feedback_bug_report">Phản hồi / Báo lỗi</string>
     <string name="settings_invert_slider_direction">Đảo hướng thanh trượt</string>
     <string name="settings_language">Ngôn ngữ (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Đặt lại màu môn học</string>
     <string name="settings_reset_course_colors_confirm_message">Thao tác này sẽ ngẫu nhiên gán lại màu thời khóa biểu bằng các màu mặc định có sẵn.</string>
     <string name="settings_reset_course_colors_confirm_title">Đặt lại màu thời khóa biểu?</string>
+    <string name="settings_screen_rotation">Xoay màn hình</string>
     <string name="settings_section_abbreviation">Viết tắt</string>
     <string name="settings_section_about">Giới thiệu</string>
     <string name="settings_section_account">Tài khoản</string>

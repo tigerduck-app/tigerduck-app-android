@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Este recurso ainda não foi implementado. Fique ligado!</string>
     <string name="coming_soon_title">Em breve</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automático</string>
+    <string name="common_disabled">Desativado</string>
+    <string name="common_enabled">Ativado</string>
     <string name="common_login_required_feature">Por favor, entre para usar este recurso</string>
     <string name="common_not_logged_in">Não conectado</string>
     <string name="conflict_course_picker_title">Escolha uma disciplina</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Mostrar pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Mostrar tradução</string>
     <string name="settings_color_theme">Tema de cores</string>
-    <string name="settings_enable_rotation">Ativar rotação da tela (ativado por padrão em tablets)</string>
     <string name="settings_feedback_bug_report">Feedback / Reportar problema</string>
     <string name="settings_invert_slider_direction">Inverter direção do controle deslizante</string>
     <string name="settings_language">Idioma (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Redefinir cores das disciplinas</string>
     <string name="settings_reset_course_colors_confirm_message">Isso reatribuirá aleatoriamente as cores da grade horária usando os padrões predefinidos.</string>
     <string name="settings_reset_course_colors_confirm_title">Redefinir as cores da grade horária?</string>
+    <string name="settings_screen_rotation">Rotação de tela</string>
     <string name="settings_section_abbreviation">Abreviações</string>
     <string name="settings_section_about">Sobre</string>
     <string name="settings_section_account">Conta</string>

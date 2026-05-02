@@ -168,6 +168,9 @@
     <string name="coming_soon_message">此功能尚未实现，敬请期待～</string>
     <string name="coming_soon_title">快了快了</string>
     <string name="common_auto_login_failed">自动登录失败</string>
+    <string name="common_automatic">自动</string>
+    <string name="common_disabled">关闭</string>
+    <string name="common_enabled">启用</string>
     <string name="common_login_required_feature">请先登录以使用这项功能</string>
     <string name="common_not_logged_in">尚未登录</string>
     <string name="conflict_course_picker_title">选择课程</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">颜色主题</string>
-    <string name="settings_enable_rotation">启用屏幕翻转（平板默认开启）</string>
     <string name="settings_feedback_bug_report">回馈/问题回报</string>
     <string name="settings_invert_slider_direction">反转滑条方向</string>
     <string name="settings_language">语言 (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">重设课表颜色</string>
     <string name="settings_reset_course_colors_confirm_message">这将会把课表的颜色依照缺省颜色随机重新分配</string>
     <string name="settings_reset_course_colors_confirm_title">确定要重设课表颜色？</string>
+    <string name="settings_screen_rotation">屏幕旋转</string>
     <string name="settings_section_abbreviation">缩写</string>
     <string name="settings_section_about">关于</string>
     <string name="settings_section_account">帐号</string>

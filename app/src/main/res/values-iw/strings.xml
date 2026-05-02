@@ -168,6 +168,9 @@
     <string name="coming_soon_message">תכונה זו טרם מומשה. הישאר מעודכן!</string>
     <string name="coming_soon_title">בקרוב</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">אוטומטי</string>
+    <string name="common_disabled">מושבת</string>
+    <string name="common_enabled">מופעל</string>
     <string name="common_login_required_feature">אנא התחבר כדי להשתמש בתכונה זו</string>
     <string name="common_not_logged_in">לא מחובר</string>
     <string name="conflict_course_picker_title">בחר קורס</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">הצג פיניין</string>
     <string name="settings_classroom_mandarin_display_translated">הצג תרגום</string>
     <string name="settings_color_theme">ערכת צבעים</string>
-    <string name="settings_enable_rotation">הפעל סיבוב מסך (מופעל כברירת מחדל בטאבלטים)</string>
     <string name="settings_feedback_bug_report">משוב / דיווח על בעיה</string>
     <string name="settings_invert_slider_direction">הפוך כיוון מחוון</string>
     <string name="settings_language">(Language) שפה</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">אפס צבעי קורסים</string>
     <string name="settings_reset_course_colors_confirm_message">פעולה זו תקצה מחדש באופן אקראי את צבעי מערכת השעות תוך שימוש בערכות צבעים ברירת מחדל.</string>
     <string name="settings_reset_course_colors_confirm_title">לאפס את צבעי מערכת השעות?</string>
+    <string name="settings_screen_rotation">סיבוב מסך</string>
     <string name="settings_section_abbreviation">קיצורים</string>
     <string name="settings_section_about">אודות</string>
     <string name="settings_section_account">חשבון</string>

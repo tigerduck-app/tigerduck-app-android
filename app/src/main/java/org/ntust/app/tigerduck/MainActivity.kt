@@ -2,7 +2,9 @@ package org.ntust.app.tigerduck
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
@@ -13,10 +15,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.ui.AppState
@@ -45,6 +49,7 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         volumeControlStream = AudioManager.STREAM_NOTIFICATION
 
+        applyRotationPreference()
         requestNotificationPermissionIfNeeded()
         // Only schedule on the first Activity creation. WorkManager.UPDATE would
         // be idempotent, but re-enqueuing on every rotation/config change is
@@ -56,6 +61,11 @@ class MainActivity : AppCompatActivity() {
         widgetStartRoute.value = resolveStartRoute(intent)
 
         setContent {
+            // Re-apply orientation whenever the user changes the setting
+            // from within the app — Settings lives inside this Activity, so
+            // onResume never fires on return.
+            LaunchedEffect(appState.rotationMode) { applyRotationPreference() }
+
             val systemDark = isSystemInDarkTheme()
             val dark = when (appState.themeMode) {
                 "dark" -> true
@@ -89,6 +99,34 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         liveActivityManager.refresh()
+        // Pref may have changed in Settings (which itself can run while
+        // landscape-locked). Re-apply on every resume so the new choice
+        // takes effect without needing an Activity recreate.
+        applyRotationPreference()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Foldable unfold / external display attach changes smallestScreenWidthDp.
+        // Re-evaluate so "auto" mode flips to/from sensor as the form factor changes.
+        if (appState.rotationMode == AppPreferences.ROTATION_MODE_AUTO) {
+            applyRotationPreference()
+        }
+    }
+
+    private fun applyRotationPreference() {
+        val orientation = when (appState.rotationMode) {
+            AppPreferences.ROTATION_MODE_ENABLED -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            AppPreferences.ROTATION_MODE_DISABLED -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            else -> if (resources.configuration.smallestScreenWidthDp >= 600) {
+                ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            } else {
+                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            }
+        }
+        if (requestedOrientation != orientation) {
+            requestedOrientation = orientation
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

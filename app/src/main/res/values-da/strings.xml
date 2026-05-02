@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Denne funktion er endnu ikke implementeret. Hold øje med opdateringer!</string>
     <string name="coming_soon_title">Kommer snart</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automatisk</string>
+    <string name="common_disabled">Deaktiveret</string>
+    <string name="common_enabled">Aktiveret</string>
     <string name="common_login_required_feature">Log venligst ind for at bruge denne funktion</string>
     <string name="common_not_logged_in">Ikke logget ind</string>
     <string name="conflict_course_picker_title">Vælg et kursus</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Vis pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Vis oversættelse</string>
     <string name="settings_color_theme">Farvetema</string>
-    <string name="settings_enable_rotation">Aktivér skærmrotation (slået til som standard på tablets)</string>
     <string name="settings_feedback_bug_report">Feedback / Rapportér problem</string>
     <string name="settings_invert_slider_direction">Inverter skyderretning</string>
     <string name="settings_language">Sprog (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Nulstil kursusfarver</string>
     <string name="settings_reset_course_colors_confirm_message">Dette vil tilfældigt gentildele skemafarver ved hjælp af standardforudindstillinger.</string>
     <string name="settings_reset_course_colors_confirm_title">Nulstil skemafarver?</string>
+    <string name="settings_screen_rotation">Skærmrotation</string>
     <string name="settings_section_abbreviation">Forkortelser</string>
     <string name="settings_section_about">Om</string>
     <string name="settings_section_account">Konto</string>

@@ -168,6 +168,9 @@
     <string name="coming_soon_message">This feature is not implemented yet. Stay tuned!</string>
     <string name="coming_soon_title">Coming soon</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automatic</string>
+    <string name="common_disabled">Disabled</string>
+    <string name="common_enabled">Enabled</string>
     <string name="common_login_required_feature">Please sign in to use this feature</string>
     <string name="common_not_logged_in">Not signed in</string>
     <string name="conflict_course_picker_title">Choose a course</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">Color theme</string>
-    <string name="settings_enable_rotation">Enable rotation (default enabled on tablets)</string>
     <string name="settings_feedback_bug_report">Feedback / Report issue</string>
     <string name="settings_invert_slider_direction">Invert slider direction</string>
     <string name="settings_language">Language</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Reset course colors</string>
     <string name="settings_reset_course_colors_confirm_message">This will randomly reassign class table colors using default presets.</string>
     <string name="settings_reset_course_colors_confirm_title">Reset class table colors?</string>
+    <string name="settings_screen_rotation">Screen rotation</string>
     <string name="settings_section_abbreviation">Abbreviations</string>
     <string name="settings_section_about">About</string>
     <string name="settings_section_account">Account</string>

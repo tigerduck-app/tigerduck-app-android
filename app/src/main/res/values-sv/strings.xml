@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Den här funktionen är inte implementerad ännu. Håll utkik!</string>
     <string name="coming_soon_title">Kommer snart</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automatisk</string>
+    <string name="common_disabled">Inaktiverad</string>
+    <string name="common_enabled">Aktiverad</string>
     <string name="common_login_required_feature">Logga in för att använda den här funktionen</string>
     <string name="common_not_logged_in">Inte inloggad</string>
     <string name="conflict_course_picker_title">Välj en kurs</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Visa pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Visa översättning</string>
     <string name="settings_color_theme">Färgtema</string>
-    <string name="settings_enable_rotation">Aktivera skärmrotation (på som standard på surfplattor)</string>
     <string name="settings_feedback_bug_report">Feedback / Rapportera problem</string>
     <string name="settings_invert_slider_direction">Invertera skjutreglageriktning</string>
     <string name="settings_language">Språk (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Återställ kursfärger</string>
     <string name="settings_reset_course_colors_confirm_message">Detta kommer slumpmässigt tilldela om schemats färger med hjälp av standardinställningar.</string>
     <string name="settings_reset_course_colors_confirm_title">Återställa schematfärgerna?</string>
+    <string name="settings_screen_rotation">Skärmrotation</string>
     <string name="settings_section_abbreviation">Förkortningar</string>
     <string name="settings_section_about">Om</string>
     <string name="settings_section_account">Konto</string>

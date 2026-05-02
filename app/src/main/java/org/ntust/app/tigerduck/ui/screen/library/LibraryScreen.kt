@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -197,11 +198,22 @@ private fun LibraryQRCodeCard(
                 }
             }
 
+            // In landscape the card stretches the whole width and the
+            // square QR ends up taller than the viewport, so the user has
+            // to scroll to see the bottom — useless for a code that
+            // needs to be scanned. Cap the QR side to what can fit
+            // vertically (minus header + countdown + paddings) so it
+            // stays whole on screen.
+            val config = LocalConfiguration.current
+            val isLandscape = config.screenWidthDp > config.screenHeightDp
+            val qrSideDp = if (isLandscape) {
+                (config.screenHeightDp - 220).coerceIn(160, config.screenWidthDp - 48).dp
+            } else {
+                (config.screenWidthDp - 80).coerceAtLeast(160).dp
+            }
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .padding(horizontal = 24.dp),
+                    .size(qrSideDp),
                 contentAlignment = Alignment.Center
             ) {
                 when {

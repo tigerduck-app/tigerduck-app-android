@@ -168,6 +168,9 @@
     <string name="coming_soon_message">See funktsioon pole veel saadaval. Jääge ootele!</string>
     <string name="coming_soon_title">Tulemas peatselt</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automaatne</string>
+    <string name="common_disabled">Keelatud</string>
+    <string name="common_enabled">Lubatud</string>
     <string name="common_login_required_feature">Selle funktsiooni kasutamiseks logige sisse</string>
     <string name="common_not_logged_in">Pole sisse logitud</string>
     <string name="conflict_course_picker_title">Valige kursus</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Kuva pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Kuva tõlge</string>
     <string name="settings_color_theme">Värvi teema</string>
-    <string name="settings_enable_rotation">Luba ekraani pööramine (tahvelarvutites vaikimisi sees)</string>
     <string name="settings_feedback_bug_report">Tagasiside / Vea aruanne</string>
     <string name="settings_invert_slider_direction">Pööra liuguri suund ümber</string>
     <string name="settings_language">Keel (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Lähtesta kursuse värvid</string>
     <string name="settings_reset_course_colors_confirm_message">See määrab tunniplaanis värvid juhuslikult ümber vaikimisi eelseadistuste põhjal.</string>
     <string name="settings_reset_course_colors_confirm_title">Lähtestada tunniplaani värvid?</string>
+    <string name="settings_screen_rotation">Ekraani pööramine</string>
     <string name="settings_section_abbreviation">Lühendid</string>
     <string name="settings_section_about">Teave</string>
     <string name="settings_section_account">Konto</string>

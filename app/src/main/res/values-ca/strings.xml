@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Aquesta funció encara no s\'ha implementat. Estigueu atents!</string>
     <string name="coming_soon_title">Pròximament</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automàtic</string>
+    <string name="common_disabled">Desactivat</string>
+    <string name="common_enabled">Activat</string>
     <string name="common_login_required_feature">Inicieu la sessió per usar aquesta funció</string>
     <string name="common_not_logged_in">Sessió no iniciada</string>
     <string name="conflict_course_picker_title">Trieu un curs</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Mostra pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Mostra traducció</string>
     <string name="settings_color_theme">Tema de color</string>
-    <string name="settings_enable_rotation">Habilita la rotació de pantalla (activada per defecte en tauletes)</string>
     <string name="settings_feedback_bug_report">Comentaris / Informeu d\'un problema</string>
     <string name="settings_invert_slider_direction">Inverteix la direcció del control lliscant</string>
     <string name="settings_language">Idioma (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Restableix els colors dels cursos</string>
     <string name="settings_reset_course_colors_confirm_message">Els colors de l\'horari de classes es reassignaran aleatòriament usant els colors predeterminats.</string>
     <string name="settings_reset_course_colors_confirm_title">Voleu restablir els colors de l\'horari de classes?</string>
+    <string name="settings_screen_rotation">Rotació de pantalla</string>
     <string name="settings_section_abbreviation">Abreviatures</string>
     <string name="settings_section_about">Quant a</string>
     <string name="settings_section_account">Compte</string>

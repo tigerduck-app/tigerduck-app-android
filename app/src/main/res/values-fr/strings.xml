@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Cette fonctionnalité n\'est pas encore disponible. Restez à l\'écoute !</string>
     <string name="coming_soon_title">Bientôt disponible</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automatique</string>
+    <string name="common_disabled">Désactivé</string>
+    <string name="common_enabled">Activé</string>
     <string name="common_login_required_feature">Veuillez vous connecter pour utiliser cette fonctionnalité</string>
     <string name="common_not_logged_in">Non connecté</string>
     <string name="conflict_course_picker_title">Choisir un cours</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Afficher pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Afficher la traduction</string>
     <string name="settings_color_theme">Thème de couleur</string>
-    <string name="settings_enable_rotation">Activer la rotation de l\'écran (activée par défaut sur les tablettes)</string>
     <string name="settings_feedback_bug_report">Commentaires / Signaler un problème</string>
     <string name="settings_invert_slider_direction">Inverser le sens du curseur</string>
     <string name="settings_language">Langue (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Réinitialiser les couleurs des cours</string>
     <string name="settings_reset_course_colors_confirm_message">Cela réattribuera aléatoirement les couleurs de l\'emploi du temps en utilisant les valeurs prédéfinies par défaut.</string>
     <string name="settings_reset_course_colors_confirm_title">Réinitialiser les couleurs de l\'emploi du temps ?</string>
+    <string name="settings_screen_rotation">Rotation de l’écran</string>
     <string name="settings_section_abbreviation">Abréviations</string>
     <string name="settings_section_about">À propos</string>
     <string name="settings_section_account">Compte</string>

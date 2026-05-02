@@ -168,6 +168,9 @@
     <string name="coming_soon_message">هذه الميزة لم تُطبَّق بعد. ترقّبوا!</string>
     <string name="coming_soon_title">قريبًا</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">تلقائي</string>
+    <string name="common_disabled">معطّل</string>
+    <string name="common_enabled">مُفعّل</string>
     <string name="common_login_required_feature">يرجى تسجيل الدخول لاستخدام هذه الميزة</string>
     <string name="common_not_logged_in">غير مسجَّل الدخول</string>
     <string name="conflict_course_picker_title">اختر مقررًا</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">عرض بينيين</string>
     <string name="settings_classroom_mandarin_display_translated">عرض الترجمة</string>
     <string name="settings_color_theme">نسق الألوان</string>
-    <string name="settings_enable_rotation">تمكين تدوير الشاشة (مفعّل افتراضيًا على الأجهزة اللوحية)</string>
     <string name="settings_feedback_bug_report">ملاحظات / الإبلاغ عن مشكلة</string>
     <string name="settings_invert_slider_direction">عكس اتجاه شريط التمرير</string>
     <string name="settings_language">(Language) اللغة</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">إعادة تعيين ألوان المقررات</string>
     <string name="settings_reset_course_colors_confirm_message">سيؤدي ذلك إلى إعادة توزيع ألوان الجدول الدراسي عشوائيًا باستخدام الإعدادات المسبقة الافتراضية.</string>
     <string name="settings_reset_course_colors_confirm_title">هل تريد إعادة تعيين ألوان الجدول الدراسي؟</string>
+    <string name="settings_screen_rotation">تدوير الشاشة</string>
     <string name="settings_section_abbreviation">اختصارات</string>
     <string name="settings_section_about">حول</string>
     <string name="settings_section_account">الحساب</string>

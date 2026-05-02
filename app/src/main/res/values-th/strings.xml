@@ -168,6 +168,9 @@
     <string name="coming_soon_message">ฟีเจอร์นี้ยังไม่พร้อมใช้งาน โปรดติดตาม!</string>
     <string name="coming_soon_title">เร็วๆนี้</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">อัตโนมัติ</string>
+    <string name="common_disabled">ปิดใช้งาน</string>
+    <string name="common_enabled">เปิดใช้งาน</string>
     <string name="common_login_required_feature">กรุณาเข้าสู่ระบบเพื่อใช้งานฟีเจอร์นี้</string>
     <string name="common_not_logged_in">ยังไม่ได้เข้าสู่ระบบ</string>
     <string name="conflict_course_picker_title">เลือกรายวิชา</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">แสดงพินอิน</string>
     <string name="settings_classroom_mandarin_display_translated">แสดงคำแปล</string>
     <string name="settings_color_theme">ธีมสี</string>
-    <string name="settings_enable_rotation">เปิดใช้งานการหมุนหน้าจอ (เปิดเป็นค่าเริ่มต้นบนแท็บเล็ต)</string>
     <string name="settings_feedback_bug_report">ความคิดเห็น / รายงานปัญหา</string>
     <string name="settings_invert_slider_direction">สลับทิศทางแถบเลื่อน</string>
     <string name="settings_language">ภาษา (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">รีเซ็ตสีรายวิชา</string>
     <string name="settings_reset_course_colors_confirm_message">การกระทำนี้จะสุ่มกำหนดสีของตารางเรียนใหม่โดยใช้ค่าที่ตั้งไว้ล่วงหน้าตามค่าเริ่มต้น</string>
     <string name="settings_reset_course_colors_confirm_title">รีเซ็ตสีตารางเรียนหรือไม่?</string>
+    <string name="settings_screen_rotation">การหมุนหน้าจอ</string>
     <string name="settings_section_abbreviation">ตัวย่อ</string>
     <string name="settings_section_about">เกี่ยวกับ</string>
     <string name="settings_section_account">บัญชี</string>

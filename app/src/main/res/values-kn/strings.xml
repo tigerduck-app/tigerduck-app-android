@@ -168,6 +168,9 @@
     <string name="coming_soon_message">ಈ ವೈಶಿಷ್ಟ್ಯ ಇನ್ನೂ ಅಳವಡಿಸಲಾಗಿಲ್ಲ. ಕಾಯಿರಿ!</string>
     <string name="coming_soon_title">ಶೀಘ್ರದಲ್ಲಿ ಬರಲಿದೆ</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">ಸ್ವಯಂಚಾಲಿತ</string>
+    <string name="common_disabled">ನಿಷ್ಕ್ರಿಯ</string>
+    <string name="common_enabled">ಸಕ್ರಿಯ</string>
     <string name="common_login_required_feature">ಈ ವೈಶಿಷ್ಟ್ಯ ಬಳಸಲು ದಯವಿಟ್ಟು ಸೈನ್ ಇನ್ ಮಾಡಿ</string>
     <string name="common_not_logged_in">ಸೈನ್ ಇನ್ ಆಗಿಲ್ಲ</string>
     <string name="conflict_course_picker_title">ಕೋರ್ಸ್ ಆರಿಸಿ</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">ಪಿನ್ಯಿನ್ ತೋರಿಸು</string>
     <string name="settings_classroom_mandarin_display_translated">ಅನುವಾದ ತೋರಿಸು</string>
     <string name="settings_color_theme">ಬಣ್ಣ ಥೀಮ್</string>
-    <string name="settings_enable_rotation">ಪರದೆ ತಿರುಗಿಸುವಿಕೆಯನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ (ಟ್ಯಾಬ್ಲೆಟ್‌ಗಳಲ್ಲಿ ಡೀಫಾಲ್ಟ್ ಆಗಿ ಆನ್)</string>
     <string name="settings_feedback_bug_report">ಪ್ರತಿಕ್ರಿಯೆ / ಸಮಸ್ಯೆ ವರದಿ</string>
     <string name="settings_invert_slider_direction">ಸ್ಲೈಡರ್ ದಿಕ್ಕು ತಿರುಗಿಸಿ</string>
     <string name="settings_language">ಭಾಷೆ (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">ಕೋರ್ಸ್ ಬಣ್ಣಗಳನ್ನು ಮರುಹೊಂದಿಸಿ</string>
     <string name="settings_reset_course_colors_confirm_message">ಇದು ಡೀಫಾಲ್ಟ್ ಪ್ರಿಸೆಟ್‌ಗಳನ್ನು ಬಳಸಿ ತರಗತಿ ವೇಳಾಪಟ್ಟಿ ಬಣ್ಣಗಳನ್ನು ಯಾದೃಚ್ಛಿಕವಾಗಿ ಮರುಹಂಚಿಕೆ ಮಾಡುತ್ತದೆ.</string>
     <string name="settings_reset_course_colors_confirm_title">ತರಗತಿ ವೇಳಾಪಟ್ಟಿ ಬಣ್ಣಗಳನ್ನು ಮರುಹೊಂದಿಸಬೇಕೇ?</string>
+    <string name="settings_screen_rotation">ಪರದೆ ತಿರುಗಿಸುವಿಕೆ</string>
     <string name="settings_section_abbreviation">ಸಂಕ್ಷೇಪಣಗಳು</string>
     <string name="settings_section_about">ಕುರಿತು</string>
     <string name="settings_section_account">ಖಾತೆ</string>

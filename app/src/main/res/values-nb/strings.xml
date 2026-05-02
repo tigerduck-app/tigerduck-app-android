@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Denne funksjonen er ikke implementert ennå. Følg med!</string>
     <string name="coming_soon_title">Kommer snart</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automatisk</string>
+    <string name="common_disabled">Deaktivert</string>
+    <string name="common_enabled">Aktivert</string>
     <string name="common_login_required_feature">Logg inn for å bruke denne funksjonen</string>
     <string name="common_not_logged_in">Ikke innlogget</string>
     <string name="conflict_course_picker_title">Velg et fag</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Vis pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Vis oversettelse</string>
     <string name="settings_color_theme">Fargetema</string>
-    <string name="settings_enable_rotation">Aktiver skjermrotasjon (på som standard på nettbrett)</string>
     <string name="settings_feedback_bug_report">Tilbakemelding / Rapporter problem</string>
     <string name="settings_invert_slider_direction">Inverter glidebryterens retning</string>
     <string name="settings_language">Språk (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Tilbakestill fagfarger</string>
     <string name="settings_reset_course_colors_confirm_message">Dette vil tilfeldig tildele timeplantfarger på nytt ved hjelp av standardforhåndsinnstillinger.</string>
     <string name="settings_reset_course_colors_confirm_title">Tilbakestill timeplantfarger?</string>
+    <string name="settings_screen_rotation">Skjermrotasjon</string>
     <string name="settings_section_abbreviation">Forkortelser</string>
     <string name="settings_section_about">Om</string>
     <string name="settings_section_account">Konto</string>

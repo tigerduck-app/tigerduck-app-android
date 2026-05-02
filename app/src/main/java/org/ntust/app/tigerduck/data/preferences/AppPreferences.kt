@@ -21,8 +21,6 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("tigerduck_prefs", Context.MODE_PRIVATE)
     private val gson = Gson()
-    private val isTablet: Boolean =
-        context.resources.configuration.smallestScreenWidthDp >= 600
 
     // Language change forces a full network re-fetch so course names come
     // back in the new locale.
@@ -150,9 +148,15 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean("invertSliderDirection", false)
         set(value) = prefs.edit().putBoolean("invertSliderDirection", value).apply()
 
-    var enableRotation: Boolean
-        get() = prefs.getBoolean("enableRotation", isTablet)
-        set(value) = prefs.edit().putBoolean("enableRotation", value).apply()
+    /** One of "auto", "enabled", "disabled". */
+    var rotationMode: String
+        get() = prefs.getString("rotationMode", null)
+            ?.takeIf { it in ROTATION_MODE_OPTIONS }
+            ?: ROTATION_MODE_AUTO
+        set(value) {
+            val normalized = if (value in ROTATION_MODE_OPTIONS) value else ROTATION_MODE_AUTO
+            prefs.edit().putString("rotationMode", normalized).apply()
+        }
 
     var libraryFeatureEnabled: Boolean
         get() = prefs.getBoolean("libraryFeatureEnabled", false)
@@ -232,6 +236,15 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         }
 
     companion object {
+        const val ROTATION_MODE_AUTO = "auto"
+        const val ROTATION_MODE_ENABLED = "enabled"
+        const val ROTATION_MODE_DISABLED = "disabled"
+        val ROTATION_MODE_OPTIONS = setOf(
+            ROTATION_MODE_AUTO,
+            ROTATION_MODE_ENABLED,
+            ROTATION_MODE_DISABLED,
+        )
+
         const val CLASSROOM_MANDARIN_DISPLAY_ORIGINAL = "original"
         const val CLASSROOM_MANDARIN_DISPLAY_PINYIN = "pinyin"
         const val CLASSROOM_MANDARIN_DISPLAY_TRANSLATED = "translated"

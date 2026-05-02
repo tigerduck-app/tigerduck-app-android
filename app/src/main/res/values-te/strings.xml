@@ -168,6 +168,9 @@
     <string name="coming_soon_message">ఈ ఫీచర్ ఇంకా అమలు కాలేదు. వేచి ఉండండి!</string>
     <string name="coming_soon_title">త్వరలో వస్తుంది</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">స్వయంచాలకం</string>
+    <string name="common_disabled">నిలిపివేయబడింది</string>
+    <string name="common_enabled">ప్రారంభించబడింది</string>
     <string name="common_login_required_feature">ఈ ఫీచర్ వాడటానికి దయచేసి సైన్ ఇన్ చేయండి</string>
     <string name="common_not_logged_in">సైన్ ఇన్ కాలేదు</string>
     <string name="conflict_course_picker_title">కోర్సు ఎంచుకోండి</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">పిన్యిన్ చూపించు</string>
     <string name="settings_classroom_mandarin_display_translated">అనువాదాన్ని చూపించు</string>
     <string name="settings_color_theme">రంగు థీమ్</string>
-    <string name="settings_enable_rotation">స్క్రీన్ రొటేషన్ ప్రారంభించు (టాబ్లెట్‌లలో డిఫాల్ట్‌గా ఆన్)</string>
     <string name="settings_feedback_bug_report">ఫీడ్‌బ్యాక్ / సమస్య నివేదించు</string>
     <string name="settings_invert_slider_direction">స్లైడర్ దిశ తిరగబెట్టండి</string>
     <string name="settings_language">భాష (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">కోర్సు రంగులు రీసెట్ చేయండి</string>
     <string name="settings_reset_course_colors_confirm_message">ఇది డిఫాల్ట్ ప్రీసెట్లు వాడి తరగతి షెడ్యూల్ రంగులను యాదృచ్ఛికంగా తిరిగి కేటాయిస్తుంది.</string>
     <string name="settings_reset_course_colors_confirm_title">తరగతి షెడ్యూల్ రంగులు రీసెట్ చేయాలా?</string>
+    <string name="settings_screen_rotation">స్క్రీన్ రొటేషన్</string>
     <string name="settings_section_abbreviation">సంక్షేపాలు</string>
     <string name="settings_section_about">గురించి</string>
     <string name="settings_section_account">అకౌంట్</string>

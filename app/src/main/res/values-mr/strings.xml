@@ -168,6 +168,9 @@
     <string name="coming_soon_message">हे वैशिष्ट्य अद्याप उपलब्ध नाही. लक्ष ठेवा!</string>
     <string name="coming_soon_title">लवकरच येणार</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">स्वयंचलित</string>
+    <string name="common_disabled">अक्षम</string>
+    <string name="common_enabled">सक्षम</string>
     <string name="common_login_required_feature">हे वैशिष्ट्य वापरण्यासाठी कृपया साइन इन करा</string>
     <string name="common_not_logged_in">साइन इन केलेले नाही</string>
     <string name="conflict_course_picker_title">अभ्यासक्रम निवडा</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">पिनयिन दर्शवा</string>
     <string name="settings_classroom_mandarin_display_translated">भाषांतर दर्शवा</string>
     <string name="settings_color_theme">रंग थीम</string>
-    <string name="settings_enable_rotation">स्क्रीन रोटेशन सक्षम करा (टॅब्लेटवर डीफॉल्टनुसार चालू)</string>
     <string name="settings_feedback_bug_report">अभिप्राय / समस्या अहवाल</string>
     <string name="settings_invert_slider_direction">स्लायडर दिशा उलटवा</string>
     <string name="settings_language">भाषा (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">अभ्यासक्रम रंग रीसेट करा</string>
     <string name="settings_reset_course_colors_confirm_message">हे डीफॉल्ट पूर्वनिर्धारित रंग वापरून वर्ग वेळापत्रक रंग यादृच्छिकपणे पुन्हा नियुक्त करेल.</string>
     <string name="settings_reset_course_colors_confirm_title">वर्ग वेळापत्रक रंग रीसेट करायचे का?</string>
+    <string name="settings_screen_rotation">स्क्रीन रोटेशन</string>
     <string name="settings_section_abbreviation">संक्षेप</string>
     <string name="settings_section_about">बद्दल</string>
     <string name="settings_section_account">खाते</string>

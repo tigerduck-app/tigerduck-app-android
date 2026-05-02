@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Esta función aún no está implementada. ¡Mantente atento!</string>
     <string name="coming_soon_title">Próximamente</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automático</string>
+    <string name="common_disabled">Desactivado</string>
+    <string name="common_enabled">Activado</string>
     <string name="common_login_required_feature">Por favor, inicia sesión para usar esta función</string>
     <string name="common_not_logged_in">Sesión no iniciada</string>
     <string name="conflict_course_picker_title">Elige un curso</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Mostrar pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Mostrar traducción</string>
     <string name="settings_color_theme">Tema de color</string>
-    <string name="settings_enable_rotation">Habilitar rotación de pantalla (activado por defecto en tablets)</string>
     <string name="settings_feedback_bug_report">Comentarios / Reportar problema</string>
     <string name="settings_invert_slider_direction">Invertir dirección del control deslizante</string>
     <string name="settings_language">Idioma (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Restablecer colores de cursos</string>
     <string name="settings_reset_course_colors_confirm_message">Esto reasignará aleatoriamente los colores del horario de clases usando los valores predefinidos.</string>
     <string name="settings_reset_course_colors_confirm_title">¿Restablecer los colores del horario de clases?</string>
+    <string name="settings_screen_rotation">Rotación de pantalla</string>
     <string name="settings_section_abbreviation">Abreviaturas</string>
     <string name="settings_section_about">Acerca de</string>
     <string name="settings_section_account">Cuenta</string>

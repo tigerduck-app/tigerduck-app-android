@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Þessi eiginleiki er ekki enn útfærður. Vertu með!</string>
     <string name="coming_soon_title">Kemur bráðum</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Sjálfvirkt</string>
+    <string name="common_disabled">Óvirkt</string>
+    <string name="common_enabled">Virkt</string>
     <string name="common_login_required_feature">Skráðu þig inn til að nota þennan eiginleika</string>
     <string name="common_not_logged_in">Ekki innskráð/ur</string>
     <string name="conflict_course_picker_title">Veldu námskeið</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Sýna pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Sýna þýðingu</string>
     <string name="settings_color_theme">Litaþema</string>
-    <string name="settings_enable_rotation">Virkja snúning skjás (sjálfgefið kveikt á spjaldtölvum)</string>
     <string name="settings_feedback_bug_report">Endurgjöf / Tilkynna villu</string>
     <string name="settings_invert_slider_direction">Snúa sleðastefnu við</string>
     <string name="settings_language">Tungumál (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Endurstilla liti stundaskrár</string>
     <string name="settings_reset_course_colors_confirm_message">Þetta mun úthluta litum stundaskrár af handahófi með sjálfgefnum forstillingum.</string>
     <string name="settings_reset_course_colors_confirm_title">Endurstilla liti stundaskrár?</string>
+    <string name="settings_screen_rotation">Snúningur skjás</string>
     <string name="settings_section_abbreviation">Skammstafanir</string>
     <string name="settings_section_about">Um</string>
     <string name="settings_section_account">Reikningur</string>

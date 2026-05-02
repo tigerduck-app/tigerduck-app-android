@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Тази функция все още не е реализирана. Очаквайте!</string>
     <string name="coming_soon_title">Очаквайте скоро</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Автоматично</string>
+    <string name="common_disabled">Изключено</string>
+    <string name="common_enabled">Включено</string>
     <string name="common_login_required_feature">Моля, влезте, за да използвате тази функция</string>
     <string name="common_not_logged_in">Не сте влезли</string>
     <string name="conflict_course_picker_title">Изберете курс</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Показване на пиньинь</string>
     <string name="settings_classroom_mandarin_display_translated">Показване на превод</string>
     <string name="settings_color_theme">Цветова тема</string>
-    <string name="settings_enable_rotation">Активиране на въртене на екрана (по подразбиране включено на таблети)</string>
     <string name="settings_feedback_bug_report">Обратна връзка / Докладване на проблем</string>
     <string name="settings_invert_slider_direction">Обръщане на посоката на плъзгача</string>
     <string name="settings_language">Език (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Нулиране на цветовете на курсовете</string>
     <string name="settings_reset_course_colors_confirm_message">Това ще разпредели произволно цветовете на разписанието, използвайки стандартните предварително зададени цветове.</string>
     <string name="settings_reset_course_colors_confirm_title">Нулиране на цветовете на разписанието?</string>
+    <string name="settings_screen_rotation">Завъртане на екрана</string>
     <string name="settings_section_abbreviation">Съкращения</string>
     <string name="settings_section_about">Относно</string>
     <string name="settings_section_account">Акаунт</string>

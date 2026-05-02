@@ -168,6 +168,9 @@
     <string name="coming_soon_message">இந்த அம்சம் இன்னும் செயல்படுத்தப்படவில்லை. காத்திருங்கள்!</string>
     <string name="coming_soon_title">விரைவில் வருகிறது</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">தானாக</string>
+    <string name="common_disabled">முடக்கப்பட்டது</string>
+    <string name="common_enabled">இயக்கப்பட்டது</string>
     <string name="common_login_required_feature">இந்த அம்சத்தை பயன்படுத்த உள்நுழையவும்</string>
     <string name="common_not_logged_in">உள்நுழையவில்லை</string>
     <string name="conflict_course_picker_title">வகுப்பை தேர்வு செய்யவும்</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">பின்யினைக் காட்டு</string>
     <string name="settings_classroom_mandarin_display_translated">மொழிபெயர்ப்பைக் காட்டு</string>
     <string name="settings_color_theme">நிற தீம்</string>
-    <string name="settings_enable_rotation">திரை சுழற்சியை இயக்கு (டேப்லெட்டுகளில் இயல்பாக இயக்கப்பட்டது)</string>
     <string name="settings_feedback_bug_report">கருத்து / சிக்கல் அறிக்கை</string>
     <string name="settings_invert_slider_direction">ஸ்லைடர் திசையை மாற்று</string>
     <string name="settings_language">மொழி (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">வகுப்பு நிறங்களை மீட்டமை</string>
     <string name="settings_reset_course_colors_confirm_message">இது இயல்புநிலை முன்னமைவுகளைப் பயன்படுத்தி வகுப்பு அட்டவணை நிறங்களை சீரற்று மீண்டும் ஒதுக்கும்.</string>
     <string name="settings_reset_course_colors_confirm_title">வகுப்பு அட்டவணை நிறங்களை மீட்டமைக்கவா?</string>
+    <string name="settings_screen_rotation">திரை சுழற்சி</string>
     <string name="settings_section_abbreviation">சுருக்கங்கள்</string>
     <string name="settings_section_about">பற்றி</string>
     <string name="settings_section_account">கணக்கு</string>

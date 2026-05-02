@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Ez a funkció még nincs megvalósítva. Maradjon velünk!</string>
     <string name="coming_soon_title">Hamarosan</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automatikus</string>
+    <string name="common_disabled">Letiltva</string>
+    <string name="common_enabled">Engedélyezve</string>
     <string name="common_login_required_feature">Kérjük, jelentkezzen be a funkció használatához</string>
     <string name="common_not_logged_in">Nincs bejelentkezve</string>
     <string name="conflict_course_picker_title">Kurzus kiválasztása</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Pinyin megjelenítése</string>
     <string name="settings_classroom_mandarin_display_translated">Fordítás megjelenítése</string>
     <string name="settings_color_theme">Színtéma</string>
-    <string name="settings_enable_rotation">Képernyő forgatás engedélyezése (táblagépen alapértelmezetten be)</string>
     <string name="settings_feedback_bug_report">Visszajelzés / Hibabejelentés</string>
     <string name="settings_invert_slider_direction">Csúszka irányának megfordítása</string>
     <string name="settings_language">Nyelv (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Kurzus színek visszaállítása</string>
     <string name="settings_reset_course_colors_confirm_message">Ez véletlenszerűen újra hozzárendeli az órarend színeit az alapértelmezett készlet alapján.</string>
     <string name="settings_reset_course_colors_confirm_title">Visszaállítja az órarend színeit?</string>
+    <string name="settings_screen_rotation">Képernyő forgatása</string>
     <string name="settings_section_abbreviation">Rövidítések</string>
     <string name="settings_section_about">Névjegy</string>
     <string name="settings_section_account">Fiók</string>

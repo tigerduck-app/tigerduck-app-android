@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Diese Funktion ist noch nicht verfügbar. Bleiben Sie dran!</string>
     <string name="coming_soon_title">Demnächst verfügbar</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automatisch</string>
+    <string name="common_disabled">Deaktiviert</string>
+    <string name="common_enabled">Aktiviert</string>
     <string name="common_login_required_feature">Bitte melden Sie sich an, um diese Funktion zu nutzen</string>
     <string name="common_not_logged_in">Nicht angemeldet</string>
     <string name="conflict_course_picker_title">Kurs auswählen</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Pinyin anzeigen</string>
     <string name="settings_classroom_mandarin_display_translated">Übersetzung anzeigen</string>
     <string name="settings_color_theme">Farbschema</string>
-    <string name="settings_enable_rotation">Bildschirmdrehung aktivieren (auf Tablets standardmäßig aktiviert)</string>
     <string name="settings_feedback_bug_report">Feedback / Fehler melden</string>
     <string name="settings_invert_slider_direction">Schieberichtung umkehren</string>
     <string name="settings_language">Sprache (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Kursfarben zurücksetzen</string>
     <string name="settings_reset_course_colors_confirm_message">Dadurch werden die Stundenplan-Farben mit den Standard-Voreinstellungen zufällig neu zugewiesen.</string>
     <string name="settings_reset_course_colors_confirm_title">Stundenplan-Farben zurücksetzen?</string>
+    <string name="settings_screen_rotation">Bildschirmdrehung</string>
     <string name="settings_section_abbreviation">Abkürzungen</string>
     <string name="settings_section_about">Über</string>
     <string name="settings_section_account">Konto</string>

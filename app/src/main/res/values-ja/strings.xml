@@ -168,6 +168,9 @@
     <string name="coming_soon_message">この機能はまだ実装されていません。お楽しみに！</string>
     <string name="coming_soon_title">もうすぐ登場</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">自動</string>
+    <string name="common_disabled">無効</string>
+    <string name="common_enabled">有効</string>
     <string name="common_login_required_feature">この機能を使うにはサインインしてください</string>
     <string name="common_not_logged_in">サインインしていません</string>
     <string name="conflict_course_picker_title">授業を選択</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">ピンインを表示</string>
     <string name="settings_classroom_mandarin_display_translated">訳語を表示</string>
     <string name="settings_color_theme">カラーテーマ</string>
-    <string name="settings_enable_rotation">画面回転を有効化（タブレットでは既定で有効）</string>
     <string name="settings_feedback_bug_report">フィードバック / 不具合報告</string>
     <string name="settings_invert_slider_direction">スライダーの方向を反転</string>
     <string name="settings_language">言語 (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">時間割の色をリセット</string>
     <string name="settings_reset_course_colors_confirm_message">デフォルトのプリセットを使って、時間割の色をランダムに再割り当てします。</string>
     <string name="settings_reset_course_colors_confirm_title">時間割の色をリセットしますか？</string>
+    <string name="settings_screen_rotation">画面回転</string>
     <string name="settings_section_abbreviation">略称</string>
     <string name="settings_section_about">について</string>
     <string name="settings_section_account">アカウント</string>

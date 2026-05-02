@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Tätä ominaisuutta ei ole vielä toteutettu. Pysy kuulolla!</string>
     <string name="coming_soon_title">Tulossa pian</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automaattinen</string>
+    <string name="common_disabled">Pois käytöstä</string>
+    <string name="common_enabled">Käytössä</string>
     <string name="common_login_required_feature">Kirjaudu sisään käyttääksesi tätä ominaisuutta</string>
     <string name="common_not_logged_in">Ei kirjautunut</string>
     <string name="conflict_course_picker_title">Valitse kurssi</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Näytä pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Näytä käännös</string>
     <string name="settings_color_theme">Väriteema</string>
-    <string name="settings_enable_rotation">Ota näytön kierto käyttöön (oletuksena päällä tableteissa)</string>
     <string name="settings_feedback_bug_report">Palaute / Ilmoita ongelma</string>
     <string name="settings_invert_slider_direction">Käännä liukusäätimen suunta</string>
     <string name="settings_language">Kieli (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Nollaa kurssivärit</string>
     <string name="settings_reset_course_colors_confirm_message">Tämä jakaa satunnaisesti uudelleen lukujärjestyksen värit oletusasetuksilla.</string>
     <string name="settings_reset_course_colors_confirm_title">Nollatko lukujärjestyksen värit?</string>
+    <string name="settings_screen_rotation">Näytön kierto</string>
     <string name="settings_section_abbreviation">Lyhenteet</string>
     <string name="settings_section_about">Tietoja</string>
     <string name="settings_section_account">Tili</string>

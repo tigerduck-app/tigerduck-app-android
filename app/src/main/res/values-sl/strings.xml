@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Ta funkcija še ni implementirana. Ostanite z nami!</string>
     <string name="coming_soon_title">Kmalu na voljo</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Samodejno</string>
+    <string name="common_disabled">Onemogočeno</string>
+    <string name="common_enabled">Omogočeno</string>
     <string name="common_login_required_feature">Za uporabo te funkcije se prijavite</string>
     <string name="common_not_logged_in">Niste prijavljeni</string>
     <string name="conflict_course_picker_title">Izberite predmet</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Prikaži pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Prikaži prevod</string>
     <string name="settings_color_theme">Barvna tema</string>
-    <string name="settings_enable_rotation">Omogoči vrtenje zaslona (privzeto vklopljeno na tablicah)</string>
     <string name="settings_feedback_bug_report">Povratne informacije / Prijava napake</string>
     <string name="settings_invert_slider_direction">Obrni smer drsnika</string>
     <string name="settings_language">Jezik (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Ponastavi barve urnika</string>
     <string name="settings_reset_course_colors_confirm_message">S tem boste naključno dodelili barve urnika z uporabo privzetih prednastavitev.</string>
     <string name="settings_reset_course_colors_confirm_title">Ponastaviti barve urnika?</string>
+    <string name="settings_screen_rotation">Vrtenje zaslona</string>
     <string name="settings_section_abbreviation">Okrajšave</string>
     <string name="settings_section_about">O aplikaciji</string>
     <string name="settings_section_account">Račun</string>

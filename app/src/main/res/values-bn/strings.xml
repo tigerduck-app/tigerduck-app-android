@@ -168,6 +168,9 @@
     <string name="coming_soon_message">এই ফিচারটি এখনো তৈরি হয়নি। অপেক্ষায় থাকুন!</string>
     <string name="coming_soon_title">শীঘ্রই আসছে</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">স্বয়ংক্রিয়</string>
+    <string name="common_disabled">নিষ্ক্রিয়</string>
+    <string name="common_enabled">সক্রিয়</string>
     <string name="common_login_required_feature">এই ফিচার ব্যবহার করতে সাইন ইন করুন</string>
     <string name="common_not_logged_in">সাইন ইন করা নেই</string>
     <string name="conflict_course_picker_title">একটি কোর্স বেছে নিন</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">পিনয়িন প্রদর্শন করুন</string>
     <string name="settings_classroom_mandarin_display_translated">অনুবাদ প্রদর্শন করুন</string>
     <string name="settings_color_theme">রং থিম</string>
-    <string name="settings_enable_rotation">স্ক্রিন ঘোরানো চালু করুন (ট্যাবলেটে ডিফল্টভাবে চালু)</string>
     <string name="settings_feedback_bug_report">মতামত / সমস্যা রিপোর্ট করুন</string>
     <string name="settings_invert_slider_direction">স্লাইডারের দিক উল্টান</string>
     <string name="settings_language">ভাষা (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">কোর্সের রং রিসেট করুন</string>
     <string name="settings_reset_course_colors_confirm_message">এটি ডিফল্ট প্রিসেট ব্যবহার করে ক্লাস তালিকার রং এলোমেলোভাবে পুনরায় বরাদ্দ করবে।</string>
     <string name="settings_reset_course_colors_confirm_title">ক্লাস তালিকার রং রিসেট করবেন?</string>
+    <string name="settings_screen_rotation">স্ক্রিন রোটেশন</string>
     <string name="settings_section_abbreviation">সংক্ষেপণ</string>
     <string name="settings_section_about">সম্পর্কে</string>
     <string name="settings_section_account">অ্যাকাউন্ট</string>

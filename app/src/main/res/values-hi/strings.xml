@@ -168,6 +168,9 @@
     <string name="coming_soon_message">यह फीचर अभी उपलब्ध नहीं है। जल्द आने वाला है!</string>
     <string name="coming_soon_title">जल्द आ रहा है</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">स्वचालित</string>
+    <string name="common_disabled">अक्षम</string>
+    <string name="common_enabled">सक्षम</string>
     <string name="common_login_required_feature">कृपया इस सुविधा का उपयोग करने के लिए साइन इन करें</string>
     <string name="common_not_logged_in">साइन इन नहीं किया</string>
     <string name="conflict_course_picker_title">एक कोर्स चुनें</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">पिनयिन दिखाएँ</string>
     <string name="settings_classroom_mandarin_display_translated">अनुवाद दिखाएँ</string>
     <string name="settings_color_theme">रंग थीम</string>
-    <string name="settings_enable_rotation">स्क्रीन रोटेशन सक्षम करें (टैबलेट पर डिफ़ॉल्ट रूप से चालू)</string>
     <string name="settings_feedback_bug_report">फीडबैक / समस्या रिपोर्ट करें</string>
     <string name="settings_invert_slider_direction">स्लाइडर दिशा उलटें</string>
     <string name="settings_language">भाषा (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">कोर्स रंग रीसेट करें</string>
     <string name="settings_reset_course_colors_confirm_message">यह डिफ़ॉल्ट प्रीसेट का उपयोग करके कक्षा सारणी के रंग यादृच्छिक रूप से पुनः निर्धारित करेगा।</string>
     <string name="settings_reset_course_colors_confirm_title">कक्षा सारणी के रंग रीसेट करें?</string>
+    <string name="settings_screen_rotation">स्क्रीन रोटेशन</string>
     <string name="settings_section_abbreviation">संक्षेप</string>
     <string name="settings_section_about">के बारे में</string>
     <string name="settings_section_account">खाता</string>

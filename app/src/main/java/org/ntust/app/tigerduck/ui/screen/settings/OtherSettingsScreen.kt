@@ -34,7 +34,7 @@ fun OtherSettingsScreen(
     val libraryEnabled = viewModel.appState.libraryFeatureEnabled
     val themeMode = viewModel.appState.themeMode
     val browserPreference = viewModel.appState.browserPreference
-    val enableRotation = viewModel.appState.enableRotation
+    val rotationMode = viewModel.appState.rotationMode
 
     var showLibraryWarning by remember { mutableStateOf(false) }
     var showResetColorsConfirm by remember { mutableStateOf(false) }
@@ -139,10 +139,24 @@ fun OtherSettingsScreen(
 
             item {
                 ContentCard {
-                    SettingsToggleRow(
-                        stringResource(R.string.settings_enable_rotation),
-                        enableRotation,
-                    ) { viewModel.appState.enableRotation = it }
+                    val automatic = stringResource(R.string.common_automatic)
+                    val enabledStr = stringResource(R.string.common_enabled)
+                    val disabledStr = stringResource(R.string.common_disabled)
+                    SettingsPickerRow(
+                        label = stringResource(R.string.settings_screen_rotation),
+                        value = when (rotationMode) {
+                            "enabled" -> enabledStr
+                            "disabled" -> disabledStr
+                            else -> automatic
+                        },
+                        options = listOf(
+                            "auto" to automatic,
+                            "enabled" to enabledStr,
+                            "disabled" to disabledStr,
+                        ),
+                        selectedKey = rotationMode,
+                        onSelect = { viewModel.appState.rotationMode = it },
+                    )
                 }
             }
 

@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Tato funkce ještě není implementována. Zůstaňte naladěni!</string>
     <string name="coming_soon_title">Již brzy</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automaticky</string>
+    <string name="common_disabled">Vypnuto</string>
+    <string name="common_enabled">Zapnuto</string>
     <string name="common_login_required_feature">Pro použití této funkce se prosím přihlaste</string>
     <string name="common_not_logged_in">Nepřihlášeno</string>
     <string name="conflict_course_picker_title">Vyberte kurz</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Zobrazit pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Zobrazit překlad</string>
     <string name="settings_color_theme">Barevný motiv</string>
-    <string name="settings_enable_rotation">Povolit otáčení obrazovky (na tabletech ve výchozím nastavení zapnuto)</string>
     <string name="settings_feedback_bug_report">Zpětná vazba / Nahlásit problém</string>
     <string name="settings_invert_slider_direction">Obrátit směr posuvníku</string>
     <string name="settings_language">Jazyk (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Obnovit barvy kurzů</string>
     <string name="settings_reset_course_colors_confirm_message">Tato akce náhodně přepřiřadí barvy rozvrhu pomocí výchozích předvoleb.</string>
     <string name="settings_reset_course_colors_confirm_title">Obnovit barvy rozvrhu?</string>
+    <string name="settings_screen_rotation">Otáčení obrazovky</string>
     <string name="settings_section_abbreviation">Zkratky</string>
     <string name="settings_section_about">O aplikaci</string>
     <string name="settings_section_account">Účet</string>

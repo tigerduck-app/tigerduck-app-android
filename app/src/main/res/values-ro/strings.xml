@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Această funcționalitate nu este implementată încă. Rămâi pe fază!</string>
     <string name="coming_soon_title">În curând</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automat</string>
+    <string name="common_disabled">Dezactivat</string>
+    <string name="common_enabled">Activat</string>
     <string name="common_login_required_feature">Autentifică-te pentru a folosi această funcționalitate</string>
     <string name="common_not_logged_in">Neautentificat</string>
     <string name="conflict_course_picker_title">Alege un curs</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Afișează pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Afișează traducere</string>
     <string name="settings_color_theme">Temă de culori</string>
-    <string name="settings_enable_rotation">Activează rotirea ecranului (activat implicit pe tablete)</string>
     <string name="settings_feedback_bug_report">Feedback / Raportare problemă</string>
     <string name="settings_invert_slider_direction">Inversează direcția glisorului</string>
     <string name="settings_language">Limbă (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Resetează culorile cursurilor</string>
     <string name="settings_reset_course_colors_confirm_message">Aceasta va reatribui aleator culorile orarului folosind presetările implicite.</string>
     <string name="settings_reset_course_colors_confirm_title">Resetezi culorile orarului?</string>
+    <string name="settings_screen_rotation">Rotire ecran</string>
     <string name="settings_section_abbreviation">Abrevieri</string>
     <string name="settings_section_about">Despre</string>
     <string name="settings_section_account">Cont</string>

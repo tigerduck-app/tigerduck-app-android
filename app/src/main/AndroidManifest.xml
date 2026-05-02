@@ -25,9 +25,8 @@
             android:name="org.ntust.app.tigerduck.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize"
-            android:configChanges="locale|layoutDirection"
+            android:configChanges="locale|layoutDirection|screenSize|screenLayout|smallestScreenSize|orientation"
             android:theme="@style/Theme.TigerDuck">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

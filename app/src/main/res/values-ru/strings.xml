@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Эта функция ещё не реализована. Следите за обновлениями!</string>
     <string name="coming_soon_title">Скоро будет</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Автоматически</string>
+    <string name="common_disabled">Отключено</string>
+    <string name="common_enabled">Включено</string>
     <string name="common_login_required_feature">Войдите, чтобы пользоваться этой функцией</string>
     <string name="common_not_logged_in">Вы не вошли в систему</string>
     <string name="conflict_course_picker_title">Выберите курс</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Показать пиньинь</string>
     <string name="settings_classroom_mandarin_display_translated">Показать перевод</string>
     <string name="settings_color_theme">Цветовая тема</string>
-    <string name="settings_enable_rotation">Включить поворот экрана (по умолчанию включено на планшетах)</string>
     <string name="settings_feedback_bug_report">Отзыв / Сообщить о проблеме</string>
     <string name="settings_invert_slider_direction">Инвертировать направление ползунка</string>
     <string name="settings_language">Язык (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Сбросить цвета курсов</string>
     <string name="settings_reset_course_colors_confirm_message">Это случайным образом переназначит цвета расписания, используя предустановленные значения.</string>
     <string name="settings_reset_course_colors_confirm_title">Сбросить цвета расписания?</string>
+    <string name="settings_screen_rotation">Поворот экрана</string>
     <string name="settings_section_abbreviation">Сокращения</string>
     <string name="settings_section_about">О приложении</string>
     <string name="settings_section_account">Учётная запись</string>

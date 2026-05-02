@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Táto funkcia ešte nie je implementovaná. Sledujte novinky!</string>
     <string name="coming_soon_title">Čoskoro</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automaticky</string>
+    <string name="common_disabled">Vypnuté</string>
+    <string name="common_enabled">Zapnuté</string>
     <string name="common_login_required_feature">Pre použitie tejto funkcie sa prosím prihláste</string>
     <string name="common_not_logged_in">Nie ste prihlásení</string>
     <string name="conflict_course_picker_title">Vyberte kurz</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Zobraziť pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Zobraziť preklad</string>
     <string name="settings_color_theme">Farebná téma</string>
-    <string name="settings_enable_rotation">Povoliť otáčanie obrazovky (na tabletoch predvolene zapnuté)</string>
     <string name="settings_feedback_bug_report">Spätná väzba / Nahlásenie problému</string>
     <string name="settings_invert_slider_direction">Invertovať smer posuvníka</string>
     <string name="settings_language">Jazyk (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Obnoviť farby rozvrhu</string>
     <string name="settings_reset_course_colors_confirm_message">Farby rozvrhu budú náhodne pridelené pomocou predvolených prednastavení.</string>
     <string name="settings_reset_course_colors_confirm_title">Obnoviť farby rozvrhu?</string>
+    <string name="settings_screen_rotation">Otáčanie obrazovky</string>
     <string name="settings_section_abbreviation">Skratky</string>
     <string name="settings_section_about">O aplikácii</string>
     <string name="settings_section_account">Účet</string>

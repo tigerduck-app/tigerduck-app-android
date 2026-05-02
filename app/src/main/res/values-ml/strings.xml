@@ -168,6 +168,9 @@
     <string name="coming_soon_message">ഈ ഫീച്ചർ ഇതുവരെ നടപ്പിലാക്കിയിട്ടില്ല. ഉടൻ ലഭ്യമാകും!</string>
     <string name="coming_soon_title">ഉടൻ വരുന്നു</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">ഓട്ടോമാറ്റിക്</string>
+    <string name="common_disabled">നിർജ്ജീവം</string>
+    <string name="common_enabled">സജീവം</string>
     <string name="common_login_required_feature">ഈ ഫീച്ചർ ഉപയോഗിക്കാൻ ദയവായി സൈൻ ഇൻ ചെയ്യുക</string>
     <string name="common_not_logged_in">സൈൻ ഇൻ ചെയ്തിട്ടില്ല</string>
     <string name="conflict_course_picker_title">കോഴ്‌സ് തിരഞ്ഞെടുക്കുക</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">പിൻയിൻ കാണിക്കുക</string>
     <string name="settings_classroom_mandarin_display_translated">വിവർത്തനം കാണിക്കുക</string>
     <string name="settings_color_theme">നിറ തീം</string>
-    <string name="settings_enable_rotation">സ്‌ക്രീൻ കറക്കം പ്രവർത്തനക്ഷമമാക്കുക (ടാബ്‌ലെറ്റുകളിൽ സ്ഥിരസ്ഥിതിയായി ഓൺ)</string>
     <string name="settings_feedback_bug_report">ഫീഡ്‌ബാക്ക് / പ്രശ്‌നം റിപ്പോർട്ട് ചെയ്യുക</string>
     <string name="settings_invert_slider_direction">സ്ലൈഡർ ദിശ നേർമാറ്റം ചെയ്യുക</string>
     <string name="settings_language">ഭാഷ (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">കോഴ്‌സ് നിറങ്ങൾ പുനഃക്രമീകരിക്കുക</string>
     <string name="settings_reset_course_colors_confirm_message">ഇത് ഡിഫോൾട്ട് presets ഉപയോഗിച്ച് ക്ലാസ് ടൈംടേബിൾ നിറങ്ങൾ ക്രമരഹിതമായി പുനഃനിയോഗിക്കും.</string>
     <string name="settings_reset_course_colors_confirm_title">ക്ലാസ് ടൈംടേബിൾ നിറങ്ങൾ പുനഃക്രമീകരിക്കണോ?</string>
+    <string name="settings_screen_rotation">സ്ക്രീൻ റൊട്ടേഷൻ</string>
     <string name="settings_section_abbreviation">ചുരുക്കങ്ങൾ</string>
     <string name="settings_section_about">ആപ്പിനെ കുറിച്ച്</string>
     <string name="settings_section_account">അക്കൗണ്ട്</string>

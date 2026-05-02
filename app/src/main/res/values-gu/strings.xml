@@ -168,6 +168,9 @@
     <string name="coming_soon_message">આ ફીચર હજી અમલમાં નથી. રાહ જુઓ!</string>
     <string name="coming_soon_title">ટૂંક સમયમાં</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">આપમેળે</string>
+    <string name="common_disabled">નિષ્ક્રિય</string>
+    <string name="common_enabled">સક્રિય</string>
     <string name="common_login_required_feature">આ ફીચર ઉપયોગ કરવા કૃપા કરીને સાઇન ઇન કરો</string>
     <string name="common_not_logged_in">સાઇન ઇન નહીં</string>
     <string name="conflict_course_picker_title">કોર્સ પસંદ કરો</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">પિનયિન બતાવો</string>
     <string name="settings_classroom_mandarin_display_translated">અનુવાદ બતાવો</string>
     <string name="settings_color_theme">કલર થીમ</string>
-    <string name="settings_enable_rotation">સ્ક્રીન રોટેશન સક્ષમ કરો (ટેબ્લેટ પર ડિફૉલ્ટ રૂપે ચાલુ)</string>
     <string name="settings_feedback_bug_report">ફીડબૅક / સમસ્યા જણાવો</string>
     <string name="settings_invert_slider_direction">સ્લાઇડર દિશા ઊંધી કરો</string>
     <string name="settings_language">ભાષા (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">કોર્સ રંગ રીસેટ</string>
     <string name="settings_reset_course_colors_confirm_message">આ ક્લાસ ટાઇમટેબલ ના રંગ ડિફૉલ્ટ પ્રી-સેટ ઉપયોગ કરી રૅન્ડમ ફરીથી આપશે.</string>
     <string name="settings_reset_course_colors_confirm_title">ક્લાસ ટાઇમટેબલ રંગ રીસેટ?</string>
+    <string name="settings_screen_rotation">સ્ક્રીન રોટેશન</string>
     <string name="settings_section_abbreviation">સંક્ષેપ</string>
     <string name="settings_section_about">વિશે</string>
     <string name="settings_section_account">એકાઉન્ટ</string>

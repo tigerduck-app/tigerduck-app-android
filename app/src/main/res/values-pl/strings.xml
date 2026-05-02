@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Ta funkcja nie została jeszcze zaimplementowana. Prosimy o cierpliwość!</string>
     <string name="coming_soon_title">Już wkrótce</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automatycznie</string>
+    <string name="common_disabled">Wyłączone</string>
+    <string name="common_enabled">Włączone</string>
     <string name="common_login_required_feature">Proszę zalogować się, aby skorzystać z tej funkcji</string>
     <string name="common_not_logged_in">Niezalogowany</string>
     <string name="conflict_course_picker_title">Wybierz przedmiot</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Wyświetl pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Wyświetl tłumaczenie</string>
     <string name="settings_color_theme">Motyw kolorystyczny</string>
-    <string name="settings_enable_rotation">Włącz obracanie ekranu (domyślnie włączone na tabletach)</string>
     <string name="settings_feedback_bug_report">Opinie / Zgłoś problem</string>
     <string name="settings_invert_slider_direction">Odwróć kierunek suwaka</string>
     <string name="settings_language">Język (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Zresetuj kolory przedmiotów</string>
     <string name="settings_reset_course_colors_confirm_message">Spowoduje to losowe przypisanie kolorów planu zajęć z domyślnych predefiniowanych ustawień.</string>
     <string name="settings_reset_course_colors_confirm_title">Zresetować kolory planu zajęć?</string>
+    <string name="settings_screen_rotation">Obrót ekranu</string>
     <string name="settings_section_abbreviation">Skróty</string>
     <string name="settings_section_about">O aplikacji</string>
     <string name="settings_section_account">Konto</string>

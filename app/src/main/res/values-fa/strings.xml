@@ -168,6 +168,9 @@
     <string name="coming_soon_message">این قابلیت هنوز پیاده‌سازی نشده است. منتظر باشید!</string>
     <string name="coming_soon_title">به‌زودی</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">خودکار</string>
+    <string name="common_disabled">غیرفعال</string>
+    <string name="common_enabled">فعال</string>
     <string name="common_login_required_feature">برای استفاده از این قابلیت لطفاً ابتدا وارد شوید</string>
     <string name="common_not_logged_in">وارد نشده‌اید</string>
     <string name="conflict_course_picker_title">یک درس را انتخاب کنید</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">نمایش پینیین</string>
     <string name="settings_classroom_mandarin_display_translated">نمایش ترجمه شده</string>
     <string name="settings_color_theme">تم رنگ</string>
-    <string name="settings_enable_rotation">فعال‌سازی چرخش صفحه (به طور پیش‌فرض در تبلت‌ها فعال)</string>
     <string name="settings_feedback_bug_report">بازخورد / گزارش مشکل</string>
     <string name="settings_invert_slider_direction">معکوس کردن جهت لغزنده</string>
     <string name="settings_language">(Language) زبان</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">بازنشانی رنگ‌های درس‌ها</string>
     <string name="settings_reset_course_colors_confirm_message">این کار رنگ‌های برنامه کلاس‌ها را با استفاده از رنگ‌های پیش‌فرض به‌صورت تصادفی دوباره تخصیص می‌دهد.</string>
     <string name="settings_reset_course_colors_confirm_title">رنگ‌های برنامه کلاس‌ها بازنشانی شود؟</string>
+    <string name="settings_screen_rotation">چرخش صفحه</string>
     <string name="settings_section_abbreviation">مخفف‌ها</string>
     <string name="settings_section_about">درباره</string>
     <string name="settings_section_account">حساب کاربری</string>

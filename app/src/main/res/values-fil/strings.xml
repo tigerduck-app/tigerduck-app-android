@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Hindi pa naipapatupad ang feature na ito. Abangan po!</string>
     <string name="coming_soon_title">Paparating na</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Awtomatiko</string>
+    <string name="common_disabled">Naka-disable</string>
+    <string name="common_enabled">Naka-enable</string>
     <string name="common_login_required_feature">Mag-sign in muna para magamit ang feature na ito</string>
     <string name="common_not_logged_in">Hindi naka-sign in</string>
     <string name="conflict_course_picker_title">Pumili ng kurso</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Ipakita ang pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Ipakita ang salin</string>
     <string name="settings_color_theme">Kulay na tema</string>
-    <string name="settings_enable_rotation">I-enable ang screen rotation (default na naka-on sa tablet)</string>
     <string name="settings_feedback_bug_report">Feedback / Mag-ulat ng isyu</string>
     <string name="settings_invert_slider_direction">I-invert ang direksyon ng slider</string>
     <string name="settings_language">Wika (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">I-reset ang mga kulay ng kurso</string>
     <string name="settings_reset_course_colors_confirm_message">Ibibigay nito nang random ang mga kulay ng iskedyul ng klase gamit ang mga default na preset.</string>
     <string name="settings_reset_course_colors_confirm_title">I-reset ang mga kulay ng iskedyul ng klase?</string>
+    <string name="settings_screen_rotation">Pag-ikot ng screen</string>
     <string name="settings_section_abbreviation">Mga Pagdadaglat</string>
     <string name="settings_section_about">Tungkol sa app</string>
     <string name="settings_section_account">Account</string>

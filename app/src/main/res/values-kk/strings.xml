@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Бұл мүмкіндік әлі іске асырылмаған. Күтіп қалыңыз!</string>
     <string name="coming_soon_title">Жақында</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Автоматты</string>
+    <string name="common_disabled">Өшірулі</string>
+    <string name="common_enabled">Қосулы</string>
     <string name="common_login_required_feature">Бұл мүмкіндікті пайдалану үшін алдымен кіріңіз</string>
     <string name="common_not_logged_in">Кіру жасалмаған</string>
     <string name="conflict_course_picker_title">Курс таңдау</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Пиньиньді көрсету</string>
     <string name="settings_classroom_mandarin_display_translated">Аударманы көрсету</string>
     <string name="settings_color_theme">Түс тақырыбы</string>
-    <string name="settings_enable_rotation">Экранды бұруды қосу (планшеттерде әдепкі бойынша қосулы)</string>
     <string name="settings_feedback_bug_report">Пікір / Мәселені хабарлау</string>
     <string name="settings_invert_slider_direction">Жүгірткі бағытын кері айналдыру</string>
     <string name="settings_language">Тіл (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Курс түстерін қалпына келтіру</string>
     <string name="settings_reset_course_colors_confirm_message">Бұл сабақ кестесінің түстерін әдепкі алдын ала орнатулар арқылы кездейсоқ қайта тағайындайды.</string>
     <string name="settings_reset_course_colors_confirm_title">Сабақ кестесі түстерін қалпына келтіру керек пе?</string>
+    <string name="settings_screen_rotation">Экранды бұру</string>
     <string name="settings_section_abbreviation">Қысқартулар</string>
     <string name="settings_section_about">Туралы</string>
     <string name="settings_section_account">Тіркелгі</string>

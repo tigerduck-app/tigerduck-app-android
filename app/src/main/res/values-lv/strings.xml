@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Šī funkcija vēl nav ieviesta. Sekojiet līdzi jaunumiem!</string>
     <string name="coming_soon_title">Drīzumā</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Automātiski</string>
+    <string name="common_disabled">Izslēgts</string>
+    <string name="common_enabled">Ieslēgts</string>
     <string name="common_login_required_feature">Lūdzu, piesakieties, lai izmantotu šo funkciju</string>
     <string name="common_not_logged_in">Nav pieteicies</string>
     <string name="conflict_course_picker_title">Izvēlieties kursu</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Rādīt pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Rādīt tulkojumu</string>
     <string name="settings_color_theme">Krāsu tēma</string>
-    <string name="settings_enable_rotation">Iespējot ekrāna pagriešanu (planšetdatoros pēc noklusējuma ieslēgts)</string>
     <string name="settings_feedback_bug_report">Atsauksme / Ziņot par problēmu</string>
     <string name="settings_invert_slider_direction">Invertēt slīdņa virzienu</string>
     <string name="settings_language">Valoda (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Atiestatīt kursu krāsas</string>
     <string name="settings_reset_course_colors_confirm_message">Tas nejauši pārpiešķirs stundu plāna krāsas, izmantojot noklusējuma iepriekš iestatītās krāsas.</string>
     <string name="settings_reset_course_colors_confirm_title">Atiestatīt stundu plāna krāsas?</string>
+    <string name="settings_screen_rotation">Ekrāna pagriešana</string>
     <string name="settings_section_abbreviation">Saīsinājumi</string>
     <string name="settings_section_about">Par</string>
     <string name="settings_section_account">Konts</string>

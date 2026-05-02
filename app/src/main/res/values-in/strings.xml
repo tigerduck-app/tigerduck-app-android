@@ -168,6 +168,9 @@
     <string name="coming_soon_message">Fitur ini belum tersedia. Nantikan ya!</string>
     <string name="coming_soon_title">Segera hadir</string>
     <string name="common_auto_login_failed">Auto sign-in failed</string>
+    <string name="common_automatic">Otomatis</string>
+    <string name="common_disabled">Nonaktif</string>
+    <string name="common_enabled">Aktif</string>
     <string name="common_login_required_feature">Silakan masuk untuk menggunakan fitur ini</string>
     <string name="common_not_logged_in">Belum masuk</string>
     <string name="conflict_course_picker_title">Pilih mata kuliah</string>
@@ -435,7 +438,6 @@
     <string name="settings_classroom_mandarin_display_pinyin">Tampilkan pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Tampilkan terjemahan</string>
     <string name="settings_color_theme">Tema warna</string>
-    <string name="settings_enable_rotation">Aktifkan rotasi layar (aktif secara default di tablet)</string>
     <string name="settings_feedback_bug_report">Umpan balik / Laporkan masalah</string>
     <string name="settings_invert_slider_direction">Balik arah slider</string>
     <string name="settings_language">Bahasa (Language)</string>
@@ -460,6 +462,7 @@
     <string name="settings_reset_course_colors">Setel ulang warna mata kuliah</string>
     <string name="settings_reset_course_colors_confirm_message">Ini akan mengacak ulang warna jadwal kuliah menggunakan preset default.</string>
     <string name="settings_reset_course_colors_confirm_title">Setel ulang warna jadwal kuliah?</string>
+    <string name="settings_screen_rotation">Rotasi layar</string>
     <string name="settings_section_abbreviation">Singkatan</string>
     <string name="settings_section_about">Tentang</string>
     <string name="settings_section_account">Akun</string>
