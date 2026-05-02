@@ -26,11 +26,13 @@ class BulletinApiClient @Inject constructor(
     private val gson = Gson()
     private val jsonType = "application/json".toMediaType()
 
-    // Single shared interceptor instance: redactHeader is a no-op for the
-    // unauthenticated `client` (which never sends X-Push-Token) but is
-    // load-bearing for `authedClient`, which reuses this same instance.
-    // Don't split into per-client loggers without keeping redaction on the
-    // authed path.
+    // Single shared interceptor instance. The X-Push-Token redaction below is
+    // only meaningful on the `authedClient` chain — the unauthenticated
+    // `client` never sets that header, so the redaction is a no-op there. If
+    // the two clients are ever split into per-instance loggers, X-Push-Token
+    // redaction MUST stay on the authed path; the other redacted headers
+    // (Authorization, Cookie, Set-Cookie, Proxy-Authorization) defend either
+    // path against future interceptors that might add them.
     private val logging = HttpLoggingInterceptor { msg ->
         Log.d("TigerDuck-Bulletin", msg)
     }.apply {

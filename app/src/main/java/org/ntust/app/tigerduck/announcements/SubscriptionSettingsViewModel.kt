@@ -90,6 +90,11 @@ class SubscriptionSettingsViewModel @Inject constructor(
             _state.update { it.copy(loadState = LoadState.Loading) }
             try {
                 val response = api.fetchSubscriptions(identity.deviceId())
+                // Bump the save generation so any in-flight save()'s PUT echo
+                // is treated as superseded — otherwise the echo lands after
+                // this fresh server snapshot and reverts rules to whatever the
+                // earlier (now stale) PUT body contained.
+                saveGeneration++
                 _state.update {
                     it.copy(rules = response.rules, loadState = LoadState.Loaded)
                 }

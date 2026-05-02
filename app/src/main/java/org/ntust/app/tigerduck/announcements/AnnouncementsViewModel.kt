@@ -142,7 +142,7 @@ class AnnouncementsViewModel @Inject constructor(
                 if (response.nextCursor == null) {
                     readState.prune(merged.map { it.id })
                 } else {
-                    startBackgroundPrefetch()
+                    startBackgroundPrefetch(includeDeleted)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -157,7 +157,7 @@ class AnnouncementsViewModel @Inject constructor(
         }
     }
 
-    private fun startBackgroundPrefetch() {
+    private fun startBackgroundPrefetch(includeDeleted: Boolean) {
         prefetch?.cancel()
         prefetch = viewModelScope.launch {
             // Walk the cursor chain in the background so the user doesn't see
@@ -169,7 +169,7 @@ class AnnouncementsViewModel @Inject constructor(
                 delay(150)
                 val cursor = nextCursor ?: break
                 val response = try {
-                    api.fetchList(cursor = cursor, includeDeleted = _state.value.showDeleted)
+                    api.fetchList(cursor = cursor, includeDeleted = includeDeleted)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {

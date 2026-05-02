@@ -100,8 +100,9 @@ class BulletinReadStateStore @Inject constructor(
 
     private fun persistNow() {
         pendingPersist?.cancel()
-        pendingPersist = null
-        writeToPrefs()
+        pendingPersist = persistScope.launch {
+            synchronized(lock) { writeToPrefs() }
+        }
     }
 
     private fun writeToPrefs() {
