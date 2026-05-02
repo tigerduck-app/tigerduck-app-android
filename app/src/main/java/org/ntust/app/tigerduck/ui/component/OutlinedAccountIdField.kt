@@ -5,41 +5,45 @@ import android.text.InputType
 import android.text.TextWatcher
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.interaction.FocusInteraction
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.launch
 
 /**
  * Outlined text field for account-ID style inputs (student ID, library
- * account). Wraps a raw [EditText] so we can request
- * `TYPE_TEXT_VARIATION_VISIBLE_PASSWORD` — Compose's [androidx.compose.ui.text.input.KeyboardType]
- * has no equivalent, but visible-password is the only standard inputType
- * that reliably surfaces a number row in Gboard / SwiftKey / Samsung
- * Keyboard for fields that mix letters and digits.
+ * account). Wraps a raw [EditText] inside Material 3's
+ * [OutlinedTextFieldDefaults.DecorationBox] so the chrome matches a
+ * normal `OutlinedTextField` (floating label that cuts the stroke,
+ * animated focus colors, identical height).
  *
- * Visuals approximate Material 3's outlined text field: stacked label +
- * rounded border that animates color on focus. The label sits above the
- * border (no cutting-the-stroke float) since reproducing that requires
- * either custom Canvas drawing or pulling in com.google.android.material.
+ * Why a raw EditText instead of `OutlinedTextField`: Compose's
+ * [androidx.compose.ui.text.input.KeyboardType] has no entry that maps
+ * to Android's `TYPE_TEXT_VARIATION_VISIBLE_PASSWORD` inputType — the
+ * only standard inputType that reliably surfaces a number row in
+ * Gboard / SwiftKey / Samsung Keyboard for fields that mix letters and
+ * digits. `KeyboardType.NumberPassword` is digits-only and would break
+ * IDs with a letter prefix (e.g. NTUST `B11234567`).
+ *
+ * Focus state is forwarded to the DecorationBox via an
+ * [MutableInteractionSource] so the floating-label animation and border
+ * color react to the embedded EditText gaining / losing focus.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OutlinedAccountIdField(
     value: String,
@@ -54,51 +58,50 @@ fun OutlinedAccountIdField(
 ) {
     val onValueChangeState = rememberUpdatedState(onValueChange)
     val onImeActionState = rememberUpdatedState(onImeAction)
-    var hasFocus by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val coroutineScope = rememberCoroutineScope()
 
     val onSurfaceArgb = MaterialTheme.colorScheme.onSurface.toArgb()
     val onSurfaceVariantArgb = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
-    val outlineColor = MaterialTheme.colorScheme.outline
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
 
-    val borderColor by animateColorAsState(
-        targetValue = if (hasFocus) primaryColor else outlineColor,
-        label = "borderColor",
-    )
-    val labelColor = if (hasFocus) primaryColor else onSurfaceVariantColor
-
-    Column(modifier = modifier) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = labelColor,
-            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(
-                    width = if (hasFocus) 2.dp else 1.dp,
-                    color = borderColor,
-                    shape = RoundedCornerShape(4.dp),
-                )
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-        ) {
+    OutlinedTextFieldDefaults.DecorationBox(
+        value = value,
+        innerTextField = {
             AndroidView(
                 modifier = Modifier.fillMaxWidth(),
                 factory = { ctx ->
                     EditText(ctx).apply {
                         background = null
+                        // Strip EditText's own padding so the
+                        // DecorationBox-supplied padding governs layout.
+                        setPadding(0, 0, 0, 0)
+                        includeFontPadding = false
                         textSize = 16f
                         setSingleLine()
                         setTextColor(onSurfaceArgb)
                         setHintTextColor(onSurfaceVariantArgb)
-                        // Tag is used as a "suppress listener" flag while
-                        // setText() runs from the update block — avoids
-                        // bouncing back into onValueChange and looping when
-                        // the parent transforms the value (e.g. uppercase).
+                        // Tag is a "suppress listener" flag while setText()
+                        // runs from the update block — avoids bouncing back
+                        // into onValueChange and looping when the parent
+                        // transforms the value (e.g. uppercase).
                         tag = false
+
+                        var focusInteraction: FocusInteraction.Focus? = null
+                        setOnFocusChangeListener { _, focused ->
+                            coroutineScope.launch {
+                                if (focused) {
+                                    val interaction = FocusInteraction.Focus()
+                                    focusInteraction = interaction
+                                    interactionSource.emit(interaction)
+                                } else {
+                                    focusInteraction?.let {
+                                        interactionSource.emit(FocusInteraction.Unfocus(it))
+                                    }
+                                    focusInteraction = null
+                                }
+                            }
+                        }
+
                         addTextChangedListener(object : TextWatcher {
                             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -107,7 +110,7 @@ fun OutlinedAccountIdField(
                                 onValueChangeState.value(s?.toString().orEmpty())
                             }
                         })
-                        setOnFocusChangeListener { _, focused -> hasFocus = focused }
+
                         setOnEditorActionListener { _, actionId, _ ->
                             when (actionId) {
                                 EditorInfo.IME_ACTION_NEXT,
@@ -140,8 +143,20 @@ fun OutlinedAccountIdField(
                     }
                 },
             )
-        }
-    }
+        },
+        enabled = enabled,
+        singleLine = true,
+        visualTransformation = VisualTransformation.None,
+        interactionSource = interactionSource,
+        label = { Text(label) },
+        container = {
+            OutlinedTextFieldDefaults.Container(
+                enabled = enabled,
+                isError = false,
+                interactionSource = interactionSource,
+            )
+        },
+    )
 }
 
 private fun KeyboardCapitalization.toInputTypeFlag(): Int = when (this) {
