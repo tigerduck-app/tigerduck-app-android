@@ -179,6 +179,9 @@ class SubscriptionSettingsViewModel @Inject constructor(
                     it.copy(rules = response.rules, saveState = SaveState.Saved)
                 }
             } catch (e: CancellationException) {
+                // A new save() is replacing this one; reset Saving so the UI
+                // doesn't appear stuck if the next job is still in its debounce.
+                _state.update { it.copy(saveState = SaveState.Idle) }
                 throw e
             } catch (e: Exception) {
                 _state.update { it.copy(saveState = SaveState.Failed(e.message ?: "error")) }

@@ -234,39 +234,12 @@ val syncLocalizations by tasks.registering(Exec::class) {
     }
 }
 
-val cleanCopiedAndroidLocalizations by tasks.registering(Delete::class) {
-    group = "localization"
-    description = "Remove previously copied localized strings.xml resources from app/src/main/res."
-
-    val resDir = layout.projectDirectory.dir("src/main/res")
-
-    // Delete generated strings.xml files first.
-    delete(fileTree(resDir) {
-        include("values*/strings.xml")
-        include("values-b+*/strings.xml")
-    })
-
-    // Then remove any now-empty locale-specific values-* directories.
-    doLast {
-        val root = resDir.asFile
-        root.listFiles()
-            ?.filter { it.isDirectory && (it.name.startsWith("values-") || it.name.startsWith("values-b+")) }
-            ?.forEach { dir ->
-                val remaining = dir.listFiles()
-                if (remaining == null || remaining.isEmpty()) {
-                    dir.delete()
-                }
-            }
-    }
-}
-
 val copyGeneratedAndroidLocalizations by tasks.registering(Copy::class) {
     group = "localization"
     description = "Copy localization/generated/android values-* resources into app/src/main/res."
 
     // Ensure the generator ran first.
     dependsOn(syncLocalizations)
-    dependsOn(cleanCopiedAndroidLocalizations)
 
     val sourceDir = rootProject.layout.projectDirectory.dir("localization/generated/android")
     val destDir = layout.projectDirectory.dir("src/main/res")
@@ -279,6 +252,25 @@ val copyGeneratedAndroidLocalizations by tasks.registering(Copy::class) {
 
     into(destDir)
     includeEmptyDirs = false
+
+    // Atomically clear stale generated files just before copying. If syncLocalizations
+    // fails, this doFirst never runs, so committed locale files remain on disk.
+    doFirst {
+        val resDir = destDir.asFile
+        fileTree(resDir) {
+            include("values*/strings.xml")
+            include("values-b+*/strings.xml")
+        }.forEach { it.delete() }
+
+        resDir.listFiles()
+            ?.filter { it.isDirectory && (it.name.startsWith("values-") || it.name.startsWith("values-b+")) }
+            ?.forEach { dir ->
+                val remaining = dir.listFiles()
+                if (remaining == null || remaining.isEmpty()) {
+                    dir.delete()
+                }
+            }
+    }
 }
 
 tasks.named("preBuild") {

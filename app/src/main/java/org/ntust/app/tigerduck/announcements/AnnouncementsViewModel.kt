@@ -147,6 +147,11 @@ class AnnouncementsViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                // Allow load() to retry on next screen entry if the initial
+                // fetch failed and there's no cached data to fall back on.
+                if (_state.value.items.isEmpty()) {
+                    hasLoaded = false
+                }
                 _state.update { it.copy(loadState = LoadState.Failed(e.message ?: "error")) }
             }
         }
