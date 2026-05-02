@@ -2,12 +2,14 @@ package org.ntust.app.tigerduck.push
 
 import com.google.gson.annotations.SerializedName
 
+// Backend stores the push token in `pts_token_hex` for both iOS (APNs) and
+// Android (FCM); the column name predates Android support but is platform-
+// agnostic in practice (see DEBUG.md verification query).
 data class DeviceRegisterRequest(
     @SerializedName("user_id") val userId: String,
     @SerializedName("device_id") val deviceId: String,
     val platform: String = "android",
     @SerializedName("pts_token_hex") val ptsTokenHex: String,
-    @SerializedName("device_token_hex") val deviceTokenHex: String? = null,
     @SerializedName("bundle_id") val bundleId: String = "org.ntust.app.tigerduck",
 )
 

@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.announcements
 
 import android.content.Context
+import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -76,11 +77,16 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
         try {
             tmp.writeText(content)
             if (!tmp.renameTo(target)) {
+                Log.w(TAG, "atomic write failed: rename ${tmp.name} -> ${target.name}")
                 tmp.delete()
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "atomic write failed for ${target.name}", e)
             tmp.delete()
         }
     }
 
+    private companion object {
+        const val TAG = "BulletinCache"
+    }
 }

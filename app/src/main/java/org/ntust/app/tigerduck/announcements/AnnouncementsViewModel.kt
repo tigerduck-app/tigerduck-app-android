@@ -107,11 +107,14 @@ class AnnouncementsViewModel @Inject constructor(
         loadMoreJob?.cancel()
         nextCursor = null
         inflight = viewModelScope.launch {
+            // Capture before any suspend so a concurrent toggle of showDeleted
+            // can't desync the fetch filter from the UI state.
+            val includeDeleted = _state.value.showDeleted
             _state.update { it.copy(loadState = LoadState.Loading, isPaginating = false) }
             try {
                 val response = api.fetchList(
                     cursor = null,
-                    includeDeleted = _state.value.showDeleted,
+                    includeDeleted = includeDeleted,
                 )
                 val merged = sortedUnique(_state.value.items + response.items)
                 nextCursor = response.nextCursor
