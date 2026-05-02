@@ -49,7 +49,7 @@ class CalendarService @Inject constructor(
         try {
             val request = Request.Builder().url(calendarPageUrl).get().build()
             val (html, baseUrl) = browserClient.newCall(request).execute().use { response ->
-                (response.body?.string() ?: "") to response.request.url.toString()
+                response.body.string() to response.request.url.toString()
             }
 
             val linkRegex = Regex(
@@ -101,7 +101,7 @@ class CalendarService @Inject constructor(
 
             val request = Request.Builder().url(icsUrl).get().build()
             val icsString = browserClient.newCall(request).execute().use { response ->
-                response.body?.string() ?: return@withContext emptyList()
+                response.body.string()
             }
             parseICS(icsString)
         } catch (e: Exception) {

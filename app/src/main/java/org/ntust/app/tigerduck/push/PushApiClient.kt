@@ -59,7 +59,7 @@ class PushApiClient @Inject constructor(
                 .post(body)
                 .build()
             client.newCall(request).execute().use { response ->
-                val text = response.body?.string().orEmpty()
+                val text = response.body.string()
                 if (!response.isSuccessful) {
                     throw PushApiException("register failed: HTTP ${response.code} $text")
                 }
