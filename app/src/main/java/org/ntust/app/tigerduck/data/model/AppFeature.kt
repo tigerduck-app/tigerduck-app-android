@@ -108,19 +108,31 @@ enum class AppFeature(val id: String) {
         val defaultTabs = listOf(HOME, CLASS_TABLE, CALENDAR)
 
         val pinnableFeatures = listOf(
-            HOME, CLASS_TABLE, CALENDAR, ANNOUNCEMENTS, LIBRARY,
-            SCORE, COURSE_SELECTION, GRADUATION_REQUIREMENTS,
-            DISCUSSION_ROOM, LIBRARY_LECTURE,
-            FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
-            ENGLISH_VOCAB
+            HOME, CLASS_TABLE, CALENDAR, ANNOUNCEMENTS, LIBRARY, SCORE,
+            // TODO: re-enable once these pages are implemented
+            // COURSE_SELECTION, GRADUATION_REQUIREMENTS,
+            // DISCUSSION_ROOM, LIBRARY_LECTURE,
+            // FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
+            // ENGLISH_VOCAB,
         )
 
         val moreFeatures = listOf(
-            CLASS_TABLE, CALENDAR,
-            SCORE, COURSE_SELECTION, GRADUATION_REQUIREMENTS,
-            LIBRARY, DISCUSSION_ROOM, LIBRARY_LECTURE,
-            ANNOUNCEMENTS, FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
-            ENGLISH_VOCAB
+            CLASS_TABLE, CALENDAR, SCORE,
+            LIBRARY, ANNOUNCEMENTS,
+            // TODO: re-enable once these pages are implemented
+            // COURSE_SELECTION, GRADUATION_REQUIREMENTS,
+            // DISCUSSION_ROOM, LIBRARY_LECTURE,
+            // FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
+            // ENGLISH_VOCAB,
+        )
+
+        // TODO: remove once every entry here has a real screen. Used to scrub
+        // obsolete entries from persisted user tab configs on app open.
+        val unfinishedFeatures = setOf(
+            COURSE_SELECTION, GRADUATION_REQUIREMENTS,
+            DISCUSSION_ROOM, LIBRARY_LECTURE,
+            FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
+            ENGLISH_VOCAB,
         )
 
         fun fromId(id: String): AppFeature? = entries.firstOrNull { it.id == id }

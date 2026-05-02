@@ -65,6 +65,15 @@ class AppState @Inject constructor(
             DataMigration.Outcome.NeedsUserReset -> _needsUserReset.value = true
             DataMigration.Outcome.Ok -> Unit
         }
+        // TODO: remove in a future release once unfinished features ship (or
+        // enough time has passed that no users still have these entries
+        // persisted). Strips features that were once tab-pinnable but route
+        // to a placeholder, so the bottom bar never shows a "coming soon" tab.
+        val saved = prefs.configuredTabs
+        val cleaned = saved.filterNot { it in AppFeature.unfinishedFeatures }
+        if (cleaned != saved) {
+            prefs.configuredTabs = cleaned.ifEmpty { AppFeature.defaultTabs }
+        }
     }
 
     private var hasCompletedOnboardingState by mutableStateOf(prefs.hasCompletedOnboarding)
