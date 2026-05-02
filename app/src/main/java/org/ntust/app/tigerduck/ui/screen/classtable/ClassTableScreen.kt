@@ -70,6 +70,11 @@ fun ClassTableScreen(
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val currentMinute by viewModel.currentMinute.collectAsStateWithLifecycle()
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
+    // Hoisted alongside the other top-level subscriptions: a second
+    // collectAsStateWithLifecycle for the same flow inside a conditional
+    // body invites readers from the wrong scope and is fragile if the
+    // condition changes.
+    val selectedSemester by viewModel.currentSemester.collectAsStateWithLifecycle()
     val todayCourses = remember(courses, currentMinute) { viewModel.todayCourses }
     val ongoingCourses = remember(courses, currentMinute) { viewModel.ongoingCourses }
     val activePeriods = remember(courses) { viewModel.activePeriods }
@@ -95,20 +100,20 @@ fun ClassTableScreen(
         stringResource(R.string.weekday_sun_short),
     )
 
-    LaunchedEffect(Unit) { viewModel.load() }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) { viewModel.load() }
+    LaunchedEffect(viewModel) {
         viewModel.syncCompleteEvent.collect {
             showCheckmark = true
             kotlinx.coroutines.delay(2000)
             showCheckmark = false
         }
     }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) {
         viewModel.noNetworkEvent.collect {
             snackbarHostState.showSnackbar(errorNetworkUnavailable)
         }
     }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) {
         viewModel.tripleConflictEvent.collect { tripleConflictError = it }
     }
 
@@ -147,10 +152,19 @@ fun ClassTableScreen(
                 }
             }
 
+            if (!isLoggedIn) {
+                org.ntust.app.tigerduck.ui.component.EmptyStateView(
+                    icon = Icons.Filled.Lock,
+                    title = stringResource(R.string.common_not_logged_in),
+                    message = stringResource(R.string.common_login_required_feature),
+                )
+                Spacer(Modifier.height(32.dp))
+                return@Column
+            }
+
             // Today's courses carousel — only meaningful when the user is
             // viewing the live semester. Past semesters are historical
             // records, so "現在課程 / 今日課程" don't apply there.
-            val selectedSemester by viewModel.currentSemester.collectAsStateWithLifecycle()
             val isLiveSemester = selectedSemester == viewModel.liveSemesterCode
             if (isLiveSemester && todayCourses.isNotEmpty()) {
                 SectionHeader(title = stringResource(R.string.home_section_today_courses))
@@ -261,12 +275,6 @@ fun ClassTableScreen(
                     onPickConflict = { a, b, weekday, periodId ->
                         conflictPicker = ConflictPickerTarget(a, b, weekday, periodId)
                     },
-                )
-            } else if (!isLoggedIn) {
-                org.ntust.app.tigerduck.ui.component.EmptyStateView(
-                    icon = Icons.Filled.Lock,
-                    title = stringResource(R.string.common_not_logged_in),
-                    message = stringResource(R.string.common_login_required_feature),
                 )
             }
 

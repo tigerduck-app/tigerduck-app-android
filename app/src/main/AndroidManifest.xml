@@ -24,6 +24,7 @@
         <activity
             android:name="org.ntust.app.tigerduck.MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize"
             android:configChanges="locale|layoutDirection"
@@ -32,7 +33,14 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="tigerduck" android:host="announcement" />
+            </intent-filter>
         </activity>
+
 
         <receiver
             android:name="org.ntust.app.tigerduck.notification.AssignmentNotificationReceiver"
@@ -44,9 +52,11 @@
 
         <receiver
             android:name="org.ntust.app.tigerduck.notification.BootReceiver"
+            android:directBootAware="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
 

@@ -5,6 +5,7 @@
     <string name="action_allow">Рұқсат беру</string>
     <string name="action_back">Артқа</string>
     <string name="action_cancel">Болдырмау</string>
+    <string name="action_clear_text">Clear text</string>
     <string name="action_close">Жабу</string>
     <string name="action_confirm">Растау</string>
     <string name="action_done">Дайын</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Әдепкі ережелерді қолдану</string>
     <string name="bulletin_body_load_failed">Мазмұнды жүктеу мүмкін емес</string>
     <string name="bulletin_default_rules_footer">Әдепкі жазылымдар: Тегін түскі ас, Стипендия, Төлемдер, Емтихандар, Техникалық қызмет.</string>
+    <string name="bulletin_fdroid_no_push_body">F-Droid нұсқасы Google Play Services-сіз жеткізіледі, сондықтан нақты уақыттағы push-хабарландырулар қол жетімді емес. Хабарландырулар қажет болса, Play Store нұсқасын орнатыңыз — хабарландырулар қойындысынан соңғы бюллетендерді қолмен жүктеп алуға болады.</string>
+    <string name="bulletin_fdroid_no_push_title">F-Droid-та Push қол жетімді емес</string>
     <string name="bulletin_filter_dept">Бөлім</string>
     <string name="bulletin_filter_tag">Санат</string>
     <string name="bulletin_importance_high_badge">Маңызды</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Хабарландыру push-ын қосу</string>
     <string name="bulletin_push_enable_description">Push қосылған кезде, жазылым ережелеріңізге сәйкес хабарландыру келген сайын TigerDuck сізге ескертеді.</string>
     <string name="bulletin_push_footer">Push-ескертпелер ережелеріңіз негізінде TigerDuck сервері арқылы жеткізіледі. Құрылғы идентификаторы анонимді UUID ретінде жіберіледі — студент куәлігіңіз ешқашан жүктелмейді.</string>
+    <string name="bulletin_push_reopen_settings">Жүйе параметрлерінде қайта қосу</string>
     <string name="bulletin_push_requesting">Сұрау жіберілуде…</string>
     <string name="bulletin_push_settings_header">Push параметрлері</string>
     <string name="bulletin_push_status_denied">Тіркелмеген</string>
     <string name="bulletin_push_status_ephemeral">Уақытша</string>
     <string name="bulletin_push_status_label">Push-ескертпелер</string>
     <string name="bulletin_push_status_provisional">Уақытша расталған</string>
+    <string name="bulletin_push_status_registration_done">Аяқталды</string>
+    <string name="bulletin_push_status_registration_pending">Token күтілуде</string>
     <string name="bulletin_push_status_undetermined">Әлі шешілмеген</string>
+    <string name="bulletin_push_status_unknown">Белгісіз</string>
     <string name="bulletin_rule_add_action">Ереже қосу</string>
     <string name="bulletin_rule_add_title">Ереже қосу</string>
     <string name="bulletin_rule_all_orgs">Барлық бөлімдер</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d таңдалды</string>
     <string name="bulletin_rule_editor_tag_section">Санат</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> және </string>
     <string name="bulletin_rule_join_or"> немесе </string>
     <string name="bulletin_rule_orgs_prefix">Бөлім: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Барлық хабарландыруларды көрсету</string>
     <string name="bulletin_show_unread_only_action">Тек оқылмағандар</string>
     <string name="bulletin_source_link_label">Түпнұсқаны қарау</string>
+    <string name="bulletin_subscription_default_seed_name">Әдепкі ұсыныстар</string>
+    <string name="bulletin_subscription_mode_and">Барлығын сәйкестендіру</string>
+    <string name="bulletin_subscription_mode_or">Кез келгенін сәйкестендіру</string>
     <string name="bulletin_taxonomy_clear_selection">Таңдауды тазалау (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Ештеңе таңдамау осы өлшем үшін «барлығына сәйкестендіру» дегенді білдіреді.</string>
     <string name="bulletin_unread_dot_label">Оқылмаған</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Кеш қалды... %1$s «%2$s»</string>
     <string name="notification_assignment_reminder_body_multi_hour">Түзетуге уақыт бар! %1$s «%2$s»</string>
     <string name="notification_assignment_reminder_title">Тапсырма еске салғышы: %1$s</string>
+    <string name="notification_bulletin_channel_description">Жазылымдарыңызға сәйкес жаңа NTUST бюллетендері үшін нақты уақыттағы push хабарландырулар</string>
+    <string name="notification_bulletin_channel_name">Мектеп бюллетендері</string>
     <string name="notification_class_preparing_channel_description">Әр сабақ басталмас бұрын еске салу жіберіледі</string>
     <string name="notification_class_preparing_channel_name">Сабақ басталу еске салулары</string>
     <string name="notification_class_preparing_content_fallback">Сабақ жақын басталады</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Уақытша рұқсат</string>
     <string name="push_server_notification_status_provisional">Уақытша</string>
     <string name="push_server_notification_status_undetermined">Әлі сұралмаған</string>
+    <string name="push_server_notification_status_unknown">Белгісіз</string>
     <string name="push_server_pending_incomplete">Әлі аяқталмаған</string>
     <string name="push_server_settings_title">Серверді итеру</string>
+    <string name="push_server_status_device_registration">Құрылғыны тіркеу</string>
     <string name="push_server_status_done">Аяқталды</string>
     <string name="push_server_status_enabled">Қосылған</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Жүйенің token тағайындауын күтуде</string>
     <string name="push_server_sync_now_action">Қазір синхрондау</string>
     <string name="refreshing_message">Жаңартылуда… күтіңіз</string>
     <string name="score_academic_year_semester">%1$s оқу жылы %2$s семестр</string>

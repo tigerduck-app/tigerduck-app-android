@@ -5,6 +5,7 @@
     <string name="action_allow">Salli</string>
     <string name="action_back">Takaisin</string>
     <string name="action_cancel">Peruuta</string>
+    <string name="action_clear_text">Tyhjennä teksti</string>
     <string name="action_close">Sulje</string>
     <string name="action_confirm">Vahvista</string>
     <string name="action_done">Valmis</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Käytä oletussääntöjä</string>
     <string name="bulletin_body_load_failed">Sisältöä ei voi ladata</string>
     <string name="bulletin_default_rules_footer">Oletustilaukset: Ilmainen lounas, stipendi, maksut, kokeet, ylläpito.</string>
+    <string name="bulletin_fdroid_no_push_body">F-Droid-versio toimitetaan ilman Google Play Servicesiä, joten reaaliaikaiset push-ilmoitukset eivät ole käytettävissä. Asenna Play Store -versio, jos tarvitset ilmoituksia — voit silti noutaa uusimmat tiedotteet manuaalisesti ilmoitusvälilehdeltä.</string>
+    <string name="bulletin_fdroid_no_push_title">Push ei ole käytettävissä F-Droidissa</string>
     <string name="bulletin_filter_dept">osasto</string>
     <string name="bulletin_filter_tag">Luokka</string>
     <string name="bulletin_importance_high_badge">Tärkeää</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Ota bulletin push käyttöön</string>
     <string name="bulletin_push_enable_description">Kun push on käytössä, TigerDuck ilmoittaa sinulle aina, kun tiedote vastaa tilaussääntöjäsi.</string>
     <string name="bulletin_push_footer">TigerDuck-palvelin toimittaa push-ilmoitukset sääntöjesi perusteella. Laitetunniste lähetetään anonyyminä UUID-tunnuksena – opiskelijatunnustasi ei koskaan ladata.</string>
+    <string name="bulletin_push_reopen_settings">Ota käyttöön uudelleen Järjestelmäasetuksissa</string>
     <string name="bulletin_push_requesting">Pyydetään…</string>
     <string name="bulletin_push_settings_header">Push-asetukset</string>
     <string name="bulletin_push_status_denied">Kielletty</string>
     <string name="bulletin_push_status_ephemeral">Efemeraalinen</string>
     <string name="bulletin_push_status_label">Push-ilmoitukset</string>
     <string name="bulletin_push_status_provisional">Väliaikainen</string>
+    <string name="bulletin_push_status_registration_done">Valmis</string>
+    <string name="bulletin_push_status_registration_pending">Odottaa tokenia</string>
     <string name="bulletin_push_status_undetermined">Ei vielä päätetty</string>
+    <string name="bulletin_push_status_unknown">Tuntematon</string>
     <string name="bulletin_rule_add_action">Lisää sääntö</string>
     <string name="bulletin_rule_add_title">Lisää sääntö</string>
     <string name="bulletin_rule_all_orgs">Kaikki osastot</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Nimi</string>
     <string name="bulletin_rule_editor_selected_count">%1$d valittu</string>
     <string name="bulletin_rule_editor_tag_section">Luokka</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> ja </string>
     <string name="bulletin_rule_join_or"> tai </string>
     <string name="bulletin_rule_orgs_prefix">Osasto: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Näytä kaikki tiedotteet</string>
     <string name="bulletin_show_unread_only_action">Vain lukematon</string>
     <string name="bulletin_source_link_label">Näytä alkuperäinen</string>
+    <string name="bulletin_subscription_default_seed_name">Oletussuositukset</string>
+    <string name="bulletin_subscription_mode_and">Vastaa kaikkiin</string>
+    <string name="bulletin_subscription_mode_or">Vastaa mihin tahansa</string>
     <string name="bulletin_taxonomy_clear_selection">Tyhjennä valinta (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Jos valitset mitään, tämä mittasuhde vastaa kaikkiin.</string>
     <string name="bulletin_unread_dot_label">Lukematon</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Liian myöhäistä... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Vielä ehtii korjata! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Tehtävämuistutus: %1$s</string>
+    <string name="notification_bulletin_channel_description">Reaaliaikainen push uusille NTUST-tiedotteille, jotka vastaavat tilauksiasi</string>
+    <string name="notification_bulletin_channel_name">Koulutiedotteet</string>
     <string name="notification_class_preparing_channel_description">Lähettää muistutuksen ennen jokaisen tunnin alkua</string>
     <string name="notification_class_preparing_channel_name">Tunnin alkamismuistutukset</string>
     <string name="notification_class_preparing_content_fallback">Tunti alkaa pian</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Lyhytaikainen lupa</string>
     <string name="push_server_notification_status_provisional">Väliaikainen</string>
     <string name="push_server_notification_status_undetermined">Ei vielä kysytty</string>
+    <string name="push_server_notification_status_unknown">Tuntematon</string>
     <string name="push_server_pending_incomplete">Ei vielä tehty</string>
     <string name="push_server_settings_title">Palvelimen työntö</string>
+    <string name="push_server_status_device_registration">Laitteen rekisteröinti</string>
     <string name="push_server_status_done">Täydellinen</string>
     <string name="push_server_status_enabled">Käytössä</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Odottaa järjestelmän tokenin määrittämistä</string>
     <string name="push_server_sync_now_action">Synkronoi nyt</string>
     <string name="refreshing_message">Päivitetään… odota hetki</string>
     <string name="score_academic_year_semester">Lukuvuosi %1$s %2$s</string>

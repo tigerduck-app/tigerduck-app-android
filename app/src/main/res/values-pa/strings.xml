@@ -5,6 +5,7 @@
     <string name="action_allow">ਆਗਿਆ ਦਿਓ</string>
     <string name="action_back">ਵਾਪਸ</string>
     <string name="action_cancel">ਰੱਦ ਕਰੋ</string>
+    <string name="action_clear_text">Clear text</string>
     <string name="action_close">ਬੰਦ ਕਰੋ</string>
     <string name="action_confirm">ਪੁਸ਼ਟੀ ਕਰੋ</string>
     <string name="action_done">ਹੋ ਗਿਆ</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">ਡਿਫੌਲਟ ਨਿਯਮ ਲਾਗੂ ਕਰੋ</string>
     <string name="bulletin_body_load_failed">ਸਮੱਗਰੀ ਲੋਡ ਕਰਨ ਵਿੱਚ ਅਸਮਰੱਥ</string>
     <string name="bulletin_default_rules_footer">ਡਿਫੌਲਟ ਸਬਸਕ੍ਰਿਪਸ਼ਨਾਂ: ਮੁਫ਼ਤ ਦੁਪਹਿਰ ਦਾ ਖਾਣਾ, ਵਜ਼ੀਫ਼ਾ, ਫ਼ੀਸਾਂ, ਪ੍ਰੀਖਿਆਵਾਂ, ਰੱਖ-ਰਖਾਅ।</string>
+    <string name="bulletin_fdroid_no_push_body">F-Droid ਬਿਲਡ Google Play Services ਤੋਂ ਬਿਨਾਂ ਆਉਂਦਾ ਹੈ, ਇਸ ਲਈ ਰੀਅਲ-ਟਾਈਮ ਬੁਲੇਟਿਨ ਪੁਸ਼ ਉਪਲਬਧ ਨਹੀਂ ਹੈ। ਜੇ ਸੂਚਨਾਵਾਂ ਦੀ ਲੋੜ ਹੈ ਤਾਂ Play Store ਬਿਲਡ ਇੰਸਟਾਲ ਕਰੋ — ਤੁਸੀਂ ਘੋਸ਼ਣਾਵਾਂ ਟੈਬ ਤੋਂ ਨਵੀਨਤਮ ਬੁਲੇਟਿਨ ਅਜੇ ਵੀ ਹੱਥੀਂ ਖਿੱਚ ਸਕਦੇ ਹੋ।</string>
+    <string name="bulletin_fdroid_no_push_title">F-Droid \'ਤੇ ਪੁਸ਼ ਉਪਲਬਧ ਨਹੀਂ</string>
     <string name="bulletin_filter_dept">ਵਿਭਾਗ</string>
     <string name="bulletin_filter_tag">ਸ਼੍ਰੇਣੀ</string>
     <string name="bulletin_importance_high_badge">ਮਹੱਤਵਪੂਰਨ</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">ਬੁਲੇਟਿਨ ਪੁਸ਼ ਚਾਲੂ ਕਰੋ</string>
     <string name="bulletin_push_enable_description">ਪੁਸ਼ ਚਾਲੂ ਹੋਣ \'ਤੇ, TigerDuck ਤੁਹਾਨੂੰ ਉਦੋਂ ਸੂਚਿਤ ਕਰੇਗਾ ਜਦੋਂ ਕੋਈ ਬੁਲੇਟਿਨ ਤੁਹਾਡੇ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਨਿਯਮਾਂ ਨਾਲ ਮੇਲ ਖਾਂਦਾ ਹੈ।</string>
     <string name="bulletin_push_footer">ਪੁਸ਼ ਸੂਚਨਾਵਾਂ TigerDuck ਸਰਵਰ ਦੁਆਰਾ ਤੁਹਾਡੇ ਨਿਯਮਾਂ ਦੇ ਅਧਾਰ \'ਤੇ ਦਿੱਤੀਆਂ ਜਾਂਦੀਆਂ ਹਨ। ਡਿਵਾਈਸ ਪਛਾਣਕਰਤਾ ਇੱਕ ਅਗਿਆਤ UUID ਵਜੋਂ ਭੇਜਿਆ ਜਾਂਦਾ ਹੈ — ਤੁਹਾਡੀ ਵਿਦਿਆਰਥੀ ID ਕਦੇ ਅੱਪਲੋਡ ਨਹੀਂ ਕੀਤੀ ਜਾਂਦੀ।</string>
+    <string name="bulletin_push_reopen_settings">ਸਿਸਟਮ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਮੁੜ-ਸਮਰੱਥ ਕਰੋ</string>
     <string name="bulletin_push_requesting">ਬੇਨਤੀ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ…</string>
     <string name="bulletin_push_settings_header">ਪੁਸ਼ ਸੈਟਿੰਗਾਂ</string>
     <string name="bulletin_push_status_denied">ਅਸਵੀਕਾਰ</string>
     <string name="bulletin_push_status_ephemeral">ਅਸਥਾਈ</string>
     <string name="bulletin_push_status_label">ਪੁਸ਼ ਸੂਚਨਾਵਾਂ</string>
     <string name="bulletin_push_status_provisional">ਅਸਥਾਈ ਤੌਰ \'ਤੇ ਮਨਜ਼ੂਰ</string>
+    <string name="bulletin_push_status_registration_done">ਮੁਕੰਮਲ</string>
+    <string name="bulletin_push_status_registration_pending">token ਦੀ ਉਡੀਕ</string>
     <string name="bulletin_push_status_undetermined">ਅਜੇ ਤੈਅ ਨਹੀਂ</string>
+    <string name="bulletin_push_status_unknown">ਅਣਜਾਣ</string>
     <string name="bulletin_rule_add_action">ਨਿਯਮ ਜੋੜੋ</string>
     <string name="bulletin_rule_add_title">ਨਿਯਮ ਜੋੜੋ</string>
     <string name="bulletin_rule_all_orgs">ਸਾਰੇ ਵਿਭਾਗ</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d ਚੁਣੇ ਗਏ</string>
     <string name="bulletin_rule_editor_tag_section">ਸ਼੍ਰੇਣੀ</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> ਅਤੇ </string>
     <string name="bulletin_rule_join_or"> ਜਾਂ </string>
     <string name="bulletin_rule_orgs_prefix">ਵਿਭਾਗ: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">ਸਾਰੇ ਬੁਲੇਟਿਨ ਦਿਖਾਓ</string>
     <string name="bulletin_show_unread_only_action">ਸਿਰਫ਼ ਅਣਪੜ੍ਹੇ</string>
     <string name="bulletin_source_link_label">ਮੂਲ ਦੇਖੋ</string>
+    <string name="bulletin_subscription_default_seed_name">ਮੂਲ ਸਿਫ਼ਾਰਿਸ਼ਾਂ</string>
+    <string name="bulletin_subscription_mode_and">ਸਾਰੇ ਮੇਲ ਖਾਣ</string>
+    <string name="bulletin_subscription_mode_or">ਕੋਈ ਵੀ ਮੇਲ ਖਾਵੇ</string>
     <string name="bulletin_taxonomy_clear_selection">ਚੋਣ ਸਾਫ਼ ਕਰੋ (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">ਕੁਝ ਨਾ ਚੁਣਨ ਦਾ ਮਤਲਬ ਹੈ ਇਸ ਮਾਪ ਲਈ \"ਸਭ ਨਾਲ ਮੇਲ ਕਰੋ\"।</string>
     <string name="bulletin_unread_dot_label">ਅਣਪੜ੍ਹਿਆ</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">ਬਹੁਤ ਦੇਰ ਹੋ ਗਈ... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">ਅਜੇ ਸੁਧਾਰਨ ਦਾ ਸਮਾਂ ਹੈ! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">ਅਸਾਈਨਮੈਂਟ ਯਾਦ-ਦਹਾਨੀ: %1$s</string>
+    <string name="notification_bulletin_channel_description">ਤੁਹਾਡੀਆਂ ਗਾਹਕੀਆਂ ਨਾਲ ਮੇਲ ਖਾਂਦੇ ਨਵੇਂ NTUST ਬੁਲੇਟਿਨਾਂ ਲਈ ਰੀਅਲ-ਟਾਈਮ ਪੁਸ਼</string>
+    <string name="notification_bulletin_channel_name">ਸਕੂਲ ਬੁਲੇਟਿਨ</string>
     <string name="notification_class_preparing_channel_description">ਹਰ ਕਲਾਸ ਸ਼ੁਰੂ ਹੋਣ ਤੋਂ ਪਹਿਲਾਂ ਰੀਮਾਈਂਡਰ ਭੇਜਦਾ ਹੈ</string>
     <string name="notification_class_preparing_channel_name">ਕਲਾਸ ਸ਼ੁਰੂ ਹੋਣ ਦੇ ਰੀਮਾਈਂਡਰ</string>
     <string name="notification_class_preparing_content_fallback">ਕਲਾਸ ਸ਼ੁਰੂ ਹੋਣ ਵਾਲੀ ਹੈ</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">ਅਸਥਾਈ ਅਧਿਕਾਰ</string>
     <string name="push_server_notification_status_provisional">ਅਸਥਾਈ</string>
     <string name="push_server_notification_status_undetermined">ਅਜੇ ਨਹੀਂ ਪੁੱਛਿਆ</string>
+    <string name="push_server_notification_status_unknown">ਅਣਜਾਣ</string>
     <string name="push_server_pending_incomplete">ਅਜੇ ਪੂਰਾ ਨਹੀਂ ਹੋਇਆ</string>
     <string name="push_server_settings_title">ਸਰਵਰ ਪੁਸ਼</string>
+    <string name="push_server_status_device_registration">ਡਿਵਾਈਸ ਰਜਿਸਟ੍ਰੇਸ਼ਨ</string>
     <string name="push_server_status_done">ਮੁਕੰਮਲ</string>
     <string name="push_server_status_enabled">ਸਮਰੱਥ</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">ਸਿਸਟਮ ਵੱਲੋਂ token ਨਿਰਧਾਰਿਤ ਕਰਨ ਦੀ ਉਡੀਕ</string>
     <string name="push_server_sync_now_action">ਹੁਣੇ ਸਿੰਕ ਕਰੋ</string>
     <string name="refreshing_message">ਤਾਜ਼ਾ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ… ਰੁਕੋ</string>
     <string name="score_academic_year_semester">ਅਕਾਦਮਿਕ ਸਾਲ %1$s %2$s</string>

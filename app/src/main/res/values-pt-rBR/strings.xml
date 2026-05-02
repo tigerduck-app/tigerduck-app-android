@@ -5,6 +5,7 @@
     <string name="action_allow">Permitir</string>
     <string name="action_back">Voltar</string>
     <string name="action_cancel">Cancelar</string>
+    <string name="action_clear_text">Limpar texto</string>
     <string name="action_close">Fechar</string>
     <string name="action_confirm">Confirmar</string>
     <string name="action_done">Concluído</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Aplicar regras padrão</string>
     <string name="bulletin_body_load_failed">Não foi possível carregar o conteúdo</string>
     <string name="bulletin_default_rules_footer">Assinaturas padrão: Almoço Grátis, Bolsa, Taxas, Provas, Manutenção.</string>
+    <string name="bulletin_fdroid_no_push_body">A versão F-Droid não inclui o Google Play Services, portanto as notificações push de boletins em tempo real estão indisponíveis. Instale a versão da Play Store se precisar de notificações — você ainda pode buscar os boletins mais recentes manualmente na aba de avisos.</string>
+    <string name="bulletin_fdroid_no_push_title">Push não disponível no F-Droid</string>
     <string name="bulletin_filter_dept">Departamento</string>
     <string name="bulletin_filter_tag">Categoria</string>
     <string name="bulletin_importance_high_badge">Importante</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Ativar push de avisos</string>
     <string name="bulletin_push_enable_description">Quando o push estiver ativado, o TigerDuck irá notificá-lo sempre que um aviso corresponder às suas regras de assinatura.</string>
     <string name="bulletin_push_footer">As notificações push são enviadas pelo servidor do TigerDuck com base nas suas regras. O identificador do dispositivo é enviado como um UUID anônimo — seu número de estudante nunca é enviado.</string>
+    <string name="bulletin_push_reopen_settings">Reativar nas Configurações do Sistema</string>
     <string name="bulletin_push_requesting">Solicitando…</string>
     <string name="bulletin_push_settings_header">Configurações de push</string>
     <string name="bulletin_push_status_denied">Negado</string>
     <string name="bulletin_push_status_ephemeral">Efêmero</string>
     <string name="bulletin_push_status_label">Notificações push</string>
     <string name="bulletin_push_status_provisional">Provisório</string>
+    <string name="bulletin_push_status_registration_done">Concluído</string>
+    <string name="bulletin_push_status_registration_pending">Aguardando token</string>
     <string name="bulletin_push_status_undetermined">Ainda não decidido</string>
+    <string name="bulletin_push_status_unknown">Desconhecido</string>
     <string name="bulletin_rule_add_action">Adicionar regra</string>
     <string name="bulletin_rule_add_title">Adicionar regra</string>
     <string name="bulletin_rule_all_orgs">Todos os departamentos</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d selecionado(s)</string>
     <string name="bulletin_rule_editor_tag_section">Categoria</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> e </string>
     <string name="bulletin_rule_join_or"> ou </string>
     <string name="bulletin_rule_orgs_prefix">Depto: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Mostrar todos os avisos</string>
     <string name="bulletin_show_unread_only_action">Somente não lidos</string>
     <string name="bulletin_source_link_label">Ver original</string>
+    <string name="bulletin_subscription_default_seed_name">Recomendações padrão</string>
+    <string name="bulletin_subscription_mode_and">Corresponder a todos</string>
+    <string name="bulletin_subscription_mode_or">Corresponder a qualquer</string>
     <string name="bulletin_taxonomy_clear_selection">Limpar seleção (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Selecionar nada significa \"corresponder a tudo\" para esta dimensão.</string>
     <string name="bulletin_unread_dot_label">Não lido</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Tarde demais... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Ainda dá tempo de ajustar! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Lembrete de tarefa: %1$s</string>
+    <string name="notification_bulletin_channel_description">Notificações em tempo real para novos boletins da NTUST que correspondem às suas assinaturas</string>
+    <string name="notification_bulletin_channel_name">Boletins escolares</string>
     <string name="notification_class_preparing_channel_description">Envia lembretes antes do início de cada aula</string>
     <string name="notification_class_preparing_channel_name">Lembretes de início de aula</string>
     <string name="notification_class_preparing_content_fallback">A aula está prestes a começar</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Autorização temporária</string>
     <string name="push_server_notification_status_provisional">Provisório</string>
     <string name="push_server_notification_status_undetermined">Ainda não solicitado</string>
+    <string name="push_server_notification_status_unknown">Desconhecido</string>
     <string name="push_server_pending_incomplete">Ainda não concluído</string>
     <string name="push_server_settings_title">Push do servidor</string>
+    <string name="push_server_status_device_registration">Registro do dispositivo</string>
     <string name="push_server_status_done">Concluído</string>
     <string name="push_server_status_enabled">Ativado</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Aguardando o sistema atribuir um token</string>
     <string name="push_server_sync_now_action">Sincronizar agora</string>
     <string name="refreshing_message">Atualizando… aguarde</string>
     <string name="score_academic_year_semester">Ano letivo %1$s %2$s</string>

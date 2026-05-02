@@ -5,6 +5,7 @@
     <string name="action_allow">Permitir</string>
     <string name="action_back">Atrás</string>
     <string name="action_cancel">Cancelar</string>
+    <string name="action_clear_text">Borrar texto</string>
     <string name="action_close">Cerrar</string>
     <string name="action_confirm">Confirmar</string>
     <string name="action_done">Listo</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Aplicar reglas predeterminadas</string>
     <string name="bulletin_body_load_failed">No se puede cargar contenido</string>
     <string name="bulletin_default_rules_footer">Suscripciones predeterminadas: almuerzo gratis, becas, tarifas, exámenes, mantenimiento.</string>
+    <string name="bulletin_fdroid_no_push_body">La versión de F-Droid no incluye Google Play Services, por lo que las notificaciones push de boletines en tiempo real no están disponibles. Instala la versión de Play Store si necesitas notificaciones — siempre puedes obtener los últimos boletines manualmente desde la pestaña de anuncios.</string>
+    <string name="bulletin_fdroid_no_push_title">Push no disponible en F-Droid</string>
     <string name="bulletin_filter_dept">Departamento</string>
     <string name="bulletin_filter_tag">Categoría</string>
     <string name="bulletin_importance_high_badge">Importante</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Activar envío de boletines</string>
     <string name="bulletin_push_enable_description">Cuando la inserción está habilitada, TigerDuck le notificará cada vez que un boletín coincida con sus reglas de suscripción.</string>
     <string name="bulletin_push_footer">Las notificaciones automáticas las entrega el servidor TigerDuck según sus reglas. El identificador del dispositivo se envía como un UUID anónimo: su identificación de estudiante nunca se carga.</string>
+    <string name="bulletin_push_reopen_settings">Reactivar en Ajustes del sistema</string>
     <string name="bulletin_push_requesting">Solicitando…</string>
     <string name="bulletin_push_settings_header">Configuración push</string>
     <string name="bulletin_push_status_denied">Denegado</string>
     <string name="bulletin_push_status_ephemeral">Efímero</string>
     <string name="bulletin_push_status_label">Notificaciones push</string>
     <string name="bulletin_push_status_provisional">Provisional</string>
+    <string name="bulletin_push_status_registration_done">Listo</string>
+    <string name="bulletin_push_status_registration_pending">Esperando token</string>
     <string name="bulletin_push_status_undetermined">Aún no decidido</string>
+    <string name="bulletin_push_status_unknown">Desconocido</string>
     <string name="bulletin_rule_add_action">Agregar regla</string>
     <string name="bulletin_rule_add_title">Agregar regla</string>
     <string name="bulletin_rule_all_orgs">Todos los departamentos</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Nombre</string>
     <string name="bulletin_rule_editor_selected_count">%1$d seleccionado</string>
     <string name="bulletin_rule_editor_tag_section">Categoría</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> y </string>
     <string name="bulletin_rule_join_or"> o </string>
     <string name="bulletin_rule_orgs_prefix">Departamento: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Mostrar todos los boletines</string>
     <string name="bulletin_show_unread_only_action">Sólo sin leer</string>
     <string name="bulletin_source_link_label">Ver original</string>
+    <string name="bulletin_subscription_default_seed_name">Recomendaciones predeterminadas</string>
+    <string name="bulletin_subscription_mode_and">Coincidir con todo</string>
+    <string name="bulletin_subscription_mode_or">Coincidir con alguno</string>
     <string name="bulletin_taxonomy_clear_selection">Borrar selección (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">No seleccionar nada significa \"coincidir con todo\" para esta dimensión.</string>
     <string name="bulletin_unread_dot_label">No leído</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Demasiado tarde... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">¡Aún estás a tiempo de solucionarlo! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Recordatorio de tarea: %1$s</string>
+    <string name="notification_bulletin_channel_description">Notificaciones en tiempo real de nuevos boletines de NTUST que coincidan con tus suscripciones</string>
+    <string name="notification_bulletin_channel_name">Boletines escolares</string>
     <string name="notification_class_preparing_channel_description">Envía recordatorios antes de que comience cada clase</string>
     <string name="notification_class_preparing_channel_name">Recordatorios de preparación de clase</string>
     <string name="notification_class_preparing_content_fallback">La clase está por comenzar</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Autorización efímera</string>
     <string name="push_server_notification_status_provisional">Provisional</string>
     <string name="push_server_notification_status_undetermined">Aún no preguntado</string>
+    <string name="push_server_notification_status_unknown">Desconocido</string>
     <string name="push_server_pending_incomplete">aún no hecho</string>
     <string name="push_server_settings_title">Empuje del servidor</string>
+    <string name="push_server_status_device_registration">Registro del dispositivo</string>
     <string name="push_server_status_done">Completo</string>
     <string name="push_server_status_enabled">Activado</string>
     <string name="push_server_status_section">Estado</string>
+    <string name="push_server_status_waiting_token">Esperando que el sistema asigne un token</string>
     <string name="push_server_sync_now_action">Sincronizar ahora</string>
     <string name="refreshing_message">Actualizando… espera un momento</string>
     <string name="score_academic_year_semester">Año académico %1$s %2$s</string>

@@ -5,6 +5,7 @@
     <string name="action_allow">Dopusti</string>
     <string name="action_back">Natrag</string>
     <string name="action_cancel">Odustani</string>
+    <string name="action_clear_text">Izbriši tekst</string>
     <string name="action_close">Zatvori</string>
     <string name="action_confirm">Potvrdi</string>
     <string name="action_done">Gotovo</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Primijeni zadana pravila</string>
     <string name="bulletin_body_load_failed">Učitavanje sadržaja nije uspjelo</string>
     <string name="bulletin_default_rules_footer">Zadane pretplate: Besplatni ručak, Stipendija, Naknade, Ispiti, Održavanje.</string>
+    <string name="bulletin_fdroid_no_push_body">Verzija za F-Droid ne uključuje Google Play Services, stoga push obavijesti u stvarnom vremenu nisu dostupne. Instalirajte verziju s Play Storea ako trebate obavijesti — uvijek možete ručno dohvatiti najnovije biltene iz kartice s obavijestima.</string>
+    <string name="bulletin_fdroid_no_push_title">Push nije dostupan na F-Droid</string>
     <string name="bulletin_filter_dept">Odjel</string>
     <string name="bulletin_filter_tag">Kategorija</string>
     <string name="bulletin_importance_high_badge">Važno</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Uključi push obavijesti oglasne ploče</string>
     <string name="bulletin_push_enable_description">Kada je push uključen, TigerDuck će vas obavijestiti svaki put kada obavijest odgovara vašim pravilima pretplate.</string>
     <string name="bulletin_push_footer">Push obavijesti isporučuje TigerDuck poslužitelj prema vašim pravilima. Identifikator uređaja šalje se kao anonimni UUID — vaš studentski ID nikada se ne prenosi.</string>
+    <string name="bulletin_push_reopen_settings">Ponovo omogući u Postavkama sustava</string>
     <string name="bulletin_push_requesting">Zahtijevanje…</string>
     <string name="bulletin_push_settings_header">Postavke pusha</string>
     <string name="bulletin_push_status_denied">Odbijeno</string>
     <string name="bulletin_push_status_ephemeral">Efemerno</string>
     <string name="bulletin_push_status_label">Push obavijesti</string>
     <string name="bulletin_push_status_provisional">Privremeno</string>
+    <string name="bulletin_push_status_registration_done">Gotovo</string>
+    <string name="bulletin_push_status_registration_pending">Čeka token</string>
     <string name="bulletin_push_status_undetermined">Još nije odlučeno</string>
+    <string name="bulletin_push_status_unknown">Nepoznato</string>
     <string name="bulletin_rule_add_action">Dodaj pravilo</string>
     <string name="bulletin_rule_add_title">Dodaj pravilo</string>
     <string name="bulletin_rule_all_orgs">Svi odjeli</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d odabrano</string>
     <string name="bulletin_rule_editor_tag_section">Kategorija</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> i </string>
     <string name="bulletin_rule_join_or"> ili </string>
     <string name="bulletin_rule_orgs_prefix">Odjel: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Alle Bulletins anzeigen</string>
     <string name="bulletin_show_unread_only_action">Nur ungelesen</string>
     <string name="bulletin_source_link_label">Original ansehen</string>
+    <string name="bulletin_subscription_default_seed_name">Zadane preporuke</string>
+    <string name="bulletin_subscription_mode_and">Podudaraj sve</string>
+    <string name="bulletin_subscription_mode_or">Podudaraj bilo koje</string>
     <string name="bulletin_taxonomy_clear_selection">Auswahl löschen (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Wenn Sie nichts auswählen, bedeutet dies für diese Dimension „Alles treffen“.</string>
     <string name="bulletin_unread_dot_label">Ungelesen</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_bulletin_channel_description">Push obavijesti u stvarnom vremenu za nove NTUST biltene koji odgovaraju vašim pretplatama</string>
+    <string name="notification_bulletin_channel_name">Školski bilteni</string>
     <string name="notification_class_preparing_channel_description">Šalje podsjetnike prije početka svakog predavanja</string>
     <string name="notification_class_preparing_channel_name">Podsjetnici za predavanja</string>
     <string name="notification_class_preparing_content_fallback">Predavanje uskoro počinje</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Privremeno odobrenje</string>
     <string name="push_server_notification_status_provisional">Privremeno</string>
     <string name="push_server_notification_status_undetermined">Još nije zatraženo</string>
+    <string name="push_server_notification_status_unknown">Nepoznato</string>
     <string name="push_server_pending_incomplete">Još nije završeno</string>
     <string name="push_server_settings_title">Poslužiteljski push</string>
+    <string name="push_server_status_device_registration">Registracija uređaja</string>
     <string name="push_server_status_done">Završeno</string>
     <string name="push_server_status_enabled">Omogućeno</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Čeka da sustav dodijeli token</string>
     <string name="push_server_sync_now_action">Sinkroniziraj odmah</string>
     <string name="refreshing_message">Osvježavanje… pričekajte</string>
     <string name="score_academic_year_semester">Akademska godina %1$s %2$s</string>

@@ -5,6 +5,7 @@
     <string name="action_allow">Payagan</string>
     <string name="action_back">Bumalik</string>
     <string name="action_cancel">Kanselahin</string>
+    <string name="action_clear_text">I-clear ang teksto</string>
     <string name="action_close">Isara</string>
     <string name="action_confirm">Kumpirmahin</string>
     <string name="action_done">Tapos na</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Ilapat ang mga default na panuntunan</string>
     <string name="bulletin_body_load_failed">Hindi ma-load ang nilalaman</string>
     <string name="bulletin_default_rules_footer">Mga default na subscription: Libreng Tanghalian, Scholarship, Bayarin, Pagsusulit, Pagpapanatili.</string>
+    <string name="bulletin_fdroid_no_push_body">Ang F-Droid build ay walang Google Play Services, kaya hindi available ang real-time na push notification para sa mga bulletin. I-install ang Play Store build kung kailangan mo ng mga notification — maaari ka pa ring manu-manong i-pull ang pinakabagong mga bulletin mula sa tab ng mga anunsyo.</string>
+    <string name="bulletin_fdroid_no_push_title">Hindi available ang push sa F-Droid</string>
     <string name="bulletin_filter_dept">Kagawaran</string>
     <string name="bulletin_filter_tag">Kategorya</string>
     <string name="bulletin_importance_high_badge">Mahalaga</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">I-on ang bulletin push</string>
     <string name="bulletin_push_enable_description">Kapag pinagana ang push, aabisuhan ka ng TigerDuck sa tuwing tumutugma ang isang bulletin sa iyong mga panuntunan sa subscription.</string>
     <string name="bulletin_push_footer">Ang mga push notification ay inihahatid ng TigerDuck server batay sa iyong mga panuntunan. Ang identifier ng device ay ipinadala bilang isang hindi kilalang UUID — hindi kailanman ina-upload ang iyong student ID.</string>
+    <string name="bulletin_push_reopen_settings">I-enable muli sa Mga Setting ng System</string>
     <string name="bulletin_push_requesting">Humihiling…</string>
     <string name="bulletin_push_settings_header">Mga setting ng push</string>
     <string name="bulletin_push_status_denied">Tinanggihan</string>
     <string name="bulletin_push_status_ephemeral">Pansamantala</string>
     <string name="bulletin_push_status_label">Mga push notification</string>
     <string name="bulletin_push_status_provisional">Pansamantala</string>
+    <string name="bulletin_push_status_registration_done">Tapos na</string>
+    <string name="bulletin_push_status_registration_pending">Naghihintay ng token</string>
     <string name="bulletin_push_status_undetermined">Hindi pa nakapagdesisyon</string>
+    <string name="bulletin_push_status_unknown">Hindi alam</string>
     <string name="bulletin_rule_add_action">Magdagdag ng panuntunan</string>
     <string name="bulletin_rule_add_title">Magdagdag ng panuntunan</string>
     <string name="bulletin_rule_all_orgs">Lahat ng departamento</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Pangalan</string>
     <string name="bulletin_rule_editor_selected_count">%1$d ang napili</string>
     <string name="bulletin_rule_editor_tag_section">Kategorya</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> at </string>
     <string name="bulletin_rule_join_or"> o </string>
     <string name="bulletin_rule_orgs_prefix">Dept: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Ipakita ang lahat ng bulletin</string>
     <string name="bulletin_show_unread_only_action">Hindi pa nababasa</string>
     <string name="bulletin_source_link_label">Tingnan ang orihinal</string>
+    <string name="bulletin_subscription_default_seed_name">Mga default na rekomendasyon</string>
+    <string name="bulletin_subscription_mode_and">Tugma sa lahat</string>
+    <string name="bulletin_subscription_mode_or">Tugma sa kahit alin</string>
     <string name="bulletin_taxonomy_clear_selection">I-clear ang pagpili (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Ang pagpili ng wala ay nangangahulugang \"itugma sa lahat\" para sa dimensyong ito.</string>
     <string name="bulletin_unread_dot_label">Hindi pa nababasa</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Huli na... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Oras pa para ayusin ito! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Paalala sa takdang-aralin: %1$s</string>
+    <string name="notification_bulletin_channel_description">Real-time na push para sa mga bagong bulletin ng NTUST na tumutugma sa iyong mga subscription</string>
+    <string name="notification_bulletin_channel_name">Mga bulletin ng paaralan</string>
     <string name="notification_class_preparing_channel_description">Nagpapadala ng paalala bago magsimula ang bawat klase</string>
     <string name="notification_class_preparing_channel_name">Mga paalala bago mag-klase</string>
     <string name="notification_class_preparing_content_fallback">Malapit nang magsimula ang klase</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Pansamantalang awtorisasyon</string>
     <string name="push_server_notification_status_provisional">Pansamantala</string>
     <string name="push_server_notification_status_undetermined">Hindi pa nagtatanong</string>
+    <string name="push_server_notification_status_unknown">Hindi alam</string>
     <string name="push_server_pending_incomplete">Hindi pa tapos</string>
     <string name="push_server_settings_title">Push ng server</string>
+    <string name="push_server_status_device_registration">Pagpaparehistro ng device</string>
     <string name="push_server_status_done">Kumpleto</string>
     <string name="push_server_status_enabled">Pinagana</string>
     <string name="push_server_status_section">Katayuan</string>
+    <string name="push_server_status_waiting_token">Naghihintay na mag-assign ng token ang system</string>
     <string name="push_server_sync_now_action">I-sync ngayon</string>
     <string name="refreshing_message">Nire-refresh… sandali lang po</string>
     <string name="score_academic_year_semester">Taong Akademiko %1$s %2$s</string>

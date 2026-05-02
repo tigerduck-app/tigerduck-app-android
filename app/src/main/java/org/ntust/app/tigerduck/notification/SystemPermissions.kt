@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
-import android.os.PowerManager
 import android.provider.Settings
 import android.content.ActivityNotFoundException
 import androidx.annotation.StringRes
@@ -62,17 +61,11 @@ class SystemPermissions @Inject constructor(
             }
         }
         AppPermission.BATTERY_OPTIMIZATION -> {
-            // "Battery optimization" UX differs across Android versions and OEMs.
-            // On modern Android, the user-facing "Restricted/Optimized/Unrestricted" toggle
+            // The user-facing "Restricted/Optimized/Unrestricted" toggle
             // maps more closely to background restriction than Doze allowlisting.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                val activityManager =
-                    context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-                activityManager.isBackgroundRestricted.not()
-            } else {
-                val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-                pm.isIgnoringBatteryOptimizations(context.packageName)
-            }
+            val activityManager =
+                context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            activityManager.isBackgroundRestricted.not()
         }
     }
 
@@ -173,11 +166,9 @@ class SystemPermissions @Inject constructor(
         val candidates = mutableListOf<Intent>()
         // Prefer the global battery-optimization app list first (user can find TigerDuck there).
         candidates += Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            candidates += Intent("android.settings.APP_BATTERY_SETTINGS").apply {
-                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                data = pkgUri
-            }
+        candidates += Intent("android.settings.APP_BATTERY_SETTINGS").apply {
+            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            data = pkgUri
         }
         candidates += Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply { data = pkgUri }
         return candidates

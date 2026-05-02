@@ -5,6 +5,7 @@
     <string name="action_allow">Povolit</string>
     <string name="action_back">Zpět</string>
     <string name="action_cancel">Zrušit</string>
+    <string name="action_clear_text">Vymazat text</string>
     <string name="action_close">Zavřít</string>
     <string name="action_confirm">Potvrdit</string>
     <string name="action_done">Hotovo</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Použít výchozí pravidla</string>
     <string name="bulletin_body_load_failed">Nelze načíst obsah</string>
     <string name="bulletin_default_rules_footer">Výchozí předplatné: Oběd zdarma, stipendium, poplatky, zkoušky, údržba.</string>
+    <string name="bulletin_fdroid_no_push_body">Verze pro F-Droid neobsahuje Google Play Services, takže push oznámení bulletinů v reálném čase nejsou dostupná. Pokud chcete oznámení, nainstalujte verzi z Play Store — nejnovější bulletiny si vždy můžete načíst ručně z karty oznámení.</string>
+    <string name="bulletin_fdroid_no_push_title">Push není dostupné na F-Droid</string>
     <string name="bulletin_filter_dept">Oddělení</string>
     <string name="bulletin_filter_tag">Kategorie</string>
     <string name="bulletin_importance_high_badge">Důležité</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Zapněte bulletin push</string>
     <string name="bulletin_push_enable_description">Když je povoleno push, TigerDuck vás upozorní, kdykoli bude bulletin odpovídat vašim pravidlům předplatného.</string>
     <string name="bulletin_push_footer">Push notifikace doručuje server TigerDuck na základě vašich pravidel. Identifikátor zařízení je odeslán jako anonymní UUID – vaše studentské ID se nikdy nenahraje.</string>
+    <string name="bulletin_push_reopen_settings">Znovu zapnout v Nastavení systému</string>
     <string name="bulletin_push_requesting">Požadavek…</string>
     <string name="bulletin_push_settings_header">Push nastavení</string>
     <string name="bulletin_push_status_denied">Zamítnuto</string>
     <string name="bulletin_push_status_ephemeral">Efemérní</string>
     <string name="bulletin_push_status_label">Push notifikace</string>
     <string name="bulletin_push_status_provisional">Prozatímní</string>
+    <string name="bulletin_push_status_registration_done">Hotovo</string>
+    <string name="bulletin_push_status_registration_pending">Čeká na token</string>
     <string name="bulletin_push_status_undetermined">Ještě nebylo rozhodnuto</string>
+    <string name="bulletin_push_status_unknown">Neznámý</string>
     <string name="bulletin_rule_add_action">Přidat pravidlo</string>
     <string name="bulletin_rule_add_title">Přidat pravidlo</string>
     <string name="bulletin_rule_all_orgs">Všechna oddělení</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Jméno</string>
     <string name="bulletin_rule_editor_selected_count">Vybráno %1$d</string>
     <string name="bulletin_rule_editor_tag_section">Kategorie</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> a </string>
     <string name="bulletin_rule_join_or"> nebo </string>
     <string name="bulletin_rule_orgs_prefix">Odd: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Zobrazit všechny bulletiny</string>
     <string name="bulletin_show_unread_only_action">Pouze nepřečtené</string>
     <string name="bulletin_source_link_label">Zobrazit originál</string>
+    <string name="bulletin_subscription_default_seed_name">Výchozí doporučení</string>
+    <string name="bulletin_subscription_mode_and">Shoda se všemi</string>
+    <string name="bulletin_subscription_mode_or">Shoda s libovolným</string>
     <string name="bulletin_taxonomy_clear_selection">Vymazat výběr (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Nevyberete-li nic, znamená to pro tuto dimenzi „vyhovovat všem“.</string>
     <string name="bulletin_unread_dot_label">Nepřečtený</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Příliš pozdě... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Stále je čas to napravit! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Připomenutí úkolu: %1$s</string>
+    <string name="notification_bulletin_channel_description">Okamžitá push oznámení pro nové bulletiny NTUST odpovídající vašim odběrům</string>
+    <string name="notification_bulletin_channel_name">Školní bulletiny</string>
     <string name="notification_class_preparing_channel_description">Posílá upozornění před začátkem každé hodiny</string>
     <string name="notification_class_preparing_channel_name">Upozornění na blížící se hodinu</string>
     <string name="notification_class_preparing_content_fallback">Hodina brzy začne</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Pomíjivé oprávnění</string>
     <string name="push_server_notification_status_provisional">Prozatímní</string>
     <string name="push_server_notification_status_undetermined">Ještě nezeptal</string>
+    <string name="push_server_notification_status_unknown">Neznámý</string>
     <string name="push_server_pending_incomplete">Ještě ne</string>
     <string name="push_server_settings_title">Server push</string>
+    <string name="push_server_status_device_registration">Registrace zařízení</string>
     <string name="push_server_status_done">Kompletní</string>
     <string name="push_server_status_enabled">Povoleno</string>
     <string name="push_server_status_section">Postavení</string>
+    <string name="push_server_status_waiting_token">Čeká, až systém přidělí token</string>
     <string name="push_server_sync_now_action">Synchronizovat nyní</string>
     <string name="refreshing_message">Probíhá obnovování… vydržte</string>
     <string name="score_academic_year_semester">Akademický rok %1$s %2$s</string>

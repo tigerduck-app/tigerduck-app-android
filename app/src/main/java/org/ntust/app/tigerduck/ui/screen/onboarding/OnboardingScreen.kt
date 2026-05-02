@@ -14,7 +14,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -24,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupContent
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import androidx.compose.ui.res.stringResource
@@ -74,20 +78,15 @@ fun OnboardingScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxWidth(0.8f)
                     ) {
-                        OutlinedTextField(
+                        OutlinedAccountIdField(
                             value = studentId,
                             onValueChange = { studentId = it.uppercase() },
-                            label = { Text(stringResource(R.string.login_student_id)) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(
-                                capitalization = KeyboardCapitalization.Characters,
-                                keyboardType = KeyboardType.Ascii,
-                                imeAction = ImeAction.Next
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                            ),
-                            modifier = Modifier.fillMaxWidth()
+                            label = stringResource(R.string.login_student_id),
+                            capitalization = KeyboardCapitalization.Characters,
+                            imeAction = ImeAction.Next,
+                            onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+                            autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                         OutlinedTextField(
                             value = password,
@@ -97,7 +96,7 @@ fun OnboardingScreen(
                             visualTransformation = PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(
                                 autoCorrectEnabled = false,
-                                keyboardType = KeyboardType.Ascii,
+                                keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Done,
                             ),
                             keyboardActions = KeyboardActions(
@@ -108,7 +107,9 @@ fun OnboardingScreen(
                                     }
                                 }
                             ),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .semantics { contentType = ContentType.Password }
                         )
                         if (loginError != null) {
                             Text(

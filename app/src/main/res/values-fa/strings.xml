@@ -5,6 +5,7 @@
     <string name="action_allow">اجازه دادن</string>
     <string name="action_back">بازگشت</string>
     <string name="action_cancel">لغو</string>
+    <string name="action_clear_text">پاک کردن متن</string>
     <string name="action_close">بستن</string>
     <string name="action_confirm">تأیید</string>
     <string name="action_done">انجام شد</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">قوانین پیش فرض را اعمال کنید</string>
     <string name="bulletin_body_load_failed">بارگیری محتوا ممکن نیست</string>
     <string name="bulletin_default_rules_footer">اشتراک های پیش فرض: ناهار رایگان، بورس تحصیلی، هزینه ها، امتحانات، تعمیر و نگهداری.</string>
+    <string name="bulletin_fdroid_no_push_body">نسخه F-Droid بدون Google Play Services عرضه می‌شود، بنابراین اعلان‌های فوری اطلاعیه در لحظه در دسترس نیستند. اگر به اعلان‌ها نیاز دارید، نسخه Play Store را نصب کنید — همچنان می‌توانید آخرین اطلاعیه‌ها را به‌صورت دستی از برگه اطلاعیه‌ها دریافت کنید.</string>
+    <string name="bulletin_fdroid_no_push_title">اعلان فوری در F-Droid در دسترس نیست</string>
     <string name="bulletin_filter_dept">بخش</string>
     <string name="bulletin_filter_tag">دسته بندی</string>
     <string name="bulletin_importance_high_badge">مهم است</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">فشار بولتن را روشن کنید</string>
     <string name="bulletin_push_enable_description">وقتی فشار فعال باشد، TigerDuck هر زمان که بولتنی با قوانین اشتراک شما مطابقت داشته باشد به شما اطلاع می‌دهد.</string>
     <string name="bulletin_push_footer">اعلان‌های فشاری بر اساس قوانین شما توسط سرور TigerDuck ارائه می‌شوند. شناسه دستگاه به عنوان یک UUID ناشناس ارسال می‌شود — شناسه دانشجویی شما هرگز آپلود نمی‌شود.</string>
+    <string name="bulletin_push_reopen_settings">فعال‌سازی مجدد در تنظیمات سیستم</string>
     <string name="bulletin_push_requesting">در حال درخواست…</string>
     <string name="bulletin_push_settings_header">تنظیمات فشار</string>
     <string name="bulletin_push_status_denied">تکذیب شد</string>
     <string name="bulletin_push_status_ephemeral">زودگذر</string>
     <string name="bulletin_push_status_label">اعلان های فشاری</string>
     <string name="bulletin_push_status_provisional">موقت</string>
+    <string name="bulletin_push_status_registration_done">انجام شد</string>
+    <string name="bulletin_push_status_registration_pending">در انتظار token</string>
     <string name="bulletin_push_status_undetermined">هنوز تصمیم گیری نشده است</string>
+    <string name="bulletin_push_status_unknown">ناشناخته</string>
     <string name="bulletin_rule_add_action">قانون اضافه کنید</string>
     <string name="bulletin_rule_add_title">قانون اضافه کنید</string>
     <string name="bulletin_rule_all_orgs">همه بخش ها</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">نام</string>
     <string name="bulletin_rule_editor_selected_count">%1$d انتخاب شد</string>
     <string name="bulletin_rule_editor_tag_section">دسته بندی</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> و </string>
     <string name="bulletin_rule_join_or"> یا </string>
     <string name="bulletin_rule_orgs_prefix">بخش: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">نمایش همه بولتن ها</string>
     <string name="bulletin_show_unread_only_action">فقط خوانده نشده</string>
     <string name="bulletin_source_link_label">مشاهده اصلی</string>
+    <string name="bulletin_subscription_default_seed_name">پیشنهادهای پیش‌فرض</string>
+    <string name="bulletin_subscription_mode_and">تطبیق همه</string>
+    <string name="bulletin_subscription_mode_or">تطبیق هر کدام</string>
     <string name="bulletin_taxonomy_clear_selection">پاک کردن انتخاب (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">انتخاب هیچ چیز به معنای «تطبیق همه» برای این بعد است.</string>
     <string name="bulletin_unread_dot_label">خوانده نشده</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">خیلی دیر... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">هنوز زمان برای تعمیر آن است! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">یادآوری تکلیف: %1$s</string>
+    <string name="notification_bulletin_channel_description">اعلان‌های فوری برای اطلاعیه‌های جدید NTUST مطابق با اشتراک‌های شما</string>
+    <string name="notification_bulletin_channel_name">اطلاعیه‌های مدرسه</string>
     <string name="notification_class_preparing_channel_description">پیش از شروع هر کلاس، مطابق تنظیمات به شما یادآوری می‌فرستد</string>
     <string name="notification_class_preparing_channel_name">یادآورهای شروع کلاس</string>
     <string name="notification_class_preparing_content_fallback">کلاس در شُرف شروع است</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">مجوز زودگذر</string>
     <string name="push_server_notification_status_provisional">موقت</string>
     <string name="push_server_notification_status_undetermined">هنوز سوال نشده</string>
+    <string name="push_server_notification_status_unknown">ناشناخته</string>
     <string name="push_server_pending_incomplete">هنوز انجام نشده است</string>
     <string name="push_server_settings_title">فشار سرور</string>
+    <string name="push_server_status_device_registration">ثبت دستگاه</string>
     <string name="push_server_status_done">کامل</string>
     <string name="push_server_status_enabled">فعال شد</string>
     <string name="push_server_status_section">وضعیت</string>
+    <string name="push_server_status_waiting_token">در انتظار تخصیص token توسط سیستم</string>
     <string name="push_server_sync_now_action">اکنون همگام سازی کنید</string>
     <string name="refreshing_message">در حال به‌روزرسانی… کمی صبر کنید</string>
     <string name="score_academic_year_semester">سال تحصیلی %1$s %2$s</string>

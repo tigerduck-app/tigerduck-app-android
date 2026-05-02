@@ -5,6 +5,7 @@
     <string name="action_allow">Permite</string>
     <string name="action_back">Înapoi</string>
     <string name="action_cancel">Anulează</string>
+    <string name="action_clear_text">Șterge textul</string>
     <string name="action_close">Închide</string>
     <string name="action_confirm">Confirmă</string>
     <string name="action_done">Finalizat</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Aplică regulile implicite</string>
     <string name="bulletin_body_load_failed">Conținutul nu poate fi încărcat</string>
     <string name="bulletin_default_rules_footer">Abonamente implicite: Prânz gratuit, Bursă, Taxe, Examene, Întreținere.</string>
+    <string name="bulletin_fdroid_no_push_body">Versiunea F-Droid nu include Google Play Services, deci notificările push în timp real nu sunt disponibile. Instalați versiunea din Play Store dacă aveți nevoie de notificări — puteți în continuare să preluați manual cele mai recente buletine din fila anunțuri.</string>
+    <string name="bulletin_fdroid_no_push_title">Push indisponibil pe F-Droid</string>
     <string name="bulletin_filter_dept">Departament</string>
     <string name="bulletin_filter_tag">Categorie</string>
     <string name="bulletin_importance_high_badge">Important</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Activează notificările push pentru buletine</string>
     <string name="bulletin_push_enable_description">Când push-ul este activat, TigerDuck vă va notifica ori de câte ori un buletin corespunde regulilor dvs. de abonament.</string>
     <string name="bulletin_push_footer">Notificările push sunt livrate de serverul TigerDuck pe baza regulilor dvs. Identificatorul dispozitivului este trimis ca UUID anonim — ID-ul dvs. de student nu este niciodată încărcat.</string>
+    <string name="bulletin_push_reopen_settings">Reactivați în Setări sistem</string>
     <string name="bulletin_push_requesting">Se solicită…</string>
     <string name="bulletin_push_settings_header">Setări push</string>
     <string name="bulletin_push_status_denied">Refuzat</string>
     <string name="bulletin_push_status_ephemeral">Efemer</string>
     <string name="bulletin_push_status_label">Notificări push</string>
     <string name="bulletin_push_status_provisional">Provizoriu</string>
+    <string name="bulletin_push_status_registration_done">Finalizat</string>
+    <string name="bulletin_push_status_registration_pending">Se așteaptă token</string>
     <string name="bulletin_push_status_undetermined">Nedecis încă</string>
+    <string name="bulletin_push_status_unknown">Necunoscut</string>
     <string name="bulletin_rule_add_action">Adaugă regulă</string>
     <string name="bulletin_rule_add_title">Adaugă regulă</string>
     <string name="bulletin_rule_all_orgs">Toate departamentele</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d selectat</string>
     <string name="bulletin_rule_editor_tag_section">Categorie</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> și </string>
     <string name="bulletin_rule_join_or"> sau </string>
     <string name="bulletin_rule_orgs_prefix">Dept: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Alle Bulletins anzeigen</string>
     <string name="bulletin_show_unread_only_action">Nur ungelesen</string>
     <string name="bulletin_source_link_label">Original ansehen</string>
+    <string name="bulletin_subscription_default_seed_name">Recomandări implicite</string>
+    <string name="bulletin_subscription_mode_and">Potrivește toate</string>
+    <string name="bulletin_subscription_mode_or">Potrivește oricare</string>
     <string name="bulletin_taxonomy_clear_selection">Auswahl löschen (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Wenn Sie nichts auswählen, bedeutet dies für diese Dimension „Alles treffen“.</string>
     <string name="bulletin_unread_dot_label">Ungelesen</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_bulletin_channel_description">Notificări push în timp real pentru noile buletine NTUST care corespund abonamentelor dvs.</string>
+    <string name="notification_bulletin_channel_name">Buletine școlare</string>
     <string name="notification_class_preparing_channel_description">Trimite remindere înainte de începerea fiecărui curs</string>
     <string name="notification_class_preparing_channel_name">Remindere pregătire curs</string>
     <string name="notification_class_preparing_content_fallback">Cursul este pe cale să înceapă</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Autorizare efemeră</string>
     <string name="push_server_notification_status_provisional">Provizoriu</string>
     <string name="push_server_notification_status_undetermined">Neîntrebat încă</string>
+    <string name="push_server_notification_status_unknown">Necunoscut</string>
     <string name="push_server_pending_incomplete">Nefinalizat încă</string>
     <string name="push_server_settings_title">Push server</string>
+    <string name="push_server_status_device_registration">Înregistrare dispozitiv</string>
     <string name="push_server_status_done">Complet</string>
     <string name="push_server_status_enabled">Activat</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Se așteaptă ca sistemul să aloce un token</string>
     <string name="push_server_sync_now_action">Sincronizează acum</string>
     <string name="refreshing_message">Se actualizează… așteaptă puțin</string>
     <string name="score_academic_year_semester">Anul academic %1$s %2$s</string>

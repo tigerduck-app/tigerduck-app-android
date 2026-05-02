@@ -5,6 +5,7 @@
     <string name="action_allow">Leisti</string>
     <string name="action_back">Atgal</string>
     <string name="action_cancel">Atšaukti</string>
+    <string name="action_clear_text">Išvalyti tekstą</string>
     <string name="action_close">Uždaryti</string>
     <string name="action_confirm">Patvirtinti</string>
     <string name="action_done">Atlikta</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Wenden Sie Standardregeln an</string>
     <string name="bulletin_body_load_failed">Inhalte können nicht geladen werden</string>
     <string name="bulletin_default_rules_footer">Standardabonnements: Kostenloses Mittagessen, Stipendium, Gebühren, Prüfungen, Wartung.</string>
+    <string name="bulletin_fdroid_no_push_body">F-Droid versijoje nėra Google Play Services, todėl realaus laiko biuletenių push pranešimai nepasiekiami. Jei reikia pranešimų, įdiekite Play Store versiją — vis tiek galite rankiniu būdu atnaujinti naujausius biuletenius skirtuke „Skelbimai“.</string>
+    <string name="bulletin_fdroid_no_push_title">F-Droid versijoje push nepasiekiamas</string>
     <string name="bulletin_filter_dept">Abteilung</string>
     <string name="bulletin_filter_tag">Kategorie</string>
     <string name="bulletin_importance_high_badge">Wichtig</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Aktivieren Sie den Bulletin-Push</string>
     <string name="bulletin_push_enable_description">Wenn Push aktiviert ist, benachrichtigt TigerDuck Sie, wenn ein Bulletin Ihren Abonnementregeln entspricht.</string>
     <string name="bulletin_push_footer">Push-Benachrichtigungen werden vom TigerDuck-Server basierend auf Ihren Regeln zugestellt. Die Gerätekennung wird als anonyme UUID gesendet – Ihr Studierendenausweis wird nie hochgeladen.</string>
+    <string name="bulletin_push_reopen_settings">Įjungti iš naujo sistemos nustatymuose</string>
     <string name="bulletin_push_requesting">Bitte um …</string>
     <string name="bulletin_push_settings_header">Push-Einstellungen</string>
     <string name="bulletin_push_status_denied">Bestritten</string>
     <string name="bulletin_push_status_ephemeral">Vergänglich</string>
     <string name="bulletin_push_status_label">Push-Benachrichtigungen</string>
     <string name="bulletin_push_status_provisional">Provisorisch</string>
+    <string name="bulletin_push_status_registration_done">Atlikta</string>
+    <string name="bulletin_push_status_registration_pending">Laukiama token</string>
     <string name="bulletin_push_status_undetermined">Noch nicht entschieden</string>
+    <string name="bulletin_push_status_unknown">Nežinoma</string>
     <string name="bulletin_rule_add_action">Regel hinzufügen</string>
     <string name="bulletin_rule_add_title">Regel hinzufügen</string>
     <string name="bulletin_rule_all_orgs">Alle Abteilungen</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d ausgewählt</string>
     <string name="bulletin_rule_editor_tag_section">Kategorie</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> Und </string>
     <string name="bulletin_rule_join_or"> oder </string>
     <string name="bulletin_rule_orgs_prefix">Abteilung: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Alle Bulletins anzeigen</string>
     <string name="bulletin_show_unread_only_action">Nur ungelesen</string>
     <string name="bulletin_source_link_label">Original ansehen</string>
+    <string name="bulletin_subscription_default_seed_name">Numatytieji rekomenduojami</string>
+    <string name="bulletin_subscription_mode_and">Atitikti viską</string>
+    <string name="bulletin_subscription_mode_or">Atitikti bent vieną</string>
     <string name="bulletin_taxonomy_clear_selection">Auswahl löschen (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Wenn Sie nichts auswählen, bedeutet dies für diese Dimension „Alles treffen“.</string>
     <string name="bulletin_unread_dot_label">Ungelesen</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_bulletin_channel_description">Realaus laiko push pranešimai apie naujus NTUST biuletenius, atitinkančius jūsų prenumeratas</string>
+    <string name="notification_bulletin_channel_name">Mokyklos biuleteniai</string>
     <string name="notification_class_preparing_channel_description">Siunčia priminimus prieš kiekvienos paskaitos pradžią</string>
     <string name="notification_class_preparing_channel_name">Paskaitų pradžios priminimai</string>
     <string name="notification_class_preparing_content_fallback">Paskaita tuoj prasidės</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Laikinosios autorizacijos</string>
     <string name="push_server_notification_status_provisional">Preliminari</string>
     <string name="push_server_notification_status_undetermined">Dar nepaklaupta</string>
+    <string name="push_server_notification_status_unknown">Nežinoma</string>
     <string name="push_server_pending_incomplete">Dar nebaigta</string>
     <string name="push_server_settings_title">Serverio siuntimas</string>
+    <string name="push_server_status_device_registration">Įrenginio registracija</string>
     <string name="push_server_status_done">Baigta</string>
     <string name="push_server_status_enabled">Įjungta</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Laukiama, kol sistema priskirs token</string>
     <string name="push_server_sync_now_action">Sinchronizuoti dabar</string>
     <string name="refreshing_message">Atnaujinama… palaukite</string>
     <string name="score_academic_year_semester">Akademiniai metai %1$s %2$s</string>

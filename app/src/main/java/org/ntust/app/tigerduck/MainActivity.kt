@@ -53,7 +53,7 @@ class MainActivity : AppCompatActivity() {
             BackgroundSyncWorker.schedule(applicationContext)
         }
 
-        widgetStartRoute.value = intent?.getStringExtra("start_route")
+        widgetStartRoute.value = resolveStartRoute(intent)
 
         setContent {
             val systemDark = isSystemInDarkTheme()
@@ -66,7 +66,21 @@ class MainActivity : AppCompatActivity() {
 
             TigerDuckAppTheme(darkTheme = dark, accentColor = appState.accentColor(dark)) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    AppNavigation(appState = appState, widgetStartRoute = widgetStartRoute.value)
+                    AppNavigation(
+                        appState = appState,
+                        widgetStartRoute = widgetStartRoute.value,
+                        onStartRouteConsumed = {
+                            widgetStartRoute.value = null
+                            // Clear the deep-link payload so a later onCreate
+                            // (e.g. after rotation) doesn't re-navigate to the
+                            // route the user already consumed.
+                            intent?.let {
+                                it.data = null
+                                it.removeExtra("start_route")
+                                setIntent(it)
+                            }
+                        },
+                    )
                 }
             }
         }
@@ -79,7 +93,27 @@ class MainActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        widgetStartRoute.value = intent.getStringExtra("start_route")
+        // Keep getIntent() in sync with the latest delivered intent so anything
+        // that re-reads it (Compose recomposition, lifecycle observers) sees
+        // the deep-link URI rather than the launcher MAIN intent.
+        setIntent(intent)
+        widgetStartRoute.value = resolveStartRoute(intent)
+    }
+
+    /**
+     * Map intent input — widget extras and `tigerduck://announcement/<id>`
+     * deep links from a tapped FCM bulletin notification — onto a NavHost
+     * route. `widgetStartRoute` then drives the LaunchedEffect that
+     * navigates once Compose is ready.
+     */
+    private fun resolveStartRoute(intent: Intent?): String? {
+        intent?.getStringExtra("start_route")?.let { return it }
+        val data = intent?.data ?: return null
+        if (data.scheme == "tigerduck" && data.host == "announcement") {
+            val id = data.lastPathSegment?.toIntOrNull() ?: return null
+            return "announcements/detail/$id"
+        }
+        return null
     }
 
     private fun requestNotificationPermissionIfNeeded() {

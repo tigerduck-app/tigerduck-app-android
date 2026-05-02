@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,11 +34,16 @@ import org.ntust.app.tigerduck.AppConstants
 import java.time.Instant
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import androidx.navigation.navArgument
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.widget.LibraryShortcutWidget
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
+import org.ntust.app.tigerduck.announcements.AnnouncementDetailScreen
+import org.ntust.app.tigerduck.announcements.AnnouncementsScreen
+import org.ntust.app.tigerduck.announcements.SubscriptionSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarScreen
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarViewModel
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableScreen
@@ -60,6 +66,10 @@ sealed class Screen(val route: String) {
     object ClassTable : Screen("classTable")
     object Calendar : Screen("calendar")
     object Announcements : Screen("announcements")
+    object AnnouncementDetail : Screen("announcements/detail/{id}") {
+        fun route(id: Int) = "announcements/detail/$id"
+    }
+    object AnnouncementSubscriptions : Screen("announcements/subscriptions")
     object Library : Screen("library")
     object Score : Screen("score")
     object More : Screen("more")
@@ -72,11 +82,19 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun AppNavigation(appState: AppState, widgetStartRoute: String? = null) {
+fun AppNavigation(
+    appState: AppState,
+    widgetStartRoute: String? = null,
+    onStartRouteConsumed: () -> Unit = {},
+) {
     if (!appState.hasCompletedOnboarding) {
         OnboardingScreen()
     } else {
-        MainNavigation(appState, widgetStartRoute)
+        MainNavigation(
+            appState = appState,
+            widgetStartRoute = widgetStartRoute,
+            onStartRouteConsumed = onStartRouteConsumed,
+        )
         PermissionWarningDialogHost(appState.systemPermissions)
     }
 
@@ -104,7 +122,11 @@ fun AppNavigation(appState: AppState, widgetStartRoute: String? = null) {
 }
 
 @Composable
-fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
+fun MainNavigation(
+    appState: AppState,
+    widgetStartRoute: String? = null,
+    onStartRouteConsumed: () -> Unit = {},
+) {
     val navController = rememberNavController()
     LaunchedEffect(widgetStartRoute) {
         widgetStartRoute ?: return@LaunchedEffect
@@ -122,9 +144,21 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
         } else {
             widgetStartRoute
         }
+        // Cold-start path: this effect can fire in the same composition that
+        // first declares the NavHost (further down). navigate() before the
+        // graph is registered silently no-ops, so block on the first back-stack
+        // entry — which only appears once NavHost has installed its graph and
+        // routed to startDestination.
+        snapshotFlow { navController.currentBackStackEntry }
+            .filterNotNull()
+            .first()
         navController.navigate(target) {
             launchSingleTop = true
         }
+        // Consume so that re-tapping the same notification (which delivers the
+        // identical route string) re-fires this LaunchedEffect instead of
+        // being deduped by the same key.
+        onStartRouteConsumed()
     }
     // Hoist Home / ClassTable / Calendar VMs to the activity scope so they
     // exist from app open and survive tab switches. load() is called once
@@ -178,10 +212,29 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
         }
     }
 
-    val isNonTaipeiTz = remember {
-        val now = Instant.now()
-        java.util.TimeZone.getDefault().getOffset(now.toEpochMilli()) !=
-            AppConstants.TAIPEI_TZ.getOffset(now.toEpochMilli())
+    // Reactive: a frozen `remember {}` would miss timezone changes while the
+    // app is backgrounded. Listen for ACTION_TIMEZONE_CHANGED so the banner
+    // appears/clears when the user travels.
+    var isNonTaipeiTz by remember { mutableStateOf(false) }
+    DisposableEffect(context) {
+        val recompute = {
+            val now = Instant.now()
+            isNonTaipeiTz = java.util.TimeZone.getDefault().getOffset(now.toEpochMilli()) !=
+                AppConstants.TAIPEI_TZ.getOffset(now.toEpochMilli())
+        }
+        recompute()
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context?, i: android.content.Intent?) {
+                recompute()
+            }
+        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            android.content.IntentFilter(android.content.Intent.ACTION_TIMEZONE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
 
     Scaffold(
@@ -249,7 +302,25 @@ fun MainNavigation(appState: AppState, widgetStartRoute: String? = null) {
             composable(Screen.Calendar.route) {
                 CalendarScreen(viewModel = calendarViewModel)
             }
-            composable(Screen.Announcements.route) { PlaceholderScreen(AppFeature.ANNOUNCEMENTS) }
+            composable(Screen.Announcements.route) {
+                AnnouncementsScreen(
+                    onOpenBulletin = { id ->
+                        navController.navigate(Screen.AnnouncementDetail.route(id))
+                    },
+                    onOpenSubscriptions = {
+                        navController.navigate(Screen.AnnouncementSubscriptions.route)
+                    },
+                )
+            }
+            composable(
+                Screen.AnnouncementDetail.route,
+                arguments = listOf(navArgument("id") { type = NavType.IntType }),
+            ) {
+                AnnouncementDetailScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.AnnouncementSubscriptions.route) {
+                SubscriptionSettingsScreen(onBack = { navController.popBackStack() })
+            }
             composable(Screen.Library.route) { LibraryScreen() }
             composable(Screen.Score.route) { ScoreScreen() }
             composable(Screen.More.route) { MoreScreen(navController, appState) }

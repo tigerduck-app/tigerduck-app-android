@@ -33,7 +33,10 @@ class NtustSessionManager @Inject constructor(
     private val cookieJar = object : CookieJar {
         override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
             val host = url.host
-            val hostCookies = cookieStore.getOrPut(host) { CopyOnWriteArrayList() }
+            // computeIfAbsent is atomic on ConcurrentHashMap; getOrPut isn't,
+            // so two concurrent callers could each create their own list and
+            // lock on different instances for the same host.
+            val hostCookies = cookieStore.computeIfAbsent(host) { CopyOnWriteArrayList() }
             synchronized(hostCookies) {
                 hostCookies.removeAll { existing -> cookies.any { it.name == existing.name } }
                 hostCookies.addAll(cookies)
@@ -127,7 +130,11 @@ class NtustSessionManager @Inject constructor(
     }
 
     fun invalidateSession() {
-        cookieStore.clear()
+        // Clear the timestamp first so a concurrent cookiesValid read can't
+        // observe ts > 0 AND cookies present after the clear. Reordering this
+        // produces a tear where logout races with a refresh and cookiesValid
+        // returns true while the session is being torn down.
         prefs.clearSsoTimestamp()
+        cookieStore.clear()
     }
 }

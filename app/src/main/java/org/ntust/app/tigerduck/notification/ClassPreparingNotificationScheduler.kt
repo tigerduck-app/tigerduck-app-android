@@ -27,28 +27,39 @@ class ClassPreparingNotificationScheduler @Inject constructor(
 ) {
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     private val trackerPrefs = context.getSharedPreferences(TRACKER_PREFS, Context.MODE_PRIVATE)
+    // Serializes scheduleAll / cancelAllTracked across boot, live-activity
+    // refresh, and BackgroundSyncWorker. Without this, concurrent callers
+    // would each load their own codeMap copy, mint duplicate request codes
+    // off KEY_NEXT_CODE (read-inc-apply is async + non-atomic), and clobber
+    // each other's persisted state.
+    private val schedulerLock = Any()
 
     fun scheduleAll(
         courses: List<Course>,
         skippedDates: Map<String, List<String>>,
         leadTimeSec: Long,
-    ) {
+    ) = synchronized(schedulerLock) {
         // Load the persisted slotId→requestCode map BEFORE cancelling so cancel
         // looks up the same code each alarm was originally registered with.
         // Previously we hashed slotId into the requestCode, which could collide
         // across two different slots and silently overwrite the earlier alarm.
         val codeMap = loadCodeMap()
-        cancelAllTracked(codeMap)
-        if (leadTimeSec <= 0 || courses.isEmpty()) return
+        cancelAllTrackedLocked(codeMap)
+        if (leadTimeSec <= 0 || courses.isEmpty()) return@synchronized
 
         val now = System.currentTimeMillis()
         val scheduled = mutableSetOf<String>()
+        var nextCode = trackerPrefs.getInt(KEY_NEXT_CODE, 1)
 
         for (slot in upcomingSlots(courses, skippedDates, daysAhead = DAYS_AHEAD)) {
             val triggerTime = slot.startMs - leadTimeSec * 1000
             if (triggerTime <= now) continue
 
-            val requestCode = requestCodeFor(codeMap, slot.id)
+            val requestCode = codeMap.getOrPut(slot.id) {
+                val current = nextCode
+                nextCode = if (current == Int.MAX_VALUE) 1 else current + 1
+                current
+            }
             val intent = Intent(context, ClassPreparingNotificationReceiver::class.java).apply {
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_COURSE_NAME, slot.course.courseName)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_CLASSROOM, slot.course.classroom)
@@ -81,14 +92,15 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         trackerPrefs.edit()
             .putStringSet(KEY_SCHEDULED_IDS, scheduled)
             .putString(KEY_CODE_MAP, encodeCodeMap(codeMap))
+            .putInt(KEY_NEXT_CODE, nextCode)
             .apply()
     }
 
-    fun cancelAllTracked() {
-        cancelAllTracked(loadCodeMap())
+    fun cancelAllTracked() = synchronized(schedulerLock) {
+        cancelAllTrackedLocked(loadCodeMap())
     }
 
-    private fun cancelAllTracked(codeMap: Map<String, Int>) {
+    private fun cancelAllTrackedLocked(codeMap: Map<String, Int>) {
         val ids = trackerPrefs.getStringSet(KEY_SCHEDULED_IDS, emptySet()) ?: emptySet()
         for (id in ids) {
             val code = codeMap[id] ?: continue
@@ -101,18 +113,15 @@ class ClassPreparingNotificationScheduler @Inject constructor(
             )
             pendingIntent?.let { alarmManager.cancel(it) }
         }
-        trackerPrefs.edit().remove(KEY_SCHEDULED_IDS).apply()
+        // Drop the per-slot code map alongside the scheduled-ids set so it
+        // doesn't accumulate dead entries across reschedules, boots, and
+        // logouts. KEY_NEXT_CODE is intentionally preserved to avoid handing
+        // out a code that some still-pending alarm might be using.
+        trackerPrefs.edit()
+            .remove(KEY_SCHEDULED_IDS)
+            .remove(KEY_CODE_MAP)
+            .apply()
     }
-
-    private fun requestCodeFor(map: MutableMap<String, Int>, id: String): Int =
-        map.getOrPut(id) {
-            val next = trackerPrefs.getInt(KEY_NEXT_CODE, 1)
-            // Int.MAX_VALUE worth of slots is effectively unbounded, but wrap at
-            // 1 just in case so we never hand out 0 or a negative code.
-            val nextPlus = if (next == Int.MAX_VALUE) 1 else next + 1
-            trackerPrefs.edit().putInt(KEY_NEXT_CODE, nextPlus).apply()
-            next
-        }
 
     private fun loadCodeMap(): MutableMap<String, Int> {
         val raw = trackerPrefs.getString(KEY_CODE_MAP, null) ?: return mutableMapOf()

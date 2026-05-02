@@ -5,6 +5,7 @@
     <string name="action_allow">Cho phép</string>
     <string name="action_back">Quay lại</string>
     <string name="action_cancel">Hủy</string>
+    <string name="action_clear_text">Xóa văn bản</string>
     <string name="action_close">Đóng</string>
     <string name="action_confirm">Xác nhận</string>
     <string name="action_done">Xong</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Áp dụng quy tắc mặc định</string>
     <string name="bulletin_body_load_failed">Không thể tải nội dung</string>
     <string name="bulletin_default_rules_footer">Đăng ký mặc định: Bữa trưa miễn phí, Học bổng, Học phí, Thi cử, Bảo trì.</string>
+    <string name="bulletin_fdroid_no_push_body">Bản F-Droid không đi kèm Google Play Services, vì vậy push thông báo bản tin theo thời gian thực không khả dụng. Cài đặt bản Play Store nếu bạn cần thông báo — bạn vẫn có thể kéo các bản tin mới nhất theo cách thủ công từ tab thông báo.</string>
+    <string name="bulletin_fdroid_no_push_title">Push không khả dụng trên F-Droid</string>
     <string name="bulletin_filter_dept">Khoa/Phòng ban</string>
     <string name="bulletin_filter_tag">Danh mục</string>
     <string name="bulletin_importance_high_badge">Quan trọng</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Bật đẩy thông báo bản tin</string>
     <string name="bulletin_push_enable_description">Khi bật đẩy thông báo, TigerDuck sẽ thông báo cho bạn mỗi khi có bản tin khớp với quy tắc đăng ký của bạn.</string>
     <string name="bulletin_push_footer">Thông báo đẩy được gửi bởi máy chủ TigerDuck dựa trên quy tắc của bạn. Mã định danh thiết bị được gửi dưới dạng UUID ẩn danh — mã số sinh viên của bạn không bao giờ được tải lên.</string>
+    <string name="bulletin_push_reopen_settings">Bật lại trong Cài đặt Hệ thống</string>
     <string name="bulletin_push_requesting">Đang yêu cầu…</string>
     <string name="bulletin_push_settings_header">Cài đặt đẩy thông báo</string>
     <string name="bulletin_push_status_denied">Đã từ chối</string>
     <string name="bulletin_push_status_ephemeral">Tạm thời</string>
     <string name="bulletin_push_status_label">Thông báo đẩy</string>
     <string name="bulletin_push_status_provisional">Dự phòng</string>
+    <string name="bulletin_push_status_registration_done">Xong</string>
+    <string name="bulletin_push_status_registration_pending">Đang chờ token</string>
     <string name="bulletin_push_status_undetermined">Chưa quyết định</string>
+    <string name="bulletin_push_status_unknown">Không xác định</string>
     <string name="bulletin_rule_add_action">Thêm quy tắc</string>
     <string name="bulletin_rule_add_title">Thêm quy tắc</string>
     <string name="bulletin_rule_all_orgs">Tất cả phòng ban</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d đã chọn</string>
     <string name="bulletin_rule_editor_tag_section">Danh mục</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> và </string>
     <string name="bulletin_rule_join_or"> hoặc </string>
     <string name="bulletin_rule_orgs_prefix">Phòng ban: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Hiển thị tất cả thông báo</string>
     <string name="bulletin_show_unread_only_action">Chỉ chưa đọc</string>
     <string name="bulletin_source_link_label">Xem bản gốc</string>
+    <string name="bulletin_subscription_default_seed_name">Đề xuất mặc định</string>
+    <string name="bulletin_subscription_mode_and">Khớp tất cả</string>
+    <string name="bulletin_subscription_mode_or">Khớp bất kỳ</string>
     <string name="bulletin_taxonomy_clear_selection">Xóa lựa chọn (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Không chọn gì nghĩa là \"khớp tất cả\" cho chiều này.</string>
     <string name="bulletin_unread_dot_label">Chưa đọc</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Trễ rồi... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Vẫn còn kịp sửa! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Nhắc nhở bài tập: %1$s</string>
+    <string name="notification_bulletin_channel_description">Đẩy thông báo theo thời gian thực cho các bản tin NTUST mới khớp với đăng ký của bạn</string>
+    <string name="notification_bulletin_channel_name">Thông báo trường học</string>
     <string name="notification_class_preparing_channel_description">Gửi nhắc nhở trước khi mỗi lớp học bắt đầu</string>
     <string name="notification_class_preparing_channel_name">Nhắc sắp vào lớp</string>
     <string name="notification_class_preparing_content_fallback">Lớp học sắp bắt đầu</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Cấp phép tạm thời</string>
     <string name="push_server_notification_status_provisional">Tạm thời</string>
     <string name="push_server_notification_status_undetermined">Chưa được hỏi</string>
+    <string name="push_server_notification_status_unknown">Không xác định</string>
     <string name="push_server_pending_incomplete">Chưa hoàn thành</string>
     <string name="push_server_settings_title">Đẩy máy chủ</string>
+    <string name="push_server_status_device_registration">Đăng ký thiết bị</string>
     <string name="push_server_status_done">Hoàn tất</string>
     <string name="push_server_status_enabled">Đã bật</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Đang chờ hệ thống gán token</string>
     <string name="push_server_sync_now_action">Đồng bộ ngay</string>
     <string name="refreshing_message">Đang làm mới… vui lòng chờ</string>
     <string name="score_academic_year_semester">Năm học %1$s %2$s</string>

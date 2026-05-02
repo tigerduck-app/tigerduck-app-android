@@ -5,6 +5,7 @@
     <string name="action_allow">अनुमति दें</string>
     <string name="action_back">वापस</string>
     <string name="action_cancel">रद्द करें</string>
+    <string name="action_clear_text">टेक्स्ट साफ़ करें</string>
     <string name="action_close">बंद करें</string>
     <string name="action_confirm">पुष्टि करें</string>
     <string name="action_done">हो गया</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">डिफ़ॉल्ट नियम लागू करें</string>
     <string name="bulletin_body_load_failed">सामग्री लोड नहीं की जा सकी</string>
     <string name="bulletin_default_rules_footer">डिफ़ॉल्ट सदस्यताएँ: मुफ़्त लंच, छात्रवृत्ति, शुल्क, परीक्षाएँ, रखरखाव।</string>
+    <string name="bulletin_fdroid_no_push_body">F-Droid बिल्ड में Google Play Services नहीं है, इसलिए रियल-टाइम बुलेटिन पुश उपलब्ध नहीं है। नोटिफिकेशन चाहिए तो Play Store बिल्ड इंस्टॉल करें — आप घोषणाएं टैब से नवीनतम बुलेटिन मैन्युअली भी प्राप्त कर सकते हैं।</string>
+    <string name="bulletin_fdroid_no_push_title">F-Droid पर Push उपलब्ध नहीं</string>
     <string name="bulletin_filter_dept">कमरा नंबर</string>
     <string name="bulletin_filter_tag">स्कूल में पढ़ने वाले भाई/बहन</string>
     <string name="bulletin_importance_high_badge">महत्वपूर्ण</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">बुलेटिन पुश चालू करें</string>
     <string name="bulletin_push_enable_description">जब पुश सक्षम हो, तो TigerDuck आपको तब सूचित करेगा जब कोई बुलेटिन आपके सदस्यता नियमों से मेल खाए।</string>
     <string name="bulletin_push_footer">पुश सूचनाएं आपके नियमों के आधार पर TigerDuck सर्वर द्वारा दी जाती हैं। डिवाइस पहचानकर्ता एक गुमनाम UUID के रूप में भेजा जाता है — आपकी छात्र ID कभी अपलोड नहीं की जाती।</string>
+    <string name="bulletin_push_reopen_settings">सिस्टम सेटिंग्स में फिर से चालू करें</string>
     <string name="bulletin_push_requesting">अनुरोध हो रहा है…</string>
     <string name="bulletin_push_settings_header">पुश सेटिंग्स</string>
     <string name="bulletin_push_status_denied">अस्वीकृत</string>
     <string name="bulletin_push_status_ephemeral">अल्पकालिक</string>
     <string name="bulletin_push_status_label">पुश सूचनाएं</string>
     <string name="bulletin_push_status_provisional">अनंतिम</string>
+    <string name="bulletin_push_status_registration_done">हो गया</string>
+    <string name="bulletin_push_status_registration_pending">token का इंतज़ार</string>
     <string name="bulletin_push_status_undetermined">अभी तय नहीं</string>
+    <string name="bulletin_push_status_unknown">अज्ञात</string>
     <string name="bulletin_rule_add_action">नियम जोड़ें</string>
     <string name="bulletin_rule_add_title">नियम जोड़ें</string>
     <string name="bulletin_rule_all_orgs">सभी विभाग</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d चयनित</string>
     <string name="bulletin_rule_editor_tag_section">श्रेणी</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> और </string>
     <string name="bulletin_rule_join_or"> या </string>
     <string name="bulletin_rule_orgs_prefix">विभाग: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">सभी बुलेटिन दिखाएं</string>
     <string name="bulletin_show_unread_only_action">केवल अपठित</string>
     <string name="bulletin_source_link_label">मूल देखें</string>
+    <string name="bulletin_subscription_default_seed_name">डिफ़ॉल्ट अनुशंसाएं</string>
+    <string name="bulletin_subscription_mode_and">सभी से मिलान करें</string>
+    <string name="bulletin_subscription_mode_or">किसी से भी मिलान करें</string>
     <string name="bulletin_taxonomy_clear_selection">चयन साफ़ करें (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">कुछ भी न चुनने का अर्थ है इस आयाम के लिए \"सभी से मिलान\"।</string>
     <string name="bulletin_unread_dot_label">अपठित</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">बहुत देर हो गई... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">अभी भी सुधार का समय है! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">असाइनमेंट रिमाइंडर: %1$s</string>
+    <string name="notification_bulletin_channel_description">आपकी सदस्यताओं से मेल खाने वाले नए NTUST बुलेटिन के लिए रीयल-टाइम पुश</string>
+    <string name="notification_bulletin_channel_name">स्कूल बुलेटिन</string>
     <string name="notification_class_preparing_channel_description">हर कक्षा शुरू होने से पहले अनुस्मारक भेजता है</string>
     <string name="notification_class_preparing_channel_name">कक्षा तैयारी अनुस्मारक</string>
     <string name="notification_class_preparing_content_fallback">कक्षा शुरू होने वाली है</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">अस्थायी प्राधिकरण</string>
     <string name="push_server_notification_status_provisional">अनंतिम</string>
     <string name="push_server_notification_status_undetermined">अभी तक नहीं पूछा गया</string>
+    <string name="push_server_notification_status_unknown">अज्ञात</string>
     <string name="push_server_pending_incomplete">अभी तक पूरा नहीं हुआ</string>
     <string name="push_server_settings_title">सर्वर पुश</string>
+    <string name="push_server_status_device_registration">डिवाइस पंजीकरण</string>
     <string name="push_server_status_done">पूर्ण</string>
     <string name="push_server_status_enabled">सक्षम</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">सिस्टम द्वारा token असाइन होने का इंतज़ार</string>
     <string name="push_server_sync_now_action">अभी सिंक करें</string>
     <string name="refreshing_message">रिफ्रेश हो रहा है… थोड़ा रुकें</string>
     <string name="score_academic_year_semester">शैक्षणिक वर्ष %1$s %2$s</string>

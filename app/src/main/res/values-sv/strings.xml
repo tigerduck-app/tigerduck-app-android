@@ -5,6 +5,7 @@
     <string name="action_allow">Tillåt</string>
     <string name="action_back">Tillbaka</string>
     <string name="action_cancel">Avbryt</string>
+    <string name="action_clear_text">Rensa text</string>
     <string name="action_close">Stäng</string>
     <string name="action_confirm">Bekräfta</string>
     <string name="action_done">Klar</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Tillämpa standardregler</string>
     <string name="bulletin_body_load_failed">Det gick inte att läsa in innehållet</string>
     <string name="bulletin_default_rules_footer">Standardprenumerationer: Gratis lunch, Stipendium, Avgifter, Tentor, Underhåll.</string>
+    <string name="bulletin_fdroid_no_push_body">F-Droid-versionen levereras utan Google Play Services, så realtids-push för bulletiner är inte tillgänglig. Installera Play Store-versionen om du behöver aviseringar — du kan fortfarande hämta de senaste bulletinerna manuellt från fliken meddelanden.</string>
+    <string name="bulletin_fdroid_no_push_title">Push inte tillgänglig på F-Droid</string>
     <string name="bulletin_filter_dept">Avdelning</string>
     <string name="bulletin_filter_tag">Kategori</string>
     <string name="bulletin_importance_high_badge">Viktigt</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Slå på push-aviseringar för anslagstavlan</string>
     <string name="bulletin_push_enable_description">När push är aktiverat meddelar TigerDuck dig när ett meddelande matchar dina prenumerationsregler.</string>
     <string name="bulletin_push_footer">Push-aviseringar levereras av TigerDuck-servern baserat på dina regler. Enhetsidentifieraren skickas som ett anonymt UUID – ditt student-ID laddas aldrig upp.</string>
+    <string name="bulletin_push_reopen_settings">Aktivera igen i Systeminställningar</string>
     <string name="bulletin_push_requesting">Begär…</string>
     <string name="bulletin_push_settings_header">Push-inställningar</string>
     <string name="bulletin_push_status_denied">Nekad</string>
     <string name="bulletin_push_status_ephemeral">Tillfällig</string>
     <string name="bulletin_push_status_label">Push-aviseringar</string>
     <string name="bulletin_push_status_provisional">Preliminär</string>
+    <string name="bulletin_push_status_registration_done">Klar</string>
+    <string name="bulletin_push_status_registration_pending">Väntar på token</string>
     <string name="bulletin_push_status_undetermined">Ej bestämt ännu</string>
+    <string name="bulletin_push_status_unknown">Okänt</string>
     <string name="bulletin_rule_add_action">Lägg till regel</string>
     <string name="bulletin_rule_add_title">Lägg till regel</string>
     <string name="bulletin_rule_all_orgs">Alla avdelningar</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d valda</string>
     <string name="bulletin_rule_editor_tag_section">Kategori</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> och </string>
     <string name="bulletin_rule_join_or"> eller </string>
     <string name="bulletin_rule_orgs_prefix">Avd.: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Visa alla meddelanden</string>
     <string name="bulletin_show_unread_only_action">Endast olästa</string>
     <string name="bulletin_source_link_label">Visa original</string>
+    <string name="bulletin_subscription_default_seed_name">Standardrekommendationer</string>
+    <string name="bulletin_subscription_mode_and">Matcha alla</string>
+    <string name="bulletin_subscription_mode_or">Matcha något</string>
     <string name="bulletin_taxonomy_clear_selection">Rensa urval (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Inget val innebär \"matcha alla\" för denna dimension.</string>
     <string name="bulletin_unread_dot_label">Oläst</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">För sent... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Det finns fortfarande tid att fixa det! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Påminnelse om uppgift: %1$s</string>
+    <string name="notification_bulletin_channel_description">Realtidspush för nya NTUST-bulletiner som matchar dina prenumerationer</string>
+    <string name="notification_bulletin_channel_name">Skolbulletiner</string>
     <string name="notification_class_preparing_channel_description">Skickar påminnelser innan varje lektion börjar</string>
     <string name="notification_class_preparing_channel_name">Påminnelser inför lektion</string>
     <string name="notification_class_preparing_content_fallback">Lektionen håller på att börja</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Tillfällig auktorisering</string>
     <string name="push_server_notification_status_provisional">Provisorisk</string>
     <string name="push_server_notification_status_undetermined">Inte frågad än</string>
+    <string name="push_server_notification_status_unknown">Okänt</string>
     <string name="push_server_pending_incomplete">Inte klart än</string>
     <string name="push_server_settings_title">Server-push</string>
+    <string name="push_server_status_device_registration">Enhetsregistrering</string>
     <string name="push_server_status_done">Slutförd</string>
     <string name="push_server_status_enabled">Aktiverad</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Väntar på att systemet ska tilldela en token</string>
     <string name="push_server_sync_now_action">Synkronisera nu</string>
     <string name="refreshing_message">Uppdaterar… vänta lite</string>
     <string name="score_academic_year_semester">Läsår %1$s %2$s</string>

@@ -5,6 +5,7 @@
     <string name="action_allow">اجازت دیں</string>
     <string name="action_back">واپس</string>
     <string name="action_cancel">منسوخ کریں</string>
+    <string name="action_clear_text">متن صاف کریں</string>
     <string name="action_close">بند کریں</string>
     <string name="action_confirm">تصدیق کریں</string>
     <string name="action_done">مکمل</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">ڈیفالٹ قوانین لاگو کریں</string>
     <string name="bulletin_body_load_failed">مواد لوڈ کرنے میں ناکامی</string>
     <string name="bulletin_default_rules_footer">ڈیفالٹ سبسکرپشنز: مفت لنچ، اسکالرشپ، فیس، امتحانات، مینٹیننس۔</string>
+    <string name="bulletin_fdroid_no_push_body">F-Droid بلڈ میں Google Play Services شامل نہیں ہے، اس لیے ریئل ٹائم بلیٹن پش دستیاب نہیں ہے۔ اگر اطلاعات کی ضرورت ہو تو Play Store بلڈ انسٹال کریں — آپ اعلانات ٹیب سے تازہ ترین بلیٹن ابھی بھی دستی طور پر حاصل کر سکتے ہیں۔</string>
+    <string name="bulletin_fdroid_no_push_title">F-Droid پر push دستیاب نہیں</string>
     <string name="bulletin_filter_dept">محکمہ</string>
     <string name="bulletin_filter_tag">زمرہ</string>
     <string name="bulletin_importance_high_badge">اہم</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">بلیٹن پش چالو کریں</string>
     <string name="bulletin_push_enable_description">جب پش فعال ہو، TigerDuck آپ کو اطلاع دے گا جب بھی کوئی بلیٹن آپ کے سبسکرپشن قوانین سے مطابقت رکھے۔</string>
     <string name="bulletin_push_footer">پش اطلاعات آپ کے قوانین کی بنیاد پر TigerDuck سرور کے ذریعے پہنچائی جاتی ہیں۔ ڈیوائس شناخت ایک گمنام UUID کے طور پر بھیجی جاتی ہے — آپ کی طالب علم آئی ڈی کبھی اپلوڈ نہیں کی جاتی۔</string>
+    <string name="bulletin_push_reopen_settings">سسٹم سیٹنگز میں دوبارہ فعال کریں</string>
     <string name="bulletin_push_requesting">درخواست کی جا رہی ہے…</string>
     <string name="bulletin_push_settings_header">پش ترتیبات</string>
     <string name="bulletin_push_status_denied">مسترد</string>
     <string name="bulletin_push_status_ephemeral">عارضی</string>
     <string name="bulletin_push_status_label">پش اطلاعات</string>
     <string name="bulletin_push_status_provisional">عبوری</string>
+    <string name="bulletin_push_status_registration_done">مکمل</string>
+    <string name="bulletin_push_status_registration_pending">token کا انتظار</string>
     <string name="bulletin_push_status_undetermined">ابھی طے نہیں ہوا</string>
+    <string name="bulletin_push_status_unknown">نامعلوم</string>
     <string name="bulletin_rule_add_action">قانون شامل کریں</string>
     <string name="bulletin_rule_add_title">قانون شامل کریں</string>
     <string name="bulletin_rule_all_orgs">تمام محکمے</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d منتخب</string>
     <string name="bulletin_rule_editor_tag_section">زمرہ</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> اور </string>
     <string name="bulletin_rule_join_or"> یا </string>
     <string name="bulletin_rule_orgs_prefix">محکمہ: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">تمام بلیٹن دیکھیں</string>
     <string name="bulletin_show_unread_only_action">صرف غیر پڑھے</string>
     <string name="bulletin_source_link_label">اصل دیکھیں</string>
+    <string name="bulletin_subscription_default_seed_name">ڈیفالٹ سفارشات</string>
+    <string name="bulletin_subscription_mode_and">سب سے ملائیں</string>
+    <string name="bulletin_subscription_mode_or">کسی سے ملائیں</string>
     <string name="bulletin_taxonomy_clear_selection">انتخاب صاف کریں (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">کچھ منتخب نہ کرنے کا مطلب اس جہت کے لیے \"سب سے ملائیں\" ہے۔</string>
     <string name="bulletin_unread_dot_label">غیر پڑھا</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">بہت دیر ہو گئی... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">ابھی وقت ہے درست کریں! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">اسائنمنٹ یاد دہانی: %1$s</string>
+    <string name="notification_bulletin_channel_description">آپ کی سبسکرپشنز سے مطابقت رکھنے والے NTUST بلیٹنز کی ریئل ٹائم پش اطلاع</string>
+    <string name="notification_bulletin_channel_name">اسکول بلیٹنز</string>
     <string name="notification_class_preparing_channel_description">ہر کلاس شروع ہونے سے پہلے یاددہانی بھیجتا ہے</string>
     <string name="notification_class_preparing_channel_name">کلاس کی تیاری کے یاددہانی</string>
     <string name="notification_class_preparing_content_fallback">کلاس شروع ہونے والی ہے</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">عارضی اجازت</string>
     <string name="push_server_notification_status_provisional">عارضی</string>
     <string name="push_server_notification_status_undetermined">ابھی تک نہیں پوچھا گیا</string>
+    <string name="push_server_notification_status_unknown">نامعلوم</string>
     <string name="push_server_pending_incomplete">ابھی تک مکمل نہیں</string>
     <string name="push_server_settings_title">سرور پش</string>
+    <string name="push_server_status_device_registration">ڈیوائس رجسٹریشن</string>
     <string name="push_server_status_done">مکمل</string>
     <string name="push_server_status_enabled">فعال</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">سسٹم کی جانب سے token تفویض ہونے کا انتظار</string>
     <string name="push_server_sync_now_action">ابھی مطابقت کریں</string>
     <string name="refreshing_message">ریفریش ہو رہا ہے… تھوڑا صبر کریں</string>
     <string name="score_academic_year_semester">تعلیمی سال %1$s %2$s</string>

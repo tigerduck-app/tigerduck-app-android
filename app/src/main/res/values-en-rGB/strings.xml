@@ -5,6 +5,7 @@
     <string name="action_allow">Allow</string>
     <string name="action_back">Back</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_clear_text">Clear text</string>
     <string name="action_close">Close</string>
     <string name="action_confirm">Confirm</string>
     <string name="action_done">Done</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Apply default rules</string>
     <string name="bulletin_body_load_failed">Unable to load content</string>
     <string name="bulletin_default_rules_footer">Default subscriptions: Free Lunch, Scholarship, Fees, Exams, Maintenance.</string>
+    <string name="bulletin_fdroid_no_push_body">The F-Droid build ships without Google Play Services, so real-time bulletin push is unavailable. Install the Play Store build if you need notifications — you can still pull the latest bulletins manually from the announcements tab.</string>
+    <string name="bulletin_fdroid_no_push_title">Push not available on F-Droid</string>
     <string name="bulletin_filter_dept">Department</string>
     <string name="bulletin_filter_tag">Category</string>
     <string name="bulletin_importance_high_badge">Important</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Turn on bulletin push</string>
     <string name="bulletin_push_enable_description">When push is enabled, TigerDuck will notify you whenever a bulletin matches your subscription rules.</string>
     <string name="bulletin_push_footer">Push notifications are delivered by the TigerDuck server based on your rules. The device identifier is sent as an anonymous UUID — your student ID is never uploaded.</string>
+    <string name="bulletin_push_reopen_settings">Re-enable in System Settings</string>
     <string name="bulletin_push_requesting">Requesting…</string>
     <string name="bulletin_push_settings_header">Push settings</string>
     <string name="bulletin_push_status_denied">Denied</string>
     <string name="bulletin_push_status_ephemeral">Ephemeral</string>
     <string name="bulletin_push_status_label">Push notifications</string>
     <string name="bulletin_push_status_provisional">Provisional</string>
+    <string name="bulletin_push_status_registration_done">Done</string>
+    <string name="bulletin_push_status_registration_pending">Waiting for token</string>
     <string name="bulletin_push_status_undetermined">Not yet decided</string>
+    <string name="bulletin_push_status_unknown">Unknown</string>
     <string name="bulletin_rule_add_action">Add rule</string>
     <string name="bulletin_rule_add_title">Add rule</string>
     <string name="bulletin_rule_all_orgs">All departments</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d selected</string>
     <string name="bulletin_rule_editor_tag_section">Category</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> and </string>
     <string name="bulletin_rule_join_or"> or </string>
     <string name="bulletin_rule_orgs_prefix">Dept: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Show all bulletins</string>
     <string name="bulletin_show_unread_only_action">Unread only</string>
     <string name="bulletin_source_link_label">View original</string>
+    <string name="bulletin_subscription_default_seed_name">Default recommendations</string>
+    <string name="bulletin_subscription_mode_and">Match all</string>
+    <string name="bulletin_subscription_mode_or">Match any</string>
     <string name="bulletin_taxonomy_clear_selection">Clear selection (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Selecting nothing means \"match all\" for this dimension.</string>
     <string name="bulletin_unread_dot_label">Unread</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Too late... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Still time to fix it! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Assignment reminder: %1$s</string>
+    <string name="notification_bulletin_channel_description">Real-time push for new NTUST bulletins matching your subscriptions</string>
+    <string name="notification_bulletin_channel_name">School bulletins</string>
     <string name="notification_class_preparing_channel_description">Sends reminders before each class starts</string>
     <string name="notification_class_preparing_channel_name">Class preparing reminders</string>
     <string name="notification_class_preparing_content_fallback">Class is about to start</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Ephemeral authorization</string>
     <string name="push_server_notification_status_provisional">Provisional</string>
     <string name="push_server_notification_status_undetermined">Not yet asked</string>
+    <string name="push_server_notification_status_unknown">Unknown</string>
     <string name="push_server_pending_incomplete">Not yet done</string>
     <string name="push_server_settings_title">Server push</string>
+    <string name="push_server_status_device_registration">Device registration</string>
     <string name="push_server_status_done">Complete</string>
     <string name="push_server_status_enabled">Enabled</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Waiting for System to assign a token</string>
     <string name="push_server_sync_now_action">Sync now</string>
     <string name="refreshing_message">Refreshing… hold on</string>
     <string name="score_academic_year_semester">Academic Year %1$s %2$s</string>

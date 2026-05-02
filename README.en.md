@@ -93,7 +93,7 @@ Ever used [TAT](https://github.com/morris13579/tat_ntust)? We're working hard to
 ## System Requirements
 | Item | Requirement |
 |------|-------------|
-| OS | Android 8.0 (API 26) or later |
+| OS | Android 10 (API 29) or later |
 | SSO Account | Student account (required for some features) |
 | Library | Library account (required for some features) |
 

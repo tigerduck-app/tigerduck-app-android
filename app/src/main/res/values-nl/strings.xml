@@ -5,6 +5,7 @@
     <string name="action_allow">Toestaan</string>
     <string name="action_back">Terug</string>
     <string name="action_cancel">Annuleren</string>
+    <string name="action_clear_text">Tekst wissen</string>
     <string name="action_close">Sluiten</string>
     <string name="action_confirm">Bevestigen</string>
     <string name="action_done">Klaar</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Standaardregels toepassen</string>
     <string name="bulletin_body_load_failed">Inhoud kan niet worden geladen</string>
     <string name="bulletin_default_rules_footer">Standaardabonnementen: Gratis lunch, Beurs, Kosten, Examens, Onderhoud.</string>
+    <string name="bulletin_fdroid_no_push_body">De F-Droid-versie wordt geleverd zonder Google Play Services, waardoor realtime bulletinpushmeldingen niet beschikbaar zijn. Installeer de Play Store-versie als u meldingen nodig hebt — u kunt de nieuwste bulletins nog steeds handmatig ophalen via het tabblad aankondigingen.</string>
+    <string name="bulletin_fdroid_no_push_title">Push niet beschikbaar op F-Droid</string>
     <string name="bulletin_filter_dept">Afdeling</string>
     <string name="bulletin_filter_tag">Categorie</string>
     <string name="bulletin_importance_high_badge">Belangrijk</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Pushmeldingen voor mededelingen inschakelen</string>
     <string name="bulletin_push_enable_description">Wanneer push is ingeschakeld, zal TigerDuck je op de hoogte stellen wanneer een mededeling overeenkomt met je abonnementsregels.</string>
     <string name="bulletin_push_footer">Pushmeldingen worden verzonden door de TigerDuck-server op basis van je regels. De apparaat-ID wordt verzonden als een anonieme UUID — je studentnummer wordt nooit geüpload.</string>
+    <string name="bulletin_push_reopen_settings">Opnieuw inschakelen in Systeeminstellingen</string>
     <string name="bulletin_push_requesting">Aanvragen…</string>
     <string name="bulletin_push_settings_header">Pushinstellingen</string>
     <string name="bulletin_push_status_denied">Geweigerd</string>
     <string name="bulletin_push_status_ephemeral">Tijdelijk</string>
     <string name="bulletin_push_status_label">Pushmeldingen</string>
     <string name="bulletin_push_status_provisional">Voorlopig</string>
+    <string name="bulletin_push_status_registration_done">Klaar</string>
+    <string name="bulletin_push_status_registration_pending">Wachten op token</string>
     <string name="bulletin_push_status_undetermined">Nog niet bepaald</string>
+    <string name="bulletin_push_status_unknown">Onbekend</string>
     <string name="bulletin_rule_add_action">Regel toevoegen</string>
     <string name="bulletin_rule_add_title">Regel toevoegen</string>
     <string name="bulletin_rule_all_orgs">Alle afdelingen</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d geselecteerd</string>
     <string name="bulletin_rule_editor_tag_section">Categorie</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> en </string>
     <string name="bulletin_rule_join_or"> of </string>
     <string name="bulletin_rule_orgs_prefix">Afd.: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Alle bulletins tonen</string>
     <string name="bulletin_show_unread_only_action">Alleen ongelezen</string>
     <string name="bulletin_source_link_label">Origineel bekijken</string>
+    <string name="bulletin_subscription_default_seed_name">Standaardaanbevelingen</string>
+    <string name="bulletin_subscription_mode_and">Alles matchen</string>
+    <string name="bulletin_subscription_mode_or">Een matchen</string>
     <string name="bulletin_taxonomy_clear_selection">Selectie wissen (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Niets selecteren betekent \"alles matchen\" voor deze dimensie.</string>
     <string name="bulletin_unread_dot_label">Ongelezen</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Te laat… %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Nog tijd om het te verbeteren! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Opdrachtherinnering: %1$s</string>
+    <string name="notification_bulletin_channel_description">Realtime push voor nieuwe NTUST-bulletins die overeenkomen met uw abonnementen</string>
+    <string name="notification_bulletin_channel_name">Schoolbulletins</string>
     <string name="notification_class_preparing_channel_description">Stuurt herinneringen voordat elke les begint</string>
     <string name="notification_class_preparing_channel_name">Herinneringen voor lessen die zo beginnen</string>
     <string name="notification_class_preparing_content_fallback">Les begint zo</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Tijdelijke autorisatie</string>
     <string name="push_server_notification_status_provisional">Voorlopig</string>
     <string name="push_server_notification_status_undetermined">Nog niet gevraagd</string>
+    <string name="push_server_notification_status_unknown">Onbekend</string>
     <string name="push_server_pending_incomplete">Nog niet voltooid</string>
     <string name="push_server_settings_title">Serverpush</string>
+    <string name="push_server_status_device_registration">Apparaatregistratie</string>
     <string name="push_server_status_done">Voltooid</string>
     <string name="push_server_status_enabled">Ingeschakeld</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Wachten tot het systeem een token toewijst</string>
     <string name="push_server_sync_now_action">Nu synchroniseren</string>
     <string name="refreshing_message">Bezig met vernieuwen… momentje</string>
     <string name="score_academic_year_semester">Studiejaar %1$s %2$s</string>

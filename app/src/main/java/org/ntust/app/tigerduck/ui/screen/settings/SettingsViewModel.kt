@@ -96,6 +96,8 @@ class SettingsViewModel @Inject constructor(
 
     fun cancelAllAssignmentNotifications() = notificationScheduler.cancelAllTracked()
 
+    fun clearNtustLoginError() = authService.clearLoginError()
+
     fun resetCourseColors() {
         viewModelScope.launch { courseColorStore.resetAllColors() }
     }

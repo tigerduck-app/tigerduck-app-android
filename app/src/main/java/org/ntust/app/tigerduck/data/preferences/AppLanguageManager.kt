@@ -31,30 +31,71 @@ object AppLanguageManager {
      */
     fun resolvedSystemLanguage(): String {
         val device = Resources.getSystem().configuration.locales[0] ?: Locale.getDefault()
-        return if (device.language.equals("zh", ignoreCase = true)) "zh" else "en"
+        return if (isSiniticLanguage(device.language)) "zh" else "en"
     }
 
     /**
      * The NTUST course APIs only support Chinese and English.
      *
-     * - Any Chinese UI language (Simplified/Traditional) should map to "zh".
-     * - Any non-Chinese UI language should map to "en".
+     * - Any Sinitic UI language (Mandarin, Cantonese, Hakka, Min, Wu, Literary
+     *   Chinese, …) should map to "zh" so course names render in Mandarin
+     *   instead of being run through the English abbreviation map.
+     * - Any non-Sinitic UI language should map to "en".
      * - "Follow system" is resolved via [resolvedSystemLanguage].
      */
     fun resolvedCourseApiLanguage(appLanguage: String): String {
         val normalized = normalize(appLanguage)
         if (normalized == SYSTEM) return resolvedSystemLanguage()
 
-        // Any Chinese UI locale (zh-*) should use Chinese course names.
         val locale = Locale.forLanguageTag(normalized)
-        return if (locale.language.equals("zh", ignoreCase = true)) "zh" else "en"
+        return if (isSiniticLanguage(locale.language)) "zh" else "en"
+    }
+
+    /** ISO 639 codes for the Sinitic family — not just Mandarin (`zh`). */
+    private val SINITIC_LANGUAGE_CODES = setOf(
+        "zh",   // Mandarin (zh-Hant, zh-Hans, zh-TW, zh-CN, zh-HK, …)
+        "yue",  // Cantonese
+        "nan",  // Min Nan / Hokkien / Taiwanese
+        "hak",  // Hakka
+        "wuu",  // Wu / Shanghainese
+        "lzh",  // Literary / Classical Chinese
+        "cmn",  // explicit Mandarin (rarely used; some BCP-47 strict tags)
+        "cdo",  // Min Dong
+        "cjy",  // Jin
+        "czh",  // Huizhou
+        "cpx",  // Pu-Xian Min
+        "gan",  // Gan
+        "hsn",  // Xiang
+        "mnp",  // Min Bei
+    )
+
+    private fun isSiniticLanguage(code: String?): Boolean {
+        if (code.isNullOrBlank()) return false
+        return code.lowercase() in SINITIC_LANGUAGE_CODES
     }
 
     fun isCourseApiEnglish(appLanguage: String): Boolean = resolvedCourseApiLanguage(appLanguage) == "en"
 
     fun apply(language: String) {
+        AppCompatDelegate.setApplicationLocales(toLocaleList(language))
+    }
+
+    /**
+     * Resolve the user's chosen language to a concrete [Locale] for one-shot
+     * use (e.g. notification-channel name lookup before
+     * [AppCompatDelegate.setApplicationLocales] takes effect on first launch).
+     * Returns null when the user has chosen "Follow system" — callers should
+     * fall back to the platform default locale.
+     */
+    fun resolveExplicitLocale(language: String): Locale? {
+        val list = toLocaleList(language)
+        if (list.isEmpty) return null
+        return list[0]
+    }
+
+    private fun toLocaleList(language: String): LocaleListCompat {
         val normalized = normalize(language)
-        val locales = when (normalized) {
+        return when (normalized) {
             // SYSTEM: empty list lets Android track the device locale live.
             // Pinning a tag here would persist across a system-locale change
             // and make "Follow system" stop following.
@@ -65,6 +106,5 @@ object AppLanguageManager {
             SIMPLIFIED_CHINESE -> LocaleListCompat.forLanguageTags("zh-Hans-CN")
             else -> LocaleListCompat.forLanguageTags(normalized)
         }
-        AppCompatDelegate.setApplicationLocales(locales)
     }
 }

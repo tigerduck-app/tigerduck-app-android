@@ -5,6 +5,7 @@
     <string name="action_allow">אפשר</string>
     <string name="action_back">חזרה</string>
     <string name="action_cancel">ביטול</string>
+    <string name="action_clear_text">נקה טקסט</string>
     <string name="action_close">סגור</string>
     <string name="action_confirm">אישור</string>
     <string name="action_done">סיום</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">החלת כללי ברירת המחדל</string>
     <string name="bulletin_body_load_failed">לא ניתן לטעון את התוכן</string>
     <string name="bulletin_default_rules_footer">מינויי ברירת מחדל: ארוחת צהריים חינם, מלגה, עמלות, בחינות, תחזוקה.</string>
+    <string name="bulletin_fdroid_no_push_body">גרסת F-Droid אינה כוללת את Google Play Services, ולכן התראות push בזמן אמת אינן זמינות. התקן את גרסת Play Store אם אתה צריך התראות — תוכל תמיד למשוך את הבולטינים האחרונים ידנית מלשונית ההכרזות.</string>
+    <string name="bulletin_fdroid_no_push_title">Push אינו זמין ב-F-Droid</string>
     <string name="bulletin_filter_dept">מחלקה</string>
     <string name="bulletin_filter_tag">קטגוריה</string>
     <string name="bulletin_importance_high_badge">חשוב </string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">הפעלת דחיפת עלון</string>
     <string name="bulletin_push_enable_description">כאשר אפשרות הדחיפה מופעלת, TigerDuck יודיע לך בכל פעם שהודעות תואמות לכללי המינוי שלך.</string>
     <string name="bulletin_push_footer">הודעות דחיפה מועברות על ידי שרת TigerDuck בהתאם לכללים שלכם. מזהה המכשיר נשלח כ — UUID אנונימי — מזהה התלמיד שלך לעולם לא מועלה.</string>
+    <string name="bulletin_push_reopen_settings">הפעל מחדש בהגדרות המערכת</string>
     <string name="bulletin_push_requesting">מבקש נסיעה…</string>
     <string name="bulletin_push_settings_header">הגדרות הודעות דחיפה APP</string>
     <string name="bulletin_push_status_denied">נדחה</string>
     <string name="bulletin_push_status_ephemeral">ארעי</string>
     <string name="bulletin_push_status_label">הודעות דחיפה</string>
     <string name="bulletin_push_status_provisional">זמני</string>
+    <string name="bulletin_push_status_registration_done">הושלם</string>
+    <string name="bulletin_push_status_registration_pending">ממתין ל-token</string>
     <string name="bulletin_push_status_undetermined">עדיין לא הוחלט</string>
+    <string name="bulletin_push_status_unknown">לא ידוע</string>
     <string name="bulletin_rule_add_action">הוספת כלל</string>
     <string name="bulletin_rule_add_title">הוספת כלל</string>
     <string name="bulletin_rule_all_orgs">כל הקטגוריות</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">תן שם</string>
     <string name="bulletin_rule_editor_selected_count">%1$d נבחרו</string>
     <string name="bulletin_rule_editor_tag_section">קטגוריה</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and">גם</string>
     <string name="bulletin_rule_join_or"> או </string>
     <string name="bulletin_rule_orgs_prefix">Dept.</string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">הצגת כל ההודעות</string>
     <string name="bulletin_show_unread_only_action">לא נקראו בלבד</string>
     <string name="bulletin_source_link_label">הצגת המקור</string>
+    <string name="bulletin_subscription_default_seed_name">המלצות ברירת מחדל</string>
+    <string name="bulletin_subscription_mode_and">התאם הכל</string>
+    <string name="bulletin_subscription_mode_or">התאם כלשהו</string>
     <string name="bulletin_taxonomy_clear_selection">מחיקת הבחירה (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">לא לבחור דבר פירושו \"התאם הכל\" עבור ממד זה.</string>
     <string name="bulletin_unread_dot_label">לא נקרא</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">מאוחר מדי... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">עדיין לא מאוחר לתקן את זה! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">תזכורת למשימה: %1$s</string>
+    <string name="notification_bulletin_channel_description">דחיפה בזמן אמת לעלוני NTUST חדשים התואמים למנויים שלך</string>
+    <string name="notification_bulletin_channel_name">עלוני בית הספר</string>
     <string name="notification_class_preparing_channel_description">שולח תזכורות לפני תחילת כל שיעור</string>
     <string name="notification_class_preparing_channel_name">תזכורות לפני שיעור</string>
     <string name="notification_class_preparing_content_fallback">השיעור עומד להתחיל</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">הרשאה ארעית</string>
     <string name="push_server_notification_status_provisional">זמני</string>
     <string name="push_server_notification_status_undetermined">עדיין לא נשאל</string>
+    <string name="push_server_notification_status_unknown">לא ידוע</string>
     <string name="push_server_pending_incomplete">עדיין לא בוצע</string>
     <string name="push_server_settings_title">דחיפת שרת</string>
+    <string name="push_server_status_device_registration">רישום מכשיר</string>
     <string name="push_server_status_done">הושלם</string>
     <string name="push_server_status_enabled">פעיל</string>
     <string name="push_server_status_section">סטטוס</string>
+    <string name="push_server_status_waiting_token">ממתין שהמערכת תקצה token</string>
     <string name="push_server_sync_now_action">סנכרנו כעת</string>
     <string name="refreshing_message">מרענן… רגע</string>
     <string name="score_academic_year_semester">שנת לימודים %1$s %2$s</string>

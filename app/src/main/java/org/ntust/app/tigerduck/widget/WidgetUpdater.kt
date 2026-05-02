@@ -9,7 +9,6 @@ import androidx.glance.GlanceId
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
-import androidx.glance.appwidget.updateAll
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -57,11 +56,27 @@ class WidgetUpdater @Inject constructor(
         // Without this, Glance's recomposition reuses the stale snapshot
         // captured when the widget's session was first established.
         val now = System.currentTimeMillis()
-        bumpTickForEveryPlacedWidget(now)
+        val manager = GlanceAppWidgetManager(context)
         coroutineScope {
             GLANCE_WIDGET_FACTORIES.forEach { factory ->
                 launch {
-                    runCatching { factory().updateAll(context) }
+                    val widget = factory()
+                    // Single getGlanceIds round-trip per factory: the prior
+                    // shape called it once for the tick bump and again inside
+                    // widget.updateAll(). Explicit per-id update reuses the
+                    // ids we already have.
+                    val ids: List<GlanceId> =
+                        runCatching { manager.getGlanceIds(widget.javaClass) }
+                            .getOrDefault(emptyList())
+                    if (ids.isEmpty()) return@launch
+                    ids.forEach { id ->
+                        runCatching {
+                            updateAppWidgetState(context, id) { prefs ->
+                                prefs[WidgetState.TickKey] = now
+                            }
+                            widget.update(context, id)
+                        }
+                    }
                 }
             }
         }
@@ -69,22 +84,6 @@ class WidgetUpdater @Inject constructor(
         // ACTION_APPWIDGET_UPDATE broadcast too.
         broadcastAppWidgetUpdate()
         boundaryScheduler.scheduleForToday(dataCache.loadCourses())
-    }
-
-    private suspend fun bumpTickForEveryPlacedWidget(tick: Long) {
-        val manager = GlanceAppWidgetManager(context)
-        GLANCE_WIDGET_FACTORIES.forEach { factory ->
-            val widget = factory()
-            val ids: List<GlanceId> = runCatching { manager.getGlanceIds(widget.javaClass) }
-                .getOrDefault(emptyList())
-            ids.forEach { id ->
-                runCatching {
-                    updateAppWidgetState(context, id) { prefs ->
-                        prefs[WidgetState.TickKey] = tick
-                    }
-                }
-            }
-        }
     }
 
     /**
@@ -114,7 +113,9 @@ class WidgetUpdater @Inject constructor(
             if (!shouldStart) return@launch
 
             try {
-                withTimeout(9_000) { updateAll() }
+                // 8s leaves a margin under the ~10s goAsync budget so we don't
+                // hit ANR when a single Glance IPC stalls right at the edge.
+                withTimeout(8_000) { updateAll() }
             } catch (e: Exception) {
                 Log.w("WidgetUpdater", "Boundary widget update failed", e)
             } finally {

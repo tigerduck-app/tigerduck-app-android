@@ -5,6 +5,7 @@
     <string name="action_allow">허용</string>
     <string name="action_back">뒤로</string>
     <string name="action_cancel">취소</string>
+    <string name="action_clear_text">텍스트 지우기</string>
     <string name="action_close">닫기</string>
     <string name="action_confirm">확인</string>
     <string name="action_done">완료</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">기본 규칙 적용</string>
     <string name="bulletin_body_load_failed">콘텐츠를 불러올 수 없습니다</string>
     <string name="bulletin_default_rules_footer">기본 구독: 무료 식사, 장학금, 학비, 시험, 유지보수.</string>
+    <string name="bulletin_fdroid_no_push_body">F-Droid 빌드에는 Google Play Services가 포함되지 않으므로 실시간 공지 푸시를 사용할 수 없습니다. 알림이 필요하다면 Play Store 빌드를 설치하세요 — 공지 탭에서 최신 공지를 수동으로 불러올 수 있습니다.</string>
+    <string name="bulletin_fdroid_no_push_title">F-Droid에서는 푸시를 사용할 수 없음</string>
     <string name="bulletin_filter_dept">학과</string>
     <string name="bulletin_filter_tag">카테고리</string>
     <string name="bulletin_importance_high_badge">중요</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">공지 푸시 켜기</string>
     <string name="bulletin_push_enable_description">푸시가 활성화되면 구독 규칙에 맞는 공지가 있을 때 TigerDuck이 알려드립니다.</string>
     <string name="bulletin_push_footer">푸시 알림은 설정한 규칙에 따라 TigerDuck 서버에서 전송됩니다. 기기 식별자는 익명 UUID로 전송되며 학번은 절대 업로드되지 않습니다.</string>
+    <string name="bulletin_push_reopen_settings">시스템 설정에서 다시 활성화</string>
     <string name="bulletin_push_requesting">요청 중…</string>
     <string name="bulletin_push_settings_header">푸시 설정</string>
     <string name="bulletin_push_status_denied">거부됨</string>
     <string name="bulletin_push_status_ephemeral">임시</string>
     <string name="bulletin_push_status_label">푸시 알림</string>
     <string name="bulletin_push_status_provisional">잠정</string>
+    <string name="bulletin_push_status_registration_done">완료</string>
+    <string name="bulletin_push_status_registration_pending">token 대기 중</string>
     <string name="bulletin_push_status_undetermined">아직 결정되지 않음</string>
+    <string name="bulletin_push_status_unknown">알 수 없음</string>
     <string name="bulletin_rule_add_action">규칙 추가</string>
     <string name="bulletin_rule_add_title">규칙 추가</string>
     <string name="bulletin_rule_all_orgs">모든 학과</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d개 선택됨</string>
     <string name="bulletin_rule_editor_tag_section">카테고리</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> 및 </string>
     <string name="bulletin_rule_join_or"> 또는 </string>
     <string name="bulletin_rule_orgs_prefix">학과: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">모든 공지 보기</string>
     <string name="bulletin_show_unread_only_action">읽지 않은 항목만</string>
     <string name="bulletin_source_link_label">원문 보기</string>
+    <string name="bulletin_subscription_default_seed_name">기본 추천</string>
+    <string name="bulletin_subscription_mode_and">모두 일치</string>
+    <string name="bulletin_subscription_mode_or">하나 이상 일치</string>
     <string name="bulletin_taxonomy_clear_selection">선택 초기화 (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">선택하지 않으면 이 항목의 전체가 매칭됩니다.</string>
     <string name="bulletin_unread_dot_label">읽지 않음</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">너무 늦었습니다... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">아직 수정할 시간이 있습니다! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">과제 알림: %1$s</string>
+    <string name="notification_bulletin_channel_description">구독 규칙에 맞는 NTUST 공지를 실시간으로 푸시 알림</string>
+    <string name="notification_bulletin_channel_name">학교 공지</string>
     <string name="notification_class_preparing_channel_description">각 수업 시작 전에 알림을 보냅니다</string>
     <string name="notification_class_preparing_channel_name">수업 시작 알림</string>
     <string name="notification_class_preparing_content_fallback">수업이 곧 시작됩니다</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">임시 승인</string>
     <string name="push_server_notification_status_provisional">임시</string>
     <string name="push_server_notification_status_undetermined">아직 요청 안 함</string>
+    <string name="push_server_notification_status_unknown">알 수 없음</string>
     <string name="push_server_pending_incomplete">아직 완료되지 않음</string>
     <string name="push_server_settings_title">서버 푸시</string>
+    <string name="push_server_status_device_registration">기기 등록</string>
     <string name="push_server_status_done">완료</string>
     <string name="push_server_status_enabled">활성화됨</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">시스템이 token을 할당하기를 기다리는 중</string>
     <string name="push_server_sync_now_action">지금 동기화</string>
     <string name="refreshing_message">새로고침 중… 잠시만요</string>
     <string name="score_academic_year_semester">%1$s 학년도 %2$s</string>

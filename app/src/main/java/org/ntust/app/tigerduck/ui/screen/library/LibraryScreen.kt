@@ -17,12 +17,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -35,6 +38,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -64,12 +68,13 @@ fun LibraryScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(viewModel) { viewModel.load() }
 
-    // Key the remembered form state to the suggested username so that
-    // logging out + signing in with a different NTUST account pre-fills the
-    // newly stored ID instead of stale text from the previous session.
-    var libUsername by remember(viewModel.suggestedUsername) {
+    // Key on `storedUsername` (a real StateFlow) instead of the plain
+    // suggestedUsername getter — Compose can't observe a non-State property,
+    // so keying on it doesn't re-init the field after a logout + sign-in
+    // with a different NTUST account.
+    var libUsername by remember(storedUsername) {
         mutableStateOf(viewModel.suggestedUsername)
     }
     var libPassword by remember { mutableStateOf("") }
@@ -294,16 +299,14 @@ private fun LoginPromptCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
             )
-            OutlinedTextField(
+            OutlinedAccountIdField(
                 value = username,
                 onValueChange = onUsernameChange,
-                label = { Text(stringResource(R.string.library_login_username)) },
-                singleLine = true,
+                label = stringResource(R.string.library_login_username),
+                capitalization = KeyboardCapitalization.Characters,
+                imeAction = ImeAction.Next,
+                autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Characters,
-                    keyboardType = KeyboardType.Ascii
-                )
             )
             OutlinedTextField(
                 value = password,
@@ -311,13 +314,15 @@ private fun LoginPromptCard(
                 label = { Text(stringResource(R.string.library_login_password)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-                // Match the NTUST login fields (LoginSheet / OnboardingScreen):
-                // ASCII-only keyboard + no autocorrect. The onPasswordChange
-                // filter also strips any non-ASCII the IME or paste slips in.
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { contentType = ContentType.Password },
+                // KeyboardType.Password disables the IME suggestion strip and
+                // typed-character preview. The onPasswordChange filter still
+                // strips any non-ASCII the IME or paste slips in.
                 keyboardOptions = KeyboardOptions(
                     autoCorrectEnabled = false,
-                    keyboardType = KeyboardType.Ascii,
+                    keyboardType = KeyboardType.Password,
                     capitalization = KeyboardCapitalization.None,
                     imeAction = ImeAction.Go,
                 ),

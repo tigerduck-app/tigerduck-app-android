@@ -29,6 +29,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -78,13 +79,14 @@ fun LanguagePickerScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
     val coroutineScope = rememberCoroutineScope()
     val selectedTag = viewModel.appState.appLanguage
 
     var query by rememberSaveable { mutableStateOf("") }
 
-    val currentLocale = remember {
-        context.resources.configuration.locales[0] ?: Locale.getDefault()
+    val currentLocale = remember(configuration) {
+        configuration.locales[0] ?: Locale.getDefault()
     }
 
     val supportedTags = remember {

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
@@ -11,18 +12,22 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 
 /**
  * Login prompt rendered as an AlertDialog — matches the class-detail popup
@@ -68,27 +73,21 @@ fun LoginSheet(
         title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+                OutlinedAccountIdField(
                     value = username,
                     onValueChange = { raw ->
                         val stripped = raw.filter { ch -> !ch.isWhitespace() }
                         username = if (uppercaseInput) stripped.uppercase() else stripped
                     },
-                    label = { Text(usernamePlaceholder) },
-                    singleLine = true,
+                    label = usernamePlaceholder,
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Next,
+                    onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+                    enabled = !isLoggingIn,
+                    autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(usernameFocusRequester),
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = if (uppercaseInput) KeyboardCapitalization.Characters
-                            else KeyboardCapitalization.None,
-                        keyboardType = KeyboardType.Ascii,
-                        imeAction = ImeAction.Next,
-                    ),
-                    keyboardActions = KeyboardActions(onNext = {
-                        focusManager.moveFocus(FocusDirection.Down)
-                    }),
-                    enabled = !isLoggingIn,
                 )
                 OutlinedTextField(
                     value = password,
@@ -96,12 +95,24 @@ fun LoginSheet(
                     label = { Text(passwordPlaceholder) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
+                    trailingIcon = if (!isLoggingIn && password.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { password = "" }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Cancel,
+                                    contentDescription = stringResource(R.string.action_clear_text),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    } else null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(passwordFocusRequester),
+                        .focusRequester(passwordFocusRequester)
+                        .semantics { contentType = ContentType.Password },
                     keyboardOptions = KeyboardOptions(
                         autoCorrectEnabled = false,
-                        keyboardType = KeyboardType.Ascii,
+                        keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Go,
                     ),
                     keyboardActions = KeyboardActions(onGo = { submit() }),

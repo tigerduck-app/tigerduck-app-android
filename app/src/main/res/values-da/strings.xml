@@ -5,6 +5,7 @@
     <string name="action_allow">Tillad</string>
     <string name="action_back">Tilbage</string>
     <string name="action_cancel">Annuller</string>
+    <string name="action_clear_text">Ryd tekst</string>
     <string name="action_close">Luk</string>
     <string name="action_confirm">Bekræft</string>
     <string name="action_done">Færdig</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Anvend standardregler</string>
     <string name="bulletin_body_load_failed">Kan ikke indlæse indhold</string>
     <string name="bulletin_default_rules_footer">Standard abonnementer: Gratis frokost, stipendium, gebyrer, eksamener, vedligeholdelse.</string>
+    <string name="bulletin_fdroid_no_push_body">F-Droid-versionen leveres uden Google Play Services, så push-notifikationer i realtid er ikke tilgængelige. Installer Play Store-versionen, hvis du har brug for notifikationer — du kan stadig hente de seneste bulletiner manuelt fra fanen med meddelelser.</string>
+    <string name="bulletin_fdroid_no_push_title">Push ikke tilgængeligt på F-Droid</string>
     <string name="bulletin_filter_dept">Afdeling</string>
     <string name="bulletin_filter_tag">Kategori</string>
     <string name="bulletin_importance_high_badge">Vigtig</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Slå bulletin push til</string>
     <string name="bulletin_push_enable_description">Når push er aktiveret, vil TigerDuck give dig besked, når en bulletin matcher dine abonnementsregler.</string>
     <string name="bulletin_push_footer">Push-meddelelser leveres af TigerDuck-serveren baseret på dine regler. Enheds-id\'et sendes som et anonymt UUID - dit studie-id bliver aldrig uploadet.</string>
+    <string name="bulletin_push_reopen_settings">Genaktiver i Systemindstillinger</string>
     <string name="bulletin_push_requesting">Anmoder...</string>
     <string name="bulletin_push_settings_header">Push-indstillinger</string>
     <string name="bulletin_push_status_denied">Afvist</string>
     <string name="bulletin_push_status_ephemeral">Ephemeral</string>
     <string name="bulletin_push_status_label">Push-meddelelser</string>
     <string name="bulletin_push_status_provisional">Midlertidig</string>
+    <string name="bulletin_push_status_registration_done">Færdig</string>
+    <string name="bulletin_push_status_registration_pending">Venter på token</string>
     <string name="bulletin_push_status_undetermined">Endnu ikke besluttet</string>
+    <string name="bulletin_push_status_unknown">Ukendt</string>
     <string name="bulletin_rule_add_action">Tilføj regel</string>
     <string name="bulletin_rule_add_title">Tilføj regel</string>
     <string name="bulletin_rule_all_orgs">Alle afdelinger</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Navn</string>
     <string name="bulletin_rule_editor_selected_count">%1$d valgt</string>
     <string name="bulletin_rule_editor_tag_section">Kategori</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> og </string>
     <string name="bulletin_rule_join_or"> eller </string>
     <string name="bulletin_rule_orgs_prefix">Afd.: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Vis alle bulletiner</string>
     <string name="bulletin_show_unread_only_action">Kun ulæst</string>
     <string name="bulletin_source_link_label">Se originalen</string>
+    <string name="bulletin_subscription_default_seed_name">Standardanbefalinger</string>
+    <string name="bulletin_subscription_mode_and">Match alle</string>
+    <string name="bulletin_subscription_mode_or">Match enhver</string>
     <string name="bulletin_taxonomy_clear_selection">Ryd valg (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">At vælge ingenting betyder \"match alle\" for denne dimension.</string>
     <string name="bulletin_unread_dot_label">Ulæst</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">For sent... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Stadig tid til at rette det! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Opgavepåmindelse: %1$s</string>
+    <string name="notification_bulletin_channel_description">Realtidspush for nye NTUST-bulletiner, der matcher dine abonnementer</string>
+    <string name="notification_bulletin_channel_name">Skolebulletiner</string>
     <string name="notification_class_preparing_channel_description">Sender påmindelser inden hver undervisningsgang begynder</string>
     <string name="notification_class_preparing_channel_name">Påmindelser om kommende undervisning</string>
     <string name="notification_class_preparing_content_fallback">Undervisningen er ved at begynde</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Kortvarig autorisation</string>
     <string name="push_server_notification_status_provisional">Midlertidig</string>
     <string name="push_server_notification_status_undetermined">Ikke spurgt endnu</string>
+    <string name="push_server_notification_status_unknown">Ukendt</string>
     <string name="push_server_pending_incomplete">Ikke gjort endnu</string>
     <string name="push_server_settings_title">Server push</string>
+    <string name="push_server_status_device_registration">Enhedsregistrering</string>
     <string name="push_server_status_done">Komplet</string>
     <string name="push_server_status_enabled">Aktiveret</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Venter på, at systemet tildeler et token</string>
     <string name="push_server_sync_now_action">Synkroniser nu</string>
     <string name="refreshing_message">Opdaterer… vent et øjeblik</string>
     <string name="score_academic_year_semester">Akademisk år %1$s %2$s</string>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Play-flavor manifest fragment. Merged with src/main/AndroidManifest.xml
+    only when building play* variants. Adds the FCM message-receiver service
+    and the default-channel hint Firebase uses for system-generated
+    notifications (we always supply our own channel id, but Firebase logs a
+    warning if this hint is missing).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <service
+            android:name="org.ntust.app.tigerduck.push.FcmService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="bulletins" />
+
+        <!-- Used when the app is killed / backgrounded and FCM auto-renders
+             the notification (skipping onMessageReceived). Without this,
+             Firebase falls back to the launcher mipmap, which Android can't
+             reduce to a status-bar silhouette and renders as a generic
+             circle. The drawable is monochrome white-on-transparent. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+    </application>
+</manifest>

@@ -13,9 +13,9 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import java.net.SocketTimeoutException
+import java.security.SecureRandom
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.random.Random
 
 /**
  * Obtains and persists a Moodle Mobile App long-lived wstoken via the NTUST
@@ -110,7 +110,12 @@ class MoodleTokenService @Inject constructor(
         // The exact string form sent to the server is what Moodle HMACs against,
         // so keep this one copy and reuse it for both the query param and the
         // signature check after the final token triple arrives.
-        val passport = (Random.nextDouble(0.0, 1.0) * 1000.0).toString()
+        // 16 SecureRandom bytes (128 bits) hex-encoded — the prior
+        // Random.nextDouble * 1000 produced ~10 bits, brute-forceable in ms by
+        // a malicious moodlemobile:// scheme registrant.
+        val passport = ByteArray(16)
+            .also { SecureRandom().nextBytes(it) }
+            .joinToString(separator = "") { "%02x".format(it) }
         val launchUrl = moodleBaseUrl
             .newBuilder()
             .addPathSegments("admin/tool/mobile/launch.php")
@@ -361,7 +366,10 @@ class MoodleTokenService @Inject constructor(
 
     private fun decodeTokenTriple(base64: String): TokenTriple {
         val decoded = try {
-            String(Base64.decode(base64, Base64.DEFAULT), Charsets.US_ASCII)
+            // UTF-8 is a strict superset of ASCII for current Moodle payloads;
+            // US_ASCII would silently turn any byte > 0x7F into '?' if the
+            // server ever changed shape.
+            String(Base64.decode(base64, Base64.DEFAULT), Charsets.UTF_8)
         } catch (e: Exception) {
             throw MoodleWebserviceError.MalformedResponse("Failed to base64-decode token triple: ${e.message}")
         }

@@ -5,6 +5,7 @@
     <string name="action_allow">Разрешить</string>
     <string name="action_back">Назад</string>
     <string name="action_cancel">Отмена</string>
+    <string name="action_clear_text">Очистить текст</string>
     <string name="action_close">Закрыть</string>
     <string name="action_confirm">Подтвердить</string>
     <string name="action_done">Готово</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Применить правила по умолчанию</string>
     <string name="bulletin_body_load_failed">Не удалось загрузить контент</string>
     <string name="bulletin_default_rules_footer">Подписки по умолчанию: бесплатное питание, стипендия, сборы, экзамены, техническое обслуживание.</string>
+    <string name="bulletin_fdroid_no_push_body">Версия F-Droid поставляется без Google Play Services, поэтому push-уведомления бюллетеней в реальном времени недоступны. Установите версию из Play Store, если вам нужны уведомления — вы по-прежнему можете вручную загружать последние бюллетени на вкладке объявлений.</string>
+    <string name="bulletin_fdroid_no_push_title">Push недоступен в F-Droid</string>
     <string name="bulletin_filter_dept">Отдел</string>
     <string name="bulletin_filter_tag">Категория</string>
     <string name="bulletin_importance_high_badge">Важное</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Включить push-уведомления об объявлениях</string>
     <string name="bulletin_push_enable_description">При включённых push-уведомлениях TigerDuck будет оповещать вас, когда объявление соответствует вашим правилам подписки.</string>
     <string name="bulletin_push_footer">Push-уведомления доставляются сервером TigerDuck на основе ваших правил. Идентификатор устройства передаётся в виде анонимного UUID — ваш студенческий номер никогда не загружается.</string>
+    <string name="bulletin_push_reopen_settings">Повторно включить в системных настройках</string>
     <string name="bulletin_push_requesting">Запрос…</string>
     <string name="bulletin_push_settings_header">Настройки push</string>
     <string name="bulletin_push_status_denied">Запрещено</string>
     <string name="bulletin_push_status_ephemeral">Эфемерное</string>
     <string name="bulletin_push_status_label">Push-уведомления</string>
     <string name="bulletin_push_status_provisional">Предварительное</string>
+    <string name="bulletin_push_status_registration_done">Готово</string>
+    <string name="bulletin_push_status_registration_pending">Ожидание token</string>
     <string name="bulletin_push_status_undetermined">Ещё не решено</string>
+    <string name="bulletin_push_status_unknown">Неизвестно</string>
     <string name="bulletin_rule_add_action">Добавить правило</string>
     <string name="bulletin_rule_add_title">Добавить правило</string>
     <string name="bulletin_rule_all_orgs">Все отделы</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">Выбрано: %1$d</string>
     <string name="bulletin_rule_editor_tag_section">Категория</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> и </string>
     <string name="bulletin_rule_join_or"> или </string>
     <string name="bulletin_rule_orgs_prefix">Отдел: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Показать все объявления</string>
     <string name="bulletin_show_unread_only_action">Только непрочитанные</string>
     <string name="bulletin_source_link_label">Открыть оригинал</string>
+    <string name="bulletin_subscription_default_seed_name">Рекомендации по умолчанию</string>
+    <string name="bulletin_subscription_mode_and">Все условия</string>
+    <string name="bulletin_subscription_mode_or">Любое условие</string>
     <string name="bulletin_taxonomy_clear_selection">Снять выбор (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Если ничего не выбрано, совпадает всё в этом измерении.</string>
     <string name="bulletin_unread_dot_label">Непрочитанное</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Слишком поздно… %1$s «%2$s»</string>
     <string name="notification_assignment_reminder_body_multi_hour">Ещё можно всё исправить! %1$s «%2$s»</string>
     <string name="notification_assignment_reminder_title">Напоминание о задании: %1$s</string>
+    <string name="notification_bulletin_channel_description">Уведомления в реальном времени о новых бюллетенях NTUST, соответствующих вашим подпискам</string>
+    <string name="notification_bulletin_channel_name">Школьные бюллетени</string>
     <string name="notification_class_preparing_channel_description">Отправляет напоминания перед началом каждого занятия</string>
     <string name="notification_class_preparing_channel_name">Напоминания о начале занятий</string>
     <string name="notification_class_preparing_content_fallback">Занятие скоро начнётся</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Временная авторизация</string>
     <string name="push_server_notification_status_provisional">Предварительное</string>
     <string name="push_server_notification_status_undetermined">Ещё не запрошено</string>
+    <string name="push_server_notification_status_unknown">Неизвестно</string>
     <string name="push_server_pending_incomplete">Ещё не выполнено</string>
     <string name="push_server_settings_title">Server push</string>
+    <string name="push_server_status_device_registration">Регистрация устройства</string>
     <string name="push_server_status_done">Завершено</string>
     <string name="push_server_status_enabled">Включено</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Ожидание назначения token системой</string>
     <string name="push_server_sync_now_action">Синхронизировать сейчас</string>
     <string name="refreshing_message">Обновляется… подождите</string>
     <string name="score_academic_year_semester">Учебный год %1$s, %2$s семестр</string>

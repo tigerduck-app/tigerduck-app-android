@@ -5,6 +5,7 @@
     <string name="action_allow">السماح</string>
     <string name="action_back">رجوع</string>
     <string name="action_cancel">إلغاء</string>
+    <string name="action_clear_text">مسح النص</string>
     <string name="action_close">إغلاق</string>
     <string name="action_confirm">تأكيد</string>
     <string name="action_done">تم</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">تطبيق القواعد الافتراضية</string>
     <string name="bulletin_body_load_failed">غير قادر على تحميل المحتوى</string>
     <string name="bulletin_default_rules_footer">الاشتراكات الافتراضية: غداء مجاني، منحة دراسية، رسوم، امتحانات، صيانة.</string>
+    <string name="bulletin_fdroid_no_push_body">إصدار F-Droid لا يتضمن Google Play Services، لذا لا تتوفر إشعارات الإعلانات الفورية. إذا كنت بحاجة إلى الإشعارات، ثبِّت إصدار Play Store — يمكنك دائمًا جلب أحدث الإعلانات يدويًا من تبويب الإعلانات.</string>
+    <string name="bulletin_fdroid_no_push_title">الإشعارات الفورية غير متاحة في F-Droid</string>
     <string name="bulletin_filter_dept">قسم</string>
     <string name="bulletin_filter_tag">فئة</string>
     <string name="bulletin_importance_high_badge">مهم</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">قم بتشغيل دفع النشرة</string>
     <string name="bulletin_push_enable_description">عند تمكين الدفع، سوف يقوم TigerDuck بإعلامك عندما تتطابق النشرة مع قواعد الاشتراك الخاصة بك.</string>
     <string name="bulletin_push_footer">يتم تسليم إشعارات الدفع بواسطة خادم TigerDuck بناءً على القواعد الخاصة بك. يتم إرسال معرف الجهاز كمعرف UUID مجهول - ولا يتم تحميل معرف الطالب الخاص بك مطلقًا.</string>
+    <string name="bulletin_push_reopen_settings">إعادة التفعيل في إعدادات النظام</string>
     <string name="bulletin_push_requesting">جارٍ الطلب…</string>
     <string name="bulletin_push_settings_header">إعدادات الدفع</string>
     <string name="bulletin_push_status_denied">رفض</string>
     <string name="bulletin_push_status_ephemeral">سريع الزوال</string>
     <string name="bulletin_push_status_label">دفع الإخطارات</string>
     <string name="bulletin_push_status_provisional">مؤقت</string>
+    <string name="bulletin_push_status_registration_done">تم</string>
+    <string name="bulletin_push_status_registration_pending">في انتظار token</string>
     <string name="bulletin_push_status_undetermined">لم تقرر بعد</string>
+    <string name="bulletin_push_status_unknown">غير معروف</string>
     <string name="bulletin_rule_add_action">أضف القاعدة</string>
     <string name="bulletin_rule_add_title">أضف القاعدة</string>
     <string name="bulletin_rule_all_orgs">جميع الأقسام</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">اسم</string>
     <string name="bulletin_rule_editor_selected_count">تم تحديد %1$d</string>
     <string name="bulletin_rule_editor_tag_section">فئة</string>
+    <string name="bulletin_rule_filter_separator">، </string>
     <string name="bulletin_rule_join_and"> و </string>
     <string name="bulletin_rule_join_or"> أو </string>
     <string name="bulletin_rule_orgs_prefix">قسم: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">عرض جميع النشرات</string>
     <string name="bulletin_show_unread_only_action">غير مقروءة فقط</string>
     <string name="bulletin_source_link_label">عرض الأصلي</string>
+    <string name="bulletin_subscription_default_seed_name">التوصيات الافتراضية</string>
+    <string name="bulletin_subscription_mode_and">مطابقة الكل</string>
+    <string name="bulletin_subscription_mode_or">مطابقة أي</string>
     <string name="bulletin_taxonomy_clear_selection">مسح التحديد (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">عدم تحديد أي شيء يعني \"مطابقة الكل\" لهذا البُعد.</string>
     <string name="bulletin_unread_dot_label">غير مقروءة</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">فات الأوان...%1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">لا يزال الوقت لإصلاحه! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">تذكير بالمهمة: %1$s</string>
+    <string name="notification_bulletin_channel_description">إشعارات فورية بنشرات NTUST الجديدة المطابقة لاشتراكاتك</string>
+    <string name="notification_bulletin_channel_name">نشرات المدرسة</string>
     <string name="notification_class_preparing_channel_description">يرسل تذكيرات قبل بدء كل محاضرة</string>
     <string name="notification_class_preparing_channel_name">تذكيرات بدء المحاضرات</string>
     <string name="notification_class_preparing_content_fallback">ستبدأ المحاضرة قريبًا</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">إذن سريع الزوال</string>
     <string name="push_server_notification_status_provisional">مؤقت</string>
     <string name="push_server_notification_status_undetermined">لم يطلب بعد</string>
+    <string name="push_server_notification_status_unknown">غير معروف</string>
     <string name="push_server_pending_incomplete">لم يتم ذلك بعد</string>
     <string name="push_server_settings_title">دفع الخادم</string>
+    <string name="push_server_status_device_registration">تسجيل الجهاز</string>
     <string name="push_server_status_done">مكتمل</string>
     <string name="push_server_status_enabled">ممكّن</string>
     <string name="push_server_status_section">حالة</string>
+    <string name="push_server_status_waiting_token">في انتظار تعيين token من النظام</string>
     <string name="push_server_sync_now_action">مزامنة الآن</string>
     <string name="refreshing_message">جارٍ التحديث… انتظر قليلًا</string>
     <string name="score_academic_year_semester">العام الدراسي %1$s %2$s</string>

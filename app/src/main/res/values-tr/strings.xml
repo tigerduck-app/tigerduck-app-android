@@ -5,6 +5,7 @@
     <string name="action_allow">İzin ver</string>
     <string name="action_back">Geri</string>
     <string name="action_cancel">İptal</string>
+    <string name="action_clear_text">Metni temizle</string>
     <string name="action_close">Kapat</string>
     <string name="action_confirm">Onayla</string>
     <string name="action_done">Tamam</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Varsayılan kuralları uygula</string>
     <string name="bulletin_body_load_failed">İçerik yüklenemedi</string>
     <string name="bulletin_default_rules_footer">Varsayılan abonelikler: Ücretsiz Yemek, Burs, Ücretler, Sınavlar, Bakım.</string>
+    <string name="bulletin_fdroid_no_push_body">F-Droid derlemesi Google Play Services olmadan gelir; bu nedenle gerçek zamanlı bülten push bildirimleri kullanılamaz. Bildirimlere ihtiyacınız varsa Play Store derlemesini yükleyin — duyurular sekmesinden en son bültenleri yine de manuel olarak çekebilirsiniz.</string>
+    <string name="bulletin_fdroid_no_push_title">F-Droid\'de push kullanılamıyor</string>
     <string name="bulletin_filter_dept">Bölüm</string>
     <string name="bulletin_filter_tag">Kategori</string>
     <string name="bulletin_importance_high_badge">Önemli</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Bülten push bildirimlerini aç</string>
     <string name="bulletin_push_enable_description">Push etkinleştirildiğinde, TigerDuck bir bülten abonelik kurallarınızla eşleştiğinde sizi bilgilendirir.</string>
     <string name="bulletin_push_footer">Push bildirimleri, kurallarınıza göre TigerDuck sunucusu tarafından iletilir. Cihaz tanımlayıcısı anonim bir UUID olarak gönderilir — öğrenci kimliğiniz hiçbir zaman yüklenmez.</string>
+    <string name="bulletin_push_reopen_settings">Sistem Ayarları\'nda yeniden etkinleştir</string>
     <string name="bulletin_push_requesting">İsteniyor…</string>
     <string name="bulletin_push_settings_header">Push ayarları</string>
     <string name="bulletin_push_status_denied">Reddedildi</string>
     <string name="bulletin_push_status_ephemeral">Geçici</string>
     <string name="bulletin_push_status_label">Push bildirimleri</string>
     <string name="bulletin_push_status_provisional">Geçici onaylı</string>
+    <string name="bulletin_push_status_registration_done">Tamamlandı</string>
+    <string name="bulletin_push_status_registration_pending">token bekleniyor</string>
     <string name="bulletin_push_status_undetermined">Henüz belirlenmedi</string>
+    <string name="bulletin_push_status_unknown">Bilinmiyor</string>
     <string name="bulletin_rule_add_action">Kural ekle</string>
     <string name="bulletin_rule_add_title">Kural ekle</string>
     <string name="bulletin_rule_all_orgs">Tüm bölümler</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Name</string>
     <string name="bulletin_rule_editor_selected_count">%1$d seçildi</string>
     <string name="bulletin_rule_editor_tag_section">Kategori</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> ve </string>
     <string name="bulletin_rule_join_or"> veya </string>
     <string name="bulletin_rule_orgs_prefix">Bölüm: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Tüm duyuruları göster</string>
     <string name="bulletin_show_unread_only_action">Yalnızca okunmamışlar</string>
     <string name="bulletin_source_link_label">Orijinali görüntüle</string>
+    <string name="bulletin_subscription_default_seed_name">Varsayılan öneriler</string>
+    <string name="bulletin_subscription_mode_and">Tümüyle eşleş</string>
+    <string name="bulletin_subscription_mode_or">Herhangi biriyle eşleş</string>
     <string name="bulletin_taxonomy_clear_selection">Seçimi temizle (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Hiçbir şey seçmemek bu boyut için \"tümünü eşleştir\" anlamına gelir.</string>
     <string name="bulletin_unread_dot_label">Okunmamış</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Çok geç... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Düzeltmek için hâlâ zaman var! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Ödev hatırlatıcısı: %1$s</string>
+    <string name="notification_bulletin_channel_description">Aboneliklerinizle eşleşen yeni NTUST bültenleri için gerçek zamanlı push bildirimleri</string>
+    <string name="notification_bulletin_channel_name">Okul bültenleri</string>
     <string name="notification_class_preparing_channel_description">Her ders başlamadan önce hatırlatma gönderir</string>
     <string name="notification_class_preparing_channel_name">Ders başlangıç hatırlatıcıları</string>
     <string name="notification_class_preparing_content_fallback">Ders birazdan başlayacak</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Geçici yetkilendirme</string>
     <string name="push_server_notification_status_provisional">Geçici</string>
     <string name="push_server_notification_status_undetermined">Henüz sorulmadı</string>
+    <string name="push_server_notification_status_unknown">Bilinmiyor</string>
     <string name="push_server_pending_incomplete">Henüz tamamlanmadı</string>
     <string name="push_server_settings_title">Sunucu push</string>
+    <string name="push_server_status_device_registration">Cihaz kaydı</string>
     <string name="push_server_status_done">Tamamlandı</string>
     <string name="push_server_status_enabled">Etkin</string>
     <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_waiting_token">Sistemin token ataması bekleniyor</string>
     <string name="push_server_sync_now_action">Şimdi senkronize et</string>
     <string name="refreshing_message">Yenileniyor… lütfen bekleyin</string>
     <string name="score_academic_year_semester">%1$s Akademik Yılı %2$s</string>

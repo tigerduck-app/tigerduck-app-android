@@ -5,6 +5,7 @@
     <string name="action_allow">Luba</string>
     <string name="action_back">Tagasi</string>
     <string name="action_cancel">Tühista</string>
+    <string name="action_clear_text">Kustuta tekst</string>
     <string name="action_close">Sulge</string>
     <string name="action_confirm">Kinnita</string>
     <string name="action_done">Valmis</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Rakenda vaikereegleid</string>
     <string name="bulletin_body_load_failed">Sisu ei saa laadida</string>
     <string name="bulletin_default_rules_footer">Vaiketellimused: tasuta lõuna, stipendium, tasud, eksamid, hooldus.</string>
+    <string name="bulletin_fdroid_no_push_body">F-Droid versioon ei sisalda Google Play Servicesi, seega reaalajas teavitused pole saadaval. Kui vajad teavitusi, installi Play Store versioon — saad alati viimased teated käsitsi alla laadida teadaannete vahekaardilt.</string>
+    <string name="bulletin_fdroid_no_push_title">Push pole F-Droidis saadaval</string>
     <string name="bulletin_filter_dept">Osakond</string>
     <string name="bulletin_filter_tag">Kategooria</string>
     <string name="bulletin_importance_high_badge">Tähtis</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Lülitage bulletin push sisse</string>
     <string name="bulletin_push_enable_description">Kui push on lubatud, teavitab TigerDuck teid alati, kui bülletään vastab teie liitumisreeglitele.</string>
     <string name="bulletin_push_footer">Tõuketeated edastab TigerDucki server teie reeglite alusel. Seadme identifikaator saadetakse anonüümse UUID-na – teie õpilase ID-d ei laadita kunagi üles.</string>
+    <string name="bulletin_push_reopen_settings">Luba uuesti süsteemi sätetes</string>
     <string name="bulletin_push_requesting">Taotlemine…</string>
     <string name="bulletin_push_settings_header">Push seaded</string>
     <string name="bulletin_push_status_denied">Keelatud</string>
     <string name="bulletin_push_status_ephemeral">Põgusad</string>
     <string name="bulletin_push_status_label">Tõukemärguanded</string>
     <string name="bulletin_push_status_provisional">Ajutine</string>
+    <string name="bulletin_push_status_registration_done">Valmis</string>
+    <string name="bulletin_push_status_registration_pending">Ootab tokenit</string>
     <string name="bulletin_push_status_undetermined">Pole veel otsustatud</string>
+    <string name="bulletin_push_status_unknown">Tundmatu</string>
     <string name="bulletin_rule_add_action">Lisa reegel</string>
     <string name="bulletin_rule_add_title">Lisa reegel</string>
     <string name="bulletin_rule_all_orgs">Kõik osakonnad</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Nimi</string>
     <string name="bulletin_rule_editor_selected_count">%1$d valitud</string>
     <string name="bulletin_rule_editor_tag_section">Kategooria</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> ja </string>
     <string name="bulletin_rule_join_or"> või </string>
     <string name="bulletin_rule_orgs_prefix">Osakond: </string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Kuva kõik bülletäänid</string>
     <string name="bulletin_show_unread_only_action">Ainult lugemata</string>
     <string name="bulletin_source_link_label">Vaata originaali</string>
+    <string name="bulletin_subscription_default_seed_name">Vaikimisi soovitused</string>
+    <string name="bulletin_subscription_mode_and">Sobita kõik</string>
+    <string name="bulletin_subscription_mode_or">Sobita ükskõik milline</string>
     <string name="bulletin_taxonomy_clear_selection">Tühjenda valik (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Kui te ei vali midagi, tähendab see selle dimensiooni puhul vastet kõigiga.</string>
     <string name="bulletin_unread_dot_label">Lugemata</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Liiga hilja... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Ikka aega parandada! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Ülesande meeldetuletus: %1$s</string>
+    <string name="notification_bulletin_channel_description">Reaalajas tõuketeated uute NTUST bülletäänide kohta, mis vastavad teie tellimustele</string>
+    <string name="notification_bulletin_channel_name">Koolibülletäänid</string>
     <string name="notification_class_preparing_channel_description">Saadab meeldetuletuse enne iga tunni algust</string>
     <string name="notification_class_preparing_channel_name">Tunni alguse meeldetuletused</string>
     <string name="notification_class_preparing_content_fallback">Tund on kohe algamas</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Lühiajaline luba</string>
     <string name="push_server_notification_status_provisional">Ajutine</string>
     <string name="push_server_notification_status_undetermined">Pole veel küsitud</string>
+    <string name="push_server_notification_status_unknown">Tundmatu</string>
     <string name="push_server_pending_incomplete">Pole veel tehtud</string>
     <string name="push_server_settings_title">Serveri tõuge</string>
+    <string name="push_server_status_device_registration">Seadme registreerimine</string>
     <string name="push_server_status_done">Täielik</string>
     <string name="push_server_status_enabled">Lubatud</string>
     <string name="push_server_status_section">Olek</string>
+    <string name="push_server_status_waiting_token">Ootab, kuni süsteem määrab tokeni</string>
     <string name="push_server_sync_now_action">Sünkrooni kohe</string>
     <string name="refreshing_message">Värskendamine… palun oodake</string>
     <string name="score_academic_year_semester">Õppeaasta %1$s %2$s</string>

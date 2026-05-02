@@ -91,7 +91,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         set(value) = prefs.edit().putBoolean("showAbsoluteAssignmentTime", value).apply()
 
     var useEnglishCourseAbbreviation: Boolean
-        get() = prefs.getBoolean("useEnglishCourseAbbreviation", false)
+        get() = prefs.getBoolean("useEnglishCourseAbbreviation", true)
         set(value) {
             val previous = useEnglishCourseAbbreviation
             prefs.edit().putBoolean("useEnglishCourseAbbreviation", value).apply()
@@ -99,7 +99,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         }
 
     var useEnglishClassroomAbbreviation: Boolean
-        get() = prefs.getBoolean("useEnglishClassroomAbbreviation", false)
+        get() = prefs.getBoolean("useEnglishClassroomAbbreviation", true)
         set(value) {
             val previous = useEnglishClassroomAbbreviation
             prefs.edit().putBoolean("useEnglishClassroomAbbreviation", value).apply()
@@ -194,6 +194,25 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     /** Wipe every pref key. Used by the full-reset flow only. */
     fun clearAllPrefs() {
         prefs.edit().clear().apply()
+    }
+
+    fun getString(key: String): String? = prefs.getString(key, null)
+
+    fun putString(key: String, value: String) {
+        prefs.edit().putString(key, value).apply()
+    }
+
+    /**
+     * Read [key], or generate-and-persist a value via [factory] if absent.
+     * Used by [org.ntust.app.tigerduck.push.PushIdentity] to mint a stable
+     * device id on first launch.
+     */
+    @Synchronized
+    fun getOrCreateString(key: String, factory: () -> String): String {
+        prefs.getString(key, null)?.let { return it }
+        val created = factory()
+        prefs.edit().putString(key, created).commit()
+        return created
     }
 
     /** Semester the user last viewed in 課表. Null until first pick. */

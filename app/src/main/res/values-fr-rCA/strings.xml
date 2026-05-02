@@ -5,6 +5,7 @@
     <string name="action_allow">Autoriser</string>
     <string name="action_back">Retour</string>
     <string name="action_cancel">Annuler</string>
+    <string name="action_clear_text">Effacer le texte</string>
     <string name="action_close">Fermer</string>
     <string name="action_confirm">Confirmer</string>
     <string name="action_done">Terminé</string>
@@ -61,6 +62,8 @@
     <string name="bulletin_apply_default_rules_action">Appliquer les règles par défaut</string>
     <string name="bulletin_body_load_failed">Impossible de charger le contenu</string>
     <string name="bulletin_default_rules_footer">Abonnements par défaut : Déjeuner gratuit, Bourse d\'études, Frais, Examens, Maintenance.</string>
+    <string name="bulletin_fdroid_no_push_body">La version F-Droid ne comprend pas Google Play Services, les notifications push de bulletins en temps réel ne sont donc pas disponibles. Installez la version Play Store si vous souhaitez recevoir des notifications — vous pouvez toujours récupérer manuellement les derniers bulletins depuis l\'onglet des annonces.</string>
+    <string name="bulletin_fdroid_no_push_title">Push non disponible sur F-Droid</string>
     <string name="bulletin_filter_dept">Département</string>
     <string name="bulletin_filter_tag">Catégorie</string>
     <string name="bulletin_importance_high_badge">Important</string>
@@ -78,13 +81,17 @@
     <string name="bulletin_push_enable_action">Activer le push de bulletin</string>
     <string name="bulletin_push_enable_description">Lorsque push est activé, TigerDuck vous avertira chaque fois qu\'un bulletin correspond à vos règles d\'abonnement.</string>
     <string name="bulletin_push_footer">Les notifications push sont délivrées par le serveur TigerDuck en fonction de vos règles. L\'identifiant de l\'appareil est envoyé sous forme d\'UUID anonyme — votre identifiant d\'étudiant n\'est jamais téléchargé.</string>
+    <string name="bulletin_push_reopen_settings">Réactiver dans les Réglages système</string>
     <string name="bulletin_push_requesting">Demande...</string>
     <string name="bulletin_push_settings_header">Paramètres Push</string>
     <string name="bulletin_push_status_denied">Refusé</string>
     <string name="bulletin_push_status_ephemeral">Éphémère</string>
     <string name="bulletin_push_status_label">Notifications Push</string>
     <string name="bulletin_push_status_provisional">Provisoire</string>
+    <string name="bulletin_push_status_registration_done">Terminé</string>
+    <string name="bulletin_push_status_registration_pending">En attente du token</string>
     <string name="bulletin_push_status_undetermined">Décision en cours</string>
+    <string name="bulletin_push_status_unknown">Inconnu</string>
     <string name="bulletin_rule_add_action">Ajouter une règle</string>
     <string name="bulletin_rule_add_title">Ajouter une règle</string>
     <string name="bulletin_rule_all_orgs">Tous les départements</string>
@@ -106,6 +113,7 @@
     <string name="bulletin_rule_editor_name_section">Nom</string>
     <string name="bulletin_rule_editor_selected_count">%1$d sélectionnés</string>
     <string name="bulletin_rule_editor_tag_section">Catégorie</string>
+    <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> et </string>
     <string name="bulletin_rule_join_or"> ou </string>
     <string name="bulletin_rule_orgs_prefix">Dpt :</string>
@@ -120,6 +128,9 @@
     <string name="bulletin_show_all_action">Toute les bulletins</string>
     <string name="bulletin_show_unread_only_action">Afficher non lu uniquement</string>
     <string name="bulletin_source_link_label">Voir l\'original</string>
+    <string name="bulletin_subscription_default_seed_name">Recommandations par défaut</string>
+    <string name="bulletin_subscription_mode_and">Tout correspondre</string>
+    <string name="bulletin_subscription_mode_or">Au moins un</string>
     <string name="bulletin_taxonomy_clear_selection">Effacer la sélection (%1$d)</string>
     <string name="bulletin_taxonomy_picker_hint">Ne rien sélectionner signifie « tout faire correspondre » pour cette dimension.</string>
     <string name="bulletin_unread_dot_label">Non lu</string>
@@ -305,6 +316,8 @@
     <string name="notification_assignment_reminder_body_5m">Trop tard... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Il est encore temps de le réparer ! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Rappel de la tâche : %1$s</string>
+    <string name="notification_bulletin_channel_description">Notifications en temps réel pour les nouveaux bulletins NTUST correspondant à vos abonnements</string>
+    <string name="notification_bulletin_channel_name">Bulletins scolaires</string>
     <string name="notification_class_preparing_channel_description">Envoie un rappel avant le début de chaque cours</string>
     <string name="notification_class_preparing_channel_name">Rappels avant le cours</string>
     <string name="notification_class_preparing_content_fallback">Le cours va bientôt commencer</string>
@@ -347,11 +360,14 @@
     <string name="push_server_notification_status_ephemeral">Autorisation éphémère</string>
     <string name="push_server_notification_status_provisional">Provisoire</string>
     <string name="push_server_notification_status_undetermined">Pas encore demandé</string>
+    <string name="push_server_notification_status_unknown">Inconnu</string>
     <string name="push_server_pending_incomplete">PAS ENCORE FAIT.</string>
     <string name="push_server_settings_title">Push serveur</string>
+    <string name="push_server_status_device_registration">Enregistrement de l\'appareil</string>
     <string name="push_server_status_done">Terminer</string>
     <string name="push_server_status_enabled">Actif</string>
     <string name="push_server_status_section">Statut</string>
+    <string name="push_server_status_waiting_token">En attente que le système attribue un token</string>
     <string name="push_server_sync_now_action">Synchroniser maintenant</string>
     <string name="refreshing_message">Actualisation en cours… patientez</string>
     <string name="score_academic_year_semester">Année universitaire %1$s %2$s</string>

@@ -4,8 +4,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -47,6 +49,7 @@ class LiveActivityManager @Inject constructor(
 
     /** Recompute the scenario and push the result to the notifier. */
     fun refresh() {
+        if (!scope.isActive) return
         refreshJob?.cancel()
         refreshJob = scope.launch {
             refreshInternal()
@@ -69,6 +72,10 @@ class LiveActivityManager @Inject constructor(
         refreshJob?.cancel()
         notifier.cancel()
         classPreparingScheduler.cancelAllTracked()
+        // Cancel the scope itself so future launch() calls are no-ops; the
+        // SupervisorJob would otherwise outlive any DI/test teardown and
+        // resurrect work via prefs-driven refresh.
+        scope.cancel()
     }
 
     private suspend fun refreshInternal() {
@@ -137,6 +144,7 @@ class LiveActivityManager @Inject constructor(
         val nextBoundary = futureCandidates.minOrNull() ?: (nowMs + 60_000L)
         val delayMs = (nextBoundary - nowMs).coerceAtLeast(30_000L)
 
+        if (!scope.isActive) return
         boundaryJob = scope.launch {
             delay(delayMs)
             refresh()
