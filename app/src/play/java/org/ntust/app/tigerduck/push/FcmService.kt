@@ -48,6 +48,11 @@ class FcmService : FirebaseMessagingService() {
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+        val manager = NotificationManagerCompat.from(this)
+        // Some OEMs throw SecurityException from notify() when the runtime
+        // POST_NOTIFICATIONS permission is denied; an uncaught throw here
+        // would crash FirebaseMessagingService and the whole process.
+        if (!manager.areNotificationsEnabled()) return
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             // Status-bar small icon must be a transparent monochrome
             // silhouette; passing the full-color launcher mipmap lets
@@ -60,7 +65,7 @@ class FcmService : FirebaseMessagingService() {
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
-        NotificationManagerCompat.from(this).notify(id, notification)
+        runCatching { manager.notify(id, notification) }
     }
 
     companion object {

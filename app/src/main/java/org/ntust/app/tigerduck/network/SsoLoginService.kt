@@ -52,9 +52,17 @@ class SsoLoginService @Inject constructor(
         url = fresh.second
 
         if (!HtmlParser.isSSOLoginPage(html, url)) {
-            resolveOIDCBridgeForms(html, url)
-            sessionManager.markLoginSuccess()
-            return@withContext true
+            // Capture the bridge result instead of discarding it: a bridge
+            // POST that lands back on the SSO wall means we aren't actually
+            // logged in, so we must not mark success — fall through to the
+            // credential submission below.
+            val (bridgeHtml, bridgeUrl) = resolveOIDCBridgeForms(html, url)
+            if (!HtmlParser.isSSOLoginPage(bridgeHtml, bridgeUrl)) {
+                sessionManager.markLoginSuccess()
+                return@withContext true
+            }
+            html = bridgeHtml
+            url = bridgeUrl
         }
 
         // Step 5: Submit login form

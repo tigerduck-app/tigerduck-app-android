@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,6 +34,8 @@ import org.ntust.app.tigerduck.AppConstants
 import java.time.Instant
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import androidx.navigation.navArgument
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.widget.LibraryShortcutWidget
@@ -141,6 +144,14 @@ fun MainNavigation(
         } else {
             widgetStartRoute
         }
+        // Cold-start path: this effect can fire in the same composition that
+        // first declares the NavHost (further down). navigate() before the
+        // graph is registered silently no-ops, so block on the first back-stack
+        // entry — which only appears once NavHost has installed its graph and
+        // routed to startDestination.
+        snapshotFlow { navController.currentBackStackEntry }
+            .filterNotNull()
+            .first()
         navController.navigate(target) {
             launchSingleTop = true
         }
@@ -201,10 +212,29 @@ fun MainNavigation(
         }
     }
 
-    val isNonTaipeiTz = remember {
-        val now = Instant.now()
-        java.util.TimeZone.getDefault().getOffset(now.toEpochMilli()) !=
-            AppConstants.TAIPEI_TZ.getOffset(now.toEpochMilli())
+    // Reactive: a frozen `remember {}` would miss timezone changes while the
+    // app is backgrounded. Listen for ACTION_TIMEZONE_CHANGED so the banner
+    // appears/clears when the user travels.
+    var isNonTaipeiTz by remember { mutableStateOf(false) }
+    DisposableEffect(context) {
+        val recompute = {
+            val now = Instant.now()
+            isNonTaipeiTz = java.util.TimeZone.getDefault().getOffset(now.toEpochMilli()) !=
+                AppConstants.TAIPEI_TZ.getOffset(now.toEpochMilli())
+        }
+        recompute()
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context?, i: android.content.Intent?) {
+                recompute()
+            }
+        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            android.content.IntentFilter(android.content.Intent.ACTION_TIMEZONE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
 
     Scaffold(

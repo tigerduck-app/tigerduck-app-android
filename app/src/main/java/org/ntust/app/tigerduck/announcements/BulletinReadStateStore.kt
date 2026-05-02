@@ -6,7 +6,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,50 +23,69 @@ class BulletinReadStateStore @Inject constructor(
     private val prefs: SharedPreferences =
         context.getSharedPreferences("bulletin_read_state", Context.MODE_PRIVATE)
 
+    private val lock = Any()
     private val _readIds = MutableStateFlow(loadFromPrefs())
     val readIds: StateFlow<Set<Int>> = _readIds.asStateFlow()
 
     fun isRead(id: Int): Boolean = id in _readIds.value
 
     fun markRead(id: Int) {
-        val before = _readIds.value
-        _readIds.update { if (id in it) it else it + id }
-        // Structural !=, not referential: a concurrent update could race between
-        // update{} and this read and produce an equal-but-distinct reference,
-        // making !== falsely true (extra persist) — or, after a B→A revert,
-        // falsely false (silently dropped disk write). Set equality is cheap.
-        if (_readIds.value != before) persist()
+        synchronized(lock) {
+            val current = _readIds.value
+            if (id in current) return
+            _readIds.value = current + id
+            persist()
+        }
     }
 
     fun markUnread(id: Int) {
-        val before = _readIds.value
-        _readIds.update { if (id !in it) it else it - id }
-        if (_readIds.value != before) persist()
+        synchronized(lock) {
+            val current = _readIds.value
+            if (id !in current) return
+            _readIds.value = current - id
+            persist()
+        }
     }
 
     fun toggleRead(id: Int) {
-        if (isRead(id)) markUnread(id) else markRead(id)
+        synchronized(lock) {
+            if (id in _readIds.value) markUnreadLocked(id) else markReadLocked(id)
+        }
     }
 
     fun markAllRead(ids: Iterable<Int>) {
-        val incoming = ids.toSet()
-        val before = _readIds.value
-        _readIds.update { current ->
-            val merged = current + incoming
-            if (merged.size == current.size) current else merged
+        synchronized(lock) {
+            val current = _readIds.value
+            val merged = current + ids
+            if (merged.size == current.size) return
+            _readIds.value = merged
+            persist()
         }
-        if (_readIds.value != before) persist()
     }
 
     /** Drop ids that are no longer in [keep] so prefs don't grow unbounded. */
     fun prune(keep: Iterable<Int>) {
-        val alive = keep.toSet()
-        val before = _readIds.value
-        _readIds.update { current ->
-            val trimmed = current.intersect(alive)
-            if (trimmed.size == current.size) current else trimmed
+        synchronized(lock) {
+            val current = _readIds.value
+            val trimmed = current.intersect(keep.toSet())
+            if (trimmed.size == current.size) return
+            _readIds.value = trimmed
+            persist()
         }
-        if (_readIds.value != before) persist()
+    }
+
+    private fun markReadLocked(id: Int) {
+        val current = _readIds.value
+        if (id in current) return
+        _readIds.value = current + id
+        persist()
+    }
+
+    private fun markUnreadLocked(id: Int) {
+        val current = _readIds.value
+        if (id !in current) return
+        _readIds.value = current - id
+        persist()
     }
 
     private fun persist() {

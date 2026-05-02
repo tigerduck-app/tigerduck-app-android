@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -91,13 +92,9 @@ class AnnouncementsViewModel @Inject constructor(
 
     private suspend fun fetchTaxonomyOnce() {
         if (_state.value.taxonomy != null) return
-        val cached = repository.taxonomy()
-        if (cached != null) {
-            _state.update { it.copy(taxonomy = cached) }
-            return
-        }
-        val tax = runCatching { api.fetchTaxonomy() }.getOrNull() ?: return
-        repository.setTaxonomy(tax)
+        val tax = repository.getOrFetchTaxonomy {
+            runCatching { api.fetchTaxonomy() }.getOrNull()
+        } ?: return
         _state.update { it.copy(taxonomy = tax) }
     }
 
@@ -116,6 +113,10 @@ class AnnouncementsViewModel @Inject constructor(
                     cursor = null,
                     includeDeleted = includeDeleted,
                 )
+                // Defend against a cancelled launch resuming past the network
+                // call: writing nextCursor / items here would overwrite the
+                // newer refresh that triggered our cancellation.
+                coroutineContext.ensureActive()
                 val merged = sortedUnique(_state.value.items + response.items)
                 nextCursor = response.nextCursor
                 repository.putSummaries(merged)
@@ -163,6 +164,7 @@ class AnnouncementsViewModel @Inject constructor(
                 } catch (_: Exception) {
                     break
                 }
+                coroutineContext.ensureActive()
                 val merged = sortedUnique(_state.value.items + response.items)
                 nextCursor = response.nextCursor
                 repository.putSummaries(merged)
@@ -189,6 +191,7 @@ class AnnouncementsViewModel @Inject constructor(
         loadMoreJob = viewModelScope.launch {
             try {
                 val response = api.fetchList(cursor = cursor, includeDeleted = s.showDeleted)
+                coroutineContext.ensureActive()
                 val merged = sortedUnique(_state.value.items + response.items)
                 nextCursor = response.nextCursor
                 repository.putSummaries(merged)

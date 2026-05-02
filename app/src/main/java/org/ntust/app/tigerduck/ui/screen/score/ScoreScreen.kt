@@ -289,13 +289,16 @@ private fun RankingsTrendCard(
                     activeBorderColor = primary,
                 )
                 SingleChoiceSegmentedButtonRow {
-                    ScoreViewModel.RankingScope.values().forEachIndexed { index, option ->
+                    // .entries is cached on the enum class; .values() allocates
+                    // a fresh array on every call (and is now deprecated).
+                    val scopes = ScoreViewModel.RankingScope.entries
+                    scopes.forEachIndexed { index, option ->
                         SegmentedButton(
                             selected = scope == option,
                             onClick = { onScopeChange(option) },
                             shape = SegmentedButtonDefaults.itemShape(
                                 index = index,
-                                count = ScoreViewModel.RankingScope.values().size
+                                count = scopes.size,
                             ),
                             colors = segmentColors,
                         ) {

@@ -1,5 +1,7 @@
 package org.ntust.app.tigerduck.announcements
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,6 +18,7 @@ class BulletinRepository @Inject constructor() {
     private val summaries = HashMap<Int, BulletinSummary>()
     private val details = HashMap<Int, BulletinDetail>()
     @Volatile private var taxonomyValue: TaxonomyResponse? = null
+    private val taxonomyMutex = Mutex()
 
     @Synchronized
     fun putSummaries(items: List<BulletinSummary>) {
@@ -34,9 +37,19 @@ class BulletinRepository @Inject constructor() {
     @Synchronized
     fun detail(id: Int): BulletinDetail? = details[id]
 
+    /** Synchronous read of an already-cached value; never triggers a fetch. */
     fun taxonomy(): TaxonomyResponse? = taxonomyValue
 
-    fun setTaxonomy(taxonomy: TaxonomyResponse) {
-        taxonomyValue = taxonomy
+    /**
+     * Cache-or-fetch with exclusive cold-start serialization: if [fetcher]
+     * returns null (network failure) the cache stays empty and the next caller
+     * retries. Double-checks inside the lock so a single fetcher fires across
+     * concurrent ViewModels.
+     */
+    suspend fun getOrFetchTaxonomy(fetcher: suspend () -> TaxonomyResponse?): TaxonomyResponse? {
+        taxonomyValue?.let { return it }
+        return taxonomyMutex.withLock {
+            taxonomyValue ?: fetcher()?.also { taxonomyValue = it }
+        }
     }
 }

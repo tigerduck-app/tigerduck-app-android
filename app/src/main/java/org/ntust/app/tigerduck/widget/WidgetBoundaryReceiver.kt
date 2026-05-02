@@ -13,8 +13,15 @@ class WidgetBoundaryReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val pending = goAsync()
-        widgetUpdater.requestBoundaryUpdate {
+        try {
+            widgetUpdater.requestBoundaryUpdate {
+                pending.finish()
+            }
+        } catch (t: Throwable) {
+            // Synchronous failure (e.g., DI not initialized) would otherwise
+            // leak the goAsync token and stall the broadcast pipe.
             pending.finish()
+            throw t
         }
     }
 }

@@ -54,24 +54,13 @@ class AuthService @Inject constructor(
 
         try {
             val normalizedId = studentId.trim().uppercase()
-            val serviceUrl = "https://courseselection.ntust.edu.tw/"
-
-            val success = ssoLoginService.ensureServiceLogin(serviceUrl, normalizedId, password)
+            val success = performSsoLoginUnlocked(normalizedId, password)
 
             if (success) {
                 credentials.ntustStudentId = normalizedId
                 credentials.ntustPassword = password
                 _authState.value = true
                 runCatching { pushRegistration.onSignedIn(normalizedId) }
-
-                // Auto-attempt library login (best-effort)
-                if (!credentials.isLibraryTokenValid) {
-                    try {
-                        libraryService.login(normalizedId, password)
-                    } catch (e: Exception) {
-                        // Ignore — library credentials may differ
-                    }
-                }
             }
 
             _isLoggingIn.value = false
@@ -97,24 +86,34 @@ class AuthService @Inject constructor(
         if (sessionManager.cookiesValid) return@withLock true
 
         try {
-            val normalizedId = studentId.trim().uppercase()
-            val serviceUrl = "https://courseselection.ntust.edu.tw/"
-            val success = ssoLoginService.ensureServiceLogin(serviceUrl, normalizedId, password)
-
-            if (success) {
-                if (!credentials.isLibraryTokenValid) {
-                    try {
-                        libraryService.login(normalizedId, password)
-                    } catch (_: Exception) { }
-                }
-            }
-
-            success
+            performSsoLoginUnlocked(studentId.trim().uppercase(), password)
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
             false
         }
+    }
+
+    /**
+     * Shared SSO + library login work. Caller MUST already hold [loginMutex] —
+     * Kotlin `Mutex` is non-reentrant, so the public entry points each acquire
+     * the lock once and delegate here, avoiding the deadlock that would happen
+     * if one path called the other.
+     */
+    private suspend fun performSsoLoginUnlocked(
+        normalizedId: String,
+        password: String,
+    ): Boolean {
+        val serviceUrl = "https://courseselection.ntust.edu.tw/"
+        val success = ssoLoginService.ensureServiceLogin(serviceUrl, normalizedId, password)
+        if (success && !credentials.isLibraryTokenValid) {
+            // Best-effort: library credentials may differ from NTUST SSO.
+            try {
+                libraryService.login(normalizedId, password)
+            } catch (_: Exception) {
+            }
+        }
+        return success
     }
 
     fun logout() {
@@ -124,5 +123,9 @@ class AuthService @Inject constructor(
         _loginError.value = null
         _authState.value = false
         pushRegistration.unregister()
+    }
+
+    fun clearLoginError() {
+        _loginError.value = null
     }
 }

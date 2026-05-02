@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,15 +56,15 @@ fun CalendarScreen(
     var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(Unit) { viewModel.load() }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) { viewModel.load() }
+    LaunchedEffect(viewModel) {
         viewModel.syncCompleteEvent.collect {
             showCheckmark = true
             delay(2000)
             showCheckmark = false
         }
     }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) {
         viewModel.noNetworkEvent.collect {
             snackbarHostState.showSnackbar(context.getString(R.string.error_network_unavailable))
         }
@@ -157,7 +158,7 @@ private fun MonthCalendar(
 
     val pagerState = rememberPagerState(initialPage = 1000) { 2000 }
 
-    // Sync pager with ViewModel's displayedMonth
+    // Sync pager with ViewModel's displayedMonth (VM → pager).
     LaunchedEffect(displayedMonth) {
         val diff = getYearMonthDiff(baseDate, displayedMonth)
         val targetPage = 1000 + diff
@@ -166,13 +167,22 @@ private fun MonthCalendar(
         }
     }
 
-    // Sync ViewModel with pager's currentPage
-    LaunchedEffect(pagerState.currentPage) {
-        val diff = pagerState.currentPage - 1000
-        val newMonth = getDateFromDiff(baseDate, diff)
-        if (!isSameMonth(newMonth, displayedMonth)) {
-            onMonthChanged(newMonth)
-        }
+    // Sync ViewModel with pager once it SETTLES (pager → VM). Listening to
+    // currentPage instead reports transient values during fast swipes /
+    // animateScrollToPage and re-triggers the VM→pager effect, producing a
+    // ping-pong. settledPage debounces this to the post-animation page only.
+    val currentDisplayedMonth by rememberUpdatedState(displayedMonth)
+    val currentOnMonthChanged by rememberUpdatedState(onMonthChanged)
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }
+            .distinctUntilChanged()
+            .collect { settled ->
+                val diff = settled - 1000
+                val newMonth = getDateFromDiff(baseDate, diff)
+                if (!isSameMonth(newMonth, currentDisplayedMonth)) {
+                    currentOnMonthChanged(newMonth)
+                }
+            }
     }
 
     val cal = Calendar.getInstance(taipeiTz).apply { time = displayedMonth }

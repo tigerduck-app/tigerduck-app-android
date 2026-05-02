@@ -128,7 +128,10 @@ fun HomeScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    LaunchedEffect(Unit) {
+    // Key on viewModel so a fresh collector is launched on each remount;
+    // collecting on Unit means events emitted while the screen is in the back
+    // stack stay attached to a stale collector and can be lost.
+    LaunchedEffect(viewModel) {
         viewModel.syncCompleteEvent.collect {
             showCheckmark = true
             delay(2000)
@@ -136,13 +139,19 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(viewModel) {
         viewModel.noNetworkEvent.collect {
             snackbarHostState.showSnackbar(context.getString(R.string.error_network_unavailable))
         }
     }
 
     var pullProgress by remember { mutableFloatStateOf(0f) }
+    // Stable lambda reference: a fresh `viewModel::hasUnfinishedAssignment`
+    // bound-method allocation per recomposition would defeat skipping for
+    // every HomeSectionContent below.
+    val hasUnfinishedAssignment = remember(viewModel) {
+        { id: String -> viewModel.hasUnfinishedAssignment(id) }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         TigerPullToRefresh(
@@ -234,7 +243,7 @@ fun HomeScreen(
                             isLoggedIn = isLoggedIn,
                             isLoading = isLoading,
                             initialLoadComplete = initialLoadComplete,
-                            hasUnfinishedAssignment = viewModel::hasUnfinishedAssignment,
+                            hasUnfinishedAssignment = hasUnfinishedAssignment,
                             showAbsoluteTime = appState.showAbsoluteAssignmentTime,
                             invertDirection = appState.invertSliderDirection,
                             onCourseClick = {
@@ -283,9 +292,14 @@ fun HomeScreen(
     }
 
     selectedCourse?.let { course ->
+        // Cache per courseNo so re-running the linear filter every parent
+        // recomposition (any state tick while the dialog is open) goes away.
+        val dialogAssignments = remember(course.courseNo, upcomingAssignments) {
+            viewModel.assignmentsFor(course.courseNo)
+        }
         CourseDetailDialog(
             course = course,
-            assignments = viewModel.assignmentsFor(course.courseNo),
+            assignments = dialogAssignments,
             onDismiss = { viewModel.selectCourse(null) }
         )
     }
@@ -452,18 +466,25 @@ private fun HomeSectionContent(
                         )
                     ) {
                         upcomingAssignments.forEachIndexed { index, assignment ->
-                            val isMarkedCompleted = assignment.assignmentId in markedCompletedIds
-                            SwipeableAssignmentRow(
-                                assignment = assignment,
-                                isIgnored = assignment.assignmentId in ignoredAssignmentIds,
-                                isMarkedCompleted = isMarkedCompleted,
-                                showAbsoluteTime = showAbsoluteTime,
-                                onClick = { onAssignmentClick(assignment) },
-                                onToggleIgnore = { onToggleIgnore(assignment) },
-                                onMarkCompleted = { onMarkCompleted(assignment) },
-                            )
-                            if (index < upcomingAssignments.lastIndex) {
-                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            // SwipeableAssignmentRow keeps an Animatable keyed
+                            // by assignmentId; without `key()` here the parent
+                            // forEach has no item identity, so removing or
+                            // ignoring an assignment would rebind the next
+                            // row to the prior Animatable and leak swipe state.
+                            key(assignment.assignmentId) {
+                                val isMarkedCompleted = assignment.assignmentId in markedCompletedIds
+                                SwipeableAssignmentRow(
+                                    assignment = assignment,
+                                    isIgnored = assignment.assignmentId in ignoredAssignmentIds,
+                                    isMarkedCompleted = isMarkedCompleted,
+                                    showAbsoluteTime = showAbsoluteTime,
+                                    onClick = { onAssignmentClick(assignment) },
+                                    onToggleIgnore = { onToggleIgnore(assignment) },
+                                    onMarkCompleted = { onMarkCompleted(assignment) },
+                                )
+                                if (index < upcomingAssignments.lastIndex) {
+                                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                }
                             }
                         }
                     }

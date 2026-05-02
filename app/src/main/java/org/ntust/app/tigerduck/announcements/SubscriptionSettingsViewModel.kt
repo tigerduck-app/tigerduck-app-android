@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.push.PushDiagnostic
@@ -154,9 +155,15 @@ class SubscriptionSettingsViewModel @Inject constructor(
     private fun save() {
         saveJob?.cancel()
         saveJob = viewModelScope.launch {
-            _state.update { it.copy(saveState = SaveState.Saving) }
+            // updateAndGet pins the rules snapshot atomically with the
+            // Saving flip so a concurrent upsert/delete can't shrink the PUT
+            // body between the state read and the network call, which would
+            // let the response echo overwrite the user's last edit.
+            val rulesToSave = _state
+                .updateAndGet { it.copy(saveState = SaveState.Saving) }
+                .rules
             try {
-                val response = api.putSubscriptions(identity.deviceId(), _state.value.rules)
+                val response = api.putSubscriptions(identity.deviceId(), rulesToSave)
                 _state.update {
                     it.copy(rules = response.rules, saveState = SaveState.Saved)
                 }

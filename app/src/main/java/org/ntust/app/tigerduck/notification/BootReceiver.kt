@@ -27,7 +27,16 @@ class BootReceiver : BroadcastReceiver() {
     @Inject lateinit var widgetBoundaryScheduler: WidgetBoundaryScheduler
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        val action = intent.action
+        if (action != Intent.ACTION_BOOT_COMPLETED &&
+            action != Intent.ACTION_LOCKED_BOOT_COMPLETED) return
+
+        // Our prefs/cache live in credential-protected storage so we can't
+        // read them during direct boot. Return early on LOCKED_BOOT_COMPLETED
+        // before unlock; BOOT_COMPLETED will fire after the user unlocks and
+        // do the actual rescheduling.
+        val userManager = context.getSystemService(android.os.UserManager::class.java)
+        if (userManager?.isUserUnlocked == false) return
 
         val pendingResult = goAsync()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

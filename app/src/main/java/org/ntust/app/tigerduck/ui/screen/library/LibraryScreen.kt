@@ -64,12 +64,13 @@ fun LibraryScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(viewModel) { viewModel.load() }
 
-    // Key the remembered form state to the suggested username so that
-    // logging out + signing in with a different NTUST account pre-fills the
-    // newly stored ID instead of stale text from the previous session.
-    var libUsername by remember(viewModel.suggestedUsername) {
+    // Key on `storedUsername` (a real StateFlow) instead of the plain
+    // suggestedUsername getter — Compose can't observe a non-State property,
+    // so keying on it doesn't re-init the field after a logout + sign-in
+    // with a different NTUST account.
+    var libUsername by remember(storedUsername) {
         mutableStateOf(viewModel.suggestedUsername)
     }
     var libPassword by remember { mutableStateOf("") }

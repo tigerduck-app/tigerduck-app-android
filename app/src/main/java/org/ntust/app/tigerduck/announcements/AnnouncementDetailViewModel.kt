@@ -77,18 +77,17 @@ class AnnouncementDetailViewModel @Inject constructor(
 
         if (cachedTaxonomy == null) {
             viewModelScope.launch {
-                runCatching { api.fetchTaxonomy() }
-                    .onSuccess { tax ->
-                        repository.setTaxonomy(tax)
-                        _state.update { current ->
-                            when (current) {
-                                is State.Loading -> current.copy(taxonomy = tax)
-                                is State.Partial -> current.copy(taxonomy = tax)
-                                is State.Loaded -> current.copy(taxonomy = tax)
-                                is State.Failed -> current.copy(taxonomy = tax)
-                            }
-                        }
+                val tax = repository.getOrFetchTaxonomy {
+                    runCatching { api.fetchTaxonomy() }.getOrNull()
+                } ?: return@launch
+                _state.update { current ->
+                    when (current) {
+                        is State.Loading -> current.copy(taxonomy = tax)
+                        is State.Partial -> current.copy(taxonomy = tax)
+                        is State.Loaded -> current.copy(taxonomy = tax)
+                        is State.Failed -> current.copy(taxonomy = tax)
                     }
+                }
             }
         }
 

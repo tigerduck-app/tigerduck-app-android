@@ -50,6 +50,13 @@ android {
         versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Earliest pin-set expiration across network_security_config.xml.
+        // Used by TigerDuckApp to surface a logcat warning when pins are
+        // within 30 days of expiry; without a runtime check, post-expiry the
+        // platform silently falls back to system CA trust with no UI signal.
+        // 2027-01-18T00:00:00Z = 1800230400000L epoch ms.
+        buildConfigField("long", "PIN_EXPIRY_EPOCH", "1800230400000L")
     }
 
     signingConfigs {

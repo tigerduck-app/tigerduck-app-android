@@ -58,7 +58,10 @@ class AssignmentNotificationScheduler @Inject constructor(
     }
 
     fun cancelAllTracked() {
-        val ids = trackerPrefs.getStringSet("scheduled_ids", emptySet()) ?: emptySet()
+        // Copy the returned set: SharedPreferences docs forbid mutating it,
+        // and concurrent BackgroundSyncWorker / BootReceiver callers iterating
+        // the same backing instance risk ConcurrentModificationException.
+        val ids = (trackerPrefs.getStringSet("scheduled_ids", emptySet()) ?: emptySet()).toHashSet()
         for (id in ids) {
             val intent = Intent(context, AssignmentNotificationReceiver::class.java)
             val pendingIntent = PendingIntent.getBroadcast(

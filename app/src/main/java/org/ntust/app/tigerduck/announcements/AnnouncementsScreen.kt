@@ -24,6 +24,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -272,6 +274,19 @@ private fun BulletinList(
     onToggleRead: (Int) -> Unit,
     onLastVisible: (BulletinSummary) -> Unit,
 ) {
+    // Single layoutInfo subscription instead of N per-item LaunchedEffects.
+    // rememberUpdatedState lets the long-lived collector see the latest list
+    // without restarting on every page append.
+    val currentItems by rememberUpdatedState(items)
+    val currentOnLastVisible by rememberUpdatedState(onLastVisible)
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .filterNotNull()
+            .distinctUntilChanged()
+            .collect { lastIndex ->
+                currentItems.getOrNull(lastIndex)?.let(currentOnLastVisible)
+            }
+    }
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -279,7 +294,6 @@ private fun BulletinList(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(items, key = { it.id }) { item ->
-            LaunchedEffect(item.id) { onLastVisible(item) }
             SwipeableBulletinCard(
                 item = item,
                 taxonomy = taxonomy,

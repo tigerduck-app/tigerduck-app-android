@@ -30,7 +30,13 @@ class PushApiClient @Inject constructor(
     }.apply {
         level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
         else HttpLoggingInterceptor.Level.NONE
+        // Redact every credential the base client or this interceptor may add;
+        // HEADERS level otherwise dumps them into logcat verbatim on debug.
         redactHeader("X-Push-Token")
+        redactHeader("Authorization")
+        redactHeader("Cookie")
+        redactHeader("Set-Cookie")
+        redactHeader("Proxy-Authorization")
     }
 
     private val client = baseClient.newBuilder()

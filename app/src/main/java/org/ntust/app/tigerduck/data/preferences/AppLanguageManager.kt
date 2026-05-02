@@ -77,8 +77,25 @@ object AppLanguageManager {
     fun isCourseApiEnglish(appLanguage: String): Boolean = resolvedCourseApiLanguage(appLanguage) == "en"
 
     fun apply(language: String) {
+        AppCompatDelegate.setApplicationLocales(toLocaleList(language))
+    }
+
+    /**
+     * Resolve the user's chosen language to a concrete [Locale] for one-shot
+     * use (e.g. notification-channel name lookup before
+     * [AppCompatDelegate.setApplicationLocales] takes effect on first launch).
+     * Returns null when the user has chosen "Follow system" — callers should
+     * fall back to the platform default locale.
+     */
+    fun resolveExplicitLocale(language: String): Locale? {
+        val list = toLocaleList(language)
+        if (list.isEmpty) return null
+        return list[0]
+    }
+
+    private fun toLocaleList(language: String): LocaleListCompat {
         val normalized = normalize(language)
-        val locales = when (normalized) {
+        return when (normalized) {
             // SYSTEM: empty list lets Android track the device locale live.
             // Pinning a tag here would persist across a system-locale change
             // and make "Follow system" stop following.
@@ -89,6 +106,5 @@ object AppLanguageManager {
             SIMPLIFIED_CHINESE -> LocaleListCompat.forLanguageTags("zh-Hans-CN")
             else -> LocaleListCompat.forLanguageTags(normalized)
         }
-        AppCompatDelegate.setApplicationLocales(locales)
     }
 }

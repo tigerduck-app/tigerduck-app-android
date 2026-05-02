@@ -53,8 +53,8 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
 
     /** One JSON file per id mirrors iOS DataCache.bulletinDetailDir(); keeps
      *  writes small and avoids rewriting an aggregated file on every open. */
-    suspend fun loadDetail(id: Int): BulletinDetail? = detailLock(id).withLock {
-        withContext(Dispatchers.IO) {
+    suspend fun loadDetail(id: Int): BulletinDetail? = withContext(Dispatchers.IO) {
+        detailLock(id).withLock {
             val f = File(detailDir, "$id.json")
             try {
                 if (f.exists()) gson.fromJson(f.readText(), BulletinDetail::class.java) else null
@@ -64,8 +64,8 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    suspend fun saveDetail(detail: BulletinDetail) = detailLock(detail.id).withLock {
-        withContext(Dispatchers.IO) {
+    suspend fun saveDetail(detail: BulletinDetail) = withContext(Dispatchers.IO) {
+        detailLock(detail.id).withLock {
             writeAtomically(File(detailDir, "${detail.id}.json"), gson.toJson(detail))
         }
     }

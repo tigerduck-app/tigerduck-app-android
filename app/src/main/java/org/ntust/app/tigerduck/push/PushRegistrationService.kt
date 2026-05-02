@@ -80,11 +80,16 @@ class PushRegistrationService @Inject constructor(
 
     fun unregister() {
         scope.launch {
-            mutex.withLock { debounceJob?.cancel() }
+            // Clear fcmToken in the same critical section that cancels the
+            // debounce so a scheduleRegister fired during the API round-trip
+            // can't see a non-null token and resurrect the row we're deleting.
+            mutex.withLock {
+                debounceJob?.cancel()
+                fcmToken = null
+            }
             val deviceId = identity.deviceId()
             runCatching { api.unregister(deviceId) }
                 .onFailure { Log.w(TAG, "unregister failed", it) }
-            mutex.withLock { fcmToken = null }
             updateDiagnostic {
                 PushDiagnostic(
                     hasFcmToken = false,
@@ -126,17 +131,24 @@ class PushRegistrationService @Inject constructor(
         }
     }
 
-    private fun updateDiagnostic(block: (PushDiagnostic) -> PushDiagnostic) {
-        val next = block(_diagnostic.value)
-        _diagnostic.value = next
-        val editor = prefs.edit()
-            .putBoolean(KEY_HAS_TOKEN, next.hasFcmToken)
-            .putBoolean(KEY_REGISTERED, next.isRegistered)
-        if (next.lastRegistrationAt == null) editor.remove(KEY_LAST_REG)
-        else editor.putLong(KEY_LAST_REG, next.lastRegistrationAt)
-        if (next.lastError == null) editor.remove(KEY_LAST_ERR)
-        else editor.putString(KEY_LAST_ERR, next.lastError)
-        editor.apply()
+    /**
+     * Atomic read-modify-write for the diagnostic snapshot. Concurrent
+     * performRegister.onSuccess + unregister callers would otherwise lose
+     * updates if both read .value, transformed, and wrote back without a lock.
+     */
+    private suspend fun updateDiagnostic(block: (PushDiagnostic) -> PushDiagnostic) {
+        mutex.withLock {
+            val next = block(_diagnostic.value)
+            _diagnostic.value = next
+            val editor = prefs.edit()
+                .putBoolean(KEY_HAS_TOKEN, next.hasFcmToken)
+                .putBoolean(KEY_REGISTERED, next.isRegistered)
+            if (next.lastRegistrationAt == null) editor.remove(KEY_LAST_REG)
+            else editor.putLong(KEY_LAST_REG, next.lastRegistrationAt)
+            if (next.lastError == null) editor.remove(KEY_LAST_ERR)
+            else editor.putString(KEY_LAST_ERR, next.lastError)
+            editor.apply()
+        }
     }
 
     private fun loadInitialDiagnostic(): PushDiagnostic = PushDiagnostic(

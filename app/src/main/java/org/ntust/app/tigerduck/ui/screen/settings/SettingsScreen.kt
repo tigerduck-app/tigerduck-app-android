@@ -87,7 +87,8 @@ fun SettingsScreen(
 
     val appVersion = remember { BuildConfig.VERSION_NAME }
 
-    // Show network error as snackbar
+    // Show network error as snackbar; clear after display so navigating
+    // away and back doesn't re-surface a stale error.
     LaunchedEffect(ntustLoginError) {
         val error = ntustLoginError ?: return@LaunchedEffect
         if (
@@ -97,6 +98,7 @@ fun SettingsScreen(
             error.contains("connection", ignoreCase = true)
         ) {
             snackbarHostState.showSnackbar(error)
+            viewModel.clearNtustLoginError()
         }
     }
 

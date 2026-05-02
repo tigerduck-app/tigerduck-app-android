@@ -80,11 +80,16 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
      * One-shot migration for installs that were already writing manual
      * courses to cacheDir. If the cache still contains isManual entries and
      * the durable file is empty, copy them across.
+     *
+     * Note: bare file-existence is insufficient — saveCourses always writes
+     * the user-data file (even with `[]` for users with zero manual courses
+     * at the time), which would otherwise mask a later legacy import that
+     * does contain manual entries.
      */
     private suspend fun migrateManualCoursesToUserData(semester: String) {
-        val userFile = File(userDataDir, manualCoursesFilename(semester))
-        if (userFile.exists()) return
         val type = object : TypeToken<List<Course>>() {}.type
+        val existing = loadFromUserData<List<Course>>(type, manualCoursesFilename(semester))
+        if (!existing.isNullOrEmpty()) return
         val cached = load<List<Course>>(type, coursesFilename(semester)) ?: return
         val manual = cached.filter { it.isManual }
         if (manual.isEmpty()) return
