@@ -1,5 +1,11 @@
 package org.ntust.app.tigerduck.ui.screen.onboarding
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -9,7 +15,15 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.*
@@ -59,7 +73,8 @@ fun OnboardingScreen(
         ) { page ->
             when (page) {
                 0 -> OnboardingPage(
-                    icon = "🎓",
+                    icon = Icons.Filled.School,
+                    iconTint = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.onboarding_welcome_title),
                     subtitle = stringResource(R.string.onboarding_welcome_subtitle)
                 ) {
@@ -70,7 +85,8 @@ fun OnboardingScreen(
                 }
 
                 1 -> OnboardingPage(
-                    icon = "🔑",
+                    icon = Icons.Filled.Key,
+                    iconTint = Color(0xFF2E7D32),
                     title = stringResource(R.string.onboarding_login_title),
                     subtitle = stringResource(R.string.onboarding_login_subtitle)
                 ) {
@@ -161,7 +177,8 @@ fun OnboardingScreen(
                 }
 
                 2 -> OnboardingPage(
-                    icon = "⚙️",
+                    icon = Icons.Filled.Tune,
+                    iconTint = Color(0xFFEF6C00),
                     title = stringResource(R.string.onboarding_choose_features_title),
                     subtitle = stringResource(R.string.onboarding_choose_features_subtitle)
                 ) {
@@ -177,7 +194,8 @@ fun OnboardingScreen(
                 )
 
                 4 -> OnboardingPage(
-                    icon = "✅",
+                    icon = Icons.Filled.CheckCircle,
+                    iconTint = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.onboarding_ready_title),
                     subtitle = stringResource(R.string.onboarding_ready_subtitle)
                 ) {
@@ -226,7 +244,10 @@ private fun PermissionsPage(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("🔔", style = MaterialTheme.typography.displayMedium)
+        PulsingIcon(
+            icon = Icons.Filled.Notifications,
+            tint = MaterialTheme.colorScheme.tertiary,
+        )
         Text(
             stringResource(R.string.onboarding_permissions_title),
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
@@ -252,7 +273,8 @@ private fun PermissionsPage(
 
 @Composable
 private fun OnboardingPage(
-    icon: String,
+    icon: ImageVector,
+    iconTint: Color,
     title: String,
     subtitle: String,
     content: @Composable ColumnScope.() -> Unit
@@ -265,7 +287,7 @@ private fun OnboardingPage(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(text = icon, style = MaterialTheme.typography.displayMedium)
+        PulsingIcon(icon = icon, tint = iconTint)
         Text(
             text = title,
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
@@ -281,4 +303,36 @@ private fun OnboardingPage(
         Spacer(Modifier.height(16.dp))
         content()
     }
+}
+
+@Composable
+private fun PulsingIcon(
+    icon: ImageVector,
+    tint: Color,
+    modifier: Modifier = Modifier,
+) {
+    val transition = rememberInfiniteTransition(label = "onboarding-pulse")
+    val pulse by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "onboarding-pulse-fraction",
+    )
+    val alpha = 0.45f + 0.55f * pulse
+    val scale = 0.94f + 0.08f * pulse
+    Icon(
+        imageVector = icon,
+        contentDescription = null,
+        tint = tint,
+        modifier = modifier
+            .size(72.dp)
+            .graphicsLayer {
+                this.alpha = alpha
+                scaleX = scale
+                scaleY = scale
+            },
+    )
 }
