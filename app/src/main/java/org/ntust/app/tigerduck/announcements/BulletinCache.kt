@@ -9,6 +9,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,17 +26,12 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
     private val file = File(dir, "summaries.json")
     private val detailDir: File = File(dir, "details").also { it.mkdirs() }
     private val mutex = Mutex()
-    private val detailLocks = object : LinkedHashMap<Int, Mutex>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: Map.Entry<Int, Mutex>): Boolean =
-            size > MAX_DETAIL_LOCKS
-    }
-    private val detailLocksGuard = Mutex()
+    private val detailLocks = ConcurrentHashMap<Int, Mutex>()
     private val gson = Gson()
     private val listType = object : TypeToken<List<BulletinSummary>>() {}.type
 
-    private suspend fun detailLock(id: Int): Mutex = detailLocksGuard.withLock {
+    private fun detailLock(id: Int): Mutex =
         detailLocks.getOrPut(id) { Mutex() }
-    }
 
     suspend fun load(): List<BulletinSummary> = mutex.withLock {
         withContext(Dispatchers.IO) {
@@ -88,7 +84,4 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    private companion object {
-        const val MAX_DETAIL_LOCKS = 128
-    }
 }
