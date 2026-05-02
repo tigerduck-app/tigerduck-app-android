@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupContent
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import androidx.compose.ui.res.stringResource
@@ -77,23 +78,15 @@ fun OnboardingScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxWidth(0.8f)
                     ) {
-                        OutlinedTextField(
+                        OutlinedAccountIdField(
                             value = studentId,
                             onValueChange = { studentId = it.uppercase() },
-                            label = { Text(stringResource(R.string.login_student_id)) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(
-                                autoCorrectEnabled = false,
-                                capitalization = KeyboardCapitalization.Characters,
-                                keyboardType = KeyboardType.Ascii,
-                                imeAction = ImeAction.Next
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .semantics { contentType = ContentType.Username }
+                            label = stringResource(R.string.login_student_id),
+                            capitalization = KeyboardCapitalization.Characters,
+                            imeAction = ImeAction.Next,
+                            onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+                            autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                         OutlinedTextField(
                             value = password,

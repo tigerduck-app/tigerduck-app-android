@@ -38,6 +38,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -298,19 +299,14 @@ private fun LoginPromptCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
             )
-            OutlinedTextField(
+            OutlinedAccountIdField(
                 value = username,
                 onValueChange = onUsernameChange,
-                label = { Text(stringResource(R.string.library_login_username)) },
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics { contentType = ContentType.Username },
-                keyboardOptions = KeyboardOptions(
-                    autoCorrectEnabled = false,
-                    capitalization = KeyboardCapitalization.Characters,
-                    keyboardType = KeyboardType.Ascii
-                )
+                label = stringResource(R.string.library_login_username),
+                capitalization = KeyboardCapitalization.Characters,
+                imeAction = ImeAction.Next,
+                autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
+                modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = password,

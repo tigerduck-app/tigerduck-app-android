@@ -26,6 +26,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 
 /**
  * Login prompt rendered as an AlertDialog — matches the class-detail popup
@@ -71,29 +72,22 @@ fun LoginSheet(
         title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+                OutlinedAccountIdField(
                     value = username,
                     onValueChange = { raw ->
                         val stripped = raw.filter { ch -> !ch.isWhitespace() }
                         username = if (uppercaseInput) stripped.uppercase() else stripped
                     },
-                    label = { Text(usernamePlaceholder) },
-                    singleLine = true,
+                    label = usernamePlaceholder,
+                    capitalization = if (uppercaseInput) KeyboardCapitalization.Characters
+                        else KeyboardCapitalization.None,
+                    imeAction = ImeAction.Next,
+                    onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+                    enabled = !isLoggingIn,
+                    autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(usernameFocusRequester)
-                        .semantics { contentType = ContentType.Username },
-                    keyboardOptions = KeyboardOptions(
-                        autoCorrectEnabled = false,
-                        capitalization = if (uppercaseInput) KeyboardCapitalization.Characters
-                            else KeyboardCapitalization.None,
-                        keyboardType = KeyboardType.Ascii,
-                        imeAction = ImeAction.Next,
-                    ),
-                    keyboardActions = KeyboardActions(onNext = {
-                        focusManager.moveFocus(FocusDirection.Down)
-                    }),
-                    enabled = !isLoggingIn,
+                        .focusRequester(usernameFocusRequester),
                 )
                 OutlinedTextField(
                     value = password,
