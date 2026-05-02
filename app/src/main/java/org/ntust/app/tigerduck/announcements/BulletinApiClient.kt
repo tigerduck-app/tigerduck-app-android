@@ -126,6 +126,12 @@ class BulletinApiClient @Inject constructor(
         }
     }
 
+    /**
+     * Concrete (non-generic) [T] only. `T::class.java` erases type parameters,
+     * so calling this with e.g. `List<BulletinSummary>` deserializes to
+     * `List<LinkedTreeMap<*,*>>` and the cast only blows up later when items
+     * are accessed. For parameterised types, deserialize with a `TypeToken`.
+     */
     private suspend inline fun <reified T> getJson(url: String, authed: Boolean = false): T =
         withContext(Dispatchers.IO) {
             val c = if (authed) authedClient else client

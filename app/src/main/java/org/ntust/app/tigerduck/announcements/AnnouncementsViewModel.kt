@@ -159,6 +159,14 @@ class AnnouncementsViewModel @Inject constructor(
         }
     }
 
+    // refresh() cancels prefetch before relaunching, but cancellation of a
+    // coroutine suspended inside withContext(Dispatchers.IO) (the OkHttp call)
+    // is deferred until the network returns. In that window prefetch and the
+    // new inflight can both resume on Main and race on nextCursor / state.
+    // Dispatchers.Main.immediate makes overlap vanishingly rare today, but the
+    // ensureActive() before each write is what actually keeps the older job
+    // from clobbering newer state — don't remove it on the assumption that
+    // Main scheduling alone is enough.
     private fun startBackgroundPrefetch(includeDeleted: Boolean) {
         prefetch?.cancel()
         prefetch = viewModelScope.launch {

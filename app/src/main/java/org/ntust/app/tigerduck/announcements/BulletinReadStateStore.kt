@@ -3,16 +3,9 @@ package org.ntust.app.tigerduck.announcements
 import android.content.Context
 import android.content.SharedPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.ntust.app.tigerduck.di.ApplicationScope
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,7 +19,6 @@ import javax.inject.Singleton
 @Singleton
 class BulletinReadStateStore @Inject constructor(
     @ApplicationContext context: Context,
-    @param:ApplicationScope private val persistScope: CoroutineScope,
 ) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("bulletin_read_state", Context.MODE_PRIVATE)
@@ -34,11 +26,6 @@ class BulletinReadStateStore @Inject constructor(
     private val lock = Any()
     private val _readIds = MutableStateFlow(loadFromPrefs())
     val readIds: StateFlow<Set<Int>> = _readIds.asStateFlow()
-
-    // Debounce per-toggle persists so a rapid series of swipes coalesces into
-    // one disk write instead of N. markAllRead/prune still persist immediately
-    // since those are batched user actions.
-    private var pendingPersist: Job? = null
 
     fun isRead(id: Int): Boolean = id in _readIds.value
 
@@ -62,7 +49,7 @@ class BulletinReadStateStore @Inject constructor(
             val merged = current + ids
             if (merged.size == current.size) return
             _readIds.value = merged
-            persistNow()
+            writeToPrefs()
         }
     }
 
@@ -73,47 +60,29 @@ class BulletinReadStateStore @Inject constructor(
             val trimmed = current.intersect(keep.toSet())
             if (trimmed.size == current.size) return
             _readIds.value = trimmed
-            persistNow()
+            writeToPrefs()
         }
     }
 
+    // Persist synchronously inside the lock instead of through a debounced
+    // coroutine: a 300 ms delay() suspended in ApplicationScope would be
+    // cancelled — and the write dropped — if the process is killed (memory
+    // pressure, swipe-to-close) between tap and flush, silently reverting
+    // an article to "unread" on next launch. SharedPreferences.apply() is
+    // already non-blocking on the caller, and the kernel coalesces back-to-
+    // back writes, so we don't need our own debouncer.
     private fun markReadLocked(id: Int) {
         val current = _readIds.value
         if (id in current) return
         _readIds.value = current + id
-        persistDebounced()
+        writeToPrefs()
     }
 
     private fun markUnreadLocked(id: Int) {
         val current = _readIds.value
         if (id !in current) return
         _readIds.value = current - id
-        persistDebounced()
-    }
-
-    // Cancelling pendingPersist only interrupts a job that's still in delay();
-    // once it's inside synchronized(lock) in writeToPrefs(), JVM monitors are
-    // not cancellation-aware, so a superseding persistNow()/persistDebounced()
-    // can run writeToPrefs() concurrently. Both paths write the same
-    // KEY_READ_IDS via SharedPreferences.apply(), so last-write-wins on the
-    // current snapshot of _readIds is acceptable — no data is lost.
-    private fun persistDebounced() {
-        pendingPersist?.cancel()
-        pendingPersist = persistScope.launch {
-            delay(PERSIST_DEBOUNCE_MS)
-            withContext(Dispatchers.IO) {
-                synchronized(lock) { writeToPrefs() }
-            }
-        }
-    }
-
-    private fun persistNow() {
-        pendingPersist?.cancel()
-        pendingPersist = persistScope.launch {
-            withContext(Dispatchers.IO) {
-                synchronized(lock) { writeToPrefs() }
-            }
-        }
+        writeToPrefs()
     }
 
     private fun writeToPrefs() {
@@ -130,6 +99,5 @@ class BulletinReadStateStore @Inject constructor(
 
     private companion object {
         const val KEY_READ_IDS = "read_ids"
-        const val PERSIST_DEBOUNCE_MS = 300L
     }
 }

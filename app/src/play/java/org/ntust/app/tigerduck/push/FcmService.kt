@@ -84,6 +84,7 @@ class FcmService : FirebaseMessagingService() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
         runCatching { manager.notify(id, notification) }
+            .onFailure { Log.w(TAG, "notify failed for bulletin $id", it) }
     }
 
     companion object {
