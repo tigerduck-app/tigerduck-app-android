@@ -446,12 +446,14 @@ private fun HomeSectionContent(
 
             HomeSection.HomeSectionType.UPCOMING_ASSIGNMENTS -> {
                 SectionHeader(title = if (section.type == HomeSection.HomeSectionType.CUSTOM) section.title else stringResource(section.type.defaultTitleRes))
-                AssignmentFilterTabs(
-                    selected = assignmentFilter,
-                    enabled = isLoggedIn,
-                    showIgnoredTab = showIgnoredTab,
-                    onSelect = onSelectFilter,
-                )
+                if (isLoggedIn) {
+                    AssignmentFilterTabs(
+                        selected = assignmentFilter,
+                        enabled = true,
+                        showIgnoredTab = showIgnoredTab,
+                        onSelect = onSelectFilter,
+                    )
+                }
                 if (upcomingAssignments.isEmpty()) {
                     AssignmentsEmptyState(
                         isLoggedIn = isLoggedIn,

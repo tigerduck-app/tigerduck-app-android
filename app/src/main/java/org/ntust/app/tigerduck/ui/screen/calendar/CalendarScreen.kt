@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -30,6 +31,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.CalendarEvent
+import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
@@ -96,36 +98,45 @@ fun CalendarScreen(
                 }
             }
 
-            item {
-                MonthCalendar(
-                    displayedMonth = displayedMonth,
-                    selectedDate = selectedDate,
-                    events = events,
-                    onDateSelected = { viewModel.selectDate(it) },
-                    onMonthChanged = { viewModel.setDisplayedMonth(it) }
-                )
-            }
-
-            item {
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-            }
-
-            if (dayEvents.isEmpty()) {
+            if (!isLoggedIn) {
                 item {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            if (isLoggedIn) stringResource(R.string.calendar_no_events_on_day)
-                            else stringResource(R.string.common_login_required_feature),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                        )
-                    }
+                    EmptyStateView(
+                        icon = Icons.Filled.Lock,
+                        title = stringResource(R.string.common_not_logged_in),
+                        message = stringResource(R.string.common_login_required_feature),
+                    )
                 }
             } else {
-                items(dayEvents) { event ->
-                    EventRow(event)
+                item {
+                    MonthCalendar(
+                        displayedMonth = displayedMonth,
+                        selectedDate = selectedDate,
+                        events = events,
+                        onDateSelected = { viewModel.selectDate(it) },
+                        onMonthChanged = { viewModel.setDisplayedMonth(it) }
+                    )
+                }
+
+                item {
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                }
+
+                if (dayEvents.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                stringResource(R.string.calendar_no_events_on_day),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                            )
+                        }
+                    }
+                } else {
+                    items(dayEvents) { event ->
+                        EventRow(event)
+                    }
                 }
             }
         }

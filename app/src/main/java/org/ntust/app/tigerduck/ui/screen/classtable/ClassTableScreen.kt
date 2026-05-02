@@ -152,6 +152,16 @@ fun ClassTableScreen(
                 }
             }
 
+            if (!isLoggedIn) {
+                org.ntust.app.tigerduck.ui.component.EmptyStateView(
+                    icon = Icons.Filled.Lock,
+                    title = stringResource(R.string.common_not_logged_in),
+                    message = stringResource(R.string.common_login_required_feature),
+                )
+                Spacer(Modifier.height(32.dp))
+                return@Column
+            }
+
             // Today's courses carousel — only meaningful when the user is
             // viewing the live semester. Past semesters are historical
             // records, so "現在課程 / 今日課程" don't apply there.
@@ -265,12 +275,6 @@ fun ClassTableScreen(
                     onPickConflict = { a, b, weekday, periodId ->
                         conflictPicker = ConflictPickerTarget(a, b, weekday, periodId)
                     },
-                )
-            } else if (!isLoggedIn) {
-                org.ntust.app.tigerduck.ui.component.EmptyStateView(
-                    icon = Icons.Filled.Lock,
-                    title = stringResource(R.string.common_not_logged_in),
-                    message = stringResource(R.string.common_login_required_feature),
                 )
             }
 
