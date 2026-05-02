@@ -9,10 +9,10 @@
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />
 
-    <!-- Local Part-D backend on the developer laptop. -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">192.168.10.160</domain>
-    </domain-config>
+    <!-- Local testing backend server -->
+<!--    <domain-config cleartextTrafficPermitted="true">-->
+<!--        <domain includeSubdomains="false">ip-addr</domain>-->
+<!--    </domain-config>-->
 
     <!--
         Pinned hosts receive NTUST SSO credentials and a long-lived Moodle wstoken.
