@@ -51,11 +51,9 @@
 
         <receiver
             android:name="org.ntust.app.tigerduck.notification.BootReceiver"
-            android:directBootAware="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
 

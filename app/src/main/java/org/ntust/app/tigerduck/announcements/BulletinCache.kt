@@ -10,7 +10,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,12 +26,18 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
     private val file = File(dir, "summaries.json")
     private val detailDir: File = File(dir, "details").also { it.mkdirs() }
     private val mutex = Mutex()
-    private val detailLocks = ConcurrentHashMap<Int, Mutex>()
+    // Bounded LRU so a long session opening many bulletins doesn't accumulate
+    // a permanent Mutex per id. Evicting an unused lock is safe — re-creating
+    // it later costs nothing when there's no in-flight access.
+    private val detailLocks = object : LinkedHashMap<Int, Mutex>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: Map.Entry<Int, Mutex>): Boolean = size > 32
+    }
     private val gson = Gson()
     private val listType = object : TypeToken<List<BulletinSummary>>() {}.type
 
-    private fun detailLock(id: Int): Mutex =
-        detailLocks.computeIfAbsent(id) { Mutex() }
+    private fun detailLock(id: Int): Mutex = synchronized(detailLocks) {
+        detailLocks.getOrPut(id) { Mutex() }
+    }
 
     suspend fun load(): List<BulletinSummary> = mutex.withLock {
         withContext(Dispatchers.IO) {
