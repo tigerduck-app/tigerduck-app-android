@@ -23,9 +23,11 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Course
@@ -40,6 +42,23 @@ private val courseCodePattern = Regex("^[A-Za-z0-9]+$")
 
 private fun looksLikeCourseCode(text: String): Boolean =
     courseCodePattern.matches(text) && text.any { it.isDigit() }
+
+// Map any simplified Han characters in the query to traditional before hitting
+// the zh API — NTUST QueryCourse stores course names in traditional only.
+private val simplifiedToTraditional by lazy {
+    runCatching { android.icu.text.Transliterator.getInstance("Simplified-Traditional") }.getOrNull()
+}
+
+private fun toTraditional(text: String): String =
+    simplifiedToTraditional?.transliterate(text) ?: text
+
+private fun containsHan(text: String): Boolean = text.any {
+    val block = Character.UnicodeBlock.of(it) ?: return@any false
+    block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS ||
+        block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A ||
+        block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B ||
+        block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,33 +104,112 @@ fun AddCourseSheet(
         searchJob?.cancel()
 
         val isCourseCode = looksLikeCourseCode(trimmed)
+        // Always send the traditional form to the zh API so simplified queries
+        // ("隐私") still match traditional course names ("隱私與資訊安全").
+        val zhQuery = toTraditional(trimmed)
+        val enQuery = trimmed
+        val uiLang = courseService.preferredCourseApiLanguage()
+        // Query language drives the parenthetical: when the query language
+        // differs from the UI language, we display the other-language name in
+        // parens. Course codes are language-agnostic — fall back to the UI
+        // language so no parenthetical is shown.
+        val queryLang = when {
+            isCourseCode -> uiLang
+            containsHan(trimmed) -> "zh"
+            else -> "en"
+        }
         searchJob = scope.launch {
             try {
-                val raw = if (isCourseCode) {
-                    courseService.lookupCourse(semester, trimmed)
-                } else {
-                    coroutineScope {
-                        // Fire name + teacher queries concurrently, mirroring the
-                        // iOS `async let` flow so a single input covers both.
-                        val byName = async {
-                            runCatching { courseService.searchCourses(semester, trimmed) }
-                                .getOrDefault(emptyList())
-                        }
-                        val byTeacher = async {
-                            runCatching { courseService.searchByTeacher(semester, trimmed) }
-                                .getOrDefault(emptyList())
-                        }
-                        mergeResults(byName.await(), byTeacher.await())
+                val (zhResults, enResults) = coroutineScope {
+                    val zh = async {
+                        runCatching {
+                            if (isCourseCode) courseService.lookupCourse(semester, trimmed, "zh")
+                            else mergeResults(
+                                runCatching { courseService.searchCourses(semester, zhQuery, "zh") }.getOrDefault(emptyList()),
+                                runCatching { courseService.searchByTeacher(semester, zhQuery, "zh") }.getOrDefault(emptyList()),
+                            )
+                        }.getOrDefault(emptyList())
                     }
+                    val en = async {
+                        runCatching {
+                            if (isCourseCode) courseService.lookupCourse(semester, trimmed, "en")
+                            else mergeResults(
+                                runCatching { courseService.searchCourses(semester, enQuery, "en") }.getOrDefault(emptyList()),
+                                runCatching { courseService.searchByTeacher(semester, enQuery, "en") }.getOrDefault(emptyList()),
+                            )
+                        }.getOrDefault(emptyList())
+                    }
+                    zh.await() to en.await()
                 }
-                searchResults = groupResults(raw, courseService)
-                if (searchResults.isEmpty()) errorMessage = resources.getString(R.string.add_course_not_found)
+                // The name-search API matches against the queried language only, so
+                // searching "隱私" against the EN endpoint returns nothing even when
+                // a course exists. To still surface the other-language name for the
+                // parenthetical, fill in any missing courseNos via lookupCourse,
+                // which is keyed by code and language-agnostic. Lookups are cached
+                // per (semester, courseNo, lang), so this is essentially free on
+                // repeat queries.
+                val (zhFilled, enFilled) = coroutineScope {
+                    val zhByNo = zhResults.associateBy { it.courseNo }
+                    val enByNo = enResults.associateBy { it.courseNo }
+                    val missingZhNos = enByNo.keys - zhByNo.keys
+                    val missingEnNos = zhByNo.keys - enByNo.keys
+                    val zhLookups = missingZhNos.map { no ->
+                        async {
+                            runCatching { courseService.lookupCourse(semester, no, "zh") }
+                                .getOrDefault(emptyList())
+                        }
+                    }
+                    val enLookups = missingEnNos.map { no ->
+                        async {
+                            runCatching { courseService.lookupCourse(semester, no, "en") }
+                                .getOrDefault(emptyList())
+                        }
+                    }
+                    val zhExtras = zhLookups.flatMap { it.await() }
+                    val enExtras = enLookups.flatMap { it.await() }
+                    (zhResults + zhExtras) to (enResults + enExtras)
+                }
+                val grouped = groupBilingualResults(
+                    zhResults = zhFilled,
+                    enResults = enFilled,
+                    courseService = courseService,
+                    uiLang = uiLang,
+                    queryLang = queryLang,
+                )
+                searchResults = grouped
+                errorMessage = if (grouped.isEmpty()) resources.getString(R.string.add_course_not_found) else null
+                isSearching = false
+            } catch (e: CancellationException) {
+                // Superseded by a newer search — leave state for the live job to manage.
+                throw e
             } catch (e: Exception) {
                 errorMessage = resources.getString(R.string.add_course_search_failed, e.message ?: "")
-            } finally {
                 isSearching = false
             }
         }
+    }
+
+    // Live search: debounce typing so we don't fire a request per keystroke,
+    // but users no longer need to press the submit/search action to see results.
+    // Skip very short queries — partial course codes hit an exact-match endpoint
+    // and short name/teacher queries are rejected by the server, both of which
+    // would otherwise surface as a misleading "not found".
+    LaunchedEffect(searchText) {
+        val trimmed = searchText.trim()
+        if (trimmed.isEmpty()) {
+            searchJob?.cancel()
+            searchResults = emptyList()
+            errorMessage = null
+            isSearching = false
+            return@LaunchedEffect
+        }
+        // Course codes need to be entered fully; only run the live search once
+        // the code looks complete. For free-text queries, require at least 2
+        // characters so a single CJK keystroke doesn't fire.
+        val minLength = if (looksLikeCourseCode(trimmed)) 8 else 2
+        if (trimmed.length < minLength) return@LaunchedEffect
+        delay(300)
+        search()
     }
 
     Box(
@@ -380,4 +478,47 @@ private fun groupResults(results: List<CourseSearchResult>, courseService: Cours
     }
 
     return order.mapNotNull { seen[it] }
+}
+
+/**
+ * Run [groupResults] on each language's payload and stitch them together so
+ * each course carries both its zh and en names. When the input language
+ * differs from the UI language we surface the other-language name in
+ * parentheses ("English (中文)" or "中文 (English)") so users searching in a
+ * language they don't read recognize their result.
+ */
+private fun groupBilingualResults(
+    zhResults: List<CourseSearchResult>,
+    enResults: List<CourseSearchResult>,
+    courseService: CourseService,
+    uiLang: String,
+    queryLang: String,
+): List<GroupedCourse> {
+    val zhGroups = groupResults(zhResults, courseService).associateBy { it.courseNo }
+    val enGroups = groupResults(enResults, courseService).associateBy { it.courseNo }
+
+    val primaryGroups = if (uiLang == "zh") zhGroups else enGroups
+    val secondaryGroups = if (uiLang == "zh") enGroups else zhGroups
+
+    // Preserve UI-language ordering; tack on any courses only the other
+    // language matched (covers the case where the API returns nothing for the
+    // UI language but the bilingual query still found a match).
+    val orderedKeys = LinkedHashSet<String>().apply {
+        addAll(primaryGroups.keys)
+        addAll(secondaryGroups.keys)
+    }
+    val showBilingual = queryLang != uiLang
+
+    return orderedKeys.mapNotNull { key ->
+        val primary = primaryGroups[key]
+        val secondary = secondaryGroups[key]
+        val base = primary ?: secondary ?: return@mapNotNull null
+        val primaryName = primary?.courseName?.takeIf { it.isNotBlank() }
+            ?: secondary?.courseName.orEmpty()
+        val secondaryName = secondary?.courseName
+        val displayName = if (showBilingual && !secondaryName.isNullOrBlank() && secondaryName != primaryName) {
+            "$primaryName ($secondaryName)"
+        } else primaryName
+        base.copy(courseName = displayName)
+    }
 }

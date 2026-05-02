@@ -76,10 +76,14 @@ class CourseService @Inject constructor(
             }
         }
 
-    suspend fun lookupCourse(semester: String, courseNo: String): List<CourseSearchResult> =
+    suspend fun lookupCourse(
+        semester: String,
+        courseNo: String,
+        lang: String = preferredCourseApiLanguage(),
+    ): List<CourseSearchResult> =
         withContext(Dispatchers.IO) {
             ensureLookupCacheLoaded()
-            val language = preferredCourseApiLanguage()
+            val language = lang
             // Cached results are always the raw API payload (full names);
             // applyAbbreviations runs at access time, so toggling the abbr
             // setting reuses the same cache entry and never refetches.
@@ -123,9 +127,13 @@ class CourseService @Inject constructor(
         dataCache.saveCourseLookups(lookupCache.toMap())
     }
 
-    suspend fun searchCourses(semester: String, courseName: String): List<CourseSearchResult> =
+    suspend fun searchCourses(
+        semester: String,
+        courseName: String,
+        lang: String = preferredCourseApiLanguage(),
+    ): List<CourseSearchResult> =
         withContext(Dispatchers.IO) {
-            val language = preferredCourseApiLanguage()
+            val language = lang
             val requestBody = gson.toJson(CourseSearchRequest.forCourseName(courseName, semester, language))
                 .toRequestBody("application/json".toMediaType())
 
@@ -143,9 +151,13 @@ class CourseService @Inject constructor(
             }
         }
 
-    suspend fun searchByTeacher(semester: String, teacher: String): List<CourseSearchResult> =
+    suspend fun searchByTeacher(
+        semester: String,
+        teacher: String,
+        lang: String = preferredCourseApiLanguage(),
+    ): List<CourseSearchResult> =
         withContext(Dispatchers.IO) {
-            val language = preferredCourseApiLanguage()
+            val language = lang
             val requestBody = gson.toJson(CourseSearchRequest.forCourseTeacher(teacher, semester, language))
                 .toRequestBody("application/json".toMediaType())
 
@@ -225,7 +237,7 @@ class CourseService @Inject constructor(
         }
     }
 
-    private fun preferredCourseApiLanguage(): String {
+    fun preferredCourseApiLanguage(): String {
         return AppLanguageManager.resolvedCourseApiLanguage(appPreferences.appLanguage)
     }
 
