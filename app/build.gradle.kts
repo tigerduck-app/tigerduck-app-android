@@ -44,7 +44,7 @@ android {
 
     defaultConfig {
         applicationId = "org.ntust.app.tigerduck"
-        minSdk = 26
+        minSdk = 29
         targetSdk = 36
         versionCode = 9
         versionName = "1.3.0"
