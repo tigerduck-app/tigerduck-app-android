@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Prikaži pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Prikaži prijevod</string>
     <string name="settings_color_theme">Tema boja</string>
+    <string name="settings_enable_rotation">Omogući rotaciju zaslona (uključeno kao zadano na tabletima)</string>
     <string name="settings_feedback_bug_report">Povratne informacije / Prijava problema</string>
     <string name="settings_invert_slider_direction">Obrni smjer klizača</string>
     <string name="settings_language">Jezik (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">Prilagodba</string>
     <string name="settings_section_display">Prikaz</string>
     <string name="settings_section_notifications">Obavijesti</string>
-    <string name="settings_section_other_features">Ostale funkcije</string>
+    <string name="settings_section_other_settings">Ostale postavke</string>
     <string name="settings_show_absolute_assignment_time">Prikaži puni datum za rok predaje zadatka</string>
     <string name="settings_theme_dark">Tamni način</string>
     <string name="settings_theme_light">Svijetli način</string>

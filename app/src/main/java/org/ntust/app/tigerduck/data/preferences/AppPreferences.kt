@@ -21,6 +21,8 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("tigerduck_prefs", Context.MODE_PRIVATE)
     private val gson = Gson()
+    private val isTablet: Boolean =
+        context.resources.configuration.smallestScreenWidthDp >= 600
 
     // Language change forces a full network re-fetch so course names come
     // back in the new locale.
@@ -147,6 +149,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     var invertSliderDirection: Boolean
         get() = prefs.getBoolean("invertSliderDirection", false)
         set(value) = prefs.edit().putBoolean("invertSliderDirection", value).apply()
+
+    var enableRotation: Boolean
+        get() = prefs.getBoolean("enableRotation", isTablet)
+        set(value) = prefs.edit().putBoolean("enableRotation", value).apply()
 
     var libraryFeatureEnabled: Boolean
         get() = prefs.getBoolean("libraryFeatureEnabled", false)

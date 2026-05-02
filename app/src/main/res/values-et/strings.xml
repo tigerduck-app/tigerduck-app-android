@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Kuva pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Kuva tõlge</string>
     <string name="settings_color_theme">Värvi teema</string>
+    <string name="settings_enable_rotation">Luba ekraani pööramine (tahvelarvutites vaikimisi sees)</string>
     <string name="settings_feedback_bug_report">Tagasiside / Vea aruanne</string>
     <string name="settings_invert_slider_direction">Pööra liuguri suund ümber</string>
     <string name="settings_language">Keel (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">Kohandamine</string>
     <string name="settings_section_display">Kuva</string>
     <string name="settings_section_notifications">Teavitused</string>
-    <string name="settings_section_other_features">Muud funktsioonid</string>
+    <string name="settings_section_other_settings">Muud sätted</string>
     <string name="settings_show_absolute_assignment_time">Kuva ülesande tähtajana täielik kuupäev</string>
     <string name="settings_theme_dark">Tume režiim</string>
     <string name="settings_theme_light">Hele režiim</string>

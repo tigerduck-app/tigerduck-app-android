@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Wyświetl pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Wyświetl tłumaczenie</string>
     <string name="settings_color_theme">Motyw kolorystyczny</string>
+    <string name="settings_enable_rotation">Włącz obracanie ekranu (domyślnie włączone na tabletach)</string>
     <string name="settings_feedback_bug_report">Opinie / Zgłoś problem</string>
     <string name="settings_invert_slider_direction">Odwróć kierunek suwaka</string>
     <string name="settings_language">Język (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">Personalizacja</string>
     <string name="settings_section_display">Wyświetlanie</string>
     <string name="settings_section_notifications">Powiadomienia</string>
-    <string name="settings_section_other_features">Inne funkcje</string>
+    <string name="settings_section_other_settings">Inne ustawienia</string>
     <string name="settings_show_absolute_assignment_time">Pokaż pełną datę terminu zadania</string>
     <string name="settings_theme_dark">Tryb ciemny</string>
     <string name="settings_theme_light">Tryb jasny</string>

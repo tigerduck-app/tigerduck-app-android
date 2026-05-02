@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Показване на пиньинь</string>
     <string name="settings_classroom_mandarin_display_translated">Показване на превод</string>
     <string name="settings_color_theme">Цветова тема</string>
+    <string name="settings_enable_rotation">Активиране на въртене на екрана (по подразбиране включено на таблети)</string>
     <string name="settings_feedback_bug_report">Обратна връзка / Докладване на проблем</string>
     <string name="settings_invert_slider_direction">Обръщане на посоката на плъзгача</string>
     <string name="settings_language">Език (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">Персонализиране</string>
     <string name="settings_section_display">Показване</string>
     <string name="settings_section_notifications">Известия</string>
-    <string name="settings_section_other_features">Други функции</string>
+    <string name="settings_section_other_settings">Други настройки</string>
     <string name="settings_show_absolute_assignment_time">Показване на пълна дата за крайния срок на задание</string>
     <string name="settings_theme_dark">Тъмен режим</string>
     <string name="settings_theme_light">Светъл режим</string>

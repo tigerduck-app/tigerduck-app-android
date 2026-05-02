@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Vis pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Vis oversættelse</string>
     <string name="settings_color_theme">Farvetema</string>
+    <string name="settings_enable_rotation">Aktivér skærmrotation (slået til som standard på tablets)</string>
     <string name="settings_feedback_bug_report">Feedback / Rapportér problem</string>
     <string name="settings_invert_slider_direction">Inverter skyderretning</string>
     <string name="settings_language">Sprog (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">Tilpasning</string>
     <string name="settings_section_display">Visning</string>
     <string name="settings_section_notifications">Notifikationer</string>
-    <string name="settings_section_other_features">Andre funktioner</string>
+    <string name="settings_section_other_settings">Andre indstillinger</string>
     <string name="settings_show_absolute_assignment_time">Vis fuld dato for opgavefrist</string>
     <string name="settings_theme_dark">Mørk tilstand</string>
     <string name="settings_theme_light">Lys tilstand</string>

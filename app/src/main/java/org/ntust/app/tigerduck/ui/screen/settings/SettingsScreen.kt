@@ -50,8 +50,7 @@ fun SettingsScreen(
     onNavigateToTabEditor: () -> Unit = {},
     onNavigateToLanguagePicker: () -> Unit = {},
     onNavigateToLiveActivity: () -> Unit = {},
-    onNavigateToNotificationSetup: () -> Unit = {},
-    onNavigateToSourceCode: () -> Unit = {},
+    onNavigateToOtherSettings: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsState()
@@ -75,18 +74,14 @@ fun SettingsScreen(
     val accentColorHex = viewModel.appState.accentColorHex
     val showAbsoluteTime = viewModel.appState.showAbsoluteAssignmentTime
     val browserPreference = viewModel.appState.browserPreference
-    val invertSlider = viewModel.appState.invertSliderDirection
     val useEnglishCourseAbbreviation = viewModel.appState.useEnglishCourseAbbreviation
     val useEnglishClassroomAbbreviation = viewModel.appState.useEnglishClassroomAbbreviation
     val classroomMandarinDisplay = viewModel.appState.classroomMandarinDisplay
     val notifyAssignments = viewModel.appState.notifyAssignments
     val libraryEnabled = viewModel.appState.libraryFeatureEnabled
-    val themeMode = viewModel.appState.themeMode
     val appLanguage = viewModel.appState.appLanguage
     val shouldShowEnglishAbbreviationToggle = AppLanguageManager.isCourseApiEnglish(appLanguage)
 
-    var showLibraryWarning by remember { mutableStateOf(false) }
-    var showResetColorsConfirm by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     val appVersion = remember { BuildConfig.VERSION_NAME }
@@ -226,10 +221,6 @@ fun SettingsScreen(
                         selectedKey = browserPreference,
                         onSelect = { viewModel.appState.browserPreference = it }
                     )
-                    HorizontalDivider()
-                    SettingsToggleRow(stringResource(R.string.settings_invert_slider_direction), invertSlider) {
-                        viewModel.appState.invertSliderDirection = it
-                    }
                 }
             }
         }
@@ -293,54 +284,7 @@ fun SettingsScreen(
                     }
                     HorizontalDivider()
                     SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) { onNavigateToLiveActivity() }
-                    HorizontalDivider()
-                    SettingsLinkRow(stringResource(R.string.notification_setup_title)) { onNavigateToNotificationSetup() }
                 }
-            }
-        }
-
-        // MARK: Other features
-        item { SectionHeader(stringResource(R.string.settings_section_other_features)) }
-        item {
-            ContentCard {
-                Column {
-                SettingsToggleRow(stringResource(R.string.settings_library_related_features), libraryEnabled) { enabled ->
-                    if (enabled) {
-                        showLibraryWarning = true
-                    } else {
-                        viewModel.appState.libraryFeatureEnabled = false
-                        viewModel.appState.configuredTabs =
-                            viewModel.appState.configuredTabs.filter { !it.isLibraryRelated }
-                    }
-                }
-                HorizontalDivider()
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(SettingRowHeight)
-                        .clickable { showResetColorsConfirm = true }
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(stringResource(R.string.settings_reset_course_colors), style = MaterialTheme.typography.bodyMedium)
-                }
-                HorizontalDivider()
-                SettingsPickerRow(
-                    label = stringResource(R.string.settings_color_theme),
-                    value = when (themeMode) {
-                        "dark" -> stringResource(R.string.settings_theme_dark)
-                        "light" -> stringResource(R.string.settings_theme_light)
-                        else -> stringResource(R.string.settings_theme_system)
-                    },
-                    options = listOf(
-                        "system" to stringResource(R.string.settings_theme_system),
-                        "dark" to stringResource(R.string.settings_theme_dark),
-                        "light" to stringResource(R.string.settings_theme_light)
-                    ),
-                    selectedKey = themeMode,
-                    onSelect = { viewModel.appState.themeMode = it }
-                )
-                } // Column
             }
         }
 
@@ -364,6 +308,14 @@ fun SettingsScreen(
             }
         }
 
+        // MARK: Other settings
+        item { SectionHeader(stringResource(R.string.settings_section_other_settings)) }
+        item {
+            ContentCard {
+                SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
+            }
+        }
+
         // MARK: About
         item { SectionHeader(stringResource(R.string.settings_section_about)) }
         item {
@@ -374,20 +326,6 @@ fun SettingsScreen(
                     SettingsLinkRow(stringResource(R.string.settings_official_website)) {
                         openUrl(context, "https://tigerduck.app/", browserPreference)
                     }
-                    HorizontalDivider()
-                    SettingsLinkRow(stringResource(R.string.settings_feedback_bug_report)) {
-                        openUrl(context, "https://github.com/tigerduck-app/tigerduck-app-android/issues", browserPreference)
-                    }
-                    HorizontalDivider()
-                    SettingsLinkRow(stringResource(R.string.settings_privacy_policy)) {
-                        openUrl(context, "https://app.ntust.org/tigerduck/privacy", browserPreference)
-                    }
-                    HorizontalDivider()
-                    SettingsLinkRow(stringResource(R.string.settings_open_source_licenses)) {
-                        openUrl(context, "https://github.com/tigerduck-app/tigerduck-app-android/blob/main/LICENSE", browserPreference)
-                    }
-                    HorizontalDivider()
-                    SettingsLinkRow(stringResource(R.string.settings_view_source_code)) { onNavigateToSourceCode() }
                 }
             }
         }
@@ -421,22 +359,6 @@ fun SettingsScreen(
         )
     }
 
-    if (showLibraryWarning) {
-        LibraryWarningDialog(
-            onConfirm = {
-                viewModel.appState.libraryFeatureEnabled = true
-                if (!viewModel.appState.configuredTabs.contains(AppFeature.LIBRARY) &&
-                    viewModel.appState.configuredTabs.size < 4
-                ) {
-                    viewModel.appState.configuredTabs =
-                        viewModel.appState.configuredTabs + AppFeature.LIBRARY
-                }
-                showLibraryWarning = false
-            },
-            onDismiss = { showLibraryWarning = false }
-        )
-    }
-
     if (viewModel.appState.pendingLibraryEnablePrompt) {
         AlertDialog(
             onDismissRequest = { viewModel.appState.pendingLibraryEnablePrompt = false },
@@ -449,26 +371,9 @@ fun SettingsScreen(
             },
         )
     }
-
-    if (showResetColorsConfirm) {
-        AlertDialog(
-            onDismissRequest = { showResetColorsConfirm = false },
-            title = { Text(stringResource(R.string.settings_reset_course_colors_confirm_title)) },
-            text = { Text(stringResource(R.string.settings_reset_course_colors_confirm_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.resetCourseColors()
-                    showResetColorsConfirm = false
-                }) { Text(stringResource(R.string.action_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetColorsConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
-            }
-        )
-    }
 }
 
-private val SettingRowHeight = 56.dp
+internal val SettingRowHeight = 56.dp
 
 /**
  * Width that fits whichever of "Sign in" / "Sign out" is wider, so the
@@ -581,7 +486,7 @@ private fun SettingsRow(label: String, value: String) {
 }
 
 @Composable
-private fun SettingsToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+internal fun SettingsToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -613,7 +518,7 @@ private fun SettingsToggleRow(label: String, checked: Boolean, onCheckedChange: 
 }
 
 @Composable
-private fun SettingsPickerRow(
+internal fun SettingsPickerRow(
     label: String,
     value: String,
     options: List<Pair<String, String>>,
@@ -657,7 +562,7 @@ private fun SettingsPickerRow(
 }
 
 @Composable
-private fun SettingsLinkRow(label: String, onClick: () -> Unit) {
+internal fun SettingsLinkRow(label: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -704,7 +609,7 @@ private fun SettingsLinkRowWithValue(label: String, value: String, onClick: () -
 }
 
 @Composable
-private fun LibraryWarningDialog(
+internal fun LibraryWarningDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {

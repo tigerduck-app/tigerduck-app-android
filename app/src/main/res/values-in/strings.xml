@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Tampilkan pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Tampilkan terjemahan</string>
     <string name="settings_color_theme">Tema warna</string>
+    <string name="settings_enable_rotation">Aktifkan rotasi layar (aktif secara default di tablet)</string>
     <string name="settings_feedback_bug_report">Umpan balik / Laporkan masalah</string>
     <string name="settings_invert_slider_direction">Balik arah slider</string>
     <string name="settings_language">Bahasa (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">Kustomisasi</string>
     <string name="settings_section_display">Tampilan</string>
     <string name="settings_section_notifications">Notifikasi</string>
-    <string name="settings_section_other_features">Fitur lainnya</string>
+    <string name="settings_section_other_settings">Pengaturan lainnya</string>
     <string name="settings_show_absolute_assignment_time">Tampilkan tanggal lengkap untuk waktu jatuh tempo tugas</string>
     <string name="settings_theme_dark">Mode gelap</string>
     <string name="settings_theme_light">Mode terang</string>

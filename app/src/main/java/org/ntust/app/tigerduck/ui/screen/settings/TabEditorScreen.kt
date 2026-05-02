@@ -81,7 +81,7 @@ fun TabEditorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(bottom = 32.dp)
+            contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp)
         ) {
             // ── Section: 目前的 Tab ──
             item {

@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Показати піньїнь</string>
     <string name="settings_classroom_mandarin_display_translated">Показати переклад</string>
     <string name="settings_color_theme">Кольорова тема</string>
+    <string name="settings_enable_rotation">Увімкнути обертання екрана (увімкнено за замовчуванням на планшетах)</string>
     <string name="settings_feedback_bug_report">Відгук / Повідомити про проблему</string>
     <string name="settings_invert_slider_direction">Інвертувати напрямок повзунка</string>
     <string name="settings_language">Мова (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">Налаштування</string>
     <string name="settings_section_display">Відображення</string>
     <string name="settings_section_notifications">Сповіщення</string>
-    <string name="settings_section_other_features">Інші функції</string>
+    <string name="settings_section_other_settings">Інші налаштування</string>
     <string name="settings_show_absolute_assignment_time">Показувати повну дату для дедлайну завдання</string>
     <string name="settings_theme_dark">Темний режим</string>
     <string name="settings_theme_light">Світлий режим</string>

@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">పిన్యిన్ చూపించు</string>
     <string name="settings_classroom_mandarin_display_translated">అనువాదాన్ని చూపించు</string>
     <string name="settings_color_theme">రంగు థీమ్</string>
+    <string name="settings_enable_rotation">స్క్రీన్ రొటేషన్ ప్రారంభించు (టాబ్లెట్‌లలో డిఫాల్ట్‌గా ఆన్)</string>
     <string name="settings_feedback_bug_report">ఫీడ్‌బ్యాక్ / సమస్య నివేదించు</string>
     <string name="settings_invert_slider_direction">స్లైడర్ దిశ తిరగబెట్టండి</string>
     <string name="settings_language">భాష (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">కస్టమైజేషన్</string>
     <string name="settings_section_display">డిస్‌ప్లే</string>
     <string name="settings_section_notifications">నోటిఫికేషన్లు</string>
-    <string name="settings_section_other_features">ఇతర ఫీచర్లు</string>
+    <string name="settings_section_other_settings">ఇతర సెట్టింగులు</string>
     <string name="settings_show_absolute_assignment_time">అసైన్‌మెంట్ గడువు సమయానికి పూర్తి తేదీ చూపించు</string>
     <string name="settings_theme_dark">డార్క్ మోడ్</string>
     <string name="settings_theme_light">లైట్ మోడ్</string>

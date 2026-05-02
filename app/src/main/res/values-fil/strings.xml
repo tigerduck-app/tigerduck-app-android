@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Ipakita ang pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Ipakita ang salin</string>
     <string name="settings_color_theme">Kulay na tema</string>
+    <string name="settings_enable_rotation">I-enable ang screen rotation (default na naka-on sa tablet)</string>
     <string name="settings_feedback_bug_report">Feedback / Mag-ulat ng isyu</string>
     <string name="settings_invert_slider_direction">I-invert ang direksyon ng slider</string>
     <string name="settings_language">Wika (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">Pag-customize</string>
     <string name="settings_section_display">Display</string>
     <string name="settings_section_notifications">Mga notification</string>
-    <string name="settings_section_other_features">Iba pang feature</string>
+    <string name="settings_section_other_settings">Iba pang setting</string>
     <string name="settings_show_absolute_assignment_time">Ipakita ang kumpletong petsa para sa due time ng takdang-aralin</string>
     <string name="settings_theme_dark">Madilim na mode</string>
     <string name="settings_theme_light">Maliwanag na mode</string>

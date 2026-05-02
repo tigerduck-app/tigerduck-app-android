@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Pinyin weergeven</string>
     <string name="settings_classroom_mandarin_display_translated">Vertaling weergeven</string>
     <string name="settings_color_theme">Kleurthema</string>
+    <string name="settings_enable_rotation">Schermrotatie inschakelen (standaard aan op tablets)</string>
     <string name="settings_feedback_bug_report">Feedback / Probleem melden</string>
     <string name="settings_invert_slider_direction">Schuifregelaarrichting omkeren</string>
     <string name="settings_language">Taal (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">Personalisatie</string>
     <string name="settings_section_display">Weergave</string>
     <string name="settings_section_notifications">Meldingen</string>
-    <string name="settings_section_other_features">Overige functies</string>
+    <string name="settings_section_other_settings">Overige instellingen</string>
     <string name="settings_show_absolute_assignment_time">Volledige datum tonen voor opdrachtdeadline</string>
     <string name="settings_theme_dark">Donkere modus</string>
     <string name="settings_theme_light">Lichte modus</string>

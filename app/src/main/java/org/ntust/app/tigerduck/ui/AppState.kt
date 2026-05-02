@@ -188,6 +188,16 @@ class AppState @Inject constructor(
             prefs.invertSliderDirection = value
         }
 
+    private var enableRotationState by mutableStateOf(prefs.enableRotation)
+
+    var enableRotation: Boolean
+        get() = enableRotationState
+        set(value) {
+            if (enableRotationState == value) return
+            enableRotationState = value
+            prefs.enableRotation = value
+        }
+
     private var notifyAssignmentsState by mutableStateOf(prefs.notifyAssignments)
 
     var notifyAssignments: Boolean
@@ -258,6 +268,7 @@ class AppState @Inject constructor(
             themeModeState = prefs.themeMode
             appLanguageState = prefs.appLanguage
             invertSliderDirectionState = prefs.invertSliderDirection
+            enableRotationState = prefs.enableRotation
             notifyAssignmentsState = prefs.notifyAssignments
             libraryFeatureEnabledState = prefs.libraryFeatureEnabled
             configuredTabsState = prefs.configuredTabs

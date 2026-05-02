@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">ಪಿನ್ಯಿನ್ ತೋರಿಸು</string>
     <string name="settings_classroom_mandarin_display_translated">ಅನುವಾದ ತೋರಿಸು</string>
     <string name="settings_color_theme">ಬಣ್ಣ ಥೀಮ್</string>
+    <string name="settings_enable_rotation">ಪರದೆ ತಿರುಗಿಸುವಿಕೆಯನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ (ಟ್ಯಾಬ್ಲೆಟ್‌ಗಳಲ್ಲಿ ಡೀಫಾಲ್ಟ್ ಆಗಿ ಆನ್)</string>
     <string name="settings_feedback_bug_report">ಪ್ರತಿಕ್ರಿಯೆ / ಸಮಸ್ಯೆ ವರದಿ</string>
     <string name="settings_invert_slider_direction">ಸ್ಲೈಡರ್ ದಿಕ್ಕು ತಿರುಗಿಸಿ</string>
     <string name="settings_language">ಭಾಷೆ (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">ಕಸ್ಟಮೈಸೇಶನ್</string>
     <string name="settings_section_display">ಪ್ರದರ್ಶನ</string>
     <string name="settings_section_notifications">ಅಧಿಸೂಚನೆಗಳು</string>
-    <string name="settings_section_other_features">ಇತರ ವೈಶಿಷ್ಟ್ಯಗಳು</string>
+    <string name="settings_section_other_settings">ಇತರ ಸೆಟ್ಟಿಂಗ್‌ಗಳು</string>
     <string name="settings_show_absolute_assignment_time">ಕಾರ್ಯ ಗಡುವಿನ ಸಮಯಕ್ಕೆ ಪೂರ್ಣ ದಿನಾಂಕ ತೋರಿಸಿ</string>
     <string name="settings_theme_dark">ಡಾರ್ಕ್ ಮೋಡ್</string>
     <string name="settings_theme_light">ಲೈಟ್ ಮೋಡ್</string>

@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">பின்யினைக் காட்டு</string>
     <string name="settings_classroom_mandarin_display_translated">மொழிபெயர்ப்பைக் காட்டு</string>
     <string name="settings_color_theme">நிற தீம்</string>
+    <string name="settings_enable_rotation">திரை சுழற்சியை இயக்கு (டேப்லெட்டுகளில் இயல்பாக இயக்கப்பட்டது)</string>
     <string name="settings_feedback_bug_report">கருத்து / சிக்கல் அறிக்கை</string>
     <string name="settings_invert_slider_direction">ஸ்லைடர் திசையை மாற்று</string>
     <string name="settings_language">மொழி (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">தனிப்பயனாக்கம்</string>
     <string name="settings_section_display">காட்சி</string>
     <string name="settings_section_notifications">அறிவிப்புகள்</string>
-    <string name="settings_section_other_features">மற்ற அம்சங்கள்</string>
+    <string name="settings_section_other_settings">பிற அமைப்புகள்</string>
     <string name="settings_show_absolute_assignment_time">ஒப்படைப்பு காலக்கெடுவிற்கு முழு தேதி காட்டு</string>
     <string name="settings_theme_dark">இருண்ட பயன்முறை</string>
     <string name="settings_theme_light">ஒளிரும் பயன்முறை</string>

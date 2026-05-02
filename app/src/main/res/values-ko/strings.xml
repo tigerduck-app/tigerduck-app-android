@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">병음 표시</string>
     <string name="settings_classroom_mandarin_display_translated">번역 표시</string>
     <string name="settings_color_theme">색상 테마</string>
+    <string name="settings_enable_rotation">화면 회전 사용 (태블릿에서 기본 활성화)</string>
     <string name="settings_feedback_bug_report">피드백 / 문제 신고</string>
     <string name="settings_invert_slider_direction">슬라이더 방향 반전</string>
     <string name="settings_language">언어 (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">사용자 지정</string>
     <string name="settings_section_display">표시</string>
     <string name="settings_section_notifications">알림</string>
-    <string name="settings_section_other_features">기타 기능</string>
+    <string name="settings_section_other_settings">기타 설정</string>
     <string name="settings_show_absolute_assignment_time">과제 마감 시간을 전체 날짜로 표시</string>
     <string name="settings_theme_dark">다크 모드</string>
     <string name="settings_theme_light">라이트 모드</string>

@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Visa pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Visa översättning</string>
     <string name="settings_color_theme">Färgtema</string>
+    <string name="settings_enable_rotation">Aktivera skärmrotation (på som standard på surfplattor)</string>
     <string name="settings_feedback_bug_report">Feedback / Rapportera problem</string>
     <string name="settings_invert_slider_direction">Invertera skjutreglageriktning</string>
     <string name="settings_language">Språk (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">Anpassning</string>
     <string name="settings_section_display">Visning</string>
     <string name="settings_section_notifications">Aviseringar</string>
-    <string name="settings_section_other_features">Övriga funktioner</string>
+    <string name="settings_section_other_settings">Övriga inställningar</string>
     <string name="settings_show_absolute_assignment_time">Visa fullständigt datum för uppgiftens förfallodatum</string>
     <string name="settings_theme_dark">Mörkt läge</string>
     <string name="settings_theme_light">Ljust läge</string>

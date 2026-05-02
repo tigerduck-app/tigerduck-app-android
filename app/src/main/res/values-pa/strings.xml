@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">ਪਿਨਯਿਨ ਵਿਖਾਓ</string>
     <string name="settings_classroom_mandarin_display_translated">ਅਨੁਵਾਦ ਵਿਖਾਓ</string>
     <string name="settings_color_theme">ਰੰਗ ਥੀਮ</string>
+    <string name="settings_enable_rotation">ਸਕ੍ਰੀਨ ਘੁਮਾਉਣਾ ਚਾਲੂ ਕਰੋ (ਟੈਬਲੇਟਾਂ ਤੇ ਮੂਲ ਰੂਪ ਵਿੱਚ ਚਾਲੂ)</string>
     <string name="settings_feedback_bug_report">ਫੀਡਬੈਕ / ਸਮੱਸਿਆ ਰਿਪੋਰਟ ਕਰੋ</string>
     <string name="settings_invert_slider_direction">ਸਲਾਈਡਰ ਦਿਸ਼ਾ ਉਲਟੀ ਕਰੋ</string>
     <string name="settings_language">ਭਾਸ਼ਾ (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">ਅਨੁਕੂਲਨ</string>
     <string name="settings_section_display">ਡਿਸਪਲੇ</string>
     <string name="settings_section_notifications">ਸੂਚਨਾਵਾਂ</string>
-    <string name="settings_section_other_features">ਹੋਰ ਫੀਚਰ</string>
+    <string name="settings_section_other_settings">ਹੋਰ ਸੈਟਿੰਗਾਂ</string>
     <string name="settings_show_absolute_assignment_time">ਅਸਾਈਨਮੈਂਟ ਦੀ ਮਿਆਦ ਲਈ ਪੂਰੀ ਮਿਤੀ ਦਿਖਾਓ</string>
     <string name="settings_theme_dark">ਡਾਰਕ ਮੋਡ</string>
     <string name="settings_theme_light">ਲਾਈਟ ਮੋਡ</string>

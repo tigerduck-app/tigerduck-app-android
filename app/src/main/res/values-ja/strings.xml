@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">ピンインを表示</string>
     <string name="settings_classroom_mandarin_display_translated">訳語を表示</string>
     <string name="settings_color_theme">カラーテーマ</string>
+    <string name="settings_enable_rotation">画面回転を有効化（タブレットでは既定で有効）</string>
     <string name="settings_feedback_bug_report">フィードバック / 不具合報告</string>
     <string name="settings_invert_slider_direction">スライダーの方向を反転</string>
     <string name="settings_language">言語 (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">カスタマイズ</string>
     <string name="settings_section_display">表示</string>
     <string name="settings_section_notifications">通知</string>
-    <string name="settings_section_other_features">その他の機能</string>
+    <string name="settings_section_other_settings">その他の設定</string>
     <string name="settings_show_absolute_assignment_time">課題の期限に完全な日付を表示</string>
     <string name="settings_theme_dark">ダークモード</string>
     <string name="settings_theme_light">ライトモード</string>

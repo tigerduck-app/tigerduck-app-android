@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">پنین دکھائیں</string>
     <string name="settings_classroom_mandarin_display_translated">ترجمہ دکھائیں</string>
     <string name="settings_color_theme">رنگ تھیم</string>
+    <string name="settings_enable_rotation">اسکرین گردش فعال کریں (ٹیبلیٹس پر بطور ڈیفالٹ آن)</string>
     <string name="settings_feedback_bug_report">رائے / مسئلہ رپورٹ کریں</string>
     <string name="settings_invert_slider_direction">سلائیڈر کی سمت پلٹائیں</string>
     <string name="settings_language">(Language) زبان</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">حسب ضرورت</string>
     <string name="settings_section_display">ڈسپلے</string>
     <string name="settings_section_notifications">اطلاعات</string>
-    <string name="settings_section_other_features">دیگر فیچرز</string>
+    <string name="settings_section_other_settings">دیگر ترتیبات</string>
     <string name="settings_show_absolute_assignment_time">اسائنمنٹ کی آخری تاریخ کے لیے مکمل تاریخ دکھائیں</string>
     <string name="settings_theme_dark">ڈارک موڈ</string>
     <string name="settings_theme_light">لائٹ موڈ</string>

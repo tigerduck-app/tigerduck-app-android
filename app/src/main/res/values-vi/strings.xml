@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Hiển thị Bính âm</string>
     <string name="settings_classroom_mandarin_display_translated">Hiển thị bản dịch</string>
     <string name="settings_color_theme">Chủ đề màu</string>
+    <string name="settings_enable_rotation">Bật xoay màn hình (mặc định bật trên máy tính bảng)</string>
     <string name="settings_feedback_bug_report">Phản hồi / Báo lỗi</string>
     <string name="settings_invert_slider_direction">Đảo hướng thanh trượt</string>
     <string name="settings_language">Ngôn ngữ (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">Tùy chỉnh</string>
     <string name="settings_section_display">Hiển thị</string>
     <string name="settings_section_notifications">Thông báo</string>
-    <string name="settings_section_other_features">Tính năng khác</string>
+    <string name="settings_section_other_settings">Cài đặt khác</string>
     <string name="settings_show_absolute_assignment_time">Hiển thị ngày đầy đủ cho thời hạn bài tập</string>
     <string name="settings_theme_dark">Chế độ tối</string>
     <string name="settings_theme_light">Chế độ sáng</string>

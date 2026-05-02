@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Mostra pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Mostra traducció</string>
     <string name="settings_color_theme">Tema de color</string>
+    <string name="settings_enable_rotation">Habilita la rotació de pantalla (activada per defecte en tauletes)</string>
     <string name="settings_feedback_bug_report">Comentaris / Informeu d\'un problema</string>
     <string name="settings_invert_slider_direction">Inverteix la direcció del control lliscant</string>
     <string name="settings_language">Idioma (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">Personalització</string>
     <string name="settings_section_display">Visualització</string>
     <string name="settings_section_notifications">Notificacions</string>
-    <string name="settings_section_other_features">Altres funcions</string>
+    <string name="settings_section_other_settings">Altres ajustos</string>
     <string name="settings_show_absolute_assignment_time">Mostra la data completa per al venciment de les tasques</string>
     <string name="settings_theme_dark">Mode fosc</string>
     <string name="settings_theme_light">Mode clar</string>

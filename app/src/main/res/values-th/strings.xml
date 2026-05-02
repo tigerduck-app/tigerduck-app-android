@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">แสดงพินอิน</string>
     <string name="settings_classroom_mandarin_display_translated">แสดงคำแปล</string>
     <string name="settings_color_theme">ธีมสี</string>
+    <string name="settings_enable_rotation">เปิดใช้งานการหมุนหน้าจอ (เปิดเป็นค่าเริ่มต้นบนแท็บเล็ต)</string>
     <string name="settings_feedback_bug_report">ความคิดเห็น / รายงานปัญหา</string>
     <string name="settings_invert_slider_direction">สลับทิศทางแถบเลื่อน</string>
     <string name="settings_language">ภาษา (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">ปรับแต่ง</string>
     <string name="settings_section_display">การแสดงผล</string>
     <string name="settings_section_notifications">การแจ้งเตือน</string>
-    <string name="settings_section_other_features">ฟีเจอร์อื่นๆ</string>
+    <string name="settings_section_other_settings">การตั้งค่าอื่นๆ</string>
     <string name="settings_show_absolute_assignment_time">แสดงวันที่เต็มสำหรับเวลาครบกำหนดการบ้าน</string>
     <string name="settings_theme_dark">โหมดมืด</string>
     <string name="settings_theme_light">โหมดสว่าง</string>

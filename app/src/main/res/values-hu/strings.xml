@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Pinyin megjelenítése</string>
     <string name="settings_classroom_mandarin_display_translated">Fordítás megjelenítése</string>
     <string name="settings_color_theme">Színtéma</string>
+    <string name="settings_enable_rotation">Képernyő forgatás engedélyezése (táblagépen alapértelmezetten be)</string>
     <string name="settings_feedback_bug_report">Visszajelzés / Hibabejelentés</string>
     <string name="settings_invert_slider_direction">Csúszka irányának megfordítása</string>
     <string name="settings_language">Nyelv (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">Testreszabás</string>
     <string name="settings_section_display">Megjelenítés</string>
     <string name="settings_section_notifications">Értesítések</string>
-    <string name="settings_section_other_features">Egyéb funkciók</string>
+    <string name="settings_section_other_settings">Egyéb beállítások</string>
     <string name="settings_show_absolute_assignment_time">Teljes dátum megjelenítése a házi feladat határidejénél</string>
     <string name="settings_theme_dark">Sötét mód</string>
     <string name="settings_theme_light">Világos mód</string>

@@ -435,6 +435,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Sýna pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Sýna þýðingu</string>
     <string name="settings_color_theme">Litaþema</string>
+    <string name="settings_enable_rotation">Virkja snúning skjás (sjálfgefið kveikt á spjaldtölvum)</string>
     <string name="settings_feedback_bug_report">Endurgjöf / Tilkynna villu</string>
     <string name="settings_invert_slider_direction">Snúa sleðastefnu við</string>
     <string name="settings_language">Tungumál (Language)</string>
@@ -465,7 +466,7 @@
     <string name="settings_section_custom">Sérstilling</string>
     <string name="settings_section_display">Birting</string>
     <string name="settings_section_notifications">Tilkynningar</string>
-    <string name="settings_section_other_features">Aðrir eiginleikar</string>
+    <string name="settings_section_other_settings">Aðrar stillingar</string>
     <string name="settings_show_absolute_assignment_time">Sýna fulla dagsetningu fyrir skiladag verkefnis</string>
     <string name="settings_theme_dark">Dökkt þema</string>
     <string name="settings_theme_light">Ljóst þema</string>
