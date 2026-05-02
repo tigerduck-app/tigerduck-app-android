@@ -100,7 +100,21 @@ jobs:
           fi
           git add "$file"
           git commit -m "chore(fdroid): pin metadata commit to ${SHA} for ${{ github.event.inputs.tag }}"
-          git push origin "HEAD:${BRANCH}"
+          # Build can take minutes; another commit may have landed on ${BRANCH}
+          # in the meantime. Rebase our single metadata commit on top before
+          # pushing so a non-fast-forward doesn't leave the release half-done
+          # (tag + artifacts published but fdroid.yml stale).
+          for attempt in 1 2 3; do
+            git pull --rebase origin "${BRANCH}"
+            if git push origin "HEAD:${BRANCH}"; then
+              break
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo "Failed to push fdroid metadata after 3 attempts" >&2
+              exit 1
+            fi
+            echo "Push rejected; retrying after rebase (attempt $attempt)"
+          done
 
       - name: Create or update GitHub Release
         uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2

@@ -26,17 +26,31 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
     private val file = File(dir, "summaries.json")
     private val detailDir: File = File(dir, "details").also { it.mkdirs() }
     private val mutex = Mutex()
-    // Bounded LRU so a long session opening many bulletins doesn't accumulate
-    // a permanent Mutex per id. Evicting an unused lock is safe — re-creating
-    // it later costs nothing when there's no in-flight access.
-    private val detailLocks = object : LinkedHashMap<Int, Mutex>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: Map.Entry<Int, Mutex>): Boolean = size > 32
-    }
+    // Refcounted per-id locks: entries are removed only when no coroutine is
+    // holding or waiting on them, so two callers for the same id always share
+    // the same Mutex instance. A naive LRU could evict an in-use entry between
+    // the lookup and withLock, letting two coroutines race the same file.
+    private class LockEntry(val mutex: Mutex = Mutex(), var refs: Int = 0)
+    private val detailLocks = HashMap<Int, LockEntry>()
     private val gson = Gson()
     private val listType = object : TypeToken<List<BulletinSummary>>() {}.type
 
-    private fun detailLock(id: Int): Mutex = synchronized(detailLocks) {
-        detailLocks.getOrPut(id) { Mutex() }
+    private fun acquireDetailLock(id: Int): LockEntry = synchronized(detailLocks) {
+        detailLocks.getOrPut(id) { LockEntry() }.also { it.refs++ }
+    }
+
+    private fun releaseDetailLock(id: Int) = synchronized(detailLocks) {
+        val entry = detailLocks[id] ?: return@synchronized
+        if (--entry.refs <= 0) detailLocks.remove(id)
+    }
+
+    private suspend fun <T> withDetailLock(id: Int, block: suspend () -> T): T {
+        val entry = acquireDetailLock(id)
+        try {
+            return entry.mutex.withLock { block() }
+        } finally {
+            releaseDetailLock(id)
+        }
     }
 
     suspend fun load(): List<BulletinSummary> = mutex.withLock {
@@ -59,7 +73,7 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
     /** One JSON file per id mirrors iOS DataCache.bulletinDetailDir(); keeps
      *  writes small and avoids rewriting an aggregated file on every open. */
     suspend fun loadDetail(id: Int): BulletinDetail? = withContext(Dispatchers.IO) {
-        detailLock(id).withLock {
+        withDetailLock(id) {
             val f = File(detailDir, "$id.json")
             try {
                 if (f.exists()) gson.fromJson(f.readText(), BulletinDetail::class.java) else null
@@ -70,7 +84,7 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
     }
 
     suspend fun saveDetail(detail: BulletinDetail) = withContext(Dispatchers.IO) {
-        detailLock(detail.id).withLock {
+        withDetailLock(detail.id) {
             writeAtomically(File(detailDir, "${detail.id}.json"), gson.toJson(detail))
         }
     }

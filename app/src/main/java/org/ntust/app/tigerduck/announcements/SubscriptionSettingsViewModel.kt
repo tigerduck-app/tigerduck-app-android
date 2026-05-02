@@ -79,8 +79,11 @@ class SubscriptionSettingsViewModel @Inject constructor(
             .onSuccess { tax -> _state.update { it.copy(taxonomy = tax) } }
     }
 
+    private var loadJob: Job? = null
+
     fun load() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _state.update { it.copy(loadState = LoadState.Loading) }
             try {
                 val response = api.fetchSubscriptions(identity.deviceId())
