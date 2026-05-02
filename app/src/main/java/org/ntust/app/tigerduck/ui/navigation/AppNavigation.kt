@@ -261,7 +261,7 @@ fun MainNavigation(
                         icon = { Icon(feature.icon, contentDescription = stringResource(feature.displayNameRes)) },
                         label = {
                             Text(
-                                text = stringResource(feature.displayNameRes),
+                                text = stringResource(feature.shortDisplayNameRes),
                                 maxLines = 1,
                                 softWrap = false,
                                 overflow = TextOverflow.Ellipsis,

@@ -47,6 +47,28 @@ enum class AppFeature(val id: String) {
             SETTINGS -> R.string.feature_settings
         }
 
+    @get:StringRes
+    val shortDisplayNameRes: Int
+        get() = when (this) {
+            HOME -> R.string.feature_home_short
+            CLASS_TABLE -> R.string.feature_class_table_short
+            CALENDAR -> R.string.feature_calendar_short
+            ANNOUNCEMENTS -> R.string.feature_announcements_short
+            LIBRARY -> R.string.feature_library_short
+            SCORE -> R.string.feature_score_short
+            COURSE_SELECTION -> R.string.feature_course_selection_short
+            GRADUATION_REQUIREMENTS -> R.string.feature_graduation_requirements_short
+            DISCUSSION_ROOM -> R.string.feature_discussion_room_short
+            LIBRARY_LECTURE -> R.string.feature_library_lecture_short
+            FREE_LUNCH -> R.string.feature_free_lunch_short
+            CLUBS -> R.string.feature_clubs_short
+            EMPTY_CLASSROOM -> R.string.feature_empty_classroom_short
+            SCHOLARSHIP -> R.string.feature_scholarship_short
+            ENGLISH_VOCAB -> R.string.feature_english_vocab_short
+            MORE -> R.string.feature_more_short
+            SETTINGS -> R.string.feature_settings_short
+        }
+
     @Suppress("DEPRECATION")
     val icon: ImageVector
         get() = when (this) {
