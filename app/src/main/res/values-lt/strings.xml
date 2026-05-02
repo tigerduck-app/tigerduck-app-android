@@ -5,6 +5,7 @@
     <string name="action_allow">Leisti</string>
     <string name="action_back">Atgal</string>
     <string name="action_cancel">Atšaukti</string>
+    <string name="action_clear_text">Išvalyti tekstą</string>
     <string name="action_close">Uždaryti</string>
     <string name="action_confirm">Patvirtinti</string>
     <string name="action_done">Atlikta</string>

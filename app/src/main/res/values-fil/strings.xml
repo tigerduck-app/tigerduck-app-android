@@ -5,6 +5,7 @@
     <string name="action_allow">Payagan</string>
     <string name="action_back">Bumalik</string>
     <string name="action_cancel">Kanselahin</string>
+    <string name="action_clear_text">I-clear ang teksto</string>
     <string name="action_close">Isara</string>
     <string name="action_confirm">Kumpirmahin</string>
     <string name="action_done">Tapos na</string>

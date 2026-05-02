@@ -5,6 +5,7 @@
     <string name="action_allow">Engedélyezés</string>
     <string name="action_back">Vissza</string>
     <string name="action_cancel">Mégse</string>
+    <string name="action_clear_text">Szöveg törlése</string>
     <string name="action_close">Bezárás</string>
     <string name="action_confirm">Megerősítés</string>
     <string name="action_done">Kész</string>

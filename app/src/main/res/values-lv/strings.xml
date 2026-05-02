@@ -5,6 +5,7 @@
     <string name="action_allow">Atļaut</string>
     <string name="action_back">Atpakaļ</string>
     <string name="action_cancel">Atcelt</string>
+    <string name="action_clear_text">Notīrīt tekstu</string>
     <string name="action_close">Aizvērt</string>
     <string name="action_confirm">Apstiprināt</string>
     <string name="action_done">Gatavs</string>

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
@@ -79,8 +80,7 @@ fun LoginSheet(
                         username = if (uppercaseInput) stripped.uppercase() else stripped
                     },
                     label = usernamePlaceholder,
-                    capitalization = if (uppercaseInput) KeyboardCapitalization.Characters
-                        else KeyboardCapitalization.None,
+                    capitalization = KeyboardCapitalization.Sentences,
                     imeAction = ImeAction.Next,
                     onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
                     enabled = !isLoggingIn,
@@ -95,6 +95,17 @@ fun LoginSheet(
                     label = { Text(passwordPlaceholder) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
+                    trailingIcon = if (!isLoggingIn && password.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { password = "" }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Cancel,
+                                    contentDescription = stringResource(R.string.action_clear_text),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    } else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(passwordFocusRequester)

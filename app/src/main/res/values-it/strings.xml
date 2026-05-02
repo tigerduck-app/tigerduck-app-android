@@ -5,6 +5,7 @@
     <string name="action_allow">Consenti</string>
     <string name="action_back">Indietro</string>
     <string name="action_cancel">Annulla</string>
+    <string name="action_clear_text">Cancella testo</string>
     <string name="action_close">Chiudi</string>
     <string name="action_confirm">Conferma</string>
     <string name="action_done">Fatto</string>

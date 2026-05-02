@@ -5,6 +5,7 @@
     <string name="action_allow">મંજૂરી આપો</string>
     <string name="action_back">પાછળ</string>
     <string name="action_cancel">રદ કરો</string>
+    <string name="action_clear_text">ટેક્સ્ટ સાફ કરો</string>
     <string name="action_close">બંધ કરો</string>
     <string name="action_confirm">પુષ્ટિ કરો</string>
     <string name="action_done">થઈ ગયું</string>

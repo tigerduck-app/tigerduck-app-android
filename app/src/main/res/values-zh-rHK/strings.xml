@@ -5,6 +5,7 @@
     <string name="action_allow">允許</string>
     <string name="action_back">返回</string>
     <string name="action_cancel">取消</string>
+    <string name="action_clear_text">Clear text</string>
     <string name="action_close">關閉</string>
     <string name="action_confirm">確認</string>
     <string name="action_done">完成</string>

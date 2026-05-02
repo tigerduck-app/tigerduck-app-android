@@ -5,6 +5,7 @@
     <string name="action_allow">Permitir</string>
     <string name="action_back">Atrás</string>
     <string name="action_cancel">Cancelar</string>
+    <string name="action_clear_text">Borrar texto</string>
     <string name="action_close">Cerrar</string>
     <string name="action_confirm">Confirmar</string>
     <string name="action_done">Listo</string>

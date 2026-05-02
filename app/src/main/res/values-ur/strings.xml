@@ -5,6 +5,7 @@
     <string name="action_allow">اجازت دیں</string>
     <string name="action_back">واپس</string>
     <string name="action_cancel">منسوخ کریں</string>
+    <string name="action_clear_text">متن صاف کریں</string>
     <string name="action_close">بند کریں</string>
     <string name="action_confirm">تصدیق کریں</string>
     <string name="action_done">مکمل</string>

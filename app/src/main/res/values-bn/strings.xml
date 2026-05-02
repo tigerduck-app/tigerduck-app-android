@@ -5,6 +5,7 @@
     <string name="action_allow">অনুমতি দিন</string>
     <string name="action_back">পিছনে</string>
     <string name="action_cancel">বাতিল</string>
+    <string name="action_clear_text">টেক্সট পরিষ্কার করুন</string>
     <string name="action_close">বন্ধ করুন</string>
     <string name="action_confirm">নিশ্চিত করুন</string>
     <string name="action_done">সম্পন্ন</string>

@@ -5,6 +5,7 @@
     <string name="action_allow">Salli</string>
     <string name="action_back">Takaisin</string>
     <string name="action_cancel">Peruuta</string>
+    <string name="action_clear_text">Tyhjennä teksti</string>
     <string name="action_close">Sulje</string>
     <string name="action_confirm">Vahvista</string>
     <string name="action_done">Valmis</string>

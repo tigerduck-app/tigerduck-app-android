@@ -5,6 +5,7 @@
     <string name="action_allow">Tillåt</string>
     <string name="action_back">Tillbaka</string>
     <string name="action_cancel">Avbryt</string>
+    <string name="action_clear_text">Rensa text</string>
     <string name="action_close">Stäng</string>
     <string name="action_confirm">Bekräfta</string>
     <string name="action_done">Klar</string>

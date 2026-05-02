@@ -5,6 +5,7 @@
     <string name="action_allow">അനുവദിക്കുക</string>
     <string name="action_back">തിരിച്ച്</string>
     <string name="action_cancel">റദ്ദാക്കുക</string>
+    <string name="action_clear_text">ടെക്സ്റ്റ് മായ്ക്കുക</string>
     <string name="action_close">അടക്കുക</string>
     <string name="action_confirm">സ്ഥിരീകരിക്കുക</string>
     <string name="action_done">പൂർത്തിയായി</string>

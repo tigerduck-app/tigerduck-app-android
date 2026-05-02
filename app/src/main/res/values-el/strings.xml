@@ -5,6 +5,7 @@
     <string name="action_allow">Επιτρέπεται</string>
     <string name="action_back">Πίσω</string>
     <string name="action_cancel">Άκυρο</string>
+    <string name="action_clear_text">Εκκαθάριση κειμένου</string>
     <string name="action_close">Κλείσιμο</string>
     <string name="action_confirm">Επιβεβαίωση</string>
     <string name="action_done">Τέλος</string>

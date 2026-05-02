@@ -5,6 +5,7 @@
     <string name="action_allow">اجازه دادن</string>
     <string name="action_back">بازگشت</string>
     <string name="action_cancel">لغو</string>
+    <string name="action_clear_text">پاک کردن متن</string>
     <string name="action_close">بستن</string>
     <string name="action_confirm">تأیید</string>
     <string name="action_done">انجام شد</string>

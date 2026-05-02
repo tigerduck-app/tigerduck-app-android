@@ -5,6 +5,7 @@
     <string name="action_allow">Toestaan</string>
     <string name="action_back">Terug</string>
     <string name="action_cancel">Annuleren</string>
+    <string name="action_clear_text">Tekst wissen</string>
     <string name="action_close">Sluiten</string>
     <string name="action_confirm">Bevestigen</string>
     <string name="action_done">Klaar</string>

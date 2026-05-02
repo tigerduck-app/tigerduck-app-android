@@ -5,6 +5,7 @@
     <string name="action_allow">허용</string>
     <string name="action_back">뒤로</string>
     <string name="action_cancel">취소</string>
+    <string name="action_clear_text">텍스트 지우기</string>
     <string name="action_close">닫기</string>
     <string name="action_confirm">확인</string>
     <string name="action_done">완료</string>

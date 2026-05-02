@@ -5,6 +5,7 @@
     <string name="action_allow">Permite</string>
     <string name="action_back">Înapoi</string>
     <string name="action_cancel">Anulează</string>
+    <string name="action_clear_text">Șterge textul</string>
     <string name="action_close">Închide</string>
     <string name="action_confirm">Confirmă</string>
     <string name="action_done">Finalizat</string>

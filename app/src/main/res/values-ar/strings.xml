@@ -5,6 +5,7 @@
     <string name="action_allow">السماح</string>
     <string name="action_back">رجوع</string>
     <string name="action_cancel">إلغاء</string>
+    <string name="action_clear_text">مسح النص</string>
     <string name="action_close">إغلاق</string>
     <string name="action_confirm">تأكيد</string>
     <string name="action_done">تم</string>

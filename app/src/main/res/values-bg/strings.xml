@@ -5,6 +5,7 @@
     <string name="action_allow">Разреши</string>
     <string name="action_back">Назад</string>
     <string name="action_cancel">Отказ</string>
+    <string name="action_clear_text">Изчистване на текста</string>
     <string name="action_close">Затвори</string>
     <string name="action_confirm">Потвърди</string>
     <string name="action_done">Готово</string>

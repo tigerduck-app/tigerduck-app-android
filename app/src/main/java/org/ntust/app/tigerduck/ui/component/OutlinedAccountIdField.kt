@@ -8,7 +8,11 @@ import android.widget.EditText
 import androidx.compose.foundation.interaction.FocusInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -18,11 +22,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.R
 
 /**
  * Outlined text field for account-ID style inputs (student ID, library
@@ -31,17 +37,17 @@ import kotlinx.coroutines.launch
  * normal `OutlinedTextField` (floating label that cuts the stroke,
  * animated focus colors, identical height).
  *
- * Why a raw EditText instead of `OutlinedTextField`: Compose's
- * [androidx.compose.ui.text.input.KeyboardType] has no entry that maps
- * to Android's `TYPE_TEXT_VARIATION_VISIBLE_PASSWORD` inputType — the
- * only standard inputType that reliably surfaces a number row in
- * Gboard / SwiftKey / Samsung Keyboard for fields that mix letters and
- * digits. `KeyboardType.NumberPassword` is digits-only and would break
- * IDs with a letter prefix (e.g. NTUST `B11234567`).
+ * Uses `TYPE_TEXT_VARIATION_VISIBLE_PASSWORD` so Gboard / SwiftKey /
+ * Samsung pin the number row throughout typing — alphabetic-only
+ * variations (text/email/uri) auto-flip back to letters after each
+ * digit, which is unusable for IDs like NTUST `B11234567` where the
+ * digits run continuously.
  *
- * Focus state is forwarded to the DecorationBox via an
- * [MutableInteractionSource] so the floating-label animation and border
- * color react to the embedded EditText gaining / losing focus.
+ * VISIBLE_PASSWORD does silently ignore the IME capitalization flag,
+ * so first-character auto-cap won't fire. NTUST mode forces uppercase
+ * via a `.uppercase()` transform in the caller anyway; for the library
+ * field this means the user types lowercase by default (acceptable —
+ * library accounts are not case-sensitive in practice).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -149,6 +155,17 @@ fun OutlinedAccountIdField(
         visualTransformation = VisualTransformation.None,
         interactionSource = interactionSource,
         label = { Text(label) },
+        trailingIcon = if (enabled && value.isNotEmpty()) {
+            {
+                IconButton(onClick = { onValueChange("") }) {
+                    Icon(
+                        imageVector = Icons.Filled.Cancel,
+                        contentDescription = stringResource(R.string.action_clear_text),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        } else null,
         container = {
             OutlinedTextFieldDefaults.Container(
                 enabled = enabled,

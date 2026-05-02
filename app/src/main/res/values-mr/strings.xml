@@ -5,6 +5,7 @@
     <string name="action_allow">परवानगी द्या</string>
     <string name="action_back">मागे</string>
     <string name="action_cancel">रद्द करा</string>
+    <string name="action_clear_text">मजकूर साफ करा</string>
     <string name="action_close">बंद करा</string>
     <string name="action_confirm">पुष्टी करा</string>
     <string name="action_done">झाले</string>

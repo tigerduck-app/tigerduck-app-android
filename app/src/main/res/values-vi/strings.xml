@@ -5,6 +5,7 @@
     <string name="action_allow">Cho phép</string>
     <string name="action_back">Quay lại</string>
     <string name="action_cancel">Hủy</string>
+    <string name="action_clear_text">Xóa văn bản</string>
     <string name="action_close">Đóng</string>
     <string name="action_confirm">Xác nhận</string>
     <string name="action_done">Xong</string>

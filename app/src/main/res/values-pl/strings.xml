@@ -5,6 +5,7 @@
     <string name="action_allow">Zezwól</string>
     <string name="action_back">Wstecz</string>
     <string name="action_cancel">Anuluj</string>
+    <string name="action_clear_text">Wyczyść tekst</string>
     <string name="action_close">Zamknij</string>
     <string name="action_confirm">Potwierdź</string>
     <string name="action_done">Gotowe</string>

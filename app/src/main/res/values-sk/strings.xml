@@ -5,6 +5,7 @@
     <string name="action_allow">Povoliť</string>
     <string name="action_back">Späť</string>
     <string name="action_cancel">Zrušiť</string>
+    <string name="action_clear_text">Vymazať text</string>
     <string name="action_close">Zavrieť</string>
     <string name="action_confirm">Potvrdiť</string>
     <string name="action_done">Hotovo</string>

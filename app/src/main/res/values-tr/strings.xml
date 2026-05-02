@@ -5,6 +5,7 @@
     <string name="action_allow">İzin ver</string>
     <string name="action_back">Geri</string>
     <string name="action_cancel">İptal</string>
+    <string name="action_clear_text">Metni temizle</string>
     <string name="action_close">Kapat</string>
     <string name="action_confirm">Onayla</string>
     <string name="action_done">Tamam</string>

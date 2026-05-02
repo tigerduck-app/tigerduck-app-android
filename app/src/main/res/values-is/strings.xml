@@ -5,6 +5,7 @@
     <string name="action_allow">Leyfa</string>
     <string name="action_back">Til baka</string>
     <string name="action_cancel">Hætta við</string>
+    <string name="action_clear_text">Clear text</string>
     <string name="action_close">Loka</string>
     <string name="action_confirm">Staðfesta</string>
     <string name="action_done">Lokið</string>

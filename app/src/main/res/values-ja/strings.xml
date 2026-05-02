@@ -5,6 +5,7 @@
     <string name="action_allow">許可</string>
     <string name="action_back">戻る</string>
     <string name="action_cancel">キャンセル</string>
+    <string name="action_clear_text">テキストをクリア</string>
     <string name="action_close">閉じる</string>
     <string name="action_confirm">確認</string>
     <string name="action_done">完了</string>

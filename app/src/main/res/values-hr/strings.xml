@@ -5,6 +5,7 @@
     <string name="action_allow">Dopusti</string>
     <string name="action_back">Natrag</string>
     <string name="action_cancel">Odustani</string>
+    <string name="action_clear_text">Izbriši tekst</string>
     <string name="action_close">Zatvori</string>
     <string name="action_confirm">Potvrdi</string>
     <string name="action_done">Gotovo</string>

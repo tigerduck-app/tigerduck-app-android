@@ -5,6 +5,7 @@
     <string name="action_allow">Рұқсат беру</string>
     <string name="action_back">Артқа</string>
     <string name="action_cancel">Болдырмау</string>
+    <string name="action_clear_text">Clear text</string>
     <string name="action_close">Жабу</string>
     <string name="action_confirm">Растау</string>
     <string name="action_done">Дайын</string>

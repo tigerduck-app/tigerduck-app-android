@@ -5,6 +5,7 @@
     <string name="action_allow">అనుమతించు</string>
     <string name="action_back">వెనక్కి</string>
     <string name="action_cancel">రద్దు చేయండి</string>
+    <string name="action_clear_text">వచనాన్ని క్లియర్ చేయండి</string>
     <string name="action_close">మూసివేయండి</string>
     <string name="action_confirm">నిర్ధారించండి</string>
     <string name="action_done">పూర్తయింది</string>

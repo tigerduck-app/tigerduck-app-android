@@ -5,6 +5,7 @@
     <string name="action_allow">אפשר</string>
     <string name="action_back">חזרה</string>
     <string name="action_cancel">ביטול</string>
+    <string name="action_clear_text">נקה טקסט</string>
     <string name="action_close">סגור</string>
     <string name="action_confirm">אישור</string>
     <string name="action_done">סיום</string>

@@ -5,6 +5,7 @@
     <string name="action_allow">Luba</string>
     <string name="action_back">Tagasi</string>
     <string name="action_cancel">Tühista</string>
+    <string name="action_clear_text">Kustuta tekst</string>
     <string name="action_close">Sulge</string>
     <string name="action_confirm">Kinnita</string>
     <string name="action_done">Valmis</string>
