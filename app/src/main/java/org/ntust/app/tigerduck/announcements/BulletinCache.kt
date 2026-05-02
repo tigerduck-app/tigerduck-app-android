@@ -31,7 +31,7 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
     private val listType = object : TypeToken<List<BulletinSummary>>() {}.type
 
     private fun detailLock(id: Int): Mutex =
-        detailLocks.getOrPut(id) { Mutex() }
+        detailLocks.computeIfAbsent(id) { Mutex() }
 
     suspend fun load(): List<BulletinSummary> = mutex.withLock {
         withContext(Dispatchers.IO) {
@@ -76,8 +76,7 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
         try {
             tmp.writeText(content)
             if (!tmp.renameTo(target)) {
-                target.delete()
-                tmp.renameTo(target)
+                tmp.delete()
             }
         } catch (_: Exception) {
             tmp.delete()
