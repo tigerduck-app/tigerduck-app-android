@@ -69,7 +69,17 @@ class MainActivity : AppCompatActivity() {
                     AppNavigation(
                         appState = appState,
                         widgetStartRoute = widgetStartRoute.value,
-                        onStartRouteConsumed = { widgetStartRoute.value = null },
+                        onStartRouteConsumed = {
+                            widgetStartRoute.value = null
+                            // Clear the deep-link payload so a later onCreate
+                            // (e.g. after rotation) doesn't re-navigate to the
+                            // route the user already consumed.
+                            intent?.let {
+                                it.data = null
+                                it.removeExtra("start_route")
+                                setIntent(it)
+                            }
+                        },
                     )
                 }
             }

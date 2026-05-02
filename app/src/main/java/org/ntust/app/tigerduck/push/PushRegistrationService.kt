@@ -80,6 +80,7 @@ class PushRegistrationService @Inject constructor(
 
     fun unregister() {
         scope.launch {
+            mutex.withLock { debounceJob?.cancel() }
             val deviceId = identity.deviceId()
             runCatching { api.unregister(deviceId) }
                 .onFailure { Log.w(TAG, "unregister failed", it) }
