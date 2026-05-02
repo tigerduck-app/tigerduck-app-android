@@ -63,8 +63,7 @@ fun AnnouncementDetailScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .statusBarsPadding(),
+                .padding(padding),
         ) {
             when (val s = state) {
                 is AnnouncementDetailViewModel.State.Loading -> {

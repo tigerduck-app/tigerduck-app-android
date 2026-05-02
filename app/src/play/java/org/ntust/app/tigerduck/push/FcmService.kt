@@ -25,6 +25,11 @@ class FcmService : FirebaseMessagingService() {
         scope.launch { registration.update(token) }
     }
 
+    // The backend must send data-only messages (no `notification` payload).
+    // Messages with a `notification` payload bypass onMessageReceived when the
+    // app is backgrounded/killed, so the deep-link PendingIntent below would
+    // never be attached and tapping the notification would land on the home
+    // screen instead of the article.
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
         val bulletinId = data["bulletin_id"]?.toIntOrNull() ?: return

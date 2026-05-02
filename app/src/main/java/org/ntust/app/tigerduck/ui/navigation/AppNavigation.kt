@@ -315,11 +315,6 @@ fun MainNavigation(
             composable(
                 Screen.AnnouncementDetail.route,
                 arguments = listOf(navArgument("id") { type = NavType.IntType }),
-                deepLinks = listOf(
-                    androidx.navigation.navDeepLink {
-                        uriPattern = "tigerduck://announcement/{id}"
-                    },
-                ),
             ) {
                 AnnouncementDetailScreen(onBack = { navController.popBackStack() })
             }
