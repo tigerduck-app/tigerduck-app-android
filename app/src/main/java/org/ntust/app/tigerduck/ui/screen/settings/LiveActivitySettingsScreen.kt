@@ -45,7 +45,7 @@ import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
-import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.ui.theme.tigerDuckSwitchColors
 import javax.inject.Inject
 
 @HiltViewModel
@@ -460,19 +460,11 @@ private fun SettingToggleRow(
             color = if (enabled) Color.Unspecified
                    else MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
         )
-        val isDark = TigerDuckTheme.isDarkMode
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = MaterialTheme.colorScheme.primary,
-                checkedBorderColor = Color.Transparent,
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = if (isDark) Color(0xFF39393D) else Color(0xFFE9E9EB),
-                uncheckedBorderColor = Color.Transparent,
-            ),
+            colors = tigerDuckSwitchColors(),
         )
     }
 }
