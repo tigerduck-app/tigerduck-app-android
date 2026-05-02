@@ -73,6 +73,12 @@ data class TaxonomyResponse(
     @SerializedName("default_tags") val defaultTags: List<String>,
 )
 
+internal fun TaxonomyResponse.orgLabel(id: String): String =
+    orgs.firstOrNull { it.id == id }?.label ?: id
+
+internal fun TaxonomyResponse.tagLabel(id: String): String =
+    tags.firstOrNull { it.id == id }?.label ?: id
+
 data class SubscriptionRule(
     val id: Int? = null,
     val name: String? = null,

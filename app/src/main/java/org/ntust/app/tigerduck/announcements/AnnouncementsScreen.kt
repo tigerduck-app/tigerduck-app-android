@@ -583,12 +583,6 @@ private fun TagStrip(tags: List<String>, taxonomy: TaxonomyResponse?) {
     }
 }
 
-internal fun TaxonomyResponse.orgLabel(id: String): String =
-    orgs.firstOrNull { it.id == id }?.label ?: id
-
-internal fun TaxonomyResponse.tagLabel(id: String): String =
-    tags.firstOrNull { it.id == id }?.label ?: id
-
 private fun formatShortDate(raw: String): String {
     // Server emits ISO-8601 with Z; show just the date portion. Falling back
     // to the raw string preserves whatever the server sent if parsing fails.
