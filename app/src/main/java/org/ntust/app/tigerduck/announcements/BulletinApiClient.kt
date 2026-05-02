@@ -49,6 +49,11 @@ class BulletinApiClient @Inject constructor(
         chain.proceed(req)
     }
 
+    // `client` is built eagerly while `authedClient` is `by lazy`. The
+    // asymmetry is incidental, not load-bearing — both clone the same
+    // thread-safe `baseClient` and have no special init ordering. `authedClient`
+    // is lazy only because most installs (no shared secret configured) never
+    // touch it, so we skip building it on cold start.
     private val client = baseClient.newBuilder()
         .addInterceptor(acceptInterceptor)
         .addInterceptor(logging)

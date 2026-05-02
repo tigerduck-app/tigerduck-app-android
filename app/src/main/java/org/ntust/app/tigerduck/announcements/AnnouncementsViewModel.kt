@@ -52,11 +52,13 @@ class AnnouncementsViewModel @Inject constructor(
         val showDeleted: Boolean = false,
         val unreadOnly: Boolean = false,
         val readIds: Set<Int> = emptySet(),
+        /**
+         * [filtered] minus already-read items when [unreadOnly] is on. Stored
+         * (not computed) so Compose recompositions triggered by frequent
+         * readIds ticks don't re-run the filter pass on every read.
+         */
+        val displayed: List<BulletinSummary> = emptyList(),
     ) {
-        /** Items to display after applying the read-only filter on top of [filtered]. */
-        val displayed: List<BulletinSummary>
-            get() = if (unreadOnly) filtered.filter { it.id !in readIds } else filtered
-
         val hasUnread: Boolean
             get() = filtered.any { it.id !in readIds }
     }
@@ -66,7 +68,7 @@ class AnnouncementsViewModel @Inject constructor(
 
     init {
         readState.readIds
-            .onEach { ids -> _state.update { it.copy(readIds = ids) } }
+            .onEach { ids -> _state.update { withDisplayed(it.copy(readIds = ids)) } }
             .launchIn(viewModelScope)
     }
 
@@ -224,7 +226,7 @@ class AnnouncementsViewModel @Inject constructor(
         _state.update { applyFilters(it.copy(searchText = text)) }
 
     fun setUnreadOnly(value: Boolean) =
-        _state.update { it.copy(unreadOnly = value) }
+        _state.update { withDisplayed(it.copy(unreadOnly = value)) }
 
     fun toggleRead(id: Int) = readState.toggleRead(id)
 
@@ -247,7 +249,12 @@ class AnnouncementsViewModel @Inject constructor(
                     it.summary?.contains(text, ignoreCase = true) == true
             }
             .toList()
-        return s.copy(filtered = filtered)
+        return withDisplayed(s.copy(filtered = filtered))
+    }
+
+    private fun withDisplayed(s: State): State {
+        val displayed = if (s.unreadOnly) s.filtered.filter { it.id !in s.readIds } else s.filtered
+        return s.copy(displayed = displayed)
     }
 
     private fun sortedUnique(items: List<BulletinSummary>): List<BulletinSummary> {

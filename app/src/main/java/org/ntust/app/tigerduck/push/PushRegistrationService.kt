@@ -43,6 +43,10 @@ class PushRegistrationService @Inject constructor(
     private val mutex = Mutex()
     private var fcmToken: String? = null
     private var debounceJob: Job? = null
+    // Latched while unregister()'s API call is in flight so a token rotation or
+    // FcmBootstrap restart between mutex release and HTTP completion can't
+    // resurrect the row we're deleting under anon-$deviceId.
+    private var isUnregistering = false
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -52,6 +56,7 @@ class PushRegistrationService @Inject constructor(
 
     suspend fun update(fcmToken: String) {
         val changed = mutex.withLock {
+            if (isUnregistering) return@withLock false
             if (fcmToken == this.fcmToken) return@withLock false
             this.fcmToken = fcmToken
             true
@@ -69,6 +74,7 @@ class PushRegistrationService @Inject constructor(
 
     private suspend fun scheduleRegister() {
         mutex.withLock {
+            if (isUnregistering) return@withLock
             debounceJob?.cancel()
             debounceJob = scope.launch {
                 // Coalesce the token + sign-in arrivals so we only POST once.
@@ -80,16 +86,19 @@ class PushRegistrationService @Inject constructor(
 
     fun unregister() {
         scope.launch {
-            // Clear fcmToken in the same critical section that cancels the
-            // debounce so a scheduleRegister fired during the API round-trip
-            // can't see a non-null token and resurrect the row we're deleting.
+            // Clear fcmToken and latch isUnregistering in the same critical
+            // section that cancels the debounce so a token rotation or
+            // scheduleRegister fired during the API round-trip can't resurrect
+            // the row we're deleting under anon-$deviceId.
             mutex.withLock {
                 debounceJob?.cancel()
                 fcmToken = null
+                isUnregistering = true
             }
             val deviceId = identity.deviceId()
             runCatching { api.unregister(deviceId) }
                 .onFailure { Log.w(TAG, "unregister failed", it) }
+            mutex.withLock { isUnregistering = false }
             updateDiagnostic {
                 PushDiagnostic(
                     hasFcmToken = false,
@@ -102,7 +111,7 @@ class PushRegistrationService @Inject constructor(
     }
 
     private suspend fun performRegister() {
-        val token = mutex.withLock { fcmToken } ?: return
+        val token = mutex.withLock { if (isUnregistering) null else fcmToken } ?: return
         val deviceId = identity.deviceId()
         // Bulletin push is opt-in via subscriptions, not gated on sign-in.
         // Without a signed-in user we register under an anonymous user_id
