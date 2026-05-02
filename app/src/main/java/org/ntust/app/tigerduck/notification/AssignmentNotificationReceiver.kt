@@ -39,7 +39,7 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val CHANNEL_ID = "assignment_due"
+        const val CHANNEL_ID = NotificationChannels.ASSIGNMENT_DUE
         const val EXTRA_TITLE = "title"
         const val EXTRA_COURSE_NAME = "course_name"
         const val EXTRA_ASSIGNMENT_ID = "assignment_id"

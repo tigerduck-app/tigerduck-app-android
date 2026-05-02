@@ -9,6 +9,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.push.FcmBootstrap
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -63,7 +64,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
         val ctx = localizedContext(appPreferences.appLanguage)
         notificationManager.createNotificationChannel(
             NotificationChannel(
-                "assignment_due",
+                NotificationChannels.ASSIGNMENT_DUE,
                 ctx.getString(R.string.notification_assignment_due_channel_name),
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
@@ -72,7 +73,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
         )
         notificationManager.createNotificationChannel(
             NotificationChannel(
-                "bulletins",
+                NotificationChannels.BULLETINS,
                 ctx.getString(R.string.notification_bulletin_channel_name),
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {

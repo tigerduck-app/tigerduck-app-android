@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.di.ApplicationScope
+import org.ntust.app.tigerduck.notification.NotificationChannels
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -86,7 +87,7 @@ class FcmService : FirebaseMessagingService() {
     }
 
     companion object {
-        const val CHANNEL_ID = "bulletins"
+        const val CHANNEL_ID = NotificationChannels.BULLETINS
         private const val TAG = "FcmService"
     }
 }
