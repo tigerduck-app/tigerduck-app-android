@@ -1,9 +1,5 @@
 package org.ntust.app.tigerduck.push
 
-import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
-import org.ntust.app.tigerduck.di.ApplicationScope
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -14,13 +10,14 @@ import javax.inject.Singleton
  *
  * Same FQN as the play-flavor implementation so TigerDuckApp.kt in main/
  * can inject and call `start()` regardless of which flavor is being built.
- * The constructor mirrors the play impl so Hilt's binding stays uniform.
+ *
+ * Dependencies are intentionally NOT mirrored from the play impl: pulling in
+ * `PushRegistrationService` and the `@ApplicationScope` `CoroutineScope`
+ * here would force Hilt to build the entire push graph on fdroid where
+ * `start()` is a no-op. Per-flavor `@Inject` constructors are fine —
+ * `TigerDuckApp` injects by type and Hilt resolves the binding per flavor.
  */
 @Singleton
-class FcmBootstrap @Inject constructor(
-    @param:ApplicationContext private val context: Context,
-    private val registration: PushRegistrationService,
-    @param:ApplicationScope private val scope: CoroutineScope,
-) {
+class FcmBootstrap @Inject constructor() {
     fun start() = Unit
 }

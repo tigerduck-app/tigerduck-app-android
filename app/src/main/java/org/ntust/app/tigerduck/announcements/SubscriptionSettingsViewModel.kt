@@ -155,9 +155,16 @@ class SubscriptionSettingsViewModel @Inject constructor(
     }
 
     private var saveJob: Job? = null
+    // Monotonic token: every save() bumps it; the success handler only writes
+    // back the server echo if no newer save() has displaced this one. Guards
+    // the narrow window where execute() returns on the IO thread before the
+    // job's cancellation is delivered — without this, the older PUT's echo
+    // can overwrite the user's most-recent un-saved edits.
+    private var saveGeneration = 0
 
     private fun save() {
         saveJob?.cancel()
+        val generation = ++saveGeneration
         saveJob = viewModelScope.launch {
             // Coalesce rapid edits into a single PUT. Cancelling the coroutine
             // does NOT abort an in-flight OkHttp call (execute() is a blocking
@@ -175,8 +182,10 @@ class SubscriptionSettingsViewModel @Inject constructor(
                 .rules
             try {
                 val response = api.putSubscriptions(identity.deviceId(), rulesToSave)
-                _state.update {
-                    it.copy(rules = response.rules, saveState = SaveState.Saved)
+                if (generation == saveGeneration) {
+                    _state.update {
+                        it.copy(rules = response.rules, saveState = SaveState.Saved)
+                    }
                 }
             } catch (e: CancellationException) {
                 // A new save() is replacing this one; reset Saving so the UI
