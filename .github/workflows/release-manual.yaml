@@ -68,8 +68,10 @@ jobs:
 
       - name: Rename build outputs
         run: |
-          mv app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/TigerDuck.apk"
-          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/TigerDuck.aab"
+          mv app/build/outputs/apk/play/release/app-play-release.apk "app/build/outputs/apk/play/release/TigerDuck.apk"
+          mv app/build/outputs/apk/fdroid/release/app-fdroid-release.apk "app/build/outputs/apk/fdroid/release/TigerDuck-fdroid.apk"
+          mv app/build/outputs/bundle/play/release/app-play-release.aab "app/build/outputs/bundle/play/release/TigerDuck.aab"
+          mv app/build/outputs/bundle/fdroid/release/app-fdroid-release.aab "app/build/outputs/bundle/fdroid/release/TigerDuck-fdroid.aab"
 
       - name: Create and push tag
         if: steps.resolve.outputs.tag_exists == 'false'
@@ -105,8 +107,10 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag }}
           files: |
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/bundle/release/*.aab
+            app/build/outputs/apk/play/release/*.apk
+            app/build/outputs/apk/fdroid/release/*.apk
+            app/build/outputs/bundle/play/release/*.aab
+            app/build/outputs/bundle/fdroid/release/*.aab
 
       - name: Clean up keystore
         if: always()

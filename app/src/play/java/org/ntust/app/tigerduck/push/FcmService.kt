@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.push
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
@@ -31,10 +32,21 @@ class FcmService : FirebaseMessagingService() {
     // never be attached and tapping the notification would land on the home
     // screen instead of the article.
     override fun onMessageReceived(message: RemoteMessage) {
+        if (message.notification != null) {
+            // Falling back to notification.title/body would mask the real bug:
+            // a `notification` payload causes Android to auto-display when the
+            // app is backgrounded/killed, bypassing onMessageReceived entirely
+            // and detaching the deep-link PendingIntent below — so the user
+            // would silently land on the home screen instead of the article.
+            Log.w(
+                TAG,
+                "Received FCM message with notification payload — deep-link will not work when backgrounded. Backend must send data-only messages.",
+            )
+        }
         val data = message.data
         val bulletinId = data["bulletin_id"]?.toIntOrNull() ?: return
-        val title = message.notification?.title ?: data["title"] ?: return
-        val body = message.notification?.body ?: data["body"].orEmpty()
+        val title = data["title"] ?: return
+        val body = data["body"].orEmpty()
         showBulletinNotification(bulletinId, title, body)
     }
 
@@ -75,5 +87,6 @@ class FcmService : FirebaseMessagingService() {
 
     companion object {
         const val CHANNEL_ID = "bulletins"
+        private const val TAG = "FcmService"
     }
 }
