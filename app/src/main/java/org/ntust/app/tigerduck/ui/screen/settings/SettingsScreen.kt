@@ -4,6 +4,7 @@ import android.content.Intent
 import org.ntust.app.tigerduck.BuildConfig
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,8 +22,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -118,6 +122,7 @@ fun SettingsScreen(
         // MARK: Account section
         item { SectionHeader(stringResource(R.string.settings_section_account)) }
         item {
+            val accountButtonMinWidth = rememberAccountButtonMinWidth()
             ContentCard {
                 Column {
                     AccountRow(
@@ -127,6 +132,7 @@ fun SettingsScreen(
                         isLoggingIn = isNtustLoggingIn,
                         onLogin = { showNtustLoginSheet = true },
                         onLogout = { viewModel.logoutNtust() },
+                        actionMinWidth = accountButtonMinWidth,
                     )
 
                     if (libraryEnabled) {
@@ -146,6 +152,7 @@ fun SettingsScreen(
                             isLoggingIn = libIsLoggingIn,
                             onLogin = { showLibraryLoginSheet = true },
                             onLogout = { viewModel.logoutLibrary() },
+                            actionMinWidth = accountButtonMinWidth,
                         )
                     }
                 }
@@ -459,6 +466,27 @@ fun SettingsScreen(
 
 private val SettingRowHeight = 56.dp
 
+/**
+ * Width that fits whichever of "Sign in" / "Sign out" is wider, so the
+ * two buttons line up when both are visible (one row logged-in, one not).
+ * Adds the M3 button horizontal content padding (24.dp each side).
+ */
+@Composable
+private fun rememberAccountButtonMinWidth(): Dp {
+    val loginText = stringResource(R.string.action_login)
+    val logoutText = stringResource(R.string.action_logout)
+    val style = MaterialTheme.typography.labelLarge
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val labelWidthPx = remember(loginText, logoutText, style) {
+        maxOf(
+            measurer.measure(loginText, style).size.width,
+            measurer.measure(logoutText, style).size.width,
+        )
+    }
+    return with(density) { labelWidthPx.toDp() } + 48.dp
+}
+
 @Composable
 private fun AccountRow(
     title: String,
@@ -468,6 +496,7 @@ private fun AccountRow(
     isLoggingIn: Boolean,
     onLogin: () -> Unit,
     onLogout: () -> Unit,
+    actionMinWidth: Dp,
 ) {
     Row(
         modifier = Modifier
@@ -503,19 +532,31 @@ private fun AccountRow(
             }
         }
         if (isLoggingIn) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                strokeWidth = 2.dp,
-            )
+            Box(
+                modifier = Modifier
+                    .widthIn(min = actionMinWidth)
+                    .height(ButtonDefaults.MinHeight),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                )
+            }
         } else if (isLoggedIn) {
             OutlinedButton(
                 onClick = onLogout,
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.error,
                 ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                modifier = Modifier.widthIn(min = actionMinWidth),
             ) { Text(stringResource(R.string.action_logout)) }
         } else {
-            Button(onClick = onLogin) { Text(stringResource(R.string.action_login)) }
+            Button(
+                onClick = onLogin,
+                modifier = Modifier.widthIn(min = actionMinWidth),
+            ) { Text(stringResource(R.string.action_login)) }
         }
     }
 }
