@@ -85,6 +85,8 @@ class SubscriptionSettingsViewModel @Inject constructor(
                 _state.update {
                     it.copy(rules = response.rules, loadState = LoadState.Loaded)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _state.update { it.copy(loadState = LoadState.Failed(e.message ?: "error")) }
             }
