@@ -1,3 +1,7 @@
+AntiFeatures:
+  NonFreeNet:
+    zh-TW: 依賴多個來自 ntust.edu.tw (*.ntust.edu.tw)、r.xinshou.tw 和 app.tigerduck.app 的服務。
+    en-US: Rely on serveral services on ntust.edu.tw (*.ntust.edu.tw), r.xinshou.tw and app.tigerduck.app.
 Categories:
   - Science & Education
 License: AGPL-3.0-only
