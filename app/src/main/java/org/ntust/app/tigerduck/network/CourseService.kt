@@ -280,7 +280,8 @@ class CourseService @Inject constructor(
      * returned unchanged.
      */
     suspend fun relabelCoursesForCurrentAbbrSetting(semester: String, courses: List<Course>): List<Course> {
-        if (!lookupCacheLoaded || courses.isEmpty()) return courses
+        if (courses.isEmpty()) return courses
+        ensureLookupCacheLoaded()
         val language = preferredCourseApiLanguage()
         return courses.map { course ->
             val cached = lookupCache["${semester}_${course.courseNo}_$language"]
