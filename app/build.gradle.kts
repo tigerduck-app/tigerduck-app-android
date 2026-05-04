@@ -208,6 +208,7 @@ dependencies {
     // building fdroid* variants.
     "playImplementation"(platform(libs.firebase.bom))
     "playImplementation"(libs.firebase.messaging)
+    "playImplementation"(libs.firebase.analytics)
 
     // In-app browser (Custom Tabs)
     implementation(libs.androidx.browser)

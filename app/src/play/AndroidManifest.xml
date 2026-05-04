@@ -28,5 +28,13 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_notification" />
+
+        <!-- Default Firebase Analytics collection off so auto-collected events
+             (session_start, first_open, screen_view) don't leave the device
+             before the user consents. AnalyticsLogger.setEnabled(true) flips
+             it on; Firebase persists that choice across launches. -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="false" />
     </application>
 </manifest>
