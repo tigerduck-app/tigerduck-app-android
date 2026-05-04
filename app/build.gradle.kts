@@ -142,6 +142,32 @@ android {
     }
 }
 
+// Fail fast if the name-abbr submodule wasn't checked out — otherwise the
+// app silently ships without abbreviation JSONs (the loader catches the
+// FileNotFoundException and returns an empty map). v1.3.2 hit Play Store
+// in exactly this state because the release workflows were missing
+// `submodules: true` on actions/checkout.
+val verifyNameAbbrSubmodule by tasks.registering {
+    val nameAbbrDir = rootProject.file("name-abbr")
+    // Explicit contract: files the runtime loader requires by name. Update
+    // this list when CourseService starts loading additional JSONs.
+    val requiredFiles = listOf("class-name-abbr.json", "classroom-name-abbr.json")
+    doLast {
+        val hint = "Run `git submodule update --init` (or pass submodules: true to actions/checkout in CI)."
+        val jsonFiles = nameAbbrDir.listFiles { f -> f.isFile && f.extension == "json" }.orEmpty()
+        if (jsonFiles.isEmpty()) {
+            throw GradleException("name-abbr submodule is empty (no JSON files in $nameAbbrDir). $hint")
+        }
+        val missing = requiredFiles.filterNot { nameAbbrDir.resolve(it).exists() }
+        if (missing.isNotEmpty()) {
+            throw GradleException("name-abbr submodule is missing required files: $missing. $hint")
+        }
+    }
+}
+
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }
+    .configureEach { dependsOn(verifyNameAbbrSubmodule) }
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
