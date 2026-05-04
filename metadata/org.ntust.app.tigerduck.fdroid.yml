@@ -20,6 +20,7 @@ Builds:
     versionCode: 11
     commit: <replace with commit hash when pr to F-Droid>
     subdir: app
+    submodules: true
     gradle:
       - fdroid
 
