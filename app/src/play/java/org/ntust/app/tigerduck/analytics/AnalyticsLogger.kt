@@ -67,7 +67,7 @@ class AnalyticsLogger @Inject constructor(
         val fa = analytics ?: return
         if (!validateName("user property name", name, MAX_USER_PROPERTY_NAME_CHARS)) return
         val truncated = value?.let { safeTruncate(it, MAX_USER_PROPERTY_VALUE_CHARS) }
-        if (value != null && truncated!!.length < value.length) {
+        if (value != null && truncated != null && truncated.length < value.length) {
             Log.w(TAG, "user property '$name' value of ${value.length} chars exceeds $MAX_USER_PROPERTY_VALUE_CHARS")
         }
         fa.setUserProperty(name, truncated)
@@ -116,7 +116,7 @@ class AnalyticsLogger @Inject constructor(
     }
 
     private fun isValidIdentifier(name: String): Boolean =
-        name[0].isLetter() && name.all { it.isLetterOrDigit() || it == '_' }
+        name.matches(IDENTIFIER_REGEX)
 
     private fun isReservedPrefix(name: String): Boolean =
         RESERVED_PREFIXES.any { name.startsWith(it) }
@@ -148,5 +148,6 @@ class AnalyticsLogger @Inject constructor(
         const val MAX_USER_PROPERTY_NAME_CHARS = 24
         const val MAX_USER_PROPERTY_VALUE_CHARS = 36
         val RESERVED_PREFIXES = listOf("firebase_", "google_", "ga_")
+        val IDENTIFIER_REGEX = Regex("[a-zA-Z][a-zA-Z0-9_]*")
     }
 }
