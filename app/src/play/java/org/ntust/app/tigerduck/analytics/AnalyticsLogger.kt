@@ -74,9 +74,12 @@ class AnalyticsLogger @Inject constructor(
     }
 
     /**
-     * Toggles Firebase Analytics collection. When disabling, also resets the
-     * App Instance ID so consent revocation severs the link to previously
-     * transmitted data — required for a clean GDPR opt-out.
+     * Toggles Firebase Analytics collection. When disabling, also resets local
+     * analytics state (clears on-device cached data and generates a new App
+     * Instance ID) so future events cannot be linked to the prior identifier.
+     * Note: events already transmitted to Firebase servers are not deleted by
+     * this call — server-side erasure requires a separate User Data Deletion
+     * request.
      */
     fun setEnabled(enabled: Boolean) {
         val fa = analytics ?: return
