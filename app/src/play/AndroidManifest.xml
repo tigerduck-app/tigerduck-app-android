@@ -6,7 +6,21 @@
     notifications (we always supply our own channel id, but Firebase logs a
     warning if this hint is missing).
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- firebase-analytics auto-merges advertising-id permissions into the
+         manifest. We only use Analytics for basic event counts (no ads, no
+         audience/conversion features, no Privacy Sandbox AdServices), so
+         strip both so we can declare "No" for advertising ID in Play
+         Console Data safety. -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
+        tools:node="remove" />
+
     <application>
         <service
             android:name="org.ntust.app.tigerduck.push.FcmService"
