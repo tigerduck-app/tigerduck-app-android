@@ -1,14 +1,14 @@
 package org.ntust.app.tigerduck.network
 
-import org.ntust.app.tigerduck.data.model.CalendarEvent
-import org.ntust.app.tigerduck.data.model.EventSource
 import android.util.Log
-import org.ntust.app.tigerduck.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.logging.HttpLoggingInterceptor
+import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.data.model.CalendarEvent
+import org.ntust.app.tigerduck.data.model.EventSource
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -28,7 +28,7 @@ class CalendarService @Inject constructor(
         Log.d("TigerDuck-HTTP", message)
     }.apply {
         level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
-                else HttpLoggingInterceptor.Level.NONE
+        else HttpLoggingInterceptor.Level.NONE
     }
 
     // Share the connection pool/dispatcher/timeouts from NetworkModule's
@@ -118,17 +118,23 @@ class CalendarService @Inject constructor(
             SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.US).apply {
                 timeZone = TimeZone.getTimeZone("UTC")
             }.parse(value)
-        } catch (e: Exception) { null }
+        } catch (e: Exception) {
+            null
+        }
             ?: try {
-            SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.US).apply {
-                timeZone = TimeZone.getTimeZone("Asia/Taipei")
-            }.parse(value)
-        } catch (e: Exception) { null }
+                SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("Asia/Taipei")
+                }.parse(value)
+            } catch (e: Exception) {
+                null
+            }
             ?: try {
-            SimpleDateFormat("yyyyMMdd", Locale.US).apply {
-                timeZone = TimeZone.getTimeZone("Asia/Taipei")
-            }.parse(value)
-        } catch (e: Exception) { null }
+                SimpleDateFormat("yyyyMMdd", Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("Asia/Taipei")
+                }.parse(value)
+            } catch (e: Exception) {
+                null
+            }
     }
 
     private fun parseICS(ics: String): List<CalendarEvent> {
@@ -152,6 +158,7 @@ class CalendarService @Inject constructor(
                     inEvent = true
                     summary = null; dtStart = null; dtEnd = null; uid = null
                 }
+
                 trimmed == "END:VEVENT" -> {
                     val title = summary
                     val start = dtStart
@@ -163,9 +170,11 @@ class CalendarService @Inject constructor(
                         if (end != null) {
                             // Check if multi-day
                             val startCal = Calendar.getInstance(taipeiTz).apply { time = start }
-                            val endCal = Calendar.getInstance(taipeiTz).apply { time = Date(end.time - 1) }
-                            val isMultiDay = startCal.get(Calendar.DAY_OF_YEAR) != endCal.get(Calendar.DAY_OF_YEAR) ||
-                                            startCal.get(Calendar.YEAR) != endCal.get(Calendar.YEAR)
+                            val endCal =
+                                Calendar.getInstance(taipeiTz).apply { time = Date(end.time - 1) }
+                            val isMultiDay =
+                                startCal.get(Calendar.DAY_OF_YEAR) != endCal.get(Calendar.DAY_OF_YEAR) ||
+                                        startCal.get(Calendar.YEAR) != endCal.get(Calendar.YEAR)
 
                             if (isMultiDay) {
                                 var current: Date = start
@@ -173,7 +182,14 @@ class CalendarService @Inject constructor(
                                 var daysAdded = 0
                                 while (!current.after(lastDay) && daysAdded < 365) {
                                     val dayId = "$eventId-${current.time}"
-                                    events.add(CalendarEvent(dayId, title, current, EventSource.SCHOOL.raw))
+                                    events.add(
+                                        CalendarEvent(
+                                            dayId,
+                                            title,
+                                            current,
+                                            EventSource.SCHOOL.raw
+                                        )
+                                    )
                                     val next = Calendar.getInstance(taipeiTz).apply {
                                         time = current
                                         add(Calendar.DAY_OF_YEAR, 1)
@@ -182,7 +198,14 @@ class CalendarService @Inject constructor(
                                     daysAdded++
                                 }
                             } else {
-                                events.add(CalendarEvent(eventId, title, start, EventSource.SCHOOL.raw))
+                                events.add(
+                                    CalendarEvent(
+                                        eventId,
+                                        title,
+                                        start,
+                                        EventSource.SCHOOL.raw
+                                    )
+                                )
                             }
                         } else {
                             events.add(CalendarEvent(eventId, title, start, EventSource.SCHOOL.raw))
@@ -190,12 +213,14 @@ class CalendarService @Inject constructor(
                     }
                     inEvent = false
                 }
+
                 inEvent -> {
                     when {
                         trimmed.startsWith("SUMMARY") -> {
                             val colonIdx = trimmed.indexOf(':')
                             if (colonIdx >= 0) summary = trimmed.substring(colonIdx + 1)
                         }
+
                         trimmed.startsWith("DTSTART") -> dtStart = parseICSDate(trimmed)
                         trimmed.startsWith("DTEND") -> dtEnd = parseICSDate(trimmed)
                         trimmed.startsWith("UID:") -> uid = trimmed.removePrefix("UID:")

@@ -72,7 +72,8 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
             context.getString(R.string.notification_class_preparing_channel_name),
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
-            description = context.getString(R.string.notification_class_preparing_channel_description)
+            description =
+                context.getString(R.string.notification_class_preparing_channel_description)
             setShowBadge(false)
         }
         nm.createNotificationChannel(channel)

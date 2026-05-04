@@ -1,28 +1,13 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.auth.AuthService
-import org.ntust.app.tigerduck.data.CourseColorStore
-import org.ntust.app.tigerduck.data.OngoingCourseInfo
-import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.computeOngoingCourses
-import android.util.Log
-import org.ntust.app.tigerduck.data.model.Assignment
-import org.ntust.app.tigerduck.data.model.Course
-import org.ntust.app.tigerduck.data.model.TimetablePeriod
-import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.network.CourseService
-import org.ntust.app.tigerduck.network.MoodleService
-import org.ntust.app.tigerduck.network.NetworkChecker
-import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
-import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -32,6 +17,21 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.CourseColorStore
+import org.ntust.app.tigerduck.data.OngoingCourseInfo
+import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.computeOngoingCourses
+import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.data.model.TimetablePeriod
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.CourseService
+import org.ntust.app.tigerduck.network.MoodleService
+import org.ntust.app.tigerduck.network.NetworkChecker
+import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
+import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.util.Calendar
 import javax.inject.Inject
 
@@ -74,7 +74,11 @@ class ClassTableViewModel @Inject constructor(
     private val _currentDayTime = MutableStateFlow(currentDayTime())
     val currentMinute: StateFlow<Int> = _currentDayTime
         .map { it.minuteOfDay }
-        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, currentDayTime().minuteOfDay)
+        .stateIn(
+            viewModelScope,
+            kotlinx.coroutines.flow.SharingStarted.Eagerly,
+            currentDayTime().minuteOfDay
+        )
 
     private var hasLoaded = false
 
@@ -147,7 +151,7 @@ class ClassTableViewModel @Inject constructor(
     }
 
     private fun currentDayTime(): DayTime {
-        val c = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ)
+        val c = Calendar.getInstance(AppConstants.TAIPEI_TZ)
         val wd = when (c.get(Calendar.DAY_OF_WEEK)) {
             Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
             Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
@@ -176,7 +180,9 @@ class ClassTableViewModel @Inject constructor(
             repeat(4) {
                 result.add("$y$s")
                 s--
-                if (s < 1) { s = 2; y-- }
+                if (s < 1) {
+                    s = 2; y--
+                }
             }
             return result
         }
@@ -266,7 +272,7 @@ class ClassTableViewModel @Inject constructor(
         val endTimeStr = AppConstants.PeriodTimes.mapping[lastPeriodId]?.second ?: return false
         val parts = endTimeStr.split(":")
         val endMinutes = (parts.getOrNull(0)?.toIntOrNull() ?: return false) * 60 +
-                         (parts.getOrNull(1)?.toIntOrNull() ?: return false)
+                (parts.getOrNull(1)?.toIntOrNull() ?: return false)
         return dayTime.minuteOfDay > endMinutes
     }
 
@@ -347,6 +353,7 @@ class ClassTableViewModel @Inject constructor(
                 course.courseNo == courseNo -> course.copy(customColorHex = normalized)
                 normalized != null && course.customColorHex?.uppercase() == normalized ->
                     course.copy(customColorHex = null)
+
                 else -> course
             }
         }
@@ -361,6 +368,7 @@ class ClassTableViewModel @Inject constructor(
     sealed class CellRole {
         object Empty : CellRole()
         data class SoloStart(val course: Course, val spanCount: Int) : CellRole()
+
         /**
          * Two overlapping courses occupying (possibly partially) this cluster.
          * [combinedSpan] is the total row count of the union. [offsetA]/[offsetB]
@@ -373,6 +381,7 @@ class ClassTableViewModel @Inject constructor(
             val courseB: Course, val spanB: Int, val offsetB: Int,
             val combinedSpan: Int
         ) : CellRole()
+
         object Skip : CellRole()
     }
 
@@ -416,7 +425,9 @@ class ClassTableViewModel @Inject constructor(
         // course already in the cluster, rooted at the courses present in this
         // cell. This guarantees we emit a ConflictStart at the earliest row
         // of the union and Skip thereafter.
-        val closure = LinkedHashMap<String, Triple<Course, Int, Int>>() // courseNo -> (course, firstIndex, span)
+        val closure =
+            LinkedHashMap<String, Triple<Course, Int, Int>>() // courseNo -> (course, firstIndex, span)
+
         fun addCourse(c: Course, seedIndex: Int) {
             if (closure.containsKey(c.courseNo)) return
             val (first, span) = blockFor(weekday, seedIndex, c)
@@ -442,7 +453,10 @@ class ClassTableViewModel @Inject constructor(
         // 2+ courses — cap at 2, warn if we dropped any
         val entries = closure.values.toList()
         val kept = if (entries.size > 2) {
-            Log.w("ClassTableVM", "Slot weekday=$weekday period=${period.id} has ${entries.size} overlapping courses, rendering only the first 2")
+            Log.w(
+                "ClassTableVM",
+                "Slot weekday=$weekday period=${period.id} has ${entries.size} overlapping courses, rendering only the first 2"
+            )
             entries.take(2)
         } else entries
         val (courseA, firstA, spanA) = kept[0]
@@ -508,10 +522,16 @@ class ClassTableViewModel @Inject constructor(
         }
     }
 
-    private val _noNetworkEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val _noNetworkEvent = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
     val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
 
-    private val _syncCompleteEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val _syncCompleteEvent = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
     val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
     fun refresh() {
@@ -530,12 +550,17 @@ class ClassTableViewModel @Inject constructor(
     private suspend fun fetchData() {
         val studentId = authService.storedStudentId ?: run { _isLoading.value = false; return }
         val password = authService.storedPassword ?: run { _isLoading.value = false; return }
-        if (!networkChecker.isAvailable()) { _isLoading.value = false; return }
+        if (!networkChecker.isAvailable()) {
+            _isLoading.value = false; return
+        }
         _isLoading.value = true
         try {
             val semester = _currentSemester.value
             val isCurrentSemester = semester == courseService.currentSemesterCode()
-            Log.i("ClassTableVM", "fetchData start: semester=$semester isCurrent=$isCurrentSemester")
+            Log.i(
+                "ClassTableVM",
+                "fetchData start: semester=$semester isCurrent=$isCurrentSemester"
+            )
 
             // Kick off the two enrolment sources concurrently — they hit
             // different hosts (courseselection.ntust.edu.tw vs.
@@ -567,11 +592,17 @@ class ClassTableViewModel @Inject constructor(
             Log.i("ClassTableVM", "selectionNos=${selectionNos.size} -> $selectionNos")
             Log.i(
                 "ClassTableVM",
-                "moodleAll=${moodleAll.size} sampleIdnums=${moodleAll.take(5).map { it.idnumber }} semesters=${moodleAll.map { it.semesterCode }.distinct()}"
+                "moodleAll=${moodleAll.size} sampleIdnums=${
+                    moodleAll.take(5).map { it.idnumber }
+                } semesters=${moodleAll.map { it.semesterCode }.distinct()}"
             )
-            val moodleForSem = moodleAll.filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }
+            val moodleForSem =
+                moodleAll.filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }
             val moodleByNo = moodleForSem.associateBy { it.courseNo }
-            Log.i("ClassTableVM", "moodleForSem[$semester]=${moodleForSem.size} -> ${moodleForSem.map { it.courseNo }}")
+            Log.i(
+                "ClassTableVM",
+                "moodleForSem[$semester]=${moodleForSem.size} -> ${moodleForSem.map { it.courseNo }}"
+            )
 
             // Dedup while preserving order: selection first, then whatever
             // Moodle adds.
@@ -650,7 +681,8 @@ class ClassTableViewModel @Inject constructor(
                                 )
                             }
                             val fetchedNos = fetched.map { it.courseNo }.toSet()
-                            val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
+                            val manualLeftovers =
+                                cached.filter { it.isManual && it.courseNo !in fetchedNos }
                             val merged = fetched + manualLeftovers
                             // Only apply if the user hasn't flipped to a
                             // different semester mid-flight.

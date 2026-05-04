@@ -44,6 +44,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
           token: ${{ steps.app_token.outputs.token }}
+          submodules: true
 
       - name: Capture build SHA
         id: sha

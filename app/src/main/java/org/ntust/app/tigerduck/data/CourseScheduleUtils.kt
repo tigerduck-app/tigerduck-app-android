@@ -3,7 +3,8 @@ package org.ntust.app.tigerduck.data
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.model.Course
 
-internal fun periodOrder(periodId: String): Int = AppConstants.Periods.chronologicalOrder.indexOf(periodId)
+internal fun periodOrder(periodId: String): Int =
+    AppConstants.Periods.chronologicalOrder.indexOf(periodId)
 
 internal fun collapseContiguousPeriods(periods: List<String>): List<Pair<String, String>> {
     val sorted = periods.sortedBy(::periodOrder)

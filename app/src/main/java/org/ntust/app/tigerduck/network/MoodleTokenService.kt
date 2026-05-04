@@ -46,8 +46,8 @@ class MoodleTokenService @Inject constructor(
 
     private val moodleUa =
         "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) " +
-            "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 " +
-            "MoodleMobile 5.1.1 (51100)"
+                "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 " +
+                "MoodleMobile 5.1.1 (51100)"
 
     /**
      * Dedicated client that forces the Moodle Mobile UA on every hop of the
@@ -80,9 +80,9 @@ class MoodleTokenService @Inject constructor(
     /** Fetch a fresh token using stored NTUST credentials. */
     suspend fun refreshToken(): String = mutex.withLock {
         val sid = credentialManager.ntustStudentId
-            ?: throw MoodleWebserviceError.MissingStoredCredentials
+            ?: throw MoodleWebserviceError.MissingStoredCredentials()
         val pwd = credentialManager.ntustPassword
-            ?: throw MoodleWebserviceError.MissingStoredCredentials
+            ?: throw MoodleWebserviceError.MissingStoredCredentials()
         val triple = performOidcLogin(sid.trim().uppercase(), pwd)
         credentialManager.moodleToken = triple.wstoken
         Log.i("MoodleTokenService", "refreshed wstoken (len=${triple.wstoken.length})")
@@ -164,11 +164,16 @@ class MoodleTokenService @Inject constructor(
                 bridge.action.startsWith("/") ->
                     moodleBaseUrl.resolve(bridge.action)
                         ?: throw MoodleWebserviceError.MalformedResponse("Invalid bridge action: ${bridge.action}")
+
                 else -> responseUrl.resolve(bridge.action)
                     ?: throw MoodleWebserviceError.MalformedResponse("Invalid bridge action: ${bridge.action}")
             }
             Log.i("MoodleTokenService", "posting OIDC bridge → ${url.redactForLog()}")
-            val (nextHtml, nextUrl) = postForm(url, bridge.payload, referer = responseUrl.toString())
+            val (nextHtml, nextUrl) = postForm(
+                url,
+                bridge.payload,
+                referer = responseUrl.toString()
+            )
             return resolveTokenTriple(
                 html = nextHtml,
                 responseUrl = nextUrl,

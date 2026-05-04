@@ -47,7 +47,11 @@ class CredentialManager @Inject constructor(@ApplicationContext context: Context
             // device whose keystore doesn't hold the original master key)
             // makes `create` throw permanently. Wipe and retry once so the
             // user only loses their stored credentials, not the whole app.
-            android.util.Log.w("CredentialManager", "EncryptedSharedPreferences unusable; resetting", e)
+            android.util.Log.w(
+                "CredentialManager",
+                "EncryptedSharedPreferences unusable; resetting",
+                e
+            )
             runCatching { context.deleteSharedPreferences(PREFS_NAME) }
             try {
                 attempt().also {
@@ -55,7 +59,11 @@ class CredentialManager @Inject constructor(@ApplicationContext context: Context
                     wasRecreatedDueToCorruption = true
                 }
             } catch (retry: Exception) {
-                android.util.Log.e("CredentialManager", "EncryptedSharedPreferences retry failed", retry)
+                android.util.Log.e(
+                    "CredentialManager",
+                    "EncryptedSharedPreferences retry failed",
+                    retry
+                )
                 throw SecurityException("Cannot create encrypted credential storage", retry)
             }
         }

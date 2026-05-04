@@ -1,7 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.content.Intent
-import org.ntust.app.tigerduck.BuildConfig
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -21,8 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -31,8 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.component.ContentCard
@@ -107,88 +106,105 @@ fun SettingsScreen(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { scaffoldPadding ->
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(scaffoldPadding),
-        contentPadding = PaddingValues(bottom = 32.dp)
-    ) {
-        item {
-            PageHeader(title = stringResource(R.string.feature_settings))
-        }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(scaffoldPadding),
+            contentPadding = PaddingValues(bottom = 32.dp)
+        ) {
+            item {
+                PageHeader(title = stringResource(R.string.feature_settings))
+            }
 
-        // MARK: Account section
-        item { SectionHeader(stringResource(R.string.settings_section_account)) }
-        item {
-            val accountButtonMinWidth = rememberAccountButtonMinWidth()
-            ContentCard {
-                Column {
-                    AccountRow(
-                        title = stringResource(R.string.settings_account_ntust_system),
-                        isLoggedIn = isNtustLoggedIn,
-                        subtitle = if (isNtustLoggedIn) viewModel.ntustStudentId else null,
-                        isLoggingIn = isNtustLoggingIn,
-                        onLogin = { showNtustLoginSheet = true },
-                        onLogout = { viewModel.logoutNtust() },
-                        actionMinWidth = accountButtonMinWidth,
-                    )
-
-                    if (libraryEnabled) {
-                        HorizontalDivider()
-                        val expiryMs = viewModel.libraryTokenExpiry
-                        val expirySubtitle = if (isLibraryLoggedIn && expiryMs > 0) {
-                            val fmt = SimpleDateFormat("yyyy/MM/dd", Locale.TAIWAN).apply {
-                                timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
-                            }
-                            stringResource(R.string.settings_token_valid_until, fmt.format(Date(expiryMs)))
-                        } else null
+            // MARK: Account section
+            item { SectionHeader(stringResource(R.string.settings_section_account)) }
+            item {
+                val accountButtonMinWidth = rememberAccountButtonMinWidth()
+                ContentCard {
+                    Column {
                         AccountRow(
-                            title = stringResource(R.string.settings_account_library_system),
-                            isLoggedIn = isLibraryLoggedIn,
-                            subtitle = if (isLibraryLoggedIn) viewModel.libraryUsername else null,
-                            extraSubtitle = expirySubtitle,
-                            isLoggingIn = libIsLoggingIn,
-                            onLogin = { showLibraryLoginSheet = true },
-                            onLogout = { viewModel.logoutLibrary() },
+                            title = stringResource(R.string.settings_account_ntust_system),
+                            isLoggedIn = isNtustLoggedIn,
+                            subtitle = if (isNtustLoggedIn) viewModel.ntustStudentId else null,
+                            isLoggingIn = isNtustLoggingIn,
+                            onLogin = { showNtustLoginSheet = true },
+                            onLogout = { viewModel.logoutNtust() },
                             actionMinWidth = accountButtonMinWidth,
                         )
+
+                        if (libraryEnabled) {
+                            HorizontalDivider()
+                            val expiryMs = viewModel.libraryTokenExpiry
+                            val expirySubtitle = if (isLibraryLoggedIn && expiryMs > 0) {
+                                val fmt = SimpleDateFormat("yyyy/MM/dd", Locale.TAIWAN).apply {
+                                    timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
+                                }
+                                stringResource(
+                                    R.string.settings_token_valid_until,
+                                    fmt.format(Date(expiryMs))
+                                )
+                            } else null
+                            AccountRow(
+                                title = stringResource(R.string.settings_account_library_system),
+                                isLoggedIn = isLibraryLoggedIn,
+                                subtitle = if (isLibraryLoggedIn) viewModel.libraryUsername else null,
+                                extraSubtitle = expirySubtitle,
+                                isLoggingIn = libIsLoggingIn,
+                                onLogin = { showLibraryLoginSheet = true },
+                                onLogout = { viewModel.logoutLibrary() },
+                                actionMinWidth = accountButtonMinWidth,
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        // MARK: Custom
-        item { SectionHeader(stringResource(R.string.settings_section_custom)) }
-        item {
-            ContentCard {
-                Column {
-                    SettingsLinkRow(stringResource(R.string.tab_editor_title)) { onNavigateToTabEditor() }
-                    HorizontalDivider()
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(stringResource(R.string.settings_accent_color), style = MaterialTheme.typography.bodyMedium)
-                        // Show the mode-appropriate display color but always
-                        // persist the canonical (light) hex so the pair swaps
-                        // when the user toggles 顏色主題.
-                        val accentPaletteDisplay = if (TigerDuckTheme.isDarkMode) {
-                            AppPreferences.themeColorsDark
-                        } else {
-                            AppPreferences.themeColors
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            accentPaletteDisplay.forEachIndexed { idx, (_, displayHex) ->
-                                val canonicalHex = AppPreferences.themeColors[idx].second
-                                val color = Color(0xFF000000 or displayHex.toLong())
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(color)
-                                        .clickable { viewModel.appState.accentColorHex = canonicalHex },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (accentColorHex == canonicalHex) {
-                                        Text("\u2713", color = Color.White, style = MaterialTheme.typography.labelSmall)
+            // MARK: Custom
+            item { SectionHeader(stringResource(R.string.settings_section_custom)) }
+            item {
+                ContentCard {
+                    Column {
+                        SettingsLinkRow(stringResource(R.string.tab_editor_title)) { onNavigateToTabEditor() }
+                        HorizontalDivider()
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.settings_accent_color),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            // Show the mode-appropriate display color but always
+                            // persist the canonical (light) hex so the pair swaps
+                            // when the user toggles 顏色主題.
+                            val accentPaletteDisplay = if (TigerDuckTheme.isDarkMode) {
+                                AppPreferences.themeColorsDark
+                            } else {
+                                AppPreferences.themeColors
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                accentPaletteDisplay.forEachIndexed { idx, (_, displayHex) ->
+                                    val canonicalHex = AppPreferences.themeColors[idx].second
+                                    val color = Color(0xFF000000 or displayHex.toLong())
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(color)
+                                            .clickable {
+                                                viewModel.appState.accentColorHex = canonicalHex
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (accentColorHex == canonicalHex) {
+                                            Text(
+                                                "\u2713",
+                                                color = Color.White,
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -196,141 +212,148 @@ fun SettingsScreen(
                     }
                 }
             }
-        }
 
-        // MARK: Display
-        item { SectionHeader(stringResource(R.string.settings_section_display)) }
-        item {
-            ContentCard {
-                Column {
-                    SettingsToggleRow(stringResource(R.string.settings_show_absolute_assignment_time), showAbsoluteTime) {
-                        viewModel.appState.showAbsoluteAssignmentTime = it
-                    }
-                    HorizontalDivider()
-                    // Link opening method
-                    SettingsPickerRow(
-                        label = stringResource(R.string.settings_link_opening_method),
-                        value = if (browserPreference == "inApp") {
-                            stringResource(R.string.settings_browser_in_app)
-                        } else {
-                            stringResource(R.string.settings_browser_system_default)
-                        },
-                        options = listOf(
-                            "system" to stringResource(R.string.settings_browser_system_default),
-                            "inApp" to stringResource(R.string.settings_browser_in_app)
-                        ),
-                        selectedKey = browserPreference,
-                        onSelect = { viewModel.appState.browserPreference = it }
-                    )
-                }
-            }
-        }
-
-        // MARK: Abbreviations
-        if (shouldShowEnglishAbbreviationToggle) {
-            item { SectionHeader(stringResource(R.string.settings_section_abbreviation)) }
+            // MARK: Display
+            item { SectionHeader(stringResource(R.string.settings_section_display)) }
             item {
                 ContentCard {
                     Column {
                         SettingsToggleRow(
-                            stringResource(R.string.settings_use_english_course_abbreviation),
-                            useEnglishCourseAbbreviation
+                            stringResource(R.string.settings_show_absolute_assignment_time),
+                            showAbsoluteTime
                         ) {
-                            viewModel.appState.useEnglishCourseAbbreviation = it
+                            viewModel.appState.showAbsoluteAssignmentTime = it
                         }
                         HorizontalDivider()
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_use_english_classroom_abbreviation),
-                            useEnglishClassroomAbbreviation
-                        ) {
-                            viewModel.appState.useEnglishClassroomAbbreviation = it
-                        }
-                        if (useEnglishClassroomAbbreviation) {
+                        // Link opening method
+                        SettingsPickerRow(
+                            label = stringResource(R.string.settings_link_opening_method),
+                            value = if (browserPreference == "inApp") {
+                                stringResource(R.string.settings_browser_in_app)
+                            } else {
+                                stringResource(R.string.settings_browser_system_default)
+                            },
+                            options = listOf(
+                                "system" to stringResource(R.string.settings_browser_system_default),
+                                "inApp" to stringResource(R.string.settings_browser_in_app)
+                            ),
+                            selectedKey = browserPreference,
+                            onSelect = { viewModel.appState.browserPreference = it }
+                        )
+                    }
+                }
+            }
+
+            // MARK: Abbreviations
+            if (shouldShowEnglishAbbreviationToggle) {
+                item { SectionHeader(stringResource(R.string.settings_section_abbreviation)) }
+                item {
+                    ContentCard {
+                        Column {
+                            SettingsToggleRow(
+                                stringResource(R.string.settings_use_english_course_abbreviation),
+                                useEnglishCourseAbbreviation
+                            ) {
+                                viewModel.appState.useEnglishCourseAbbreviation = it
+                            }
                             HorizontalDivider()
-                            SettingsPickerRow(
-                                label = stringResource(R.string.settings_classroom_mandarin_display),
-                                value = when (classroomMandarinDisplay) {
-                                    AppPreferences.CLASSROOM_MANDARIN_DISPLAY_PINYIN ->
-                                        stringResource(R.string.settings_classroom_mandarin_display_pinyin)
-                                    AppPreferences.CLASSROOM_MANDARIN_DISPLAY_TRANSLATED ->
-                                        stringResource(R.string.settings_classroom_mandarin_display_translated)
-                                    else ->
-                                        stringResource(R.string.settings_classroom_mandarin_display_original)
-                                },
-                                options = listOf(
-                                    AppPreferences.CLASSROOM_MANDARIN_DISPLAY_ORIGINAL to
-                                        stringResource(R.string.settings_classroom_mandarin_display_original),
-                                    AppPreferences.CLASSROOM_MANDARIN_DISPLAY_PINYIN to
-                                        stringResource(R.string.settings_classroom_mandarin_display_pinyin),
-                                    AppPreferences.CLASSROOM_MANDARIN_DISPLAY_TRANSLATED to
-                                        stringResource(R.string.settings_classroom_mandarin_display_translated),
-                                ),
-                                selectedKey = classroomMandarinDisplay,
-                                onSelect = { viewModel.appState.classroomMandarinDisplay = it }
-                            )
+                            SettingsToggleRow(
+                                stringResource(R.string.settings_use_english_classroom_abbreviation),
+                                useEnglishClassroomAbbreviation
+                            ) {
+                                viewModel.appState.useEnglishClassroomAbbreviation = it
+                            }
+                            if (useEnglishClassroomAbbreviation) {
+                                HorizontalDivider()
+                                SettingsPickerRow(
+                                    label = stringResource(R.string.settings_classroom_mandarin_display),
+                                    value = when (classroomMandarinDisplay) {
+                                        AppPreferences.CLASSROOM_MANDARIN_DISPLAY_PINYIN ->
+                                            stringResource(R.string.settings_classroom_mandarin_display_pinyin)
+
+                                        AppPreferences.CLASSROOM_MANDARIN_DISPLAY_TRANSLATED ->
+                                            stringResource(R.string.settings_classroom_mandarin_display_translated)
+
+                                        else ->
+                                            stringResource(R.string.settings_classroom_mandarin_display_original)
+                                    },
+                                    options = listOf(
+                                        AppPreferences.CLASSROOM_MANDARIN_DISPLAY_ORIGINAL to
+                                                stringResource(R.string.settings_classroom_mandarin_display_original),
+                                        AppPreferences.CLASSROOM_MANDARIN_DISPLAY_PINYIN to
+                                                stringResource(R.string.settings_classroom_mandarin_display_pinyin),
+                                        AppPreferences.CLASSROOM_MANDARIN_DISPLAY_TRANSLATED to
+                                                stringResource(R.string.settings_classroom_mandarin_display_translated),
+                                    ),
+                                    selectedKey = classroomMandarinDisplay,
+                                    onSelect = { viewModel.appState.classroomMandarinDisplay = it }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // MARK: Notifications
+            item { SectionHeader(stringResource(R.string.settings_section_notifications)) }
+            item {
+                ContentCard {
+                    Column {
+                        SettingsToggleRow(
+                            stringResource(R.string.settings_assignment_due_reminder),
+                            notifyAssignments
+                        ) {
+                            viewModel.appState.notifyAssignments = it
+                            if (!it) viewModel.cancelAllAssignmentNotifications()
+                        }
+                        HorizontalDivider()
+                        SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) { onNavigateToLiveActivity() }
+                    }
+                }
+            }
+
+            // MARK: Language
+            item { SectionHeader(stringResource(R.string.feature_category_language)) }
+            item {
+                ContentCard {
+                    SettingsLinkRowWithValue(
+                        label = stringResource(R.string.settings_language),
+                        value = run {
+                            val normalized = AppLanguageManager.normalize(appLanguage)
+                            if (normalized == AppLanguageManager.SYSTEM) {
+                                stringResource(R.string.settings_language_follow_system)
+                            } else {
+                                val locale = Locale.forLanguageTag(normalized)
+                                locale.getDisplayName(locale).ifBlank { normalized }
+                            }
+                        },
+                        onClick = onNavigateToLanguagePicker,
+                    )
+                }
+            }
+
+            // MARK: Other settings
+            item { SectionHeader(stringResource(R.string.settings_section_other_settings)) }
+            item {
+                ContentCard {
+                    SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
+                }
+            }
+
+            // MARK: About
+            item { SectionHeader(stringResource(R.string.settings_section_about)) }
+            item {
+                ContentCard {
+                    Column {
+                        SettingsRow(stringResource(R.string.settings_version), appVersion)
+                        HorizontalDivider()
+                        SettingsLinkRow(stringResource(R.string.settings_official_website)) {
+                            openUrl(context, "https://tigerduck.app/", browserPreference)
                         }
                     }
                 }
             }
         }
-
-        // MARK: Notifications
-        item { SectionHeader(stringResource(R.string.settings_section_notifications)) }
-        item {
-            ContentCard {
-                Column {
-                    SettingsToggleRow(stringResource(R.string.settings_assignment_due_reminder), notifyAssignments) {
-                        viewModel.appState.notifyAssignments = it
-                        if (!it) viewModel.cancelAllAssignmentNotifications()
-                    }
-                    HorizontalDivider()
-                    SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) { onNavigateToLiveActivity() }
-                }
-            }
-        }
-
-        // MARK: Language
-        item { SectionHeader(stringResource(R.string.feature_category_language)) }
-        item {
-            ContentCard {
-                SettingsLinkRowWithValue(
-                    label = stringResource(R.string.settings_language),
-                    value = run {
-                        val normalized = AppLanguageManager.normalize(appLanguage)
-                        if (normalized == AppLanguageManager.SYSTEM) {
-                            stringResource(R.string.settings_language_follow_system)
-                        } else {
-                            val locale = Locale.forLanguageTag(normalized)
-                            locale.getDisplayName(locale).ifBlank { normalized }
-                        }
-                    },
-                    onClick = onNavigateToLanguagePicker,
-                )
-            }
-        }
-
-        // MARK: Other settings
-        item { SectionHeader(stringResource(R.string.settings_section_other_settings)) }
-        item {
-            ContentCard {
-                SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
-            }
-        }
-
-        // MARK: About
-        item { SectionHeader(stringResource(R.string.settings_section_about)) }
-        item {
-            ContentCard {
-                Column {
-                    SettingsRow(stringResource(R.string.settings_version), appVersion)
-                    HorizontalDivider()
-                    SettingsLinkRow(stringResource(R.string.settings_official_website)) {
-                        openUrl(context, "https://tigerduck.app/", browserPreference)
-                    }
-                }
-            }
-        }
-    }
     } // Scaffold
 
     if (showNtustLoginSheet) {
@@ -481,13 +504,19 @@ private fun SettingsRow(label: String, value: String) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Text(value, style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY))
+        Text(
+            value, style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+        )
     }
 }
 
 @Composable
-internal fun SettingsToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+internal fun SettingsToggleRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -524,10 +553,16 @@ internal fun SettingsPickerRow(
     ) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         Box {
-            Text(value, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY))
+            Text(
+                value, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+            )
 
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, shape = RoundedCornerShape(12.dp)) {
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                shape = RoundedCornerShape(12.dp)
+            ) {
                 options.forEach { (key, display) ->
                     DropdownMenuItem(
                         text = { Text(display) },
@@ -615,7 +650,10 @@ internal fun LibraryWarningDialog(
             view.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
         }
         vibrator?.vibrate(
-            android.os.VibrationEffect.createOneShot(1000, android.os.VibrationEffect.DEFAULT_AMPLITUDE)
+            android.os.VibrationEffect.createOneShot(
+                1000,
+                android.os.VibrationEffect.DEFAULT_AMPLITUDE
+            )
         )
 
         for (i in 4 downTo 0) {
@@ -668,7 +706,10 @@ internal fun LibraryWarningDialog(
             ) {
                 Text(
                     if (confirmEnabled) stringResource(R.string.settings_library_warning_confirm)
-                    else stringResource(R.string.settings_library_warning_confirm_countdown, countdown)
+                    else stringResource(
+                        R.string.settings_library_warning_confirm_countdown,
+                        countdown
+                    )
                 )
             }
         },

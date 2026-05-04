@@ -17,7 +17,11 @@ data class CourseTimeSlot(
     companion object {
         private val dayKeyFormatter = DateTimeFormatter.ofPattern("yyyyMMdd", Locale.US)
 
-        fun buildSlots(courses: List<Course>, weekday: Int, on: Date = Date()): List<CourseTimeSlot> {
+        fun buildSlots(
+            courses: List<Course>,
+            weekday: Int,
+            on: Date = Date()
+        ): List<CourseTimeSlot> {
             val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
             val slots = mutableListOf<CourseTimeSlot>()
 
@@ -25,7 +29,8 @@ data class CourseTimeSlot(
                 val periods = course.schedule[weekday]
                 if (periods.isNullOrEmpty()) continue
 
-                val sorted = periods.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
+                val sorted =
+                    periods.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
                 val firstTime = AppConstants.PeriodTimes.mapping[sorted.first()] ?: continue
                 val lastTime = AppConstants.PeriodTimes.mapping[sorted.last()] ?: continue
 
@@ -33,13 +38,15 @@ data class CourseTimeSlot(
                 val endDate = dateFromTimeString(lastTime.second, on, cal) ?: continue
 
                 val dayKey = dayKeyFormatter.format(on.toInstant().atZone(AppConstants.TAIPEI_ZONE))
-                slots.add(CourseTimeSlot(
-                    id = "${course.courseNo}_$dayKey",
-                    course = course,
-                    start = startDate,
-                    end = endDate,
-                    date = on
-                ))
+                slots.add(
+                    CourseTimeSlot(
+                        id = "${course.courseNo}_$dayKey",
+                        course = course,
+                        start = startDate,
+                        end = endDate,
+                        date = on
+                    )
+                )
             }
             return slots.sortedBy { it.start }
         }

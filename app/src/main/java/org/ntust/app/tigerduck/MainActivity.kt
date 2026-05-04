@@ -19,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import dagger.hilt.android.AndroidEntryPoint
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
@@ -27,15 +28,17 @@ import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.navigation.AppNavigation
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
-    @Inject lateinit var appState: AppState
-    @Inject lateinit var liveActivityManager: LiveActivityManager
-    @Inject lateinit var authService: AuthService
+    @Inject
+    lateinit var appState: AppState
+    @Inject
+    lateinit var liveActivityManager: LiveActivityManager
+    @Inject
+    lateinit var authService: AuthService
 
     private val widgetStartRoute = mutableStateOf<String?>(null)
 
@@ -87,7 +90,7 @@ class MainActivity : AppCompatActivity() {
                             intent?.let {
                                 it.data = null
                                 it.removeExtra("start_route")
-                                setIntent(it)
+                                intent = it
                             }
                         },
                     )

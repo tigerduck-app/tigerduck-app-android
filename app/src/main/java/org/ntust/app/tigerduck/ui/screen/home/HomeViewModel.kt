@@ -2,24 +2,12 @@ package org.ntust.app.tigerduck.ui.screen.home
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
-import org.ntust.app.tigerduck.AppConstants
 import androidx.lifecycle.viewModelScope
-import org.ntust.app.tigerduck.auth.AuthService
-import org.ntust.app.tigerduck.data.CourseColorStore
-import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.model.*
-import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
-import org.ntust.app.tigerduck.network.CourseService
-import org.ntust.app.tigerduck.network.MoodleService
-import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
-import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import org.ntust.app.tigerduck.network.NetworkChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -31,10 +19,24 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.CourseColorStore
+import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.model.AssignmentFilter
+import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.data.model.HomeSection
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
+import org.ntust.app.tigerduck.network.CourseService
+import org.ntust.app.tigerduck.network.MoodleService
+import org.ntust.app.tigerduck.network.NetworkChecker
+import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
+import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
-import java.util.LinkedHashSet
 import javax.inject.Inject
 
 @HiltViewModel
@@ -100,6 +102,7 @@ class HomeViewModel @Inject constructor(
             AssignmentFilter.INCOMPLETE ->
                 all.filter { !done(it) && it.assignmentId !in ignored }
                     .sortedBy { it.dueDate }
+
             AssignmentFilter.ALL -> {
                 // 全部 ordering, top → bottom:
                 //   1. Unhandled overdue (past due, not done, not marked) —
@@ -118,9 +121,10 @@ class HomeViewModel @Inject constructor(
                 }
                 val (future, past) = rest.partition { !it.dueDate.before(now) }
                 overdueUnhandled.sortedByDescending { it.dueDate } +
-                    future.sortedBy { it.dueDate } +
-                    past.sortedByDescending { it.dueDate }
+                        future.sortedBy { it.dueDate } +
+                        past.sortedByDescending { it.dueDate }
             }
+
             AssignmentFilter.IGNORED ->
                 all.filter { it.assignmentId in ignored }.sortedBy { it.dueDate }
         }
@@ -140,13 +144,19 @@ class HomeViewModel @Inject constructor(
 
     val isLoggedIn: StateFlow<Boolean> = authService.authState
 
-    private val _noNetworkEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    private val _noNetworkEvent = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
+    )
     val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
 
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
 
-    private val _syncCompleteEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    private val _syncCompleteEvent = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
+    )
     val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
     private val _skippedDates = MutableStateFlow<Map<String, List<String>>>(emptyMap())
@@ -288,7 +298,8 @@ class HomeViewModel @Inject constructor(
                             c.copy(customColorHex = latestColors[c.courseNo])
                         }
                         val fetchedNos = fetched.map { it.courseNo }.toSet()
-                        val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
+                        val manualLeftovers =
+                            cached.filter { it.isManual && it.courseNo !in fetchedNos }
                         courses = fetched + manualLeftovers
                         dataCache.saveCourses(courses)
                         widgetUpdater.requestUpdate()
@@ -386,7 +397,8 @@ class HomeViewModel @Inject constructor(
                                 enrolledCount = r.chooseStudent ?: 0,
                                 maxCount = r.maxEnrollment,
                                 schedule = schedule,
-                                moodleIdNumber = moodleByNo[courseNo]?.idnumber ?: "${r.semester}${r.courseNo}"
+                                moodleIdNumber = moodleByNo[courseNo]?.idnumber
+                                    ?: "${r.semester}${r.courseNo}"
                             )
                         } else {
                             CourseService.fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
@@ -430,19 +442,20 @@ class HomeViewModel @Inject constructor(
 
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
         _allCourses.value = courses
-        val todayIndex = Calendar.getInstance(AppConstants.TAIPEI_TZ).get(Calendar.DAY_OF_WEEK).let {
-            // Android: Sun=1, Mon=2..Sat=7. We need Mon=1..Sun=7
-            when (it) {
-                Calendar.MONDAY -> 1
-                Calendar.TUESDAY -> 2
-                Calendar.WEDNESDAY -> 3
-                Calendar.THURSDAY -> 4
-                Calendar.FRIDAY -> 5
-                Calendar.SATURDAY -> 6
-                Calendar.SUNDAY -> 7
-                else -> 1
+        val todayIndex =
+            Calendar.getInstance(AppConstants.TAIPEI_TZ).get(Calendar.DAY_OF_WEEK).let {
+                // Android: Sun=1, Mon=2..Sat=7. We need Mon=1..Sun=7
+                when (it) {
+                    Calendar.MONDAY -> 1
+                    Calendar.TUESDAY -> 2
+                    Calendar.WEDNESDAY -> 3
+                    Calendar.THURSDAY -> 4
+                    Calendar.FRIDAY -> 5
+                    Calendar.SATURDAY -> 6
+                    Calendar.SUNDAY -> 7
+                    else -> 1
+                }
             }
-        }
         _todayCourses.value = courses.filter { it.schedule.containsKey(todayIndex) }
         _allAssignments.value = assignments.sortedBy { it.dueDate }
 
@@ -455,8 +468,8 @@ class HomeViewModel @Inject constructor(
             notificationScheduler.scheduleAll(
                 assignments.filter {
                     !it.isCompleted &&
-                        it.assignmentId !in ignored &&
-                        it.assignmentId !in marked
+                            it.assignmentId !in ignored &&
+                            it.assignmentId !in marked
                 }
             )
         }
@@ -474,7 +487,7 @@ class HomeViewModel @Inject constructor(
         val marked = _markedCompletedIds.value
         return _allAssignments.value.any {
             it.courseNo == courseNo && !it.isCompleted &&
-                it.assignmentId !in ignored && it.assignmentId !in marked
+                    it.assignmentId !in ignored && it.assignmentId !in marked
         }
     }
 
@@ -483,7 +496,7 @@ class HomeViewModel @Inject constructor(
         val marked = _markedCompletedIds.value
         return _allAssignments.value.filter {
             it.courseNo == courseNo && !it.isCompleted &&
-                it.assignmentId !in ignored && it.assignmentId !in marked
+                    it.assignmentId !in ignored && it.assignmentId !in marked
         }
     }
 
@@ -535,8 +548,8 @@ class HomeViewModel @Inject constructor(
             notificationScheduler.scheduleAll(
                 _allAssignments.value.filter {
                     !it.isCompleted &&
-                        it.assignmentId !in ignored &&
-                        it.assignmentId !in marked
+                            it.assignmentId !in ignored &&
+                            it.assignmentId !in marked
                 }
             )
         }

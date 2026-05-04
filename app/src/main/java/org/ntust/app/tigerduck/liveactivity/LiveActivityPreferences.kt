@@ -25,7 +25,10 @@ class LiveActivityPreferences @Inject constructor(
         context.getSharedPreferences("tigerduck_live_activity", Context.MODE_PRIVATE)
 
     private val _changeEvent =
-        MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        MutableSharedFlow<Unit>(
+            extraBufferCapacity = 1,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST
+        )
     val changeEvent: SharedFlow<Unit> = _changeEvent.asSharedFlow()
 
     var isEnabled: Boolean
@@ -67,12 +70,18 @@ class LiveActivityPreferences @Inject constructor(
     /** Seconds before an assignment due date when the Live Update starts showing. */
     var assignmentLeadTimeSec: Long
         get() = prefs.getLong(KEY_ASSIGNMENT_LEAD, DEFAULT_ASSIGNMENT_LEAD_SEC)
-        set(value) = writeLong(KEY_ASSIGNMENT_LEAD, value.coerceIn(MIN_ASSIGNMENT_LEAD_SEC, MAX_ASSIGNMENT_LEAD_SEC))
+        set(value) = writeLong(
+            KEY_ASSIGNMENT_LEAD,
+            value.coerceIn(MIN_ASSIGNMENT_LEAD_SEC, MAX_ASSIGNMENT_LEAD_SEC)
+        )
 
     /** Seconds before class start when the "即將上課" scenario activates. */
     var classPreparingLeadTimeSec: Long
         get() = prefs.getLong(KEY_CLASS_LEAD, DEFAULT_CLASS_LEAD_SEC)
-        set(value) = writeLong(KEY_CLASS_LEAD, value.coerceIn(MIN_CLASS_LEAD_SEC, MAX_CLASS_LEAD_SEC))
+        set(value) = writeLong(
+            KEY_CLASS_LEAD,
+            value.coerceIn(MIN_CLASS_LEAD_SEC, MAX_CLASS_LEAD_SEC)
+        )
 
     fun resetToDefaults() {
         prefs.edit().clear().apply()

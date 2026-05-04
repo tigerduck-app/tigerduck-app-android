@@ -152,6 +152,7 @@ fun NotificationSetupContent(
                                 systemPermissions.openSettings(s.permission)
                             }
                         }
+
                         else -> {
                             systemPermissions.openSettings(s.permission)
                         }
@@ -215,11 +216,13 @@ private fun PermissionCard(state: PermissionState, onClick: () -> Unit) {
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                 )
+
                 state.granted -> Icon(
                     Icons.Filled.Check,
                     contentDescription = stringResource(R.string.permission_granted),
                     tint = Color(0xFF34C759),
                 )
+
                 else -> Button(
                     onClick = onClick,
                     colors = ButtonDefaults.buttonColors(),

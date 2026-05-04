@@ -197,6 +197,7 @@ private fun ScheduleCellBox(
             courseColors = courseColors,
             blockHeight = blockHeight,
         )
+
         is ScheduleCell.Conflict -> ConflictCell(
             cell = cell,
             colors = colors,
@@ -303,6 +304,7 @@ private fun ConflictCell(
             else -> base.copy(alpha = 0.55f)
         }
     }
+
     val textColor: Color = if (colors.isDark) Color.White else Color(0xFF1C1C1E)
 
     // renderConflictLayer allocates ARGB_8888 bitmaps and runs Canvas paths —

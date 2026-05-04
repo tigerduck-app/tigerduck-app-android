@@ -5,8 +5,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import org.ntust.app.tigerduck.data.model.Assignment
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.data.model.Assignment
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,7 +15,8 @@ class AssignmentNotificationScheduler @Inject constructor(
     @param:ApplicationContext private val context: Context
 ) {
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    private val trackerPrefs = context.getSharedPreferences("notification_tracker", Context.MODE_PRIVATE)
+    private val trackerPrefs =
+        context.getSharedPreferences("notification_tracker", Context.MODE_PRIVATE)
 
     fun scheduleAll(assignments: List<Assignment>) {
         cancelAllTracked()
@@ -32,7 +33,10 @@ class AssignmentNotificationScheduler @Inject constructor(
             val intent = Intent(context, AssignmentNotificationReceiver::class.java).apply {
                 putExtra(AssignmentNotificationReceiver.EXTRA_TITLE, assignment.title)
                 putExtra(AssignmentNotificationReceiver.EXTRA_COURSE_NAME, assignment.courseName)
-                putExtra(AssignmentNotificationReceiver.EXTRA_ASSIGNMENT_ID, assignment.assignmentId)
+                putExtra(
+                    AssignmentNotificationReceiver.EXTRA_ASSIGNMENT_ID,
+                    assignment.assignmentId
+                )
             }
 
             val pendingIntent = PendingIntent.getBroadcast(
@@ -46,7 +50,11 @@ class AssignmentNotificationScheduler @Inject constructor(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
                     alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
                 } else {
-                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerTime,
+                        pendingIntent
+                    )
                 }
             } catch (_: SecurityException) {
                 alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)

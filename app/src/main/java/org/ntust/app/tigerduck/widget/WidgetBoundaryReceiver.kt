@@ -9,7 +9,8 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class WidgetBoundaryReceiver : BroadcastReceiver() {
 
-    @Inject lateinit var widgetUpdater: WidgetUpdater
+    @Inject
+    lateinit var widgetUpdater: WidgetUpdater
 
     override fun onReceive(context: Context, intent: Intent) {
         val pending = goAsync()

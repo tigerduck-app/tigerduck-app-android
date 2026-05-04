@@ -3,11 +3,6 @@ package org.ntust.app.tigerduck.network
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.model.Assignment
-import org.ntust.app.tigerduck.network.model.MoodleAssignmentsEnvelope
-import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
-import org.ntust.app.tigerduck.network.model.MoodleSubmissionStatusEnvelope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -16,6 +11,11 @@ import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.network.model.MoodleAssignmentsEnvelope
+import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
+import org.ntust.app.tigerduck.network.model.MoodleSubmissionStatusEnvelope
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,7 +30,8 @@ class MoodleService @Inject constructor(
     private val client: OkHttpClient get() = sessionManager.client
     private val gson = Gson()
     private val webserviceUrl = "https://moodle2.ntust.edu.tw/webservice/rest/server.php"
-    @Volatile private var cachedUserId: Int? = null
+    @Volatile
+    private var cachedUserId: Int? = null
     private val siteInfoLock = Any()
 
     /**
@@ -121,7 +122,8 @@ class MoodleService @Inject constructor(
                     isCompleted = submitted,
                     moodleUrl = "https://moodle2.ntust.edu.tw/mod/assign/view.php?id=${a.cmid}",
                     cutoffDate = a.cutoffdate?.takeIf { it > 0 }?.let { Date(it * 1000) },
-                    submittedAt = submission?.timemodified?.takeIf { it > 0 }?.let { Date(it * 1000) },
+                    submittedAt = submission?.timemodified?.takeIf { it > 0 }
+                        ?.let { Date(it * 1000) },
                 )
             }
         }
@@ -151,7 +153,8 @@ class MoodleService @Inject constructor(
         cachedUserId?.let { return it }
         synchronized(siteInfoLock) {
             cachedUserId?.let { return it }
-            val url = "$webserviceUrl?moodlewsrestformat=json&wsfunction=core_webservice_get_site_info&wstoken=$token"
+            val url =
+                "$webserviceUrl?moodlewsrestformat=json&wsfunction=core_webservice_get_site_info&wstoken=$token"
             val req = Request.Builder().url(url).post(FormBody.Builder().build()).build()
             val body = client.newCall(req).execute().use { response ->
                 if (!response.isSuccessful) throw MoodleWebserviceError.HttpStatus(response.code)
@@ -173,7 +176,8 @@ class MoodleService @Inject constructor(
     }
 
     private fun callEnrolledCourses(token: String, userId: Int): List<MoodleEnrolledCourse> {
-        val url = "$webserviceUrl?moodlewsrestformat=json&wsfunction=core_enrol_get_users_courses&wstoken=$token"
+        val url =
+            "$webserviceUrl?moodlewsrestformat=json&wsfunction=core_enrol_get_users_courses&wstoken=$token"
         val form = FormBody.Builder().add("userid", userId.toString()).build()
         val req = Request.Builder().url(url).post(form).build()
         val body = client.newCall(req).execute().use { response ->
@@ -191,7 +195,8 @@ class MoodleService @Inject constructor(
     }
 
     private fun callGetAssignments(token: String, courseIds: List<Int>): MoodleAssignmentsEnvelope {
-        val url = "$webserviceUrl?moodlewsrestformat=json&wsfunction=mod_assign_get_assignments&wstoken=$token"
+        val url =
+            "$webserviceUrl?moodlewsrestformat=json&wsfunction=mod_assign_get_assignments&wstoken=$token"
         val form = FormBody.Builder().apply {
             courseIds.forEachIndexed { i, id -> add("courseids[$i]", id.toString()) }
         }.build()
@@ -211,8 +216,13 @@ class MoodleService @Inject constructor(
         }
     }
 
-    private fun callGetSubmissionStatus(token: String, assignId: Int, userId: Int): MoodleSubmissionStatusEnvelope {
-        val url = "$webserviceUrl?moodlewsrestformat=json&wsfunction=mod_assign_get_submission_status&wstoken=$token"
+    private fun callGetSubmissionStatus(
+        token: String,
+        assignId: Int,
+        userId: Int
+    ): MoodleSubmissionStatusEnvelope {
+        val url =
+            "$webserviceUrl?moodlewsrestformat=json&wsfunction=mod_assign_get_submission_status&wstoken=$token"
         val form = FormBody.Builder()
             .add("assignid", assignId.toString())
             .add("userid", userId.toString())

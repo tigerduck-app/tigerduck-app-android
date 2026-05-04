@@ -30,6 +30,7 @@ class DataMigration(
     enum class Outcome {
         /** No migration needed, or all pending steps applied successfully. */
         Ok,
+
         /** Stored data cannot be migrated; UI must prompt the user to reset. */
         NeedsUserReset,
     }

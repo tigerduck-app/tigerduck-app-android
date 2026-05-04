@@ -4,22 +4,25 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.content.res.Configuration as ResConfiguration
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import dagger.hilt.android.HiltAndroidApp
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.push.FcmBootstrap
-import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
+import android.content.res.Configuration as ResConfiguration
 
 @HiltAndroidApp
 class TigerDuckApp : Application(), Configuration.Provider {
 
-    @Inject lateinit var workerFactory: HiltWorkerFactory
-    @Inject lateinit var appPreferences: AppPreferences
-    @Inject lateinit var fcmBootstrap: FcmBootstrap
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+    @Inject
+    lateinit var appPreferences: AppPreferences
+    @Inject
+    lateinit var fcmBootstrap: FcmBootstrap
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -37,12 +40,12 @@ class TigerDuckApp : Application(), Configuration.Provider {
     private fun warnIfPinsNearExpiry() {
         val daysUntilExpiry =
             (BuildConfig.PIN_EXPIRY_EPOCH - System.currentTimeMillis()) /
-                (24L * 60 * 60 * 1000)
+                    (24L * 60 * 60 * 1000)
         if (daysUntilExpiry in 0..30) {
             android.util.Log.w(
                 "TigerDuckApp",
                 "NTUST cert pins expire in $daysUntilExpiry day(s); rotate before lapse — " +
-                    "post-expiry the platform falls back to system CA trust silently",
+                        "post-expiry the platform falls back to system CA trust silently",
             )
         } else if (daysUntilExpiry < 0) {
             android.util.Log.e(
@@ -68,7 +71,8 @@ class TigerDuckApp : Application(), Configuration.Provider {
                 ctx.getString(R.string.notification_assignment_due_channel_name),
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
-                description = ctx.getString(R.string.notification_assignment_due_channel_description)
+                description =
+                    ctx.getString(R.string.notification_assignment_due_channel_description)
             }
         )
         notificationManager.createNotificationChannel(

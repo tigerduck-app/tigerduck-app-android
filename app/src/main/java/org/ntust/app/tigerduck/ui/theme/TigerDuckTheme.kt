@@ -67,7 +67,8 @@ val courseColorPaletteDark: List<Color> = listOf(
 )
 
 object TigerDuckTheme {
-    private val courseColorMapRef = java.util.concurrent.atomic.AtomicReference<Map<String, Color>>(emptyMap())
+    private val courseColorMapRef =
+        java.util.concurrent.atomic.AtomicReference<Map<String, Color>>(emptyMap())
     private val courseColorMap get() = courseColorMapRef.get()
 
     // Compose-observable so course tiles recompose when the app switches theme.
@@ -167,7 +168,15 @@ private fun pickFreeCourseColor(courseNo: String, taken: Set<Color>): Color {
         val c = Color(android.graphics.Color.HSVToColor(floatArrayOf(h, s, v)))
         if (c.toArgb() !in paletteArgbs && c !in taken) return c
     }
-    return Color(android.graphics.Color.HSVToColor(floatArrayOf(rng.nextFloat() * 360f, 0.7f, 0.7f)))
+    return Color(
+        android.graphics.Color.HSVToColor(
+            floatArrayOf(
+                rng.nextFloat() * 360f,
+                0.7f,
+                0.7f
+            )
+        )
+    )
 }
 
 private fun courseHashIndex(courseNo: String): Int {
@@ -306,7 +315,10 @@ private val TigerDuckTypography: Typography = Typography().let { default ->
         displayMedium = default.displayMedium.copy(fontSize = 48.sp, fontWeight = FontWeight.Bold),
         displaySmall = default.displaySmall.copy(fontSize = 38.sp, fontWeight = FontWeight.Bold),
         headlineLarge = default.headlineLarge.copy(fontSize = 34.sp, fontWeight = FontWeight.Bold),
-        headlineMedium = default.headlineMedium.copy(fontSize = 30.sp, fontWeight = FontWeight.Bold),
+        headlineMedium = default.headlineMedium.copy(
+            fontSize = 30.sp,
+            fontWeight = FontWeight.Bold
+        ),
         headlineSmall = default.headlineSmall.copy(fontSize = 26.sp, fontWeight = FontWeight.Bold),
         titleLarge = default.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold),
         titleMedium = default.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold),

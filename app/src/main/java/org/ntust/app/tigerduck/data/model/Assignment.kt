@@ -20,9 +20,10 @@ data class Assignment(
     val isOverdue: Boolean
         get() = !isCompleted && dueDate.before(Date())
 
-    val moodleDeepLink: String?
+    val moodleDeepLink: String
         get() = moodleUrl?.let {
             val path = it.substringAfter("moodle2.ntust.edu.tw")
             "moodlemobile://https://moodle2.ntust.edu.tw?redirect=$path"
-        } ?: "moodlemobile://https://moodle2.ntust.edu.tw?redirect=/mod/assign/view.php?id=$assignmentId"
+        }
+            ?: "moodlemobile://https://moodle2.ntust.edu.tw?redirect=/mod/assign/view.php?id=$assignmentId"
 }

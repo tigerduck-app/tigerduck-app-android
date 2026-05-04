@@ -2,10 +2,10 @@ package org.ntust.app.tigerduck.ui.screen.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import org.ntust.app.tigerduck.auth.AuthService
-import org.ntust.app.tigerduck.ui.AppState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.ui.AppState
 import javax.inject.Inject
 
 @HiltViewModel

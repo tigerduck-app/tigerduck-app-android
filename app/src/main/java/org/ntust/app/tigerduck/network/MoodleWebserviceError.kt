@@ -4,16 +4,19 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 
 sealed class MoodleWebserviceError(message: String) : Exception(message) {
-    object InvalidToken : MoodleWebserviceError("Moodle token invalid")
-    object InvalidCredentials : MoodleWebserviceError("Moodle credentials rejected")
-    object MissingStoredCredentials : MoodleWebserviceError("No stored NTUST credentials")
+    class InvalidToken : MoodleWebserviceError("Moodle token invalid")
+    class InvalidCredentials : MoodleWebserviceError("Moodle credentials rejected")
+    class MissingStoredCredentials : MoodleWebserviceError("No stored NTUST credentials")
     data class SsoLoginRejected(val reason: String?) :
         MoodleWebserviceError("NTUST SSO rejected Moodle authorization: ${reason ?: "unknown"}")
-    object WebserviceDisabled : MoodleWebserviceError("Moodle webservice disabled")
+
+    class WebserviceDisabled : MoodleWebserviceError("Moodle webservice disabled")
     data class TransientNetwork(val underlying: String) :
         MoodleWebserviceError("Moodle network error: $underlying")
+
     data class MalformedResponse(val detail: String) :
         MoodleWebserviceError("Malformed Moodle response: $detail")
+
     data class HttpStatus(val code: Int) : MoodleWebserviceError("Moodle HTTP status $code")
 
     companion object {
@@ -31,9 +34,9 @@ sealed class MoodleWebserviceError(message: String) : Exception(message) {
             } ?: return null
             val code = parsed.errorcode ?: return null
             return when (code) {
-                "invalidtoken", "accessexception" -> InvalidToken
-                "invalidlogin" -> InvalidCredentials
-                "enablewsdescription", "servicenotloaded" -> WebserviceDisabled
+                "invalidtoken", "accessexception" -> InvalidToken()
+                "invalidlogin" -> InvalidCredentials()
+                "enablewsdescription", "servicenotloaded" -> WebserviceDisabled()
                 else -> MalformedResponse(code)
             }
         }

@@ -20,7 +20,8 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class LiveActivityBoundaryReceiver : BroadcastReceiver() {
 
-    @Inject lateinit var liveActivityManager: LiveActivityManager
+    @Inject
+    lateinit var liveActivityManager: LiveActivityManager
 
     override fun onReceive(context: Context, intent: Intent) {
         val pending = goAsync()

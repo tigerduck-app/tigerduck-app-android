@@ -2,7 +2,17 @@ package org.ntust.app.tigerduck.ui.screen.settings
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -10,8 +20,22 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.RemoveCircle
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -66,7 +90,10 @@ fun TabEditorScreen(
                 title = { Text(stringResource(R.string.tab_editor_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back)
+                        )
                     }
                 },
                 actions = {
@@ -93,69 +120,75 @@ fun TabEditorScreen(
                     Column {
                         activeTabs.forEachIndexed { index, feature ->
                             key(feature) {
-                            val isDragging = draggingIndex == index
-                            val elevation by animateDpAsState(
-                                if (isDragging) 4.dp else 0.dp,
-                                label = "drag_elevation"
-                            )
+                                val isDragging = draggingIndex == index
+                                val elevation by animateDpAsState(
+                                    if (isDragging) 4.dp else 0.dp,
+                                    label = "drag_elevation"
+                                )
 
-                            Box(
-                                modifier = Modifier
-                                    .zIndex(if (isDragging) 1f else 0f)
-                                    .graphicsLayer {
-                                        translationY = if (isDragging) dragOffsetY else 0f
-                                    }
-                                    .shadow(elevation)
-                                    .onSizeChanged {
-                                        itemHeightPx = it.height.toFloat()
-                                    }
-                            ) {
-                                Column {
-                                    ActiveTabRow(
-                                        feature = feature,
-                                        onRemove = { save(activeTabs - feature) },
-                                        onDragStarted = {
-                                            draggingIndex = index
-                                            dragOffsetY = 0f
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        },
-                                        onDrag = { delta ->
-                                            dragOffsetY += delta
-                                            val currentIdx = draggingIndex ?: return@ActiveTabRow
-                                            if (itemHeightPx > 0f) {
-                                                when {
-                                                    dragOffsetY > itemHeightPx * 0.5f && currentIdx < activeTabs.lastIndex -> {
-                                                        val list = activeTabs.toMutableList()
-                                                        val item = list.removeAt(currentIdx)
-                                                        list.add(currentIdx + 1, item)
-                                                        activeTabs = list
-                                                        draggingIndex = currentIdx + 1
-                                                        dragOffsetY -= itemHeightPx
-                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                    }
-                                                    dragOffsetY < -itemHeightPx * 0.5f && currentIdx > 0 -> {
-                                                        val list = activeTabs.toMutableList()
-                                                        val item = list.removeAt(currentIdx)
-                                                        list.add(currentIdx - 1, item)
-                                                        activeTabs = list
-                                                        draggingIndex = currentIdx - 1
-                                                        dragOffsetY += itemHeightPx
-                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                Box(
+                                    modifier = Modifier
+                                        .zIndex(if (isDragging) 1f else 0f)
+                                        .graphicsLayer {
+                                            translationY = if (isDragging) dragOffsetY else 0f
+                                        }
+                                        .shadow(elevation)
+                                        .onSizeChanged {
+                                            itemHeightPx = it.height.toFloat()
+                                        }
+                                ) {
+                                    Column {
+                                        ActiveTabRow(
+                                            feature = feature,
+                                            onRemove = { save(activeTabs - feature) },
+                                            onDragStarted = {
+                                                draggingIndex = index
+                                                dragOffsetY = 0f
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            },
+                                            onDrag = { delta ->
+                                                dragOffsetY += delta
+                                                val currentIdx =
+                                                    draggingIndex ?: return@ActiveTabRow
+                                                if (itemHeightPx > 0f) {
+                                                    when {
+                                                        dragOffsetY > itemHeightPx * 0.5f && currentIdx < activeTabs.lastIndex -> {
+                                                            val list = activeTabs.toMutableList()
+                                                            val item = list.removeAt(currentIdx)
+                                                            list.add(currentIdx + 1, item)
+                                                            activeTabs = list
+                                                            draggingIndex = currentIdx + 1
+                                                            dragOffsetY -= itemHeightPx
+                                                            haptic.performHapticFeedback(
+                                                                HapticFeedbackType.TextHandleMove
+                                                            )
+                                                        }
+
+                                                        dragOffsetY < -itemHeightPx * 0.5f && currentIdx > 0 -> {
+                                                            val list = activeTabs.toMutableList()
+                                                            val item = list.removeAt(currentIdx)
+                                                            list.add(currentIdx - 1, item)
+                                                            activeTabs = list
+                                                            draggingIndex = currentIdx - 1
+                                                            dragOffsetY += itemHeightPx
+                                                            haptic.performHapticFeedback(
+                                                                HapticFeedbackType.TextHandleMove
+                                                            )
+                                                        }
                                                     }
                                                 }
+                                            },
+                                            onDragEnded = {
+                                                draggingIndex = null
+                                                dragOffsetY = 0f
+                                                appState.configuredTabs = activeTabs
                                             }
-                                        },
-                                        onDragEnded = {
-                                            draggingIndex = null
-                                            dragOffsetY = 0f
-                                            appState.configuredTabs = activeTabs
+                                        )
+                                        if (index < activeTabs.lastIndex) {
+                                            HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                                         }
-                                    )
-                                    if (index < activeTabs.lastIndex) {
-                                        HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                                     }
                                 }
-                            }
                             } // key(feature)
                         }
 
@@ -318,7 +351,7 @@ private fun AvailableTabRow(
                 Icons.Filled.Add,
                 contentDescription = stringResource(R.string.action_add),
                 tint = if (canAdd) MaterialTheme.colorScheme.primary
-                       else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
                 modifier = Modifier.size(24.dp)
             )
         }

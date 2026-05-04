@@ -20,13 +20,20 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class BootReceiver : BroadcastReceiver() {
 
-    @Inject lateinit var scheduler: AssignmentNotificationScheduler
-    @Inject lateinit var classPreparingScheduler: ClassPreparingNotificationScheduler
-    @Inject lateinit var liveActivityPreferences: LiveActivityPreferences
-    @Inject lateinit var dataCache: DataCache
-    @Inject lateinit var appPreferences: AppPreferences
-    @Inject lateinit var widgetBoundaryScheduler: WidgetBoundaryScheduler
-    @Inject lateinit var liveActivityManager: LiveActivityManager
+    @Inject
+    lateinit var scheduler: AssignmentNotificationScheduler
+    @Inject
+    lateinit var classPreparingScheduler: ClassPreparingNotificationScheduler
+    @Inject
+    lateinit var liveActivityPreferences: LiveActivityPreferences
+    @Inject
+    lateinit var dataCache: DataCache
+    @Inject
+    lateinit var appPreferences: AppPreferences
+    @Inject
+    lateinit var widgetBoundaryScheduler: WidgetBoundaryScheduler
+    @Inject
+    lateinit var liveActivityManager: LiveActivityManager
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
@@ -44,7 +51,8 @@ class BootReceiver : BroadcastReceiver() {
                     }
                     val courses = dataCache.loadCourses()
                     if (liveActivityPreferences.isEnabled && liveActivityPreferences.showClassPreparing &&
-                        courses.isNotEmpty()) {
+                        courses.isNotEmpty()
+                    ) {
                         val skipped = dataCache.loadSkippedDates()
                         classPreparingScheduler.scheduleAll(
                             courses = courses,

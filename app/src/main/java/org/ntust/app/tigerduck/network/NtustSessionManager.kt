@@ -1,14 +1,14 @@
 package org.ntust.app.tigerduck.network
 
-import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import android.util.Log
-import org.ntust.app.tigerduck.BuildConfig
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.Dispatcher
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
@@ -42,6 +42,7 @@ class NtustSessionManager @Inject constructor(
                 hostCookies.addAll(cookies)
             }
         }
+
         override fun loadForRequest(url: HttpUrl): List<Cookie> =
             cookieStore[url.host]?.toList() ?: emptyList()
     }
@@ -50,7 +51,7 @@ class NtustSessionManager @Inject constructor(
         Log.d("TigerDuck-HTTP", redactSensitive(message))
     }.apply {
         level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
-                else HttpLoggingInterceptor.Level.NONE
+        else HttpLoggingInterceptor.Level.NONE
         // Session cookies and wstoken can appear in these headers; mask them
         // even in debug so logcat doesn't carry long-lived credentials.
         redactHeader("Cookie")
@@ -83,8 +84,8 @@ class NtustSessionManager @Inject constructor(
             // The Moodle app UA is on the allow-list and gets through.
             val ua = if (req.url.host.endsWith("moodle2.ntust.edu.tw")) {
                 "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) " +
-                    "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 " +
-                    "MoodleMobile 5.1.1 (51100)"
+                        "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 " +
+                        "MoodleMobile 5.1.1 (51100)"
             } else {
                 "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
             }

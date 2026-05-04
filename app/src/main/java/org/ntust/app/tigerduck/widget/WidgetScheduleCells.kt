@@ -7,6 +7,7 @@ sealed class ScheduleCell {
 
     data class Empty(override val length: Int) : ScheduleCell()
     data class Solo(val course: Course, override val length: Int) : ScheduleCell()
+
     /**
      * Two courses that transitively share at least one period. Offsets and spans
      * are in period-row units within this cluster (0 = first row). `length` ==

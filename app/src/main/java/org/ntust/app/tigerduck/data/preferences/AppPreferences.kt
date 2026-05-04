@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -11,7 +12,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.data.model.HomeSection
-import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.data.preferences.AppPreferences.Companion.themeColorsDark
 import javax.inject.Inject
 import javax.inject.Singleton
 

@@ -9,11 +9,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -132,7 +132,8 @@ fun TigerPullToRefresh(
     Box(modifier = modifier.nestedScroll(connection)) {
         Box(modifier = Modifier.graphicsLayer { translationY = dragY.value }) {
             if (isRefreshing && refreshingMessage != null && dragY.value > 0f
-                && isUserPulling.value) {
+                && isUserPulling.value
+            ) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
