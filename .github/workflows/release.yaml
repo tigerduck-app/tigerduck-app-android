@@ -30,6 +30,16 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
 
+      - name: Decode google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "::error::GOOGLE_SERVICES_JSON_BASE64 secret is empty or missing." >&2
+            exit 1
+          fi
+          echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > app/src/play/google-services.json
+
       - name: Build release AAB and APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -67,6 +77,8 @@ jobs:
           status: inProgress
           userFraction: 0.1
 
-      - name: Clean up keystore
+      - name: Clean up secrets
         if: always()
-        run: rm -f app/keystore.jks
+        run: |
+          rm -f app/keystore.jks
+          rm -f app/src/play/google-services.json
