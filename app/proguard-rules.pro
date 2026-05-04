@@ -13,14 +13,14 @@
 -keepattributes Signature
 -keepattributes *Annotation*
 
--keep class * extends com.google.gson.TypeAdapter
--keep class * extends com.google.gson.TypeAdapterFactory
--keep class * extends com.google.gson.JsonSerializer
--keep class * extends com.google.gson.JsonDeserializer
+-keep class * extends com.google.gson.TypeAdapter { *; }
+-keep class * extends com.google.gson.TypeAdapterFactory { *; }
+-keep class * extends com.google.gson.JsonSerializer { *; }
+-keep class * extends com.google.gson.JsonDeserializer { *; }
 
 -keepclassmembers,allowobfuscation class * {
   @com.google.gson.annotations.SerializedName <fields>;
 }
 
--keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken
--keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
+-keep,allowobfuscation,allowshrinking,allowoptimization class com.google.gson.reflect.TypeToken
+-keep,allowobfuscation,allowshrinking,allowoptimization class * extends com.google.gson.reflect.TypeToken
