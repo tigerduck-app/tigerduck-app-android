@@ -67,7 +67,7 @@ class AnalyticsLogger @Inject constructor(
         val fa = analytics ?: return
         if (!validateName("user property name", name, MAX_USER_PROPERTY_NAME_CHARS)) return
         val truncated = value?.let { safeTruncate(it, MAX_USER_PROPERTY_VALUE_CHARS) }
-        if (value != null && truncated.length < value.length) {
+        if (value != null && value.length > MAX_USER_PROPERTY_VALUE_CHARS) {
             Log.w(TAG, "user property '$name' value of ${value.length} chars exceeds $MAX_USER_PROPERTY_VALUE_CHARS")
         }
         fa.setUserProperty(name, truncated)
