@@ -64,8 +64,7 @@ class LibraryService @Inject constructor(
             .build()
 
         client.newCall(request).execute().use { response ->
-            val responseBody = response.body?.string()
-                ?: throw LibraryServiceError.LoginFailed(context.getString(R.string.error_no_response))
+            val responseBody = response.body.string()
             val loginResponse = gson.fromJson(responseBody, LibraryLoginResponse::class.java)
 
             if (loginResponse.data == null || loginResponse.error?.code?.let { it != 0 } == true) {
@@ -106,8 +105,7 @@ class LibraryService @Inject constructor(
             .build()
 
         client.newCall(request).execute().use { response ->
-            val responseBody = response.body?.string()
-                ?: throw LibraryServiceError.QRGenerationFailed(context.getString(R.string.error_no_response))
+            val responseBody = response.body.string()
             val qrResponse = gson.fromJson(responseBody, LibraryQRResponse::class.java)
 
             if (qrResponse.data == null || qrResponse.error?.code?.let { it != 0 } == true) {

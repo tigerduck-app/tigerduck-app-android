@@ -6,9 +6,6 @@ on:
       tag:
         description: 'Tag to release (e.g. v1.0.0). Created if it does not exist.'
         required: true
-      ref:
-        description: 'Branch to tag from when the tag does not exist (e.g. main). Ignored if the tag already exists.'
-        required: true
 
 permissions:
   contents: write
@@ -30,8 +27,8 @@ jobs:
             echo "Tag $TAG already exists; will checkout the tag and attach artifacts."
           else
             echo "tag_exists=false" >> "$GITHUB_OUTPUT"
-            echo "checkout_ref=${{ github.event.inputs.ref }}" >> "$GITHUB_OUTPUT"
-            echo "Tag $TAG not found; will tag '${{ github.event.inputs.ref }}' and create the release."
+            echo "checkout_ref=main" >> "$GITHUB_OUTPUT"
+            echo "Tag $TAG not found; will tag 'main' and create the release."
           fi
 
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
@@ -89,7 +86,7 @@ jobs:
         if: steps.resolve.outputs.tag_exists == 'false'
         env:
           SHA: ${{ steps.sha.outputs.sha }}
-          BRANCH: ${{ github.event.inputs.ref }}
+          BRANCH: main
         run: |
           set -e
           file="metadata/org.ntust.app.tigerduck.fdroid.yml"

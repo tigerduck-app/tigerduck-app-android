@@ -69,7 +69,7 @@ class CourseService @Inject constructor(
                 if (response.request.url.host.contains("ssoam2.ntust.edu.tw")) {
                     throw CourseServiceError.RedirectedToSSO
                 }
-                val html = response.body?.string() ?: throw CourseServiceError.NoCourseData
+                val html = response.body.string()
 
                 val pattern = Regex("<tr>\\s*<td>\\s*(3?[A-Z]{2}[A-Z0-9]{6,7})\\s*</td>")
                 pattern.findAll(html).map { it.groupValues[1] }.toList()
@@ -102,7 +102,7 @@ class CourseService @Inject constructor(
                 .build()
 
             val fresh = client.newCall(request).execute().use { response ->
-                val body = response.body?.string() ?: return@use emptyList()
+                val body = response.body.string()
                 val type = object : TypeToken<List<CourseSearchResult>>() {}.type
                 gson.fromJson<List<CourseSearchResult>?>(body, type) ?: emptyList()
             }
@@ -144,7 +144,7 @@ class CourseService @Inject constructor(
                 .build()
 
             client.newCall(request).execute().use { response ->
-                val body = response.body?.string() ?: return@withContext emptyList()
+                val body = response.body.string()
                 val type = object : TypeToken<List<CourseSearchResult>>() {}.type
                 val parsed: List<CourseSearchResult> = gson.fromJson(body, type) ?: emptyList()
                 applyAbbreviations(parsed, language)
@@ -168,7 +168,7 @@ class CourseService @Inject constructor(
                 .build()
 
             client.newCall(request).execute().use { response ->
-                val body = response.body?.string() ?: return@withContext emptyList()
+                val body = response.body.string()
                 val type = object : TypeToken<List<CourseSearchResult>>() {}.type
                 val parsed: List<CourseSearchResult> = gson.fromJson(body, type) ?: emptyList()
                 applyAbbreviations(parsed, language)
@@ -280,7 +280,8 @@ class CourseService @Inject constructor(
      * returned unchanged.
      */
     suspend fun relabelCoursesForCurrentAbbrSetting(semester: String, courses: List<Course>): List<Course> {
-        if (!lookupCacheLoaded || courses.isEmpty()) return courses
+        if (courses.isEmpty()) return courses
+        ensureLookupCacheLoaded()
         val language = preferredCourseApiLanguage()
         return courses.map { course ->
             val cached = lookupCache["${semester}_${course.courseNo}_$language"]

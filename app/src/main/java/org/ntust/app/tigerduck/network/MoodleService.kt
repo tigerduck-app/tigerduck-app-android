@@ -155,7 +155,7 @@ class MoodleService @Inject constructor(
             val req = Request.Builder().url(url).post(FormBody.Builder().build()).build()
             val body = client.newCall(req).execute().use { response ->
                 if (!response.isSuccessful) throw MoodleWebserviceError.HttpStatus(response.code)
-                response.body?.string() ?: throw MoodleWebserviceError.MalformedResponse("site_info empty body")
+                response.body.string()
             }
             MoodleWebserviceError.fromJsonBody(body)?.let { throw it }
             val parsed = try {
@@ -178,7 +178,7 @@ class MoodleService @Inject constructor(
         val req = Request.Builder().url(url).post(form).build()
         val body = client.newCall(req).execute().use { response ->
             if (!response.isSuccessful) throw MoodleWebserviceError.HttpStatus(response.code)
-            response.body?.string() ?: throw MoodleWebserviceError.MalformedResponse("enrolled empty body")
+            response.body.string()
         }
         MoodleWebserviceError.fromJsonBody(body)?.let { throw it }
         val type = object : TypeToken<List<MoodleEnrolledCourse>>() {}.type
@@ -198,7 +198,7 @@ class MoodleService @Inject constructor(
         val req = Request.Builder().url(url).post(form).build()
         val body = client.newCall(req).execute().use { response ->
             if (!response.isSuccessful) throw MoodleWebserviceError.HttpStatus(response.code)
-            response.body?.string() ?: throw MoodleWebserviceError.MalformedResponse("assignments empty body")
+            response.body.string()
         }
         MoodleWebserviceError.fromJsonBody(body)?.let { throw it }
         return try {
@@ -220,7 +220,7 @@ class MoodleService @Inject constructor(
         val req = Request.Builder().url(url).post(form).build()
         val body = client.newCall(req).execute().use { response ->
             if (!response.isSuccessful) throw MoodleWebserviceError.HttpStatus(response.code)
-            response.body?.string() ?: throw MoodleWebserviceError.MalformedResponse("submission status empty body")
+            response.body.string()
         }
         MoodleWebserviceError.fromJsonBody(body)?.let { throw it }
         return try {

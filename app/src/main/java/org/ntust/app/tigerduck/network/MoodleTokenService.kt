@@ -277,8 +277,7 @@ class MoodleTokenService @Inject constructor(
             if (!r.isSuccessful) {
                 throw MoodleWebserviceError.HttpStatus(r.code)
             }
-            val body = r.body?.string()
-                ?: throw MoodleWebserviceError.MalformedResponse("empty response body")
+            val body = r.body.string()
             return body to r.request.url
         }
     }

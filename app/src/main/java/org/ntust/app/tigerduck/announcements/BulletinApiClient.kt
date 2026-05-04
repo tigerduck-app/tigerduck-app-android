@@ -114,7 +114,7 @@ class BulletinApiClient @Inject constructor(
             .put(body)
             .build()
         authedClient.newCall(request).execute().use { response ->
-            val text = response.body?.string().orEmpty()
+            val text = response.body.string()
             if (!response.isSuccessful) {
                 throw BulletinApiException("subscriptions PUT failed: HTTP ${response.code}")
             }
@@ -137,7 +137,7 @@ class BulletinApiClient @Inject constructor(
             val c = if (authed) authedClient else client
             val request = Request.Builder().url(url).get().build()
             c.newCall(request).execute().use { response ->
-                val text = response.body?.string().orEmpty()
+                val text = response.body.string()
                 if (!response.isSuccessful) {
                     throw BulletinApiException("GET $url failed: HTTP ${response.code}")
                 }
