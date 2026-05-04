@@ -46,8 +46,8 @@ android {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 29
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.3.2"
+        versionCode = 12
+        versionName = "1.3.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

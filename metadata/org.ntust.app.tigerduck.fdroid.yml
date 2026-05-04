@@ -16,8 +16,8 @@ RepoType: git
 Repo: https://github.com/tigerduck-app/tigerduck-app-android.git
 
 Builds:
-  - versionName: 1.3.2-fdroid
-    versionCode: 11
+  - versionName: 1.3.3-fdroid
+    versionCode: 12
     commit: <replace with commit hash when pr to F-Droid>
     subdir: app
     submodules: true
@@ -26,5 +26,5 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.3.2-fdroid
-CurrentVersionCode: 11
+CurrentVersion: 1.3.3-fdroid
+CurrentVersionCode: 12
