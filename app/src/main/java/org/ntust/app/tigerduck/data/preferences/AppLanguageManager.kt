@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.data.preferences
 import android.content.res.Resources
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager.resolvedSystemLanguage
 import java.util.Locale
 
 object AppLanguageManager {
@@ -74,7 +75,8 @@ object AppLanguageManager {
         return code.lowercase() in SINITIC_LANGUAGE_CODES
     }
 
-    fun isCourseApiEnglish(appLanguage: String): Boolean = resolvedCourseApiLanguage(appLanguage) == "en"
+    fun isCourseApiEnglish(appLanguage: String): Boolean =
+        resolvedCourseApiLanguage(appLanguage) == "en"
 
     fun apply(language: String) {
         AppCompatDelegate.setApplicationLocales(toLocaleList(language))
@@ -94,8 +96,7 @@ object AppLanguageManager {
     }
 
     private fun toLocaleList(language: String): LocaleListCompat {
-        val normalized = normalize(language)
-        return when (normalized) {
+        return when (val normalized = normalize(language)) {
             // SYSTEM: empty list lets Android track the device locale live.
             // Pinning a tag here would persist across a system-locale change
             // and make "Follow system" stop following.

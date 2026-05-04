@@ -8,15 +8,37 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -42,21 +64,21 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.ntust.app.tigerduck.R
+import androidx.core.os.LocaleListCompat
+import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.courseNameForDisplay
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import androidx.core.os.LocaleListCompat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 
 @Composable
 fun TimeSliderSection(
@@ -103,7 +125,9 @@ fun TimeSliderSection(
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
-                JumpToNowChip(label = stringResource(R.string.home_time_slider_now), onClick = { viewModel.returnToNow() })
+                JumpToNowChip(
+                    label = stringResource(R.string.home_time_slider_now),
+                    onClick = { viewModel.returnToNow() })
             }
         }
 
@@ -206,6 +230,7 @@ private fun CourseTimeCard(
                         onClick = { onSelect(state.slot.course) },
                     )
                 }
+
                 is CourseState.Between -> {
                     state.previous?.let {
                         SlotCard(
@@ -224,6 +249,7 @@ private fun CourseTimeCard(
                         )
                     }
                 }
+
                 is CourseState.BeforeFirst -> {
                     SlotCard(
                         slot = state.next, alpha = 0.8f,
@@ -232,6 +258,7 @@ private fun CourseTimeCard(
                         onClick = { onSelect(state.next.course) },
                     )
                 }
+
                 is CourseState.AfterLast -> {
                     SlotCard(
                         slot = state.previous, alpha = 0.8f,
@@ -325,11 +352,11 @@ private fun SlotCard(
         }
     }
     val periods = slot.course.schedule[weekday]?.sortedBy {
-        org.ntust.app.tigerduck.AppConstants.Periods.chronologicalOrder.indexOf(it)
+        AppConstants.Periods.chronologicalOrder.indexOf(it)
     }
     val timeRange = if (!periods.isNullOrEmpty()) {
-        val first = org.ntust.app.tigerduck.AppConstants.PeriodTimes.mapping[periods.first()]
-        val last = org.ntust.app.tigerduck.AppConstants.PeriodTimes.mapping[periods.last()]
+        val first = AppConstants.PeriodTimes.mapping[periods.first()]
+        val last = AppConstants.PeriodTimes.mapping[periods.last()]
         if (first != null && last != null) "${first.first} - ${last.second}" else ""
     } else ""
 
@@ -365,7 +392,7 @@ private fun SlotCard(
                         imageVector = if (isSkipped) Icons.AutoMirrored.Filled.Undo else Icons.AutoMirrored.Filled.DirectionsWalk,
                         contentDescription = null,
                         tint = if (isSkipped) MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                               else Color(0xFFFF2D55),
+                        else Color(0xFFFF2D55),
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(Modifier.height(2.dp))
@@ -377,7 +404,7 @@ private fun SlotCard(
                         },
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                         color = if (isSkipped) MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                                else Color(0xFFFF2D55),
+                        else Color(0xFFFF2D55),
                         fontSize = 11.sp
                     )
                 }
@@ -394,7 +421,10 @@ private fun SlotCard(
                         onDragEnd = {
                             coroutineScope.launch {
                                 if (swipeOffset.value <= -thresholdPx) {
-                                    swipeOffset.animateTo(-2000f, animationSpec = tween(durationMillis = 200))
+                                    swipeOffset.animateTo(
+                                        -2000f,
+                                        animationSpec = tween(durationMillis = 200)
+                                    )
                                     latestOnSkipToggle?.invoke()
                                     swipeOffset.snapTo(0f)
                                 } else {
@@ -403,11 +433,20 @@ private fun SlotCard(
                             }
                         },
                         onDragCancel = {
-                            coroutineScope.launch { swipeOffset.animateTo(0f, animationSpec = spring()) }
+                            coroutineScope.launch {
+                                swipeOffset.animateTo(
+                                    0f,
+                                    animationSpec = spring()
+                                )
+                            }
                         },
                         onHorizontalDrag = { _, delta ->
                             coroutineScope.launch {
-                                swipeOffset.snapTo((swipeOffset.value + delta * 0.6f).coerceAtMost(0f))
+                                swipeOffset.snapTo(
+                                    (swipeOffset.value + delta * 0.6f).coerceAtMost(
+                                        0f
+                                    )
+                                )
                             }
                         }
                     )
@@ -436,7 +475,8 @@ private fun SlotCard(
             Column(modifier = Modifier.padding(14.dp)) {
                 val metaStyle = MaterialTheme.typography.labelSmall
                 val metaBoldStyle = metaStyle.copy(fontWeight = FontWeight.Bold)
-                val metaColor = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                val metaColor =
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 if (isToday) {
                     Text(timeRange, style = metaBoldStyle, color = metaColor)
                 } else {
@@ -514,7 +554,8 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                     val left = segCenterX - segW / 2
 
                     if (left + segW > -50 && left < size.width + 50) {
-                        val isActive = viewModel.selectedTime >= slot.start && viewModel.selectedTime <= slot.end
+                        val isActive =
+                            viewModel.selectedTime >= slot.start && viewModel.selectedTime <= slot.end
                         val courseColor = TigerDuckTheme.courseColorVibrant(slot.course.courseNo)
 
                         drawRoundRect(
@@ -533,7 +574,8 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
 
                 // Tick marks
                 val markerInterval = (TimeSliderViewModel.MARKER_INTERVAL_MINUTES * 60_000).toLong()
-                val majorInterval = (TimeSliderViewModel.MAJOR_MARKER_INTERVAL_MINUTES * 60_000).toLong()
+                val majorInterval =
+                    (TimeSliderViewModel.MAJOR_MARKER_INTERVAL_MINUTES * 60_000).toLong()
                 val visibleMinutes = (size.width / pxPerDp) / TimeSliderViewModel.POINTS_PER_MINUTE
                 val selectedRef = viewModel.selectedTime.time
                 val rangeStart = selectedRef - (visibleMinutes * 60_000).toLong()
@@ -588,11 +630,14 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
 }
 
 private val timeFmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
-private fun appLocale(): java.util.Locale =
-    LocaleListCompat.getAdjustedDefault()[0] ?: java.util.Locale.getDefault()
+private fun appLocale(): Locale =
+    LocaleListCompat.getAdjustedDefault()[0] ?: Locale.getDefault()
 
-private fun dateTimeFmt() = java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE) HH:mm", appLocale())
-private fun dateLabelFmt() = java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE)", appLocale())
+private fun dateTimeFmt() =
+    java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE) HH:mm", appLocale())
+
+private fun dateLabelFmt() =
+    java.time.format.DateTimeFormatter.ofPattern("M/d (EEEEE)", appLocale())
 
 private fun formatTimeLabel(date: Date): String {
     val instant = date.toInstant().atZone(AppConstants.TAIPEI_ZONE)

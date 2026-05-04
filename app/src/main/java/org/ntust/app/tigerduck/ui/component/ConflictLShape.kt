@@ -58,11 +58,16 @@ data class ConflictLShape(
 
         val path = when (orientation) {
             ConflictLOrientation.TopBarRightTail ->
-                gammaPath(w, h, r, tailW, overlapTopY, overlapEndY,
-                    sharpTopOuter, sharpBottomOuter)
+                gammaPath(
+                    w, h, r, tailW, overlapTopY, overlapEndY,
+                    sharpTopOuter, sharpBottomOuter
+                )
+
             ConflictLOrientation.LeftTailBottomBar ->
-                mirrorLPath(w, h, r, tailW, overlapTopY, overlapEndY,
-                    sharpTopOuter, sharpBottomOuter)
+                mirrorLPath(
+                    w, h, r, tailW, overlapTopY, overlapEndY,
+                    sharpTopOuter, sharpBottomOuter
+                )
         }
         return Outline.Generic(path)
     }
@@ -210,7 +215,7 @@ data class ConflictLShape(
         val hasSoloAbove = overlapTopY > 0.5f
         val hasSoloBelow = overlapEndY < h - 0.5f
         val topY = if (hasSoloAbove) 0f else overlapTopY
-        val bottomY = if (hasSoloBelow) h else overlapEndY
+        if (hasSoloBelow) h else overlapEndY
 
         return Path().apply {
             // --- Start after top-left arc (always on left cell edge) ---

@@ -21,29 +21,27 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.AppConstants
-import java.time.Instant
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
+import androidx.navigation.navArgument
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import androidx.navigation.navArgument
-import org.ntust.app.tigerduck.data.model.AppFeature
-import org.ntust.app.tigerduck.widget.LibraryShortcutWidget
-import org.ntust.app.tigerduck.ui.AppState
-import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
+import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.announcements.AnnouncementDetailScreen
 import org.ntust.app.tigerduck.announcements.AnnouncementsScreen
 import org.ntust.app.tigerduck.announcements.SubscriptionSettingsScreen
+import org.ntust.app.tigerduck.data.model.AppFeature
+import org.ntust.app.tigerduck.ui.AppState
+import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarScreen
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarViewModel
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableScreen
@@ -54,13 +52,15 @@ import org.ntust.app.tigerduck.ui.screen.library.LibraryScreen
 import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
 import org.ntust.app.tigerduck.ui.screen.score.ScoreScreen
-import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
+import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SourceCodePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
+import org.ntust.app.tigerduck.widget.LibraryShortcutWidget
+import java.time.Instant
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
@@ -70,6 +70,7 @@ sealed class Screen(val route: String) {
     object AnnouncementDetail : Screen("announcements/detail/{id}") {
         fun route(id: Int) = "announcements/detail/$id"
     }
+
     object AnnouncementSubscriptions : Screen("announcements/subscriptions")
     object Library : Screen("library")
     object Score : Screen("score")
@@ -222,11 +223,11 @@ fun MainNavigation(
         val recompute = {
             val now = Instant.now()
             isNonTaipeiTz = java.util.TimeZone.getDefault().getOffset(now.toEpochMilli()) !=
-                AppConstants.TAIPEI_TZ.getOffset(now.toEpochMilli())
+                    AppConstants.TAIPEI_TZ.getOffset(now.toEpochMilli())
         }
         recompute()
         val receiver = object : android.content.BroadcastReceiver() {
-            override fun onReceive(c: android.content.Context?, i: android.content.Intent?) {
+            override fun onReceive(c: Context?, i: android.content.Intent?) {
                 recompute()
             }
         }
@@ -255,34 +256,39 @@ fun MainNavigation(
                     )
                 }
                 NavigationBar {
-                bottomItems.forEach { feature ->
-                    val route = feature.toRoute()
-                    NavigationBarItem(
-                        icon = { Icon(feature.icon, contentDescription = stringResource(feature.displayNameRes)) },
-                        label = {
-                            Text(
-                                text = stringResource(feature.shortDisplayNameRes),
-                                maxLines = 1,
-                                softWrap = false,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        },
-                        alwaysShowLabel = true,
-                        selected = selectedTabRoute == route,
-                        onClick = {
-                            if (currentRoute == route) return@NavigationBarItem
-                            performTabSwitchHaptic(context)
-                            navController.navigate(route) {
-                                popUpTo(popUpToDest) {
-                                    inclusive = false
+                    bottomItems.forEach { feature ->
+                        val route = feature.toRoute()
+                        NavigationBarItem(
+                            icon = {
+                                Icon(
+                                    feature.icon,
+                                    contentDescription = stringResource(feature.displayNameRes)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = stringResource(feature.shortDisplayNameRes),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                            alwaysShowLabel = true,
+                            selected = selectedTabRoute == route,
+                            onClick = {
+                                if (currentRoute == route) return@NavigationBarItem
+                                performTabSwitchHaptic(context)
+                                navController.navigate(route) {
+                                    popUpTo(popUpToDest) {
+                                        inclusive = false
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = route != Screen.More.route
                                 }
-                                launchSingleTop = true
-                                restoreState = route != Screen.More.route
                             }
-                        }
-                    )
+                        )
+                    }
                 }
-            }
             }
         }
     ) { innerPadding ->
@@ -359,7 +365,8 @@ fun MainNavigation(
             composable(Screen.SourceCodePicker.route) {
                 SourceCodePickerScreen(onBack = { navController.popBackStack() })
             }
-            composable("placeholder/{feature}",
+            composable(
+                "placeholder/{feature}",
                 arguments = listOf(navArgument("feature") { type = NavType.StringType })
             ) { backStackEntry ->
                 val featureId = backStackEntry.arguments?.getString("feature") ?: ""
@@ -392,7 +399,8 @@ private fun performTabSwitchHaptic(context: Context) {
             val amp = if (vibrator.hasAmplitudeControl()) 180 else VibrationEffect.DEFAULT_AMPLITUDE
             vibrator.vibrate(VibrationEffect.createOneShot(14, amp))
         }
-    } catch (_: Exception) { }
+    } catch (_: Exception) {
+    }
 }
 
 fun AppFeature.toRoute(): String = when (this) {

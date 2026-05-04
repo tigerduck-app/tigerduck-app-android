@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.CalendarEvent
@@ -37,9 +37,9 @@ import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
-import java.text.SimpleDateFormat
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,74 +75,83 @@ fun CalendarScreen(
     var pullProgress by remember { mutableFloatStateOf(0f) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-    TigerPullToRefresh(
-        isRefreshing = isLoading,
-        onRefresh = { viewModel.refresh() },
-        onDragProgress = { pullProgress = it },
-        modifier = Modifier.fillMaxSize(),
-        refreshingMessage = stringResource(R.string.refreshing_message),
-    ) {
-        LazyColumn(
+        TigerPullToRefresh(
+            isRefreshing = isLoading,
+            onRefresh = { viewModel.refresh() },
+            onDragProgress = { pullProgress = it },
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 32.dp)
+            refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
-            item {
-                PageHeader(title = stringResource(R.string.feature_calendar)) {
-                    SyncIndicator(
-                        isLoading = isLoading,
-                        showCheckmark = showCheckmark,
-                        dragProgress = pullProgress,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    JumpToNowChip(label = stringResource(R.string.calendar_today), onClick = { viewModel.goToToday() })
-                }
-            }
-
-            if (!isLoggedIn) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 32.dp)
+            ) {
                 item {
-                    EmptyStateView(
-                        icon = Icons.Filled.Lock,
-                        title = stringResource(R.string.common_not_logged_in),
-                        message = stringResource(R.string.common_login_required_feature),
-                    )
-                }
-            } else {
-                item {
-                    MonthCalendar(
-                        displayedMonth = displayedMonth,
-                        selectedDate = selectedDate,
-                        events = events,
-                        onDateSelected = { viewModel.selectDate(it) },
-                        onMonthChanged = { viewModel.setDisplayedMonth(it) }
-                    )
+                    PageHeader(title = stringResource(R.string.feature_calendar)) {
+                        SyncIndicator(
+                            isLoading = isLoading,
+                            showCheckmark = showCheckmark,
+                            dragProgress = pullProgress,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        JumpToNowChip(
+                            label = stringResource(R.string.calendar_today),
+                            onClick = { viewModel.goToToday() })
+                    }
                 }
 
-                item {
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-                }
-
-                if (dayEvents.isEmpty()) {
+                if (!isLoggedIn) {
                     item {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                stringResource(R.string.calendar_no_events_on_day),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                            )
-                        }
+                        EmptyStateView(
+                            icon = Icons.Filled.Lock,
+                            title = stringResource(R.string.common_not_logged_in),
+                            message = stringResource(R.string.common_login_required_feature),
+                        )
                     }
                 } else {
-                    items(dayEvents) { event ->
-                        EventRow(event)
+                    item {
+                        MonthCalendar(
+                            displayedMonth = displayedMonth,
+                            selectedDate = selectedDate,
+                            events = events,
+                            onDateSelected = { viewModel.selectDate(it) },
+                            onMonthChanged = { viewModel.setDisplayedMonth(it) }
+                        )
+                    }
+
+                    item {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(
+                                horizontal = 16.dp,
+                                vertical = 8.dp
+                            )
+                        )
+                    }
+
+                    if (dayEvents.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    stringResource(R.string.calendar_no_events_on_day),
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                                )
+                            }
+                        }
+                    } else {
+                        items(dayEvents) { event ->
+                            EventRow(event)
+                        }
                     }
                 }
             }
-        }
 
-    }
-    SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+        }
+        SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
     } // Box
 }
 
@@ -201,7 +210,9 @@ private fun MonthCalendar(
     val month = cal.get(Calendar.MONTH)
     val monthLabel = stringResource(R.string.calendar_month_year, year, month + 1)
 
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+    Column(modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp)) {
         // Month nav
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = {
@@ -296,7 +307,9 @@ private fun CalendarGrid(
                     val dayNum = cellIndex - startDow + 1
 
                     if (dayNum < 1 || dayNum > daysInMonth) {
-                        Box(modifier = Modifier.weight(1f).height(40.dp))
+                        Box(modifier = Modifier
+                            .weight(1f)
+                            .height(40.dp))
                     } else {
                         val dayDate = Calendar.getInstance(taipeiTz).apply {
                             set(year, month, dayNum, 0, 0, 0)
@@ -360,8 +373,10 @@ private fun CalendarGrid(
 }
 
 private fun getYearMonthDiff(start: Date, end: Date): Int {
-    val calStart = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = start }
-    val calEnd = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = end }
+    val calStart =
+        Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = start }
+    val calEnd =
+        Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = end }
     val yearDiff = calEnd.get(Calendar.YEAR) - calStart.get(Calendar.YEAR)
     val monthDiff = calEnd.get(Calendar.MONTH) - calStart.get(Calendar.MONTH)
     return yearDiff * 12 + monthDiff
@@ -378,7 +393,7 @@ private fun isSameMonth(a: Date, b: Date): Boolean {
     val ca = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = a }
     val cb = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = b }
     return ca.get(Calendar.YEAR) == cb.get(Calendar.YEAR) &&
-           ca.get(Calendar.MONTH) == cb.get(Calendar.MONTH)
+            ca.get(Calendar.MONTH) == cb.get(Calendar.MONTH)
 }
 
 
@@ -423,5 +438,5 @@ private fun isSameDay(a: Date, b: Date): Boolean {
     val ca = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = a }
     val cb = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).apply { time = b }
     return ca.get(Calendar.YEAR) == cb.get(Calendar.YEAR) &&
-           ca.get(Calendar.DAY_OF_YEAR) == cb.get(Calendar.DAY_OF_YEAR)
+            ca.get(Calendar.DAY_OF_YEAR) == cb.get(Calendar.DAY_OF_YEAR)
 }

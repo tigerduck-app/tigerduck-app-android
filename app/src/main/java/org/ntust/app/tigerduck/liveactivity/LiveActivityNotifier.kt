@@ -47,7 +47,7 @@ class LiveActivityNotifier @Inject constructor(
             lastScenario = null
             return
         }
-        if (!hasPostPermission()){
+        if (!hasPostPermission()) {
             lastScenario = null
             return
         }
@@ -138,6 +138,7 @@ class LiveActivityNotifier @Inject constructor(
             LiveActivityScenario.IN_CLASS -> context.getString(R.string.live_activity_status_in_class)
             LiveActivityScenario.CLASS_PREPARING ->
                 context.getString(R.string.live_activity_status_class_preparing)
+
             LiveActivityScenario.ASSIGNMENT_URGENT ->
                 context.getString(R.string.live_activity_status_assignment_urgent)
         }

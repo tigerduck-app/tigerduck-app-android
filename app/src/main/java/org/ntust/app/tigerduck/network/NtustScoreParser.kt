@@ -99,7 +99,7 @@ object NtustScoreParser {
             val geDim = cleanText(cells[7]).ifEmpty { null }
             val distanceRaw = cleanText(cells[8])
             val distanceLearning = distanceRaw.isNotEmpty() &&
-                distanceRaw != "否" && distanceRaw != "N"
+                    distanceRaw != "否" && distanceRaw != "N"
 
             CourseGrade(
                 index = cleanText(cells[0]).toIntOrNull(),

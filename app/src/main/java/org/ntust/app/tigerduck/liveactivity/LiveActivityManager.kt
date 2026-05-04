@@ -35,6 +35,7 @@ class LiveActivityManager @Inject constructor(
     private val resolver = LiveActivityResolver()
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var refreshJob: Job? = null
+
     // Hold a reference so `stop()` can halt preference-driven refreshes too;
     // otherwise a `preferences.changeEvent` arriving after `stop()` would
     // silently resurrect the notifier machinery.

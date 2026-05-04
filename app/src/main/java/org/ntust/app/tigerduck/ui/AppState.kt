@@ -7,20 +7,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import dagger.hilt.android.qualifiers.ApplicationContext
-import org.ntust.app.tigerduck.auth.AuthService
-import org.ntust.app.tigerduck.data.DataMigration
-import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.model.CalendarEvent
-import org.ntust.app.tigerduck.data.model.EventSource
-import org.ntust.app.tigerduck.data.model.AppFeature
-import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
-import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.data.preferences.CredentialManager
-import org.ntust.app.tigerduck.network.CalendarService
-import org.ntust.app.tigerduck.network.LoadingState
-import org.ntust.app.tigerduck.network.NtustSessionManager
-import org.ntust.app.tigerduck.notification.SystemPermissions
-import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,6 +15,20 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.DataMigration
+import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.model.AppFeature
+import org.ntust.app.tigerduck.data.model.CalendarEvent
+import org.ntust.app.tigerduck.data.model.EventSource
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.network.CalendarService
+import org.ntust.app.tigerduck.network.LoadingState
+import org.ntust.app.tigerduck.network.NtustSessionManager
+import org.ntust.app.tigerduck.notification.SystemPermissions
+import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -48,6 +48,7 @@ class AppState @Inject constructor(
     private var syncJob: Job? = null
 
     private val _loadingState = MutableStateFlow(LoadingState.IDLE)
+
     @Suppress("unused")
     val loadingState: StateFlow<LoadingState> = _loadingState
 
@@ -245,6 +246,7 @@ class AppState @Inject constructor(
         }
 
     val isNtustLoggedIn: Boolean get() = authService.isNtustAuthenticated
+
     @Suppress("unused")
     val isLibraryLoggedIn: Boolean get() = credentials.isLibraryTokenValid
 
@@ -303,7 +305,8 @@ class AppState @Inject constructor(
             val assignmentsResult = assignmentsJob.await()
             val schoolEventsResult = calendarJob.await()
 
-            val anySucceeded = coursesResult.isSuccess || assignmentsResult.isSuccess || schoolEventsResult.isSuccess
+            val anySucceeded =
+                coursesResult.isSuccess || assignmentsResult.isSuccess || schoolEventsResult.isSuccess
 
             val cached = dataCache.loadCalendarEvents().toMutableList()
             var changed = false
@@ -336,7 +339,8 @@ class AppState @Inject constructor(
             }
 
             val hasCachedData = cached.isNotEmpty()
-            _loadingState.value = if (anySucceeded || hasCachedData) LoadingState.LOADED else LoadingState.ERROR
+            _loadingState.value =
+                if (anySucceeded || hasCachedData) LoadingState.LOADED else LoadingState.ERROR
         }
     }
 }

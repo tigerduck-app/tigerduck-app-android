@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
@@ -13,15 +15,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -55,9 +55,9 @@ private fun toTraditional(text: String): String =
 private fun containsHan(text: String): Boolean = text.any {
     val block = Character.UnicodeBlock.of(it) ?: return@any false
     block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS ||
-        block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A ||
-        block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B ||
-        block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS
+            block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A ||
+            block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B ||
+            block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -125,8 +125,20 @@ fun AddCourseSheet(
                         runCatching {
                             if (isCourseCode) courseService.lookupCourse(semester, trimmed, "zh")
                             else mergeResults(
-                                runCatching { courseService.searchCourses(semester, zhQuery, "zh") }.getOrDefault(emptyList()),
-                                runCatching { courseService.searchByTeacher(semester, zhQuery, "zh") }.getOrDefault(emptyList()),
+                                runCatching {
+                                    courseService.searchCourses(
+                                        semester,
+                                        zhQuery,
+                                        "zh"
+                                    )
+                                }.getOrDefault(emptyList()),
+                                runCatching {
+                                    courseService.searchByTeacher(
+                                        semester,
+                                        zhQuery,
+                                        "zh"
+                                    )
+                                }.getOrDefault(emptyList()),
                             )
                         }.getOrDefault(emptyList())
                     }
@@ -134,8 +146,20 @@ fun AddCourseSheet(
                         runCatching {
                             if (isCourseCode) courseService.lookupCourse(semester, trimmed, "en")
                             else mergeResults(
-                                runCatching { courseService.searchCourses(semester, enQuery, "en") }.getOrDefault(emptyList()),
-                                runCatching { courseService.searchByTeacher(semester, enQuery, "en") }.getOrDefault(emptyList()),
+                                runCatching {
+                                    courseService.searchCourses(
+                                        semester,
+                                        enQuery,
+                                        "en"
+                                    )
+                                }.getOrDefault(emptyList()),
+                                runCatching {
+                                    courseService.searchByTeacher(
+                                        semester,
+                                        enQuery,
+                                        "en"
+                                    )
+                                }.getOrDefault(emptyList()),
                             )
                         }.getOrDefault(emptyList())
                     }
@@ -177,13 +201,15 @@ fun AddCourseSheet(
                     queryLang = queryLang,
                 )
                 searchResults = grouped
-                errorMessage = if (grouped.isEmpty()) resources.getString(R.string.add_course_not_found) else null
+                errorMessage =
+                    if (grouped.isEmpty()) resources.getString(R.string.add_course_not_found) else null
                 isSearching = false
             } catch (e: CancellationException) {
                 // Superseded by a newer search — leave state for the live job to manage.
                 throw e
             } catch (e: Exception) {
-                errorMessage = resources.getString(R.string.add_course_search_failed, e.message ?: "")
+                errorMessage =
+                    resources.getString(R.string.add_course_search_failed, e.message ?: "")
                 isSearching = false
             }
         }
@@ -266,7 +292,10 @@ fun AddCourseSheet(
                             color = MaterialTheme.colorScheme.onPrimary,
                         )
                     } else {
-                        Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.action_search))
+                        Icon(
+                            Icons.Filled.Search,
+                            contentDescription = stringResource(R.string.action_search)
+                        )
                     }
                 }
             }
@@ -290,77 +319,78 @@ fun AddCourseSheet(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 16.dp)
                 ) {
-                items(searchResults) { group ->
-                    val alreadyExists = group.courseNo in existingCourseNos || group.courseNo == addedCourseNo
+                    items(searchResults) { group ->
+                        val alreadyExists =
+                            group.courseNo in existingCourseNos || group.courseNo == addedCourseNo
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = !alreadyExists) {
-                                val course = Course.fromSchedule(
-                                    courseNo = group.courseNo,
-                                    courseName = group.courseName,
-                                    instructor = group.instructor,
-                                    credits = group.credits,
-                                    classroom = group.classroom,
-                                    enrolledCount = group.enrolledCount,
-                                    maxCount = group.maxCount,
-                                    schedule = group.schedule
-                                )
-                                onAdd(course)
-                                addedCourseNo = group.courseNo
-                            }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                group.courseName,
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                            )
-                            Text(
-                                stringResource(
-                                    R.string.add_course_result_meta,
-                                    group.courseNo,
-                                    group.instructor,
-                                    group.credits
-                                ),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                            )
-                            if (group.classroom.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !alreadyExists) {
+                                    val course = Course.fromSchedule(
+                                        courseNo = group.courseNo,
+                                        courseName = group.courseName,
+                                        instructor = group.instructor,
+                                        credits = group.credits,
+                                        classroom = group.classroom,
+                                        enrolledCount = group.enrolledCount,
+                                        maxCount = group.maxCount,
+                                        schedule = group.schedule
+                                    )
+                                    onAdd(course)
+                                    addedCourseNo = group.courseNo
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    group.classroom,
+                                    group.courseName,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                                Text(
+                                    stringResource(
+                                        R.string.add_course_result_meta,
+                                        group.courseNo,
+                                        group.instructor,
+                                        group.credits
+                                    ),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                                 )
+                                if (group.classroom.isNotEmpty()) {
+                                    Text(
+                                        group.classroom,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                                    )
+                                }
+                                if (group.nodeDisplay.isNotEmpty()) {
+                                    Text(
+                                        group.nodeDisplay,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                                    )
+                                }
                             }
-                            if (group.nodeDisplay.isNotEmpty()) {
-                                Text(
-                                    group.nodeDisplay,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                            if (alreadyExists) {
+                                Icon(
+                                    Icons.Filled.CheckCircle,
+                                    contentDescription = stringResource(R.string.add_course_added),
+                                    tint = Color(0xFF34C759),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Filled.Add,
+                                    contentDescription = stringResource(R.string.action_add),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
-                        if (alreadyExists) {
-                            Icon(
-                                Icons.Filled.CheckCircle,
-                                contentDescription = stringResource(R.string.add_course_added),
-                                tint = Color(0xFF34C759),
-                                modifier = Modifier.size(24.dp)
-                            )
-                        } else {
-                            Icon(
-                                Icons.Filled.Add,
-                                contentDescription = stringResource(R.string.action_add),
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                        HorizontalDivider()
                     }
-                    HorizontalDivider()
-                }
                 }
             } else {
                 // Take all remaining vertical space so the parent Box can
@@ -431,7 +461,10 @@ private fun mergeResults(
     return merged
 }
 
-private fun groupResults(results: List<CourseSearchResult>, courseService: CourseService): List<GroupedCourse> {
+private fun groupResults(
+    results: List<CourseSearchResult>,
+    courseService: CourseService
+): List<GroupedCourse> {
     val seen = mutableMapOf<String, GroupedCourse>()
     val order = mutableListOf<String>()
 
@@ -516,9 +549,10 @@ private fun groupBilingualResults(
         val primaryName = primary?.courseName?.takeIf { it.isNotBlank() }
             ?: secondary?.courseName.orEmpty()
         val secondaryName = secondary?.courseName
-        val displayName = if (showBilingual && !secondaryName.isNullOrBlank() && secondaryName != primaryName) {
-            "$primaryName ($secondaryName)"
-        } else primaryName
+        val displayName =
+            if (showBilingual && !secondaryName.isNullOrBlank() && secondaryName != primaryName) {
+                "$primaryName ($secondaryName)"
+            } else primaryName
         base.copy(courseName = displayName)
     }
 }

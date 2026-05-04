@@ -10,10 +10,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 sealed class NtustScoreError : Exception() {
-    object NotAuthenticated : NtustScoreError()
-    object RedirectedToSSO : NtustScoreError()
-    object InvalidResponse : NtustScoreError()
-    object ParseFailed : NtustScoreError()
+    class NotAuthenticated : NtustScoreError()
+    class RedirectedToSSO : NtustScoreError()
+    class InvalidResponse : NtustScoreError()
+    class ParseFailed : NtustScoreError()
 }
 
 /**
@@ -44,7 +44,7 @@ class NtustScoreService @Inject constructor(
 
         if (!sessionManager.cookiesValid) {
             val loggedIn = ssoLoginService.ensureServiceLogin(SCORE_ROOT_URL, studentId, password)
-            if (!loggedIn) throw NtustScoreError.NotAuthenticated
+            if (!loggedIn) throw NtustScoreError.NotAuthenticated()
         }
 
         val html = fetchHtml(studentId, password)
@@ -53,7 +53,7 @@ class NtustScoreService @Inject constructor(
         // A successful fetch that parses to a fully empty report usually
         // means the HTML was actually the SSO page disguised as a 200 —
         // don't poison the cache with that.
-        if (report == ScoreReport.EMPTY) throw NtustScoreError.ParseFailed
+        if (report == ScoreReport.EMPTY) throw NtustScoreError.ParseFailed()
 
         dataCache.saveScoreReport(report, studentId)
         report
@@ -71,17 +71,17 @@ class NtustScoreService @Inject constructor(
 
         // SSO bounced us — try one silent re-login and retry once.
         val loggedIn = ssoLoginService.ensureServiceLogin(SCORE_ROOT_URL, studentId, password)
-        if (!loggedIn) throw NtustScoreError.NotAuthenticated
+        if (!loggedIn) throw NtustScoreError.NotAuthenticated()
 
         val (retryHtml, retryUrl) = get(SCORE_DISPLAY_URL)
-        if (retryUrl.contains("ssoam2.ntust.edu.tw")) throw NtustScoreError.RedirectedToSSO
+        if (retryUrl.contains("ssoam2.ntust.edu.tw")) throw NtustScoreError.RedirectedToSSO()
         return retryHtml
     }
 
     private fun get(url: String): Pair<String, String> {
         val request = Request.Builder().url(url).get().build()
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw NtustScoreError.InvalidResponse
+            if (!response.isSuccessful) throw NtustScoreError.InvalidResponse()
             val html = response.body.string()
             return html to response.request.url.host
         }

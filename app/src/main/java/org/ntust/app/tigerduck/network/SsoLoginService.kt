@@ -9,9 +9,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 sealed class SsoLoginError : Exception() {
-    object LoginFormNotFound : SsoLoginError()
-    object LoginFailed : SsoLoginError()
-    object InvalidResponse : SsoLoginError()
+    class LoginFormNotFound : SsoLoginError()
+    class LoginFailed : SsoLoginError()
+    class InvalidResponse : SsoLoginError()
     data class NetworkError(val cause_: Exception) : SsoLoginError()
 }
 
@@ -67,7 +67,7 @@ class SsoLoginService @Inject constructor(
 
         // Step 5: Submit login form
         val form = HtmlParser.findFormById(html, "loginForm")
-            ?: throw SsoLoginError.LoginFormNotFound
+            ?: throw SsoLoginError.LoginFormNotFound()
 
         val fields = form.inputs.toMutableList().apply {
             replaceOrAppend("Username", studentId)
@@ -86,7 +86,7 @@ class SsoLoginService @Inject constructor(
         url = afterLogin.second
 
         // Step 7: Check if still on SSO page
-        if (HtmlParser.isSSOLoginPage(html, url)) throw SsoLoginError.LoginFailed
+        if (HtmlParser.isSSOLoginPage(html, url)) throw SsoLoginError.LoginFailed()
 
         sessionManager.markLoginSuccess()
         true
@@ -115,7 +115,8 @@ class SsoLoginService @Inject constructor(
         var currentUrl = url
         repeat(maxSteps) {
             if (HtmlParser.isSSOLoginPage(currentHtml, currentUrl)) return currentHtml to currentUrl
-            val form = HtmlParser.findOIDCBridgeForm(currentHtml) ?: return currentHtml to currentUrl
+            val form =
+                HtmlParser.findOIDCBridgeForm(currentHtml) ?: return currentHtml to currentUrl
             val actionUrl = resolveUrl(form.action, currentUrl)
             val (newHtml, newUrl) = postForm(actionUrl, form.inputs)
             currentHtml = newHtml

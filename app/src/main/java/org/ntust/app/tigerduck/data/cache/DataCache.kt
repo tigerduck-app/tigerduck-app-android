@@ -4,16 +4,16 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
-import org.ntust.app.tigerduck.data.model.Assignment
-import org.ntust.app.tigerduck.data.model.CalendarEvent
-import org.ntust.app.tigerduck.data.model.Course
-import org.ntust.app.tigerduck.data.model.ScoreReport
-import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.model.CalendarEvent
+import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.data.model.ScoreReport
+import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import java.io.File
 import java.util.Calendar
 import java.util.Date
@@ -28,6 +28,7 @@ import javax.inject.Singleton
 class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     private val cacheDir: File = File(context.cacheDir, "TigerDuckCache").also { it.mkdirs() }
+
     // User-generated state that has no remote source — stored in filesDir so the OS never evicts it.
     private val userDataDir: File = File(context.filesDir, "TigerDuckData").also { it.mkdirs() }
     private val cacheMutex = Mutex()
@@ -39,7 +40,8 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     // One-shot legacy cache migration is deferred to the first course op so
     // the file I/O never lands on the main thread via Hilt-driven singleton
     // construction (would trip StrictMode and risk ANR on slow storage).
-    @Volatile private var legacyCourseCacheAbsorbed = false
+    @Volatile
+    private var legacyCourseCacheAbsorbed = false
 
     // MARK: - Courses (semester-scoped)
 
@@ -68,7 +70,8 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         migrateManualCoursesToUserData(semester)
         val type = object : TypeToken<List<Course>>() {}.type
         val remote = load<List<Course>>(type, coursesFilename(semester)) ?: emptyList()
-        val manual = loadFromUserData<List<Course>>(type, manualCoursesFilename(semester)) ?: emptyList()
+        val manual =
+            loadFromUserData<List<Course>>(type, manualCoursesFilename(semester)) ?: emptyList()
         if (manual.isEmpty()) return remote
         val manualNos = manual.map { it.courseNo }.toSet()
         return remote.filter { it.courseNo !in manualNos } + manual
@@ -146,7 +149,8 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     // MARK: - Assignments
 
-    suspend fun saveAssignments(assignments: List<Assignment>) = save(assignments, "assignments.json")
+    suspend fun saveAssignments(assignments: List<Assignment>) =
+        save(assignments, "assignments.json")
 
     suspend fun loadAssignments(): List<Assignment> {
         val type = object : TypeToken<List<Assignment>>() {}.type
@@ -156,7 +160,8 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     // MARK: - Skipped Dates (courseNo -> list of ISO date strings "yyyy-MM-dd")
     // Stored in filesDir — never cleared by the OS, unlike cacheDir.
 
-    suspend fun saveSkippedDates(data: Map<String, List<String>>) = saveToUserData(data, "skipped_dates.json")
+    suspend fun saveSkippedDates(data: Map<String, List<String>>) =
+        saveToUserData(data, "skipped_dates.json")
 
     suspend fun loadSkippedDates(): Map<String, List<String>> {
         val type = object : TypeToken<Map<String, List<String>>>() {}.type
@@ -172,7 +177,8 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     suspend fun loadIgnoredAssignments(): Set<String> {
         val type = object : TypeToken<List<String>>() {}.type
-        return loadFromUserData<List<String>>(type, "ignored_assignments.json")?.toSet() ?: emptySet()
+        return loadFromUserData<List<String>>(type, "ignored_assignments.json")?.toSet()
+            ?: emptySet()
     }
 
     // MARK: - Marked-Completed Assignments (set of assignmentIds)
@@ -186,7 +192,8 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     suspend fun loadMarkedCompletedAssignments(): Set<String> {
         val type = object : TypeToken<List<String>>() {}.type
-        return loadFromUserData<List<String>>(type, "marked_completed_assignments.json")?.toSet() ?: emptySet()
+        return loadFromUserData<List<String>>(type, "marked_completed_assignments.json")?.toSet()
+            ?: emptySet()
     }
 
     // MARK: - Score Report (per studentId)
@@ -231,7 +238,8 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     // MARK: - Calendar Events
 
-    suspend fun saveCalendarEvents(events: List<CalendarEvent>) = save(events, "calendar_events.json")
+    suspend fun saveCalendarEvents(events: List<CalendarEvent>) =
+        save(events, "calendar_events.json")
 
     suspend fun loadCalendarEvents(): List<CalendarEvent> {
         val type = object : TypeToken<List<CalendarEvent>>() {}.type
@@ -249,7 +257,12 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     suspend fun clearAllUserData() {
         cacheMutex.withLock {
             withContext(Dispatchers.IO) {
-                listOf("courses.json", "assignments.json", "calendar_events.json", "course_lookups.json").forEach { name ->
+                listOf(
+                    "courses.json",
+                    "assignments.json",
+                    "calendar_events.json",
+                    "course_lookups.json"
+                ).forEach { name ->
                     runCatching { File(cacheDir, name).delete() }
                 }
                 // Drop every per-semester course bucket so historical data
@@ -274,7 +287,11 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
                     runCatching { File(userDataDir, name).delete() }
                 }
                 runCatching {
-                    userDataDir.listFiles { _, name -> name.startsWith("manual_courses_") && name.endsWith(".json") }
+                    userDataDir.listFiles { _, name ->
+                        name.startsWith("manual_courses_") && name.endsWith(
+                            ".json"
+                        )
+                    }
                         ?.forEach { it.delete() }
                 }
             }
@@ -293,35 +310,38 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    private suspend fun <T> load(type: java.lang.reflect.Type, filename: String): T? = cacheMutex.withLock {
-        withContext(Dispatchers.IO) {
-            try {
-                val file = File(cacheDir, filename)
-                if (!file.exists()) return@withContext null
-                gson.fromJson(file.readText(), type)
-            } catch (e: Exception) {
-                null
+    private suspend fun <T> load(type: java.lang.reflect.Type, filename: String): T? =
+        cacheMutex.withLock {
+            withContext(Dispatchers.IO) {
+                try {
+                    val file = File(cacheDir, filename)
+                    if (!file.exists()) return@withContext null
+                    gson.fromJson(file.readText(), type)
+                } catch (e: Exception) {
+                    null
+                }
             }
         }
-    }
 
     private suspend fun <T> saveToUserData(value: T, filename: String) = userDataMutex.withLock {
         withContext(Dispatchers.IO) {
             try {
                 File(userDataDir, filename).writeText(gson.toJson(value))
-            } catch (e: Exception) { }
-        }
-    }
-
-    private suspend fun <T> loadFromUserData(type: java.lang.reflect.Type, filename: String): T? = userDataMutex.withLock {
-        withContext(Dispatchers.IO) {
-            try {
-                val file = File(userDataDir, filename)
-                if (!file.exists()) return@withContext null
-                gson.fromJson(file.readText(), type)
             } catch (e: Exception) {
-                null
             }
         }
     }
+
+    private suspend fun <T> loadFromUserData(type: java.lang.reflect.Type, filename: String): T? =
+        userDataMutex.withLock {
+            withContext(Dispatchers.IO) {
+                try {
+                    val file = File(userDataDir, filename)
+                    if (!file.exists()) return@withContext null
+                    gson.fromJson(file.readText(), type)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+        }
 }

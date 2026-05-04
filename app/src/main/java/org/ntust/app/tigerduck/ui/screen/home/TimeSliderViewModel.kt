@@ -1,10 +1,10 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
+import android.content.Context
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -49,7 +49,9 @@ class TimeSliderViewModel {
     }
 
     private fun rebuildAnchors() {
-        if (timeSlots.isEmpty()) { anchors = emptyList(); return }
+        if (timeSlots.isEmpty()) {
+            anchors = emptyList(); return
+        }
 
         val result = mutableListOf<Pair<Date, Float>>()
         var x = 0f
@@ -91,7 +93,8 @@ class TimeSliderViewModel {
     private fun compressedGapWidth(minutes: Double): Float {
         if (minutes <= 0) return MIN_GAP
         val linear = (minutes * POINTS_PER_MINUTE).toFloat()
-        val compressed = (ln(1 + minutes / LOG_REF_MINUTES) * POINTS_PER_MINUTE * LOG_REF_MINUTES).toFloat()
+        val compressed =
+            (ln(1 + minutes / LOG_REF_MINUTES) * POINTS_PER_MINUTE * LOG_REF_MINUTES).toFloat()
         return min(max(min(linear, compressed), MIN_GAP), MAX_GAP)
     }
 
@@ -247,10 +250,12 @@ class TimeSliderViewModel {
                     .compose()
                 vibrator.vibrate(effect)
             } else {
-                val amp = if (vibrator.hasAmplitudeControl()) 90 else VibrationEffect.DEFAULT_AMPLITUDE
+                val amp =
+                    if (vibrator.hasAmplitudeControl()) 90 else VibrationEffect.DEFAULT_AMPLITUDE
                 vibrator.vibrate(VibrationEffect.createOneShot(6, amp))
             }
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+        }
     }
 
     companion object {

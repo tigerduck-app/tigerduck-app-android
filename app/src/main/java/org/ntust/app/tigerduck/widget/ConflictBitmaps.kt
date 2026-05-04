@@ -4,10 +4,10 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import org.ntust.app.tigerduck.ui.component.ConflictLOrientation
@@ -31,8 +31,10 @@ private data class ConflictGeometry(
             val overlapEnd = minOf(cell.offsetA + cell.spanA, cell.offsetB + cell.spanB)
             fun soloAbove(offset: Int, span: Int) =
                 (overlapStart - offset).coerceAtLeast(0).toFloat() / span
+
             fun soloBelow(offset: Int, span: Int) =
                 (offset + span - overlapEnd).coerceAtLeast(0).toFloat() / span
+
             val aAbove = soloAbove(cell.offsetA, cell.spanA)
             val aBelow = soloBelow(cell.offsetA, cell.spanA)
             val bAbove = soloAbove(cell.offsetB, cell.spanB)
@@ -86,6 +88,7 @@ internal fun renderConflictLayer(
             ConflictLOrientation.TopBarRightTail,
             geom.soloAboveA, geom.soloBelowA, cell.offsetA, cell.spanA,
         )
+
         LayerCourse.B -> LayerParams(
             ConflictLOrientation.LeftTailBottomBar,
             geom.soloAboveB, geom.soloBelowB, cell.offsetB, cell.spanB,

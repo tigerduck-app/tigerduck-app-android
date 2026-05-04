@@ -7,6 +7,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -15,8 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,9 +35,9 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -47,8 +47,8 @@ import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
@@ -173,10 +173,16 @@ fun HomeScreen(
                     PageHeader(title = greetingText()) {
                         if (isEditing) {
                             IconButton(onClick = { showAddSectionDialog = true }) {
-                                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.home_add_section_title))
+                                Icon(
+                                    Icons.Filled.Add,
+                                    contentDescription = stringResource(R.string.home_add_section_title)
+                                )
                             }
                             TextButton(onClick = { isEditing = false }) {
-                                Text(stringResource(R.string.action_done), fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    stringResource(R.string.action_done),
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         } else {
                             SyncIndicator(
@@ -212,13 +218,15 @@ fun HomeScreen(
                             // compensate `dragOffsetY` so the card stays visually
                             // under the user's finger (no snap-back).
                             if (dragOffsetY > 0 && fromIdx < sections.lastIndex) {
-                                val nextH = sectionHeights[sections[fromIdx + 1].id] ?: return@ReorderableSection
+                                val nextH = sectionHeights[sections[fromIdx + 1].id]
+                                    ?: return@ReorderableSection
                                 if (dragOffsetY > nextH / 2f) {
                                     viewModel.moveSections(fromIdx, fromIdx + 1)
                                     dragOffsetY -= nextH
                                 }
                             } else if (dragOffsetY < 0 && fromIdx > 0) {
-                                val prevH = sectionHeights[sections[fromIdx - 1].id] ?: return@ReorderableSection
+                                val prevH = sectionHeights[sections[fromIdx - 1].id]
+                                    ?: return@ReorderableSection
                                 if (dragOffsetY < -prevH / 2f) {
                                     viewModel.moveSections(fromIdx, fromIdx - 1)
                                     dragOffsetY += prevH
@@ -445,7 +453,11 @@ private fun HomeSectionContent(
             }
 
             HomeSection.HomeSectionType.UPCOMING_ASSIGNMENTS -> {
-                SectionHeader(title = if (section.type == HomeSection.HomeSectionType.CUSTOM) section.title else stringResource(section.type.defaultTitleRes))
+                SectionHeader(
+                    title = if (section.type == HomeSection.HomeSectionType.CUSTOM) section.title else stringResource(
+                        section.type.defaultTitleRes
+                    )
+                )
                 if (isLoggedIn) {
                     AssignmentFilterTabs(
                         selected = assignmentFilter,
@@ -476,7 +488,8 @@ private fun HomeSectionContent(
                             // ignoring an assignment would rebind the next
                             // row to the prior Animatable and leak swipe state.
                             key(assignment.assignmentId) {
-                                val isMarkedCompleted = assignment.assignmentId in markedCompletedIds
+                                val isMarkedCompleted =
+                                    assignment.assignmentId in markedCompletedIds
                                 SwipeableAssignmentRow(
                                     assignment = assignment,
                                     isIgnored = assignment.assignmentId in ignoredAssignmentIds,
@@ -494,10 +507,15 @@ private fun HomeSectionContent(
                     }
                 }
             }
+
             @Suppress("DEPRECATION")
             HomeSection.HomeSectionType.QUICK_WIDGETS,
             HomeSection.HomeSectionType.CUSTOM -> {
-                SectionHeader(title = if (section.type == HomeSection.HomeSectionType.CUSTOM) section.title else stringResource(section.type.defaultTitleRes))
+                SectionHeader(
+                    title = if (section.type == HomeSection.HomeSectionType.CUSTOM) section.title else stringResource(
+                        section.type.defaultTitleRes
+                    )
+                )
                 if (section.widgets.isNotEmpty()) {
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
@@ -550,12 +568,24 @@ private fun CourseDetailDialog(
         title = { Text(course.courseName) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.course_instructor_value, course.instructor), style = MaterialTheme.typography.bodyMedium)
-                Text(stringResource(R.string.course_classroom_value, course.classroom), style = MaterialTheme.typography.bodyMedium)
-                Text(stringResource(R.string.course_credits_value, course.credits), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    stringResource(R.string.course_instructor_value, course.instructor),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    stringResource(R.string.course_classroom_value, course.classroom),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    stringResource(R.string.course_credits_value, course.credits),
+                    style = MaterialTheme.typography.bodyMedium
+                )
                 if (assignments.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
-                    Text(stringResource(R.string.home_pending_assignments), style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        stringResource(R.string.home_pending_assignments),
+                        style = MaterialTheme.typography.titleSmall
+                    )
                     assignments.forEach { a ->
                         Text("• ${a.title}", style = MaterialTheme.typography.bodySmall)
                     }
@@ -570,7 +600,8 @@ private fun CourseDetailDialog(
 
 @Composable
 private fun greetingText(): String {
-    val hour = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ).get(Calendar.HOUR_OF_DAY)
+    val hour = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ)
+        .get(Calendar.HOUR_OF_DAY)
     return when {
         hour < 6 -> stringResource(R.string.greeting_very_early)
         hour < 12 -> stringResource(R.string.greeting_morning)
@@ -602,7 +633,7 @@ private fun AssignmentFilterTabs(
     // on that tab, so clearing the last item doesn't yank the section out
     // from under them mid-interaction.
     val options = if (showIgnoredTab) AssignmentFilter.entries
-                  else AssignmentFilter.entries.filter { it != AssignmentFilter.IGNORED }
+    else AssignmentFilter.entries.filter { it != AssignmentFilter.IGNORED }
     val segmentColors = tigerDuckSegmentedButtonColors()
     SingleChoiceSegmentedButtonRow(
         modifier = Modifier
@@ -617,7 +648,10 @@ private fun AssignmentFilterTabs(
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
                 colors = segmentColors,
             ) {
-                Text(stringResource(option.displayNameRes), style = MaterialTheme.typography.labelMedium)
+                Text(
+                    stringResource(option.displayNameRes),
+                    style = MaterialTheme.typography.labelMedium
+                )
             }
         }
     }
@@ -656,7 +690,9 @@ private fun AssignmentsEmptyState(
     }
     if (isLoading) {
         Box(
-            modifier = Modifier.fillMaxWidth().padding(32.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
             contentAlignment = Alignment.Center,
         ) {
             CircularProgressIndicator(
@@ -672,11 +708,13 @@ private fun AssignmentsEmptyState(
             title = stringResource(R.string.home_assignments_all_good),
             message = stringResource(R.string.home_assignments_none),
         )
+
         AssignmentFilter.ALL -> EmptyStateView(
             icon = Icons.Filled.Inbox,
             title = stringResource(R.string.home_assignments_none_now),
             message = "",
         )
+
         AssignmentFilter.IGNORED -> EmptyStateView(
             icon = Icons.Filled.VisibilityOff,
             title = stringResource(R.string.home_assignments_no_ignored),
@@ -734,8 +772,10 @@ private fun SwipeableAssignmentRow(
             ) {
                 Icon(
                     imageVector = if (isMarkedCompleted) Icons.AutoMirrored.Filled.Undo
-                                  else Icons.Filled.Check,
-                    contentDescription = if (isMarkedCompleted) stringResource(R.string.assignment_mark_complete_undo) else stringResource(R.string.assignment_mark_complete),
+                    else Icons.Filled.Check,
+                    contentDescription = if (isMarkedCompleted) stringResource(R.string.assignment_mark_complete_undo) else stringResource(
+                        R.string.assignment_mark_complete
+                    ),
                     tint = completeColor,
                     modifier = Modifier
                         .size(26.dp)
@@ -756,8 +796,10 @@ private fun SwipeableAssignmentRow(
             ) {
                 Icon(
                     imageVector = if (isIgnored) Icons.AutoMirrored.Filled.Undo
-                                  else Icons.Filled.VisibilityOff,
-                    contentDescription = if (isIgnored) stringResource(R.string.assignment_ignore_undo) else stringResource(R.string.assignment_ignore),
+                    else Icons.Filled.VisibilityOff,
+                    contentDescription = if (isIgnored) stringResource(R.string.assignment_ignore_undo) else stringResource(
+                        R.string.assignment_ignore
+                    ),
                     tint = ignoreColor,
                     modifier = Modifier
                         .size(26.dp)
@@ -787,6 +829,7 @@ private fun SwipeableAssignmentRow(
                                         if (isRtl) latestOnMarkCompleted() else latestOnToggleIgnore()
                                         swipeOffset.snapTo(0f)
                                     }
+
                                     swipeOffset.value >= thresholdPx -> {
                                         swipeOffset.animateTo(
                                             2000f,
@@ -795,6 +838,7 @@ private fun SwipeableAssignmentRow(
                                         if (isRtl) latestOnToggleIgnore() else latestOnMarkCompleted()
                                         swipeOffset.snapTo(0f)
                                     }
+
                                     else -> swipeOffset.animateTo(0f, animationSpec = spring())
                                 }
                             }

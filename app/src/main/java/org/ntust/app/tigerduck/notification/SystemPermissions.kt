@@ -1,15 +1,15 @@
 package org.ntust.app.tigerduck.notification
 
 import android.Manifest
-import android.app.AlarmManager
 import android.app.ActivityManager
+import android.app.AlarmManager
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
-import android.content.ActivityNotFoundException
 import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -53,6 +53,7 @@ class SystemPermissions @Inject constructor(
                 context, Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
         }
+
         AppPermission.EXACT_ALARM -> {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) true
             else {
@@ -60,6 +61,7 @@ class SystemPermissions @Inject constructor(
                 am.canScheduleExactAlarms()
             }
         }
+
         AppPermission.BATTERY_OPTIMIZATION -> {
             // The user-facing "Restricted/Optimized/Unrestricted" toggle
             // maps more closely to background restriction than Doze allowlisting.
@@ -121,6 +123,7 @@ class SystemPermissions @Inject constructor(
         AppPermission.NOTIFICATIONS -> Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
             putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
         }
+
         AppPermission.EXACT_ALARM -> {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
@@ -128,6 +131,7 @@ class SystemPermissions @Inject constructor(
                 }
             } else null
         }
+
         AppPermission.BATTERY_OPTIMIZATION -> batterySettingsIntents().firstOrNull()
     }
 
@@ -191,8 +195,10 @@ class SystemPermissions @Inject constructor(
         fun descriptionResId(p: AppPermission): Int = when (p) {
             AppPermission.NOTIFICATIONS ->
                 R.string.permission_notifications_description
+
             AppPermission.EXACT_ALARM ->
                 R.string.permission_exact_alarm_description
+
             AppPermission.BATTERY_OPTIMIZATION ->
                 R.string.permission_battery_optimization_description
         }

@@ -20,22 +20,22 @@ data class WidgetColors(
 
 object WidgetTheme {
     val Light = WidgetColors(
-        isDark             = false,
-        background         = Color(0xFFF5F5F5),
-        surface            = Color(0xFFFFFFFF),
-        onSurface          = Color(0xFF1C1C1E),
-        onSurfaceVariant   = Color(0xFF6E6E73),
-        highlight          = Color(0xFF0066CC),
-        emptyCell          = Color(0xFFECECEC),
+        isDark = false,
+        background = Color(0xFFF5F5F5),
+        surface = Color(0xFFFFFFFF),
+        onSurface = Color(0xFF1C1C1E),
+        onSurfaceVariant = Color(0xFF6E6E73),
+        highlight = Color(0xFF0066CC),
+        emptyCell = Color(0xFFECECEC),
     )
     val Dark = WidgetColors(
-        isDark             = true,
-        background         = Color(0xFF1C1C1E),
-        surface            = Color(0xFF2C2C2E),
-        onSurface          = Color(0xFFF5F5F5),
-        onSurfaceVariant   = Color(0xFF8E8E93),
-        highlight          = Color(0xFF4DA3FF),
-        emptyCell          = Color(0xFF2C2C2E),
+        isDark = true,
+        background = Color(0xFF1C1C1E),
+        surface = Color(0xFF2C2C2E),
+        onSurface = Color(0xFFF5F5F5),
+        onSurfaceVariant = Color(0xFF8E8E93),
+        highlight = Color(0xFF4DA3FF),
+        emptyCell = Color(0xFF2C2C2E),
     )
 }
 
@@ -52,7 +52,11 @@ fun widgetCourseColor(
 ): Color {
     val resolved = courseColors[course.courseNo]
         ?: course.customColorHex?.let { hex ->
-            try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { null }
+            try {
+                Color(android.graphics.Color.parseColor(hex))
+            } catch (_: Exception) {
+                null
+            }
         }
         ?: hashPaletteColor(course.courseNo)
 
@@ -74,7 +78,7 @@ fun resolveWidgetIsDark(prefs: AppPreferences, context: Context): Boolean =
         "light" -> false
         else -> {
             val nightMode = context.resources.configuration.uiMode and
-                Configuration.UI_MODE_NIGHT_MASK
+                    Configuration.UI_MODE_NIGHT_MASK
             nightMode == Configuration.UI_MODE_NIGHT_YES
         }
     }

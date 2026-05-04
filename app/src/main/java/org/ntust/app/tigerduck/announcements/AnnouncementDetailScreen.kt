@@ -23,8 +23,8 @@ import com.mikepenz.markdown.m3.Markdown
 import org.ntust.app.tigerduck.R
 
 @OptIn(
-    androidx.compose.foundation.layout.ExperimentalLayoutApi::class,
-    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    ExperimentalLayoutApi::class,
+    ExperimentalMaterial3Api::class,
 )
 @Composable
 fun AnnouncementDetailScreen(
@@ -88,6 +88,7 @@ fun AnnouncementDetailScreen(
                         CircularProgressIndicator()
                     }
                 }
+
                 is AnnouncementDetailViewModel.State.Failed -> {
                     if (s.summary != null) {
                         DetailBody(
@@ -99,7 +100,9 @@ fun AnnouncementDetailScreen(
                         )
                     } else {
                         Column(
-                            modifier = Modifier.fillMaxSize().padding(24.dp),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(24.dp),
                             verticalArrangement = Arrangement.Center,
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
@@ -111,6 +114,7 @@ fun AnnouncementDetailScreen(
                         }
                     }
                 }
+
                 is AnnouncementDetailViewModel.State.Partial -> DetailBody(
                     chrome = s.summary,
                     bodyMd = null,
@@ -118,6 +122,7 @@ fun AnnouncementDetailScreen(
                     bodyState = BodyState.Loading,
                     taxonomy = s.taxonomy,
                 )
+
                 is AnnouncementDetailViewModel.State.Loaded -> DetailBody(
                     chrome = s.detail.toSummary(),
                     bodyMd = s.detail.bodyMd,
@@ -136,7 +141,7 @@ private sealed interface BodyState {
     data class Failed(val onRetry: () -> Unit) : BodyState
 }
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DetailBody(
     chrome: BulletinSummary,
@@ -154,7 +159,7 @@ private fun DetailBody(
     ) {
         // Meta row: 處室 reads as attribution (accent-color caption), kept
         // visually separate from the 類別 hashtag strip in the footer.
-        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             chrome.canonicalOrg?.let { orgId ->
                 Text(
                     text = taxonomy?.orgLabel(orgId) ?: orgId,
@@ -206,9 +211,12 @@ private fun DetailBody(
                     )
                 }
             }
+
             BodyState.Loading -> {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     CircularProgressIndicator(
@@ -217,9 +225,12 @@ private fun DetailBody(
                     )
                 }
             }
+
             is BodyState.Failed -> {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
@@ -237,8 +248,10 @@ private fun DetailBody(
         // Footer: hashtag strip — wraps multi-line for posts with many tags.
         if (chrome.contentTags.isNotEmpty()) {
             HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
-            androidx.compose.foundation.layout.FlowRow(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {

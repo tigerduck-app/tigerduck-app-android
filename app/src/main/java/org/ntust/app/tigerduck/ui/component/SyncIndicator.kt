@@ -1,13 +1,18 @@
 package org.ntust.app.tigerduck.ui.component
 
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -45,12 +50,14 @@ fun SyncIndicator(
                     strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
+
                 "checkmark" -> Icon(
                     Icons.Filled.CheckCircle,
                     contentDescription = stringResource(R.string.sync_success_content_description),
                     tint = Color(0xFF34C759),
                     modifier = Modifier.size(20.dp)
                 )
+
                 "dragging" -> DragArc(progress = dragProgress)
                 else -> Spacer(Modifier.size(20.dp))
             }

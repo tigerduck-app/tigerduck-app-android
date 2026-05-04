@@ -1,15 +1,24 @@
 package org.ntust.app.tigerduck.ui.component
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
@@ -99,7 +108,8 @@ private fun AssignmentTrailing(
     // independent signals — one is from Moodle, the other from the user.
     val moodleBadge = statusBadge(status)
     val markCompleteLabel = stringResource(R.string.assignment_mark_complete)
-    val markedBadge: Pair<String, Color>? = if (markedCompleted) markCompleteLabel to BadgeGreen else null
+    val markedBadge: Pair<String, Color>? =
+        if (markedCompleted) markCompleteLabel to BadgeGreen else null
     val isOverdue = status == AssignmentStatus.OVERDUE_ACCEPTABLE ||
             status == AssignmentStatus.OVERDUE_REJECTED
     val emphasise = status == AssignmentStatus.OVERDUE_REJECTED
@@ -113,7 +123,7 @@ private fun AssignmentTrailing(
                         text = label,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = if (emphasise && label != markCompleteLabel) FontWeight.Bold
-                                         else FontWeight.SemiBold,
+                            else FontWeight.SemiBold,
                         ),
                         color = color,
                     )
@@ -125,9 +135,9 @@ private fun AssignmentTrailing(
         val useAbsolute = showAbsoluteTime ||
                 ((assignment.isCompleted || markedCompleted) && assignment.dueDate.before(now))
         val timeText = if (useAbsolute) formatAbsolute(assignment.dueDate)
-                       else formatRelative(assignment.dueDate, now)
+        else formatRelative(assignment.dueDate, now)
         val timeColor = if (isOverdue) BadgeRed
-                        else MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+        else MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
         val timeWeight = if (emphasise) FontWeight.Bold else FontWeight.Normal
         Text(
             text = timeText,
@@ -160,14 +170,18 @@ private fun formatRelative(date: Date, now: Date): String {
     val diffMs = date.time - now.time
     val isPast = diffMs < 0
     val suffix = if (isPast) stringResource(R.string.assignment_time_suffix_ago)
-                 else stringResource(R.string.assignment_time_suffix_later)
+    else stringResource(R.string.assignment_time_suffix_later)
     val absMs = abs(diffMs)
     val days = TimeUnit.MILLISECONDS.toDays(absMs).toInt()
     if (days > 3) return stringResource(R.string.assignment_time_days_with_suffix, days, suffix)
     val hours = TimeUnit.MILLISECONDS.toHours(absMs).toInt()
     if (hours > 0) return stringResource(R.string.assignment_time_hours_with_suffix, hours, suffix)
     val minutes = TimeUnit.MILLISECONDS.toMinutes(absMs).toInt()
-    if (minutes > 0) return stringResource(R.string.assignment_time_minutes_with_suffix, minutes, suffix)
+    if (minutes > 0) return stringResource(
+        R.string.assignment_time_minutes_with_suffix,
+        minutes,
+        suffix
+    )
     val seconds = TimeUnit.MILLISECONDS.toSeconds(absMs).toInt()
     return stringResource(R.string.assignment_time_seconds_with_suffix, seconds, suffix)
 }
