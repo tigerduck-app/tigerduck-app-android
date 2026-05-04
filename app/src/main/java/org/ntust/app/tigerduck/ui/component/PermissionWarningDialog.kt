@@ -85,7 +85,10 @@ fun PermissionWarningDialogHost(systemPermissions: SystemPermissions) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Warning, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.permission_warning_title), fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.permission_warning_title),
+                    fontWeight = FontWeight.Bold
+                )
             }
         },
         text = {

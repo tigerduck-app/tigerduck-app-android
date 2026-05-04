@@ -13,14 +13,13 @@ import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
-import java.util.LinkedHashSet
 import java.util.concurrent.TimeUnit
 
 @HiltWorker
@@ -115,10 +114,14 @@ class BackgroundSyncWorker @AssistedInject constructor(
                                     enrolledCount = r.chooseStudent ?: 0,
                                     maxCount = r.maxEnrollment,
                                     schedule = schedule,
-                                    moodleIdNumber = moodleByNo[courseNo]?.idnumber ?: "${r.semester}${r.courseNo}"
+                                    moodleIdNumber = moodleByNo[courseNo]?.idnumber
+                                        ?: "${r.semester}${r.courseNo}"
                                 )
                             } else {
-                                CourseService.fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
+                                CourseService.fallbackCourseFromMoodle(
+                                    courseNo,
+                                    moodleByNo[courseNo]
+                                )
                             }
                         } catch (e: Exception) {
                             Log.w(TAG, "Course lookup failed for $courseNo", e)
@@ -146,7 +149,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
                 // Keep stale non-manual cache entries only for courses still in
                 // this cycle's roster but unresolved due to transient lookup failures.
-                val cachedRemoteFallbacks = cached.filter { !it.isManual && it.courseNo in unresolvedNos }
+                val cachedRemoteFallbacks =
+                    cached.filter { !it.isManual && it.courseNo in unresolvedNos }
                 val merged = fetchedWithState + manualLeftovers + cachedRemoteFallbacks
                 dataCache.saveCourses(merged)
             }
@@ -179,8 +183,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 notificationScheduler.scheduleAll(
                     merged.filter {
                         !it.isCompleted &&
-                            it.assignmentId !in ignored &&
-                            it.assignmentId !in marked
+                                it.assignmentId !in ignored &&
+                                it.assignmentId !in marked
                     }
                 )
             }
@@ -193,6 +197,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
 
     companion object {
         private const val TAG = "BackgroundSyncWorker"
+
         // Keep the old unique name so existing users' enqueued 6h work is
         // replaced in place via ExistingPeriodicWorkPolicy.UPDATE instead of
         // leaving an orphaned entry behind.

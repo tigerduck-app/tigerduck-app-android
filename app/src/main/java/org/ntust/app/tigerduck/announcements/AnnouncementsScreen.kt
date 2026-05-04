@@ -24,8 +24,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -42,15 +40,17 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
-import kotlin.math.abs
-import kotlin.math.roundToInt
-import org.ntust.app.tigerduck.R
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @Composable
 fun AnnouncementsScreen(
@@ -76,6 +76,7 @@ fun AnnouncementsScreen(
                     showCheckmark = false
                 }
             }
+
             else -> sawLoading = false
         }
     }
@@ -148,6 +149,7 @@ fun AnnouncementsScreen(
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
+
                 displayed.isEmpty() && state.loadState is AnnouncementsViewModel.LoadState.Failed -> {
                     EmptyStateView(
                         icon = Icons.Filled.Campaign,
@@ -156,6 +158,7 @@ fun AnnouncementsScreen(
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
+
                 else -> BulletinList(
                     items = displayed,
                     taxonomy = state.taxonomy,
@@ -305,7 +308,9 @@ private fun BulletinList(
         if (isPaginating) {
             item {
                 Box(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
                     contentAlignment = Alignment.Center,
                 ) { CircularProgressIndicator() }
             }
@@ -489,6 +494,7 @@ private fun SwipeableBulletinCard(
                                         latestOnToggleRead()
                                         swipeOffset.snapTo(0f)
                                     }
+
                                     swipeOffset.value >= thresholdPx -> {
                                         swipeOffset.animateTo(
                                             2000f,
@@ -497,6 +503,7 @@ private fun SwipeableBulletinCard(
                                         latestOnToggleRead()
                                         swipeOffset.snapTo(0f)
                                     }
+
                                     else -> swipeOffset.animateTo(0f, animationSpec = spring())
                                 }
                             }

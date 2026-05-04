@@ -18,6 +18,7 @@ data class HomeSection(
     ) {
         TODAY_COURSES("today-courses", R.string.home_section_today_courses),
         UPCOMING_ASSIGNMENTS("upcoming-assignments", R.string.home_section_upcoming_assignments),
+
         @Deprecated("Feature temporarily disabled")
         QUICK_WIDGETS("quick-widgets", R.string.home_section_quick_widgets),
         CUSTOM("custom", R.string.home_section_custom);
@@ -25,8 +26,20 @@ data class HomeSection(
 
     companion object {
         fun defaults(): List<HomeSection> = listOf(
-            HomeSection("today-courses", HomeSectionType.TODAY_COURSES, HomeSectionType.TODAY_COURSES.defaultTitleKey, 0, true),
-            HomeSection("upcoming-assignments", HomeSectionType.UPCOMING_ASSIGNMENTS, HomeSectionType.UPCOMING_ASSIGNMENTS.defaultTitleKey, 1, true),
+            HomeSection(
+                "today-courses",
+                HomeSectionType.TODAY_COURSES,
+                HomeSectionType.TODAY_COURSES.defaultTitleKey,
+                0,
+                true
+            ),
+            HomeSection(
+                "upcoming-assignments",
+                HomeSectionType.UPCOMING_ASSIGNMENTS,
+                HomeSectionType.UPCOMING_ASSIGNMENTS.defaultTitleKey,
+                1,
+                true
+            ),
             // TODO: 快速功能
 //            HomeSection(
 //                "quick-widgets", HomeSectionType.QUICK_WIDGETS, HomeSectionType.QUICK_WIDGETS.defaultTitleKey, 2, true,

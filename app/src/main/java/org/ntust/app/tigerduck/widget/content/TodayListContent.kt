@@ -4,9 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.glance.action.Action
 import androidx.glance.GlanceModifier
 import androidx.glance.LocalContext
+import androidx.glance.action.Action
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.background
@@ -87,18 +87,27 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
                     )
                 }
             }
+
             todayCourses.isEmpty() && isWeekend -> {
                 Text(
                     text = context.getString(R.string.widget_no_classes_weekend),
-                    style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 14.sp),
+                    style = TextStyle(
+                        color = ColorProvider(colors.onSurfaceVariant),
+                        fontSize = 14.sp
+                    ),
                 )
             }
+
             todayCourses.isEmpty() -> {
                 Text(
                     text = context.getString(R.string.widget_no_classes_today),
-                    style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 14.sp),
+                    style = TextStyle(
+                        color = ColorProvider(colors.onSurfaceVariant),
+                        fontSize = 14.sp
+                    ),
                 )
             }
+
             else -> {
                 todayCourses.forEach { course ->
                     val isOngoing = course.courseNo in state.ongoingCourseNos
@@ -108,10 +117,11 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
                     val startTime = AppConstants.PeriodTimes.mapping[firstPeriod]?.first ?: ""
                     val endTime = AppConstants.PeriodTimes.mapping[lastPeriod]?.second ?: ""
                     val periodRange = if (firstPeriod == lastPeriod) firstPeriod
-                                     else "$firstPeriod–$lastPeriod"
+                    else "$firstPeriod–$lastPeriod"
                     val rowBg = if (isOngoing) colors.highlight else colors.surface
                     val primaryText = if (isOngoing) Color.White else colors.onSurface
-                    val secondaryText = if (isOngoing) Color.White.copy(alpha = 0.8f) else colors.onSurfaceVariant
+                    val secondaryText =
+                        if (isOngoing) Color.White.copy(alpha = 0.8f) else colors.onSurfaceVariant
 
                     Row(
                         modifier = GlanceModifier

@@ -1,5 +1,8 @@
 package org.ntust.app.tigerduck.ui.screen.library
 
+import android.app.Activity
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -24,17 +27,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
-import android.app.Activity
-import android.content.ContextWrapper
-import android.content.pm.ActivityInfo
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -42,7 +43,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -128,7 +128,7 @@ fun LibraryScreen(
                 Spacer(Modifier.width(4.dp))
                 Text(
                     text = if (isLoggedIn) stringResource(R.string.library_status_logged_in)
-                           else stringResource(R.string.library_status_not_logged_in),
+                    else stringResource(R.string.library_status_not_logged_in),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
@@ -251,6 +251,7 @@ private fun LibraryQRCodeCard(
                     isLoadingQR && qrBitmap == null -> {
                         CircularProgressIndicator()
                     }
+
                     qrBitmap != null -> {
                         Image(
                             bitmap = qrBitmap.asImageBitmap(),
@@ -262,6 +263,7 @@ private fun LibraryQRCodeCard(
                             filterQuality = FilterQuality.None,
                         )
                     }
+
                     else -> {
                         Text(
                             stringResource(R.string.library_qr_not_generated),
@@ -282,10 +284,13 @@ private fun LibraryQRCodeCard(
 @Composable
 private fun CountdownIndicator(countdown: Int) {
     val target = (countdown.coerceIn(0, LibraryViewModel.QR_VALID_SECONDS)).toFloat() /
-        LibraryViewModel.QR_VALID_SECONDS
+            LibraryViewModel.QR_VALID_SECONDS
     val progress by animateFloatAsState(
         targetValue = target,
-        animationSpec = tween(durationMillis = if (countdown > 0) 1000 else 0, easing = LinearEasing),
+        animationSpec = tween(
+            durationMillis = if (countdown > 0) 1000 else 0,
+            easing = LinearEasing
+        ),
         label = "library_qr_countdown_progress"
     )
     val track = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
@@ -419,7 +424,10 @@ private fun FeatureCard(title: String, subtitle: String, modifier: Modifier = Mo
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
             Text(
                 subtitle, style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)

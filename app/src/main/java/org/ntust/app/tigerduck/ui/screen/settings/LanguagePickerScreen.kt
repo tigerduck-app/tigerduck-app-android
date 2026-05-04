@@ -1,7 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.content.Context
-import org.xmlpull.v1.XmlPullParser
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ScrollState
@@ -27,7 +26,6 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -45,6 +43,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import org.xmlpull.v1.XmlPullParser
 import java.text.Collator
 import java.util.Locale
 
@@ -123,8 +122,8 @@ fun LanguagePickerScreen(
             val q = trimmed.lowercase(Locale.ROOT)
             allRows.filter { row ->
                 row.tag.lowercase(Locale.ROOT).contains(q) ||
-                    row.nativeName.lowercase(Locale.ROOT).contains(q) ||
-                    row.localizedName.lowercase(Locale.ROOT).contains(q)
+                        row.nativeName.lowercase(Locale.ROOT).contains(q) ||
+                        row.localizedName.lowercase(Locale.ROOT).contains(q)
             }
         }
     }

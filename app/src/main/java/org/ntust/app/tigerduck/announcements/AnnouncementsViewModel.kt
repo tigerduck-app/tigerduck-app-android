@@ -10,7 +10,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -79,6 +78,7 @@ class AnnouncementsViewModel @Inject constructor(
     private var inflight: Job? = null
     private var prefetch: Job? = null
     private var loadMoreJob: Job? = null
+
     // Main-thread-only — see nextCursor.
     private var hasLoaded = false
 
@@ -282,7 +282,7 @@ class AnnouncementsViewModel @Inject constructor(
             .filter {
                 if (text.isEmpty()) true
                 else it.displayTitle.contains(text, ignoreCase = true) ||
-                    it.summary?.contains(text, ignoreCase = true) == true
+                        it.summary?.contains(text, ignoreCase = true) == true
             }
             .toList()
         return withDisplayed(s.copy(filtered = filtered))
@@ -299,11 +299,17 @@ class AnnouncementsViewModel @Inject constructor(
         // the same id (e.g. importance/title_clean updates after LLM run).
         for (item in items) byId[item.id] = item
         return byId.values.sortedWith(
-            compareByDescending<BulletinSummary> { it.postedAt?.let(::parseInstant) ?: Instant.EPOCH }
+            compareByDescending<BulletinSummary> {
+                it.postedAt?.let(::parseInstant) ?: Instant.EPOCH
+            }
                 .thenByDescending { it.id }
         )
     }
 
     private fun parseInstant(raw: String): Instant =
-        try { Instant.parse(raw) } catch (_: Exception) { Instant.EPOCH }
+        try {
+            Instant.parse(raw)
+        } catch (_: Exception) {
+            Instant.EPOCH
+        }
 }

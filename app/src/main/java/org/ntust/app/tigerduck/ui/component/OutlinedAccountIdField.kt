@@ -109,8 +109,22 @@ fun OutlinedAccountIdField(
                         }
 
                         addTextChangedListener(object : TextWatcher {
-                            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                            override fun beforeTextChanged(
+                                s: CharSequence?,
+                                start: Int,
+                                count: Int,
+                                after: Int
+                            ) {
+                            }
+
+                            override fun onTextChanged(
+                                s: CharSequence?,
+                                start: Int,
+                                before: Int,
+                                count: Int
+                            ) {
+                            }
+
                             override fun afterTextChanged(s: Editable?) {
                                 if (tag == true) return
                                 onValueChangeState.value(s?.toString().orEmpty())
@@ -127,6 +141,7 @@ fun OutlinedAccountIdField(
                                     onImeActionState.value()
                                     true
                                 }
+
                                 else -> false
                             }
                         }
@@ -134,8 +149,8 @@ fun OutlinedAccountIdField(
                 },
                 update = { editText ->
                     editText.inputType = InputType.TYPE_CLASS_TEXT or
-                        InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
-                        capitalization.toInputTypeFlag()
+                            InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
+                            capitalization.toInputTypeFlag()
                     editText.imeOptions = imeAction.toEditorInfoFlag()
                     if (autofillHint != null) {
                         editText.setAutofillHints(autofillHint)

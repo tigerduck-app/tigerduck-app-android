@@ -8,12 +8,11 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -38,10 +37,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.ntust.app.tigerduck.notification.AppPermission
-import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.notification.AppPermission
+import org.ntust.app.tigerduck.notification.SystemPermissions
 import java.text.DateFormat
 import java.util.Date
 
@@ -105,7 +104,9 @@ fun SubscriptionSettingsScreen(
             )
         },
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .padding(padding)) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
@@ -138,12 +139,16 @@ fun SubscriptionSettingsScreen(
                         SubscriptionSettingsViewModel.LoadState.Loading -> {
                             item {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
                                     Spacer(Modifier.width(8.dp))
                                     Text(stringResource(R.string.bulletin_rules_load_loading))
                                 }
                             }
                         }
+
                         is SubscriptionSettingsViewModel.LoadState.Failed -> {
                             item {
                                 Column {
@@ -155,6 +160,7 @@ fun SubscriptionSettingsScreen(
                                 }
                             }
                         }
+
                         SubscriptionSettingsViewModel.LoadState.Loaded -> {
                             items(state.rules.size) { idx ->
                                 val rule = state.rules[idx]
@@ -174,7 +180,8 @@ fun SubscriptionSettingsScreen(
                             if (state.rules.size < maxRules) {
                                 item {
                                     AddRuleRow(onClick = {
-                                        editing = EditingTarget(SubscriptionRule(), replacingIndex = null)
+                                        editing =
+                                            EditingTarget(SubscriptionRule(), replacingIndex = null)
                                     })
                                 }
                             }
@@ -187,7 +194,12 @@ fun SubscriptionSettingsScreen(
                                 )
                             }
                             if (state.rules.isEmpty()) {
-                                item { DefaultRulesBanner(state.taxonomy, viewModel::applyDefaultRules) }
+                                item {
+                                    DefaultRulesBanner(
+                                        state.taxonomy,
+                                        viewModel::applyDefaultRules
+                                    )
+                                }
                             }
                         }
                     }
@@ -196,7 +208,9 @@ fun SubscriptionSettingsScreen(
 
             (state.saveState as? SubscriptionSettingsViewModel.SaveState.Failed)?.let {
                 Snackbar(
-                    modifier = Modifier.padding(16.dp).align(Alignment.BottomCenter),
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .align(Alignment.BottomCenter),
                     action = {
                         TextButton(onClick = viewModel::clearSaveState) {
                             Text(stringResource(R.string.settings_acknowledged))
@@ -272,7 +286,8 @@ private fun PushStatusCard(diagnostic: org.ntust.app.tigerduck.push.PushDiagnost
                 Spacer(Modifier.height(4.dp))
                 LabeledText(
                     label = stringResource(R.string.push_server_last_registration),
-                    value = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(ts)),
+                    value = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+                        .format(Date(ts)),
                 )
             }
             diagnostic.lastError?.let { msg ->
@@ -307,7 +322,9 @@ private fun PushStatusCard(diagnostic: org.ntust.app.tigerduck.push.PushDiagnost
 private fun StatusRow(label: String, ok: Boolean, okText: String, badText: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
     ) {
         Icon(
             imageVector = if (ok) Icons.Filled.CheckCircle else Icons.Filled.WarningAmber,
@@ -326,9 +343,17 @@ private fun StatusRow(label: String, ok: Boolean, okText: String, badText: Strin
 }
 
 @Composable
-private fun LabeledText(label: String, value: String, valueColor: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
+private fun LabeledText(
+    label: String,
+    value: String,
+    valueColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
     Row(modifier = Modifier.fillMaxWidth()) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.outline
+        )
         Spacer(Modifier.weight(1f))
         Text(value, style = MaterialTheme.typography.bodySmall, color = valueColor)
     }
@@ -418,7 +443,9 @@ private fun RuleRow(
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -490,7 +517,7 @@ private fun ruleSubtitle(rule: SubscriptionRule, taxonomy: TaxonomyResponse?): S
 
 @Composable
 private fun NotificationPermissionCard(systemPermissions: SystemPermissions) {
-    val context = LocalContext.current
+    LocalContext.current
     var state by remember { mutableStateOf(systemPermissions.state(AppPermission.NOTIFICATIONS)) }
 
     val launcher = rememberLauncherForActivityResult(
@@ -514,7 +541,9 @@ private fun NotificationPermissionCard(systemPermissions: SystemPermissions) {
 
     ContentCard {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -549,11 +578,13 @@ private fun NotificationPermissionCard(systemPermissions: SystemPermissions) {
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 )
+
                 state.granted -> Icon(
                     Icons.Filled.Check,
                     contentDescription = stringResource(R.string.permission_granted),
                     tint = Color(0xFF34C759),
                 )
+
                 else -> Button(onClick = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -573,7 +604,9 @@ private fun AddRuleRow(onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),

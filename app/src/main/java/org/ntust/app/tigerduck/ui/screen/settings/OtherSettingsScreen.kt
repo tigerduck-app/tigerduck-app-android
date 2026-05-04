@@ -3,7 +3,6 @@ package org.ntust.app.tigerduck.ui.screen.settings
 import android.content.Context
 import android.content.Intent
 import androidx.browser.customtabs.CustomTabsIntent
-import androidx.core.net.toUri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
@@ -56,7 +56,9 @@ fun OtherSettingsScreen(
         containerColor = MaterialTheme.colorScheme.background,
     ) { scaffoldPadding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(scaffoldPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(scaffoldPadding),
             contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp),
         ) {
             item {

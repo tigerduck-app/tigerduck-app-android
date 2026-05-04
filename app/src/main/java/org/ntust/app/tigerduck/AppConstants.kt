@@ -13,7 +13,8 @@ object AppConstants {
     object Periods {
         val defaultVisible = listOf("1", "2", "3", "4", "6", "7", "8", "9")
         val extended = listOf("5", "10", "A", "B", "C", "D")
-        val chronologicalOrder = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "A", "B", "C", "D")
+        val chronologicalOrder =
+            listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "A", "B", "C", "D")
     }
 
     object PeriodTimes {

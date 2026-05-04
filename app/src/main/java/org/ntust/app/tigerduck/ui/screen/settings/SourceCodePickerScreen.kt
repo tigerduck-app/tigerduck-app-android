@@ -112,7 +112,9 @@ fun SourceCodePickerScreen(
         },
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
             contentPadding = PaddingValues(top = 4.dp, bottom = 32.dp),
         ) {
             item {

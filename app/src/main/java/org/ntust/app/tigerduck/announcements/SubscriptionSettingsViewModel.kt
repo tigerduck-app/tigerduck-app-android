@@ -165,6 +165,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
     }
 
     private var saveJob: Job? = null
+
     // Monotonic token: every save() bumps it; the success handler only writes
     // back the server echo if no newer save() has displaced this one. Guards
     // the narrow window where execute() returns on the IO thread before the

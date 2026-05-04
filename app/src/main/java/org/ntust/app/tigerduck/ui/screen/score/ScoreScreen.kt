@@ -29,23 +29,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
-import kotlin.math.roundToInt
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
@@ -60,6 +59,7 @@ import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,12 +105,14 @@ fun ScoreScreen(viewModel: ScoreViewModel = hiltViewModel()) {
                         message = stringResource(R.string.score_not_logged_in_message),
                         modifier = Modifier.padding(top = 32.dp)
                     )
+
                     !viewModel.hasContent && !isRefreshing -> EmptyStateView(
                         icon = Icons.Filled.Search,
                         title = stringResource(R.string.score_empty_title),
                         message = errorMessage ?: stringResource(R.string.score_empty_message),
                         modifier = Modifier.padding(top = 32.dp)
                     )
+
                     else -> {
                         StudentHeaderCard(
                             student = report.student,
@@ -184,7 +186,10 @@ private fun StudentHeaderCard(student: String, currentTerm: String) {
                 )
                 if (currentTerm.isNotEmpty()) {
                     Text(
-                        text = formatCurrentTerm(stringResource(R.string.score_term_format), currentTerm),
+                        text = formatCurrentTerm(
+                            stringResource(R.string.score_term_format),
+                            currentTerm
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                     )
@@ -197,8 +202,9 @@ private fun StudentHeaderCard(student: String, currentTerm: String) {
 private fun formatCurrentTerm(pattern: String, code: String): String {
     if (code.length != 4) return code
     val year = code.take(3)
-    val sem = code.last()
-    val label = when (sem) { '1' -> "1"; '2' -> "2"; else -> sem.toString() }
+    val label = when (val sem = code.last()) {
+        '1' -> "1"; '2' -> "2"; else -> sem.toString()
+    }
     return pattern.format(year, label)
 }
 
@@ -219,9 +225,21 @@ private fun CreditSummaryCard(summary: CreditSummary) {
             )
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CreditStat(stringResource(R.string.score_credit_earned), summary.earned.total, Modifier.weight(1f))
-                CreditStat(stringResource(R.string.score_credit_enrolled), summary.enrolled.total, Modifier.weight(1f))
-                CreditStat(stringResource(R.string.score_credit_total), summary.total.total, Modifier.weight(1f))
+                CreditStat(
+                    stringResource(R.string.score_credit_earned),
+                    summary.earned.total,
+                    Modifier.weight(1f)
+                )
+                CreditStat(
+                    stringResource(R.string.score_credit_enrolled),
+                    summary.enrolled.total,
+                    Modifier.weight(1f)
+                )
+                CreditStat(
+                    stringResource(R.string.score_credit_total),
+                    summary.total.total,
+                    Modifier.weight(1f)
+                )
             }
         }
     }
@@ -402,6 +420,7 @@ private fun TrendChart(
         } else {
             plotLeft + plotWidth * index / (rankings.size - 1).toFloat()
         }
+
         fun y(value: Double): Float {
             val range = (yDomain.second - yDomain.first).takeIf { it > 0 } ?: 1.0
             val frac = ((value - yDomain.first) / range).toFloat().coerceIn(0f, 1f)
@@ -440,7 +459,11 @@ private fun TrendChart(
             drawPath(
                 path = monotoneCubicPath(points),
                 color = trendAccent,
-                style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                style = Stroke(
+                    width = 2.5.dp.toPx(),
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
+                )
             )
         }
 
@@ -492,7 +515,12 @@ private fun TrendSummaryRow(
     val gpaTitle = when {
         scope == ScoreViewModel.RankingScope.CUMULATIVE ->
             stringResource(R.string.score_gpa_cumulative_to, displayTermShort(source.term))
-        selectedTerm != null -> stringResource(R.string.score_gpa_term_label, displayTermShort(source.term))
+
+        selectedTerm != null -> stringResource(
+            R.string.score_gpa_term_label,
+            displayTermShort(source.term)
+        )
+
         else -> stringResource(R.string.score_gpa_latest)
     }
     Row(
@@ -571,14 +599,14 @@ private fun RollingText(
                         val dur = 320
                         if (goingUp) {
                             (slideInVertically(tween(dur)) { h -> h } +
-                                fadeIn(tween(dur))) togetherWith
-                                (slideOutVertically(tween(dur)) { h -> -h } +
-                                    fadeOut(tween(dur)))
+                                    fadeIn(tween(dur))) togetherWith
+                                    (slideOutVertically(tween(dur)) { h -> -h } +
+                                            fadeOut(tween(dur)))
                         } else {
                             (slideInVertically(tween(dur)) { h -> -h } +
-                                fadeIn(tween(dur))) togetherWith
-                                (slideOutVertically(tween(dur)) { h -> h } +
-                                    fadeOut(tween(dur)))
+                                    fadeIn(tween(dur))) togetherWith
+                                    (slideOutVertically(tween(dur)) { h -> h } +
+                                            fadeOut(tween(dur)))
                         }
                     },
                     label = "roll-$index",
@@ -605,11 +633,16 @@ private fun computeYDomain(values: List<Double?>): Pair<Double, Double> {
     val max = nonNull.max()
     val lower = maxOf(0.0, min - 0.3)
     val upper = minOf(4.3, max + 0.3)
-    if (upper - lower < 0.2) return (lower - 0.1).coerceAtLeast(0.0) to (upper + 0.1).coerceAtMost(4.3)
+    if (upper - lower < 0.2) return (lower - 0.1).coerceAtLeast(0.0) to (upper + 0.1).coerceAtMost(
+        4.3
+    )
     return lower to upper
 }
 
-private fun resolvedSelection(rankings: List<SemesterRanking>, selectedTerm: String?): SemesterRanking? {
+private fun resolvedSelection(
+    rankings: List<SemesterRanking>,
+    selectedTerm: String?
+): SemesterRanking? {
     if (rankings.isEmpty()) return null
     if (selectedTerm != null) {
         val match = rankings.firstOrNull { it.term == selectedTerm }
@@ -621,8 +654,9 @@ private fun resolvedSelection(rankings: List<SemesterRanking>, selectedTerm: Str
 private fun displayTermShort(code: String): String {
     if (code.length != 4) return code
     val year = code.take(3)
-    val sem = code.last()
-    val label = when (sem) { '1' -> "1"; '2' -> "2"; else -> sem.toString() }
+    val label = when (val sem = code.last()) {
+        '1' -> "1"; '2' -> "2"; else -> sem.toString()
+    }
     return "$year-$label"
 }
 
@@ -663,7 +697,13 @@ private fun SemesterSection(
                         ranking?.semester?.gpa?.let { add("GPA %.2f".format(it)) }
                         ranking?.semester?.let {
                             if (it.classRank != null && it.deptRank != null) {
-                                add(stringResource(R.string.score_semester_ranking, it.deptRank, it.classRank))
+                                add(
+                                    stringResource(
+                                        R.string.score_semester_ranking,
+                                        it.deptRank,
+                                        it.classRank
+                                    )
+                                )
                             }
                         }
                     }
@@ -759,6 +799,7 @@ private fun gradeDescriptor(course: CourseGrade): Pair<String, Color> = when (co
     GradeStatus.PASS_FAIL_GRADED -> if (course.grade == "通過")
         stringResource(R.string.score_grade_passed) to Color(0xFF4ECDC4)
     else stringResource(R.string.score_grade_failed) to Color(0xFFE74C3C)
+
     GradeStatus.GRADED -> course.grade to gradeColor(course.grade)
     GradeStatus.UNKNOWN -> (course.grade.ifEmpty { "—" }) to Color(0xFF95A5A6)
 }
@@ -771,6 +812,7 @@ private fun gradeColor(grade: String): Color {
         upper.startsWith("C") -> Color(0xFFF1C40F)
         upper.startsWith("D") || upper.startsWith("E") || upper.startsWith("F") ->
             Color(0xFFFF6B6B)
+
         else -> Color(0xFF95A5A6)
     }
 }
@@ -799,8 +841,18 @@ private fun CourseDetailDialog(course: CourseGrade, onDismiss: () -> Unit) {
                 InfoLine(stringResource(R.string.score_info_course_code), course.code)
                 InfoLine(stringResource(R.string.score_info_term), displayTerm(course.term))
                 InfoLine(stringResource(R.string.score_info_credits), "${course.credits ?: 0}")
-                creditTypeLabel(course.creditType)?.let { InfoLine(stringResource(R.string.score_info_credit_type), it) }
-                course.geDimension?.let { InfoLine(stringResource(R.string.score_info_general_dimension), it) }
+                creditTypeLabel(course.creditType)?.let {
+                    InfoLine(
+                        stringResource(R.string.score_info_credit_type),
+                        it
+                    )
+                }
+                course.geDimension?.let {
+                    InfoLine(
+                        stringResource(R.string.score_info_general_dimension),
+                        it
+                    )
+                }
                 InfoLine(stringResource(R.string.score_info_grade), gradeDescriptor(course).first)
                 if (course.distanceLearning) {
                     InfoLine(
@@ -808,7 +860,10 @@ private fun CourseDetailDialog(course: CourseGrade, onDismiss: () -> Unit) {
                         stringResource(R.string.score_distance_learning)
                     )
                 }
-                if (course.remark.isNotEmpty()) InfoLine(stringResource(R.string.score_info_note), course.remark)
+                if (course.remark.isNotEmpty()) InfoLine(
+                    stringResource(R.string.score_info_note),
+                    course.remark
+                )
             }
         },
         properties = DialogProperties()
@@ -836,8 +891,7 @@ private fun InfoLine(label: String, value: String) {
 private fun displayTerm(code: String): String {
     if (code.length != 4) return code
     val year = code.take(3)
-    val sem = code.last()
-    val label = when (sem) {
+    val label = when (val sem = code.last()) {
         '1' -> stringResource(R.string.score_semester_upper)
         '2' -> stringResource(R.string.score_semester_lower)
         else -> sem.toString()
@@ -874,7 +928,7 @@ private fun monotoneCubicPath(points: List<Offset>): Path {
     tangent[n - 1] = slope[n - 2]
     for (i in 1 until n - 1) {
         tangent[i] = if (slope[i - 1] * slope[i] <= 0f) 0f
-                    else (slope[i - 1] + slope[i]) / 2f
+        else (slope[i - 1] + slope[i]) / 2f
     }
 
     // Fritsch–Carlson adjustment to keep the spline monotone.

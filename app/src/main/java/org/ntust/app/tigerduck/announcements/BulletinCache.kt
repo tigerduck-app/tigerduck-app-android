@@ -26,11 +26,13 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
     private val file = File(dir, "summaries.json")
     private val detailDir: File = File(dir, "details").also { it.mkdirs() }
     private val mutex = Mutex()
+
     // Refcounted per-id locks: entries are removed only when no coroutine is
     // holding or waiting on them, so two callers for the same id always share
     // the same Mutex instance. A naive LRU could evict an in-use entry between
     // the lookup and withLock, letting two coroutines race the same file.
     private class LockEntry(val mutex: Mutex = Mutex(), var refs: Int = 0)
+
     private val detailLocks = HashMap<Int, LockEntry>()
     private val gson = Gson()
     private val listType = object : TypeToken<List<BulletinSummary>>() {}.type

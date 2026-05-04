@@ -1,17 +1,10 @@
 package org.ntust.app.tigerduck.network
 
+import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
-import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
-import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.model.Course
-import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
-import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.network.model.CourseSearchRequest
-import org.ntust.app.tigerduck.network.model.CourseSearchResult
-import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -20,15 +13,22 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.model.CourseSearchRequest
+import org.ntust.app.tigerduck.network.model.CourseSearchResult
+import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import java.util.Calendar
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
 sealed class CourseServiceError : Exception() {
-    object NotAuthenticated : CourseServiceError()
-    object RedirectedToSSO : CourseServiceError()
-    object NoCourseData : CourseServiceError()
+    class NotAuthenticated : CourseServiceError()
+    class RedirectedToSSO : CourseServiceError()
+    class NoCourseData : CourseServiceError()
     data class NetworkError(val cause_: Exception) : CourseServiceError()
 }
 
@@ -54,20 +54,25 @@ class CourseService @Inject constructor(
     private val lookupCache = ConcurrentHashMap<String, DataCache.CourseLookupEntry>()
     private val lookupCacheMutex = Mutex()
     private val abbreviationCacheMutex = Mutex()
-    @Volatile private var lookupCacheLoaded = false
-    @Volatile private var abbreviationCacheLoaded = false
-    @Volatile private var courseNameAbbr: Map<String, String> = emptyMap()
-    @Volatile private var classroomNameAbbr: Map<String, ClassroomAbbrEntry> = emptyMap()
+    @Volatile
+    private var lookupCacheLoaded = false
+    @Volatile
+    private var abbreviationCacheLoaded = false
+    @Volatile
+    private var courseNameAbbr: Map<String, String> = emptyMap()
+    @Volatile
+    private var classroomNameAbbr: Map<String, ClassroomAbbrEntry> = emptyMap()
 
     suspend fun fetchEnrolledCourseNos(studentId: String, password: String): List<String> =
         withContext(Dispatchers.IO) {
-            val loggedIn = ssoLoginService.ensureServiceLogin(courseSelectionRoot, studentId, password)
-            if (!loggedIn) throw CourseServiceError.NotAuthenticated
+            val loggedIn =
+                ssoLoginService.ensureServiceLogin(courseSelectionRoot, studentId, password)
+            if (!loggedIn) throw CourseServiceError.NotAuthenticated()
 
             val request = Request.Builder().url(courseListUrl).get().build()
             client.newCall(request).execute().use { response ->
                 if (response.request.url.host.contains("ssoam2.ntust.edu.tw")) {
-                    throw CourseServiceError.RedirectedToSSO
+                    throw CourseServiceError.RedirectedToSSO()
                 }
                 val html = response.body.string()
 
@@ -92,8 +97,9 @@ class CourseService @Inject constructor(
                 System.currentTimeMillis() - it.cachedAt < LOOKUP_TTL_MS
             }?.let { return@withContext applyAbbreviations(it.results, language) }
 
-            val requestBody = gson.toJson(CourseSearchRequest.forCourseNo(courseNo, semester, language))
-                .toRequestBody("application/json".toMediaType())
+            val requestBody =
+                gson.toJson(CourseSearchRequest.forCourseNo(courseNo, semester, language))
+                    .toRequestBody("application/json".toMediaType())
 
             val request = Request.Builder()
                 .url(courseSearchApiUrl(language))
@@ -134,8 +140,9 @@ class CourseService @Inject constructor(
     ): List<CourseSearchResult> =
         withContext(Dispatchers.IO) {
             val language = lang
-            val requestBody = gson.toJson(CourseSearchRequest.forCourseName(courseName, semester, language))
-                .toRequestBody("application/json".toMediaType())
+            val requestBody =
+                gson.toJson(CourseSearchRequest.forCourseName(courseName, semester, language))
+                    .toRequestBody("application/json".toMediaType())
 
             val request = Request.Builder()
                 .url(courseSearchApiUrl(language))
@@ -158,8 +165,9 @@ class CourseService @Inject constructor(
     ): List<CourseSearchResult> =
         withContext(Dispatchers.IO) {
             val language = lang
-            val requestBody = gson.toJson(CourseSearchRequest.forCourseTeacher(teacher, semester, language))
-                .toRequestBody("application/json".toMediaType())
+            val requestBody =
+                gson.toJson(CourseSearchRequest.forCourseTeacher(teacher, semester, language))
+                    .toRequestBody("application/json".toMediaType())
 
             val request = Request.Builder()
                 .url(courseSearchApiUrl(language))
@@ -279,7 +287,10 @@ class CourseService @Inject constructor(
      * with no cached lookup (manual entries, Moodle-only fallbacks) are
      * returned unchanged.
      */
-    suspend fun relabelCoursesForCurrentAbbrSetting(semester: String, courses: List<Course>): List<Course> {
+    suspend fun relabelCoursesForCurrentAbbrSetting(
+        semester: String,
+        courses: List<Course>
+    ): List<Course> {
         if (courses.isEmpty()) return courses
         ensureLookupCacheLoaded()
         val language = preferredCourseApiLanguage()
@@ -296,7 +307,10 @@ class CourseService @Inject constructor(
         }
     }
 
-    private suspend fun applyAbbreviations(results: List<CourseSearchResult>, language: String): List<CourseSearchResult> {
+    private suspend fun applyAbbreviations(
+        results: List<CourseSearchResult>,
+        language: String
+    ): List<CourseSearchResult> {
         if (language != "en" || results.isEmpty()) return results
         val courseToggle = appPreferences.useEnglishCourseAbbreviation
         val classroomToggle = appPreferences.useEnglishClassroomAbbreviation
@@ -333,8 +347,10 @@ class CourseService @Inject constructor(
                 when (mandarinDisplay) {
                     AppPreferences.CLASSROOM_MANDARIN_DISPLAY_PINYIN ->
                         pinyin.ifEmpty { fallback }
+
                     AppPreferences.CLASSROOM_MANDARIN_DISPLAY_TRANSLATED ->
                         translated.ifEmpty { fallback }
+
                     else -> fallback
                 }
             }
@@ -364,7 +380,8 @@ class CourseService @Inject constructor(
         return runCatching {
             context.assets.open("classroom-name-abbr.json").use { stream ->
                 val type = object : TypeToken<Map<String, ClassroomAbbrEntry>>() {}.type
-                gson.fromJson<Map<String, ClassroomAbbrEntry>>(stream.reader(Charsets.UTF_8), type).orEmpty()
+                gson.fromJson<Map<String, ClassroomAbbrEntry>>(stream.reader(Charsets.UTF_8), type)
+                    .orEmpty()
             }
         }.getOrDefault(emptyMap())
     }

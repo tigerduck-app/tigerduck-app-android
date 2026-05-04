@@ -29,8 +29,8 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,14 +58,37 @@ class LiveActivitySettingsViewModel @Inject constructor(
     private val _state = MutableStateFlow(snapshot())
     val state: StateFlow<State> = _state.asStateFlow()
 
-    fun setEnabled(v: Boolean) { prefs.isEnabled = v; emit() }
-    fun setShowInClass(v: Boolean) { prefs.showInClass = v; emit() }
-    fun setShowClassPreparing(v: Boolean) { prefs.showClassPreparing = v; emit() }
-    fun setShowAssignment(v: Boolean) { prefs.showAssignment = v; emit() }
-    fun setShowOnLockScreen(v: Boolean) { prefs.showOnLockScreen = v; emit() }
-    fun setSoundInClass(v: Boolean) { prefs.soundInClass = v; emit() }
-    fun setSoundClassPreparing(v: Boolean) { prefs.soundClassPreparing = v; emit() }
-    fun setSoundAssignment(v: Boolean) { prefs.soundAssignment = v; emit() }
+    fun setEnabled(v: Boolean) {
+        prefs.isEnabled = v; emit()
+    }
+
+    fun setShowInClass(v: Boolean) {
+        prefs.showInClass = v; emit()
+    }
+
+    fun setShowClassPreparing(v: Boolean) {
+        prefs.showClassPreparing = v; emit()
+    }
+
+    fun setShowAssignment(v: Boolean) {
+        prefs.showAssignment = v; emit()
+    }
+
+    fun setShowOnLockScreen(v: Boolean) {
+        prefs.showOnLockScreen = v; emit()
+    }
+
+    fun setSoundInClass(v: Boolean) {
+        prefs.soundInClass = v; emit()
+    }
+
+    fun setSoundClassPreparing(v: Boolean) {
+        prefs.soundClassPreparing = v; emit()
+    }
+
+    fun setSoundAssignment(v: Boolean) {
+        prefs.soundAssignment = v; emit()
+    }
 
     fun setAssignmentLeadMinutes(minutes: Int) {
         val floor = (LiveActivityPreferences.MIN_ASSIGNMENT_LEAD_SEC / 60).toInt()
@@ -173,7 +196,10 @@ fun LiveActivitySettingsScreen(
                 title = { Text(stringResource(R.string.live_activity_channel_name)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back)
+                        )
                     }
                 },
             )
@@ -181,12 +207,17 @@ fun LiveActivitySettingsScreen(
         containerColor = MaterialTheme.colorScheme.background,
     ) { scaffoldPadding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(scaffoldPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(scaffoldPadding),
             contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp),
         ) {
             item {
                 ContentCard {
-                    SettingToggleRow(stringResource(R.string.live_activity_settings_enable), state.enabled) { viewModel.setEnabled(it) }
+                    SettingToggleRow(
+                        stringResource(R.string.live_activity_settings_enable),
+                        state.enabled
+                    ) { viewModel.setEnabled(it) }
                 }
             }
             item {
@@ -203,15 +234,21 @@ fun LiveActivitySettingsScreen(
                 ContentCard {
                     Column {
                         SettingToggleRow(
-                            stringResource(R.string.live_activity_status_in_class), state.showInClass, enabled = state.enabled,
+                            stringResource(R.string.live_activity_status_in_class),
+                            state.showInClass,
+                            enabled = state.enabled,
                         ) { viewModel.setShowInClass(it) }
                         HorizontalDivider()
                         SettingToggleRow(
-                            stringResource(R.string.live_activity_status_class_preparing), state.showClassPreparing, enabled = state.enabled,
+                            stringResource(R.string.live_activity_status_class_preparing),
+                            state.showClassPreparing,
+                            enabled = state.enabled,
                         ) { viewModel.setShowClassPreparing(it) }
                         HorizontalDivider()
                         SettingToggleRow(
-                            stringResource(R.string.home_section_upcoming_assignments), state.showAssignment, enabled = state.enabled,
+                            stringResource(R.string.home_section_upcoming_assignments),
+                            state.showAssignment,
+                            enabled = state.enabled,
                         ) { viewModel.setShowAssignment(it) }
                     }
                 }
@@ -286,7 +323,10 @@ fun LiveActivitySettingsScreen(
                         HorizontalDivider()
                         LeadTimeRow(
                             label = stringResource(R.string.live_activity_status_class_preparing),
-                            valueLabel = stringResource(R.string.live_activity_settings_minutes_label, state.classLeadMinutes),
+                            valueLabel = stringResource(
+                                R.string.live_activity_settings_minutes_label,
+                                state.classLeadMinutes
+                            ),
                             value = state.classLeadMinutes.toFloat(),
                             range = 5f..60f,
                             steps = 0,
@@ -370,7 +410,9 @@ fun LiveActivitySettingsScreen(
                 }) { Text(stringResource(R.string.live_activity_settings_reset)) }
             },
             dismissButton = {
-                TextButton(onClick = { showResetConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
+                TextButton(onClick = {
+                    showResetConfirm = false
+                }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
@@ -458,7 +500,7 @@ private fun SettingToggleRow(
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyMedium,
             color = if (enabled) Color.Unspecified
-                   else MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
+            else MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
         )
         Switch(
             checked = checked,
@@ -505,7 +547,12 @@ private fun LeadTimeRow(
                 onClick = onCustomClick,
                 enabled = enabled,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-            ) { Text(stringResource(R.string.color_picker_custom), style = MaterialTheme.typography.labelMedium) }
+            ) {
+                Text(
+                    stringResource(R.string.color_picker_custom),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
         }
         Slider(
             value = displayValue,
@@ -555,7 +602,11 @@ private fun CustomMinutesDialog(
                     ),
                 )
                 Text(
-                    stringResource(R.string.live_activity_settings_range_minutes, minMinutes, maxMinutes),
+                    stringResource(
+                        R.string.live_activity_settings_range_minutes,
+                        minMinutes,
+                        maxMinutes
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                 )
@@ -598,6 +649,7 @@ private fun CustomHoursMinutesDialog(
             minMinutes / 60,
             maxHours
         )
+
         else -> stringResource(
             R.string.live_activity_settings_range_min_to_hours,
             minMinutes,

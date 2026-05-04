@@ -12,7 +12,7 @@ object HtmlParser {
     fun isSSOLoginPage(html: String, url: HttpUrl): Boolean {
         if (!url.host.contains("ssoam2.ntust.edu.tw")) return false
         return html.contains("id=\"loginForm\"") ||
-               (html.contains("name=\"Username\"") && html.contains("name=\"Password\""))
+                (html.contains("name=\"Username\"") && html.contains("name=\"Password\""))
     }
 
     fun findFormById(html: String, id: String): FormData? {
@@ -45,12 +45,13 @@ object HtmlParser {
             val names = inputs.map { it.first }.toSet()
             if (names.contains("Username") || names.contains("Password")) continue
 
-            val isOIDC = (names.contains("code") && names.contains("state") && names.contains("iss")) ||
-                         names.contains("id_token") ||
-                         names.contains("SAMLResponse") ||
-                         names.contains("RelayState") ||
-                         names.contains("wresult") ||
-                         names.contains("wctx")
+            val isOIDC =
+                (names.contains("code") && names.contains("state") && names.contains("iss")) ||
+                        names.contains("id_token") ||
+                        names.contains("SAMLResponse") ||
+                        names.contains("RelayState") ||
+                        names.contains("wresult") ||
+                        names.contains("wctx")
 
             if (isOIDC) return FormData(action, inputs)
         }

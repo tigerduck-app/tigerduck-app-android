@@ -11,12 +11,16 @@ import java.util.Date
 enum class AssignmentStatus {
     /** Not submitted, before the due date. */
     PENDING,
+
     /** Submitted on or before the due date. */
     SUBMITTED,
+
     /** Submitted after the due date (Moodle still recorded it). */
     SUBMITTED_LATE,
+
     /** Past due, still accepting late submissions. */
     OVERDUE_ACCEPTABLE,
+
     /** Past the hard cutoff — Moodle rejects further submissions. */
     OVERDUE_REJECTED,
 }

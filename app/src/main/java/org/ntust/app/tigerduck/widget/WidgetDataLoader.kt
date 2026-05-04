@@ -9,9 +9,9 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.computeOngoingCourses
-import org.ntust.app.tigerduck.ui.theme.buildCourseColorAssignments
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.parseHm
+import org.ntust.app.tigerduck.ui.theme.buildCourseColorAssignments
 import java.util.Calendar
 
 @EntryPoint
