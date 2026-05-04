@@ -1,6 +1,19 @@
 # Add project specific ProGuard rules here.
 -keep class org.ntust.app.tigerduck.network.model.** { *; }
 -keep class org.ntust.app.tigerduck.data.model.** { *; }
+# Gson DTOs that live outside the model.** packages. Most fields here lack
+# @SerializedName, so without { *; } R8 renames the JVM fields and Gson
+# silently deserializes nulls — same failure mode as the TypeToken bug.
+-keep class org.ntust.app.tigerduck.announcements.BulletinSummary { *; }
+-keep class org.ntust.app.tigerduck.announcements.BulletinDetail { *; }
+-keep class org.ntust.app.tigerduck.announcements.BulletinListResponse { *; }
+-keep class org.ntust.app.tigerduck.announcements.OrgLabel { *; }
+-keep class org.ntust.app.tigerduck.announcements.TagLabel { *; }
+-keep class org.ntust.app.tigerduck.announcements.TaxonomyResponse { *; }
+-keep class org.ntust.app.tigerduck.announcements.SubscriptionRule { *; }
+-keep class org.ntust.app.tigerduck.announcements.SubscriptionsResponse { *; }
+-keep class org.ntust.app.tigerduck.announcements.SubscriptionsPutRequest { *; }
+-keep class org.ntust.app.tigerduck.data.cache.DataCache$* { *; }
 -dontrepackage
 
 # Gson — TypeToken<List<Course>>() {} anonymous subclasses lose their generic
