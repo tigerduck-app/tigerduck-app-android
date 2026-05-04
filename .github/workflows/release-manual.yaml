@@ -49,6 +49,78 @@ jobs:
         id: sha
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      - name: Import release GPG key
+        if: steps.resolve.outputs.tag_exists == 'false'
+        id: gpg
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_tag_gpgsign: true
+
+      - name: Preflight checks
+        run: |
+          set -euo pipefail
+          fail=0
+
+          # 1. App token reaches the repo.
+          if ! gh api "repos/${REPO}" --jq .full_name >/dev/null; then
+            echo "::error::App token cannot read ${REPO}. Check RELEASER_APP_ID/RELEASER_APP_PRIVATE_KEY and that the App is installed on this repo." >&2
+            fail=1
+          fi
+
+          # 2. App token has contents:write (probe by listing branch protection-eligible refs).
+          if ! gh api "repos/${REPO}/contents/metadata/org.ntust.app.tigerduck.fdroid.yml?ref=main" --jq .sha >/dev/null; then
+            echo "::error::App token cannot read metadata file. App likely missing Contents:read on this repo." >&2
+            fail=1
+          fi
+
+          # 3. Required artefact secrets present (don't print values; just check non-empty length).
+          for s in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            v="${!s:-}"
+            if [ -z "$v" ]; then
+              echo "::error::Secret $s is empty or missing." >&2
+              fail=1
+            fi
+          done
+
+          # 4. If we're going to tag, verify GPG was imported and email looks GitHub-verifiable.
+          if [ "${TAG_EXISTS}" = "false" ]; then
+            if [ -z "${TAGGER_KEYID:-}" ]; then
+              echo "::error::GPG key not imported (no keyid)." >&2
+              fail=1
+            fi
+            if [ -z "${TAGGER_EMAIL:-}" ]; then
+              echo "::error::GPG key has no email UID; GitHub cannot match it to an account." >&2
+              fail=1
+            fi
+            # Sanity-test signing locally so we surface 'no secret key' / 'bad passphrase'
+            # before spending 6 minutes building.
+            if ! echo test | gpg --batch --yes --local-user "${TAGGER_EMAIL}" --clearsign >/dev/null 2>&1; then
+              echo "::error::GPG cannot sign with key for ${TAGGER_EMAIL}. Check RELEASE_GPG_PRIVATE_KEY / RELEASE_GPG_PASSPHRASE." >&2
+              fail=1
+            fi
+            echo "Tagger identity: ${TAGGER_EMAIL} (key ${TAGGER_KEYID})"
+            echo "Reminder: this email must be a *verified* email on the GitHub user that owns the matching public key, otherwise the tag will land but show 'Unverified (bad_email)'."
+          fi
+
+          if [ "$fail" != "0" ]; then
+            exit 1
+          fi
+          echo "Preflight OK."
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.event.inputs.tag }}
+          TAG_EXISTS: ${{ steps.resolve.outputs.tag_exists }}
+          TAGGER_EMAIL: ${{ steps.gpg.outputs.email }}
+          TAGGER_KEYID: ${{ steps.gpg.outputs.keyid }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -77,16 +149,6 @@ jobs:
           mv app/build/outputs/apk/fdroid/release/app-fdroid-release.apk "app/build/outputs/apk/fdroid/release/TigerDuck-fdroid.apk"
           mv app/build/outputs/bundle/playRelease/app-play-release.aab "app/build/outputs/bundle/playRelease/TigerDuck.aab"
           mv app/build/outputs/bundle/fdroidRelease/app-fdroid-release.aab "app/build/outputs/bundle/fdroidRelease/TigerDuck-fdroid.aab"
-
-      - name: Import release GPG key
-        if: steps.resolve.outputs.tag_exists == 'false'
-        id: gpg
-        uses: crazy-max/ghaction-import-gpg@v6
-        with:
-          gpg_private_key: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
-          git_user_signingkey: true
-          git_tag_gpgsign: true
 
       - name: Create and push signed tag
         if: steps.resolve.outputs.tag_exists == 'false'
