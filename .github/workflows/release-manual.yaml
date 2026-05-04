@@ -31,11 +31,19 @@ jobs:
             echo "Tag $TAG not found; will tag 'main' and create the release."
           fi
 
+      - name: Mint Releaser App token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASER_APP_ID }}
+          private-key: ${{ secrets.RELEASER_APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
         with:
           ref: ${{ steps.resolve.outputs.checkout_ref }}
           fetch-depth: 0
           persist-credentials: true
+          token: ${{ steps.app_token.outputs.token }}
 
       - name: Capture build SHA
         id: sha
@@ -70,47 +78,76 @@ jobs:
           mv app/build/outputs/bundle/playRelease/app-play-release.aab "app/build/outputs/bundle/playRelease/TigerDuck.aab"
           mv app/build/outputs/bundle/fdroidRelease/app-fdroid-release.aab "app/build/outputs/bundle/fdroidRelease/TigerDuck-fdroid.aab"
 
-      - name: Create and push tag
+      - name: Create signed tag via API
         if: steps.resolve.outputs.tag_exists == 'false'
         env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           TAG: ${{ github.event.inputs.tag }}
           SHA: ${{ steps.sha.outputs.sha }}
+          REPO: ${{ github.repository }}
         run: |
-          set -e
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" "$SHA" -m "$TAG"
-          git push origin "refs/tags/$TAG"
+          set -euo pipefail
+          # Create an annotated tag object via the API so GitHub signs it
+          # with the web-flow key; the release page then shows "Verified".
+          tag_sha=$(gh api -X POST "repos/${REPO}/git/tags" \
+            -f tag="${TAG}" \
+            -f message="${TAG}" \
+            -f object="${SHA}" \
+            -f type=commit \
+            -f tagger[name]="github-actions[bot]" \
+            -f tagger[email]="41898282+github-actions[bot]@users.noreply.github.com" \
+            -f tagger[date]="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --jq .sha)
+          gh api -X POST "repos/${REPO}/git/refs" \
+            -f ref="refs/tags/${TAG}" \
+            -f sha="${tag_sha}"
+          state=$(gh api "repos/${REPO}/git/tags/${tag_sha}" --jq .verification.verified)
+          if [ "$state" != "true" ]; then
+            echo "Tag ${TAG} was created but is NOT verified (state=$state)" >&2
+            gh api "repos/${REPO}/git/tags/${tag_sha}" --jq .verification >&2
+            exit 1
+          fi
+          echo "Tag ${TAG} created and verified."
 
       - name: Update F-Droid metadata commit hash
         if: steps.resolve.outputs.tag_exists == 'false'
         env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
           SHA: ${{ steps.sha.outputs.sha }}
+          REPO: ${{ github.repository }}
           BRANCH: main
+          TAG: ${{ github.event.inputs.tag }}
+          FILE_PATH: metadata/org.ntust.app.tigerduck.fdroid.yml
         run: |
-          set -e
-          file="metadata/org.ntust.app.tigerduck.fdroid.yml"
-          sed -i -E "s|^([[:space:]]*commit:).*|\1 ${SHA}|" "$file"
-          if git diff --quiet -- "$file"; then
-            echo "No change to $file; skipping commit."
-            exit 0
-          fi
-          git add "$file"
-          git commit -m "chore(fdroid): pin metadata commit to ${SHA} for ${{ github.event.inputs.tag }}"
-          # Build can take minutes; another commit may have landed on ${BRANCH}
-          # in the meantime. Rebase our single metadata commit on top before
-          # pushing so a non-fast-forward doesn't leave the release half-done
-          # (tag + artifacts published but fdroid.yml stale).
+          set -euo pipefail
+          # Use the Contents API so GitHub signs the resulting commit with
+          # the web-flow key (verified) and the App token's bypass entry on
+          # the ruleset lets the push through. Retries on SHA conflict in
+          # case another commit landed on ${BRANCH} during the build.
           for attempt in 1 2 3; do
-            git pull --rebase origin "${BRANCH}"
-            if git push origin "HEAD:${BRANCH}"; then
-              break
+            current=$(gh api "repos/${REPO}/contents/${FILE_PATH}?ref=${BRANCH}")
+            file_sha=$(printf '%s' "$current" | jq -r .sha)
+            content=$(printf '%s' "$current" | jq -r .content | base64 -d)
+            new_content=$(printf '%s' "$content" | sed -E "s|^([[:space:]]*commit:).*|\1 ${SHA}|")
+            if [ "$content" = "$new_content" ]; then
+              echo "No change to ${FILE_PATH}; skipping."
+              exit 0
+            fi
+            new_b64=$(printf '%s' "$new_content" | base64 | tr -d '\n')
+            if gh api -X PUT "repos/${REPO}/contents/${FILE_PATH}" \
+              -f message="chore(fdroid): pin metadata commit to ${SHA} for ${TAG}" \
+              -f content="${new_b64}" \
+              -f sha="${file_sha}" \
+              -f branch="${BRANCH}"; then
+              echo "F-Droid metadata commit pushed."
+              exit 0
             fi
             if [ "$attempt" = "3" ]; then
-              echo "Failed to push fdroid metadata after 3 attempts" >&2
+              echo "Failed to update ${FILE_PATH} after 3 attempts" >&2
               exit 1
             fi
-            echo "Push rejected; retrying after rebase (attempt $attempt)"
+            echo "Update rejected (likely SHA conflict); retrying (attempt $attempt)"
+            sleep 2
           done
 
       - name: Create or update GitHub Release
