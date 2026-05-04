@@ -46,8 +46,8 @@ android {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 29
         targetSdk = 36
-        versionCode = 12
-        versionName = "1.3.3"
+        versionCode = 13
+        versionName = "1.3.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -208,6 +208,7 @@ dependencies {
     // building fdroid* variants.
     "playImplementation"(platform(libs.firebase.bom))
     "playImplementation"(libs.firebase.messaging)
+    "playImplementation"(libs.firebase.analytics)
 
     // In-app browser (Custom Tabs)
     implementation(libs.androidx.browser)
