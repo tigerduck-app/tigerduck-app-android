@@ -50,6 +50,10 @@
             android:exported="false" />
 
         <receiver
+            android:name="org.ntust.app.tigerduck.liveactivity.LiveActivityBoundaryReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name="org.ntust.app.tigerduck.notification.BootReceiver"
             android:exported="true">
             <intent-filter>

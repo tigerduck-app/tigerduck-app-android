@@ -66,6 +66,14 @@ class LiveActivityResolver {
         return null
     }
 
+    /**
+     * Today's class slots whose end is still after [now], sorted by start.
+     * Used by the boundary scheduler so it can wake the manager at the
+     * preparing-window crossing / class-start / class-end of the next slot.
+     */
+    fun todaySlotsAfter(courses: List<Course>, now: Date): List<Slot> =
+        buildTodaySlots(courses, now).filter { it.end.after(now) }
+
     data class Slot(
         val course: Course,
         val periods: List<String>,

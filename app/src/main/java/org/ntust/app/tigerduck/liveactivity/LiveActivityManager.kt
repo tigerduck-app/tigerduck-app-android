@@ -6,7 +6,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
@@ -31,10 +30,10 @@ class LiveActivityManager @Inject constructor(
     private val authService: AuthService,
     private val appPrefs: AppPreferences,
     private val classPreparingScheduler: ClassPreparingNotificationScheduler,
+    private val boundaryScheduler: LiveActivityBoundaryScheduler,
 ) {
     private val resolver = LiveActivityResolver()
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-    private var boundaryJob: Job? = null
     private var refreshJob: Job? = null
     // Hold a reference so `stop()` can halt preference-driven refreshes too;
     // otherwise a `preferences.changeEvent` arriving after `stop()` would
@@ -68,7 +67,7 @@ class LiveActivityManager @Inject constructor(
     fun stop() {
         prefsCollectorJob?.cancel()
         prefsCollectorJob = null
-        boundaryJob?.cancel()
+        boundaryScheduler.cancel()
         refreshJob?.cancel()
         notifier.cancel()
         classPreparingScheduler.cancelAllTracked()
@@ -82,7 +81,7 @@ class LiveActivityManager @Inject constructor(
         if (!preferences.isEnabled || !authService.isNtustAuthenticated) {
             notifier.cancel()
             classPreparingScheduler.cancelAllTracked()
-            boundaryJob?.cancel()
+            boundaryScheduler.cancel()
             return
         }
         val now = Date()
@@ -122,12 +121,16 @@ class LiveActivityManager @Inject constructor(
         assignments: List<org.ntust.app.tigerduck.data.model.Assignment>,
         now: Date,
     ) {
-        boundaryJob?.cancel()
         val candidates = mutableListOf<Long>()
         snapshot?.countdownTarget?.time?.let { candidates += it }
 
-        val classPrep = preferences.classPreparingLeadTimeSec * 1000
+        val classPrepLead = preferences.classPreparingLeadTimeSec * 1000
         val assignmentLead = preferences.assignmentLeadTimeSec * 1000
+
+        // Cover the CLASS_PREPARING → IN_CLASS → (idle) progression for the
+        // upcoming class even if it isn't currently the snapshot scenario,
+        // so the boundary fires once a class enters the lead-time window.
+        nextClassBoundaries(courses, now, classPrepLead).forEach { candidates += it }
 
         assignments.asSequence()
             .filter { !it.isCompleted && it.dueDate.after(now) }
@@ -136,18 +139,29 @@ class LiveActivityManager @Inject constructor(
                 candidates += a.dueDate.time
             }
 
-        // Class-related boundaries are approximated: trigger 1 min after "now"
-        // so we catch period transitions without needing to duplicate the full
-        // timeline here. The resolver is cheap enough to re-run.
         val nowMs = now.time
-        val futureCandidates = candidates.filter { it > nowMs }
-        val nextBoundary = futureCandidates.minOrNull() ?: (nowMs + 60_000L)
-        val delayMs = (nextBoundary - nowMs).coerceAtLeast(30_000L)
+        // Pad by 1s to make sure we land *after* the boundary tick, not on it,
+        // so the resolver sees the new state instead of the prior one.
+        val futureCandidates = candidates.filter { it > nowMs }.map { it + 1_000L }
+        // Floor at 30s so a near-instant boundary doesn't burn battery, and
+        // ceil at 30 min so a long-idle stretch still gets a watchdog refresh.
+        val nextBoundary = futureCandidates.minOrNull() ?: (nowMs + 30 * 60_000L)
+        val triggerAt = nextBoundary.coerceAtLeast(nowMs + 30_000L)
 
-        if (!scope.isActive) return
-        boundaryJob = scope.launch {
-            delay(delayMs)
-            refresh()
-        }
+        boundaryScheduler.scheduleAt(triggerAt)
+    }
+
+    private fun nextClassBoundaries(
+        courses: List<org.ntust.app.tigerduck.data.model.Course>,
+        now: Date,
+        classPrepLeadMs: Long,
+    ): List<Long> {
+        val slots = resolver.todaySlotsAfter(courses, now)
+        val first = slots.firstOrNull() ?: return emptyList()
+        return listOfNotNull(
+            (first.start.time - classPrepLeadMs).takeIf { it > now.time },
+            first.start.time.takeIf { it > now.time },
+            first.end.time.takeIf { it > now.time },
+        )
     }
 }
