@@ -7,6 +7,14 @@
 [![Android](https://img.shields.io/badge/Android-10.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge)](https://developer.android.com/compose)
 
+<a href="https://play.google.com/store/apps/details?id=org.ntust.app.tigerduck" target="_blank">
+  <img alt="Get it on Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" height="80">
+</a>
+
+<a href="https://f-droid.org/packages/org.ntust.app.tigerduck.fdroid" target="_blank">
+  <img alt="Get it on F-Droid" src="https://f-droid.org/badge/get-it-on.png" height="80">
+</a>
+
 [繁體中文](README.md) | **English**
 
 </div>
