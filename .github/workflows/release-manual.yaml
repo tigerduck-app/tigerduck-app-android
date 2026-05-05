@@ -44,10 +44,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
           token: ${{ steps.app_token.outputs.token }}
-          submodules: false
-
-      - name: Shallow init submodules
-        run: git submodule update --init --depth=1 --recursive
+          submodules: true
 
       - name: Capture build SHA
         id: sha
@@ -151,13 +148,14 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           PUSH_SHARED_SECRET: ${{ secrets.PUSH_SHARED_SECRET }}
-        run: ./gradlew bundlePlayRelease assemblePlayRelease assembleFdroidRelease -x lintVitalRelease -x lint
+        run: ./gradlew bundleRelease assembleRelease
 
       - name: Rename build outputs
         run: |
           mv app/build/outputs/apk/play/release/app-play-release.apk "app/build/outputs/apk/play/release/TigerDuck.apk"
           mv app/build/outputs/apk/fdroid/release/app-fdroid-release.apk "app/build/outputs/apk/fdroid/release/TigerDuck-fdroid.apk"
           mv app/build/outputs/bundle/playRelease/app-play-release.aab "app/build/outputs/bundle/playRelease/TigerDuck.aab"
+          mv app/build/outputs/bundle/fdroidRelease/app-fdroid-release.aab "app/build/outputs/bundle/fdroidRelease/TigerDuck-fdroid.aab"
 
       - name: Create and push signed tag
         if: steps.resolve.outputs.tag_exists == 'false'
@@ -236,6 +234,7 @@ jobs:
             app/build/outputs/apk/play/release/*.apk
             app/build/outputs/apk/fdroid/release/*.apk
             app/build/outputs/bundle/playRelease/*.aab
+            app/build/outputs/bundle/fdroidRelease/*.aab
 
       - name: Clean up secrets
         if: always()
