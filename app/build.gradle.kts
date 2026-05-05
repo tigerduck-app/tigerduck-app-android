@@ -46,8 +46,8 @@ android {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 29
         targetSdk = 36
-        versionCode = 16
-        versionName = "1.3.7"
+        versionCode = 17
+        versionName = "1.3.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -88,6 +88,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             val keystoreFile = file("keystore.jks")
             if (keystoreFile.exists() && System.getenv("KEYSTORE_PASSWORD")?.isNotEmpty() == true) {
                 signingConfig = signingConfigs.getByName("release")
