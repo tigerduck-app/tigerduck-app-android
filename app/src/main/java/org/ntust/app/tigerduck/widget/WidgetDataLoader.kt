@@ -29,7 +29,12 @@ object WidgetDataLoader {
             WidgetEntryPoint::class.java,
         )
         val courses = entry.dataCache().loadCourses()
-        val isLoggedIn = entry.authService().isNtustAuthenticated
+        // "Logged in" here means the user has stored credentials, not that
+        // their SSO cookies are still fresh. Cookie validity gates fetching;
+        // it shouldn't gate displaying the cached classtable. Without this,
+        // an expired 1h cookie or a process restart while offline makes the
+        // widget say "Please sign in" even though we have cached courses.
+        val isLoggedIn = entry.authService().authState.value
 
         val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
         val weekday = cal.toWeekday()
