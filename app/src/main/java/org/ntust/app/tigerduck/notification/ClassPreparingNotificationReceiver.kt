@@ -28,6 +28,11 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         // collide the way slotId.hashCode() could.
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1)
         if (notificationId < 0) return
+        // The lead-time extra lets us auto-cancel the "即將上課" notification when
+        // class actually starts: post-time + leadTimeMs ≈ classStart. Without it
+        // (older intents from before the field existed) we fall back to manual
+        // cancel via auto-cancel-on-tap, matching the original behaviour.
+        val leadTimeMs = intent.getLongExtra(EXTRA_LEAD_TIME_MS, 0L)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
@@ -60,6 +65,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
+            .apply { if (leadTimeMs > 0L) setTimeoutAfter(leadTimeMs) }
             .build()
 
         nm.notify(notificationId, notification)
@@ -95,5 +101,6 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         const val EXTRA_START_MS = "start_ms"
         const val EXTRA_END_MS = "end_ms"
         const val EXTRA_NOTIFICATION_ID = "notification_id"
+        const val EXTRA_LEAD_TIME_MS = "lead_time_ms"
     }
 }
