@@ -37,17 +37,27 @@ import org.ntust.app.tigerduck.R
  * normal `OutlinedTextField` (floating label that cuts the stroke,
  * animated focus colors, identical height).
  *
- * Uses `TYPE_TEXT_VARIATION_VISIBLE_PASSWORD` so Gboard / SwiftKey /
- * Samsung pin the number row throughout typing — alphabetic-only
- * variations (text/email/uri) auto-flip back to letters after each
- * digit, which is unusable for IDs like NTUST `B11234567` where the
- * digits run continuously.
+ * Uses a two-mode `inputType` based on the current value length:
+ *  - first character (length ≤ 1): `TYPE_CLASS_TEXT` so non-Latin IMEs
+ *    pick whichever layout the user prefers for the leading letter;
+ *  - remaining characters (length ≥ 2): `TYPE_CLASS_NUMBER` so the
+ *    rest of the ID is entered on a numeric pad with no IME locale
+ *    juggling.
  *
- * VISIBLE_PASSWORD does silently ignore the IME capitalization flag,
- * so first-character auto-cap won't fire. NTUST mode forces uppercase
- * via a `.uppercase()` transform in the caller anyway; for the library
- * field this means the user types lowercase by default (acceptable —
- * library accounts are not case-sensitive in practice).
+ * Both supported account formats fit this shape: NTUST IDs are
+ * `[A-Z]\d+` (e.g. `B11234567`), and library accounts are all-numeric.
+ *
+ * The previous implementation pinned `TYPE_TEXT_VARIATION_VISIBLE_PASSWORD`
+ * to keep Latin keyboards' number row visible. That flag declares the
+ * field as Latin-only and forced non-Latin IMEs to flip back to English
+ * on every keystroke — unusable. The new strategy keeps the number-row
+ * benefit on character 2+ via `TYPE_CLASS_NUMBER` directly, while
+ * letting non-Latin IMEs handle the first character normally.
+ *
+ * Note: `TYPE_CLASS_NUMBER` ignores `TYPE_TEXT_FLAG_CAP_CHARACTERS`.
+ * Callers that need uppercase NTUST IDs already force it via
+ * `.uppercase()` in their `onValueChange`, so this is a no-op for them;
+ * library accounts are documented as case-insensitive.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -148,9 +158,14 @@ fun OutlinedAccountIdField(
                     }
                 },
                 update = { editText ->
-                    editText.inputType = InputType.TYPE_CLASS_TEXT or
-                            InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
-                            capitalization.toInputTypeFlag()
+                    // Position 1 lets the user's IME choose layout for the
+                    // leading letter; positions 2+ flip to a pure numeric pad.
+                    // Re-runs on every value change so the swap is automatic.
+                    editText.inputType = if (value.length <= 1) {
+                        InputType.TYPE_CLASS_TEXT or capitalization.toInputTypeFlag()
+                    } else {
+                        InputType.TYPE_CLASS_NUMBER
+                    }
                     editText.imeOptions = imeAction.toEditorInfoFlag()
                     if (autofillHint != null) {
                         editText.setAutofillHints(autofillHint)
