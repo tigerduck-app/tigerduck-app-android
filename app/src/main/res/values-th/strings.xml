@@ -534,11 +534,14 @@
     <string name="watch_no_courses_synced">ยังไม่มีรายวิชาที่ซิงค์</string>
     <string name="watch_no_upcoming_classes">ไม่มีคลาสที่กำลังจะถึง</string>
     <string name="watch_not_found">ไม่พบ</string>
+    <string name="watch_now_ends_at">NOW · Ends %1$s</string>
     <string name="watch_now_next_title">ขณะนี้และถัดไป</string>
     <string name="watch_open_phone_to_sync">เปิด TigerDuck บนโทรศัพท์เพื่อซิงค์</string>
     <string name="watch_padding_decrease_cd">ลดระยะห่าง</string>
     <string name="watch_padding_increase_cd">เพิ่มระยะห่าง</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_relative_days_ago_short">%1$d d ago</string>
+    <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_screen_padding">ระยะขอบหน้าจอ</string>
     <string name="watch_starts_at">เริ่ม %1$s</string>
     <string name="watch_starts_in_minutes">เริ่มในอีก %1$d นาที</string>

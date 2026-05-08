@@ -86,7 +86,7 @@ private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "NOW · " + stringResource(R.string.watch_ends_at, formatHm(result.endMinute)),
+            text = stringResource(R.string.watch_now_ends_at, formatHm(result.endMinute)),
             color = accent,
         )
         Text(
@@ -156,9 +156,16 @@ private fun StaleBanner(syncedAtMs: Long) {
     val now = AppClock.nowMillis()
     val ageMs = now - syncedAtMs
     if (ageMs < TimeUnit.HOURS.toMillis(6)) return
-    val pretty = when {
-        ageMs < TimeUnit.DAYS.toMillis(1) -> "${TimeUnit.MILLISECONDS.toHours(ageMs)} h ago"
-        else -> "${TimeUnit.MILLISECONDS.toDays(ageMs)} d ago"
+    val pretty = if (ageMs < TimeUnit.DAYS.toMillis(1)) {
+        stringResource(
+            R.string.watch_relative_hours_ago_short,
+            TimeUnit.MILLISECONDS.toHours(ageMs).toInt(),
+        )
+    } else {
+        stringResource(
+            R.string.watch_relative_days_ago_short,
+            TimeUnit.MILLISECONDS.toDays(ageMs).toInt(),
+        )
     }
     Text(
         text = stringResource(R.string.watch_last_synced_relative, pretty),
@@ -191,5 +198,15 @@ private fun formatHm(minuteOfDay: Int): String {
     return "%02d:%02d".format(h, m)
 }
 
-private fun weekdayShortName(weekday: Int): String =
-    listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")[weekday - 1]
+@Composable
+private fun weekdayShortName(weekday: Int): String = stringResource(
+    when (weekday) {
+        1 -> R.string.weekday_mon_short
+        2 -> R.string.weekday_tue_short
+        3 -> R.string.weekday_wed_short
+        4 -> R.string.weekday_thu_short
+        5 -> R.string.weekday_fri_short
+        6 -> R.string.weekday_sat_short
+        else -> R.string.weekday_sun_short
+    }
+)

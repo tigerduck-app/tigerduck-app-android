@@ -534,11 +534,14 @@
     <string name="watch_no_courses_synced">ஒத்திசைக்கப்பட்ட பாடங்கள் இல்லை.</string>
     <string name="watch_no_upcoming_classes">வரவிருக்கும் வகுப்புகள் இல்லை.</string>
     <string name="watch_not_found">கிடைக்கவில்லை</string>
+    <string name="watch_now_ends_at">NOW · Ends %1$s</string>
     <string name="watch_now_next_title">இப்போது மற்றும் அடுத்து</string>
     <string name="watch_open_phone_to_sync">ஒத்திசைக்க உங்கள் தொலைபேசியில் TigerDuck-ஐ திறக்கவும்.</string>
     <string name="watch_padding_decrease_cd">இடைவெளியைக் குறைக்க</string>
     <string name="watch_padding_increase_cd">இடைவெளியைக் கூட்ட</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_relative_days_ago_short">%1$d d ago</string>
+    <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_screen_padding">திரை இடைவெளி</string>
     <string name="watch_starts_at">%1$s மணிக்கு தொடங்கும்</string>
     <string name="watch_starts_in_minutes">%1$d நிமிடங்களில் தொடங்கும்</string>

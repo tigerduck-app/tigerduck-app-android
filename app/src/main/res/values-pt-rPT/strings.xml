@@ -534,11 +534,14 @@
     <string name="watch_no_courses_synced">Nenhuma disciplina sincronizada.</string>
     <string name="watch_no_upcoming_classes">Nenhuma aula próxima.</string>
     <string name="watch_not_found">Não encontrado</string>
+    <string name="watch_now_ends_at">NOW · Ends %1$s</string>
     <string name="watch_now_next_title">Agora e próxima</string>
     <string name="watch_open_phone_to_sync">Abra o TigerDuck no telemóvel para sincronizar.</string>
     <string name="watch_padding_decrease_cd">Reduzir margem</string>
     <string name="watch_padding_increase_cd">Aumentar margem</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_relative_days_ago_short">%1$d d ago</string>
+    <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_screen_padding">Margem do ecrã</string>
     <string name="watch_starts_at">Começa às %1$s</string>
     <string name="watch_starts_in_minutes">Começa em %1$d min</string>

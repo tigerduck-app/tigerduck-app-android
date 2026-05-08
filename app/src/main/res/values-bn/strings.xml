@@ -534,11 +534,14 @@
     <string name="watch_no_courses_synced">কোনো কোর্স সিঙ্ক করা হয়নি।</string>
     <string name="watch_no_upcoming_classes">কোনো আসন্ন ক্লাস নেই।</string>
     <string name="watch_not_found">পাওয়া যায়নি</string>
+    <string name="watch_now_ends_at">NOW · Ends %1$s</string>
     <string name="watch_now_next_title">এখন এবং পরবর্তী</string>
     <string name="watch_open_phone_to_sync">সিঙ্ক করতে আপনার ফোনে TigerDuck খুলুন।</string>
     <string name="watch_padding_decrease_cd">প্যাডিং কমান</string>
     <string name="watch_padding_increase_cd">প্যাডিং বাড়ান</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_relative_days_ago_short">%1$d d ago</string>
+    <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_screen_padding">স্ক্রিন প্যাডিং</string>
     <string name="watch_starts_at">%1$s এ শুরু</string>
     <string name="watch_starts_in_minutes">%1$d মিনিটে শুরু</string>

@@ -534,11 +534,14 @@
     <string name="watch_no_courses_synced">尚無課程資料。</string>
     <string name="watch_no_upcoming_classes">沒有即將開始的課程。</string>
     <string name="watch_not_found">找不到</string>
+    <string name="watch_now_ends_at">現在 · %1$s 結束</string>
     <string name="watch_now_next_title">現在動態</string>
     <string name="watch_open_phone_to_sync">請開啟手機上的 TigerDuck 以同步。</string>
     <string name="watch_padding_decrease_cd">減少邊距</string>
     <string name="watch_padding_increase_cd">增加邊距</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_relative_days_ago_short">%1$d 天前</string>
+    <string name="watch_relative_hours_ago_short">%1$d 小時前</string>
     <string name="watch_screen_padding">螢幕邊距</string>
     <string name="watch_starts_at">%1$s 開始</string>
     <string name="watch_starts_in_minutes">%1$d 分鐘後開始</string>

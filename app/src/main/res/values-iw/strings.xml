@@ -534,11 +534,14 @@
     <string name="watch_no_courses_synced">אין קורסים מסונכרנים.</string>
     <string name="watch_no_upcoming_classes">אין שיעורים קרובים.</string>
     <string name="watch_not_found">לא נמצא</string>
+    <string name="watch_now_ends_at">NOW · Ends %1$s</string>
     <string name="watch_now_next_title">עכשיו והבא</string>
     <string name="watch_open_phone_to_sync">פתח את TigerDuck בטלפון לסנכרון.</string>
     <string name="watch_padding_decrease_cd">הקטן ריווח</string>
     <string name="watch_padding_increase_cd">הגדל ריווח</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_relative_days_ago_short">%1$d d ago</string>
+    <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_screen_padding">ריווח מסך</string>
     <string name="watch_starts_at">מתחיל ב-%1$s</string>
     <string name="watch_starts_in_minutes">מתחיל בעוד %1$d דק\'</string>

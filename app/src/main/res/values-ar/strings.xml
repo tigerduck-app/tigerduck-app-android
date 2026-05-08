@@ -534,11 +534,14 @@
     <string name="watch_no_courses_synced">لا توجد مقررات متزامنة.</string>
     <string name="watch_no_upcoming_classes">لا توجد محاضرات قادمة.</string>
     <string name="watch_not_found">غير موجود</string>
+    <string name="watch_now_ends_at">NOW · Ends %1$s</string>
     <string name="watch_now_next_title">الآن والتالي</string>
     <string name="watch_open_phone_to_sync">افتح TigerDuck على هاتفك للمزامنة.</string>
     <string name="watch_padding_decrease_cd">تقليل المسافة</string>
     <string name="watch_padding_increase_cd">زيادة المسافة</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_relative_days_ago_short">%1$d d ago</string>
+    <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_screen_padding">هامش الشاشة</string>
     <string name="watch_starts_at">يبدأ %1$s</string>
     <string name="watch_starts_in_minutes">يبدأ خلال %1$d دقيقة</string>

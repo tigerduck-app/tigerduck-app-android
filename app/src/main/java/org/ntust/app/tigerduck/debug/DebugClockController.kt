@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
@@ -32,6 +33,9 @@ class DebugClockController @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun bootstrap() {
+        // Guard so a stale override persisted by a prior debug install can't
+        // bleed into a release build — the user has no UI to clear it there.
+        if (!BuildConfig.DEBUG) return
         val persisted = store.load()
         if (persisted != null) {
             AppClock.setOverride(persisted)

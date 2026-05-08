@@ -534,11 +534,14 @@
     <string name="watch_no_courses_synced">Nav sinhronizētu kursu.</string>
     <string name="watch_no_upcoming_classes">Tuvāko nodarbību nav.</string>
     <string name="watch_not_found">Nav atrasts</string>
+    <string name="watch_now_ends_at">NOW · Ends %1$s</string>
     <string name="watch_now_next_title">Tagad un nākamais</string>
     <string name="watch_open_phone_to_sync">Atveriet TigerDuck tālrunī, lai sinhronizētu.</string>
     <string name="watch_padding_decrease_cd">Samazināt malu</string>
     <string name="watch_padding_increase_cd">Palielināt malu</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_relative_days_ago_short">%1$d d ago</string>
+    <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_screen_padding">Ekrāna mala</string>
     <string name="watch_starts_at">Sākas plkst. %1$s</string>
     <string name="watch_starts_in_minutes">Sākas pēc %1$d min</string>

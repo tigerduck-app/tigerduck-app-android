@@ -534,11 +534,14 @@
     <string name="watch_no_courses_synced">Ni sinhroniziranih predmetov.</string>
     <string name="watch_no_upcoming_classes">Ni prihajajočih predavanj.</string>
     <string name="watch_not_found">Ni najdeno</string>
+    <string name="watch_now_ends_at">NOW · Ends %1$s</string>
     <string name="watch_now_next_title">Zdaj in naslednje</string>
     <string name="watch_open_phone_to_sync">Odpri TigerDuck na telefonu za sinhronizacijo.</string>
     <string name="watch_padding_decrease_cd">Zmanjšaj rob</string>
     <string name="watch_padding_increase_cd">Povečaj rob</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_relative_days_ago_short">%1$d d ago</string>
+    <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_screen_padding">Rob zaslona</string>
     <string name="watch_starts_at">Začetek ob %1$s</string>
     <string name="watch_starts_in_minutes">Začetek čez %1$d min</string>

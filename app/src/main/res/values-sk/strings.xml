@@ -534,11 +534,14 @@
     <string name="watch_no_courses_synced">Žiadne synchronizované predmety.</string>
     <string name="watch_no_upcoming_classes">Žiadne nadchádzajúce hodiny.</string>
     <string name="watch_not_found">Nenájdené</string>
+    <string name="watch_now_ends_at">NOW · Ends %1$s</string>
     <string name="watch_now_next_title">Teraz a ďalšie</string>
     <string name="watch_open_phone_to_sync">Pre synchronizáciu otvorte TigerDuck v telefóne.</string>
     <string name="watch_padding_decrease_cd">Zmenšiť okraj</string>
     <string name="watch_padding_increase_cd">Zväčšiť okraj</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_relative_days_ago_short">%1$d d ago</string>
+    <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_screen_padding">Okraj obrazovky</string>
     <string name="watch_starts_at">Začína %1$s</string>
     <string name="watch_starts_in_minutes">O %1$d min</string>

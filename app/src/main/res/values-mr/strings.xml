@@ -534,11 +534,14 @@
     <string name="watch_no_courses_synced">कोणतेही कोर्स सिंक केलेले नाहीत.</string>
     <string name="watch_no_upcoming_classes">येणारे वर्ग नाहीत.</string>
     <string name="watch_not_found">सापडले नाही</string>
+    <string name="watch_now_ends_at">NOW · Ends %1$s</string>
     <string name="watch_now_next_title">आता आणि पुढील</string>
     <string name="watch_open_phone_to_sync">सिंक करण्यासाठी आपल्या फोनवर TigerDuck उघडा.</string>
     <string name="watch_padding_decrease_cd">पॅडिंग कमी करा</string>
     <string name="watch_padding_increase_cd">पॅडिंग वाढवा</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_relative_days_ago_short">%1$d d ago</string>
+    <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_screen_padding">स्क्रीन पॅडिंग</string>
     <string name="watch_starts_at">%1$s ला सुरू होतो</string>
     <string name="watch_starts_in_minutes">%1$d मिनिटांत सुरू होतो</string>

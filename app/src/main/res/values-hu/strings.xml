@@ -534,11 +534,14 @@
     <string name="watch_no_courses_synced">Nincsenek szinkronizált kurzusok.</string>
     <string name="watch_no_upcoming_classes">Nincsenek közelgő órák.</string>
     <string name="watch_not_found">Nem található</string>
+    <string name="watch_now_ends_at">NOW · Ends %1$s</string>
     <string name="watch_now_next_title">Most és következő</string>
     <string name="watch_open_phone_to_sync">A szinkronizáláshoz nyisd meg a TigerDuck-ot a telefonodon.</string>
     <string name="watch_padding_decrease_cd">Térköz csökkentése</string>
     <string name="watch_padding_increase_cd">Térköz növelése</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_relative_days_ago_short">%1$d d ago</string>
+    <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_screen_padding">Képernyő térköze</string>
     <string name="watch_starts_at">Kezdés %1$s</string>
     <string name="watch_starts_in_minutes">%1$d perc múlva</string>

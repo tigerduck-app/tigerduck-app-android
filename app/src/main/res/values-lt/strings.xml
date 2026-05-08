@@ -534,11 +534,14 @@
     <string name="watch_no_courses_synced">Nėra sinchronizuotų kursų.</string>
     <string name="watch_no_upcoming_classes">Artėjančių užsiėmimų nėra.</string>
     <string name="watch_not_found">Nerasta</string>
+    <string name="watch_now_ends_at">NOW · Ends %1$s</string>
     <string name="watch_now_next_title">Dabar ir kitas</string>
     <string name="watch_open_phone_to_sync">Atidarykite TigerDuck telefone, kad susinchronizuotumėte.</string>
     <string name="watch_padding_decrease_cd">Mažinti paraštę</string>
     <string name="watch_padding_increase_cd">Didinti paraštę</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_relative_days_ago_short">%1$d d ago</string>
+    <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_screen_padding">Ekrano paraštė</string>
     <string name="watch_starts_at">Prasideda %1$s</string>
     <string name="watch_starts_in_minutes">Prasideda po %1$d min</string>
