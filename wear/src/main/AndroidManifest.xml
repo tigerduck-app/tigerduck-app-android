@@ -33,5 +33,18 @@
                 <data android:scheme="wear" android:host="*" android:pathPrefix="/tigerduck/" />
             </intent-filter>
         </service>
+
+        <service
+            android:name=".tile.NextClassTileService"
+            android:exported="true"
+            android:label="Next class"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+            <meta-data
+                android:name="androidx.wear.tiles.PREVIEW"
+                android:resource="@android:drawable/sym_def_app_icon" />
+        </service>
     </application>
 </manifest>
