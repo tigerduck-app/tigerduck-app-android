@@ -202,7 +202,7 @@ fun DebugScreen(
             androidx.compose.material3.Surface(
                 shape = androidx.compose.material3.MaterialTheme.shapes.extraLarge,
                 tonalElevation = 6.dp,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+                color = androidx.compose.material3.AlertDialogDefaults.containerColor,
             ) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     TimePicker(state = tpState)
