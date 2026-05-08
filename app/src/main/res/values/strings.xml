@@ -467,6 +467,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">Color theme</string>
+    <string name="settings_developer">Developer</string>
     <string name="settings_feedback_bug_report">Feedback / Report issue</string>
     <string name="settings_invert_slider_direction">Invert slider direction</string>
     <string name="settings_language">Language</string>
