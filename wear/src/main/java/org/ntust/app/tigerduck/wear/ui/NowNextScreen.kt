@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit
 @Composable
 fun NowNextScreen(snapshot: WatchSnapshot) {
     if (snapshot.syncedAtMs == null) {
-        EmptyStateMessage(text = stringResource(R.string.open_phone_to_sync))
+        EmptyStateMessage(text = stringResource(R.string.open_phone_to_sync), openPhoneOnTap = true)
         return
     }
     if (snapshot.courses.isEmpty()) {
