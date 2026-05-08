@@ -18,8 +18,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -77,6 +80,11 @@ fun LoginSheet(
 ) {
     var username by rememberSaveable(initialUsername) { mutableStateOf(initialUsername) }
     var password by rememberSaveable { mutableStateOf("") }
+    // Hoisted out of `OutlinedAccountIdField` so the toggle UI can sit
+    // inline in the action row instead of as a floating popup chip — the
+    // popup approach got fiddly inside Compose `Dialog` (IME insets,
+    // window-z ordering, position math).
+    var useStandardKeyboard by rememberSaveable { mutableStateOf(false) }
 
     val passwordFocusRequester = remember { FocusRequester() }
     val usernameFocusRequester = remember { FocusRequester() }
@@ -133,6 +141,7 @@ fun LoginSheet(
                         onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
                         enabled = !isLoggingIn,
                         autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
+                        useStandardKeyboardOverride = useStandardKeyboard,
                         modifier = Modifier
                             .fillMaxWidth()
                             .focusRequester(usernameFocusRequester),
@@ -201,6 +210,31 @@ fun LoginSheet(
                         }
                     }
                 }
+                FilterChip(
+                    selected = useStandardKeyboard,
+                    onClick = { useStandardKeyboard = !useStandardKeyboard },
+                    // Icon goes inside the label slot so the chip's content
+                    // can be centered as a unit (the leadingIcon slot pins
+                    // its child to the chip's start edge, which leaves the
+                    // text floating off-center when the chip is full-width).
+                    label = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Keyboard,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.account_id_use_standard_keyboard))
+                        }
+                    },
+                    enabled = !isLoggingIn,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
