@@ -31,7 +31,8 @@ class WearScheduleBridge @Inject constructor(
      * watch via DataClient. Safe to call repeatedly — same payload no-ops.
      */
     suspend fun publish() {
-        val courses = if (authService.authState.value) {
+        val loggedIn = authService.authState.value
+        val courses = if (loggedIn) {
             dataCache.loadCourses()
         } else {
             // On logout, explicitly clear the watch's view.
@@ -58,7 +59,7 @@ class WearScheduleBridge @Inject constructor(
             dataMap.putByteArray(KEY_COURSES, gzipped)
             dataMap.putString(KEY_ACCENT, accentHex)
             dataMap.putLong(KEY_SYNCED_AT, System.currentTimeMillis())
-            dataMap.putBoolean(KEY_LOGGED_IN, authService.authState.value)
+            dataMap.putBoolean(KEY_LOGGED_IN, loggedIn)
             dataMap.putString(KEY_LANGUAGE, languageTag)
         }.asPutDataRequest().setUrgent()
 
