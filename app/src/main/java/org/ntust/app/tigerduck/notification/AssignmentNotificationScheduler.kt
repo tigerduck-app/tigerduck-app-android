@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,7 +22,7 @@ class AssignmentNotificationScheduler @Inject constructor(
     fun scheduleAll(assignments: List<Assignment>) {
         cancelAllTracked()
 
-        val now = System.currentTimeMillis()
+        val now = AppClock.nowMillis()
         val leadTimeMs = 60 * 60 * 1000L
         val scheduledIds = mutableSetOf<String>()
 
@@ -48,16 +49,16 @@ class AssignmentNotificationScheduler @Inject constructor(
 
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+                    alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerTime), pendingIntent)
                 } else {
                     alarmManager.setExactAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP,
-                        triggerTime,
+                        AppClock.realTimeFor(triggerTime),
                         pendingIntent
                     )
                 }
             } catch (_: SecurityException) {
-                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+                alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerTime), pendingIntent)
             }
             scheduledIds.add(assignment.assignmentId)
         }
