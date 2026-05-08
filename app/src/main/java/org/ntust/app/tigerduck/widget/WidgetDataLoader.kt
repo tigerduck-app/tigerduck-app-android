@@ -8,6 +8,7 @@ import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.computeOngoingCourses
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.parseHm
@@ -36,7 +37,7 @@ object WidgetDataLoader {
         // widget say "Please sign in" even though we have cached courses.
         val isLoggedIn = entry.authService().authState.value
 
-        val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
+        val cal = AppClock.calendar()
         val weekday = cal.toWeekday()
         val minuteOfDay = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
 
