@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.wear.compose.material3.LinearProgressIndicator
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
@@ -61,7 +63,7 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
         ) {
             ListHeader { Text(stringResource(R.string.watch_now_next_title)) }
             when (result) {
-                is NextClassResult.Ongoing -> OngoingCard(result)
+                is NextClassResult.Ongoing -> OngoingCard(result, minuteOfDay)
                 is NextClassResult.NextToday -> NextTodayCard(result, minuteOfDay)
                 is NextClassResult.NextFuture -> NextFutureCard(result, weekday)
                 NextClassResult.Empty -> Text(stringResource(R.string.watch_no_upcoming_classes))
@@ -73,8 +75,10 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
 }
 
 @Composable
-private fun OngoingCard(result: NextClassResult.Ongoing) {
+private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int) {
     val accent = LocalAccentColor.current
+    val span = (result.endMinute - result.startMinute).coerceAtLeast(1)
+    val progress = ((minuteOfDay - result.startMinute).toFloat() / span).coerceIn(0f, 1f)
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
@@ -95,6 +99,16 @@ private fun OngoingCard(result: NextClassResult.Ongoing) {
             text = "${result.course.classroom} · ${result.course.instructor}",
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(6.dp))
+        // Progress through the current period: ticks once a minute via the
+        // parent's currentTaipeiTick(), so the bar fills smoothly enough for
+        // a watch UI without burning a 1-second timer.
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp),
         )
     }
     result.nextToday?.let {
