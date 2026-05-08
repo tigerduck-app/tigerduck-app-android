@@ -170,18 +170,28 @@ private fun statusBadge(status: AssignmentStatus): Pair<String, Color>? = when (
 
 /**
  * Bridges [AppClock]'s listener mechanism into Compose. The returned state
- * advances each time [AppClock.setOverride] is called, so any composable that
- * keys on it will recompute against the new clock.
+ * advances each time [AppClock.setOverride] is called AND once per minute as
+ * wall-clock time progresses, so any composable that keys on it recomputes
+ * against a fresh "now". Without the periodic pulse a row that composed at
+ * "in 5 minutes" would stay frozen at that label until something else
+ * triggered a recomposition.
  */
 @Composable
 private fun rememberAppClockVersion(): State<Long> =
     produceState(initialValue = AppClock.version()) {
-        val listener: (Long) -> Unit = { value = it }
+        val listener: (Long) -> Unit = { value = value + 1 }
         AppClock.addOverrideListener(listener)
-        // Refresh once in case setOverride fired between initialValue capture
-        // and listener registration.
-        value = AppClock.version()
-        awaitDispose { AppClock.removeOverrideListener(listener) }
+        try {
+            // Refresh once in case setOverride fired between initialValue
+            // capture and listener registration.
+            value = value + 1
+            while (true) {
+                kotlinx.coroutines.delay(60_000)
+                value = value + 1
+            }
+        } finally {
+            AppClock.removeOverrideListener(listener)
+        }
     }
 
 private fun formatAbsolute(date: Date): String =

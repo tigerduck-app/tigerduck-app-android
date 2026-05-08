@@ -85,8 +85,14 @@ class ClassTableViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            // Tick at 5s so transitions land within at most a few seconds of
+            // the wall-clock minute boundary (e.g., the "現在課程" card appears
+            // ~5s after a class starts, not up to a minute later). The
+            // _currentDayTime MutableStateFlow dedupes by structural equality,
+            // so emissions only propagate when minuteOfDay actually changes —
+            // downstream collectors aren't woken on every poll.
             while (true) {
-                kotlinx.coroutines.delay(60_000)
+                kotlinx.coroutines.delay(5_000)
                 _currentDayTime.value = currentDayTime()
             }
         }

@@ -92,16 +92,26 @@ class HomeViewModel @Inject constructor(
     )
     val ignoredTabPinned: StateFlow<Boolean> = _ignoredTabPinned
 
-    // Re-emits whenever AppClock.setOverride is called, so the ALL-tab
-    // partitioning below (overdue-pinned-first vs. future vs. past) re-runs
-    // when the debug clock toggles — without this, switching debug time off
-    // would leave the list stuck in its overdue-time ordering.
-    private val appClockChanges: Flow<Long> = callbackFlow {
-        val listener: (Long) -> Unit = { trySend(it) }
-        AppClock.addOverrideListener(listener)
-        trySend(AppClock.version())
-        awaitClose { AppClock.removeOverrideListener(listener) }
-    }
+    // Re-emits whenever AppClock.setOverride is called AND once per minute as
+    // wall-clock time advances, so the ALL-tab partitioning below
+    // (overdue-pinned-first vs. future vs. past) re-runs both when the debug
+    // clock toggles and as items naturally cross their dueDate. Without the
+    // periodic pulse, an assignment that came due while the app stayed open
+    // would never move into the overdue bucket.
+    private val appClockChanges: Flow<Long> = merge(
+        callbackFlow {
+            val listener: (Long) -> Unit = { trySend(it) }
+            AppClock.addOverrideListener(listener)
+            trySend(AppClock.version())
+            awaitClose { AppClock.removeOverrideListener(listener) }
+        },
+        kotlinx.coroutines.flow.flow {
+            while (true) {
+                kotlinx.coroutines.delay(60_000)
+                emit(AppClock.nowMillis())
+            }
+        },
+    )
 
     val upcomingAssignments: StateFlow<List<Assignment>> = combine(
         _allAssignments,
