@@ -30,6 +30,15 @@
             </intent-filter>
         </service>
 
+        <service
+            android:name="org.ntust.app.tigerduck.wear.PhoneSyncListener"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/tigerduck/" />
+            </intent-filter>
+        </service>
+
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="bulletins" />

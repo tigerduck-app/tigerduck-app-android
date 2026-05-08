@@ -58,9 +58,15 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
         set(value) = prefs.edit().putBoolean("hasCompletedOnboarding", value).apply()
 
+    @Volatile
+    var onAccentColorChanged: (() -> Unit)? = null
+
     var accentColorHex: Int
         get() = prefs.getInt("accentColorHex", 0x007AFF)
-        set(value) = prefs.edit().putInt("accentColorHex", value).apply()
+        set(value) {
+            prefs.edit().putInt("accentColorHex", value).apply()
+            onAccentColorChanged?.invoke()
+        }
 
     var browserPreference: String
         get() = prefs.getString("browserPreference", "system") ?: "system"

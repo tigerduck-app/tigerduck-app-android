@@ -7,10 +7,17 @@ import android.content.Context
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.push.FcmBootstrap
+import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
 import android.content.res.Configuration as ResConfiguration
 
@@ -23,6 +30,14 @@ class TigerDuckApp : Application(), Configuration.Provider {
     lateinit var appPreferences: AppPreferences
     @Inject
     lateinit var fcmBootstrap: FcmBootstrap
+    @Inject
+    lateinit var dataCache: DataCache
+    @Inject
+    lateinit var authService: AuthService
+    @Inject
+    lateinit var wearBridge: WearScheduleBridge
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -35,6 +50,19 @@ class TigerDuckApp : Application(), Configuration.Provider {
         createNotificationChannels()
         fcmBootstrap.start()
         warnIfPinsNearExpiry()
+
+        // Wear OS bridge — publish to paired watch on schedule/auth/accent changes.
+        // On fdroid the bridge is a no-op stub; these calls are still safe.
+        dataCache.setOnCoursesSavedListener {
+            appScope.launch { wearBridge.publish() }
+        }
+        appPreferences.onAccentColorChanged = {
+            appScope.launch { wearBridge.publish() }
+        }
+        appScope.launch {
+            authService.authState.collect { wearBridge.publish() }
+        }
+        appScope.launch { wearBridge.publish() }  // safety-net publish at launch
     }
 
     private fun warnIfPinsNearExpiry() {
