@@ -143,6 +143,19 @@ android {
             assets.directories.add(rootProject.file("name-abbr").path)
         }
     }
+
+    // Per-app language picker hands users any locale we ship, but Play's
+    // default per-language AAB splits only deliver the split matching the
+    // device's system locale at install time. Result: picking any other
+    // language falls back to values/ (English) because that locale's
+    // strings.xml isn't on disk. Bundle every language into the base APK
+    // so the picker always has resources to resolve against. The added
+    // install size is small — strings.xml only, no per-language assets.
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
 }
 
 // Fail fast if the name-abbr submodule wasn't checked out — otherwise the
