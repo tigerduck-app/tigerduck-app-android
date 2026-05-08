@@ -36,6 +36,7 @@ import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -167,7 +168,7 @@ private fun MonthCalendar(
     val coroutineScope = rememberCoroutineScope()
 
     val baseDate = remember {
-        Calendar.getInstance(taipeiTz).apply {
+        AppClock.calendar().apply {
             set(Calendar.DAY_OF_MONTH, 1)
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
@@ -317,7 +318,7 @@ private fun CalendarGrid(
                         }.time
 
                         val isSelected = isSameDay(dayDate, selectedDate)
-                        val isToday = isSameDay(dayDate, Date())
+                        val isToday = isSameDay(dayDate, Date(AppClock.nowMillis()))
                         val hasEvent = events.any { isSameDay(it.date, dayDate) }
 
                         Box(

@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -443,7 +444,7 @@ class HomeViewModel @Inject constructor(
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
         _allCourses.value = courses
         val todayIndex =
-            Calendar.getInstance(AppConstants.TAIPEI_TZ).get(Calendar.DAY_OF_WEEK).let {
+            AppClock.calendar().get(Calendar.DAY_OF_WEEK).let {
                 // Android: Sun=1, Mon=2..Sat=7. We need Mon=1..Sun=7
                 when (it) {
                     Calendar.MONDAY -> 1

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.OngoingCourseInfo
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -151,7 +152,7 @@ class ClassTableViewModel @Inject constructor(
     }
 
     private fun currentDayTime(): DayTime {
-        val c = Calendar.getInstance(AppConstants.TAIPEI_TZ)
+        val c = AppClock.calendar()
         val wd = when (c.get(Calendar.DAY_OF_WEEK)) {
             Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
             Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
