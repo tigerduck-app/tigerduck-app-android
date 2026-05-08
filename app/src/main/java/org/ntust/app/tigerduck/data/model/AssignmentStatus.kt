@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.data.model
 
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Date
 
 /**
@@ -25,7 +26,7 @@ enum class AssignmentStatus {
     OVERDUE_REJECTED,
 }
 
-fun Assignment.status(now: Date = Date()): AssignmentStatus {
+fun Assignment.status(now: Date = Date(AppClock.nowMillis())): AssignmentStatus {
     if (isCompleted) {
         return if (submittedAt != null && submittedAt.after(dueDate)) {
             AssignmentStatus.SUBMITTED_LATE

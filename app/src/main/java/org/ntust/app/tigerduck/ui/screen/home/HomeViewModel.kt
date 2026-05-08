@@ -7,13 +7,16 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
@@ -89,12 +92,24 @@ class HomeViewModel @Inject constructor(
     )
     val ignoredTabPinned: StateFlow<Boolean> = _ignoredTabPinned
 
+    // Re-emits whenever AppClock.setOverride is called, so the ALL-tab
+    // partitioning below (overdue-pinned-first vs. future vs. past) re-runs
+    // when the debug clock toggles — without this, switching debug time off
+    // would leave the list stuck in its overdue-time ordering.
+    private val appClockChanges: Flow<Long> = callbackFlow {
+        val listener: (Long) -> Unit = { trySend(it) }
+        AppClock.addOverrideListener(listener)
+        trySend(AppClock.version())
+        awaitClose { AppClock.removeOverrideListener(listener) }
+    }
+
     val upcomingAssignments: StateFlow<List<Assignment>> = combine(
         _allAssignments,
         _ignoredAssignmentIds,
         _markedCompletedIds,
         _assignmentFilter,
-    ) { all, ignored, marked, filter ->
+        appClockChanges,
+    ) { all, ignored, marked, filter, _ ->
         // "Effectively done" = Moodle says submitted OR the user manually
         // marked it from the swipe gesture. Both buckets get treated the
         // same for filter/sort purposes.

@@ -5,6 +5,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.Calendar
 import java.util.TimeZone
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * Single source of "now" for the app. All UI / class-status / scheduler code
@@ -17,6 +18,28 @@ object AppClock {
 
     @Volatile
     private var override: ClockOverride? = null
+
+    @Volatile
+    private var versionCounter: Long = 0L
+
+    private val listeners = CopyOnWriteArrayList<(Long) -> Unit>()
+
+    /**
+     * Monotonically increasing counter bumped on every [setOverride] call.
+     * UI/ViewModel layers can use this as a key/Flow input so anything derived
+     * from "now" recomputes when the debug clock toggles — without forcing the
+     * shared module to depend on coroutines or Compose.
+     */
+    fun version(): Long = versionCounter
+
+    /** Add a listener that fires (with the new version) on each [setOverride] call. */
+    fun addOverrideListener(listener: (Long) -> Unit) {
+        listeners.add(listener)
+    }
+
+    fun removeOverrideListener(listener: (Long) -> Unit) {
+        listeners.remove(listener)
+    }
 
     fun nowMillis(): Long {
         val o = override ?: return System.currentTimeMillis()
@@ -62,6 +85,8 @@ object AppClock {
 
     fun setOverride(override: ClockOverride?) {
         this.override = override
+        val v = ++versionCounter
+        for (l in listeners) l(v)
     }
 
     fun currentOverride(): ClockOverride? = override
