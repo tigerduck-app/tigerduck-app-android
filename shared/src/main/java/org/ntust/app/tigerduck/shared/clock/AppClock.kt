@@ -45,6 +45,11 @@ object AppClock {
      * moment under fake time.
      *
      * Identity when no override is active.
+     *
+     * Not idempotent in frozen mode: real-now keeps moving while fake-now
+     * stays put, so two calls for the same target return different values.
+     * Capture the result once at scheduling time; do not re-call it for the
+     * same target.
      */
     fun realTimeFor(appWallMillis: Long): Long {
         val o = override ?: return appWallMillis
