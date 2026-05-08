@@ -52,11 +52,7 @@ class DataLayerListener : WearableListenerService() {
     }
 }
 
-/**
- * Stub for now. Tasks 11 (Tile) and 12 (Complication) will fill this in.
- * Keeping it as a separate function so the listener doesn't need to know
- * about either surface yet.
- */
-internal fun notifyTileAndComplication(@Suppress("UNUSED_PARAMETER") context: android.content.Context) {
-    // Intentionally empty. Restored in Task 12 once the services exist.
+internal fun notifyTileAndComplication(context: android.content.Context) {
+    org.ntust.app.tigerduck.wear.tile.NextClassTileService.requestUpdate(context)
+    org.ntust.app.tigerduck.wear.complication.NextClassComplicationService.requestUpdate(context)
 }
