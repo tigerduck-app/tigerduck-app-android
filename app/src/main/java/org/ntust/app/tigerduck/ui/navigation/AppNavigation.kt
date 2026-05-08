@@ -35,6 +35,7 @@ import androidx.navigation.navArgument
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.announcements.AnnouncementDetailScreen
@@ -341,10 +342,12 @@ fun MainNavigation(
                     onNavigateToDebug = { navController.navigate(Screen.Debug.route) },
                 )
             }
-            composable(Screen.Debug.route) {
-                org.ntust.app.tigerduck.ui.screen.debug.DebugScreen(
-                    onBack = { navController.popBackStack() },
-                )
+            if (BuildConfig.DEBUG) {
+                composable(Screen.Debug.route) {
+                    org.ntust.app.tigerduck.ui.screen.debug.DebugScreen(
+                        onBack = { navController.popBackStack() },
+                    )
+                }
             }
             composable(Screen.OtherSettings.route) {
                 OtherSettingsScreen(

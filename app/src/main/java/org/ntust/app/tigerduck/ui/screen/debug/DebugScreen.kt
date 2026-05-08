@@ -166,7 +166,7 @@ fun DebugScreen(
         val dpState = rememberDatePickerState(
             initialSelectedDateMillis = LocalDate
                 .of(state.draftYear, state.draftMonth, state.draftDay)
-                .atStartOfDay(ZoneId.of("Asia/Taipei"))
+                .atStartOfDay(ZoneId.of("UTC"))
                 .toInstant()
                 .toEpochMilli(),
         )

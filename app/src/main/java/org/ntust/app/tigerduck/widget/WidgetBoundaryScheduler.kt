@@ -61,7 +61,7 @@ class WidgetBoundaryScheduler @Inject constructor(
         for (offset in 1..7) {
             val targetWeekday = ((fromWeekday - 1 + offset) % 7) + 1
             val minute = nextBoundaryMinuteAfter(courses, targetWeekday, -1) ?: continue
-            return Calendar.getInstance(AppConstants.TAIPEI_TZ).apply {
+            return AppClock.calendar().apply {
                 add(Calendar.DAY_OF_YEAR, offset)
                 set(Calendar.HOUR_OF_DAY, minute / 60)
                 set(Calendar.MINUTE, minute % 60)

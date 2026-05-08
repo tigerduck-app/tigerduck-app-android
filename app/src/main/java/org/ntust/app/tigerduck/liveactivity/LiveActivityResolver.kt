@@ -101,7 +101,7 @@ class LiveActivityResolver {
             Calendar.SUNDAY -> 7
             else -> 1
         }
-        val today = LocalDate.now(AppConstants.TAIPEI_ZONE)
+        val today = now.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
 
         val results = mutableListOf<Slot>()
         for (course in courses) {

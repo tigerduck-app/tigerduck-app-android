@@ -23,6 +23,7 @@ import org.ntust.app.tigerduck.data.model.EventSource
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
@@ -39,10 +40,10 @@ class CalendarViewModel @Inject constructor(
     private val _events = MutableStateFlow<List<CalendarEvent>>(emptyList())
     val events: StateFlow<List<CalendarEvent>> = _events
 
-    private val _selectedDate = MutableStateFlow(Date())
+    private val _selectedDate = MutableStateFlow(Date(AppClock.nowMillis()))
     val selectedDate: StateFlow<Date> = _selectedDate
 
-    private val _displayedMonth = MutableStateFlow(Date())
+    private val _displayedMonth = MutableStateFlow(Date(AppClock.nowMillis()))
     val displayedMonth: StateFlow<Date> = _displayedMonth
 
     private val _isLoading = MutableStateFlow(false)
@@ -102,7 +103,7 @@ class CalendarViewModel @Inject constructor(
     }
 
     fun goToToday() {
-        val today = Date()
+        val today = Date(AppClock.nowMillis())
         _selectedDate.value = today
         _displayedMonth.value = today
     }

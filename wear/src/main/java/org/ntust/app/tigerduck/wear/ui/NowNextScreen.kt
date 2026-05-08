@@ -153,7 +153,7 @@ private fun NextFutureCard(result: NextClassResult.NextFuture, todayWeekday: Int
 
 @Composable
 private fun StaleBanner(syncedAtMs: Long) {
-    val now = System.currentTimeMillis()
+    val now = AppClock.nowMillis()
     val ageMs = now - syncedAtMs
     if (ageMs < TimeUnit.HOURS.toMillis(6)) return
     val pretty = when {

@@ -100,7 +100,7 @@ fun TimeSliderSection(
     // Tick every second
     LaunchedEffect(Unit) {
         while (true) {
-            viewModel.tick(Date())
+            viewModel.tick(Date(AppClock.nowMillis()))
             kotlinx.coroutines.delay(1000)
         }
     }

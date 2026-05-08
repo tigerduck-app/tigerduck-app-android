@@ -115,7 +115,7 @@ class HomeViewModel @Inject constructor(
                 //   3. Past items, most recently passed first → oldest.
                 // Within bucket 1, sort by dueDate desc so the most
                 // recently overdue is on top.
-                val now = Date()
+                val now = Date(AppClock.nowMillis())
                 val visible = all.filter { it.assignmentId !in ignored }
                 val (overdueUnhandled, rest) = visible.partition { a ->
                     !done(a) && a.dueDate.before(now)

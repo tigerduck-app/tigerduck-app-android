@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Calendar
 import java.util.Date
 import kotlin.math.abs
@@ -21,14 +22,14 @@ class TimeSliderViewModel {
 
     var timeSlots by mutableStateOf<List<CourseTimeSlot>>(emptyList())
         private set
-    var selectedTime by mutableStateOf(Date())
+    var selectedTime by mutableStateOf(Date(AppClock.nowMillis()))
     var isUserDragging by mutableStateOf(false)
         private set
 
     val hasCourses: Boolean get() = timeSlots.isNotEmpty()
 
     private var allCourses: List<Course> = emptyList()
-    private var timelineCenterDate: Date = Date()
+    private var timelineCenterDate: Date = Date(AppClock.nowMillis())
     private var lastHapticSlot: Int = 0
 
     // Compressed position cache
@@ -36,9 +37,9 @@ class TimeSliderViewModel {
 
     fun configure(courses: List<Course>) {
         allCourses = courses
-        rebuildTimeline(Date())
+        rebuildTimeline(Date(AppClock.nowMillis()))
         if (!isUserDragging) {
-            selectedTime = Date()
+            selectedTime = Date(AppClock.nowMillis())
         }
     }
 
@@ -230,7 +231,7 @@ class TimeSliderViewModel {
 
     fun returnToNow() {
         isUserDragging = false
-        selectedTime = Date()
+        selectedTime = Date(AppClock.nowMillis())
     }
 
     private fun performHaptic(context: Context) {
