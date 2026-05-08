@@ -61,6 +61,13 @@ TigerDuck 是由一群學生共同開發的校園助手
 - 要就加，不要就刪掉
 - 編輯 Tab、首頁區塊自由增減、選擇主題色
 
+### ⌚ **Wear OS**（Play 限定）
+- **Now & Next** 主畫面：當下 / 下一節課與進行中課程進度條
+- **Today** 列表與課程詳情頁
+- **Tile** 與 **Complication**，把下一節課放到主畫面 / 錶面
+- 透過 Wearable Data Layer 自動從手機同步課表、語系、主題色
+- 點擊空狀態可從手錶喚起手機上的 TigerDuck
+
 <br clear="right"/>
 
 ## 開發規劃
@@ -98,10 +105,18 @@ TigerDuck 是由一群學生共同開發的校園助手
 - [x] **課程 / 教室名稱簡稱** – 一鍵切換、可還原
 - [X] **RTL 版面修正** – 阿拉伯語 / 希伯來語等右至左語系排版
 
+### ⌚ Wear OS（Play 限定）
+- [x] **Now & Next 主畫面** – 當下 / 下一節課與進行中課程進度條
+- [x] **Today 列表 + 課程詳情**
+- [x] **Tile 與 Complication** – 下一節課直接顯示在主畫面 / 錶面
+- [x] **Phone ↔ Watch 同步** – 透過 Wearable Data Layer 同步課表、登入狀態、語系與主題色
+- [x] **空狀態喚醒** – 從手錶呼起手機上的 TigerDuck
+
 ## 系統需求
 | 項目 | 需求 |
 |------|------|
 | 作業系統 | Android 10（API 29）以上 |
+| Wear OS | Wear OS 4（API 30）以上，需與 Play 版手機 App 配對 |
 | SSO 帳號 | 學生帳號（部分功能需要）|
 | 圖書館 | 圖書館帳號（部分功能需要）|
 
@@ -138,6 +153,29 @@ git submodule update --init --recursive
 
 > 💡 課程/教室簡稱（`name-abbr/`）與多語系字串（`localization/generated/android/`）皆由子模組提供，clone 後**務必**先抓子模組再開 Android Studio，否則 build 會找不到資源檔。
 
+### Wear OS App（`:wear` 模組）
+
+Wear OS 為 **Play 限定**：與 Play 版手機 App 共用 `applicationId = org.ntust.app.tigerduck`，並透過 `:shared` 模組共用 `Course` / `PeriodTimes` / `NextClassResolver` / `AppClock` 等課表邏輯。
+
+```bash
+./gradlew :wear:assembleDebug
+./gradlew :wear:installDebug   # 需先連上 Wear OS 模擬器或實機
+```
+
+> ⚠️ Wear App 依賴 `play-services-wearable`（GMS）才能與手機配對，與 F-Droid 政策不相容，因此**不提供 F-Droid 變體**，也不會出現在 F-Droid 商店上。
+
+### 一鍵安裝腳本（`debug/`）
+
+`debug/` 目錄收錄了三支安裝腳本，會依 `ro.build.characteristics` 自動把 APK 推到對的裝置，遇到同時連著手機 + 手錶時尤其方便：
+
+| 腳本                              | 用途                                                                  |
+|-----------------------------------|-----------------------------------------------------------------------|
+| `./debug/install-fdroid.sh`       | 編譯並安裝 `:app:fdroidDebug`                                          |
+| `./debug/install-play.sh`         | 編譯並安裝 `:app:playDebug`，並可同時把 `:wear:debug` 推到配對的手錶 |
+| `./debug/install-play-release.sh` | 編譯並安裝 `:app:playRelease`（與 `:wear:release`），用來測 R8 / 簽章行為 |
+
+更詳細的 build variant 說明、debug 時鐘覆寫（時光旅行測試）、無線 ADB、push backend 對接與常見錯誤排查，請見 [`debug/DEBUG.md`](debug/DEBUG.md)。
+
 ### 多語系翻譯（Android + iOS 共用）
 
 翻譯字串放在 [`localization/`](https://github.com/tigerduck-app/app-translation) 子模組，與 iOS 共用。
@@ -165,8 +203,8 @@ Android build 已綁定自動同步（`preBuild` 依賴 `syncLocalizations`）�
 ## 專案架構
 
 ```text
-tigerduck-app-android/                  # Android App（Kotlin 2.3 / Compose / API 26+）
-├── app/
+tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.3 / Compose / API 26+）
+├── app/                                # 手機 App（fdroid / play 兩種 flavor）
 │   ├── build.gradle.kts
 │   └── src/main/java/org/ntust/app/tigerduck/
 │       ├── auth/                       # NTUST SSO 認證、登入狀態
@@ -175,6 +213,7 @@ tigerduck-app-android/                  # Android App（Kotlin 2.3 / Compose / A
 │       │   ├── local/                  # Room 資料層
 │       │   ├── model/                  # Domain / DTO 模型
 │       │   └── preferences/            # App 偏好與憑證管理（EncryptedSharedPreferences）
+│       ├── debug/                      # Debug 時鐘覆寫等開發者工具（僅 debug build）
 │       ├── di/                         # Hilt 模組
 │       ├── liveactivity/               # 即時動態 / 進行中通知
 │       ├── network/                    # 課表 / Moodle / 公告 / 圖書館 API
@@ -191,15 +230,26 @@ tigerduck-app-android/                  # Android App（Kotlin 2.3 / Compose / A
 │       │   │   ├── score/              # 歷年成績與排名
 │       │   │   ├── more/               # 「更多」聚合頁
 │       │   │   ├── settings/           # 設定（語言、Tab、通知、即時動態、來源碼）
-│       │   │   └── onboarding/         # 初次使用引導
+│       │   │   └── onboarding/         # 初次使用引導 + 隱私同意
 │       │   ├── theme/                  # 主題、配色、視覺預設
 │       │   └── AppState.kt
 │       ├── widget/                     # 桌面 widget
 │       ├── MainActivity.kt
 │       └── TigerDuckApp.kt
+├── shared/                             # 手機 + 手錶共用模組（`:shared`）
+│   └── src/main/java/org/ntust/app/tigerduck/shared/
+│       ├── clock/                      # AppClock 抽象（可被 debug 時鐘覆寫）
+│       └── …                           # Course / PeriodTimes / CourseScheduleUtils / NextClassResolver
+├── wear/                               # ⌚ Wear OS App（Play 限定，`:wear`）
+│   └── src/main/java/org/ntust/app/tigerduck/wear/
+│       ├── ui/                         # Now & Next / Today / 課程詳情 / 設定
+│       ├── tile/                       # NextClassTileService
+│       ├── complication/               # NextClassComplicationService
+│       └── data/                       # DataLayerListener / SchedulePersistence / Repository / SyncRequester
+├── debug/                              # 一鍵安裝腳本與 [DEBUG.md](debug/DEBUG.md)（build variants、debug 時鐘、push 等）
 ├── gradle/
 │   └── libs.versions.toml              # Version Catalog
-├── localization/                       # ⤴ git submodule：50+ 語系翻譯
+├── localization/                       # ⤴ git submodule：50+ 語系翻譯（含 `watch_*` 鍵）
 ├── name-abbr/                          # ⤴ git submodule：課程 / 教室簡稱字典
 ├── tools/localization/                 # 翻譯同步腳本（preBuild 自動觸發）
 ├── build.gradle.kts
