@@ -10,11 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,7 +21,6 @@ import androidx.wear.compose.material3.LinearProgressIndicator
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
-import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.NextClassResult
 import org.ntust.app.tigerduck.wear.R
@@ -171,25 +165,6 @@ private fun StaleBanner(syncedAtMs: Long) {
         text = stringResource(R.string.watch_last_synced_relative, pretty),
         color = Color.Gray,
     )
-}
-
-@Composable
-private fun currentTaipeiTick(): Pair<Int, Int> {
-    var tick by remember { mutableStateOf(taipeiNow()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            tick = taipeiNow()
-            delay(TimeUnit.SECONDS.toMillis(60))
-        }
-    }
-    return tick
-}
-
-private fun taipeiNow(): Pair<Int, Int> {
-    val now = AppClock.localDateTime()
-    val weekday = now.dayOfWeek.value
-    val minuteOfDay = now.hour * 60 + now.minute
-    return weekday to minuteOfDay
 }
 
 private fun formatHm(minuteOfDay: Int): String {

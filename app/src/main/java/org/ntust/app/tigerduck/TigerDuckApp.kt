@@ -60,8 +60,8 @@ class TigerDuckApp : Application(), Configuration.Provider {
         dataCache.setOnCoursesSavedListener {
             appScope.launch { wearBridge.publish() }
         }
-        appPreferences.onAccentColorChanged = {
-            appScope.launch { wearBridge.publish() }
+        appScope.launch {
+            appPreferences.accentColorChanged.collect { wearBridge.publish() }
         }
         appScope.launch {
             authService.authState.collect { wearBridge.publish() }

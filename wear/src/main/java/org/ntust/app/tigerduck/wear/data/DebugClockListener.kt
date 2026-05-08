@@ -7,6 +7,7 @@ import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.WearableListenerService
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import org.ntust.app.tigerduck.wear.BuildConfig
 
 /**
  * Receives debug-clock-override updates from the phone via the Wearable Data
@@ -18,6 +19,10 @@ class DebugClockListener : WearableListenerService() {
     private val store by lazy { WearDebugClockPrefsStore(applicationContext) }
 
     override fun onDataChanged(events: DataEventBuffer) {
+        // A leftover /tigerduck/debug-clock entry from a phone debug build (or
+        // a sideloaded debug companion) must not be applied to a release watch
+        // — there's no UI to clear it from the Wear side.
+        if (!BuildConfig.DEBUG) return
         for (event in events) {
             if (event.type != DataEvent.TYPE_CHANGED) continue
             val item = event.dataItem

@@ -8,6 +8,11 @@ class WearApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        WearDebugClockPrefsStore(this).load()?.let { AppClock.setOverride(it) }
+        // Mirrors DebugClockController.bootstrap() on the phone: a stale
+        // override persisted by a debug install must not bleed into release,
+        // since the watch has no UI to clear it.
+        if (BuildConfig.DEBUG) {
+            WearDebugClockPrefsStore(this).load()?.let { AppClock.setOverride(it) }
+        }
     }
 }
