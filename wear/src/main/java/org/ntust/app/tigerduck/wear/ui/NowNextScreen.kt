@@ -40,13 +40,13 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
     val pad = LocalScreenPadding.current
     ScreenScaffold {
         if (snapshot.syncedAtMs == null) {
-            EmptyStateMessage(text = stringResource(R.string.open_phone_to_sync), openPhoneOnTap = true)
+            EmptyStateMessage(text = stringResource(R.string.watch_open_phone_to_sync), openPhoneOnTap = true)
             return@ScreenScaffold
         }
         if (snapshot.courses.isEmpty()) {
             EmptyStateMessage(
-                text = if (snapshot.loggedIn) stringResource(R.string.no_courses_synced)
-                       else stringResource(R.string.open_phone_to_sync)
+                text = if (snapshot.loggedIn) stringResource(R.string.watch_no_courses_synced)
+                       else stringResource(R.string.watch_open_phone_to_sync)
             )
             return@ScreenScaffold
         }
@@ -59,12 +59,12 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            ListHeader { Text(stringResource(R.string.now_next_title)) }
+            ListHeader { Text(stringResource(R.string.watch_now_next_title)) }
             when (result) {
                 is NextClassResult.Ongoing -> OngoingCard(result)
                 is NextClassResult.NextToday -> NextTodayCard(result, minuteOfDay)
                 is NextClassResult.NextFuture -> NextFutureCard(result, weekday)
-                NextClassResult.Empty -> Text(stringResource(R.string.no_upcoming_classes))
+                NextClassResult.Empty -> Text(stringResource(R.string.watch_no_upcoming_classes))
             }
             Spacer(Modifier.height(8.dp))
             StaleBanner(snapshot.syncedAtMs)
@@ -83,7 +83,7 @@ private fun OngoingCard(result: NextClassResult.Ongoing) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "NOW · " + stringResource(R.string.ends_at, formatHm(result.endMinute)),
+            text = "NOW · " + stringResource(R.string.watch_ends_at, formatHm(result.endMinute)),
             color = accent,
         )
         Text(
@@ -100,7 +100,7 @@ private fun OngoingCard(result: NextClassResult.Ongoing) {
     result.nextToday?.let {
         Spacer(Modifier.height(6.dp))
         Text(
-            text = stringResource(R.string.next_label, it.course.courseName, formatHm(it.startMinute)),
+            text = stringResource(R.string.watch_next_label, it.course.courseName, formatHm(it.startMinute)),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -114,9 +114,9 @@ private fun NextTodayCard(result: NextClassResult.NextToday, minuteOfDay: Int) {
     Text(text = "${result.course.classroom} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
     Text(
         text = if (minsUntil in 1..59)
-            stringResource(R.string.starts_in_minutes, minsUntil)
+            stringResource(R.string.watch_starts_in_minutes, minsUntil)
         else
-            stringResource(R.string.starts_at, formatHm(result.startMinute)),
+            stringResource(R.string.watch_starts_at, formatHm(result.startMinute)),
         color = LocalAccentColor.current,
     )
 }
@@ -126,11 +126,11 @@ private fun NextFutureCard(result: NextClassResult.NextFuture, todayWeekday: Int
     Text(text = result.course.courseName, maxLines = 2, overflow = TextOverflow.Ellipsis)
     Text(text = "${result.course.classroom} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
     val label = if (result.daysAhead == 1) {
-        stringResource(R.string.tomorrow_at, formatHm(result.startMinute))
+        stringResource(R.string.watch_tomorrow_at, formatHm(result.startMinute))
     } else {
         val targetWeekday = ((todayWeekday - 1 + result.daysAhead) % 7) + 1
         stringResource(
-            R.string.weekday_at,
+            R.string.watch_weekday_at,
             weekdayShortName(targetWeekday),
             formatHm(result.startMinute),
         )
@@ -148,7 +148,7 @@ private fun StaleBanner(syncedAtMs: Long) {
         else -> "${TimeUnit.MILLISECONDS.toDays(ageMs)} d ago"
     }
     Text(
-        text = stringResource(R.string.last_synced_relative, pretty),
+        text = stringResource(R.string.watch_last_synced_relative, pretty),
         color = Color.Gray,
     )
 }

@@ -42,6 +42,77 @@ android {
     }
 }
 
+// ---- Localization pipeline (mirrors :app) ------------------------------
+//
+// Wear strings live alongside phone strings in the `~/app-translation`
+// submodule's source/*.json files (under the `shared` group, since they're
+// reused on Apple Watch). The submodule's Python generator emits per-locale
+// strings.xml under localization/generated/android/values-*/, and this opt-in
+// task copies them into wear/src/main/res/. Run with `-PsyncLocalizations` to
+// regenerate; otherwise builds use the committed copies.
+
+val syncLocalizations by tasks.registering(Exec::class) {
+    group = "localization"
+    description = "Generate Android localization files from shared JSON sources."
+    workingDir = rootProject.projectDir
+    commandLine("python3", "tools/localization/sync_localizations.py")
+    doFirst {
+        val script = "tools/localization/sync_localizations.py"
+        val python = listOf("python3", "python", "py").firstOrNull { candidate ->
+            runCatching {
+                val proc = ProcessBuilder(candidate, "--version")
+                    .redirectErrorStream(true)
+                    .start()
+                val output = proc.inputStream.readBytes().toString(Charsets.UTF_8)
+                proc.waitFor() == 0 && output.contains("Python 3")
+            }.getOrDefault(false)
+        } ?: throw GradleException(
+            "syncLocalizations requires Python 3 on PATH (tried python3, python, py)."
+        )
+        commandLine(python, script)
+    }
+}
+
+val copyGeneratedAndroidLocalizations by tasks.registering(Copy::class) {
+    group = "localization"
+    description = "Copy localization/generated/android values-* resources into wear/src/main/res."
+    dependsOn(syncLocalizations)
+
+    val sourceDir = rootProject.layout.projectDirectory.dir("localization/generated/android")
+    val destDir = layout.projectDirectory.dir("src/main/res")
+
+    from(sourceDir) {
+        include("values*/strings.xml")
+        include("values-b+*/strings.xml")
+    }
+    into(destDir)
+    includeEmptyDirs = false
+
+    doFirst {
+        val resDir = destDir.asFile
+        fileTree(resDir) {
+            include("values*/strings.xml")
+            include("values-b+*/strings.xml")
+        }.forEach { it.delete() }
+
+        resDir.listFiles()
+            ?.filter { it.isDirectory && (it.name.startsWith("values-") || it.name.startsWith("values-b+")) }
+            ?.forEach { dir ->
+                val remaining = dir.listFiles()
+                if (remaining == null || remaining.isEmpty()) {
+                    dir.delete()
+                }
+            }
+    }
+}
+
+if (providers.gradleProperty("syncLocalizations").isPresent) {
+    tasks.named("preBuild") {
+        dependsOn(syncLocalizations)
+        dependsOn(copyGeneratedAndroidLocalizations)
+    }
+}
+
 dependencies {
     implementation(project(":shared"))
 

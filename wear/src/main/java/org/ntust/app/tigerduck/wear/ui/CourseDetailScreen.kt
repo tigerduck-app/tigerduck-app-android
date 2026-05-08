@@ -31,19 +31,19 @@ fun CourseDetailScreen(course: Course) {
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             item {
-                ListHeader { Text(stringResource(R.string.course_detail_title)) }
+                ListHeader { Text(stringResource(R.string.watch_course_detail_title)) }
             }
             item { Text(text = course.courseName) }
             item { Spacer(Modifier.height(2.dp)) }
             item {
                 LabelValue(
-                    label = stringResource(R.string.course_detail_classroom),
+                    label = stringResource(R.string.course_detail_classroom_label),
                     value = course.classroom,
                 )
             }
             item {
                 LabelValue(
-                    label = stringResource(R.string.course_detail_instructor),
+                    label = stringResource(R.string.course_detail_instructor_label),
                     value = course.instructor,
                 )
             }

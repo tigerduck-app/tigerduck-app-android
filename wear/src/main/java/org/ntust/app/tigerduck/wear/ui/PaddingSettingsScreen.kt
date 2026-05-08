@@ -80,9 +80,9 @@ fun PaddingSettingsScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            ListHeader { Text(stringResource(R.string.padding_setting_title)) }
+            ListHeader { Text(stringResource(R.string.watch_screen_padding)) }
             Spacer(Modifier.height(4.dp))
-            Text(stringResource(R.string.padding_value_dp, current))
+            Text(stringResource(R.string.watch_padding_value_dp, current))
             Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -92,7 +92,7 @@ fun PaddingSettingsScreen() {
                 IconButton(onClick = { setValue(current - 1) }) {
                     Icon(
                         imageVector = Icons.Filled.Remove,
-                        contentDescription = stringResource(R.string.padding_decrease_cd),
+                        contentDescription = stringResource(R.string.watch_padding_decrease_cd),
                     )
                 }
                 LinearProgressIndicator(
@@ -102,7 +102,7 @@ fun PaddingSettingsScreen() {
                 IconButton(onClick = { setValue(current + 1) }) {
                     Icon(
                         imageVector = Icons.Filled.Add,
-                        contentDescription = stringResource(R.string.padding_increase_cd),
+                        contentDescription = stringResource(R.string.watch_padding_increase_cd),
                     )
                 }
             }

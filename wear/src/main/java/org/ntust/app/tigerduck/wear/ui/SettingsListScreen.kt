@@ -27,7 +27,7 @@ fun SettingsListScreen(onPaddingClick: () -> Unit) {
             state = listState,
         ) {
             item {
-                ListHeader { Text(stringResource(R.string.settings_title)) }
+                ListHeader { Text(stringResource(R.string.feature_settings)) }
             }
             item {
                 FilledTonalButton(
@@ -35,7 +35,7 @@ fun SettingsListScreen(onPaddingClick: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
-                        text = stringResource(R.string.settings_padding_label),
+                        text = stringResource(R.string.watch_screen_padding),
                         modifier = Modifier.padding(vertical = 2.dp),
                     )
                 }

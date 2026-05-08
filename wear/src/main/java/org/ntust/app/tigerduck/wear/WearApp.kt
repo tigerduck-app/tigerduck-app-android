@@ -83,7 +83,7 @@ fun WearApp() {
                     val no = entry.arguments?.getString("courseNo")
                     val course = snapshot.courses.firstOrNull { it.courseNo == no }
                     if (course != null) CourseDetailScreen(course)
-                    else EmptyStateMessage(stringResource(R.string.not_found))
+                    else EmptyStateMessage(stringResource(R.string.watch_not_found))
                 }
                 composable("settings/padding") {
                     PaddingSettingsScreen()
