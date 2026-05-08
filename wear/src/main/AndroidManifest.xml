@@ -36,6 +36,15 @@
         </service>
 
         <service
+            android:name=".data.DebugClockListener"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/tigerduck/debug-clock" />
+            </intent-filter>
+        </service>
+
+        <service
             android:name=".tile.NextClassTileService"
             android:exported="true"
             android:label="Next class"
