@@ -185,6 +185,8 @@ tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }
     .configureEach { dependsOn(verifyNameAbbrSubmodule) }
 
 dependencies {
+    implementation(project(":shared"))
+    "playImplementation"(libs.play.services.wearable)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

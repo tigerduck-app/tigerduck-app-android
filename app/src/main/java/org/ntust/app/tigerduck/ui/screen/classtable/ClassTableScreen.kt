@@ -35,6 +35,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.ColorPickerSheet
 import org.ntust.app.tigerduck.ui.component.ConflictCoursePickerSheet
@@ -173,8 +174,7 @@ fun ClassTableScreen(
                 if (isLiveSemester && todayCourses.isNotEmpty()) {
                     SectionHeader(title = stringResource(R.string.home_section_today_courses))
                     val today =
-                        java.util.Calendar.getInstance(AppConstants.TAIPEI_TZ)
-                            .get(java.util.Calendar.DAY_OF_WEEK)
+                        AppClock.calendar().get(java.util.Calendar.DAY_OF_WEEK)
                     val dayIndex = when (today) {
                         java.util.Calendar.MONDAY -> 1; java.util.Calendar.TUESDAY -> 2
                         java.util.Calendar.WEDNESDAY -> 3; java.util.Calendar.THURSDAY -> 4

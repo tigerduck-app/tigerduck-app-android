@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -90,7 +91,7 @@ class LiveActivityNotifier @Inject constructor(
             .apply { if (!soundWanted) setSilent(true) }
 
         val target = snapshot.countdownTarget?.time ?: 0L
-        if (target > System.currentTimeMillis()) {
+        if (target > AppClock.nowMillis()) {
             builder.setUsesChronometer(true)
             builder.setChronometerCountDown(true)
             builder.setWhen(target)

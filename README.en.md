@@ -61,6 +61,13 @@ Ever used [TAT](https://github.com/morris13579/tat_ntust)? We're working hard to
 - Add what you want, remove what you don't
 - Editable tabs, freely add/remove home sections, accent color theming
 
+### ⌚ **Wear OS** (Play only)
+- **Now & Next** main screen: current / upcoming class with an in-progress progress bar
+- **Today** list and per-course detail screen
+- **Tile** and **Complication** to surface the next class on the watch face
+- Auto-syncs schedule, locale, and accent color from the phone over the Wearable Data Layer
+- Tap the empty state on the watch to open TigerDuck on the paired phone
+
 <br clear="right"/>
 
 ## Roadmap
@@ -98,10 +105,18 @@ Ever used [TAT](https://github.com/morris13579/tat_ntust)? We're working hard to
 - [x] **Course / Classroom name abbreviations** — One-tap toggle, fully reversible
 - [X] **RTL layout fixes** — Arabic / Hebrew and other right-to-left scripts
 
+### ⌚ Wear OS (Play only)
+- [x] **Now & Next main screen** — Current / next class with an in-progress progress bar
+- [x] **Today list + course detail**
+- [x] **Tile and Complication** — Surface the next class directly on the home screen / watch face
+- [x] **Phone ↔ Watch sync** — Schedule, auth state, locale, and accent color over the Wearable Data Layer
+- [x] **Empty-state wake** — Tap on the watch to open TigerDuck on the phone
+
 ## System Requirements
 | Item | Requirement |
 |------|-------------|
 | OS | Android 10 (API 29) or later |
+| Wear OS | Wear OS 4 (API 30) or later, paired with the Play build of the phone app |
 | SSO Account | Student account (required for some features) |
 | Library | Library account (required for some features) |
 
@@ -138,6 +153,29 @@ git submodule update --init --recursive
 
 > 💡 Course / classroom abbreviations (`name-abbr/`) and localization strings (`localization/generated/android/`) come from submodules. **Always** initialize submodules before opening Android Studio, otherwise the build will fail to locate resource files.
 
+### Wear OS App (`:wear` module)
+
+The Wear app is **Play only**: it shares `applicationId = org.ntust.app.tigerduck` with the Play phone build, and shares `Course` / `PeriodTimes` / `NextClassResolver` / `AppClock` with the phone via the new `:shared` module.
+
+```bash
+./gradlew :wear:assembleDebug
+./gradlew :wear:installDebug   # requires a Wear OS emulator or paired watch
+```
+
+> ⚠️ The wear app depends on `play-services-wearable` (GMS) for pairing, which is incompatible with F-Droid policy — there is **no F-Droid variant** of the wear app, and it will not appear on F-Droid.
+
+### Quick install scripts (`debug/`)
+
+Three install scripts under `debug/` filter by `ro.build.characteristics` so they push each APK to the right device, which is especially handy when a phone and watch are connected at the same time:
+
+| Script                            | What it does                                                                                            |
+|-----------------------------------|---------------------------------------------------------------------------------------------------------|
+| `./debug/install-fdroid.sh`       | Build + install `:app:fdroidDebug`                                                                      |
+| `./debug/install-play.sh`         | Build + install `:app:playDebug`, optionally pushing `:wear:debug` to a paired watch in the same run    |
+| `./debug/install-play-release.sh` | Build + install `:app:playRelease` (and optionally `:wear:release`) — for testing R8 / signing behavior |
+
+For the full picture of build variants, the debug clock override (time-travel testing), wireless ADB, push backend wiring, and common pitfalls, see [`debug/DEBUG.md`](debug/DEBUG.md).
+
 ### Localization (shared with iOS)
 
 Translation strings live in the [`localization/`](https://github.com/tigerduck-app/app-translation) submodule and are shared with the iOS client.
@@ -165,8 +203,8 @@ The [`name-abbr/`](https://github.com/tigerduck-app/name-abbr) submodule ships s
 ## Project Structure
 
 ```text
-tigerduck-app-android/                  # Android App (Kotlin 2.3 / Compose / API 26+)
-├── app/
+tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.3 / Compose / API 26+)
+├── app/                                # Phone app (fdroid / play flavors)
 │   ├── build.gradle.kts
 │   └── src/main/java/org/ntust/app/tigerduck/
 │       ├── auth/                       # NTUST SSO authentication, login state
@@ -175,6 +213,7 @@ tigerduck-app-android/                  # Android App (Kotlin 2.3 / Compose / AP
 │       │   ├── local/                  # Room data layer
 │       │   ├── model/                  # Domain / DTO models
 │       │   └── preferences/            # App preferences and credential vault (EncryptedSharedPreferences)
+│       ├── debug/                      # Developer tools incl. debug clock override (debug builds only)
 │       ├── di/                         # Hilt modules
 │       ├── liveactivity/               # Live activity / ongoing notification
 │       ├── network/                    # Class table / Moodle / bulletins / library APIs
@@ -191,15 +230,26 @@ tigerduck-app-android/                  # Android App (Kotlin 2.3 / Compose / AP
 │       │   │   ├── score/              # Historical GPA & rankings
 │       │   │   ├── more/               # "More" hub
 │       │   │   ├── settings/           # Settings (language, tabs, notifications, live activity, source)
-│       │   │   └── onboarding/         # First-run onboarding flow
+│       │   │   └── onboarding/         # First-run onboarding + privacy gate
 │       │   ├── theme/                  # Tokens, palette, visual presets
 │       │   └── AppState.kt
 │       ├── widget/                     # Home screen widgets
 │       ├── MainActivity.kt
 │       └── TigerDuckApp.kt
+├── shared/                             # Phone + watch shared module (`:shared`)
+│   └── src/main/java/org/ntust/app/tigerduck/shared/
+│       ├── clock/                      # AppClock abstraction (overridable by debug clock)
+│       └── …                           # Course / PeriodTimes / CourseScheduleUtils / NextClassResolver
+├── wear/                               # ⌚ Wear OS app (Play only, `:wear`)
+│   └── src/main/java/org/ntust/app/tigerduck/wear/
+│       ├── ui/                         # Now & Next / Today / course detail / settings
+│       ├── tile/                       # NextClassTileService
+│       ├── complication/               # NextClassComplicationService
+│       └── data/                       # DataLayerListener / SchedulePersistence / Repository / SyncRequester
+├── debug/                              # Quick install scripts and [DEBUG.md](debug/DEBUG.md) (build variants, debug clock, push)
 ├── gradle/
 │   └── libs.versions.toml              # Version Catalog
-├── localization/                       # ⤴ git submodule: 50+ locale translations
+├── localization/                       # ⤴ git submodule: 50+ locale translations (incl. `watch_*` keys)
 ├── name-abbr/                          # ⤴ git submodule: course / classroom abbreviations
 ├── tools/localization/                 # Translation sync script (auto-triggered by preBuild)
 ├── build.gradle.kts

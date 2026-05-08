@@ -58,9 +58,19 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
         set(value) = prefs.edit().putBoolean("hasCompletedOnboarding", value).apply()
 
+    private val _accentColorChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val accentColorChanged: SharedFlow<Unit> = _accentColorChanged.asSharedFlow()
+
     var accentColorHex: Int
         get() = prefs.getInt("accentColorHex", 0x007AFF)
-        set(value) = prefs.edit().putInt("accentColorHex", value).apply()
+        set(value) {
+            val previous = accentColorHex
+            prefs.edit().putInt("accentColorHex", value).apply()
+            if (value != previous) _accentColorChanged.tryEmit(Unit)
+        }
 
     var browserPreference: String
         get() = prefs.getString("browserPreference", "system") ?: "system"

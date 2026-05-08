@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.OngoingCourseInfo
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -84,8 +85,14 @@ class ClassTableViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            // Tick at 5s so transitions land within at most a few seconds of
+            // the wall-clock minute boundary (e.g., the "現在課程" card appears
+            // ~5s after a class starts, not up to a minute later). The
+            // _currentDayTime MutableStateFlow dedupes by structural equality,
+            // so emissions only propagate when minuteOfDay actually changes —
+            // downstream collectors aren't woken on every poll.
             while (true) {
-                kotlinx.coroutines.delay(60_000)
+                kotlinx.coroutines.delay(5_000)
                 _currentDayTime.value = currentDayTime()
             }
         }
@@ -151,7 +158,7 @@ class ClassTableViewModel @Inject constructor(
     }
 
     private fun currentDayTime(): DayTime {
-        val c = Calendar.getInstance(AppConstants.TAIPEI_TZ)
+        val c = AppClock.calendar()
         val wd = when (c.get(Calendar.DAY_OF_WEEK)) {
             Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
             Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6

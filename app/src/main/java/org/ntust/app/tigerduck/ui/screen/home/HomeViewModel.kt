@@ -7,13 +7,16 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
@@ -21,6 +24,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -88,12 +92,34 @@ class HomeViewModel @Inject constructor(
     )
     val ignoredTabPinned: StateFlow<Boolean> = _ignoredTabPinned
 
+    // Re-emits whenever AppClock.setOverride is called AND once per minute as
+    // wall-clock time advances, so the ALL-tab partitioning below
+    // (overdue-pinned-first vs. future vs. past) re-runs both when the debug
+    // clock toggles and as items naturally cross their dueDate. Without the
+    // periodic pulse, an assignment that came due while the app stayed open
+    // would never move into the overdue bucket.
+    private val appClockChanges: Flow<Long> = merge(
+        callbackFlow {
+            val listener: (Long) -> Unit = { trySend(it) }
+            AppClock.addOverrideListener(listener)
+            trySend(AppClock.version())
+            awaitClose { AppClock.removeOverrideListener(listener) }
+        },
+        kotlinx.coroutines.flow.flow {
+            while (true) {
+                kotlinx.coroutines.delay(60_000)
+                emit(AppClock.nowMillis())
+            }
+        },
+    )
+
     val upcomingAssignments: StateFlow<List<Assignment>> = combine(
         _allAssignments,
         _ignoredAssignmentIds,
         _markedCompletedIds,
         _assignmentFilter,
-    ) { all, ignored, marked, filter ->
+        appClockChanges,
+    ) { all, ignored, marked, filter, _ ->
         // "Effectively done" = Moodle says submitted OR the user manually
         // marked it from the swipe gesture. Both buckets get treated the
         // same for filter/sort purposes.
@@ -114,7 +140,7 @@ class HomeViewModel @Inject constructor(
                 //   3. Past items, most recently passed first → oldest.
                 // Within bucket 1, sort by dueDate desc so the most
                 // recently overdue is on top.
-                val now = Date()
+                val now = Date(AppClock.nowMillis())
                 val visible = all.filter { it.assignmentId !in ignored }
                 val (overdueUnhandled, rest) = visible.partition { a ->
                     !done(a) && a.dueDate.before(now)
@@ -443,7 +469,7 @@ class HomeViewModel @Inject constructor(
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
         _allCourses.value = courses
         val todayIndex =
-            Calendar.getInstance(AppConstants.TAIPEI_TZ).get(Calendar.DAY_OF_WEEK).let {
+            AppClock.calendar().get(Calendar.DAY_OF_WEEK).let {
                 // Android: Sun=1, Mon=2..Sat=7. We need Mon=1..Sun=7
                 when (it) {
                     Calendar.MONDAY -> 1

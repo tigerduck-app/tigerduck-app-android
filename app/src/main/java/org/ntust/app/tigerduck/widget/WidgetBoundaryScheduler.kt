@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.parseHm
 import java.util.Calendar
@@ -22,7 +23,7 @@ class WidgetBoundaryScheduler @Inject constructor(
         val pi = makePendingIntent()
         alarmManager.cancel(pi)
 
-        val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
+        val cal = AppClock.calendar()
         val weekday = cal.toWeekday()
         val nowMinute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
 
@@ -43,11 +44,11 @@ class WidgetBoundaryScheduler @Inject constructor(
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerCal.timeInMillis, pi)
+            alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerCal.timeInMillis), pi)
         } else {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
-                triggerCal.timeInMillis,
+                AppClock.realTimeFor(triggerCal.timeInMillis),
                 pi
             )
         }
@@ -60,7 +61,7 @@ class WidgetBoundaryScheduler @Inject constructor(
         for (offset in 1..7) {
             val targetWeekday = ((fromWeekday - 1 + offset) % 7) + 1
             val minute = nextBoundaryMinuteAfter(courses, targetWeekday, -1) ?: continue
-            return Calendar.getInstance(AppConstants.TAIPEI_TZ).apply {
+            return AppClock.calendar().apply {
                 add(Calendar.DAY_OF_YEAR, offset)
                 set(Calendar.HOUR_OF_DAY, minute / 60)
                 set(Calendar.MINUTE, minute % 60)

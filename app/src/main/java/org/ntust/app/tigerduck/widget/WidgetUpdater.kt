@@ -19,6 +19,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.widget.receivers.NextClassDarkWidget
 import org.ntust.app.tigerduck.widget.receivers.NextClassDarkWidgetReceiver
 import org.ntust.app.tigerduck.widget.receivers.NextClassLightWidget
@@ -55,7 +56,7 @@ class WidgetUpdater @Inject constructor(
         // value forces its LaunchedEffect to re-run and reload from disk.
         // Without this, Glance's recomposition reuses the stale snapshot
         // captured when the widget's session was first established.
-        val now = System.currentTimeMillis()
+        val now = AppClock.nowMillis()
         val manager = GlanceAppWidgetManager(context)
         coroutineScope {
             GLANCE_WIDGET_FACTORIES.forEach { factory ->

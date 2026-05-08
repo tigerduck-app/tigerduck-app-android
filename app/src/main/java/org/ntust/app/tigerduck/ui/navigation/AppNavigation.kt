@@ -35,7 +35,9 @@ import androidx.navigation.navArgument
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.announcements.AnnouncementDetailScreen
 import org.ntust.app.tigerduck.announcements.AnnouncementsScreen
 import org.ntust.app.tigerduck.announcements.SubscriptionSettingsScreen
@@ -60,8 +62,6 @@ import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SourceCodePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
 import org.ntust.app.tigerduck.widget.LibraryShortcutWidget
-import java.time.Instant
-
 sealed class Screen(val route: String) {
     object Home : Screen("home")
     object ClassTable : Screen("classTable")
@@ -82,6 +82,7 @@ sealed class Screen(val route: String) {
     object NotificationSetup : Screen("notificationSetup")
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
+    object Debug : Screen("debug")
 }
 
 @Composable
@@ -221,7 +222,7 @@ fun MainNavigation(
     var isNonTaipeiTz by remember { mutableStateOf(false) }
     DisposableEffect(context) {
         val recompute = {
-            val now = Instant.now()
+            val now = AppClock.instant()
             isNonTaipeiTz = java.util.TimeZone.getDefault().getOffset(now.toEpochMilli()) !=
                     AppConstants.TAIPEI_TZ.getOffset(now.toEpochMilli())
         }
@@ -338,7 +339,15 @@ fun MainNavigation(
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
+                    onNavigateToDebug = { navController.navigate(Screen.Debug.route) },
                 )
+            }
+            if (BuildConfig.DEBUG) {
+                composable(Screen.Debug.route) {
+                    org.ntust.app.tigerduck.ui.screen.debug.DebugScreen(
+                        onBack = { navController.popBackStack() },
+                    )
+                }
             }
             composable(Screen.OtherSettings.route) {
                 OtherSettingsScreen(

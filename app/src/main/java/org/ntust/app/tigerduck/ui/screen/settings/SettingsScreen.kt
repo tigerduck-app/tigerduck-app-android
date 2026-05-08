@@ -51,6 +51,7 @@ fun SettingsScreen(
     onNavigateToLanguagePicker: () -> Unit = {},
     onNavigateToLiveActivity: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
+    onNavigateToDebug: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsState()
@@ -350,6 +351,16 @@ fun SettingsScreen(
                         SettingsLinkRow(stringResource(R.string.settings_official_website)) {
                             openUrl(context, "https://tigerduck.app/", browserPreference)
                         }
+                    }
+                }
+            }
+
+            // MARK: Developer (debug builds only)
+            if (BuildConfig.DEBUG) {
+                item { SectionHeader("Developer") }
+                item {
+                    ContentCard {
+                        SettingsLinkRow("Developer") { onNavigateToDebug() }
                     }
                 }
             }

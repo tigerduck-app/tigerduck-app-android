@@ -43,6 +43,13 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     @Volatile
     private var legacyCourseCacheAbsorbed = false
 
+    @Volatile
+    private var onCoursesSaved: (() -> Unit)? = null
+
+    fun setOnCoursesSavedListener(listener: () -> Unit) {
+        onCoursesSaved = listener
+    }
+
     // MARK: - Courses (semester-scoped)
 
     /**
@@ -57,6 +64,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         val (manual, remote) = courses.partition { it.isManual }
         save(remote, coursesFilename(semester))
         saveToUserData(manual, manualCoursesFilename(semester))
+        onCoursesSaved?.invoke()
     }
 
     /**

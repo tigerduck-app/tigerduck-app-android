@@ -69,6 +69,7 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.courseNameForDisplay
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -99,7 +100,7 @@ fun TimeSliderSection(
     // Tick every second
     LaunchedEffect(Unit) {
         while (true) {
-            viewModel.tick(Date())
+            viewModel.tick(Date(AppClock.nowMillis()))
             kotlinx.coroutines.delay(1000)
         }
     }
@@ -360,7 +361,7 @@ private fun SlotCard(
         if (first != null && last != null) "${first.first} - ${last.second}" else ""
     } else ""
 
-    val isToday = Calendar.getInstance(AppConstants.TAIPEI_TZ).let {
+    val isToday = AppClock.calendar().let {
         val today = it.get(Calendar.DAY_OF_YEAR)
         cal.time = slot.date
         today == cal.get(Calendar.DAY_OF_YEAR) && it.get(Calendar.YEAR) == cal.get(Calendar.YEAR)
@@ -641,7 +642,7 @@ private fun dateLabelFmt() =
 
 private fun formatTimeLabel(date: Date): String {
     val instant = date.toInstant().atZone(AppConstants.TAIPEI_ZONE)
-    val today = java.time.LocalDate.now(AppConstants.TAIPEI_ZONE)
+    val today = AppClock.localDateTime().toLocalDate()
     return if (instant.toLocalDate() == today) {
         timeFmt.format(instant)
     } else {
