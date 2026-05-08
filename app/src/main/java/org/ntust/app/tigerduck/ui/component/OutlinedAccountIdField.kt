@@ -67,18 +67,22 @@ import org.ntust.app.tigerduck.R
  * Both supported account formats share the `[A-Z]\d+` shape (e.g.
  * `B11234567`): one leading letter, then digits. The `inputType` is
  * driven from this:
- *  - empty value (typing the leading letter): `TYPE_CLASS_TEXT` so
- *    non-Latin IMEs pick whichever layout the user prefers;
+ *  - empty value (typing the leading letter):
+ *    `TYPE_CLASS_TEXT | TYPE_TEXT_VARIATION_VISIBLE_PASSWORD` — Android's
+ *    "Latin-only, not masked" combo. Forces the IME to ASCII for the
+ *    single leading letter so users on Chinese/Japanese/etc. don't
+ *    have to manually switch IME language;
  *  - non-empty value (typing the 2nd char onward): `TYPE_CLASS_NUMBER`
  *    so the rest of the ID is entered on a numeric pad with no IME
  *    locale juggling.
  *
- * The previous implementation pinned `TYPE_TEXT_VARIATION_VISIBLE_PASSWORD`
- * to keep Latin keyboards' number row visible. That flag declares the
- * field as Latin-only and forced non-Latin IMEs to flip back to English
- * on every keystroke — unusable. The new strategy keeps the number-row
- * benefit on character 2+ via `TYPE_CLASS_NUMBER` directly, while
- * letting non-Latin IMEs handle the first character normally.
+ * Earlier this field pinned `VISIBLE_PASSWORD` for the *entire* input,
+ * which made non-Latin IMEs flip back to English on every keystroke —
+ * unusable. The Latin force is now scoped to a single keystroke (the
+ * leading letter); after that the field switches to a numeric pad,
+ * which doesn't have the flip-back problem. The standard-keyboard
+ * toggle bypasses both: it pins to plain `TYPE_CLASS_TEXT` for users
+ * whose IME doesn't cooperate with the auto-flip at all.
  *
  * For users whose IME doesn't cooperate with the auto-flip, a
  * compatibility toggle is rendered at the top-end of the screen
@@ -371,10 +375,21 @@ private fun computeAccountInputType(
     useStandard: Boolean,
     value: String,
     capitalization: KeyboardCapitalization,
-): Int = if (useStandard || value.isEmpty()) {
-    InputType.TYPE_CLASS_TEXT or capitalization.toInputTypeFlag()
-} else {
-    InputType.TYPE_CLASS_NUMBER
+): Int = when {
+    // Standard-keyboard mode is the user's escape hatch for IMEs that
+    // mishandle the auto-flip. Don't force Latin in that mode — let the
+    // IME render whatever script the user actually wants.
+    useStandard -> InputType.TYPE_CLASS_TEXT or capitalization.toInputTypeFlag()
+    // Empty value = the leading letter slot. Pin the IME to Latin/ASCII
+    // for this single keystroke so users on Chinese/Japanese/etc. IMEs
+    // don't have to manually switch language to type the prefix.
+    // `VISIBLE_PASSWORD` is Android's documented "Latin-only, not masked"
+    // input flag.
+    value.isEmpty() -> InputType.TYPE_CLASS_TEXT or
+        InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
+        capitalization.toInputTypeFlag()
+    // 2nd char onward: numeric pad, no IME-locale juggling.
+    else -> InputType.TYPE_CLASS_NUMBER
 }
 
 private fun KeyboardCapitalization.toInputTypeFlag(): Int = when (this) {
