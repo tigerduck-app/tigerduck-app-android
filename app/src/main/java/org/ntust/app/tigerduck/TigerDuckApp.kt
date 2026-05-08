@@ -15,6 +15,7 @@ import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.debug.DebugClockController
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.push.FcmBootstrap
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
@@ -36,6 +37,8 @@ class TigerDuckApp : Application(), Configuration.Provider {
     lateinit var authService: AuthService
     @Inject
     lateinit var wearBridge: WearScheduleBridge
+    @Inject
+    lateinit var debugClockController: DebugClockController
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -46,6 +49,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        debugClockController.bootstrap()
         AppLanguageManager.apply(appPreferences.appLanguage)
         createNotificationChannels()
         fcmBootstrap.start()
