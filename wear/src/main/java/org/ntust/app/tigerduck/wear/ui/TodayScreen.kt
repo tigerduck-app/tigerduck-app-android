@@ -17,16 +17,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.items
+import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
+import androidx.wear.compose.material3.ListHeader
+import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.TodayClassEntry
 import org.ntust.app.tigerduck.shared.TodayClassStatus
+import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
+import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -35,22 +41,36 @@ fun TodayScreen(
     snapshot: WatchSnapshot,
     onRowClick: (String) -> Unit,
 ) {
+    val pad = LocalScreenPadding.current
     val now = LocalDateTime.now(ZoneId.of("Asia/Taipei"))
     val weekday = now.dayOfWeek.value
     val minuteOfDay = now.hour * 60 + now.minute
     val entries = NextClassResolver.todaysClasses(snapshot.courses, weekday, minuteOfDay)
+    val listState = rememberScalingLazyListState()
 
-    if (entries.isEmpty()) {
-        EmptyStateMessage(text = "No classes today.")
-        return
-    }
-
-    ScalingLazyColumn(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        items(entries, key = { it.course.courseNo + it.firstPeriodId }) { entry ->
-            TodayRow(entry = entry, onClick = { onRowClick(entry.course.courseNo) })
+    ScreenScaffold(scrollState = listState) {
+        ScalingLazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = pad),
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            item {
+                ListHeader { Text(stringResource(R.string.today_title)) }
+            }
+            if (entries.isEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(R.string.no_classes_today),
+                        modifier = Modifier.padding(vertical = 12.dp),
+                    )
+                }
+            } else {
+                items(entries, key = { it.course.courseNo + it.firstPeriodId }) { entry ->
+                    TodayRow(entry = entry, onClick = { onRowClick(entry.course.courseNo) })
+                }
+            }
         }
     }
 }
@@ -73,7 +93,6 @@ private fun TodayRow(entry: TodayClassEntry, onClick: () -> Unit) {
             .alpha(baseAlpha),
     ) {
         if (entry.status == TodayClassStatus.Ongoing) {
-            // Accent leading bar — fixed width, fills row height.
             Spacer(
                 Modifier
                     .width(3.dp)

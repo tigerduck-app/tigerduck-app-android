@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TigerDuck</string>
+
+    <!-- Pager pages -->
+    <string name="now_next_title">Now &amp; Next</string>
+    <string name="today_title">Today</string>
+    <string name="settings_title">Settings</string>
+    <string name="course_detail_title">Course</string>
+
+    <!-- Now / Next screen -->
     <string name="open_phone_to_sync">Open TigerDuck on your phone to sync.</string>
     <string name="no_courses_synced">No courses synced.</string>
     <string name="no_upcoming_classes">No upcoming classes.</string>
@@ -11,4 +19,24 @@
     <string name="starts_at">Starts %1$s</string>
     <string name="tomorrow_at">Tomorrow · %1$s</string>
     <string name="weekday_at">%1$s · %2$s</string>
+
+    <!-- Today screen -->
+    <string name="no_classes_today">No classes today.</string>
+
+    <!-- Course detail -->
+    <string name="course_detail_classroom">Classroom</string>
+    <string name="course_detail_instructor">Instructor</string>
+
+    <!-- Settings list -->
+    <string name="settings_padding_label">Padding</string>
+
+    <!-- Padding adjuster -->
+    <string name="padding_setting_title">Padding</string>
+    <string name="padding_decrease_cd">Decrease padding</string>
+    <string name="padding_increase_cd">Increase padding</string>
+    <string name="padding_value_dp">%1$d dp</string>
+
+    <!-- Empty-state action -->
+    <string name="open_on_phone_action">Open on phone</string>
+    <string name="not_found">Not found</string>
 </resources>

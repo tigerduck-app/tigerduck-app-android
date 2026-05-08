@@ -31,7 +31,8 @@ class DataLayerListener : WearableListenerService() {
             val accent = map.getString(KEY_ACCENT) ?: SchedulePersistence.DEFAULT_ACCENT
             val syncedAt = map.getLong(KEY_SYNCED_AT)
             val loggedIn = map.getBoolean(KEY_LOGGED_IN)
-            ScheduleRepository.get(this).write(courses, accent, syncedAt, loggedIn)
+            val language = map.getString(KEY_LANGUAGE)
+            ScheduleRepository.get(this).write(courses, accent, syncedAt, loggedIn, language)
             Log.d(TAG, "received snapshot, lag=${System.currentTimeMillis() - syncedAt} ms")
             notifyTileAndComplication(applicationContext)
         }
@@ -48,6 +49,7 @@ class DataLayerListener : WearableListenerService() {
         const val KEY_ACCENT = "accentHex"
         const val KEY_SYNCED_AT = "syncedAtMs"
         const val KEY_LOGGED_IN = "loggedIn"
+        const val KEY_LANGUAGE = "languageTag"
         private const val TAG = "WearBridge"
     }
 }

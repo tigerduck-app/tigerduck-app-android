@@ -45,6 +45,10 @@ android {
 dependencies {
     implementation(project(":shared"))
 
+    // AppCompat ships AppCompatDelegate.setApplicationLocales — used to
+    // mirror the phone's chosen UI language on the watch.
+    implementation(libs.androidx.appcompat)
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.wear.compose.material3)
     implementation(libs.androidx.wear.compose.foundation)
@@ -52,6 +56,8 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.tooling.preview)
+    // For Icons.Filled.Add / .Remove used in PaddingSettingsScreen.
+    implementation(libs.androidx.material.icons.extended)
     debugImplementation(libs.androidx.ui.tooling)
 
     implementation(libs.androidx.wear.tiles)

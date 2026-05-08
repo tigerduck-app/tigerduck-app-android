@@ -10,7 +10,9 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 import org.ntust.app.tigerduck.shared.Course
 import java.io.ByteArrayInputStream
 import java.util.zip.GZIPInputStream
@@ -28,6 +30,7 @@ class SchedulePersistence(private val context: Context) {
         accentHex: String,
         syncedAtMs: Long,
         loggedIn: Boolean,
+        languageTag: String?,
     ) {
         val coursesJson = decompress(coursesGzipped)
         context.scheduleDataStore.edit { prefs ->
@@ -35,8 +38,23 @@ class SchedulePersistence(private val context: Context) {
             prefs[KEY_ACCENT_HEX] = accentHex
             prefs[KEY_SYNCED_AT] = syncedAtMs
             prefs[KEY_LOGGED_IN] = loggedIn
+            if (languageTag != null) prefs[KEY_LANGUAGE] = languageTag
         }
     }
+
+    /** Synchronous one-shot read used by Activity onCreate to apply the
+     *  cached language before the first frame is composed. Acceptable
+     *  bootstrap pattern; not for hot paths. */
+    fun readLanguageTagBlocking(): String? = runCatching {
+        runBlocking { context.scheduleDataStore.data.first()[KEY_LANGUAGE] }
+    }.getOrNull()
+
+    suspend fun writePaddingDp(value: Int) {
+        context.scheduleDataStore.edit { prefs -> prefs[KEY_PADDING_DP] = value }
+    }
+
+    val paddingDpFlow: Flow<Int> =
+        context.scheduleDataStore.data.map { prefs -> prefs[KEY_PADDING_DP] ?: DEFAULT_PADDING_DP }
 
     private fun readSnapshot(prefs: Preferences): WatchSnapshot {
         val json = prefs[KEY_COURSES_JSON]
@@ -48,6 +66,7 @@ class SchedulePersistence(private val context: Context) {
             // Preferences DataStore returns null for unset keys via the indexed accessor.
             syncedAtMs = prefs[KEY_SYNCED_AT],
             loggedIn = prefs[KEY_LOGGED_IN] ?: false,
+            languageTag = prefs[KEY_LANGUAGE],
         )
     }
 
@@ -87,10 +106,15 @@ class SchedulePersistence(private val context: Context) {
 
     companion object {
         const val DEFAULT_ACCENT = "#007AFF"
+        const val DEFAULT_PADDING_DP = 12
+        const val MIN_PADDING_DP = 0
+        const val MAX_PADDING_DP = 24
         private val KEY_COURSES_JSON = stringPreferencesKey("courses_json")
         private val KEY_ACCENT_HEX = stringPreferencesKey("accent_hex")
         private val KEY_SYNCED_AT = longPreferencesKey("synced_at_ms")
         private val KEY_LOGGED_IN = booleanPreferencesKey("logged_in")
+        private val KEY_LANGUAGE = stringPreferencesKey("language_tag")
+        private val KEY_PADDING_DP = androidx.datastore.preferences.core.intPreferencesKey("padding_dp")
     }
 }
 
@@ -99,4 +123,5 @@ data class WatchSnapshot(
     val accentHex: String,
     val syncedAtMs: Long?,
     val loggedIn: Boolean,
+    val languageTag: String?,
 )

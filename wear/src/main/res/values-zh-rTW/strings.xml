@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TigerDuck</string>
+
+    <string name="now_next_title">現在動態</string>
+    <string name="today_title">今日課表</string>
+    <string name="settings_title">設定</string>
+    <string name="course_detail_title">課程資訊</string>
+
+    <string name="open_phone_to_sync">請開啟手機上的 TigerDuck 以同步。</string>
+    <string name="no_courses_synced">尚無課程資料。</string>
+    <string name="no_upcoming_classes">沒有即將開始的課程。</string>
+    <string name="last_synced_relative">上次同步：%1$s</string>
+    <string name="ends_at">%1$s 結束</string>
+    <string name="next_label">下一節：%1$s · %2$s</string>
+    <string name="starts_in_minutes">%1$d 分鐘後開始</string>
+    <string name="starts_at">%1$s 開始</string>
+    <string name="tomorrow_at">明天 · %1$s</string>
+    <string name="weekday_at">%1$s · %2$s</string>
+
+    <string name="no_classes_today">今天沒有課程。</string>
+
+    <string name="course_detail_classroom">教室</string>
+    <string name="course_detail_instructor">授課教師</string>
+
+    <string name="settings_padding_label">邊距</string>
+
+    <string name="padding_setting_title">邊距大小</string>
+    <string name="padding_decrease_cd">減少邊距</string>
+    <string name="padding_increase_cd">增加邊距</string>
+    <string name="padding_value_dp">%1$d dp</string>
+
+    <string name="open_on_phone_action">在手機上開啟</string>
+    <string name="not_found">找不到</string>
+</resources>

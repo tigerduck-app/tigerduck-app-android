@@ -62,6 +62,10 @@ class TigerDuckApp : Application(), Configuration.Provider {
         appScope.launch {
             authService.authState.collect { wearBridge.publish() }
         }
+        // Mirror language changes to the watch so its UI follows the phone.
+        appScope.launch {
+            appPreferences.appLanguageChanged.collect { wearBridge.publish() }
+        }
         appScope.launch { wearBridge.publish() }  // safety-net publish at launch
     }
 

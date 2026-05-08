@@ -21,6 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.wear.compose.material3.ListHeader
+import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.shared.NextClassResolver
@@ -28,41 +30,45 @@ import org.ntust.app.tigerduck.shared.NextClassResult
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
+import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
 @Composable
 fun NowNextScreen(snapshot: WatchSnapshot) {
-    if (snapshot.syncedAtMs == null) {
-        EmptyStateMessage(text = stringResource(R.string.open_phone_to_sync), openPhoneOnTap = true)
-        return
-    }
-    if (snapshot.courses.isEmpty()) {
-        // Logged in but no courses, OR logged out — same UX (open phone).
-        EmptyStateMessage(
-            text = if (snapshot.loggedIn) stringResource(R.string.no_courses_synced)
-                   else stringResource(R.string.open_phone_to_sync)
-        )
-        return
-    }
-
-    val (weekday, minuteOfDay) = currentTaipeiTick()
-    val result = NextClassResolver.resolve(snapshot.courses, weekday, minuteOfDay)
-
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        when (result) {
-            is NextClassResult.Ongoing -> OngoingCard(result)
-            is NextClassResult.NextToday -> NextTodayCard(result, minuteOfDay)
-            is NextClassResult.NextFuture -> NextFutureCard(result, weekday)
-            NextClassResult.Empty -> Text(stringResource(R.string.no_upcoming_classes))
+    val pad = LocalScreenPadding.current
+    ScreenScaffold {
+        if (snapshot.syncedAtMs == null) {
+            EmptyStateMessage(text = stringResource(R.string.open_phone_to_sync), openPhoneOnTap = true)
+            return@ScreenScaffold
         }
-        Spacer(Modifier.height(8.dp))
-        StaleBanner(snapshot.syncedAtMs)
+        if (snapshot.courses.isEmpty()) {
+            EmptyStateMessage(
+                text = if (snapshot.loggedIn) stringResource(R.string.no_courses_synced)
+                       else stringResource(R.string.open_phone_to_sync)
+            )
+            return@ScreenScaffold
+        }
+
+        val (weekday, minuteOfDay) = currentTaipeiTick()
+        val result = NextClassResolver.resolve(snapshot.courses, weekday, minuteOfDay)
+
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = pad),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            ListHeader { Text(stringResource(R.string.now_next_title)) }
+            when (result) {
+                is NextClassResult.Ongoing -> OngoingCard(result)
+                is NextClassResult.NextToday -> NextTodayCard(result, minuteOfDay)
+                is NextClassResult.NextFuture -> NextFutureCard(result, weekday)
+                NextClassResult.Empty -> Text(stringResource(R.string.no_upcoming_classes))
+            }
+            Spacer(Modifier.height(8.dp))
+            StaleBanner(snapshot.syncedAtMs)
+        }
     }
 }
 
@@ -104,8 +110,8 @@ private fun OngoingCard(result: NextClassResult.Ongoing) {
 @Composable
 private fun NextTodayCard(result: NextClassResult.NextToday, minuteOfDay: Int) {
     val minsUntil = result.startMinute - minuteOfDay
-    Text(text = result.course.courseName)
-    Text(text = "${result.course.classroom} · ${result.course.instructor}")
+    Text(text = result.course.courseName, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    Text(text = "${result.course.classroom} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
     Text(
         text = if (minsUntil in 1..59)
             stringResource(R.string.starts_in_minutes, minsUntil)
@@ -117,8 +123,8 @@ private fun NextTodayCard(result: NextClassResult.NextToday, minuteOfDay: Int) {
 
 @Composable
 private fun NextFutureCard(result: NextClassResult.NextFuture, todayWeekday: Int) {
-    Text(text = result.course.courseName)
-    Text(text = "${result.course.classroom} · ${result.course.instructor}")
+    Text(text = result.course.courseName, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    Text(text = "${result.course.classroom} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
     val label = if (result.daysAhead == 1) {
         stringResource(R.string.tomorrow_at, formatHm(result.startMinute))
     } else {
@@ -161,7 +167,7 @@ private fun currentTaipeiTick(): Pair<Int, Int> {
 
 private fun taipeiNow(): Pair<Int, Int> {
     val now = LocalDateTime.now(ZoneId.of("Asia/Taipei"))
-    val weekday = now.dayOfWeek.value  // 1=Mon..7=Sun, matches Course.schedule
+    val weekday = now.dayOfWeek.value
     val minuteOfDay = now.hour * 60 + now.minute
     return weekday to minuteOfDay
 }

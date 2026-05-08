@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.tasks.await
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.Course
 import java.io.ByteArrayOutputStream
@@ -42,11 +43,23 @@ class WearScheduleBridge @Inject constructor(
             GZIPOutputStream(bos).use { it.write(payload) }
         }.toByteArray()
 
+        // Resolve "system" to the concrete tag the watch should mirror — the
+        // watch can't observe the phone's system locale directly, so we send
+        // the resolved BCP-47 tag instead of the literal "system" sentinel.
+        val rawLanguage = appPreferences.appLanguage
+        val languageTag = if (rawLanguage == AppLanguageManager.SYSTEM) {
+            AppLanguageManager.resolveExplicitLocale(AppLanguageManager.SYSTEM)?.toLanguageTag()
+                ?: AppLanguageManager.resolvedSystemLanguage()
+        } else {
+            rawLanguage
+        }
+
         val request = PutDataMapRequest.create(SCHEDULE_PATH).apply {
             dataMap.putByteArray(KEY_COURSES, gzipped)
             dataMap.putString(KEY_ACCENT, accentHex)
             dataMap.putLong(KEY_SYNCED_AT, System.currentTimeMillis())
             dataMap.putBoolean(KEY_LOGGED_IN, authService.authState.value)
+            dataMap.putString(KEY_LANGUAGE, languageTag)
         }.asPutDataRequest().setUrgent()
 
         try {
@@ -88,6 +101,7 @@ class WearScheduleBridge @Inject constructor(
         const val KEY_ACCENT = "accentHex"
         const val KEY_SYNCED_AT = "syncedAtMs"
         const val KEY_LOGGED_IN = "loggedIn"
+        const val KEY_LANGUAGE = "languageTag"
         private const val TAG = "WearBridge"
     }
 }
