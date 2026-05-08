@@ -86,7 +86,7 @@ fun WearApp() {
                     else EmptyStateMessage(stringResource(R.string.watch_not_found))
                 }
                 composable("settings/padding") {
-                    PaddingSettingsScreen()
+                    PaddingSettingsScreen(onBack = { navController.popBackStack() })
                 }
             }
         }
