@@ -8,7 +8,13 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "org.ntust.app.tigerduck"  // must match phone for pairing
+        // The wear app is shipped only alongside the play distribution of
+        // the phone. F-Droid users do not get a wear build (decision:
+        // wear depends on play-services-wearable for pairing, which is
+        // GMS and incompatible with F-Droid policy). Hence no flavors —
+        // wear is a single-variant module that pairs with the canonical
+        // play phone applicationId.
+        applicationId = "org.ntust.app.tigerduck"
         minSdk = 30
         targetSdk = 36
         versionCode = 17
