@@ -17,11 +17,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.NextClassResult
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.MainActivity
 import org.ntust.app.tigerduck.wear.data.ScheduleRepository
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
-import java.time.LocalDateTime
-import java.time.ZoneId
 
 class NextClassComplicationService : ComplicationDataSourceService() {
 
@@ -52,7 +51,7 @@ class NextClassComplicationService : ComplicationDataSourceService() {
         snapshot: WatchSnapshot,
         type: ComplicationType,
     ): ComplicationData {
-        val now = LocalDateTime.now(ZoneId.of("Asia/Taipei"))
+        val now = AppClock.localDateTime()
         val weekday = now.dayOfWeek.value
         val minuteOfDay = now.hour * 60 + now.minute
 

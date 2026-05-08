@@ -31,10 +31,9 @@ import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.NextClassResult
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
-import java.time.LocalDateTime
-import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
 @Composable
@@ -180,7 +179,7 @@ private fun currentTaipeiTick(): Pair<Int, Int> {
 }
 
 private fun taipeiNow(): Pair<Int, Int> {
-    val now = LocalDateTime.now(ZoneId.of("Asia/Taipei"))
+    val now = AppClock.localDateTime()
     val weekday = now.dayOfWeek.value
     val minuteOfDay = now.hour * 60 + now.minute
     return weekday to minuteOfDay

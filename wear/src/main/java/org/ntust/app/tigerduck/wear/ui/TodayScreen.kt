@@ -31,10 +31,9 @@ import org.ntust.app.tigerduck.shared.TodayClassEntry
 import org.ntust.app.tigerduck.shared.TodayClassStatus
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
-import java.time.LocalDateTime
-import java.time.ZoneId
 
 @Composable
 fun TodayScreen(
@@ -42,7 +41,7 @@ fun TodayScreen(
     onRowClick: (String) -> Unit,
 ) {
     val pad = LocalScreenPadding.current
-    val now = LocalDateTime.now(ZoneId.of("Asia/Taipei"))
+    val now = AppClock.localDateTime()
     val weekday = now.dayOfWeek.value
     val minuteOfDay = now.hour * 60 + now.minute
     val entries = NextClassResolver.todaysClasses(snapshot.courses, weekday, minuteOfDay)
