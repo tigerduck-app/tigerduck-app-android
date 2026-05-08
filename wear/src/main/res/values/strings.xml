@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TigerDuck</string>
+    <string name="open_phone_to_sync">Open TigerDuck on your phone to sync.</string>
+    <string name="no_courses_synced">No courses synced.</string>
+    <string name="no_upcoming_classes">No upcoming classes.</string>
+    <string name="last_synced_relative">Last synced %1$s</string>
+    <string name="ends_at">Ends %1$s</string>
+    <string name="next_label">Next: %1$s · %2$s</string>
+    <string name="starts_in_minutes">Starts in %1$d min</string>
+    <string name="starts_at">Starts %1$s</string>
+    <string name="tomorrow_at">Tomorrow · %1$s</string>
+    <string name="weekday_at">%1$s · %2$s</string>
+</resources>
