@@ -702,6 +702,8 @@ mono_crash.*
 # swallow Android's per-build-type source set directories. Un-ignore them.
 !app/src/debug/
 !app/src/release/
+!app/src/play/java/org/ntust/app/tigerduck/debug/
+!app/src/fdroid/java/org/ntust/app/tigerduck/debug/
 x64/
 x86/
 [Ww][Ii][Nn]32/
