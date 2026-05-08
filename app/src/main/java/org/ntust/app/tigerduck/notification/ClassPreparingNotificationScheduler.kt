@@ -74,6 +74,10 @@ class ClassPreparingNotificationScheduler @Inject constructor(
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_START_MS, slot.startMs)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_END_MS, slot.endMs)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_NOTIFICATION_ID, requestCode)
+                putExtra(
+                    ClassPreparingNotificationReceiver.EXTRA_LEAD_TIME_MS,
+                    leadTimeSec * 1000L,
+                )
             }
 
             val pendingIntent = PendingIntent.getBroadcast(

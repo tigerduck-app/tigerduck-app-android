@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Generated from localization/source/*.json. Do not edit directly. -->
+    <string name="account_id_use_standard_keyboard">Standartinė klaviatūra</string>
     <string name="action_add">Pridėti</string>
     <string name="action_allow">Leisti</string>
     <string name="action_back">Atgal</string>

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Generated from localization/source/*.json. Do not edit directly. -->
+    <string name="account_id_use_standard_keyboard">표준 키보드</string>
     <string name="action_add">추가</string>
     <string name="action_allow">허용</string>
     <string name="action_back">뒤로</string>

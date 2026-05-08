@@ -36,9 +36,15 @@ interface WidgetThemeEntryPoint {
 
 abstract class BaseClassTableWidget(
     private val layout: WidgetLayout,
+    sizeMode: SizeMode = SizeMode.Exact,
 ) : GlanceAppWidget() {
 
-    override val sizeMode: SizeMode = SizeMode.Exact
+    // SizeMode.Exact lets layouts read LocalSize.current (used by Week and
+    // NextClass for responsive variants). Today doesn't read LocalSize and
+    // switches to SizeMode.Single so RemoteViews fill match_parent — works
+    // around launchers (e.g. Motorola g34 stock) that report a smaller
+    // OPTION_APPWIDGET_MIN_HEIGHT than the actual host cell allocation.
+    override val sizeMode: SizeMode = sizeMode
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val prefs = prefs(context)

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Generated from localization/source/*.json. Do not edit directly. -->
+    <string name="account_id_use_standard_keyboard">Standardní klávesnice</string>
     <string name="action_add">Přidat</string>
     <string name="action_allow">Povolit</string>
     <string name="action_back">Zpět</string>

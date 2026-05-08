@@ -8,9 +8,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -25,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -579,49 +583,72 @@ private fun CustomMinutesDialog(
     val parsed = text.toIntOrNull()?.takeIf { it in minMinutes..maxMinutes }
     val valid = parsed != null
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(description, style = MaterialTheme.typography.bodyMedium)
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { new ->
-                        text = new.filter { it.isDigit() }.take(5)
-                    },
-                    label = { Text(unitHint) },
-                    singleLine = true,
-                    isError = text.isNotEmpty() && !valid,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number,
-                        imeAction = ImeAction.Done,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = { parsed?.let(onConfirm) }
-                    ),
-                )
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            shape = AlertDialogDefaults.shape,
+            color = AlertDialogDefaults.containerColor,
+            tonalElevation = AlertDialogDefaults.TonalElevation,
+            modifier = Modifier
+                .widthIn(min = 280.dp, max = 560.dp)
+                .padding(horizontal = 24.dp),
+        ) {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .imePadding()
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
                 Text(
-                    stringResource(
-                        R.string.live_activity_settings_range_minutes,
-                        minMinutes,
-                        maxMinutes
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(description, style = MaterialTheme.typography.bodyMedium)
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { new ->
+                            text = new.filter { it.isDigit() }.take(5)
+                        },
+                        label = { Text(unitHint) },
+                        singleLine = true,
+                        isError = text.isNotEmpty() && !valid,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done,
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { parsed?.let(onConfirm) }
+                        ),
+                    )
+                    Text(
+                        stringResource(
+                            R.string.live_activity_settings_range_minutes,
+                            minMinutes,
+                            maxMinutes
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+                    Spacer(Modifier.width(8.dp))
+                    TextButton(
+                        onClick = { parsed?.let(onConfirm) },
+                        enabled = valid,
+                    ) { Text(stringResource(R.string.action_confirm)) }
+                }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { parsed?.let(onConfirm) },
-                enabled = valid,
-            ) { Text(stringResource(R.string.action_confirm)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
-        },
-    )
+        }
+    }
 }
 
 @Composable
@@ -657,65 +684,88 @@ private fun CustomHoursMinutesDialog(
         )
     }
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(description, style = MaterialTheme.typography.bodyMedium)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    OutlinedTextField(
-                        value = hoursText,
-                        onValueChange = { new ->
-                            hoursText = new.filter { it.isDigit() }.take(4)
-                        },
-                        label = { Text(stringResource(R.string.live_activity_settings_hours_unit)) },
-                        singleLine = true,
-                        isError = !valid && hoursText.isNotEmpty(),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Next,
-                        ),
-                        modifier = Modifier.weight(1f),
-                    )
-                    OutlinedTextField(
-                        value = minutesText,
-                        onValueChange = { new ->
-                            minutesText = new.filter { it.isDigit() }.take(2)
-                        },
-                        label = { Text(stringResource(R.string.live_activity_settings_minutes_unit)) },
-                        singleLine = true,
-                        isError = !valid && minutesText.isNotEmpty(),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Done,
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = { if (valid) onConfirm(total) }
-                        ),
-                        modifier = Modifier.weight(1f),
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            shape = AlertDialogDefaults.shape,
+            color = AlertDialogDefaults.containerColor,
+            tonalElevation = AlertDialogDefaults.TonalElevation,
+            modifier = Modifier
+                .widthIn(min = 280.dp, max = 560.dp)
+                .padding(horizontal = 24.dp),
+        ) {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .imePadding()
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(description, style = MaterialTheme.typography.bodyMedium)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedTextField(
+                            value = hoursText,
+                            onValueChange = { new ->
+                                hoursText = new.filter { it.isDigit() }.take(4)
+                            },
+                            label = { Text(stringResource(R.string.live_activity_settings_hours_unit)) },
+                            singleLine = true,
+                            isError = !valid && hoursText.isNotEmpty(),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Next,
+                            ),
+                            modifier = Modifier.weight(1f),
+                        )
+                        OutlinedTextField(
+                            value = minutesText,
+                            onValueChange = { new ->
+                                minutesText = new.filter { it.isDigit() }.take(2)
+                            },
+                            label = { Text(stringResource(R.string.live_activity_settings_minutes_unit)) },
+                            singleLine = true,
+                            isError = !valid && minutesText.isNotEmpty(),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done,
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = { if (valid) onConfirm(total) }
+                            ),
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    Text(
+                        rangeHint,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     )
                 }
-                Text(
-                    rangeHint,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+                    Spacer(Modifier.width(8.dp))
+                    TextButton(
+                        onClick = { if (valid) onConfirm(total) },
+                        enabled = valid,
+                    ) { Text(stringResource(R.string.action_confirm)) }
+                }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { if (valid) onConfirm(total) },
-                enabled = valid,
-            ) { Text(stringResource(R.string.action_confirm)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
-        },
-    )
+        }
+    }
 }
 
 @Composable

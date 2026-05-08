@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Generated from localization/source/*.json. Do not edit directly. -->
+    <string name="account_id_use_standard_keyboard">标准键盘</string>
     <string name="action_add">添加</string>
     <string name="action_allow">允许</string>
     <string name="action_back">返回</string>
@@ -449,7 +450,7 @@
     <string name="settings_acknowledged">知道了</string>
     <string name="settings_assignment_due_reminder">作业到期提醒</string>
     <string name="settings_browser_in_app">App 内浏览器</string>
-    <string name="settings_browser_system_default">系统缺省浏览器</string>
+    <string name="settings_browser_system_default">系统默认浏览器</string>
     <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
     <string name="settings_classroom_mandarin_display_original">Display original</string>
     <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
