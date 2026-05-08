@@ -36,11 +36,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import org.ntust.app.tigerduck.R
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -59,7 +57,7 @@ fun DebugScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.developer_title)) },
+                title = { Text("Developer") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
@@ -75,12 +73,12 @@ fun DebugScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                stringResource(R.string.developer_time_override_section),
+                "Time override",
                 style = MaterialTheme.typography.titleMedium,
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.developer_use_fake_time), modifier = Modifier.weight(1f))
+                Text("Use fake time", modifier = Modifier.weight(1f))
                 Switch(
                     checked = state.overrideEnabled,
                     onCheckedChange = viewModel::setOverrideEnabled,
@@ -88,7 +86,7 @@ fun DebugScreen(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.developer_date_label), modifier = Modifier.weight(1f))
+                Text("Date", modifier = Modifier.weight(1f))
                 TextButton(
                     enabled = state.overrideEnabled,
                     onClick = { showDatePicker = true },
@@ -101,7 +99,7 @@ fun DebugScreen(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.developer_time_label), modifier = Modifier.weight(1f))
+                Text("Time", modifier = Modifier.weight(1f))
                 TextButton(
                     enabled = state.overrideEnabled,
                     onClick = { showTimePicker = true },
@@ -111,7 +109,7 @@ fun DebugScreen(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.developer_mode_label), modifier = Modifier.weight(1f))
+                Text("Mode", modifier = Modifier.weight(1f))
                 SingleChoiceSegmentedButtonRow {
                     SegmentedButton(
                         selected = state.draftFrozen,
@@ -119,7 +117,7 @@ fun DebugScreen(
                         shape = SegmentedButtonDefaults.itemShape(0, 2),
                         enabled = state.overrideEnabled,
                     ) {
-                        Text(stringResource(R.string.developer_mode_frozen))
+                        Text("Frozen")
                     }
                     SegmentedButton(
                         selected = !state.draftFrozen,
@@ -127,7 +125,7 @@ fun DebugScreen(
                         shape = SegmentedButtonDefaults.itemShape(1, 2),
                         enabled = state.overrideEnabled,
                     ) {
-                        Text(stringResource(R.string.developer_mode_ticking))
+                        Text("Ticking")
                     }
                 }
             }
@@ -136,7 +134,7 @@ fun DebugScreen(
 
             Text(
                 "%s: %s".format(
-                    stringResource(R.string.developer_effective_now),
+                    "Effective now",
                     state.effectiveNow.format(
                         DateTimeFormatter.ofPattern("yyyy-MM-dd E HH:mm:ss", Locale.getDefault()),
                     ),
@@ -150,13 +148,13 @@ fun DebugScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 OutlinedButton(onClick = viewModel::reset) {
-                    Text(stringResource(R.string.action_reset))
+                    Text("Reset")
                 }
                 Button(
                     onClick = viewModel::apply,
                     enabled = state.overrideEnabled,
                 ) {
-                    Text(stringResource(R.string.action_apply))
+                    Text("Apply")
                 }
             }
         }
@@ -182,11 +180,11 @@ fun DebugScreen(
                         viewModel.setDate(ld.year, ld.monthValue, ld.dayOfMonth)
                     }
                     showDatePicker = false
-                }) { Text(stringResource(R.string.action_done)) }
+                }) { Text("Done") }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text(stringResource(R.string.action_cancel))
+                    Text("Cancel")
                 }
             },
         ) {
@@ -208,12 +206,12 @@ fun DebugScreen(
                     horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(onClick = { showTimePicker = false }) {
-                        Text(stringResource(R.string.action_cancel))
+                        Text("Cancel")
                     }
                     TextButton(onClick = {
                         viewModel.setTime(tpState.hour, tpState.minute)
                         showTimePicker = false
-                    }) { Text(stringResource(R.string.action_done)) }
+                    }) { Text("Done") }
                 }
             }
         }

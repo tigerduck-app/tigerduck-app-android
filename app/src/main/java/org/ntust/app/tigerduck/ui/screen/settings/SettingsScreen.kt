@@ -357,10 +357,10 @@ fun SettingsScreen(
 
             // MARK: Developer (debug builds only)
             if (BuildConfig.DEBUG) {
-                item { SectionHeader(stringResource(R.string.settings_developer)) }
+                item { SectionHeader("Developer") }
                 item {
                     ContentCard {
-                        SettingsLinkRow(stringResource(R.string.settings_developer)) { onNavigateToDebug() }
+                        SettingsLinkRow("Developer") { onNavigateToDebug() }
                     }
                 }
             }
