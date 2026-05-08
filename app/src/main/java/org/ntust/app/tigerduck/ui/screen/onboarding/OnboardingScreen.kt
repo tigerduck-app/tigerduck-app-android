@@ -109,6 +109,7 @@ fun OnboardingScreen(
                             capitalization = KeyboardCapitalization.Sentences,
                             imeAction = ImeAction.Next,
                             onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+                            enabled = !isLoggingIn,
                             autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
                             modifier = Modifier.fillMaxWidth(),
                         )
