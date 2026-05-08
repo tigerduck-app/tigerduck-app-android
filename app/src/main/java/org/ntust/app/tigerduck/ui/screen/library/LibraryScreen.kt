@@ -356,6 +356,7 @@ private fun LoginPromptCard(
                 capitalization = KeyboardCapitalization.Sentences,
                 imeAction = ImeAction.Next,
                 onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+                enabled = !isLoggingIn,
                 autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -376,6 +377,7 @@ private fun LoginPromptCard(
                         }
                     }
                 } else null,
+                enabled = !isLoggingIn,
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(passwordFocusRequester)
