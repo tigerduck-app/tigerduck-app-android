@@ -234,6 +234,19 @@ fun LoginSheet(
                     },
                     enabled = !isLoggingIn,
                     modifier = Modifier.fillMaxWidth(),
+                    // Match the floating chip used in onboarding / library so
+                    // the highlight reads consistently across the app:
+                    // unselected sits on `surfaceContainerHigh`, selected
+                    // fills with `primary` on `onPrimary` content. The icon
+                    // tint comes from `LocalContentColor`, which the chip
+                    // sets to label/selectedLabel — so it follows along
+                    // without an explicit `tint` argument.
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
