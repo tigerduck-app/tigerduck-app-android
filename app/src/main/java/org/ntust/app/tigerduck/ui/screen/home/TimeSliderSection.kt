@@ -56,6 +56,11 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -516,6 +521,9 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
     var widthPx by remember { mutableStateOf(0f) }
 
     val pxPerDp = with(density) { 1.dp.toPx() }
+    val a11yLabel = stringResource(R.string.home_time_slider_title)
+    val a11ySwipeHint = stringResource(R.string.a11y_time_slider_swipe_hint)
+    val selectedTimeLabel = formatTimeLabel(viewModel.selectedTime)
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -523,6 +531,11 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
             .onSizeChanged { widthPx = it.width.toFloat() }
             .clip(RoundedCornerShape(50))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+            .semantics {
+                contentDescription = "$a11yLabel. $a11ySwipeHint"
+                stateDescription = selectedTimeLabel
+                liveRegion = LiveRegionMode.Polite
+            }
             .pointerInput(invertDirection) {
                 detectHorizontalDragGestures(
                     onDragStart = {

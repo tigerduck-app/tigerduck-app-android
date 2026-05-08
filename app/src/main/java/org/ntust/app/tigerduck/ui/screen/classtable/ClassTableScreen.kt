@@ -26,6 +26,11 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -623,16 +628,23 @@ private fun SemesterPicker(
     onPick: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val currentLabel = labelFor(current)
+    val dropdownHint = stringResource(R.string.a11y_dropdown_action_hint)
     Box {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
+                .semantics(mergeDescendants = true) {
+                    role = Role.DropdownList
+                    stateDescription = currentLabel
+                    contentDescription = dropdownHint
+                }
                 .clickable { expanded = true }
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
             Text(
-                text = labelFor(current),
+                text = currentLabel,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -689,6 +701,18 @@ private fun SoloCourseCell(
     }
     val cellTextColor = if (TigerDuckTheme.isDarkMode) Color.White else Color(0xFF1C1C1E)
     var showMenu by remember { mutableStateOf(false) }
+    val assignmentLabel = stringResource(R.string.a11y_class_table_cell_assignment_indicator)
+    val cellLabel = buildString {
+        append(course.courseName)
+        if (course.classroom.isNotBlank()) {
+            append(", ")
+            append(course.classroom)
+        }
+        if (hasAssignment) {
+            append(". ")
+            append(assignmentLabel)
+        }
+    }
     Box(
         modifier = Modifier
             .width(dayColWidth)
@@ -697,6 +721,10 @@ private fun SoloCourseCell(
             .padding(1.dp)
             .clip(RoundedCornerShape(6.dp))
             .background(cellBg)
+            .semantics(mergeDescendants = true) {
+                contentDescription = cellLabel
+                role = Role.Button
+            }
             .combinedClickable(
                 onClick = onTap,
                 onLongClick = {
@@ -839,6 +867,24 @@ private fun ConflictCourseCell(
                 .coerceAtLeast(0.1f)
             val bBarFraction = (soloBelowB + 0.5f * (1f - soloAboveB - soloBelowB))
                 .coerceAtLeast(0.1f)
+            val conflictPrefix = stringResource(R.string.a11y_class_table_conflict_prefix)
+            val assignmentLabel = stringResource(R.string.a11y_class_table_cell_assignment_indicator)
+            fun cellLabel(course: Course, hasAssignment: Boolean): String = buildString {
+                append(conflictPrefix)
+                append(": ")
+                append(course.courseName)
+                if (course.classroom.isNotBlank()) {
+                    append(", ")
+                    append(course.classroom)
+                }
+                if (hasAssignment) {
+                    append(". ")
+                    append(assignmentLabel)
+                }
+            }
+            val labelA = cellLabel(role.courseA, hasAssignmentA)
+            val labelB = cellLabel(role.courseB, hasAssignmentB)
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -846,6 +892,10 @@ private fun ConflictCourseCell(
                     .absoluteOffset(x = 0.dp, y = aTop)
                     .clip(shapeA)
                     .background(bgFor(role.courseA))
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = labelA
+                        this.role = Role.Button
+                    }
                     .combinedClickable(
                         interactionSource = interactionSource,
                         indication = indication,
@@ -888,6 +938,10 @@ private fun ConflictCourseCell(
                     .absoluteOffset(x = 0.dp, y = bTop)
                     .clip(shapeB)
                     .background(bgFor(role.courseB))
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = labelB
+                        this.role = Role.Button
+                    }
                     .combinedClickable(
                         interactionSource = interactionSource,
                         indication = indication,

@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Generated from localization/source/*.json. Do not edit directly. -->
+    <string name="a11y_class_table_cell_assignment_indicator">有作业</string>
+    <string name="a11y_class_table_conflict_prefix">冲堂</string>
+    <string name="a11y_dropdown_action_hint">点击两下以选择其他选项</string>
+    <string name="a11y_time_slider_swipe_hint">左右滑动可调整时间</string>
     <string name="account_id_use_standard_keyboard">标准键盘</string>
     <string name="action_add">添加</string>
     <string name="action_allow">允许</string>

@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Generated from localization/source/*.json. Do not edit directly. -->
+    <string name="a11y_class_table_cell_assignment_indicator">Has assignment</string>
+    <string name="a11y_class_table_conflict_prefix">Class conflict</string>
+    <string name="a11y_dropdown_action_hint">Double tap to choose another option</string>
+    <string name="a11y_time_slider_swipe_hint">Swipe left or right to change the time</string>
     <string name="account_id_use_standard_keyboard">Standardtastatur</string>
     <string name="action_add">Legg til</string>
     <string name="action_allow">Tillat</string>
