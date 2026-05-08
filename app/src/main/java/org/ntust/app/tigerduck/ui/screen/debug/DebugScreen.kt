@@ -199,19 +199,25 @@ fun DebugScreen(
             is24Hour = true,
         )
         Dialog(onDismissRequest = { showTimePicker = false }) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                TimePicker(state = tpState)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TextButton(onClick = { showTimePicker = false }) {
-                        Text("Cancel")
+            androidx.compose.material3.Surface(
+                shape = androidx.compose.material3.MaterialTheme.shapes.extraLarge,
+                tonalElevation = 6.dp,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+            ) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    TimePicker(state = tpState)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(onClick = { showTimePicker = false }) {
+                            Text("Cancel")
+                        }
+                        TextButton(onClick = {
+                            viewModel.setTime(tpState.hour, tpState.minute)
+                            showTimePicker = false
+                        }) { Text("Done") }
                     }
-                    TextButton(onClick = {
-                        viewModel.setTime(tpState.hour, tpState.minute)
-                        showTimePicker = false
-                    }) { Text("Done") }
                 }
             }
         }
