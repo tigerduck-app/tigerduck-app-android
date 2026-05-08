@@ -705,6 +705,7 @@ mono_crash.*
 !app/src/main/java/org/ntust/app/tigerduck/debug/
 !app/src/play/java/org/ntust/app/tigerduck/debug/
 !app/src/fdroid/java/org/ntust/app/tigerduck/debug/
+!app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/
 x64/
 x86/
 [Ww][Ii][Nn]32/

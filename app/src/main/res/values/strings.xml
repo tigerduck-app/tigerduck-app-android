@@ -17,6 +17,8 @@
     <string name="action_next">Next</string>
     <string name="action_re_login">Sign in again</string>
     <string name="action_remove">Remove</string>
+    <string name="action_apply">Apply</string>
+    <string name="action_reset">Reset</string>
     <string name="action_retry">Retry</string>
     <string name="action_search">Search</string>
     <string name="add_course_added">Added</string>
@@ -190,6 +192,15 @@
     <string name="course_detail_no_roster">No enrollment data available for this course</string>
     <string name="course_detail_time_label">Time</string>
     <string name="course_instructor_value">Instructor: %1$s</string>
+    <string name="developer_date_label">Date</string>
+    <string name="developer_effective_now">Effective now</string>
+    <string name="developer_mode_frozen">Frozen</string>
+    <string name="developer_mode_label">Mode</string>
+    <string name="developer_mode_ticking">Ticking</string>
+    <string name="developer_time_label">Time</string>
+    <string name="developer_time_override_section">Time override</string>
+    <string name="developer_title">Developer</string>
+    <string name="developer_use_fake_time">Use fake time</string>
     <string name="error_login_failed">Login failed</string>
     <string name="error_network_unavailable">Unable to connect. Please check your network connection.</string>
     <string name="error_no_response">No response</string>
