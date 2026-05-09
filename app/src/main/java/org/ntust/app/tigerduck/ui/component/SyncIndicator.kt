@@ -48,7 +48,7 @@ fun SyncIndicator(
         modifier = modifier
             .size(20.dp)
             .then(
-                if (statusLabel.isNotEmpty()) Modifier.semantics {
+                if (statusLabel.isNotEmpty()) Modifier.semantics(mergeDescendants = true) {
                     liveRegion = LiveRegionMode.Polite
                     contentDescription = statusLabel
                 } else Modifier

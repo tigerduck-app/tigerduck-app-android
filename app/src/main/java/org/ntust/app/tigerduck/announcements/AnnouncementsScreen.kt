@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,11 +37,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.toggleableState
-import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
@@ -107,14 +104,18 @@ fun AnnouncementsScreen(
                 }
             }
             val unreadOnlyLabel = stringResource(R.string.bulletin_show_unread_only_action)
-            IconButton(
-                onClick = { viewModel.setUnreadOnly(!state.unreadOnly) },
-                modifier = Modifier.semantics {
-                    role = Role.Switch
-                    contentDescription = unreadOnlyLabel
-                    toggleableState =
-                        if (state.unreadOnly) ToggleableState.On else ToggleableState.Off
-                },
+            Box(
+                modifier = Modifier
+                    .minimumInteractiveComponentSize()
+                    .toggleable(
+                        value = state.unreadOnly,
+                        role = Role.Switch,
+                        onValueChange = { viewModel.setUnreadOnly(it) },
+                    )
+                    .semantics {
+                        contentDescription = unreadOnlyLabel
+                    },
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
