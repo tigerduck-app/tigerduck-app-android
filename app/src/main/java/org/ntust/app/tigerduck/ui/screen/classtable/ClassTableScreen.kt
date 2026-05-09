@@ -30,7 +30,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -592,7 +591,7 @@ private fun TimetableGrid(
 
                             is ClassTableViewModel.CellRole.ConflictStart -> {
                                 ConflictCourseCell(
-                                    role = role,
+                                    cellRole = role,
                                     dayColWidth = dayColWidth,
                                     cellHeight = cellHeight,
                                     x = x,
@@ -629,7 +628,6 @@ private fun SemesterPicker(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val currentLabel = labelFor(current)
-    val dropdownHint = stringResource(R.string.a11y_dropdown_action_hint)
     Box {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -637,8 +635,7 @@ private fun SemesterPicker(
                 .clip(RoundedCornerShape(8.dp))
                 .semantics(mergeDescendants = true) {
                     role = Role.DropdownList
-                    stateDescription = currentLabel
-                    contentDescription = dropdownHint
+                    contentDescription = currentLabel
                 }
                 .clickable { expanded = true }
                 .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -781,7 +778,7 @@ private fun SoloCourseCell(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ConflictCourseCell(
-    role: ClassTableViewModel.CellRole.ConflictStart,
+    cellRole: ClassTableViewModel.CellRole.ConflictStart,
     dayColWidth: androidx.compose.ui.unit.Dp,
     cellHeight: androidx.compose.ui.unit.Dp,
     x: androidx.compose.ui.unit.Dp,
@@ -803,8 +800,8 @@ private fun ConflictCourseCell(
         TigerDuckTheme.courseColorVibrant(course.courseNo).copy(alpha = 0.50f)
     }
 
-    val overlapStart = maxOf(role.offsetA, role.offsetB)
-    val overlapEnd = minOf(role.offsetA + role.spanA, role.offsetB + role.spanB)
+    val overlapStart = maxOf(cellRole.offsetA, cellRole.offsetB)
+    val overlapEnd = minOf(cellRole.offsetA + cellRole.spanA, cellRole.offsetB + cellRole.spanB)
 
     // Solo fractions are relative to each course's OWN span (= its Box height),
     // not the combined span.
@@ -814,10 +811,10 @@ private fun ConflictCourseCell(
     fun soloBelow(offset: Int, span: Int) =
         (offset + span - overlapEnd).coerceAtLeast(0).toFloat() / span
 
-    val soloAboveA = soloAbove(role.offsetA, role.spanA)
-    val soloBelowA = soloBelow(role.offsetA, role.spanA)
-    val soloAboveB = soloAbove(role.offsetB, role.spanB)
-    val soloBelowB = soloBelow(role.offsetB, role.spanB)
+    val soloAboveA = soloAbove(cellRole.offsetA, cellRole.spanA)
+    val soloBelowA = soloBelow(cellRole.offsetA, cellRole.spanA)
+    val soloAboveB = soloAbove(cellRole.offsetB, cellRole.spanB)
+    val soloBelowB = soloBelow(cellRole.offsetB, cellRole.spanB)
 
     // Pure overlap at an edge = neither course has solo at that edge. There
     // both shapes have convex corners pointing the same way, so only sharp
@@ -849,7 +846,7 @@ private fun ConflictCourseCell(
     Box(
         modifier = Modifier
             .width(dayColWidth)
-            .height(cellHeight * role.combinedSpan)
+            .height(cellHeight * cellRole.combinedSpan)
             .absoluteOffset(x = x, y = y)
             .padding(1.dp),
     ) {
@@ -858,11 +855,11 @@ private fun ConflictCourseCell(
         // exceed the padded area by 2dp; Compose's overflow handling then
         // leaves a visible seam between the two shapes.
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val rowHeight = maxHeight / role.combinedSpan
-            val aTop = rowHeight * role.offsetA
-            val aHeight = rowHeight * role.spanA
-            val bTop = rowHeight * role.offsetB
-            val bHeight = rowHeight * role.spanB
+            val rowHeight = maxHeight / cellRole.combinedSpan
+            val aTop = rowHeight * cellRole.offsetA
+            val aHeight = rowHeight * cellRole.spanA
+            val bTop = rowHeight * cellRole.offsetB
+            val bHeight = rowHeight * cellRole.spanB
             val aBarFraction = (soloAboveA + 0.5f * (1f - soloAboveA - soloBelowA))
                 .coerceAtLeast(0.1f)
             val bBarFraction = (soloBelowB + 0.5f * (1f - soloAboveB - soloBelowB))
@@ -882,8 +879,8 @@ private fun ConflictCourseCell(
                     append(assignmentLabel)
                 }
             }
-            val labelA = cellLabel(role.courseA, hasAssignmentA)
-            val labelB = cellLabel(role.courseB, hasAssignmentB)
+            val labelA = cellLabel(cellRole.courseA, hasAssignmentA)
+            val labelB = cellLabel(cellRole.courseB, hasAssignmentB)
 
             Box(
                 modifier = Modifier
@@ -891,15 +888,15 @@ private fun ConflictCourseCell(
                     .height(aHeight)
                     .absoluteOffset(x = 0.dp, y = aTop)
                     .clip(shapeA)
-                    .background(bgFor(role.courseA))
+                    .background(bgFor(cellRole.courseA))
                     .semantics(mergeDescendants = true) {
                         contentDescription = labelA
-                        this.role = Role.Button
+                        role = Role.Button
                     }
                     .combinedClickable(
                         interactionSource = interactionSource,
                         indication = indication,
-                        onClick = { onPickConflict(role.courseA, role.courseB, weekday, periodId) },
+                        onClick = { onPickConflict(cellRole.courseA, cellRole.courseB, weekday, periodId) },
                         onLongClick = { onLongPress(); showMenu = true },
                     ),
             ) {
@@ -913,7 +910,7 @@ private fun ConflictCourseCell(
                     contentAlignment = Alignment.Center,
                 ) {
                     ClassTableCourseNameText(
-                        text = role.courseA.courseName,
+                        text = cellRole.courseA.courseName,
                         color = textColor,
                         maxLines = 2,
                     )
@@ -937,15 +934,15 @@ private fun ConflictCourseCell(
                     .height(bHeight)
                     .absoluteOffset(x = 0.dp, y = bTop)
                     .clip(shapeB)
-                    .background(bgFor(role.courseB))
+                    .background(bgFor(cellRole.courseB))
                     .semantics(mergeDescendants = true) {
                         contentDescription = labelB
-                        this.role = Role.Button
+                        role = Role.Button
                     }
                     .combinedClickable(
                         interactionSource = interactionSource,
                         indication = indication,
-                        onClick = { onPickConflict(role.courseA, role.courseB, weekday, periodId) },
+                        onClick = { onPickConflict(cellRole.courseA, cellRole.courseB, weekday, periodId) },
                         onLongClick = { onLongPress(); showMenu = true },
                     ),
             ) {
@@ -959,7 +956,7 @@ private fun ConflictCourseCell(
                     contentAlignment = Alignment.Center,
                 ) {
                     ClassTableCourseNameText(
-                        text = role.courseB.courseName,
+                        text = cellRole.courseB.courseName,
                         color = textColor,
                         maxLines = 2,
                     )
@@ -982,7 +979,7 @@ private fun ConflictCourseCell(
                 onDismissRequest = { showMenu = false },
                 shape = RoundedCornerShape(12.dp),
             ) {
-                listOf(role.courseA, role.courseB).forEachIndexed { idx, course ->
+                listOf(cellRole.courseA, cellRole.courseB).forEachIndexed { idx, course ->
                     if (idx > 0) HorizontalDivider()
                     DropdownMenuItem(
                         text = {

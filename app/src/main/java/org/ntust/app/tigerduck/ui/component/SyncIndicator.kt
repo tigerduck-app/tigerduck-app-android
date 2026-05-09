@@ -47,10 +47,12 @@ fun SyncIndicator(
     Box(
         modifier = modifier
             .size(20.dp)
-            .semantics {
-                liveRegion = LiveRegionMode.Polite
-                if (statusLabel.isNotEmpty()) contentDescription = statusLabel
-            },
+            .then(
+                if (statusLabel.isNotEmpty()) Modifier.semantics {
+                    liveRegion = LiveRegionMode.Polite
+                    contentDescription = statusLabel
+                } else Modifier
+            ),
     ) {
         AnimatedContent(
             targetState = when {
