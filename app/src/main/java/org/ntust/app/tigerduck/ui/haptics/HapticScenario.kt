@@ -8,6 +8,7 @@ enum class HapticScenario(
     val defaultStrengthPct: Int,
     val defaultDurationMs: Int,
     val userTunable: Boolean,
+    val forceOneShot: Boolean = false,
     @StringRes val labelRes: Int,
 ) {
     TabSwitch(
@@ -50,6 +51,7 @@ enum class HapticScenario(
         defaultStrengthPct = 100,
         defaultDurationMs = 1000,
         userTunable = false,
+        forceOneShot = true,
         labelRes = R.string.haptic_scenario_library_warning,
     );
 

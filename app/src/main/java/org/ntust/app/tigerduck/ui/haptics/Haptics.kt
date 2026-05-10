@@ -29,20 +29,20 @@ object Haptics {
         } else {
             scenario.defaultStrengthPct to scenario.defaultDurationMs
         }
-        vibrate(context, strengthPct, durationMs)
+        vibrate(context, strengthPct, durationMs, forceOneShot = scenario.forceOneShot)
     }
 
     fun previewCustom(context: Context, strengthPct: Int, durationMs: Int) {
-        vibrate(context, strengthPct, durationMs)
+        vibrate(context, strengthPct, durationMs, forceOneShot = false)
     }
 
-    private fun vibrate(context: Context, strengthPct: Int, durationMs: Int) {
+    private fun vibrate(context: Context, strengthPct: Int, durationMs: Int, forceOneShot: Boolean) {
         if (strengthPct <= 0) return
         if (!systemHapticsEnabled(context)) return
 
         try {
             val vibrator = resolveVibrator(context) ?: return
-            val effect = buildEffect(vibrator, strengthPct, durationMs)
+            val effect = buildEffect(vibrator, strengthPct, durationMs, forceOneShot)
             vibrator.vibrate(effect)
         } catch (_: Exception) {
             // Vibrator not available or denied; silently no-op (matches prior behavior).
@@ -72,11 +72,12 @@ object Haptics {
         vibrator: Vibrator,
         strengthPct: Int,
         durationMs: Int,
+        forceOneShot: Boolean,
     ): VibrationEffect {
         val scale = (strengthPct.coerceIn(1, 100)) / 100f
         val safeDuration = durationMs.coerceAtLeast(1).toLong()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        if (!forceOneShot && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val primitive = if (durationMs <= TICK_THRESHOLD_MS) {
                 VibrationEffect.Composition.PRIMITIVE_TICK
             } else {

@@ -29,4 +29,19 @@ class HapticsTest {
         // Documents the cutoff used to choose PRIMITIVE_TICK vs PRIMITIVE_CLICK.
         assertEquals(10, Haptics.TICK_THRESHOLD_MS)
     }
+
+    @Test
+    fun `LibraryWarning forces one-shot path`() {
+        // Composition primitives have fixed device-determined durations and
+        // cannot honor the 1-second alert intent. forceOneShot guarantees the
+        // createOneShot fallback path so the buzz lasts the full duration.
+        assertEquals(true, HapticScenario.LibraryWarning.forceOneShot)
+    }
+
+    @Test
+    fun `tunable scenarios do not force one-shot`() {
+        HapticScenario.tunable.forEach { scenario ->
+            assertEquals(false, scenario.forceOneShot)
+        }
+    }
 }
