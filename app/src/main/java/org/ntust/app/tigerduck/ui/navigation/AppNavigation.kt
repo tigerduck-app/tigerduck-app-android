@@ -56,6 +56,7 @@ import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SourceCodePickerScreen
+import org.ntust.app.tigerduck.ui.screen.settings.VibrationSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
 import org.ntust.app.tigerduck.widget.LibraryShortcutWidget
 sealed class Screen(val route: String) {
@@ -78,6 +79,7 @@ sealed class Screen(val route: String) {
     object NotificationSetup : Screen("notificationSetup")
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
+    object VibrationSettings : Screen("vibrationSettings")
     object Debug : Screen("debug")
 }
 
@@ -353,7 +355,11 @@ fun MainNavigation(
                     onBack = { navController.popBackStack() },
                     onNavigateToNotificationSetup = { navController.navigate(Screen.NotificationSetup.route) },
                     onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
+                    onNavigateToVibration = { navController.navigate(Screen.VibrationSettings.route) },
                 )
+            }
+            composable(Screen.VibrationSettings.route) {
+                VibrationSettingsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.LanguagePicker.route) {
                 LanguagePickerScreen(onBack = { navController.popBackStack() })
