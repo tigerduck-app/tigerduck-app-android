@@ -40,6 +40,8 @@ import org.ntust.app.tigerduck.announcements.SubscriptionSettingsScreen
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarScreen
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarViewModel
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableScreen
@@ -276,9 +278,9 @@ fun MainNavigation(
                             selected = selectedTabRoute == route,
                             onClick = {
                                 if (currentRoute == route) return@NavigationBarItem
-                                org.ntust.app.tigerduck.ui.haptics.Haptics.perform(
+                                Haptics.perform(
                                     context,
-                                    org.ntust.app.tigerduck.ui.haptics.HapticScenario.TabSwitch,
+                                    HapticScenario.TabSwitch,
                                 )
                                 navController.navigate(route) {
                                     popUpTo(popUpToDest) {

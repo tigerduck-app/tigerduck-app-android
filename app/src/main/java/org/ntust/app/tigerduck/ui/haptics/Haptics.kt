@@ -29,11 +29,15 @@ object Haptics {
         } else {
             scenario.defaultStrengthPct to scenario.defaultDurationMs
         }
-        vibrate(context, strengthPct, durationMs, forceOneShot = scenario.forceOneShot)
+        // Tunable scenarios go through createOneShot so the user's duration
+        // slider actually changes the vibration length — primitive TICK/CLICK
+        // ignore caller-supplied durations on API 30+.
+        val forceOneShot = scenario.forceOneShot || scenario.userTunable
+        vibrate(context, strengthPct, durationMs, forceOneShot = forceOneShot)
     }
 
     fun previewCustom(context: Context, strengthPct: Int, durationMs: Int) {
-        vibrate(context, strengthPct, durationMs, forceOneShot = false)
+        vibrate(context, strengthPct, durationMs, forceOneShot = true)
     }
 
     private fun vibrate(context: Context, strengthPct: Int, durationMs: Int, forceOneShot: Boolean) {

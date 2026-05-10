@@ -275,8 +275,8 @@ class AppState @Inject constructor(
     fun setHapticDurationMs(scenario: HapticScenario, value: Int) {
         if (!scenario.userTunable) return
         val clamped = value.coerceIn(
-            org.ntust.app.tigerduck.data.preferences.AppPreferences.MIN_HAPTIC_DURATION_MS,
-            org.ntust.app.tigerduck.data.preferences.AppPreferences.MAX_HAPTIC_DURATION_MS,
+            AppPreferences.MIN_TUNABLE_HAPTIC_DURATION_MS,
+            AppPreferences.MAX_TUNABLE_HAPTIC_DURATION_MS,
         )
         if (hapticDurationStates[scenario] == clamped) return
         hapticDurationStates[scenario] = clamped

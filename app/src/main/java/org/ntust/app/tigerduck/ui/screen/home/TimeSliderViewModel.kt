@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 import java.util.Calendar
 import java.util.Date
 import kotlin.math.abs
@@ -178,9 +180,9 @@ class TimeSliderViewModel {
         val currentSlot = hapticSlot(selectedTime)
         if (currentSlot != lastHapticSlot) {
             context?.let {
-                org.ntust.app.tigerduck.ui.haptics.Haptics.perform(
+                Haptics.perform(
                     it,
-                    org.ntust.app.tigerduck.ui.haptics.HapticScenario.TimeSliderTick,
+                    HapticScenario.TimeSliderTick,
                 )
             }
             lastHapticSlot = currentSlot

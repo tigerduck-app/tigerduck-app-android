@@ -40,6 +40,8 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.tigerDuckSwitchColors
@@ -656,9 +658,9 @@ internal fun LibraryWarningDialog(
     val view = LocalView.current
 
     LaunchedEffect(Unit) {
-        org.ntust.app.tigerduck.ui.haptics.Haptics.perform(
+        Haptics.perform(
             view.context,
-            org.ntust.app.tigerduck.ui.haptics.HapticScenario.LibraryWarning,
+            HapticScenario.LibraryWarning,
         )
 
         for (i in 4 downTo 0) {

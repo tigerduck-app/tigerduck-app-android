@@ -49,6 +49,8 @@ import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.component.isEnglishUiLanguage
 import org.ntust.app.tigerduck.ui.component.middleEllipsize
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -581,9 +583,9 @@ private fun TimetableGrid(
                                         )
                                     },
                                     onLongPress = {
-                                        org.ntust.app.tigerduck.ui.haptics.Haptics.perform(
+                                        Haptics.perform(
                                             context,
-                                            org.ntust.app.tigerduck.ui.haptics.HapticScenario.ClassTableLongPress,
+                                            HapticScenario.ClassTableLongPress,
                                         )
                                     },
                                     onRename = onRename,
@@ -605,9 +607,9 @@ private fun TimetableGrid(
                                     hasAssignmentB = viewModel.hasAssignment(role.courseB.courseNo),
                                     onPickConflict = onPickConflict,
                                     onLongPress = {
-                                        org.ntust.app.tigerduck.ui.haptics.Haptics.perform(
+                                        Haptics.perform(
                                             context,
-                                            org.ntust.app.tigerduck.ui.haptics.HapticScenario.ClassTableLongPress,
+                                            HapticScenario.ClassTableLongPress,
                                         )
                                     },
                                     onRename = onRename,

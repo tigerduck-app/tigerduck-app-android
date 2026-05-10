@@ -26,6 +26,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 private val ThresholdDp = 140.dp
@@ -99,9 +101,9 @@ fun TigerPullToRefresh(
                     if (!latestIsRefreshing) {
                         if (!crossedThreshold && newY >= thresholdPx) {
                             crossedThreshold = true
-                            org.ntust.app.tigerduck.ui.haptics.Haptics.perform(
+                            Haptics.perform(
                                 context,
-                                org.ntust.app.tigerduck.ui.haptics.HapticScenario.PullToRefresh,
+                                HapticScenario.PullToRefresh,
                             )
                         } else if (crossedThreshold && newY < thresholdPx) {
                             crossedThreshold = false

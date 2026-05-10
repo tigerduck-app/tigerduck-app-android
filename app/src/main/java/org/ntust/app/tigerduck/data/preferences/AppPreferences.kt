@@ -263,20 +263,20 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
 
     fun hapticDurationMs(scenario: HapticScenario): Int =
         prefs.getInt("haptic_duration_${scenario.prefKey}", scenario.defaultDurationMs)
-            .coerceIn(MIN_HAPTIC_DURATION_MS, MAX_HAPTIC_DURATION_MS)
+            .coerceIn(MIN_TUNABLE_HAPTIC_DURATION_MS, MAX_TUNABLE_HAPTIC_DURATION_MS)
 
     fun setHapticDurationMs(scenario: HapticScenario, value: Int) {
         prefs.edit()
             .putInt(
                 "haptic_duration_${scenario.prefKey}",
-                value.coerceIn(MIN_HAPTIC_DURATION_MS, MAX_HAPTIC_DURATION_MS),
+                value.coerceIn(MIN_TUNABLE_HAPTIC_DURATION_MS, MAX_TUNABLE_HAPTIC_DURATION_MS),
             )
             .apply()
     }
 
     companion object {
-        const val MIN_HAPTIC_DURATION_MS = 5
-        const val MAX_HAPTIC_DURATION_MS = 60
+        const val MIN_TUNABLE_HAPTIC_DURATION_MS = 5
+        const val MAX_TUNABLE_HAPTIC_DURATION_MS = 60
 
         const val ROTATION_MODE_AUTO = "auto"
         const val ROTATION_MODE_ENABLED = "enabled"

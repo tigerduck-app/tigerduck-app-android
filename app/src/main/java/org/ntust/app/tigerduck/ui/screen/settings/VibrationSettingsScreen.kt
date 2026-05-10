@@ -147,16 +147,16 @@ private fun ScenarioCard(
             SliderSection(
                 label = stringResource(R.string.vibration_settings_section_length_ms),
                 value = liveDuration,
-                valueRange = AppPreferences.MIN_HAPTIC_DURATION_MS.toFloat()
-                        ..AppPreferences.MAX_HAPTIC_DURATION_MS.toFloat(),
-                steps = (AppPreferences.MAX_HAPTIC_DURATION_MS
-                        - AppPreferences.MIN_HAPTIC_DURATION_MS) - 1,
+                valueRange = AppPreferences.MIN_TUNABLE_HAPTIC_DURATION_MS.toFloat()
+                        ..AppPreferences.MAX_TUNABLE_HAPTIC_DURATION_MS.toFloat(),
+                steps = (AppPreferences.MAX_TUNABLE_HAPTIC_DURATION_MS
+                        - AppPreferences.MIN_TUNABLE_HAPTIC_DURATION_MS) - 1,
                 valueLabel = "$liveDuration ms",
                 presets = LENGTH_PRESETS,
                 onPresetTap = { presetValue ->
                     val clamped = presetValue.coerceIn(
-                        AppPreferences.MIN_HAPTIC_DURATION_MS,
-                        AppPreferences.MAX_HAPTIC_DURATION_MS,
+                        AppPreferences.MIN_TUNABLE_HAPTIC_DURATION_MS,
+                        AppPreferences.MAX_TUNABLE_HAPTIC_DURATION_MS,
                     )
                     liveDuration = clamped
                     onDurationChange(clamped)
