@@ -340,14 +340,18 @@ class ClassTableViewModel @Inject constructor(
 
     /**
      * Sets the user-supplied display override for [courseNo]. A blank input or
-     * one that matches the current default ([Course.courseName]) clears the
-     * override so the course re-follows the abbreviation toggle.
+     * one that matches the current default — either the abbreviation-aware
+     * [Course.courseName] or the full cached name the rename dialog prefilled
+     * — clears the override so the course re-follows the abbreviation toggle.
      */
     fun setCustomCourseName(courseNo: String, newName: String) {
         val trimmed = newName.trim()
         val updated = _courses.value.map { course ->
             if (course.courseNo != courseNo) return@map course
-            val override = trimmed.takeIf { it.isNotEmpty() && it != course.courseName }
+            val defaultName = defaultNameFor(course)
+            val override = trimmed.takeIf {
+                it.isNotEmpty() && it != course.courseName && it != defaultName
+            }
             course.copy(customCourseName = override)
         }
         _courses.value = updated
