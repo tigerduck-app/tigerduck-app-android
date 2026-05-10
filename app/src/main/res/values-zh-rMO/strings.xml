@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Generated from localization/source/*.json. Do not edit directly. -->
+    <string name="a11y_class_table_cell_assignment_indicator">有功課</string>
+    <string name="a11y_class_table_conflict_prefix">撞堂</string>
+    <string name="a11y_dropdown_action_hint">㩒兩下揀第個選項</string>
+    <string name="a11y_time_slider_swipe_hint">左右掃可以調整時間</string>
     <string name="account_id_use_standard_keyboard">標準鍵盤</string>
     <string name="action_add">新增</string>
     <string name="action_allow">允許</string>
