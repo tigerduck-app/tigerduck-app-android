@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Háskólaassistentinn þinn hjá NTUST</string>
     <string name="onboarding_welcome_title">Velkomin í TigerDuck</string>
     <string name="onboarding_welcome_website_label">Opinber vefsíða TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">Í rafhlöðu-/bakgrunnsstillingum kerfisins skaltu stilla TigerDuck á ótakmarkað (eða ekki takmarka bakgrunnsstarfsemi) til að draga úr seinkun á áminningum.</string>
     <string name="permission_battery_optimization_name">Takmörkun bakgrunnsstarfsemi</string>
     <string name="permission_exact_alarm_description">Leyfðu forritinu að senda verkefna- og tímaáminningar á nákvæmum tíma. Ef slökkt er á þessu gætu áminningar seinkað um nokkrar mínútur.</string>

@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">आपका NTUST कैंपस सहायक</string>
     <string name="onboarding_welcome_title">TigerDuck में आपका स्वागत है</string>
     <string name="onboarding_welcome_website_label">TigerDuck आधिकारिक वेबसाइट</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">सिस्टम बैटरी/बैकग्राउंड सेटिंग में TigerDuck को अप्रतिबंधित (या बैकग्राउंड गतिविधि को प्रतिबंधित न करें) पर सेट करें ताकि अनुस्मारक में देरी कम हो।</string>
     <string name="permission_battery_optimization_name">बैकग्राउंड गतिविधि प्रतिबंध</string>
     <string name="permission_exact_alarm_description">ऐप को सटीक समय पर असाइनमेंट और कक्षा अनुस्मारक भेजने की अनुमति दें। अक्षम करने पर अनुस्मारक कई मिनट देरी से आ सकते हैं।</string>

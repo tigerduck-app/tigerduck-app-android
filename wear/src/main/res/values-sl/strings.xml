@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Vaš pomočnik na kampusu NTUST</string>
     <string name="onboarding_welcome_title">Dobrodošli v TigerDuck</string>
     <string name="onboarding_welcome_website_label">Uradno spletno mesto TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">V sistemskih nastavitvah baterije/ozadja nastavite TigerDuck na neomejeno (ali ne omejujte dejavnosti v ozadju), da zmanjšate zamude pri opomnikih.</string>
     <string name="permission_battery_optimization_name">Omejitev dejavnosti v ozadju</string>
     <string name="permission_exact_alarm_description">Dovolite aplikaciji pošiljanje opomnikov za naloge in ure ob natančnem času. Če je onemogočeno, so opomniki lahko zamaknjeni za nekaj minut.</string>

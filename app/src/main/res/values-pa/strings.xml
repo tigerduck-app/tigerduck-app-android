@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">ਤੁਹਾਡਾ NTUST ਕੈਂਪਸ ਸਹਾਇਕ</string>
     <string name="onboarding_welcome_title">TigerDuck ਵਿੱਚ ਸੁਆਗਤ ਹੈ</string>
     <string name="onboarding_welcome_website_label">TigerDuck ਅਧਿਕਾਰਤ ਵੈੱਬਸਾਈਟ</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">ਸਿਸਟਮ ਬੈਟਰੀ/ਬੈਕਗ੍ਰਾਊਂਡ ਸੈਟਿੰਗਾਂ ਵਿੱਚ TigerDuck ਨੂੰ ਅਣਸੀਮਿਤ ਕਰੋ (ਜਾਂ ਬੈਕਗ੍ਰਾਊਂਡ ਗਤੀਵਿਧੀ ਨਾ ਰੋਕੋ) ਤਾਂ ਜੋ ਰੀਮਾਈਂਡਰ ਵਿੱਚ ਦੇਰੀ ਘੱਟ ਹੋਵੇ।</string>
     <string name="permission_battery_optimization_name">ਬੈਕਗ੍ਰਾਊਂਡ ਗਤੀਵਿਧੀ ਪਾਬੰਦੀ</string>
     <string name="permission_exact_alarm_description">ਐਪ ਨੂੰ ਸਹੀ ਸਮੇਂ \'ਤੇ ਅਸਾਈਨਮੈਂਟ ਅਤੇ ਕਲਾਸ ਰੀਮਾਈਂਡਰ ਭੇਜਣ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ। ਅਯੋਗ ਹੋਣ \'ਤੇ ਰੀਮਾਈਂਡਰ ਕੁਝ ਮਿੰਟ ਦੇਰ ਨਾਲ ਆ ਸਕਦੇ ਹਨ।</string>

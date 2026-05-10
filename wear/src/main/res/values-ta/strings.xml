@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">உங்கள் NTUST வளாக உதவியாளர்</string>
     <string name="onboarding_welcome_title">TigerDuck-க்கு வரவேற்கிறோம்</string>
     <string name="onboarding_welcome_website_label">TigerDuck அதிகாரப்பூர்வ வலைத்தளம்</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">நினைவூட்டல் தாமதங்களை குறைக்க, கணினி பேட்டரி/பின்னணி அமைப்புகளில் TigerDuck-ஐ கட்டுப்பாடற்றதாக (அல்லது பின்னணி செயல்பாட்டை கட்டுப்படுத்தாதே) அமைக்கவும்.</string>
     <string name="permission_battery_optimization_name">பின்னணி செயல்பாடு கட்டுப்பாடு</string>
     <string name="permission_exact_alarm_description">ஒப்படைப்பு மற்றும் வகுப்பு நினைவூட்டல்களை சரியான நேரத்தில் அனுப்ப App-ஐ அனுமதிக்கவும். முடக்கப்பட்டால், நினைவூட்டல்கள் சில நிமிடங்கள் தாமதமாகலாம்.</string>

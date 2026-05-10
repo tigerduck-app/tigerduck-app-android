@@ -15,7 +15,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Keyboard
@@ -24,7 +23,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -54,11 +52,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
+import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
 
 /**
  * Login prompt rendered as a custom Dialog wrapping a Material 3 Surface so the
@@ -82,6 +82,10 @@ fun LoginSheet(
 ) {
     var username by rememberSaveable(initialUsername) { mutableStateOf(initialUsername) }
     var password by rememberSaveable { mutableStateOf("") }
+    // Visibility toggle is intentionally NOT persisted across config changes —
+    // a rotation should snap the password back to hidden so a shoulder-surf
+    // window doesn't survive a screen flip.
+    var passwordVisible by remember { mutableStateOf(false) }
     // Hoisted out of `OutlinedAccountIdField` so the toggle UI can sit
     // inline in the action row instead of as a floating popup chip — the
     // popup approach got fiddly inside Compose `Dialog` (IME insets,
@@ -153,16 +157,16 @@ fun LoginSheet(
                         onValueChange = { password = it },
                         label = { Text(passwordPlaceholder) },
                         singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        trailingIcon = if (!isLoggingIn && password.isNotEmpty()) {
+                        visualTransformation = if (passwordVisible) VisualTransformation.None
+                        else PasswordVisualTransformation(),
+                        trailingIcon = if (!isLoggingIn) {
                             {
-                                IconButton(onClick = { password = "" }) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Cancel,
-                                        contentDescription = stringResource(R.string.action_clear_text),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
+                                PasswordTrailingIcons(
+                                    password = password,
+                                    passwordVisible = passwordVisible,
+                                    onClear = { password = ""; passwordVisible = false },
+                                    onToggleVisibility = { passwordVisible = !passwordVisible },
+                                )
                             }
                         } else null,
                         modifier = Modifier

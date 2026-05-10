@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Your NTUST campus assistant</string>
     <string name="onboarding_welcome_title">Welcome to TigerDuck</string>
     <string name="onboarding_welcome_website_label">TigerDuck official website</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">In system battery/background settings, set TigerDuck to unrestricted (or don\'t restrict background activity) to reduce reminder delays.</string>
     <string name="permission_battery_optimization_name">Background activity restriction</string>
     <string name="permission_exact_alarm_description">Allow the app to send assignment and class reminders at exact times. If disabled, reminders may be delayed by several minutes.</string>

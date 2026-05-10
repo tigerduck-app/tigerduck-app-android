@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Сіздің NTUST кампус көмекшіңіз</string>
     <string name="onboarding_welcome_title">TigerDuck-қа қош келдіңіз</string>
     <string name="onboarding_welcome_website_label">TigerDuck-тің ресми сайты</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">Жүйенің батарея/фон параметрлерінде TigerDuck-ты шектеусіз етіп орнатыңыз (немесе фондық белсенділікті шектемеңіз), осылай еске салулар кешікпейді.</string>
     <string name="permission_battery_optimization_name">Фондық белсенділікті шектеу</string>
     <string name="permission_exact_alarm_description">Қолданбаға тапсырма мен сабақ еске салуларын дәл уақытында жіберуге рұқсат беріңіз. Өшірілген жағдайда еске салулар бірнеше минутқа кешігуі мүмкін.</string>

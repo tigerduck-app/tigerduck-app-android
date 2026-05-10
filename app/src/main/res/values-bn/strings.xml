@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">আপনার NTUST ক্যাম্পাস সহকারী</string>
     <string name="onboarding_welcome_title">TigerDuck-এ স্বাগতম</string>
     <string name="onboarding_welcome_website_label">TigerDuck অফিসিয়াল ওয়েবসাইট</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">সিস্টেমের ব্যাটারি/ব্যাকগ্রাউন্ড সেটিংসে TigerDuck-কে অসীমাবদ্ধ রাখুন (বা ব্যাকগ্রাউন্ড কার্যকলাপ সীমাবদ্ধ করবেন না) যাতে স্মরণিকার বিলম্ব কমে।</string>
     <string name="permission_battery_optimization_name">ব্যাকগ্রাউন্ড কার্যকলাপ সীমাবদ্ধতা</string>
     <string name="permission_exact_alarm_description">অ্যাপকে নির্দিষ্ট সময়ে অ্যাসাইনমেন্ট ও ক্লাসের স্মরণিকা পাঠানোর অনুমতি দিন। বন্ধ করলে স্মরণিকা কয়েক মিনিট বিলম্বিত হতে পারে।</string>

@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">તમારો NTUST કૅમ્પસ સહાયક</string>
     <string name="onboarding_welcome_title">TigerDuck માં સ્વાગત છે</string>
     <string name="onboarding_welcome_website_label">TigerDuck ઓફિશિયલ વેબસાઇટ</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">સિસ્ટમ બૅટરી/બૅકગ્રાઉન્ડ સેટિંગ્સમાં TigerDuck ને અપ્રતિબંધિત (અથવા બૅકગ્રાઉન્ડ પ્રવૃત્તિ ન રોકો) પર સેટ કરો, જેથી રિમાઇન્ડર વિલંબ ઘટે.</string>
     <string name="permission_battery_optimization_name">બૅકગ્રાઉન્ડ એક્ટિવિટી પ્રતિબંધ</string>
     <string name="permission_exact_alarm_description">App ને ચોક્કસ સમયે અસાઇનમેન્ટ અને ક્લાસ રિમાઇન્ડર મોકલવાની મંજૂરી આપો. બંધ કરવામાં આવે, તો રિમાઇન્ડર કેટલીક મિનિટ મોડા આવી શકે.</string>

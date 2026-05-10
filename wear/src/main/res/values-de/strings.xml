@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Ihr Campus-Assistent für die NTUST</string>
     <string name="onboarding_welcome_title">Willkommen bei TigerDuck</string>
     <string name="onboarding_welcome_website_label">Offizielle Website von TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">Setzen Sie TigerDuck in den Akku-/Hintergrundeinstellungen des Systems auf uneingeschränkt (oder beschränken Sie die Hintergrundaktivität nicht), um Verzögerungen bei Erinnerungen zu reduzieren.</string>
     <string name="permission_battery_optimization_name">Einschränkung der Hintergrundaktivität</string>
     <string name="permission_exact_alarm_description">Erlauben Sie der App, Aufgaben- und Unterrichtserinnerungen zur exakten Zeit zu senden. Wenn deaktiviert, können sich Erinnerungen um mehrere Minuten verzögern.</string>

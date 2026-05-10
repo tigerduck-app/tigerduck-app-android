@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Trợ lý sinh viên NTUST của bạn</string>
     <string name="onboarding_welcome_title">Chào mừng đến với TigerDuck</string>
     <string name="onboarding_welcome_website_label">Trang web chính thức của TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">Trong cài đặt pin/hoạt động nền của hệ thống, hãy đặt TigerDuck ở chế độ không bị giới hạn (hoặc không hạn chế hoạt động nền) để giảm độ trễ thông báo.</string>
     <string name="permission_battery_optimization_name">Hạn chế hoạt động nền</string>
     <string name="permission_exact_alarm_description">Cho phép ứng dụng gửi nhắc bài tập và lớp học vào đúng thời điểm. Nếu tắt, nhắc nhở có thể bị trễ vài phút.</string>

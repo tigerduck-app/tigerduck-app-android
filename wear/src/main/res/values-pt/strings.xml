@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">O teu assistente de campus da NTUST</string>
     <string name="onboarding_welcome_title">Bem-vindo ao TigerDuck</string>
     <string name="onboarding_welcome_website_label">Site oficial do TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">Nas definições do sistema de bateria/segundo plano, define o TigerDuck como sem restrições (ou não restrinjas a atividade em segundo plano) para reduzir atrasos nos lembretes.</string>
     <string name="permission_battery_optimization_name">Restrição de atividade em segundo plano</string>
     <string name="permission_exact_alarm_description">Permite que a aplicação envie lembretes de trabalhos e aulas a horas exatas. Se estiver desativado, os lembretes podem atrasar-se vários minutos.</string>

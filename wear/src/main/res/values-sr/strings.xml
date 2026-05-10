@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Ваш NTUST кампус асистент</string>
     <string name="onboarding_welcome_title">Добродошли у TigerDuck</string>
     <string name="onboarding_welcome_website_label">Званична страница TigerDuck-а</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">У системским поставкама батерије/позадинских активности поставите TigerDuck на неограничено (или не ограничавајте позадинску активност) да бисте смањили кашњење подсетника.</string>
     <string name="permission_battery_optimization_name">Ограничење позадинске активности</string>
     <string name="permission_exact_alarm_description">Дозволите апликацији да шаље подсетнике за задатке и часове у тачно одређено вријеме. Ако је онемогућено, подсетници могу каснити неколико минута.</string>

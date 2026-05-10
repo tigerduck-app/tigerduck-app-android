@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Votre assistant de campus à NTUST</string>
     <string name="onboarding_welcome_title">Bienvenue sur TigerDuck</string>
     <string name="onboarding_welcome_website_label">Site officiel de TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">Dans les paramètres de batterie/arrière-plan du système, définissez TigerDuck sur sans restriction (ou ne limitez pas l\'activité en arrière-plan) pour réduire les retards de rappel.</string>
     <string name="permission_battery_optimization_name">Restriction d\'activité en arrière-plan</string>
     <string name="permission_exact_alarm_description">Autoriser l\'application à envoyer les rappels de devoirs et de cours à l\'heure exacte. Si désactivée, les rappels peuvent être retardés de plusieurs minutes.</string>

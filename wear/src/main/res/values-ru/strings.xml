@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Ваш кампусный помощник NTUST</string>
     <string name="onboarding_welcome_title">Добро пожаловать в TigerDuck</string>
     <string name="onboarding_welcome_website_label">Официальный сайт TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">В системных настройках батареи/фоновой активности установите для TigerDuck режим без ограничений (или не ограничивайте фоновую активность), чтобы уменьшить задержки напоминаний.</string>
     <string name="permission_battery_optimization_name">Ограничение фоновой активности</string>
     <string name="permission_exact_alarm_description">Разрешите приложению отправлять напоминания о заданиях и занятиях точно в назначенное время. Если отключено, напоминания могут запаздывать на несколько минут.</string>

@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Váš pomocník pro kampus NTUST</string>
     <string name="onboarding_welcome_title">Vítejte v TigerDuck</string>
     <string name="onboarding_welcome_website_label">Oficiální web TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">V systémovém nastavení baterie / aktivity na pozadí nastavte TigerDuck na neomezený režim (nebo neomezujte aktivitu na pozadí), abyste snížili zpoždění upozornění.</string>
     <string name="permission_battery_optimization_name">Omezení aktivity na pozadí</string>
     <string name="permission_exact_alarm_description">Povolte aplikaci odesílat upozornění na úkoly a hodiny v přesný čas. Pokud je vypnuto, mohou být upozornění zpožděna o několik minut.</string>

@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Asisten kampus NTUST kamu</string>
     <string name="onboarding_welcome_title">Selamat datang di TigerDuck</string>
     <string name="onboarding_welcome_website_label">Situs resmi TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">Pada pengaturan baterai/latar belakang sistem, atur TigerDuck menjadi tidak dibatasi (atau jangan batasi aktivitas latar belakang) untuk mengurangi keterlambatan pengingat.</string>
     <string name="permission_battery_optimization_name">Pembatasan aktivitas latar belakang</string>
     <string name="permission_exact_alarm_description">Izinkan aplikasi mengirim pengingat tugas dan kelas pada waktu yang tepat. Jika dinonaktifkan, pengingat dapat tertunda beberapa menit.</string>

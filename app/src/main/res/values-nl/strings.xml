@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Jouw NTUST campusassistent</string>
     <string name="onboarding_welcome_title">Welkom bij TigerDuck</string>
     <string name="onboarding_welcome_website_label">Officiële TigerDuck-website</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">Stel TigerDuck in de batterij-/achtergrondinstellingen van het systeem in op onbeperkt (of beperk de achtergrondactiviteit niet) om vertragingen bij herinneringen te verminderen.</string>
     <string name="permission_battery_optimization_name">Beperking achtergrondactiviteit</string>
     <string name="permission_exact_alarm_description">Sta de app toe om opdracht- en lesherinneringen op exacte tijden te sturen. Als dit is uitgeschakeld, kunnen herinneringen enkele minuten vertraging hebben.</string>

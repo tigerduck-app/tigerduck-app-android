@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">तुमचा NTUST कॅम्पस सहाय्यक</string>
     <string name="onboarding_welcome_title">TigerDuck मध्ये आपले स्वागत आहे</string>
     <string name="onboarding_welcome_website_label">TigerDuck अधिकृत वेबसाइट</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">सिस्टम बॅटरी/पार्श्वभूमी सेटिंग्जमध्ये TigerDuck ला अप्रतिबंधित (किंवा पार्श्वभूमी क्रियाकलाप प्रतिबंधित नाही) असे सेट करा, जेणेकरून स्मरणपत्रे वेळेवर येतील.</string>
     <string name="permission_battery_optimization_name">पार्श्वभूमी क्रियाकलाप निर्बंध</string>
     <string name="permission_exact_alarm_description">ॲपला असाइनमेंट आणि वर्गाची स्मरणपत्रे अचूक वेळी पाठवण्याची परवानगी द्या. बंद केल्यास, स्मरणपत्रे काही मिनिटे उशिरा येऊ शकतात.</string>

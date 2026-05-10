@@ -28,7 +28,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
@@ -58,6 +57,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -66,6 +66,7 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
+import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupContent
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -91,6 +92,7 @@ fun OnboardingScreen(
 
     var studentId by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var privacyPolicyAccepted by remember { mutableStateOf(false) }
     var deleteAccountAccepted by remember { mutableStateOf(false) }
 
@@ -265,16 +267,16 @@ fun OnboardingScreen(
                             onValueChange = { password = it },
                             label = { Text(stringResource(R.string.login_password)) },
                             singleLine = true,
-                            visualTransformation = PasswordVisualTransformation(),
-                            trailingIcon = if (!isLoggingIn && password.isNotEmpty()) {
+                            visualTransformation = if (passwordVisible) VisualTransformation.None
+                            else PasswordVisualTransformation(),
+                            trailingIcon = if (!isLoggingIn) {
                                 {
-                                    IconButton(onClick = { password = "" }) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Cancel,
-                                            contentDescription = stringResource(R.string.action_clear_text),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
+                                    PasswordTrailingIcons(
+                                        password = password,
+                                        passwordVisible = passwordVisible,
+                                        onClear = { password = ""; passwordVisible = false },
+                                        onToggleVisibility = { passwordVisible = !passwordVisible },
+                                    )
                                 }
                             } else null,
                             enabled = !isLoggingIn,

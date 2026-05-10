@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Jūsu NTUST universitātes palīgs</string>
     <string name="onboarding_welcome_title">Laipni lūdzam TigerDuck</string>
     <string name="onboarding_welcome_website_label">TigerDuck oficiālā vietne</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">Sistēmas akumulatora/fona iestatījumos iestatiet TigerDuck kā neierobežotu (vai neatļaujiet fona darbības ierobežošanu), lai samazinātu atgādinājumu kavēšanos.</string>
     <string name="permission_battery_optimization_name">Fona darbības ierobežojums</string>
     <string name="permission_exact_alarm_description">Atļaujiet lietotnei sūtīt uzdevumu un nodarbību atgādinājumus precīzos laikos. Ja atspējots, atgādinājumi var aizkavēties par dažām minūtēm.</string>

@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">El vostre assistent del campus de NTUST</string>
     <string name="onboarding_welcome_title">Benvingut a TigerDuck</string>
     <string name="onboarding_welcome_website_label">Lloc web oficial de TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">A la configuració de bateria/segon pla del sistema, configureu TigerDuck com a sense restriccions (o no restringiu l\'activitat en segon pla) per reduir els retards dels recordatoris.</string>
     <string name="permission_battery_optimization_name">Restricció d\'activitat en segon pla</string>
     <string name="permission_exact_alarm_description">Permet que l\'aplicació enviï recordatoris de tasques i classes en moments exactes. Si està desactivat, els recordatoris poden arribar amb minuts de retard.</string>
