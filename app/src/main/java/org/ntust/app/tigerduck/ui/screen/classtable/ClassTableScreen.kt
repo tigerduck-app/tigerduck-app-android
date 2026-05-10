@@ -407,7 +407,7 @@ fun ClassTableScreen(
                         Spacer(Modifier.width(8.dp))
                         TextButton(
                             onClick = {
-                                viewModel.revertCourseName(course.courseNo)
+                                if (hasOverride) viewModel.revertCourseName(course.courseNo)
                                 courseToRename = null
                             },
                             enabled = canRevert,
