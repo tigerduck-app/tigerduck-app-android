@@ -281,7 +281,7 @@ fun ClassTableScreen(
                         weekdays = activeWeekdays,
                         periods = activePeriods,
                         onRename = { course ->
-                            renameText = course.displayName
+                            renameText = course.customCourseName ?: viewModel.defaultNameFor(course)
                             courseToRename = course
                         },
                         onDelete = { course ->
@@ -318,7 +318,7 @@ fun ClassTableScreen(
                     )
                     IconButton(
                         onClick = {
-                            renameText = course.displayName
+                            renameText = course.customCourseName ?: viewModel.defaultNameFor(course)
                             courseToRename = course
                             viewModel.clearSelection()
                         },

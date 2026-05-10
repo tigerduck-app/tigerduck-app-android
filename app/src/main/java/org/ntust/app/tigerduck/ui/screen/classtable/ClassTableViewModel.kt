@@ -260,23 +260,15 @@ class ClassTableViewModel @Inject constructor(
         }
 
     /**
-     * The default (non-overridden) name for the selected course — full name
-     * from cache when available, else the derived [Course.courseName]. Used by
-     * the rename dialog as the "what revert restores" preview.
+     * The default (non-overridden) name for [course] — full name from the
+     * lookup cache when available, else the derived [Course.courseName].
+     * Matches the source the popup title uses, so the rename dialog stays
+     * consistent whether opened from the popup's edit pencil or a cell
+     * long-press.
      */
-    val selectedCourseDefaultName: String?
-        get() {
-            val course = _selectedCourse.value ?: return null
-            return courseService.cachedFullCourseName(_currentSemester.value, course.courseNo)
-                ?: course.courseName
-        }
-
-    /**
-     * The default (non-overridden) name for [course] — derived [Course.courseName]
-     * (which already reflects the abbreviation toggle). Used by the rename dialog
-     * to show what "Revert to default" will restore.
-     */
-    fun defaultNameFor(course: Course): String = course.courseName
+    fun defaultNameFor(course: Course): String =
+        courseService.cachedFullCourseName(_currentSemester.value, course.courseNo)
+            ?: course.courseName
 
     val selectedCourseTimeRange: String?
         get() {
