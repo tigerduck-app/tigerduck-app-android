@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Inicia sessão para ver o teu horário</string>
     <string name="class_table_pick_color">Escolher cor</string>
     <string name="class_table_pick_color_with_course">Escolher cor — %1$s</string>
+    <string name="class_table_rename_default_label">Predefinição: %1$s</string>
+    <string name="class_table_rename_revert">Restaurar predefinição</string>
     <string name="class_table_rename_title">Mudar o nome</string>
     <string name="class_table_rename_with_course">Mudar o nome — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

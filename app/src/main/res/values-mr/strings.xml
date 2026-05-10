@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">तुमचा वर्ग तक्ता पाहण्यासाठी साइन इन करा</string>
     <string name="class_table_pick_color">रंग निवडा</string>
     <string name="class_table_pick_color_with_course">रंग निवडा — %1$s</string>
+    <string name="class_table_rename_default_label">डीफॉल्ट: %1$s</string>
+    <string name="class_table_rename_revert">डीफॉल्टवर परत जा</string>
     <string name="class_table_rename_title">नाव बदला</string>
     <string name="class_table_rename_with_course">नाव बदला — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

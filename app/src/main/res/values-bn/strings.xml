@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">আপনার ক্লাস টেবিল দেখতে সাইন ইন করুন</string>
     <string name="class_table_pick_color">রং বেছে নিন</string>
     <string name="class_table_pick_color_with_course">রং বেছে নিন — %1$s</string>
+    <string name="class_table_rename_default_label">ডিফল্ট: %1$s</string>
+    <string name="class_table_rename_revert">ডিফল্টে ফিরে যান</string>
     <string name="class_table_rename_title">নাম পরিবর্তন</string>
     <string name="class_table_rename_with_course">নাম পরিবর্তন — %1$s</string>
     <string name="class_table_semester_picker_label">সেমিস্টার</string>

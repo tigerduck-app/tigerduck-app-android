@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Log ind for at se din klassetabel</string>
     <string name="class_table_pick_color">Vælg farve</string>
     <string name="class_table_pick_color_with_course">Vælg farve — %1$s</string>
+    <string name="class_table_rename_default_label">Standard: %1$s</string>
+    <string name="class_table_rename_revert">Gendan standard</string>
     <string name="class_table_rename_title">Omdøb</string>
     <string name="class_table_rename_with_course">Omdøb — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Connectez-vous pour voir votre tableau de classe</string>
     <string name="class_table_pick_color">Choisir une couleur</string>
     <string name="class_table_pick_color_with_course">Choisir une couleur — %1$s</string>
+    <string name="class_table_rename_default_label">Par défaut : %1$s</string>
+    <string name="class_table_rename_revert">Rétablir par défaut</string>
     <string name="class_table_rename_title">Renommer</string>
     <string name="class_table_rename_with_course">Renommer — %1$s</string>
     <string name="class_table_semester_picker_label">Semestre</string>

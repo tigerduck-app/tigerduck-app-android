@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Pierakstieties, lai skatītu savu stundu sarakstu</string>
     <string name="class_table_pick_color">Izvēlēties krāsu</string>
     <string name="class_table_pick_color_with_course">Izvēlēties krāsu — %1$s</string>
+    <string name="class_table_rename_default_label">Noklusējums: %1$s</string>
+    <string name="class_table_rename_revert">Atjaunot noklusējumu</string>
     <string name="class_table_rename_title">Pārsaukt</string>
     <string name="class_table_rename_with_course">Pārsaukt — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

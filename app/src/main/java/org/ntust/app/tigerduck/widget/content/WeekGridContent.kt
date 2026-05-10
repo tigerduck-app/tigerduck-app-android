@@ -261,7 +261,7 @@ private fun SoloCell(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = course.courseName,
+                text = course.displayName,
                 style = TextStyle(
                     color = ColorProvider(textColor),
                     fontSize = 10.sp,

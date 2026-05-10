@@ -51,18 +51,18 @@ class NextClassTileService : TileService() {
             else -> when (val r = NextClassResolver.resolve(snapshot.courses, weekday, minuteOfDay)) {
                 is NextClassResult.Ongoing -> Triple(
                     "NOW · ends ${formatHm(r.endMinute)}",
-                    "${r.course.courseName}\n${r.course.classroom} · ${r.course.instructor}",
-                    r.nextToday?.let { "Next: ${it.course.courseName} · ${formatHm(it.startMinute)}" } ?: "",
+                    "${r.course.displayName}\n${r.course.classroom} · ${r.course.instructor}",
+                    r.nextToday?.let { "Next: ${it.course.displayName} · ${formatHm(it.startMinute)}" } ?: "",
                 )
                 is NextClassResult.NextToday -> Triple(
                     "NEXT · ${formatHm(r.startMinute)}",
-                    "${r.course.courseName}\n${r.course.classroom} · ${r.course.instructor}",
+                    "${r.course.displayName}\n${r.course.classroom} · ${r.course.instructor}",
                     "",
                 )
                 is NextClassResult.NextFuture -> Triple(
                     if (r.daysAhead == 1) "TOMORROW · ${formatHm(r.startMinute)}"
                     else "${formatHm(r.startMinute)} · in ${r.daysAhead} d",
-                    "${r.course.courseName}\n${r.course.classroom} · ${r.course.instructor}",
+                    "${r.course.displayName}\n${r.course.classroom} · ${r.course.instructor}",
                     "",
                 )
                 NextClassResult.Empty -> Triple("No upcoming classes", "", "")

@@ -84,7 +84,7 @@ private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int) {
             color = accent,
         )
         Text(
-            text = result.course.courseName,
+            text = result.course.displayName,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -107,7 +107,7 @@ private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int) {
     result.nextToday?.let {
         Spacer(Modifier.height(6.dp))
         Text(
-            text = stringResource(R.string.watch_next_label, it.course.courseName, formatHm(it.startMinute)),
+            text = stringResource(R.string.watch_next_label, it.course.displayName, formatHm(it.startMinute)),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -117,7 +117,7 @@ private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int) {
 @Composable
 private fun NextTodayCard(result: NextClassResult.NextToday, minuteOfDay: Int) {
     val minsUntil = result.startMinute - minuteOfDay
-    Text(text = result.course.courseName, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    Text(text = result.course.displayName, maxLines = 2, overflow = TextOverflow.Ellipsis)
     Text(text = "${result.course.classroom} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
     Text(
         text = if (minsUntil in 1..59)
@@ -130,7 +130,7 @@ private fun NextTodayCard(result: NextClassResult.NextToday, minuteOfDay: Int) {
 
 @Composable
 private fun NextFutureCard(result: NextClassResult.NextFuture, todayWeekday: Int) {
-    Text(text = result.course.courseName, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    Text(text = result.course.displayName, maxLines = 2, overflow = TextOverflow.Ellipsis)
     Text(text = "${result.course.classroom} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
     val label = if (result.daysAhead == 1) {
         stringResource(R.string.watch_tomorrow_at, formatHm(result.startMinute))

@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Сабақ кестесін қарау үшін жүйеге кіріңіз</string>
     <string name="class_table_pick_color">Түс таңдау</string>
     <string name="class_table_pick_color_with_course">Түс таңдау — %1$s</string>
+    <string name="class_table_rename_default_label">Әдепкі: %1$s</string>
+    <string name="class_table_rename_revert">Әдепкіге қайтару</string>
     <string name="class_table_rename_title">Атауын өзгерту</string>
     <string name="class_table_rename_with_course">Атауын өзгерту — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

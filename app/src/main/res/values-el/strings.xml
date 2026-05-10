@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Συνδεθείτε για να δείτε τον πίνακα της τάξης σας</string>
     <string name="class_table_pick_color">Επιλογή χρώματος</string>
     <string name="class_table_pick_color_with_course">Επιλογή χρώματος — %1$s</string>
+    <string name="class_table_rename_default_label">Προεπιλογή: %1$s</string>
+    <string name="class_table_rename_revert">Επαναφορά προεπιλογής</string>
     <string name="class_table_rename_title">Μετονομασία</string>
     <string name="class_table_rename_with_course">Μετονομασία — %1$s</string>
     <string name="class_table_semester_picker_label">Ακαδημαϊκό εξάμηνο</string>

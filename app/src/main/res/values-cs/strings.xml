@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Chcete-li zobrazit tabulku třídy, přihlaste se</string>
     <string name="class_table_pick_color">Vybrat barvu</string>
     <string name="class_table_pick_color_with_course">Vybrat barvu — %1$s</string>
+    <string name="class_table_rename_default_label">Výchozí: %1$s</string>
+    <string name="class_table_rename_revert">Obnovit výchozí</string>
     <string name="class_table_rename_title">Přejmenovat</string>
     <string name="class_table_rename_with_course">Přejmenovat — %1$s</string>
     <string name="class_table_semester_picker_label">Semestr</string>

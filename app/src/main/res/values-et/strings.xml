@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Oma klassitabeli vaatamiseks logige sisse</string>
     <string name="class_table_pick_color">Vali värv</string>
     <string name="class_table_pick_color_with_course">Vali värv — %1$s</string>
+    <string name="class_table_rename_default_label">Vaikimisi: %1$s</string>
+    <string name="class_table_rename_revert">Lähtesta vaikimisi</string>
     <string name="class_table_rename_title">Nimeta ümber</string>
     <string name="class_table_rename_with_course">Nimeta ümber — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

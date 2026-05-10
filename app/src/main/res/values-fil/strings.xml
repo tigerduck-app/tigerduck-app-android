@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Mag-sign in upang tingnan ang iyong talahanayan ng klase</string>
     <string name="class_table_pick_color">Pumili ng kulay</string>
     <string name="class_table_pick_color_with_course">Pumili ng kulay — %1$s</string>
+    <string name="class_table_rename_default_label">Default: %1$s</string>
+    <string name="class_table_rename_revert">Ibalik sa default</string>
     <string name="class_table_rename_title">Palitan ng pangalan</string>
     <string name="class_table_rename_with_course">Palitan ng pangalan — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

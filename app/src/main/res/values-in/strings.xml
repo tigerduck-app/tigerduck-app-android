@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Masuk untuk melihat jadwal kelas Anda</string>
     <string name="class_table_pick_color">Pilih warna</string>
     <string name="class_table_pick_color_with_course">Pilih warna — %1$s</string>
+    <string name="class_table_rename_default_label">Default: %1$s</string>
+    <string name="class_table_rename_revert">Kembalikan ke default</string>
     <string name="class_table_rename_title">Ganti nama</string>
     <string name="class_table_rename_with_course">Ganti nama — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

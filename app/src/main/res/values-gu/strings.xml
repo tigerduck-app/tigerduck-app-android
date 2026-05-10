@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">તમારું વર્ગ કોષ્ટક જોવા માટે સાઇન ઇન કરો</string>
     <string name="class_table_pick_color">રંગ પસંદ કરો</string>
     <string name="class_table_pick_color_with_course">રંગ પસંદ કરો — %1$s</string>
+    <string name="class_table_rename_default_label">ડિફૉલ્ટ: %1$s</string>
+    <string name="class_table_rename_revert">ડિફૉલ્ટ પર પાછા ફરો</string>
     <string name="class_table_rename_title">નામ બદલો</string>
     <string name="class_table_rename_with_course">નામ બદલો — %1$s</string>
     <string name="class_table_semester_picker_label">સેમેસ્ટર </string>

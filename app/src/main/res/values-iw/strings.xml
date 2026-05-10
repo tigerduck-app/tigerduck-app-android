@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">היכנס כדי להציג את טבלת הכיתה שלך</string>
     <string name="class_table_pick_color">בחר צבע</string>
     <string name="class_table_pick_color_with_course">בחר צבע — %1$s</string>
+    <string name="class_table_rename_default_label">ברירת מחדל: %1$s</string>
+    <string name="class_table_rename_revert">חזור לברירת המחדל</string>
     <string name="class_table_rename_title">שנה שם</string>
     <string name="class_table_rename_with_course">שנה שם — %1$s</string>
     <string name="class_table_semester_picker_label">שנת הלימודים</string>

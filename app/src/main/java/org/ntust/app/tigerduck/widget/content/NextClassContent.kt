@@ -95,7 +95,7 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                 Spacer(GlanceModifier.width(8.dp))
                 Column(modifier = GlanceModifier.defaultWeight()) {
                     Text(
-                        text = first.courseName,
+                        text = first.displayName,
                         style = TextStyle(
                             color = ColorProvider(colors.onSurface),
                             fontSize = 15.sp,
@@ -105,7 +105,7 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                     )
                     val second = ongoing.getOrNull(1)
                     Text(
-                        text = if (second != null) second.courseName else buildString {
+                        text = if (second != null) second.displayName else buildString {
                             if (endTime.isNotEmpty()) {
                                 append(context.getString(R.string.widget_until_time, endTime))
                             }
@@ -142,7 +142,7 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                 Spacer(GlanceModifier.width(8.dp))
                 Column(modifier = GlanceModifier.defaultWeight()) {
                     Text(
-                        text = course.courseName,
+                        text = course.displayName,
                         style = TextStyle(
                             color = ColorProvider(colors.onSurface),
                             fontSize = 15.sp,
@@ -298,7 +298,7 @@ private fun OngoingCard(course: Course, state: WidgetState, colors: WidgetColors
         }
         Spacer(GlanceModifier.height(6.dp))
         Text(
-            text = course.courseName,
+            text = course.displayName,
             style = TextStyle(
                 color = ColorProvider(colors.onSurface),
                 fontSize = 19.sp,
@@ -370,7 +370,7 @@ private fun OngoingMiniCard(course: Course, state: WidgetState, colors: WidgetCo
         }
         Spacer(GlanceModifier.width(5.dp))
         Text(
-            text = course.courseName,
+            text = course.displayName,
             style = TextStyle(
                 color = ColorProvider(colors.onSurface),
                 fontSize = 13.sp,
@@ -424,7 +424,7 @@ private fun NextCard(course: Course, state: WidgetState, colors: WidgetColors) {
     )
     Spacer(GlanceModifier.height(5.dp))
     Text(
-        text = course.courseName,
+        text = course.displayName,
         style = TextStyle(
             color = ColorProvider(colors.onSurface),
             fontSize = 19.sp,
