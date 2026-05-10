@@ -274,7 +274,7 @@ fun OnboardingScreen(
                                     PasswordTrailingIcons(
                                         password = password,
                                         passwordVisible = passwordVisible,
-                                        onClear = { password = "" },
+                                        onClear = { password = ""; passwordVisible = false },
                                         onToggleVisibility = { passwordVisible = !passwordVisible },
                                     )
                                 }

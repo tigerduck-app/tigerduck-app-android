@@ -373,7 +373,7 @@ private fun LoginPromptCard(
                         PasswordTrailingIcons(
                             password = password,
                             passwordVisible = passwordVisible,
-                            onClear = { onPasswordChange("") },
+                            onClear = { onPasswordChange(""); passwordVisible = false },
                             onToggleVisibility = { passwordVisible = !passwordVisible },
                         )
                     }
