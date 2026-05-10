@@ -206,6 +206,7 @@ private fun SliderSection(
                         Text(
                             stringResource(labelRes),
                             textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     },
                     shape = RoundedCornerShape(50),
