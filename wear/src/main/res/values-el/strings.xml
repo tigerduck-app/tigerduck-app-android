@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Ο βοηθός σας στην πανεπιστημιούπολη NTUST</string>
     <string name="onboarding_welcome_title">Καλώς ήρθατε στο TigerDuck</string>
     <string name="onboarding_welcome_website_label">Επίσημος ιστότοπος TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">Στις ρυθμίσεις μπαταρίας/παρασκηνίου του συστήματος, ορίστε το TigerDuck ως χωρίς περιορισμούς (ή μην περιορίζετε τη δραστηριότητα παρασκηνίου) για να μειώσετε καθυστερήσεις υπενθυμίσεων.</string>
     <string name="permission_battery_optimization_name">Περιορισμός παρασκηνιακής δραστηριότητας</string>
     <string name="permission_exact_alarm_description">Επιτρέψτε στην εφαρμογή να αποστέλλει υπενθυμίσεις εργασιών και μαθημάτων σε ακριβείς χρόνους. Εάν απενεργοποιηθεί, οι υπενθυμίσεις μπορεί να καθυστερήσουν αρκετά λεπτά.</string>

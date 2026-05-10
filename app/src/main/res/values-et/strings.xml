@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Teie NTUST-i ülikoolilinnaku assistent</string>
     <string name="onboarding_welcome_title">Tere tulemast TigerDucki</string>
     <string name="onboarding_welcome_website_label">TigerDucki ametlik veebisait</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">Seadke TigerDuck süsteemi aku/taustatöö seadetes piiramatuks (või ärge piirake taustatöid), et vähendada meeldetuletuste hilinemist.</string>
     <string name="permission_battery_optimization_name">Taustatöö piirang</string>
     <string name="permission_exact_alarm_description">Lubage rakendusel saata ülesande ja tunni meeldetuletusi täpselt õigel ajal. Kui see on keelatud, võivad meeldetuletused hilineda mõne minuti võrra.</string>

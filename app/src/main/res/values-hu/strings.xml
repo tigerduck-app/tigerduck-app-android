@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Az Ön NTUST kampusz asszisztense</string>
     <string name="onboarding_welcome_title">Üdvözöljük a TigerDuck alkalmazásban</string>
     <string name="onboarding_welcome_website_label">TigerDuck hivatalos weboldal</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">A rendszer akkumulátor/háttér beállításaiban állítsa a TigerDuck alkalmazást korlátozás nélkülire (vagy ne korlátozza a háttértevékenységet) az emlékeztetők késésének csökkentése érdekében.</string>
     <string name="permission_battery_optimization_name">Háttértevékenység korlátozása</string>
     <string name="permission_exact_alarm_description">Engedélyezze az alkalmazásnak, hogy pontosan időzített házi feladat és óra emlékeztetőket küldjön. Ha letiltja, az emlékeztetők néhány percet késhetnek.</string>

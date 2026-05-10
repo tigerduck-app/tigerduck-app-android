@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">NTUST kampüs asistanınız</string>
     <string name="onboarding_welcome_title">TigerDuck\'a hoş geldiniz</string>
     <string name="onboarding_welcome_website_label">TigerDuck resmi web sitesi</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">Sistem pil/arka plan ayarlarında, hatırlatıcı gecikmelerini azaltmak için TigerDuck\'ı kısıtlanmamış olarak ayarlayın (veya arka plan etkinliğini kısıtlamayın).</string>
     <string name="permission_battery_optimization_name">Arka plan etkinliği kısıtlaması</string>
     <string name="permission_exact_alarm_description">Uygulamanın ödev ve ders hatırlatıcılarını tam zamanında göndermesine izin verin. Devre dışı bırakılırsa hatırlatıcılar birkaç dakika gecikebilir.</string>

@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">העוזר שלך לקמפוס NTUST</string>
     <string name="onboarding_welcome_title">ברוך הבא ל-TigerDuck</string>
     <string name="onboarding_welcome_website_label">האתר הרשמי של TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">בהגדרות הסוללה/רקע של המערכת, הגדר את TigerDuck כלא מוגבל (או אל תגביל פעילות ברקע) כדי להפחית עיכובים בתזכורות.</string>
     <string name="permission_battery_optimization_name">הגבלת פעילות ברקע</string>
     <string name="permission_exact_alarm_description">אפשר לאפליקציה לשלוח תזכורות למטלות ושיעורים בזמנים מדויקים. אם מושבת, התזכורות עלולות להתעכב בכמה דקות.</string>

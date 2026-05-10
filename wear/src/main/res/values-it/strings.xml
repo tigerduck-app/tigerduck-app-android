@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Il tuo assistente per il campus NTUST</string>
     <string name="onboarding_welcome_title">Benvenuto su TigerDuck</string>
     <string name="onboarding_welcome_website_label">Sito ufficiale di TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">Nelle impostazioni di sistema della batteria/background, imposta TigerDuck come senza limitazioni (oppure non limitare l\'attività in background) per ridurre i ritardi dei promemoria.</string>
     <string name="permission_battery_optimization_name">Limitazione attività in background</string>
     <string name="permission_exact_alarm_description">Consenti all\'app di inviare promemoria di compiti e lezioni con orari precisi. Se disattivata, i promemoria potrebbero essere ritardati di alcuni minuti.</string>

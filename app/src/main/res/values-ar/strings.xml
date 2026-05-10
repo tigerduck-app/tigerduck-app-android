@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">مساعدك في حرم NTUST</string>
     <string name="onboarding_welcome_title">مرحبًا بك في TigerDuck</string>
     <string name="onboarding_welcome_website_label">الموقع الرسمي لـ TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">في إعدادات البطارية / الخلفية بالنظام، اضبط TigerDuck على غير مقيد (أو لا تقيد النشاط في الخلفية) لتقليل تأخر التذكيرات.</string>
     <string name="permission_battery_optimization_name">تقييد النشاط في الخلفية</string>
     <string name="permission_exact_alarm_description">اسمح للتطبيق بإرسال تذكيرات الواجبات والمحاضرات في أوقات دقيقة. عند تعطيله قد تتأخر التذكيرات عدة دقائق.</string>

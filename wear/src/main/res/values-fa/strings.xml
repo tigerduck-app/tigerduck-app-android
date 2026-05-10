@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">دستیار پردیس NTUST شما</string>
     <string name="onboarding_welcome_title">به TigerDuck خوش آمدید</string>
     <string name="onboarding_welcome_website_label">وب‌سایت رسمی TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">در تنظیمات باتری/پس‌زمینه سیستم، TigerDuck را روی «بدون محدودیت» قرار دهید (یا فعالیت پس‌زمینه را محدود نکنید) تا تأخیر یادآورها کمتر شود.</string>
     <string name="permission_battery_optimization_name">محدودیت فعالیت پس‌زمینه</string>
     <string name="permission_exact_alarm_description">به برنامه اجازه بدهید یادآورها را دقیقاً در زمان مقرر ارسال کند. اگر غیرفعال باشد، یادآورها ممکن است چند دقیقه دیرتر برسند.</string>

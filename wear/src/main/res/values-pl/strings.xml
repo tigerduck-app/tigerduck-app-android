@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Państwa asystent kampusu NTUST</string>
     <string name="onboarding_welcome_title">Witamy w TigerDuck</string>
     <string name="onboarding_welcome_website_label">Oficjalna strona TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">W systemowych ustawieniach baterii/aktywności w tle ustawić TigerDuck jako bez ograniczeń (lub nie ograniczać aktywności w tle), aby zmniejszyć opóźnienia przypomnień.</string>
     <string name="permission_battery_optimization_name">Ograniczenie aktywności w tle</string>
     <string name="permission_exact_alarm_description">Pozwolić aplikacji wysyłać przypomnienia o zadaniach i zajęciach o dokładnych porach. Po wyłączeniu przypomnienia mogą być opóźnione o kilka minut.</string>

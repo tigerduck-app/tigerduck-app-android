@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Ang iyong NTUST campus assistant</string>
     <string name="onboarding_welcome_title">Maligayang pagdating sa TigerDuck</string>
     <string name="onboarding_welcome_website_label">Opisyal na website ng TigerDuck</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">Sa mga setting ng baterya/background ng sistema, itakda ang TigerDuck bilang walang paghihigpit (o huwag limitahan ang background activity) para mabawasan ang pagkaantala ng mga paalala.</string>
     <string name="permission_battery_optimization_name">Paghihigpit sa background activity</string>
     <string name="permission_exact_alarm_description">Payagan ang app na magpadala ng mga paalala sa takdang-aralin at klase sa tumpak na oras. Kung hindi pinagana, maaaring maantala ng ilang minuto ang mga paalala.</string>

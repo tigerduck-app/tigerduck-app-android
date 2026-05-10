@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">你的臺科大校園助手</string>
     <string name="onboarding_welcome_title">歡迎使用 TigerDuck</string>
     <string name="onboarding_welcome_website_label">TigerDuck 應用程式官網</string>
+    <string name="password_hide">隱藏密碼</string>
+    <string name="password_show">顯示密碼</string>
     <string name="permission_battery_optimization_description">建議在系統的電池/背景活動設定中，將 TigerDuck 設為不受限制（或不要限制背景活動），以降低提醒延遲。</string>
     <string name="permission_battery_optimization_name">背景活動限制</string>
     <string name="permission_exact_alarm_description">允許 App 在精確的時間送出作業與上課提醒；關閉後提醒可能延後數分鐘至十幾分鐘。</string>

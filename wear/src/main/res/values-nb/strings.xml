@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">Din NTUST-kampusassistent</string>
     <string name="onboarding_welcome_title">Velkommen til TigerDuck</string>
     <string name="onboarding_welcome_website_label">TigerDucks offisielle nettsted</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">I systemets batteri-/bakgrunnsinnstillinger setter du TigerDuck til ubegrenset (eller ikke begrens bakgrunnsaktivitet) for å redusere forsinkelser i påminnelser.</string>
     <string name="permission_battery_optimization_name">Bakgrunnsaktivitetsbegrensning</string>
     <string name="permission_exact_alarm_description">La appen sende oppgave- og timepåminnelser til nøyaktig tid. Hvis deaktivert, kan påminnelser bli forsinket med flere minutter.</string>

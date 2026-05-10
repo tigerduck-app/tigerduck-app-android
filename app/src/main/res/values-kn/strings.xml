@@ -385,6 +385,8 @@
     <string name="onboarding_welcome_subtitle">ನಿಮ್ಮ NTUST ಕ್ಯಾಂಪಸ್ ಸಹಾಯಕ</string>
     <string name="onboarding_welcome_title">TigerDuck ಗೆ ಸ್ವಾಗತ</string>
     <string name="onboarding_welcome_website_label">TigerDuck ಅಧಿಕೃತ ವೆಬ್‌ಸೈಟ್</string>
+    <string name="password_hide">Hide password</string>
+    <string name="password_show">Show password</string>
     <string name="permission_battery_optimization_description">ಜ್ಞಾಪನೆ ವಿಳಂಬ ತಗ್ಗಿಸಲು, ಸಿಸ್ಟಂ ಬ್ಯಾಟರಿ/ಹಿನ್ನೆಲೆ ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ TigerDuck ಅನ್ನು ಅನಿರ್ಬಂಧಿತ ಎಂದು ಹೊಂದಿಸಿ (ಅಥವಾ ಹಿನ್ನೆಲೆ ಚಟುವಟಿಕೆ ನಿರ್ಬಂಧಿಸಬೇಡಿ).</string>
     <string name="permission_battery_optimization_name">ಹಿನ್ನೆಲೆ ಚಟುವಟಿಕೆ ನಿರ್ಬಂಧ</string>
     <string name="permission_exact_alarm_description">ಅಪ್ಲಿಕೇಶನ್‌ಗೆ ನಿಖರ ಸಮಯದಲ್ಲಿ ಕಾರ್ಯ ಮತ್ತು ತರಗತಿ ಜ್ಞಾಪನೆಗಳನ್ನು ಕಳುಹಿಸಲು ಅನುಮತಿ ನೀಡಿ. ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿದರೆ, ಜ್ಞಾಪನೆಗಳು ಹಲವು ನಿಮಿಷ ತಡವಾಗಬಹುದು.</string>
