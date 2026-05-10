@@ -40,10 +40,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -81,7 +79,7 @@ fun TabEditorScreen(
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
     var itemHeightPx by remember { mutableStateOf(0f) }
-    val haptic = LocalHapticFeedback.current
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -144,7 +142,10 @@ fun TabEditorScreen(
                                             onDragStarted = {
                                                 draggingIndex = index
                                                 dragOffsetY = 0f
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                org.ntust.app.tigerduck.ui.haptics.Haptics.perform(
+                                                    context,
+                                                    org.ntust.app.tigerduck.ui.haptics.HapticScenario.TabReorder,
+                                                )
                                             },
                                             onDrag = { delta ->
                                                 dragOffsetY += delta
@@ -159,8 +160,9 @@ fun TabEditorScreen(
                                                             activeTabs = list
                                                             draggingIndex = currentIdx + 1
                                                             dragOffsetY -= itemHeightPx
-                                                            haptic.performHapticFeedback(
-                                                                HapticFeedbackType.TextHandleMove
+                                                            org.ntust.app.tigerduck.ui.haptics.Haptics.perform(
+                                                                context,
+                                                                org.ntust.app.tigerduck.ui.haptics.HapticScenario.TabReorder,
                                                             )
                                                         }
 
@@ -171,8 +173,9 @@ fun TabEditorScreen(
                                                             activeTabs = list
                                                             draggingIndex = currentIdx - 1
                                                             dragOffsetY += itemHeightPx
-                                                            haptic.performHapticFeedback(
-                                                                HapticFeedbackType.TextHandleMove
+                                                            org.ntust.app.tigerduck.ui.haptics.Haptics.perform(
+                                                                context,
+                                                                org.ntust.app.tigerduck.ui.haptics.HapticScenario.TabReorder,
                                                             )
                                                         }
                                                     }

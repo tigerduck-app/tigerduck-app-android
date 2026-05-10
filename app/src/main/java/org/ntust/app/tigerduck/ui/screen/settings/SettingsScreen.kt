@@ -656,20 +656,9 @@ internal fun LibraryWarningDialog(
     val view = LocalView.current
 
     LaunchedEffect(Unit) {
-        // 1-second max vibration on dialog open
-        val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            val vm = view.context.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE)
-                    as? android.os.VibratorManager
-            vm?.defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            view.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
-        }
-        vibrator?.vibrate(
-            android.os.VibrationEffect.createOneShot(
-                1000,
-                android.os.VibrationEffect.DEFAULT_AMPLITUDE
-            )
+        org.ntust.app.tigerduck.ui.haptics.Haptics.perform(
+            view.context,
+            org.ntust.app.tigerduck.ui.haptics.HapticScenario.LibraryWarning,
         )
 
         for (i in 4 downTo 0) {

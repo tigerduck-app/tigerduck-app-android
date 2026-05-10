@@ -2,11 +2,7 @@ package org.ntust.app.tigerduck.ui.navigation
 
 import android.app.Activity
 import android.content.Context
-import android.os.Build
 import android.os.SystemClock
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.tween
@@ -278,7 +274,10 @@ fun MainNavigation(
                             selected = selectedTabRoute == route,
                             onClick = {
                                 if (currentRoute == route) return@NavigationBarItem
-                                performTabSwitchHaptic(context)
+                                org.ntust.app.tigerduck.ui.haptics.Haptics.perform(
+                                    context,
+                                    org.ntust.app.tigerduck.ui.haptics.HapticScenario.TabSwitch,
+                                )
                                 navController.navigate(route) {
                                     popUpTo(popUpToDest) {
                                         inclusive = false
@@ -382,33 +381,6 @@ fun MainNavigation(
                 PlaceholderScreen(AppFeature.fromId(featureId))
             }
         }
-    }
-}
-
-// Intentionally lighter than the old HapticFeedbackType.TextHandleMove
-// default but still a notch heavier than 時光機's PRIMITIVE_TICK @ 0.6 so the
-// tab switch remains distinct from the slider drag.
-private fun performTabSwitchHaptic(context: Context) {
-    try {
-        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-        } ?: return
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-            vibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_CLICK)
-        ) {
-            val effect = VibrationEffect.startComposition()
-                .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.75f)
-                .compose()
-            vibrator.vibrate(effect)
-        } else {
-            val amp = if (vibrator.hasAmplitudeControl()) 180 else VibrationEffect.DEFAULT_AMPLITUDE
-            vibrator.vibrate(VibrationEffect.createOneShot(14, amp))
-        }
-    } catch (_: Exception) {
     }
 }
 
