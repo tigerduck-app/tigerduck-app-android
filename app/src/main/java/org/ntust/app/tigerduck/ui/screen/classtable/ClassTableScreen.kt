@@ -23,8 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -51,6 +49,8 @@ import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.component.isEnglishUiLanguage
 import org.ntust.app.tigerduck.ui.component.middleEllipsize
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -474,7 +474,7 @@ private fun TimetableGrid(
     onPickColor: (Course) -> Unit = {},
     onPickConflict: (Course, Course, Int, String) -> Unit = { _, _, _, _ -> },
 ) {
-    val haptic = LocalHapticFeedback.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val dayLabels = listOf(
         "",
         stringResource(R.string.weekday_mon_short),
@@ -582,7 +582,12 @@ private fun TimetableGrid(
                                             period.id
                                         )
                                     },
-                                    onLongPress = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                                    onLongPress = {
+                                        Haptics.perform(
+                                            context,
+                                            HapticScenario.ClassTableLongPress,
+                                        )
+                                    },
                                     onRename = onRename,
                                     onPickColor = onPickColor,
                                     onDelete = onDelete,
@@ -601,7 +606,12 @@ private fun TimetableGrid(
                                     hasAssignmentA = viewModel.hasAssignment(role.courseA.courseNo),
                                     hasAssignmentB = viewModel.hasAssignment(role.courseB.courseNo),
                                     onPickConflict = onPickConflict,
-                                    onLongPress = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                                    onLongPress = {
+                                        Haptics.perform(
+                                            context,
+                                            HapticScenario.ClassTableLongPress,
+                                        )
+                                    },
                                     onRename = onRename,
                                     onPickColor = onPickColor,
                                     onDelete = onDelete,

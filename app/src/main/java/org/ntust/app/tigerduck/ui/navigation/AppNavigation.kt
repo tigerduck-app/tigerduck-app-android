@@ -2,11 +2,7 @@ package org.ntust.app.tigerduck.ui.navigation
 
 import android.app.Activity
 import android.content.Context
-import android.os.Build
 import android.os.SystemClock
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.tween
@@ -44,6 +40,8 @@ import org.ntust.app.tigerduck.announcements.SubscriptionSettingsScreen
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarScreen
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarViewModel
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableScreen
@@ -60,6 +58,7 @@ import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SourceCodePickerScreen
+import org.ntust.app.tigerduck.ui.screen.settings.VibrationSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
 import org.ntust.app.tigerduck.widget.LibraryShortcutWidget
 sealed class Screen(val route: String) {
@@ -82,6 +81,7 @@ sealed class Screen(val route: String) {
     object NotificationSetup : Screen("notificationSetup")
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
+    object VibrationSettings : Screen("vibrationSettings")
     object Debug : Screen("debug")
 }
 
@@ -278,7 +278,10 @@ fun MainNavigation(
                             selected = selectedTabRoute == route,
                             onClick = {
                                 if (currentRoute == route) return@NavigationBarItem
-                                performTabSwitchHaptic(context)
+                                Haptics.perform(
+                                    context,
+                                    HapticScenario.TabSwitch,
+                                )
                                 navController.navigate(route) {
                                     popUpTo(popUpToDest) {
                                         inclusive = false
@@ -354,7 +357,11 @@ fun MainNavigation(
                     onBack = { navController.popBackStack() },
                     onNavigateToNotificationSetup = { navController.navigate(Screen.NotificationSetup.route) },
                     onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
+                    onNavigateToVibration = { navController.navigate(Screen.VibrationSettings.route) },
                 )
+            }
+            composable(Screen.VibrationSettings.route) {
+                VibrationSettingsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.LanguagePicker.route) {
                 LanguagePickerScreen(onBack = { navController.popBackStack() })
@@ -382,33 +389,6 @@ fun MainNavigation(
                 PlaceholderScreen(AppFeature.fromId(featureId))
             }
         }
-    }
-}
-
-// Intentionally lighter than the old HapticFeedbackType.TextHandleMove
-// default but still a notch heavier than 時光機's PRIMITIVE_TICK @ 0.6 so the
-// tab switch remains distinct from the slider drag.
-private fun performTabSwitchHaptic(context: Context) {
-    try {
-        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-        } ?: return
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-            vibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_CLICK)
-        ) {
-            val effect = VibrationEffect.startComposition()
-                .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.75f)
-                .compose()
-            vibrator.vibrate(effect)
-        } else {
-            val amp = if (vibrator.hasAmplitudeControl()) 180 else VibrationEffect.DEFAULT_AMPLITUDE
-            vibrator.vibrate(VibrationEffect.createOneShot(14, amp))
-        }
-    } catch (_: Exception) {
     }
 }
 

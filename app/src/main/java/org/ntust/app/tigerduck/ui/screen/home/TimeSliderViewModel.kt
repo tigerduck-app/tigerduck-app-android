@@ -1,15 +1,13 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import android.content.Context
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 import java.util.Calendar
 import java.util.Date
 import kotlin.math.abs
@@ -181,7 +179,12 @@ class TimeSliderViewModel {
 
         val currentSlot = hapticSlot(selectedTime)
         if (currentSlot != lastHapticSlot) {
-            context?.let { performHaptic(it) }
+            context?.let {
+                Haptics.perform(
+                    it,
+                    HapticScenario.TimeSliderTick,
+                )
+            }
             lastHapticSlot = currentSlot
         }
 
@@ -232,31 +235,6 @@ class TimeSliderViewModel {
     fun returnToNow() {
         isUserDragging = false
         selectedTime = Date(AppClock.nowMillis())
-    }
-
-    private fun performHaptic(context: Context) {
-        try {
-            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-            } ?: return
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                vibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_TICK)
-            ) {
-                val effect = VibrationEffect.startComposition()
-                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.6f)
-                    .compose()
-                vibrator.vibrate(effect)
-            } else {
-                val amp =
-                    if (vibrator.hasAmplitudeControl()) 90 else VibrationEffect.DEFAULT_AMPLITUDE
-                vibrator.vibrate(VibrationEffect.createOneShot(6, amp))
-            }
-        } catch (_: Exception) {
-        }
     }
 
     companion object {
