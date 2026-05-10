@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Melden Sie sich an, um Ihre Klassentabelle anzuzeigen</string>
     <string name="class_table_pick_color">Velja lit</string>
     <string name="class_table_pick_color_with_course">Velja lit — %1$s</string>
+    <string name="class_table_rename_default_label">Sjálfgefið: %1$s</string>
+    <string name="class_table_rename_revert">Endurstilla á sjálfgefið</string>
     <string name="class_table_rename_title">Endurnefna</string>
     <string name="class_table_rename_with_course">Endurnefna — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">ನಿಮ್ಮ ತರಗತಿ ವೇಳಾಪಟ್ಟಿ ನೋಡಲು ಸೈನ್ ಇನ್ ಮಾಡಿ</string>
     <string name="class_table_pick_color">ಬಣ್ಣ ಆರಿಸಿ</string>
     <string name="class_table_pick_color_with_course">ಬಣ್ಣ ಆರಿಸಿ — %1$s</string>
+    <string name="class_table_rename_default_label">ಡೀಫಾಲ್ಟ್: %1$s</string>
+    <string name="class_table_rename_revert">ಡೀಫಾಲ್ಟ್‌ಗೆ ಮರಳಿಸಿ</string>
     <string name="class_table_rename_title">ಮರುಹೆಸರಿಸಿ</string>
     <string name="class_table_rename_with_course">ಮರುಹೆಸರಿಸಿ — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

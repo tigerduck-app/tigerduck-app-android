@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Melden Sie sich an, um Ihre Klassentabelle anzuzeigen</string>
     <string name="class_table_pick_color">Wybierz kolor</string>
     <string name="class_table_pick_color_with_course">Wybierz kolor — %1$s</string>
+    <string name="class_table_rename_default_label">Domyślnie: %1$s</string>
+    <string name="class_table_rename_revert">Przywróć domyślne</string>
     <string name="class_table_rename_title">Zmień nazwę</string>
     <string name="class_table_rename_with_course">Zmień nazwę — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

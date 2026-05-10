@@ -117,6 +117,6 @@ object WidgetDataLoader {
             } ?: return null to null
         val firstPeriodId = course.schedule[tomorrowWeekday]!!
             .minByOrNull { order.indexOf(it) }!!
-        return course.courseName to AppConstants.PeriodTimes.mapping[firstPeriodId]?.first
+        return course.displayName to AppConstants.PeriodTimes.mapping[firstPeriodId]?.first
     }
 }

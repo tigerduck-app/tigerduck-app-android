@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">قم بتسجيل الدخول لعرض جدول صفك</string>
     <string name="class_table_pick_color">اختر لونًا</string>
     <string name="class_table_pick_color_with_course">اختر لونًا — %1$s</string>
+    <string name="class_table_rename_default_label">الافتراضي: %1$s</string>
+    <string name="class_table_rename_revert">العودة إلى الافتراضي</string>
     <string name="class_table_rename_title">إعادة التسمية</string>
     <string name="class_table_rename_with_course">إعادة التسمية — %1$s</string>
     <string name="class_table_semester_picker_label">الفصل الدراسي</string>

@@ -247,16 +247,36 @@ class ClassTableViewModel @Inject constructor(
         }
 
     /**
-     * Full (un-abbreviated) name of the selected course, looked up from the
-     * course-detail cache. Falls back to null when no lookup entry exists
-     * (manual entries, Moodle-only fallbacks); the popup uses the stored
-     * [Course.courseName] in that case.
+     * Title for the course-detail popup. A user-supplied [Course.customCourseName]
+     * wins; otherwise falls back to the cached full (un-abbreviated) name from
+     * the course-detail lookup, then to the stored [Course.courseName] when no
+     * cache entry exists (manual entries, Moodle-only fallbacks).
      */
     val selectedCourseFullName: String?
         get() {
             val course = _selectedCourse.value ?: return null
+            course.customCourseName?.let { return it }
             return courseService.cachedFullCourseName(_currentSemester.value, course.courseNo)
         }
+
+    /**
+     * The default (non-overridden) name for the selected course — full name
+     * from cache when available, else the derived [Course.courseName]. Used by
+     * the rename dialog as the "what revert restores" preview.
+     */
+    val selectedCourseDefaultName: String?
+        get() {
+            val course = _selectedCourse.value ?: return null
+            return courseService.cachedFullCourseName(_currentSemester.value, course.courseNo)
+                ?: course.courseName
+        }
+
+    /**
+     * The default (non-overridden) name for [course] — derived [Course.courseName]
+     * (which already reflects the abbreviation toggle). Used by the rename dialog
+     * to show what "Revert to default" will restore.
+     */
+    fun defaultNameFor(course: Course): String = course.courseName
 
     val selectedCourseTimeRange: String?
         get() {
@@ -326,9 +346,29 @@ class ClassTableViewModel @Inject constructor(
         TigerDuckTheme.buildCourseColorMap(updated)
     }
 
-    fun renameCourse(courseNo: String, newName: String) {
-        val updated = _courses.value.map {
-            if (it.courseNo == courseNo) it.copy(courseName = newName) else it
+    /**
+     * Sets the user-supplied display override for [courseNo]. A blank input or
+     * one that matches the current default ([Course.courseName]) clears the
+     * override so the course re-follows the abbreviation toggle.
+     */
+    fun setCustomCourseName(courseNo: String, newName: String) {
+        val trimmed = newName.trim()
+        val updated = _courses.value.map { course ->
+            if (course.courseNo != courseNo) return@map course
+            val override = trimmed.takeIf { it.isNotEmpty() && it != course.courseName }
+            course.copy(customCourseName = override)
+        }
+        _courses.value = updated
+        viewModelScope.launch {
+            dataCache.saveCourses(updated, _currentSemester.value)
+            widgetUpdater.requestUpdate()
+        }
+    }
+
+    /** Clears any user override for [courseNo], restoring the default name. */
+    fun revertCourseName(courseNo: String) {
+        val updated = _courses.value.map { course ->
+            if (course.courseNo == courseNo) course.copy(customCourseName = null) else course
         }
         _courses.value = updated
         viewModelScope.launch {
@@ -685,6 +725,7 @@ class ClassTableViewModel @Inject constructor(
                                 c.copy(
                                     customColorHex = prior?.customColorHex,
                                     isManual = prior?.isManual == true,
+                                    customCourseName = prior?.customCourseName,
                                 )
                             }
                             val fetchedNos = fetched.map { it.courseNo }.toSet()

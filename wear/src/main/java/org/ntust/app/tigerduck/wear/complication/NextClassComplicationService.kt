@@ -63,24 +63,24 @@ class NextClassComplicationService : ComplicationDataSourceService() {
         return when (val r = NextClassResolver.resolve(snapshot.courses, weekday, minuteOfDay)) {
             is NextClassResult.Ongoing -> when (type) {
                 ComplicationType.SHORT_TEXT -> ShortTextComplicationData.Builder(
-                    text = PlainComplicationText.Builder(truncate(r.course.courseName, 7)).build(),
-                    contentDescription = PlainComplicationText.Builder(r.course.courseName).build(),
+                    text = PlainComplicationText.Builder(truncate(r.course.displayName, 7)).build(),
+                    contentDescription = PlainComplicationText.Builder(r.course.displayName).build(),
                 ).setTitle(PlainComplicationText.Builder("NOW").build()).setTapAction(tap).build()
                 ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
                     text = PlainComplicationText.Builder(r.course.classroom).build(),
-                    contentDescription = PlainComplicationText.Builder(r.course.courseName).build(),
-                ).setTitle(PlainComplicationText.Builder("NOW · ${truncate(r.course.courseName, 7)}").build())
+                    contentDescription = PlainComplicationText.Builder(r.course.displayName).build(),
+                ).setTitle(PlainComplicationText.Builder("NOW · ${truncate(r.course.displayName, 7)}").build())
                   .setTapAction(tap).build()
                 else -> NoDataComplicationData()
             }
             is NextClassResult.NextToday -> shortOrLong(
-                type, r.course.courseName, r.course.classroom,
+                type, r.course.displayName, r.course.classroom,
                 titleShort = formatHm(r.startMinute),
-                titleLong = "${formatHm(r.startMinute)} · ${truncate(r.course.courseName, 7)}",
+                titleLong = "${formatHm(r.startMinute)} · ${truncate(r.course.displayName, 7)}",
                 tap = tap,
             )
             is NextClassResult.NextFuture -> shortOrLong(
-                type, r.course.courseName, r.course.classroom,
+                type, r.course.displayName, r.course.classroom,
                 titleShort = formatHm(r.startMinute),
                 titleLong = "${formatHm(r.startMinute)} · +${r.daysAhead}d",
                 tap = tap,

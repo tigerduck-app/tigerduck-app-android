@@ -494,7 +494,7 @@ private fun SlotCard(
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    courseNameForDisplay(slot.course.courseName, maxChars = 30),
+                    courseNameForDisplay(slot.course.displayName, maxChars = 30),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = if (isSkipped) Color(0xFFFF2D55) else Color.Unspecified,
                     maxLines = 2,

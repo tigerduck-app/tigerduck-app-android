@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Meld je aan om je rooster te bekijken</string>
     <string name="class_table_pick_color">Kleur kiezen</string>
     <string name="class_table_pick_color_with_course">Kleur kiezen — %1$s</string>
+    <string name="class_table_rename_default_label">Standaard: %1$s</string>
+    <string name="class_table_rename_revert">Standaard herstellen</string>
     <string name="class_table_rename_title">Naam wijzigen</string>
     <string name="class_table_rename_with_course">Naam wijzigen — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

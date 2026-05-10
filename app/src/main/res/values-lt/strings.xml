@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Melden Sie sich an, um Ihre Klassentabelle anzuzeigen</string>
     <string name="class_table_pick_color">Pasirinkti spalvą</string>
     <string name="class_table_pick_color_with_course">Pasirinkti spalvą — %1$s</string>
+    <string name="class_table_rename_default_label">Numatytasis: %1$s</string>
+    <string name="class_table_rename_revert">Atkurti numatytąjį</string>
     <string name="class_table_rename_title">Pervadinti</string>
     <string name="class_table_rename_with_course">Pervadinti — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

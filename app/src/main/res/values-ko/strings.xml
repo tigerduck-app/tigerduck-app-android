@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">시간표를 보려면 로그인하세요</string>
     <string name="class_table_pick_color">색상 선택</string>
     <string name="class_table_pick_color_with_course">색상 선택 — %1$s</string>
+    <string name="class_table_rename_default_label">기본값: %1$s</string>
+    <string name="class_table_rename_revert">기본값으로 되돌리기</string>
     <string name="class_table_rename_title">이름 바꾸기</string>
     <string name="class_table_rename_with_course">이름 바꾸기 — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

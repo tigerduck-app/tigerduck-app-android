@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">尚未登入,無法查看課表</string>
     <string name="class_table_pick_color">選擇顏色</string>
     <string name="class_table_pick_color_with_course">選擇顏色 — %1$s</string>
+    <string name="class_table_rename_default_label">預設：%1$s</string>
+    <string name="class_table_rename_revert">回復預設</string>
     <string name="class_table_rename_title">重新命名</string>
     <string name="class_table_rename_with_course">重新命名 — %1$s</string>
     <string name="class_table_semester_picker_label">學期</string>

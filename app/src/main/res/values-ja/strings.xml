@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">時間割を表示するにはサインインしてください</string>
     <string name="class_table_pick_color">色を選択</string>
     <string name="class_table_pick_color_with_course">色を選択 — %1$s</string>
+    <string name="class_table_rename_default_label">デフォルト：%1$s</string>
+    <string name="class_table_rename_revert">デフォルトに戻す</string>
     <string name="class_table_rename_title">名前を変更</string>
     <string name="class_table_rename_with_course">名前を変更 — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

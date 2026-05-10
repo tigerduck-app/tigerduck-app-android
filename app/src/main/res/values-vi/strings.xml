@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Đăng nhập để xem thời khóa biểu</string>
     <string name="class_table_pick_color">Chọn màu</string>
     <string name="class_table_pick_color_with_course">Chọn màu — %1$s</string>
+    <string name="class_table_rename_default_label">Mặc định: %1$s</string>
+    <string name="class_table_rename_revert">Khôi phục mặc định</string>
     <string name="class_table_rename_title">Đổi tên</string>
     <string name="class_table_rename_with_course">Đổi tên — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

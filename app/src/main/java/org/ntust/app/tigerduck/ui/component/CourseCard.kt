@@ -72,7 +72,7 @@ fun CourseCard(
                     .padding(12.dp)
             ) {
                 Text(
-                    text = courseNameForDisplay(course.courseName, maxChars = 28),
+                    text = courseNameForDisplay(course.displayName, maxChars = 28),
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = textAlpha),
                     maxLines = 2,
@@ -164,7 +164,7 @@ fun CurrentClassCard(
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = courseNameForDisplay(course.courseName, maxChars = 28),
+                    text = courseNameForDisplay(course.displayName, maxChars = 28),
                     style = MaterialTheme.typography.bodyMedium
                         .copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface,

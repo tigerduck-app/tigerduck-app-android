@@ -65,7 +65,7 @@ class ClassPreparingNotificationScheduler @Inject constructor(
             val intent = Intent(context, ClassPreparingNotificationReceiver::class.java).apply {
                 putExtra(
                     ClassPreparingNotificationReceiver.EXTRA_COURSE_NAME,
-                    slot.course.courseName
+                    slot.course.displayName
                 )
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_CLASSROOM, slot.course.classroom)
                 putExtra(

@@ -33,7 +33,7 @@ fun CourseDetailScreen(course: Course) {
             item {
                 ListHeader { Text(stringResource(R.string.watch_course_detail_title)) }
             }
-            item { Text(text = course.courseName) }
+            item { Text(text = course.displayName) }
             item { Spacer(Modifier.height(2.dp)) }
             item {
                 LabelValue(

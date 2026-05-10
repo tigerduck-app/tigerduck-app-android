@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Melden Sie sich an, um Ihre Klassentabelle anzuzeigen</string>
     <string name="class_table_pick_color">Vybrať farbu</string>
     <string name="class_table_pick_color_with_course">Vybrať farbu — %1$s</string>
+    <string name="class_table_rename_default_label">Predvolené: %1$s</string>
+    <string name="class_table_rename_revert">Obnoviť predvolené</string>
     <string name="class_table_rename_title">Premenovať</string>
     <string name="class_table_rename_with_course">Premenovať — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Kirjaudu sisään nähdäksesi luokkataulukkosi</string>
     <string name="class_table_pick_color">Valitse väri</string>
     <string name="class_table_pick_color_with_course">Valitse väri — %1$s</string>
+    <string name="class_table_rename_default_label">Oletus: %1$s</string>
+    <string name="class_table_rename_revert">Palauta oletus</string>
     <string name="class_table_rename_title">Nimeä uudelleen</string>
     <string name="class_table_rename_with_course">Nimeä uudelleen — %1$s</string>
     <string name="class_table_semester_picker_label">Lukukausi</string>

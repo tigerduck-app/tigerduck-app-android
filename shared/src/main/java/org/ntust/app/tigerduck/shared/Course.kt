@@ -22,7 +22,19 @@ data class Course(
      * Moodle list doesn't include them.
      */
     val isManual: Boolean = false,
+    /**
+     * User-supplied display name override. When non-null, [displayName] returns
+     * this instead of the derived [courseName]. Lets the user customize labels
+     * without losing the underlying default — flipping the abbreviation toggle
+     * still updates [courseName], but anything with a non-null override stays
+     * visually unchanged. Reverting to default sets this back to null.
+     */
+    val customCourseName: String? = null,
 ) {
+    /** Resolved name for display: user override if set, else the derived default. */
+    val displayName: String
+        get() = customCourseName ?: courseName
+
     @Transient
     @Volatile
     private var _cachedSchedule: Map<Int, List<String>>? = null

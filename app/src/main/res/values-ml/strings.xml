@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">നിങ്ങളുടെ ക്ലാസ് ടേബിൾ കാണാൻ സൈൻ ഇൻ ചെയ്യുക</string>
     <string name="class_table_pick_color">നിറം തിരഞ്ഞെടുക്കുക</string>
     <string name="class_table_pick_color_with_course">നിറം തിരഞ്ഞെടുക്കുക — %1$s</string>
+    <string name="class_table_rename_default_label">സ്ഥിരസ്ഥിതി: %1$s</string>
+    <string name="class_table_rename_revert">സ്ഥിരസ്ഥിതിയിലേക്ക് മടങ്ങുക</string>
     <string name="class_table_rename_title">പുനർനാമകരണം ചെയ്യുക</string>
     <string name="class_table_rename_with_course">പുനർനാമകരണം — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

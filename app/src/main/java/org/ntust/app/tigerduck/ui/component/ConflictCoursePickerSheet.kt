@@ -71,7 +71,7 @@ private fun ConflictCourseRow(course: Course, onPick: (Course) -> Unit) {
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                course.courseName,
+                course.displayName,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
             )
             val subtitle = buildString {

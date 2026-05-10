@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -280,7 +281,7 @@ fun ClassTableScreen(
                         weekdays = activeWeekdays,
                         periods = activePeriods,
                         onRename = { course ->
-                            renameText = course.courseName
+                            renameText = course.displayName
                             courseToRename = course
                         },
                         onDelete = { course ->
@@ -305,7 +306,30 @@ fun ClassTableScreen(
     selectedCourse?.let { course ->
         AlertDialog(
             onDismissRequest = { viewModel.clearSelection() },
-            title = { Text(viewModel.selectedCourseFullName ?: course.courseName) },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = viewModel.selectedCourseFullName ?: course.displayName,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                    IconButton(
+                        onClick = {
+                            renameText = course.displayName
+                            courseToRename = course
+                            viewModel.clearSelection()
+                        },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = stringResource(R.string.class_table_rename_title),
+                        )
+                    }
+                }
+            },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stringResource(R.string.class_table_course_no_value, course.courseNo))
@@ -344,21 +368,62 @@ fun ClassTableScreen(
     }
 
     courseToRename?.let { course ->
+        val defaultName = remember(course) { viewModel.defaultNameFor(course) }
+        val trimmed = renameText.trim()
+        val hasOverride = course.customCourseName != null
+        // Revert is meaningful when a stored override exists OR the user has
+        // typed away from the default; either way it restores the default.
+        val canRevert = hasOverride || (trimmed.isNotEmpty() && trimmed != defaultName)
         AlertDialog(
             onDismissRequest = { courseToRename = null },
             title = { Text(stringResource(R.string.class_table_rename_title)) },
             text = {
-                OutlinedTextField(
-                    value = renameText,
-                    onValueChange = { renameText = it },
-                    label = { Text(stringResource(R.string.class_table_course_name)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column {
+                    OutlinedTextField(
+                        value = renameText,
+                        onValueChange = { renameText = it },
+                        label = { Text(stringResource(R.string.class_table_course_name)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = stringResource(
+                                R.string.class_table_rename_default_label,
+                                defaultName,
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(
+                                alpha = ContentAlpha.SECONDARY,
+                            ),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(
+                            onClick = {
+                                viewModel.revertCourseName(course.courseNo)
+                                courseToRename = null
+                            },
+                            enabled = canRevert,
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                        ) {
+                            Text(
+                                stringResource(R.string.class_table_rename_revert),
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.renameCourse(course.courseNo, renameText)
+                    viewModel.setCustomCourseName(course.courseNo, renameText)
                     courseToRename = null
                 }) { Text(stringResource(R.string.action_confirm)) }
             },
@@ -366,7 +431,7 @@ fun ClassTableScreen(
                 TextButton(onClick = { courseToRename = null }) {
                     Text(stringResource(R.string.action_cancel))
                 }
-            }
+            },
         )
     }
 
@@ -382,7 +447,7 @@ fun ClassTableScreen(
                 .toSet()
         }
         ColorPickerSheet(
-            courseName = course.courseName,
+            courseName = course.displayName,
             currentColor = currentColor,
             presetPalette = displayPalette,
             usedByOthers = usedByOthers,
@@ -431,8 +496,8 @@ fun ClassTableScreen(
                         err.newCourseName,
                         dayLabel,
                         err.periodId,
-                        err.existingA.courseName,
-                        err.existingB.courseName,
+                        err.existingA.displayName,
+                        err.existingB.displayName,
                     ),
                 )
             },
@@ -710,7 +775,7 @@ private fun SoloCourseCell(
     var showMenu by remember { mutableStateOf(false) }
     val assignmentLabel = stringResource(R.string.a11y_class_table_cell_assignment_indicator)
     val cellLabel = buildString {
-        append(course.courseName)
+        append(course.displayName)
         if (course.classroom.isNotBlank()) {
             append(", ")
             append(course.classroom)
@@ -741,7 +806,7 @@ private fun SoloCourseCell(
             ),
     ) {
         ClassTableCourseNameText(
-            text = course.courseName,
+            text = course.displayName,
             color = cellTextColor,
             maxLines = if (spanCount >= 2) 3 else 2,
             modifier = Modifier
@@ -879,7 +944,7 @@ private fun ConflictCourseCell(
             fun cellLabel(course: Course, hasAssignment: Boolean): String = buildString {
                 append(conflictPrefix)
                 append(": ")
-                append(course.courseName)
+                append(course.displayName)
                 if (course.classroom.isNotBlank()) {
                     append(", ")
                     append(course.classroom)
@@ -920,7 +985,7 @@ private fun ConflictCourseCell(
                     contentAlignment = Alignment.Center,
                 ) {
                     ClassTableCourseNameText(
-                        text = cellRole.courseA.courseName,
+                        text = cellRole.courseA.displayName,
                         color = textColor,
                         maxLines = 2,
                     )
@@ -966,7 +1031,7 @@ private fun ConflictCourseCell(
                     contentAlignment = Alignment.Center,
                 ) {
                     ClassTableCourseNameText(
-                        text = cellRole.courseB.courseName,
+                        text = cellRole.courseB.displayName,
                         color = textColor,
                         maxLines = 2,
                     )
@@ -996,7 +1061,7 @@ private fun ConflictCourseCell(
                             Text(
                                 stringResource(
                                     R.string.class_table_rename_with_course,
-                                    course.courseName,
+                                    course.displayName,
                                 )
                             )
                         },
@@ -1007,7 +1072,7 @@ private fun ConflictCourseCell(
                             Text(
                                 stringResource(
                                     R.string.class_table_pick_color_with_course,
-                                    course.courseName,
+                                    course.displayName,
                                 )
                             )
                         },
@@ -1018,7 +1083,7 @@ private fun ConflictCourseCell(
                             Text(
                                 stringResource(
                                     R.string.class_table_delete_with_course,
-                                    course.courseName,
+                                    course.displayName,
                                 ),
                                 color = MaterialTheme.colorScheme.error,
                             )

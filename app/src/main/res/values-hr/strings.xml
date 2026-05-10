@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Melden Sie sich an, um Ihre Klassentabelle anzuzeigen</string>
     <string name="class_table_pick_color">Odaberi boju</string>
     <string name="class_table_pick_color_with_course">Odaberi boju — %1$s</string>
+    <string name="class_table_rename_default_label">Zadano: %1$s</string>
+    <string name="class_table_rename_revert">Vrati na zadano</string>
     <string name="class_table_rename_title">Preimenovanje</string>
     <string name="class_table_rename_with_course">Preimenovanje — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>

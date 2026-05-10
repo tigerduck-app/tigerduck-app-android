@@ -160,6 +160,8 @@
     <string name="class_table_login_required_message">Melden Sie sich an, um Ihre Klassentabelle anzuzeigen</string>
     <string name="class_table_pick_color">Alege culoare</string>
     <string name="class_table_pick_color_with_course">Alege culoare — %1$s</string>
+    <string name="class_table_rename_default_label">Implicit: %1$s</string>
+    <string name="class_table_rename_revert">Revenire la implicit</string>
     <string name="class_table_rename_title">Redenumire</string>
     <string name="class_table_rename_with_course">Redenumire — %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
