@@ -407,8 +407,12 @@ fun ClassTableScreen(
                         Spacer(Modifier.width(8.dp))
                         TextButton(
                             onClick = {
-                                if (hasOverride) viewModel.revertCourseName(course.courseNo)
-                                courseToRename = null
+                                if (hasOverride) {
+                                    viewModel.revertCourseName(course.courseNo)
+                                    courseToRename = null
+                                } else {
+                                    renameText = defaultName
+                                }
                             },
                             enabled = canRevert,
                             contentPadding = PaddingValues(horizontal = 8.dp),
