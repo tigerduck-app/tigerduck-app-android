@@ -47,12 +47,13 @@ fun SyncIndicator(
     Box(
         modifier = modifier
             .size(20.dp)
-            .then(
-                if (statusLabel.isNotEmpty()) Modifier.semantics(mergeDescendants = true) {
-                    liveRegion = LiveRegionMode.Polite
-                    contentDescription = statusLabel
-                } else Modifier
-            ),
+            // Always attach the semantics node so TalkBack sees an existing
+            // live-region whose contentDescription changes — node creation
+            // alone does not reliably trigger a polite announcement.
+            .semantics(mergeDescendants = true) {
+                liveRegion = LiveRegionMode.Polite
+                contentDescription = statusLabel
+            },
     ) {
         AnimatedContent(
             targetState = when {
