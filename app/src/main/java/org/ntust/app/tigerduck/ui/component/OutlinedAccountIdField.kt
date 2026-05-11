@@ -378,16 +378,19 @@ private fun computeAccountInputType(
     // mishandle the auto-flip. Don't force Latin in that mode — let the
     // IME render whatever script the user actually wants.
     useStandard -> InputType.TYPE_CLASS_TEXT or capitalization.toInputTypeFlag()
-    // Leading-letter slot — either the field is empty, or holds only the
-    // single leading letter (the user backspaced the digits to retype the
-    // prefix). Pin the IME to Latin/ASCII for this keystroke so users on
-    // Chinese/Japanese/etc. IMEs don't have to manually switch language to
-    // type the prefix. `VISIBLE_PASSWORD` is Android's documented
-    // "Latin-only, not masked" input flag.
-    value.isEmpty() || (value.length == 1 && value[0].isLetter()) ->
-        InputType.TYPE_CLASS_TEXT or
-            InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
-            capitalization.toInputTypeFlag()
+    // Empty value = the leading letter slot. Pin the IME to Latin/ASCII
+    // for this single keystroke so users on Chinese/Japanese/etc. IMEs
+    // don't have to manually switch language to type the prefix.
+    // `VISIBLE_PASSWORD` is Android's documented "Latin-only, not masked"
+    // input flag. As soon as the leading letter is typed (value becomes
+    // non-empty) we flip to the numeric pad so the digit slot is one tap
+    // away — the user wants the keyboard to switch immediately after the
+    // first char, not after the second. Trade-off: if the user backspaces
+    // all digits down to the lone letter and wants to retype the prefix,
+    // they need the standard-keyboard toggle to escape the numeric pad.
+    value.isEmpty() -> InputType.TYPE_CLASS_TEXT or
+        InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
+        capitalization.toInputTypeFlag()
     // 2nd char onward: numeric pad, no IME-locale juggling.
     else -> InputType.TYPE_CLASS_NUMBER
 }
