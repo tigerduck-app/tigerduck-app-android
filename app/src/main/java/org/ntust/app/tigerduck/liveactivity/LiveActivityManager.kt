@@ -12,6 +12,7 @@ import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationScheduler
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -85,7 +86,7 @@ class LiveActivityManager @Inject constructor(
             boundaryScheduler.cancel()
             return
         }
-        val now = Date()
+        val now = Date(AppClock.nowMillis())
         val courses = dataCache.loadCourses()
         val assignments = dataCache.loadAssignments()
         val skipped = dataCache.loadSkippedDates()

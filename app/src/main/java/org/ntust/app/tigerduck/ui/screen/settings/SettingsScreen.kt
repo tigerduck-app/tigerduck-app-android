@@ -23,6 +23,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
@@ -37,6 +40,8 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.tigerDuckSwitchColors
@@ -51,6 +56,7 @@ fun SettingsScreen(
     onNavigateToLanguagePicker: () -> Unit = {},
     onNavigateToLiveActivity: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
+    onNavigateToDebug: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsState()
@@ -353,6 +359,16 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            // MARK: Developer (debug builds only)
+            if (BuildConfig.DEBUG) {
+                item { SectionHeader("Developer") }
+                item {
+                    ContentCard {
+                        SettingsLinkRow("Developer") { onNavigateToDebug() }
+                    }
+                }
+            }
         }
     } // Scaffold
 
@@ -589,6 +605,7 @@ internal fun SettingsLinkRow(label: String, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .height(SettingRowHeight)
+            .semantics(mergeDescendants = true) { role = Role.Button }
             .clickable { onClick() }
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -609,6 +626,7 @@ private fun SettingsLinkRowWithValue(label: String, value: String, onClick: () -
         modifier = Modifier
             .fillMaxWidth()
             .height(SettingRowHeight)
+            .semantics(mergeDescendants = true) { role = Role.Button }
             .clickable { onClick() }
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -640,20 +658,9 @@ internal fun LibraryWarningDialog(
     val view = LocalView.current
 
     LaunchedEffect(Unit) {
-        // 1-second max vibration on dialog open
-        val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            val vm = view.context.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE)
-                    as? android.os.VibratorManager
-            vm?.defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            view.context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
-        }
-        vibrator?.vibrate(
-            android.os.VibrationEffect.createOneShot(
-                1000,
-                android.os.VibrationEffect.DEFAULT_AMPLITUDE
-            )
+        Haptics.perform(
+            view.context,
+            HapticScenario.LibraryWarning,
         )
 
         for (i in 4 downTo 0) {

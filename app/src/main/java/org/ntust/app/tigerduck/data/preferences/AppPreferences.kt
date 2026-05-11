@@ -13,6 +13,7 @@ import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.data.preferences.AppPreferences.Companion.themeColorsDark
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -58,9 +59,19 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
         set(value) = prefs.edit().putBoolean("hasCompletedOnboarding", value).apply()
 
+    private val _accentColorChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val accentColorChanged: SharedFlow<Unit> = _accentColorChanged.asSharedFlow()
+
     var accentColorHex: Int
         get() = prefs.getInt("accentColorHex", 0x007AFF)
-        set(value) = prefs.edit().putInt("accentColorHex", value).apply()
+        set(value) {
+            val previous = accentColorHex
+            prefs.edit().putInt("accentColorHex", value).apply()
+            if (value != previous) _accentColorChanged.tryEmit(Unit)
+        }
 
     var browserPreference: String
         get() = prefs.getString("browserPreference", "system") ?: "system"
@@ -240,7 +251,33 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
             editor.apply()
         }
 
+    fun hapticStrength(scenario: HapticScenario): Int =
+        prefs.getInt("haptic_strength_${scenario.prefKey}", scenario.defaultStrengthPct)
+            .coerceIn(0, 100)
+
+    fun setHapticStrength(scenario: HapticScenario, value: Int) {
+        prefs.edit()
+            .putInt("haptic_strength_${scenario.prefKey}", value.coerceIn(0, 100))
+            .apply()
+    }
+
+    fun hapticDurationMs(scenario: HapticScenario): Int =
+        prefs.getInt("haptic_duration_${scenario.prefKey}", scenario.defaultDurationMs)
+            .coerceIn(MIN_TUNABLE_HAPTIC_DURATION_MS, MAX_TUNABLE_HAPTIC_DURATION_MS)
+
+    fun setHapticDurationMs(scenario: HapticScenario, value: Int) {
+        prefs.edit()
+            .putInt(
+                "haptic_duration_${scenario.prefKey}",
+                value.coerceIn(MIN_TUNABLE_HAPTIC_DURATION_MS, MAX_TUNABLE_HAPTIC_DURATION_MS),
+            )
+            .apply()
+    }
+
     companion object {
+        const val MIN_TUNABLE_HAPTIC_DURATION_MS = 5
+        const val MAX_TUNABLE_HAPTIC_DURATION_MS = 60
+
         const val ROTATION_MODE_AUTO = "auto"
         const val ROTATION_MODE_ENABLED = "enabled"
         const val ROTATION_MODE_DISABLED = "disabled"

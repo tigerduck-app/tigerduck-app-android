@@ -46,7 +46,9 @@ class BootReceiver : BroadcastReceiver() {
                     if (appPreferences.notifyAssignments) {
                         val assignments = dataCache.loadAssignments()
                         if (assignments.isNotEmpty()) {
-                            scheduler.scheduleAll(assignments)
+                            val ignored = dataCache.loadIgnoredAssignments()
+                            val marked = dataCache.loadMarkedCompletedAssignments()
+                            scheduler.scheduleAll(assignments, ignored + marked)
                         }
                     }
                     val courses = dataCache.loadCourses()

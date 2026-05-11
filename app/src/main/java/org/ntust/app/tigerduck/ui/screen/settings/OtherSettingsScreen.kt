@@ -27,6 +27,7 @@ fun OtherSettingsScreen(
     onBack: () -> Unit,
     onNavigateToNotificationSetup: () -> Unit,
     onNavigateToSourceCode: () -> Unit,
+    onNavigateToVibration: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -133,6 +134,16 @@ fun OtherSettingsScreen(
                 ContentCard {
                     SettingsLinkRow(stringResource(R.string.notification_setup_title)) {
                         onNavigateToNotificationSetup()
+                    }
+                }
+            }
+
+            item { Spacer(Modifier.height(24.dp)) }
+
+            item {
+                ContentCard {
+                    SettingsLinkRow(stringResource(R.string.vibration_settings_title)) {
+                        onNavigateToVibration()
                     }
                 }
             }

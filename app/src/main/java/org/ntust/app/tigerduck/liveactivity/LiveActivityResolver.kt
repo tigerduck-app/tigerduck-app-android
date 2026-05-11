@@ -101,7 +101,7 @@ class LiveActivityResolver {
             Calendar.SUNDAY -> 7
             else -> 1
         }
-        val today = LocalDate.now(AppConstants.TAIPEI_ZONE)
+        val today = now.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
 
         val results = mutableListOf<Slot>()
         for (course in courses) {
@@ -130,7 +130,7 @@ class LiveActivityResolver {
         val progress = (elapsed.toDouble() / total.toDouble()).coerceIn(0.0, 1.0)
         return LiveActivitySnapshot(
             scenario = LiveActivityScenario.IN_CLASS,
-            title = slot.course.courseName,
+            title = slot.course.displayName,
             subtitle = formatTimeRange(slot.start, slot.end),
             locationText = slot.course.classroom.ifBlank { null },
             instructor = slot.course.instructor.ifBlank { null },
@@ -144,7 +144,7 @@ class LiveActivityResolver {
     private fun classPreparingSnapshot(slot: Slot, accentHex: Int): LiveActivitySnapshot =
         LiveActivitySnapshot(
             scenario = LiveActivityScenario.CLASS_PREPARING,
-            title = slot.course.courseName,
+            title = slot.course.displayName,
             subtitle = formatTimeRange(slot.start, slot.end),
             locationText = slot.course.classroom.ifBlank { null },
             instructor = slot.course.instructor.ifBlank { null },

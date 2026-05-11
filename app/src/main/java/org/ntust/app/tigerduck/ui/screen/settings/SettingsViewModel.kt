@@ -11,7 +11,6 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
-import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
@@ -31,7 +30,6 @@ class SettingsViewModel @Inject constructor(
     private val notificationScheduler: AssignmentNotificationScheduler,
     private val courseColorStore: CourseColorStore,
     private val liveActivityManager: LiveActivityManager,
-    private val dataCache: DataCache,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -61,12 +59,14 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun logoutNtust() {
+        // Persisted-data clearing now lives in AuthService.logout() on an
+        // application-scoped coroutine, so it survives ViewModel destruction
+        // when the user navigates away from Settings immediately after logout.
         authService.logout()
         _isLibraryLoggedIn.value = false
         notificationScheduler.cancelAllTracked()
         liveActivityManager.stop()
         BackgroundSyncWorker.cancel(context)
-        viewModelScope.launch { dataCache.clearAllUserData() }
     }
 
     fun loginLibrary(username: String, password: String) {

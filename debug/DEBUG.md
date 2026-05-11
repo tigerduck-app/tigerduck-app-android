@@ -1,11 +1,30 @@
 # Debugging & build variants
 
+## Quick install (scripts in this dir)
+
+| Script | What it does |
+| --- | --- |
+| `./debug/install-fdroid.sh` | Build + install `:app:fdroidDebug` to a chosen phone. |
+| `./debug/install-play.sh` | Build + install `:app:playDebug` to a chosen phone; asks if you want `:wear:debug` on a paired watch too. |
+| `./debug/install-play-release.sh` | Build + install `:app:playRelease` (and optionally `:wear:release`) APK(s) via `adb install`. Use when you need to test release-mode behavior (R8/ProGuard, signing) without going through Internal Testing. |
+
+All three scripts:
+
+- Run from the project root.
+- Auto-pick the device when only one matching phone/watch is connected; otherwise prompt with `0/1/2…`.
+- Filter by `ro.build.characteristics` so wear-only and phone-only steps don't accidentally cross-target.
+- Use `adb install -r -d` so they don't trip on existing installs or downgrades during fast iteration.
+
+`_lib.sh` is the shared helper (sourced by the others). Don't run it directly.
+
+## Build variants
+
 The app ships in two **distribution flavors** crossed with the standard
 **debug / release** build types, so there are four variants:
 
 | Variant | Distribution channel | FCM push | Cleartext to dev backend | Use when |
 | --- | --- | --- | --- | --- |
-| `playDebug` | Sideload + dev | Yes | Yes (one LAN IP allowlisted — see *Cleartext HTTP* below) | Day-to-day local dev with the laptop backend. Default in Android Studio after the flavor refactor. |
+| `playDebug` | Sideload + dev | Yes | Yes (one LAN IP allowlisted — see *Cleartext HTTP* below) | Day-to-day local dev with the laptop backend. Default in Android Studio. |
 | `playRelease` | Google Play Store | Yes | No | Producing the Play Store APK / bundle. |
 | `fdroidDebug` | Sideload of the F-Droid build | No | Yes | Smoke-testing the FOSS variant locally. |
 | `fdroidRelease` | F-Droid (anti-features-clean) | No | No | The artifact F-Droid's buildserver actually produces. |
@@ -16,23 +35,61 @@ Services classes** (verified via `aapt2 dump xmltree`). Bulletins still work
 on F-Droid via manual refresh / pull-to-refresh; there is just no real-time
 push.
 
-## Build / install commands
+Direct gradle commands (when the scripts above don't fit your flow):
 
 ```bash
-# Pick a variant by name. CamelCase is what Gradle expects.
 ./gradlew :app:assemblePlayDebug          # APK only
-./gradlew :app:installPlayDebug           # build + push to connected device
+./gradlew :app:installPlayDebug           # build + push to *the* connected device
 
 ./gradlew :app:assembleFdroidDebug
 ./gradlew :app:installFdroidDebug
 
 ./gradlew :app:assemblePlayRelease        # signed only when KEYSTORE_PASSWORD is set
 ./gradlew :app:assembleFdroidRelease
+
+./gradlew :wear:assembleDebug
+./gradlew :wear:installDebug
 ```
 
-In Android Studio: **Build → Select Build Variant…** → pick `playDebug` (or
-whichever) before pressing Run. The default "Build APKs" / hammer button
-assembles every variant; that's fine but slower than asking for one.
+`./gradlew install*` only works cleanly with one connected device. If you
+have a phone + watch attached, prefer the scripts above (they pick by serial)
+or pass `-Pandroid.injected.deviceSerial=<serial>`.
+
+## Debug clock override
+
+`playDebug` and `fdroidDebug` builds expose a **Settings → Developer** entry
+that lets you make the entire app behave as if the clock were any chosen
+date and time. This is what you use to test ongoing-class UI, "next class"
+states, the live activity, widgets, AlarmManager-scheduled notifications,
+and the watch's NowNext / tile / complication without manipulating the
+device clock.
+
+Key behaviors:
+
+- **Frozen** mode: every read of `AppClock.nowMillis()` returns the chosen
+  instant. The clock does not advance.
+- **Ticking** mode: the chosen instant becomes "now" and advances 1:1 with
+  real time. Useful for watching ongoing → ended transitions live.
+- **Persistence**: the override survives app restarts (stored in
+  `debug_clock` SharedPreferences, separate from `AppPreferences`).
+- **Watch sync**: on `playDebug`, the override pushes to a paired watch via
+  the Wearable Data Layer at path `/tigerduck/debug-clock`; the watch
+  reads it on cold start too.
+- **Notification firing**: AlarmManager triggers go through
+  `AppClock.realTimeFor(...)`, which translates fake-clock targets to real
+  wall-clock targets. So if you set fake time 30 s before a class start,
+  the class-preparing notification fires in 30 real seconds, with content
+  describing the fake slot.
+- **Release builds**: the entry point and the route are gated on
+  `BuildConfig.DEBUG`, so neither exists in `playRelease` / `fdroidRelease`.
+
+Auth, network caches, login expiry, and library token expiry intentionally
+do **not** use `AppClock` — they continue to read real time, so you can't
+log yourself out by setting fake time to 2099.
+
+Spec and plan: `docs/superpowers/specs/2026-05-09-debug-clock-override-design.md`
+and `docs/superpowers/plans/2026-05-09-debug-clock-override.md` (both in
+`docs/superpowers/`, gitignored).
 
 ## Wireless ADB recipe
 
@@ -44,12 +101,16 @@ adb connect <phone-ip>:<connect-port>
 
 adb devices                                        # confirm phone listed
 
-./gradlew :app:installPlayDebug                    # push the APK
+./debug/install-play.sh                            # build + push the APK
 
 adb logcat -c && adb logcat \
   TigerDuck-Push:V Push.Register:V \
   TigerDuck-Bulletin:V FirebaseMessaging:I *:S
 ```
+
+For a watch, repeat the pair/connect over ADB-over-Bluetooth or its own
+Wi-Fi pair flow, then re-run `./debug/install-play.sh` and answer "Y" to
+the wear prompt.
 
 ## Local push backend
 
@@ -93,8 +154,8 @@ or the phone will get `CLEARTEXT_NOT_PERMITTED`.
 
 ## Push smoke test
 
-With the `playDebug` build installed, signed in, and Wi-Fi sharing the
-laptop's network:
+With the `playDebug` build installed (`./debug/install-play.sh`), signed in,
+and Wi-Fi sharing the laptop's network:
 
 1. Confirm registration: backend log should show `POST /v1/devices/register
    200`. To inspect the row:
@@ -124,6 +185,19 @@ laptop's network:
 
 ## Common pitfalls
 
+- **Script can't find APK after build** → the AGP output filename includes a
+  version suffix. The scripts use a glob (`*.apk`) so this works; if you see
+  "multiple APKs matched", you have stale outputs from an older build. Run
+  `./gradlew :app:clean` (or `:wear:clean`) and re-run the script.
+
+- **`adb devices` lists a watch as `unauthorized`** → tap "Allow USB
+  debugging" on the watch face. Some watches need a manual reauthorization
+  on every host change.
+
+- **`./gradlew install*` fails with "more than one device"** → use the
+  scripts in this dir; they pick by serial. Or pass
+  `-Pandroid.injected.deviceSerial=<serial>` to gradle.
+
 - **`processFdroidDebugGoogleServices` fails with "No matching client found"**
   → `google-services.json` is at `app/`. Move it to `app/src/play/`. The
   plugin in `app/build.gradle.kts` is configured with
@@ -144,3 +218,8 @@ laptop's network:
   Check that `~/tigerduck-app/backend/server/secrets/fcm_service_account.json`
   exists and `TIGERDUCK_FCM_PROJECT_ID` in `.env` matches its
   `project_id` field. Restart uvicorn after fixing.
+
+- **Debug clock override seems stuck on** → it persists across app restarts
+  by design. Open Settings → Developer → "Use fake time" → toggle off, or
+  tap **Reset**. Worst case, clear the app's `debug_clock` prefs:
+  `adb shell run-as <applicationId> rm shared_prefs/debug_clock.xml`.

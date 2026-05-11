@@ -2,12 +2,17 @@ package org.ntust.app.tigerduck.auth
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.announcements.BulletinReadStateStore
+import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.network.LibraryService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.network.SsoLoginError
@@ -25,6 +30,9 @@ class AuthService @Inject constructor(
     private val libraryService: LibraryService,
     private val credentials: CredentialManager,
     private val pushRegistration: PushRegistrationService,
+    private val dataCache: DataCache,
+    private val bulletinReadStateStore: BulletinReadStateStore,
+    @param:ApplicationScope private val appScope: CoroutineScope,
 ) {
     private val _isLoggingIn = MutableStateFlow(false)
     val isLoggingIn: StateFlow<Boolean> = _isLoggingIn
@@ -121,9 +129,16 @@ class AuthService @Inject constructor(
         credentials.clearNtustCredentials()
         credentials.clearLibraryCredentials()
         sessionManager.invalidateSession()
+        bulletinReadStateStore.clear()
         _loginError.value = null
         _authState.value = false
         pushRegistration.unregister()
+        // Wipe persisted user data on the application scope so a coroutine
+        // launched from a transient ViewModel scope can't be cancelled mid-
+        // delete when the user backs out of Settings or the activity dies.
+        // Without this guarantee, the JSON cache survives logout and bleeds
+        // into the next account on the same device.
+        appScope.launch { runCatching { dataCache.clearAllUserData() } }
     }
 
     fun clearLoginError() {

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,9 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,6 +38,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.ui.component.ColorPickerSheet
 import org.ntust.app.tigerduck.ui.component.ConflictCoursePickerSheet
@@ -46,6 +50,8 @@ import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.component.isEnglishUiLanguage
 import org.ntust.app.tigerduck.ui.component.middleEllipsize
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -173,8 +179,7 @@ fun ClassTableScreen(
                 if (isLiveSemester && todayCourses.isNotEmpty()) {
                     SectionHeader(title = stringResource(R.string.home_section_today_courses))
                     val today =
-                        java.util.Calendar.getInstance(AppConstants.TAIPEI_TZ)
-                            .get(java.util.Calendar.DAY_OF_WEEK)
+                        AppClock.calendar().get(java.util.Calendar.DAY_OF_WEEK)
                     val dayIndex = when (today) {
                         java.util.Calendar.MONDAY -> 1; java.util.Calendar.TUESDAY -> 2
                         java.util.Calendar.WEDNESDAY -> 3; java.util.Calendar.THURSDAY -> 4
@@ -276,7 +281,7 @@ fun ClassTableScreen(
                         weekdays = activeWeekdays,
                         periods = activePeriods,
                         onRename = { course ->
-                            renameText = course.courseName
+                            renameText = course.customCourseName ?: viewModel.defaultNameFor(course)
                             courseToRename = course
                         },
                         onDelete = { course ->
@@ -301,7 +306,30 @@ fun ClassTableScreen(
     selectedCourse?.let { course ->
         AlertDialog(
             onDismissRequest = { viewModel.clearSelection() },
-            title = { Text(viewModel.selectedCourseFullName ?: course.courseName) },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = viewModel.selectedCourseFullName ?: course.displayName,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                    IconButton(
+                        onClick = {
+                            renameText = course.customCourseName ?: viewModel.defaultNameFor(course)
+                            courseToRename = course
+                            viewModel.clearSelection()
+                        },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = stringResource(R.string.class_table_rename_title),
+                        )
+                    }
+                }
+            },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stringResource(R.string.class_table_course_no_value, course.courseNo))
@@ -340,21 +368,67 @@ fun ClassTableScreen(
     }
 
     courseToRename?.let { course ->
+        val liveCourse = courses.find { it.courseNo == course.courseNo } ?: course
+        val defaultName = remember(liveCourse) { viewModel.defaultNameFor(liveCourse) }
+        val trimmed = renameText.trim()
+        val hasOverride = liveCourse.customCourseName != null
+        // Revert is meaningful when a stored override exists OR the user has
+        // typed away from the default; either way it restores the default.
+        val canRevert = hasOverride || (trimmed.isNotEmpty() && trimmed != defaultName)
         AlertDialog(
             onDismissRequest = { courseToRename = null },
             title = { Text(stringResource(R.string.class_table_rename_title)) },
             text = {
-                OutlinedTextField(
-                    value = renameText,
-                    onValueChange = { renameText = it },
-                    label = { Text(stringResource(R.string.class_table_course_name)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column {
+                    OutlinedTextField(
+                        value = renameText,
+                        onValueChange = { renameText = it },
+                        label = { Text(stringResource(R.string.class_table_course_name)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = stringResource(
+                                R.string.class_table_rename_default_label,
+                                defaultName,
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(
+                                alpha = ContentAlpha.SECONDARY,
+                            ),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(
+                            onClick = {
+                                if (hasOverride) {
+                                    viewModel.revertCourseName(course.courseNo)
+                                    courseToRename = null
+                                } else {
+                                    renameText = defaultName
+                                }
+                            },
+                            enabled = canRevert,
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                        ) {
+                            Text(
+                                stringResource(R.string.class_table_rename_revert),
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.renameCourse(course.courseNo, renameText)
+                    viewModel.setCustomCourseName(course.courseNo, renameText)
                     courseToRename = null
                 }) { Text(stringResource(R.string.action_confirm)) }
             },
@@ -362,7 +436,7 @@ fun ClassTableScreen(
                 TextButton(onClick = { courseToRename = null }) {
                     Text(stringResource(R.string.action_cancel))
                 }
-            }
+            },
         )
     }
 
@@ -378,7 +452,7 @@ fun ClassTableScreen(
                 .toSet()
         }
         ColorPickerSheet(
-            courseName = course.courseName,
+            courseName = course.displayName,
             currentColor = currentColor,
             presetPalette = displayPalette,
             usedByOthers = usedByOthers,
@@ -427,8 +501,8 @@ fun ClassTableScreen(
                         err.newCourseName,
                         dayLabel,
                         err.periodId,
-                        err.existingA.courseName,
-                        err.existingB.courseName,
+                        err.existingA.displayName,
+                        err.existingB.displayName,
                     ),
                 )
             },
@@ -470,7 +544,7 @@ private fun TimetableGrid(
     onPickColor: (Course) -> Unit = {},
     onPickConflict: (Course, Course, Int, String) -> Unit = { _, _, _, _ -> },
 ) {
-    val haptic = LocalHapticFeedback.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val dayLabels = listOf(
         "",
         stringResource(R.string.weekday_mon_short),
@@ -578,7 +652,12 @@ private fun TimetableGrid(
                                             period.id
                                         )
                                     },
-                                    onLongPress = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                                    onLongPress = {
+                                        Haptics.perform(
+                                            context,
+                                            HapticScenario.ClassTableLongPress,
+                                        )
+                                    },
                                     onRename = onRename,
                                     onPickColor = onPickColor,
                                     onDelete = onDelete,
@@ -587,7 +666,7 @@ private fun TimetableGrid(
 
                             is ClassTableViewModel.CellRole.ConflictStart -> {
                                 ConflictCourseCell(
-                                    role = role,
+                                    cellRole = role,
                                     dayColWidth = dayColWidth,
                                     cellHeight = cellHeight,
                                     x = x,
@@ -597,7 +676,12 @@ private fun TimetableGrid(
                                     hasAssignmentA = viewModel.hasAssignment(role.courseA.courseNo),
                                     hasAssignmentB = viewModel.hasAssignment(role.courseB.courseNo),
                                     onPickConflict = onPickConflict,
-                                    onLongPress = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                                    onLongPress = {
+                                        Haptics.perform(
+                                            context,
+                                            HapticScenario.ClassTableLongPress,
+                                        )
+                                    },
                                     onRename = onRename,
                                     onPickColor = onPickColor,
                                     onDelete = onDelete,
@@ -623,16 +707,21 @@ private fun SemesterPicker(
     onPick: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val currentLabel = labelFor(current)
     Box {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
+                .semantics(mergeDescendants = true) {
+                    role = Role.DropdownList
+                    contentDescription = currentLabel
+                }
                 .clickable { expanded = true }
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
             Text(
-                text = labelFor(current),
+                text = currentLabel,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -689,6 +778,18 @@ private fun SoloCourseCell(
     }
     val cellTextColor = if (TigerDuckTheme.isDarkMode) Color.White else Color(0xFF1C1C1E)
     var showMenu by remember { mutableStateOf(false) }
+    val assignmentLabel = stringResource(R.string.a11y_class_table_cell_assignment_indicator)
+    val cellLabel = buildString {
+        append(course.displayName)
+        if (course.classroom.isNotBlank()) {
+            append(", ")
+            append(course.classroom)
+        }
+        if (hasAssignment) {
+            append(". ")
+            append(assignmentLabel)
+        }
+    }
     Box(
         modifier = Modifier
             .width(dayColWidth)
@@ -697,6 +798,10 @@ private fun SoloCourseCell(
             .padding(1.dp)
             .clip(RoundedCornerShape(6.dp))
             .background(cellBg)
+            .semantics(mergeDescendants = true) {
+                contentDescription = cellLabel
+                role = Role.Button
+            }
             .combinedClickable(
                 onClick = onTap,
                 onLongClick = {
@@ -706,7 +811,7 @@ private fun SoloCourseCell(
             ),
     ) {
         ClassTableCourseNameText(
-            text = course.courseName,
+            text = course.displayName,
             color = cellTextColor,
             maxLines = if (spanCount >= 2) 3 else 2,
             modifier = Modifier
@@ -753,7 +858,7 @@ private fun SoloCourseCell(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ConflictCourseCell(
-    role: ClassTableViewModel.CellRole.ConflictStart,
+    cellRole: ClassTableViewModel.CellRole.ConflictStart,
     dayColWidth: androidx.compose.ui.unit.Dp,
     cellHeight: androidx.compose.ui.unit.Dp,
     x: androidx.compose.ui.unit.Dp,
@@ -775,8 +880,8 @@ private fun ConflictCourseCell(
         TigerDuckTheme.courseColorVibrant(course.courseNo).copy(alpha = 0.50f)
     }
 
-    val overlapStart = maxOf(role.offsetA, role.offsetB)
-    val overlapEnd = minOf(role.offsetA + role.spanA, role.offsetB + role.spanB)
+    val overlapStart = maxOf(cellRole.offsetA, cellRole.offsetB)
+    val overlapEnd = minOf(cellRole.offsetA + cellRole.spanA, cellRole.offsetB + cellRole.spanB)
 
     // Solo fractions are relative to each course's OWN span (= its Box height),
     // not the combined span.
@@ -786,10 +891,10 @@ private fun ConflictCourseCell(
     fun soloBelow(offset: Int, span: Int) =
         (offset + span - overlapEnd).coerceAtLeast(0).toFloat() / span
 
-    val soloAboveA = soloAbove(role.offsetA, role.spanA)
-    val soloBelowA = soloBelow(role.offsetA, role.spanA)
-    val soloAboveB = soloAbove(role.offsetB, role.spanB)
-    val soloBelowB = soloBelow(role.offsetB, role.spanB)
+    val soloAboveA = soloAbove(cellRole.offsetA, cellRole.spanA)
+    val soloBelowA = soloBelow(cellRole.offsetA, cellRole.spanA)
+    val soloAboveB = soloAbove(cellRole.offsetB, cellRole.spanB)
+    val soloBelowB = soloBelow(cellRole.offsetB, cellRole.spanB)
 
     // Pure overlap at an edge = neither course has solo at that edge. There
     // both shapes have convex corners pointing the same way, so only sharp
@@ -821,7 +926,7 @@ private fun ConflictCourseCell(
     Box(
         modifier = Modifier
             .width(dayColWidth)
-            .height(cellHeight * role.combinedSpan)
+            .height(cellHeight * cellRole.combinedSpan)
             .absoluteOffset(x = x, y = y)
             .padding(1.dp),
     ) {
@@ -830,26 +935,48 @@ private fun ConflictCourseCell(
         // exceed the padded area by 2dp; Compose's overflow handling then
         // leaves a visible seam between the two shapes.
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val rowHeight = maxHeight / role.combinedSpan
-            val aTop = rowHeight * role.offsetA
-            val aHeight = rowHeight * role.spanA
-            val bTop = rowHeight * role.offsetB
-            val bHeight = rowHeight * role.spanB
+            val rowHeight = maxHeight / cellRole.combinedSpan
+            val aTop = rowHeight * cellRole.offsetA
+            val aHeight = rowHeight * cellRole.spanA
+            val bTop = rowHeight * cellRole.offsetB
+            val bHeight = rowHeight * cellRole.spanB
             val aBarFraction = (soloAboveA + 0.5f * (1f - soloAboveA - soloBelowA))
                 .coerceAtLeast(0.1f)
             val bBarFraction = (soloBelowB + 0.5f * (1f - soloAboveB - soloBelowB))
                 .coerceAtLeast(0.1f)
+            val conflictPrefix = stringResource(R.string.a11y_class_table_conflict_prefix)
+            val assignmentLabel = stringResource(R.string.a11y_class_table_cell_assignment_indicator)
+            fun cellLabel(course: Course, hasAssignment: Boolean): String = buildString {
+                append(conflictPrefix)
+                append(": ")
+                append(course.displayName)
+                if (course.classroom.isNotBlank()) {
+                    append(", ")
+                    append(course.classroom)
+                }
+                if (hasAssignment) {
+                    append(". ")
+                    append(assignmentLabel)
+                }
+            }
+            val labelA = cellLabel(cellRole.courseA, hasAssignmentA)
+            val labelB = cellLabel(cellRole.courseB, hasAssignmentB)
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(aHeight)
                     .absoluteOffset(x = 0.dp, y = aTop)
                     .clip(shapeA)
-                    .background(bgFor(role.courseA))
+                    .background(bgFor(cellRole.courseA))
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = labelA
+                        role = Role.Button
+                    }
                     .combinedClickable(
                         interactionSource = interactionSource,
                         indication = indication,
-                        onClick = { onPickConflict(role.courseA, role.courseB, weekday, periodId) },
+                        onClick = { onPickConflict(cellRole.courseA, cellRole.courseB, weekday, periodId) },
                         onLongClick = { onLongPress(); showMenu = true },
                     ),
             ) {
@@ -863,7 +990,7 @@ private fun ConflictCourseCell(
                     contentAlignment = Alignment.Center,
                 ) {
                     ClassTableCourseNameText(
-                        text = role.courseA.courseName,
+                        text = cellRole.courseA.displayName,
                         color = textColor,
                         maxLines = 2,
                     )
@@ -887,11 +1014,15 @@ private fun ConflictCourseCell(
                     .height(bHeight)
                     .absoluteOffset(x = 0.dp, y = bTop)
                     .clip(shapeB)
-                    .background(bgFor(role.courseB))
+                    .background(bgFor(cellRole.courseB))
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = labelB
+                        role = Role.Button
+                    }
                     .combinedClickable(
                         interactionSource = interactionSource,
                         indication = indication,
-                        onClick = { onPickConflict(role.courseA, role.courseB, weekday, periodId) },
+                        onClick = { onPickConflict(cellRole.courseA, cellRole.courseB, weekday, periodId) },
                         onLongClick = { onLongPress(); showMenu = true },
                     ),
             ) {
@@ -905,7 +1036,7 @@ private fun ConflictCourseCell(
                     contentAlignment = Alignment.Center,
                 ) {
                     ClassTableCourseNameText(
-                        text = role.courseB.courseName,
+                        text = cellRole.courseB.displayName,
                         color = textColor,
                         maxLines = 2,
                     )
@@ -928,14 +1059,14 @@ private fun ConflictCourseCell(
                 onDismissRequest = { showMenu = false },
                 shape = RoundedCornerShape(12.dp),
             ) {
-                listOf(role.courseA, role.courseB).forEachIndexed { idx, course ->
+                listOf(cellRole.courseA, cellRole.courseB).forEachIndexed { idx, course ->
                     if (idx > 0) HorizontalDivider()
                     DropdownMenuItem(
                         text = {
                             Text(
                                 stringResource(
                                     R.string.class_table_rename_with_course,
-                                    course.courseName,
+                                    course.displayName,
                                 )
                             )
                         },
@@ -946,7 +1077,7 @@ private fun ConflictCourseCell(
                             Text(
                                 stringResource(
                                     R.string.class_table_pick_color_with_course,
-                                    course.courseName,
+                                    course.displayName,
                                 )
                             )
                         },
@@ -957,7 +1088,7 @@ private fun ConflictCourseCell(
                             Text(
                                 stringResource(
                                     R.string.class_table_delete_with_course,
-                                    course.courseName,
+                                    course.displayName,
                                 ),
                                 color = MaterialTheme.colorScheme.error,
                             )

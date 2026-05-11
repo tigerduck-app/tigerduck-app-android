@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +28,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentStatus
 import org.ntust.app.tigerduck.data.model.status
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.text.SimpleDateFormat
@@ -48,12 +52,17 @@ fun AssignmentItem(
     onClick: (() -> Unit)? = null
 ) {
     val courseColor = TigerDuckTheme.courseColorVibrant(assignment.courseNo)
+    // Subscribe to AppClock changes so toggling the debug clock (forward,
+    // back, or off) re-evaluates status — otherwise the badge would stay
+    // pinned to whatever "now" was the first time this row composed.
+    val clockVersion by rememberAppClockVersion()
     val status = remember(
         assignment.assignmentId,
         assignment.isCompleted,
         assignment.dueDate,
         assignment.cutoffDate,
         assignment.submittedAt,
+        clockVersion,
     ) { assignment.status() }
 
     Row(
@@ -92,6 +101,7 @@ fun AssignmentItem(
             status = status,
             showAbsoluteTime = showAbsoluteTime,
             markedCompleted = markedCompleted,
+            clockVersion = clockVersion,
         )
     }
 }
@@ -102,6 +112,7 @@ private fun AssignmentTrailing(
     status: AssignmentStatus,
     showAbsoluteTime: Boolean,
     markedCompleted: Boolean,
+    clockVersion: Long,
 ) {
     // Show the Moodle-derived badge and the manual completion tag side-by-side
     // when both apply. The two badges are
@@ -131,7 +142,7 @@ private fun AssignmentTrailing(
             }
         }
 
-        val now = remember { Date() }
+        val now = remember(clockVersion) { Date(AppClock.nowMillis()) }
         val useAbsolute = showAbsoluteTime ||
                 ((assignment.isCompleted || markedCompleted) && assignment.dueDate.before(now))
         val timeText = if (useAbsolute) formatAbsolute(assignment.dueDate)
@@ -156,6 +167,32 @@ private fun statusBadge(status: AssignmentStatus): Pair<String, Color>? = when (
     AssignmentStatus.OVERDUE_ACCEPTABLE -> stringResource(R.string.assignment_status_overdue) to BadgeRed
     AssignmentStatus.OVERDUE_REJECTED -> stringResource(R.string.assignment_status_overdue_rejected) to BadgeRed
 }
+
+/**
+ * Bridges [AppClock]'s listener mechanism into Compose. The returned state
+ * advances each time [AppClock.setOverride] is called AND once per minute as
+ * wall-clock time progresses, so any composable that keys on it recomputes
+ * against a fresh "now". Without the periodic pulse a row that composed at
+ * "in 5 minutes" would stay frozen at that label until something else
+ * triggered a recomposition.
+ */
+@Composable
+private fun rememberAppClockVersion(): State<Long> =
+    produceState(initialValue = AppClock.version()) {
+        val listener: (Long) -> Unit = { value = value + 1 }
+        AppClock.addOverrideListener(listener)
+        try {
+            // Refresh once in case setOverride fired between initialValue
+            // capture and listener registration.
+            value = value + 1
+            while (true) {
+                kotlinx.coroutines.delay(60_000)
+                value = value + 1
+            }
+        } finally {
+            AppClock.removeOverrideListener(listener)
+        }
+    }
 
 private fun formatAbsolute(date: Date): String =
     SimpleDateFormat("M/d HH:mm:ss", Locale.getDefault()).format(date)

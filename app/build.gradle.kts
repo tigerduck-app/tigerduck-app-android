@@ -46,8 +46,8 @@ android {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 29
         targetSdk = 36
-        versionCode = 17
-        versionName = "1.3.8"
+        versionCode = 18
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -143,6 +143,19 @@ android {
             assets.directories.add(rootProject.file("name-abbr").path)
         }
     }
+
+    // Per-app language picker hands users any locale we ship, but Play's
+    // default per-language AAB splits only deliver the split matching the
+    // device's system locale at install time. Result: picking any other
+    // language falls back to values/ (English) because that locale's
+    // strings.xml isn't on disk. Bundle every language into the base APK
+    // so the picker always has resources to resolve against. The added
+    // install size is small — strings.xml only, no per-language assets.
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
 }
 
 // Fail fast if the name-abbr submodule wasn't checked out — otherwise the
@@ -172,6 +185,8 @@ tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }
     .configureEach { dependsOn(verifyNameAbbrSubmodule) }
 
 dependencies {
+    implementation(project(":shared"))
+    "playImplementation"(libs.play.services.wearable)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

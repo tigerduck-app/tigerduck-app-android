@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,6 +35,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
@@ -99,13 +103,23 @@ fun AnnouncementsScreen(
                     )
                 }
             }
-            IconButton(onClick = { viewModel.setUnreadOnly(!state.unreadOnly) }) {
+            val unreadOnlyLabel = stringResource(R.string.bulletin_show_unread_only_action)
+            Box(
+                modifier = Modifier
+                    .minimumInteractiveComponentSize()
+                    .toggleable(
+                        value = state.unreadOnly,
+                        role = Role.Switch,
+                        onValueChange = { viewModel.setUnreadOnly(it) },
+                    )
+                    .semantics {
+                        contentDescription = unreadOnlyLabel
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
                 Icon(
                     if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
-                    contentDescription = stringResource(
-                        if (state.unreadOnly) R.string.bulletin_show_all_action
-                        else R.string.bulletin_show_unread_only_action
-                    ),
+                    contentDescription = null,
                 )
             }
             IconButton(onClick = onOpenSubscriptions) {

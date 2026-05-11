@@ -7,13 +7,16 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
@@ -21,6 +24,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -88,12 +92,34 @@ class HomeViewModel @Inject constructor(
     )
     val ignoredTabPinned: StateFlow<Boolean> = _ignoredTabPinned
 
+    // Re-emits whenever AppClock.setOverride is called AND once per minute as
+    // wall-clock time advances, so the ALL-tab partitioning below
+    // (overdue-pinned-first vs. future vs. past) re-runs both when the debug
+    // clock toggles and as items naturally cross their dueDate. Without the
+    // periodic pulse, an assignment that came due while the app stayed open
+    // would never move into the overdue bucket.
+    private val appClockChanges: Flow<Long> = merge(
+        callbackFlow {
+            val listener: (Long) -> Unit = { trySend(it) }
+            AppClock.addOverrideListener(listener)
+            trySend(AppClock.version())
+            awaitClose { AppClock.removeOverrideListener(listener) }
+        },
+        kotlinx.coroutines.flow.flow {
+            while (true) {
+                kotlinx.coroutines.delay(60_000)
+                emit(AppClock.nowMillis())
+            }
+        },
+    )
+
     val upcomingAssignments: StateFlow<List<Assignment>> = combine(
         _allAssignments,
         _ignoredAssignmentIds,
         _markedCompletedIds,
         _assignmentFilter,
-    ) { all, ignored, marked, filter ->
+        appClockChanges,
+    ) { all, ignored, marked, filter, _ ->
         // "Effectively done" = Moodle says submitted OR the user manually
         // marked it from the swipe gesture. Both buckets get treated the
         // same for filter/sort purposes.
@@ -114,7 +140,7 @@ class HomeViewModel @Inject constructor(
                 //   3. Past items, most recently passed first → oldest.
                 // Within bucket 1, sort by dueDate desc so the most
                 // recently overdue is on top.
-                val now = Date()
+                val now = Date(AppClock.nowMillis())
                 val visible = all.filter { it.assignmentId !in ignored }
                 val (overdueUnhandled, rest) = visible.partition { a ->
                     !done(a) && a.dueDate.before(now)
@@ -443,7 +469,7 @@ class HomeViewModel @Inject constructor(
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
         _allCourses.value = courses
         val todayIndex =
-            Calendar.getInstance(AppConstants.TAIPEI_TZ).get(Calendar.DAY_OF_WEEK).let {
+            AppClock.calendar().get(Calendar.DAY_OF_WEEK).let {
                 // Android: Sun=1, Mon=2..Sat=7. We need Mon=1..Sun=7
                 when (it) {
                     Calendar.MONDAY -> 1
@@ -459,23 +485,29 @@ class HomeViewModel @Inject constructor(
         _todayCourses.value = courses.filter { it.schedule.containsKey(todayIndex) }
         _allAssignments.value = assignments.sortedBy { it.dueDate }
 
-        // Schedule notifications for upcoming assignments. Skip anything the
-        // user has ignored — notifying on a manually-dismissed task would be
-        // the opposite of what the ignore gesture is for.
+        // Schedule notifications for upcoming assignments. Items the user has
+        // ignored or marked-done still get scheduled, but as safety-net
+        // reminders — they fire at the same lead time as regular alerts but
+        // call out that the homework was dismissed without being submitted.
         if (prefs.notifyAssignments) {
-            val ignored = _ignoredAssignmentIds.value
-            val marked = _markedCompletedIds.value
-            notificationScheduler.scheduleAll(
-                assignments.filter {
-                    !it.isCompleted &&
-                            it.assignmentId !in ignored &&
-                            it.assignmentId !in marked
-                }
-            )
+            rescheduleAssignmentNotifications(assignments)
         }
 
         // Refresh the Live Update (Android analogue of the iOS dynamic island)
         liveActivityManager.refresh()
+    }
+
+    /**
+     * Re-arm every assignment alarm against the current ignored/marked sets.
+     * The scheduler decides REGULAR vs SAFETY_NET per id; we just hand it the
+     * full list of non-completed assignments and the union of dismissed ids.
+     */
+    private fun rescheduleAssignmentNotifications(assignments: List<Assignment>) {
+        val safetyNetIds = _ignoredAssignmentIds.value + _markedCompletedIds.value
+        notificationScheduler.scheduleAll(
+            assignments.filter { !it.isCompleted },
+            safetyNetIds,
+        )
     }
 
     fun cancelAllAssignmentNotifications() {
@@ -529,29 +561,26 @@ class HomeViewModel @Inject constructor(
             else current + assignment.assignmentId
         }
         saveIgnoredChannel.trySend(_ignoredAssignmentIds.value)
+        // Flip the alarm body for this id between REGULAR and SAFETY_NET so
+        // the next reminder reflects the user's most recent intent.
+        if (prefs.notifyAssignments) {
+            rescheduleAssignmentNotifications(_allAssignments.value)
+        }
     }
 
     fun toggleMarkCompleted(assignment: Assignment) {
         // Two-way gesture: right-swipe in 未完成 marks an item complete and
         // sends it to 全部; right-swipe a marked item in 全部 (revert-arrow
         // affordance) un-marks it and it reappears in 未完成. Re-run
-        // notification scheduling so a removed mark resurfaces a reminder
-        // (and a new mark cancels one).
+        // notification scheduling so the alarm flips between REGULAR (still
+        // pending) and SAFETY_NET (marked done, but not actually submitted).
         _markedCompletedIds.update { current ->
             if (assignment.assignmentId in current) current - assignment.assignmentId
             else current + assignment.assignmentId
         }
         saveMarkedCompletedChannel.trySend(_markedCompletedIds.value)
         if (prefs.notifyAssignments) {
-            val ignored = _ignoredAssignmentIds.value
-            val marked = _markedCompletedIds.value
-            notificationScheduler.scheduleAll(
-                _allAssignments.value.filter {
-                    !it.isCompleted &&
-                            it.assignmentId !in ignored &&
-                            it.assignmentId !in marked
-                }
-            )
+            rescheduleAssignmentNotifications(_allAssignments.value)
         }
     }
 

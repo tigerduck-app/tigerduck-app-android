@@ -53,6 +53,19 @@ class BulletinReadStateStore @Inject constructor(
         }
     }
 
+    /**
+     * Wipe every recorded "read" id. Called on logout so the next account on
+     * the same device starts with a fresh read state instead of inheriting
+     * the previous user's reads.
+     */
+    fun clear() {
+        synchronized(lock) {
+            if (_readIds.value.isEmpty()) return
+            _readIds.value = emptySet()
+            prefs.edit().remove(KEY_READ_IDS).apply()
+        }
+    }
+
     /** Drop ids that are no longer in [keep] so prefs don't grow unbounded. */
     fun prune(keep: Iterable<Int>) {
         synchronized(lock) {

@@ -3,8 +3,10 @@ package org.ntust.app.tigerduck.ui
 import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.graphics.Color
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -28,6 +30,7 @@ import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.LoadingState
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.notification.SystemPermissions
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -245,6 +248,47 @@ class AppState @Inject constructor(
             prefs.configuredTabs = value
         }
 
+    private val hapticStrengthStates: SnapshotStateMap<HapticScenario, Int> =
+        mutableStateMapOf<HapticScenario, Int>().apply {
+            HapticScenario.tunable.forEach { put(it, prefs.hapticStrength(it)) }
+        }
+
+    private val hapticDurationStates: SnapshotStateMap<HapticScenario, Int> =
+        mutableStateMapOf<HapticScenario, Int>().apply {
+            HapticScenario.tunable.forEach { put(it, prefs.hapticDurationMs(it)) }
+        }
+
+    fun hapticStrength(scenario: HapticScenario): Int =
+        hapticStrengthStates[scenario] ?: scenario.defaultStrengthPct
+
+    fun setHapticStrength(scenario: HapticScenario, value: Int) {
+        if (!scenario.userTunable) return
+        val clamped = value.coerceIn(0, 100)
+        if (hapticStrengthStates[scenario] == clamped) return
+        hapticStrengthStates[scenario] = clamped
+        prefs.setHapticStrength(scenario, clamped)
+    }
+
+    fun hapticDurationMs(scenario: HapticScenario): Int =
+        hapticDurationStates[scenario] ?: scenario.defaultDurationMs
+
+    fun setHapticDurationMs(scenario: HapticScenario, value: Int) {
+        if (!scenario.userTunable) return
+        val clamped = value.coerceIn(
+            AppPreferences.MIN_TUNABLE_HAPTIC_DURATION_MS,
+            AppPreferences.MAX_TUNABLE_HAPTIC_DURATION_MS,
+        )
+        if (hapticDurationStates[scenario] == clamped) return
+        hapticDurationStates[scenario] = clamped
+        prefs.setHapticDurationMs(scenario, clamped)
+    }
+
+    fun resetHapticToDefault(scenario: HapticScenario) {
+        if (!scenario.userTunable) return
+        setHapticStrength(scenario, scenario.defaultStrengthPct)
+        setHapticDurationMs(scenario, scenario.defaultDurationMs)
+    }
+
     val isNtustLoggedIn: Boolean get() = authService.isNtustAuthenticated
 
     @Suppress("unused")
@@ -284,6 +328,10 @@ class AppState @Inject constructor(
             notifyAssignmentsState = prefs.notifyAssignments
             libraryFeatureEnabledState = prefs.libraryFeatureEnabled
             configuredTabsState = prefs.configuredTabs
+            HapticScenario.tunable.forEach { scenario ->
+                hapticStrengthStates[scenario] = prefs.hapticStrength(scenario)
+                hapticDurationStates[scenario] = prefs.hapticDurationMs(scenario)
+            }
 
             _needsUserReset.value = false
         }

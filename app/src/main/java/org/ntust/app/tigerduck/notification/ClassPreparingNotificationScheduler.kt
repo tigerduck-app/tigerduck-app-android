@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.collapseContiguousPeriods
 import org.ntust.app.tigerduck.data.model.Course
 import java.time.LocalDate
@@ -48,7 +49,7 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         cancelAllTrackedLocked(codeMap)
         if (leadTimeSec <= 0 || courses.isEmpty()) return@synchronized
 
-        val now = System.currentTimeMillis()
+        val now = AppClock.nowMillis()
         val scheduled = mutableSetOf<String>()
         var nextCode = trackerPrefs.getInt(KEY_NEXT_CODE, 1)
 
@@ -64,7 +65,7 @@ class ClassPreparingNotificationScheduler @Inject constructor(
             val intent = Intent(context, ClassPreparingNotificationReceiver::class.java).apply {
                 putExtra(
                     ClassPreparingNotificationReceiver.EXTRA_COURSE_NAME,
-                    slot.course.courseName
+                    slot.course.displayName
                 )
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_CLASSROOM, slot.course.classroom)
                 putExtra(
@@ -74,6 +75,10 @@ class ClassPreparingNotificationScheduler @Inject constructor(
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_START_MS, slot.startMs)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_END_MS, slot.endMs)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_NOTIFICATION_ID, requestCode)
+                putExtra(
+                    ClassPreparingNotificationReceiver.EXTRA_LEAD_TIME_MS,
+                    leadTimeSec * 1000L,
+                )
             }
 
             val pendingIntent = PendingIntent.getBroadcast(
@@ -85,16 +90,16 @@ class ClassPreparingNotificationScheduler @Inject constructor(
 
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+                    alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerTime), pendingIntent)
                 } else {
                     alarmManager.setExactAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP,
-                        triggerTime,
+                        AppClock.realTimeFor(triggerTime),
                         pendingIntent
                     )
                 }
             } catch (_: SecurityException) {
-                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+                alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerTime), pendingIntent)
             }
             scheduled.add(slot.id)
         }
@@ -163,7 +168,7 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         skippedDates: Map<String, List<String>>,
         daysAhead: Int,
     ): List<UpcomingSlot> {
-        val today = LocalDate.now(AppConstants.TAIPEI_ZONE)
+        val today = AppClock.localDateTime().toLocalDate()
         val results = mutableListOf<UpcomingSlot>()
         for (dayOffset in 0 until daysAhead) {
             val date = today.plusDays(dayOffset.toLong())

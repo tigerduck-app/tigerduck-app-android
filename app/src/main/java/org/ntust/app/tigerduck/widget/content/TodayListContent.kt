@@ -153,7 +153,7 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
                             modifier = GlanceModifier.defaultWeight().padding(start = 6.dp),
                         ) {
                             Text(
-                                text = course.courseName,
+                                text = course.displayName,
                                 style = TextStyle(
                                     color = ColorProvider(primaryText),
                                     fontSize = 14.sp,

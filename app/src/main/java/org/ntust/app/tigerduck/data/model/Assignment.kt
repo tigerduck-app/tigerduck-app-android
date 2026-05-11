@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.data.model
 
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Date
 
 data class Assignment(
@@ -18,7 +19,7 @@ data class Assignment(
     val submittedAt: Date? = null,
 ) {
     val isOverdue: Boolean
-        get() = !isCompleted && dueDate.before(Date())
+        get() = !isCompleted && dueDate.before(Date(AppClock.nowMillis()))
 
     val moodleDeepLink: String
         get() = moodleUrl?.let {

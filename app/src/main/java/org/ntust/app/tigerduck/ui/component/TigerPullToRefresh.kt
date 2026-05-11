@@ -19,15 +19,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 private val ThresholdDp = 140.dp
@@ -50,7 +50,7 @@ fun TigerPullToRefresh(
 
     val dragY = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
-    val haptic = LocalHapticFeedback.current
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     val latestIsRefreshing by rememberUpdatedState(isRefreshing)
     val latestOnRefresh by rememberUpdatedState(onRefresh)
@@ -101,7 +101,10 @@ fun TigerPullToRefresh(
                     if (!latestIsRefreshing) {
                         if (!crossedThreshold && newY >= thresholdPx) {
                             crossedThreshold = true
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            Haptics.perform(
+                                context,
+                                HapticScenario.PullToRefresh,
+                            )
                         } else if (crossedThreshold && newY < thresholdPx) {
                             crossedThreshold = false
                         }

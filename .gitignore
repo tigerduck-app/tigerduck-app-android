@@ -3,6 +3,7 @@
 .claude/scheduled_tasks.lock
 .superpowers/
 docs/superpowers/
+.worktrees/
 
 # Created by https://www.toptal.com/developers/gitignore/api/linux,macos,kotlin,windows,intellij,visualstudio,visualstudiocode,python,pycharm,androidstudio,android,gradle,keystonejs,java
 # Edit at https://www.toptal.com/developers/gitignore?templates=linux,macos,kotlin,windows,intellij,visualstudio,visualstudiocode,python,pycharm,androidstudio,android,gradle,keystonejs,java
@@ -701,6 +702,12 @@ mono_crash.*
 # swallow Android's per-build-type source set directories. Un-ignore them.
 !app/src/debug/
 !app/src/release/
+!app/src/main/java/org/ntust/app/tigerduck/debug/
+!app/src/play/java/org/ntust/app/tigerduck/debug/
+!app/src/fdroid/java/org/ntust/app/tigerduck/debug/
+!app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/
+# Root-level developer scripts + docs, not a build-output directory.
+!/debug/
 x64/
 x86/
 [Ww][Ii][Nn]32/

@@ -56,6 +56,7 @@ import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.model.HomeSection
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.*
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
@@ -565,7 +566,7 @@ private fun CourseDetailDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(course.courseName) },
+        title = { Text(course.displayName) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
@@ -600,8 +601,7 @@ private fun CourseDetailDialog(
 
 @Composable
 private fun greetingText(): String {
-    val hour = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ)
-        .get(Calendar.HOUR_OF_DAY)
+    val hour = AppClock.calendar().get(Calendar.HOUR_OF_DAY)
     return when {
         hour < 6 -> stringResource(R.string.greeting_very_early)
         hour < 12 -> stringResource(R.string.greeting_morning)

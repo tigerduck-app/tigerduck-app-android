@@ -22,6 +22,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -33,7 +37,24 @@ fun SyncIndicator(
     modifier: Modifier = Modifier,
     dragProgress: Float = 0f,
 ) {
-    Box(modifier = modifier.size(20.dp)) {
+    val loadingLabel = stringResource(R.string.refreshing_message)
+    val successLabel = stringResource(R.string.sync_success_content_description)
+    val statusLabel = when {
+        isLoading -> loadingLabel
+        showCheckmark -> successLabel
+        else -> ""
+    }
+    Box(
+        modifier = modifier
+            .size(20.dp)
+            // Always attach the semantics node so TalkBack sees an existing
+            // live-region whose contentDescription changes — node creation
+            // alone does not reliably trigger a polite announcement.
+            .semantics(mergeDescendants = true) {
+                liveRegion = LiveRegionMode.Polite
+                contentDescription = statusLabel
+            },
+    ) {
         AnimatedContent(
             targetState = when {
                 isLoading -> "loading"
@@ -53,7 +74,7 @@ fun SyncIndicator(
 
                 "checkmark" -> Icon(
                     Icons.Filled.CheckCircle,
-                    contentDescription = stringResource(R.string.sync_success_content_description),
+                    contentDescription = null,
                     tint = Color(0xFF34C759),
                     modifier = Modifier.size(20.dp)
                 )

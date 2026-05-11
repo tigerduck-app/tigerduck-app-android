@@ -16,8 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,6 +41,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -51,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 @Composable
@@ -329,6 +329,7 @@ private fun LoginPromptCard(
 ) {
     val focusManager = LocalFocusManager.current
     val passwordFocusRequester = remember { FocusRequester() }
+    var passwordVisible by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -356,6 +357,7 @@ private fun LoginPromptCard(
                 capitalization = KeyboardCapitalization.Sentences,
                 imeAction = ImeAction.Next,
                 onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+                enabled = !isLoggingIn,
                 autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -364,18 +366,19 @@ private fun LoginPromptCard(
                 onValueChange = onPasswordChange,
                 label = { Text(stringResource(R.string.library_login_password)) },
                 singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                trailingIcon = if (!isLoggingIn && password.isNotEmpty()) {
+                visualTransformation = if (passwordVisible) VisualTransformation.None
+                else PasswordVisualTransformation(),
+                trailingIcon = if (!isLoggingIn) {
                     {
-                        IconButton(onClick = { onPasswordChange("") }) {
-                            Icon(
-                                imageVector = Icons.Filled.Cancel,
-                                contentDescription = stringResource(R.string.action_clear_text),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        PasswordTrailingIcons(
+                            password = password,
+                            passwordVisible = passwordVisible,
+                            onClear = { onPasswordChange(""); passwordVisible = false },
+                            onToggleVisibility = { passwordVisible = !passwordVisible },
+                        )
                     }
                 } else null,
+                enabled = !isLoggingIn,
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(passwordFocusRequester)
