@@ -9,7 +9,7 @@ enum class HapticScenario(
     val defaultDurationMs: Int,
     val userTunable: Boolean,
     val forceOneShot: Boolean = false,
-    @StringRes val labelRes: Int,
+    @param:StringRes val labelRes: Int,
 ) {
     TabSwitch(
         prefKey = "tabSwitch",
