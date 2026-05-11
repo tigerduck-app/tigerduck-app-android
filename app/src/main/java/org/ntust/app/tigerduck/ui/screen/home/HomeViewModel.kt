@@ -485,23 +485,29 @@ class HomeViewModel @Inject constructor(
         _todayCourses.value = courses.filter { it.schedule.containsKey(todayIndex) }
         _allAssignments.value = assignments.sortedBy { it.dueDate }
 
-        // Schedule notifications for upcoming assignments. Skip anything the
-        // user has ignored — notifying on a manually-dismissed task would be
-        // the opposite of what the ignore gesture is for.
+        // Schedule notifications for upcoming assignments. Items the user has
+        // ignored or marked-done still get scheduled, but as safety-net
+        // reminders — they fire at the same lead time as regular alerts but
+        // call out that the homework was dismissed without being submitted.
         if (prefs.notifyAssignments) {
-            val ignored = _ignoredAssignmentIds.value
-            val marked = _markedCompletedIds.value
-            notificationScheduler.scheduleAll(
-                assignments.filter {
-                    !it.isCompleted &&
-                            it.assignmentId !in ignored &&
-                            it.assignmentId !in marked
-                }
-            )
+            rescheduleAssignmentNotifications(assignments)
         }
 
         // Refresh the Live Update (Android analogue of the iOS dynamic island)
         liveActivityManager.refresh()
+    }
+
+    /**
+     * Re-arm every assignment alarm against the current ignored/marked sets.
+     * The scheduler decides REGULAR vs SAFETY_NET per id; we just hand it the
+     * full list of non-completed assignments and the union of dismissed ids.
+     */
+    private fun rescheduleAssignmentNotifications(assignments: List<Assignment>) {
+        val safetyNetIds = _ignoredAssignmentIds.value + _markedCompletedIds.value
+        notificationScheduler.scheduleAll(
+            assignments.filter { !it.isCompleted },
+            safetyNetIds,
+        )
     }
 
     fun cancelAllAssignmentNotifications() {
@@ -555,29 +561,26 @@ class HomeViewModel @Inject constructor(
             else current + assignment.assignmentId
         }
         saveIgnoredChannel.trySend(_ignoredAssignmentIds.value)
+        // Flip the alarm body for this id between REGULAR and SAFETY_NET so
+        // the next reminder reflects the user's most recent intent.
+        if (prefs.notifyAssignments) {
+            rescheduleAssignmentNotifications(_allAssignments.value)
+        }
     }
 
     fun toggleMarkCompleted(assignment: Assignment) {
         // Two-way gesture: right-swipe in 未完成 marks an item complete and
         // sends it to 全部; right-swipe a marked item in 全部 (revert-arrow
         // affordance) un-marks it and it reappears in 未完成. Re-run
-        // notification scheduling so a removed mark resurfaces a reminder
-        // (and a new mark cancels one).
+        // notification scheduling so the alarm flips between REGULAR (still
+        // pending) and SAFETY_NET (marked done, but not actually submitted).
         _markedCompletedIds.update { current ->
             if (assignment.assignmentId in current) current - assignment.assignmentId
             else current + assignment.assignmentId
         }
         saveMarkedCompletedChannel.trySend(_markedCompletedIds.value)
         if (prefs.notifyAssignments) {
-            val ignored = _ignoredAssignmentIds.value
-            val marked = _markedCompletedIds.value
-            notificationScheduler.scheduleAll(
-                _allAssignments.value.filter {
-                    !it.isCompleted &&
-                            it.assignmentId !in ignored &&
-                            it.assignmentId !in marked
-                }
-            )
+            rescheduleAssignmentNotifications(_allAssignments.value)
         }
     }
 

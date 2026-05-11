@@ -176,16 +176,14 @@ class BackgroundSyncWorker @AssistedInject constructor(
             dataCache.saveAssignments(merged)
 
             if (prefs.notifyAssignments) {
-                // Mirror HomeViewModel's filter so background re-scheduling
-                // doesn't resurrect notifications the user manually silenced.
+                // Hand the scheduler both the full non-completed list and the
+                // dismissed set; it routes ignored/marked ids to the safety-
+                // net reminder body instead of dropping them.
                 val ignored = dataCache.loadIgnoredAssignments()
                 val marked = dataCache.loadMarkedCompletedAssignments()
                 notificationScheduler.scheduleAll(
-                    merged.filter {
-                        !it.isCompleted &&
-                                it.assignmentId !in ignored &&
-                                it.assignmentId !in marked
-                    }
+                    merged.filter { !it.isCompleted },
+                    ignored + marked,
                 )
             }
             true

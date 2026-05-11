@@ -43,10 +43,15 @@ class DebugClockController @Inject constructor(
     }
 
     fun setOverride(override: ClockOverride?) {
-        AppClock.setOverride(override)
         store.save(override)
         scope.launch {
             wearBridge.push(override)
+            // Set the override inside the coroutine, immediately before
+            // rescheduleAll(), so all schedulers read the new clock when they
+            // compute realTimeFor() trigger values. This eliminates the window
+            // where listeners (and any code reading AppClock) see the new
+            // override while old AlarmManager entries are still live.
+            AppClock.setOverride(override)
             rescheduleAll()
         }
     }
@@ -61,7 +66,9 @@ class DebugClockController @Inject constructor(
         if (appPreferences.notifyAssignments) {
             val assignments = dataCache.loadAssignments()
             if (assignments.isNotEmpty()) {
-                assignmentScheduler.scheduleAll(assignments)
+                val ignored = dataCache.loadIgnoredAssignments()
+                val marked = dataCache.loadMarkedCompletedAssignments()
+                assignmentScheduler.scheduleAll(assignments, ignored + marked)
             }
         }
         val courses = dataCache.loadCourses()

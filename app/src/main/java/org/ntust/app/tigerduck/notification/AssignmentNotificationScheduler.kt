@@ -19,7 +19,20 @@ class AssignmentNotificationScheduler @Inject constructor(
     private val trackerPrefs =
         context.getSharedPreferences("notification_tracker", Context.MODE_PRIVATE)
 
-    fun scheduleAll(assignments: List<Assignment>) {
+    /**
+     * Schedule a reminder for each upcoming assignment.
+     *
+     * Assignments whose id appears in [safetyNetIds] are still scheduled but
+     * with `EXTRA_KIND = KIND_SAFETY_NET`, so the receiver posts a different
+     * body warning the user that they ignored / marked-done a homework they
+     * haven't actually submitted. The trigger time is unchanged — same single
+     * 1-hour-before-due moment as the regular reminder, so the alert lands
+     * when the deadline still matters.
+     */
+    fun scheduleAll(
+        assignments: List<Assignment>,
+        safetyNetIds: Set<String> = emptySet(),
+    ) {
         cancelAllTracked()
 
         val now = AppClock.nowMillis()
@@ -31,6 +44,12 @@ class AssignmentNotificationScheduler @Inject constructor(
             val triggerTime = assignment.dueDate.time - leadTimeMs
             if (triggerTime <= now) continue
 
+            val kind = if (assignment.assignmentId in safetyNetIds) {
+                AssignmentNotificationReceiver.KIND_SAFETY_NET
+            } else {
+                AssignmentNotificationReceiver.KIND_REGULAR
+            }
+
             val intent = Intent(context, AssignmentNotificationReceiver::class.java).apply {
                 putExtra(AssignmentNotificationReceiver.EXTRA_TITLE, assignment.title)
                 putExtra(AssignmentNotificationReceiver.EXTRA_COURSE_NAME, assignment.courseName)
@@ -38,6 +57,7 @@ class AssignmentNotificationScheduler @Inject constructor(
                     AssignmentNotificationReceiver.EXTRA_ASSIGNMENT_ID,
                     assignment.assignmentId
                 )
+                putExtra(AssignmentNotificationReceiver.EXTRA_KIND, kind)
             }
 
             val pendingIntent = PendingIntent.getBroadcast(
