@@ -145,6 +145,15 @@ fun OutlinedAccountIdField(
         imm?.restartInput(et)
     }
 
+    // Tracks the last inputType pushed to the EditText so the update block
+    // only flips it (and asks the IME to reconnect) when the value actually
+    // changes. The hot empty→non-empty transition flips inputType from
+    // VISIBLE_PASSWORD to TYPE_CLASS_NUMBER mid-keystroke; without an explicit
+    // restartInput, GBoard/Samsung IME can drop the composing span.
+    // -1 means "not applied yet" so the first write always goes through and
+    // skips the IME reconnect (no IME connection on initial compose).
+    var lastAppliedInputType by remember { mutableStateOf(-1) }
+
     OutlinedTextFieldDefaults.DecorationBox(
         value = value,
         innerTextField = {
@@ -229,9 +238,18 @@ fun OutlinedAccountIdField(
                     // leading letter; non-empty flips to a pure numeric pad.
                     // The compatibility toggle pins to TYPE_CLASS_TEXT to skip
                     // the flip entirely for IMEs that mishandle it.
-                    editText.inputType = computeAccountInputType(
+                    val newInputType = computeAccountInputType(
                         useStandardKeyboard, value, capitalization,
                     )
+                    if (newInputType != lastAppliedInputType) {
+                        editText.inputType = newInputType
+                        if (lastAppliedInputType != -1) {
+                            val imm = editText.context
+                                .getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                            imm?.restartInput(editText)
+                        }
+                        lastAppliedInputType = newInputType
+                    }
                     editText.imeOptions = imeAction.toEditorInfoFlag()
                     if (autofillHint != null) {
                         editText.setAutofillHints(autofillHint)
