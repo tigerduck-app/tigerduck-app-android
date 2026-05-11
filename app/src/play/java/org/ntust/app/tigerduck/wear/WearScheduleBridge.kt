@@ -48,10 +48,11 @@ class WearScheduleBridge @Inject constructor(
         // Resolve "system" to the concrete tag the watch should mirror — the
         // watch can't observe the phone's system locale directly, so we send
         // the resolved BCP-47 tag instead of the literal "system" sentinel.
+        // `resolveExplicitLocale(SYSTEM)` is documented to return null, so go
+        // straight to `resolvedSystemLanguage()` for the SYSTEM branch.
         val rawLanguage = appPreferences.appLanguage
         val languageTag = if (rawLanguage == AppLanguageManager.SYSTEM) {
-            AppLanguageManager.resolveExplicitLocale(AppLanguageManager.SYSTEM)?.toLanguageTag()
-                ?: AppLanguageManager.resolvedSystemLanguage()
+            AppLanguageManager.resolvedSystemLanguage()
         } else {
             rawLanguage
         }
