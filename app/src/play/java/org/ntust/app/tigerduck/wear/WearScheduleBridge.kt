@@ -74,7 +74,10 @@ class WearScheduleBridge @Inject constructor(
 
     private fun Course.toDto(): CourseDto = CourseDto(
         courseNo = courseNo,
-        courseName = courseName,
+        // Send the resolved label so any user-set customCourseName survives the
+        // round-trip. The watch-side wire schema has no customCourseName field,
+        // so baking the override into courseName is the lightest fix.
+        courseName = displayName,
         instructor = instructor,
         credits = credits,
         classroom = classroom,
