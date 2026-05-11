@@ -18,7 +18,7 @@ Repo: https://github.com/tigerduck-app/tigerduck-app-android.git
 Builds:
   - versionName: 1.4.0-fdroid
     versionCode: 18
-    commit: <will be replaced by GitHub Action when creating release>
+    commit: 9695d18ad66ed16d2a947fa8e59e7d7ea00213e8
     subdir: app
     submodules: true
     gradle:
