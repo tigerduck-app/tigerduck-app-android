@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,16 +25,21 @@ class LiveActivityBoundaryScheduler @Inject constructor(
     private val alarmManager = context.getSystemService(AlarmManager::class.java)
 
     fun scheduleAt(triggerAtMillis: Long) {
+        // Caller works in AppClock time; AlarmManager needs wall-clock time.
+        // Without the translation, an active debug-clock override would push
+        // the boundary alarm to the wrong real moment (or never), mirroring
+        // the pattern used by AssignmentNotificationScheduler.
+        val realTrigger = AppClock.realTimeFor(triggerAtMillis)
         val pi = makePendingIntent()
         alarmManager.cancel(pi)
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pi)
+                alarmManager.set(AlarmManager.RTC_WAKEUP, realTrigger, pi)
             } else {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pi)
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, realTrigger, pi)
             }
         } catch (_: SecurityException) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pi)
+            alarmManager.set(AlarmManager.RTC_WAKEUP, realTrigger, pi)
         }
     }
 
