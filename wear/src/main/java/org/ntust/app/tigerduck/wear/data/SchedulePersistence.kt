@@ -10,9 +10,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
 import org.ntust.app.tigerduck.shared.Course
 import java.io.ByteArrayInputStream
 import java.util.zip.GZIPInputStream
@@ -22,6 +20,17 @@ private val Context.scheduleDataStore by preferencesDataStore(name = "wear_sched
 class SchedulePersistence(private val context: Context) {
 
     private val gson = Gson()
+
+    /**
+     * Tiny SharedPreferences shadow for values that need a *synchronous*
+     * cold-start read (currently just the language tag, applied in
+     * `attachBaseContext` before the first frame). Using SharedPreferences
+     * here avoids `runBlocking` on the DataStore from the main thread.
+     * DataStore remains the source of truth for the reactive [flow].
+     */
+    private val bootstrapPrefs by lazy {
+        context.getSharedPreferences("wear_schedule_bootstrap", Context.MODE_PRIVATE)
+    }
 
     val flow: Flow<WatchSnapshot> = context.scheduleDataStore.data.map { prefs -> readSnapshot(prefs) }
 
@@ -40,14 +49,17 @@ class SchedulePersistence(private val context: Context) {
             prefs[KEY_LOGGED_IN] = loggedIn
             if (languageTag != null) prefs[KEY_LANGUAGE] = languageTag
         }
+        if (languageTag != null) {
+            bootstrapPrefs.edit().putString(BOOTSTRAP_KEY_LANGUAGE, languageTag).apply()
+        }
     }
 
-    /** Synchronous one-shot read used by Activity onCreate to apply the
-     *  cached language before the first frame is composed. Acceptable
-     *  bootstrap pattern; not for hot paths. */
-    fun readLanguageTagBlocking(): String? = runCatching {
-        runBlocking { context.scheduleDataStore.data.first()[KEY_LANGUAGE] }
-    }.getOrNull()
+    /** Synchronous cold-start read used by Activity `attachBaseContext` to
+     *  apply the cached language before the first frame is composed. Reads
+     *  from a SharedPreferences shadow rather than blocking on DataStore so
+     *  it's safe to call from the main thread. */
+    fun readLanguageTagBlocking(): String? =
+        bootstrapPrefs.getString(BOOTSTRAP_KEY_LANGUAGE, null)
 
     suspend fun writePaddingDp(value: Int) {
         context.scheduleDataStore.edit { prefs -> prefs[KEY_PADDING_DP] = value }
@@ -115,6 +127,7 @@ class SchedulePersistence(private val context: Context) {
         private val KEY_LOGGED_IN = booleanPreferencesKey("logged_in")
         private val KEY_LANGUAGE = stringPreferencesKey("language_tag")
         private val KEY_PADDING_DP = androidx.datastore.preferences.core.intPreferencesKey("padding_dp")
+        private const val BOOTSTRAP_KEY_LANGUAGE = "language_tag"
     }
 }
 
