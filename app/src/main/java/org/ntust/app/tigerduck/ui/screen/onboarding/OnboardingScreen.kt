@@ -107,6 +107,22 @@ fun OnboardingScreen(
         }
     }
 
+    // Re-evaluated by the forward arrow on every recomposition so unchecking
+    // the privacy boxes after visiting a later page can't re-cross the gate.
+    val bothAccepted by remember {
+        derivedStateOf { privacyPolicyAccepted && deleteAccountAccepted }
+    }
+
+    // The forward arrow may advance past a page only when (a) the page has
+    // been visited before AND (b) any per-page gate on that page still holds.
+    // Without (b), a user who reached the login page once could come back to
+    // page 1, uncheck the privacy boxes, and forward-arrow past them again.
+    fun canAdvanceFrom(page: Int): Boolean {
+        if (page >= maxVisitedPage) return false
+        if (page == 1 && !bothAccepted) return false
+        return true
+    }
+
     fun goToPage(page: Int) {
         scope.launch { pagerState.animateScrollToPage(page) }
     }
@@ -195,7 +211,6 @@ fun OnboardingScreen(
                             onCheckedChange = { deleteAccountAccepted = it },
                         )
                     }
-                    val bothAccepted = privacyPolicyAccepted && deleteAccountAccepted
                     if (!bothAccepted) {
                         Text(
                             text = stringResource(R.string.onboarding_privacy_continue_hint),
@@ -381,7 +396,7 @@ fun OnboardingScreen(
         }
         FilledTonalIconButton(
             onClick = { goToPage(pagerState.currentPage + 1) },
-            enabled = pagerState.currentPage < maxVisitedPage,
+            enabled = canAdvanceFrom(pagerState.currentPage),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 24.dp, bottom = 40.dp),
