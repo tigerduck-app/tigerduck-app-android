@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.shared.WearProtocol
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -19,7 +20,7 @@ class PhoneSyncListener : WearableListenerService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
-        if (messageEvent.path != SYNC_REQUEST_PATH) return
+        if (messageEvent.path != WearProtocol.SyncRequest.PATH) return
         Log.d(TAG, "sync request from watch: ${messageEvent.sourceNodeId}")
         scope.launch { bridge.publish() }
     }
@@ -29,8 +30,7 @@ class PhoneSyncListener : WearableListenerService() {
         super.onDestroy()
     }
 
-    companion object {
-        const val SYNC_REQUEST_PATH = "/tigerduck/sync_request"
-        private const val TAG = "WearBridge"
+    private companion object {
+        const val TAG = "WearBridge"
     }
 }

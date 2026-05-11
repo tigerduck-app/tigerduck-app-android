@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.tasks.await
+import org.ntust.app.tigerduck.shared.WearProtocol
 import java.util.concurrent.TimeUnit
 
 object SyncRequester {
@@ -26,7 +27,7 @@ object SyncRequester {
             val nodeIds = Wearable.getNodeClient(context).connectedNodes.await().map { it.id }
             for (nodeId in nodeIds) {
                 Wearable.getMessageClient(context)
-                    .sendMessage(nodeId, SYNC_REQUEST_PATH, ByteArray(0))
+                    .sendMessage(nodeId, WearProtocol.SyncRequest.PATH, ByteArray(0))
                     .await()
                 Log.d(TAG, "sync request sent to $nodeId")
             }
@@ -35,6 +36,5 @@ object SyncRequester {
         }
     }
 
-    const val SYNC_REQUEST_PATH = "/tigerduck/sync_request"
     private const val TAG = "WearBridge"
 }

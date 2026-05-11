@@ -6,6 +6,7 @@ import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.tasks.await
+import org.ntust.app.tigerduck.shared.WearProtocol
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,16 +27,16 @@ class WearDebugClockBridge @Inject constructor(
      * level.
      */
     suspend fun push(override: ClockOverride?) {
-        val request = PutDataMapRequest.create(PATH).apply {
+        val request = PutDataMapRequest.create(WearProtocol.DebugClock.PATH).apply {
             if (override == null) {
-                dataMap.putBoolean(KEY_CLEARED, true)
-                dataMap.putLong(KEY_VERSION, System.currentTimeMillis())
+                dataMap.putBoolean(WearProtocol.DebugClock.KEY_CLEARED, true)
+                dataMap.putLong(WearProtocol.DebugClock.KEY_VERSION, System.currentTimeMillis())
             } else {
-                dataMap.putBoolean(KEY_CLEARED, false)
-                dataMap.putLong(KEY_INSTANT, override.instantMillis)
-                dataMap.putBoolean(KEY_FROZEN, override.frozen)
-                dataMap.putLong(KEY_SAVED_AT, override.savedAtRealMillis)
-                dataMap.putLong(KEY_VERSION, System.currentTimeMillis())
+                dataMap.putBoolean(WearProtocol.DebugClock.KEY_CLEARED, false)
+                dataMap.putLong(WearProtocol.DebugClock.KEY_INSTANT, override.instantMillis)
+                dataMap.putBoolean(WearProtocol.DebugClock.KEY_FROZEN, override.frozen)
+                dataMap.putLong(WearProtocol.DebugClock.KEY_SAVED_AT, override.savedAtRealMillis)
+                dataMap.putLong(WearProtocol.DebugClock.KEY_VERSION, System.currentTimeMillis())
             }
         }.asPutDataRequest().setUrgent()
 
@@ -47,16 +48,7 @@ class WearDebugClockBridge @Inject constructor(
         }
     }
 
-    companion object {
-        const val PATH = "/tigerduck/debug-clock"
-        const val KEY_CLEARED = "cleared"
-        const val KEY_INSTANT = "instant_millis"
-        const val KEY_FROZEN = "frozen"
-        const val KEY_SAVED_AT = "saved_at_real_millis"
-        // Bumped on every push so the data layer treats two equal-payload
-        // overrides as different items and re-delivers them. Without this,
-        // toggling on→off→on with the same instant would silently no-op.
-        const val KEY_VERSION = "version"
-        private const val TAG = "WearDebugClock"
+    private companion object {
+        const val TAG = "WearDebugClock"
     }
 }

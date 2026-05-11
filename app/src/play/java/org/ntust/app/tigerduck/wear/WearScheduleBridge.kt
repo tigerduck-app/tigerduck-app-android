@@ -12,6 +12,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.WearProtocol
 import java.io.ByteArrayOutputStream
 import java.util.zip.GZIPOutputStream
 import javax.inject.Inject
@@ -55,12 +56,12 @@ class WearScheduleBridge @Inject constructor(
             rawLanguage
         }
 
-        val request = PutDataMapRequest.create(SCHEDULE_PATH).apply {
-            dataMap.putByteArray(KEY_COURSES, gzipped)
-            dataMap.putString(KEY_ACCENT, accentHex)
-            dataMap.putLong(KEY_SYNCED_AT, System.currentTimeMillis())
-            dataMap.putBoolean(KEY_LOGGED_IN, loggedIn)
-            dataMap.putString(KEY_LANGUAGE, languageTag)
+        val request = PutDataMapRequest.create(WearProtocol.Schedule.PATH).apply {
+            dataMap.putByteArray(WearProtocol.Schedule.KEY_COURSES, gzipped)
+            dataMap.putString(WearProtocol.Schedule.KEY_ACCENT, accentHex)
+            dataMap.putLong(WearProtocol.Schedule.KEY_SYNCED_AT, System.currentTimeMillis())
+            dataMap.putBoolean(WearProtocol.Schedule.KEY_LOGGED_IN, loggedIn)
+            dataMap.putString(WearProtocol.Schedule.KEY_LANGUAGE, languageTag)
         }.asPutDataRequest().setUrgent()
 
         try {
@@ -96,13 +97,7 @@ class WearScheduleBridge @Inject constructor(
         val isManual: Boolean,
     )
 
-    companion object {
-        const val SCHEDULE_PATH = "/tigerduck/schedule"
-        const val KEY_COURSES = "courses"
-        const val KEY_ACCENT = "accentHex"
-        const val KEY_SYNCED_AT = "syncedAtMs"
-        const val KEY_LOGGED_IN = "loggedIn"
-        const val KEY_LANGUAGE = "languageTag"
-        private const val TAG = "WearBridge"
+    private companion object {
+        const val TAG = "WearBridge"
     }
 }

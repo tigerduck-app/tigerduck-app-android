@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.shared.WearProtocol
 
 class DataLayerListener : WearableListenerService() {
 
@@ -25,13 +26,13 @@ class DataLayerListener : WearableListenerService() {
         for (event in events) {
             if (event.type != DataEvent.TYPE_CHANGED) continue
             val item = event.dataItem
-            if (item.uri.path != SCHEDULE_PATH) continue
+            if (item.uri.path != WearProtocol.Schedule.PATH) continue
             val map = DataMapItem.fromDataItem(item).dataMap
-            val courses = map.getByteArray(KEY_COURSES) ?: continue
-            val accent = map.getString(KEY_ACCENT) ?: SchedulePersistence.DEFAULT_ACCENT
-            val syncedAt = map.getLong(KEY_SYNCED_AT)
-            val loggedIn = map.getBoolean(KEY_LOGGED_IN)
-            val language = map.getString(KEY_LANGUAGE)
+            val courses = map.getByteArray(WearProtocol.Schedule.KEY_COURSES) ?: continue
+            val accent = map.getString(WearProtocol.Schedule.KEY_ACCENT) ?: SchedulePersistence.DEFAULT_ACCENT
+            val syncedAt = map.getLong(WearProtocol.Schedule.KEY_SYNCED_AT)
+            val loggedIn = map.getBoolean(WearProtocol.Schedule.KEY_LOGGED_IN)
+            val language = map.getString(WearProtocol.Schedule.KEY_LANGUAGE)
             ScheduleRepository.get(this).write(courses, accent, syncedAt, loggedIn, language)
             Log.d(TAG, "received snapshot, lag=${System.currentTimeMillis() - syncedAt} ms")
             notifyTileAndComplication(applicationContext)
@@ -43,14 +44,8 @@ class DataLayerListener : WearableListenerService() {
         super.onDestroy()
     }
 
-    companion object {
-        const val SCHEDULE_PATH = "/tigerduck/schedule"
-        const val KEY_COURSES = "courses"
-        const val KEY_ACCENT = "accentHex"
-        const val KEY_SYNCED_AT = "syncedAtMs"
-        const val KEY_LOGGED_IN = "loggedIn"
-        const val KEY_LANGUAGE = "languageTag"
-        private const val TAG = "WearBridge"
+    private companion object {
+        const val TAG = "WearBridge"
     }
 }
 
