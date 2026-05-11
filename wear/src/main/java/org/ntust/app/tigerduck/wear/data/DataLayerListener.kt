@@ -33,7 +33,16 @@ class DataLayerListener : WearableListenerService() {
             val syncedAt = map.getLong(WearProtocol.Schedule.KEY_SYNCED_AT)
             val loggedIn = map.getBoolean(WearProtocol.Schedule.KEY_LOGGED_IN)
             val language = map.getString(WearProtocol.Schedule.KEY_LANGUAGE)
-            ScheduleRepository.get(this).write(courses, accent, syncedAt, loggedIn, language)
+            try {
+                ScheduleRepository.get(this).write(courses, accent, syncedAt, loggedIn, language)
+            } catch (e: Exception) {
+                // Most likely a malformed/truncated gzip payload from the Data Layer
+                // (decompress() throws ZipException). Skip this packet rather than
+                // letting the exception escape the SupervisorJob's launch and crash
+                // the service via the thread's uncaught-exception handler.
+                Log.e(TAG, "failed to persist snapshot", e)
+                continue
+            }
             Log.d(TAG, "received snapshot, lag=${System.currentTimeMillis() - syncedAt} ms")
             notifyTileAndComplication(applicationContext)
         }
