@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.res.stringResource
 import androidx.wear.compose.foundation.pager.HorizontalPager
 import androidx.wear.compose.foundation.pager.rememberPagerState
@@ -39,7 +40,12 @@ fun WearApp() {
     val paddingDp by repo.paddingDpFlow.collectAsState(initial = SchedulePersistence.DEFAULT_PADDING_DP)
 
     LaunchedEffect(Unit) {
-        SyncRequester.maybeRequest(context, snapshot)
+        // collectAsState seeds `snapshot` with an empty initial value before
+        // the DataStore emits, so reading it here would always look like a
+        // never-synced state and bypass SyncRequester's 10-minute guard.
+        // Pull the first real DataStore emission instead.
+        val firstSnapshot = repo.flow.first()
+        SyncRequester.maybeRequest(context, firstSnapshot)
     }
 
     // Re-apply the phone's chosen locale when it changes mid-session.
