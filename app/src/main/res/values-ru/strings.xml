@@ -343,6 +343,7 @@
     <string name="login_student_id">Студенческий ID</string>
     <string name="more_section_other">Другое</string>
     <string name="more_section_pages">Страницы</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Напоминает о приближении срока сдачи заданий</string>
     <string name="notification_assignment_due_channel_name">Напоминания о сроках сдачи заданий</string>
     <string name="notification_assignment_due_title">Скоро срок сдачи задания</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Слишком поздно… %1$s «%2$s»</string>
     <string name="notification_assignment_reminder_body_multi_hour">Ещё можно всё исправить! %1$s «%2$s»</string>
     <string name="notification_assignment_reminder_title">Напоминание о задании: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Ты отметил как выполненное или проигнорировал, но оно ещё не сдано: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Задание всё ещё не сдано</string>
     <string name="notification_bulletin_channel_description">Уведомления в реальном времени о новых бюллетенях NTUST, соответствующих вашим подпискам</string>
     <string name="notification_bulletin_channel_name">Школьные бюллетени</string>
     <string name="notification_class_preparing_channel_description">Отправляет напоминания перед началом каждого занятия</string>

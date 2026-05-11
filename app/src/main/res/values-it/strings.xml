@@ -343,6 +343,7 @@
     <string name="login_student_id">Numero di matricola</string>
     <string name="more_section_other">Altro</string>
     <string name="more_section_pages">Pagine</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Ti ricorda prima della scadenza dei compiti</string>
     <string name="notification_assignment_due_channel_name">Promemoria scadenze compiti</string>
     <string name="notification_assignment_due_title">Compito in scadenza</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Troppo tardi... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Hai ancora tempo per sistemarlo! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Promemoria compito: %1$s</string>
+    <string name="notification_assignment_safety_net_body">L\'hai segnato come fatto o ignorato, ma non è ancora consegnato: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Compito ancora non consegnato</string>
     <string name="notification_bulletin_channel_description">Notifiche in tempo reale per i nuovi bollettini NTUST corrispondenti ai tuoi abbonamenti</string>
     <string name="notification_bulletin_channel_name">Bollettini scolastici</string>
     <string name="notification_class_preparing_channel_description">Invia promemoria prima dell\'inizio di ogni lezione</string>

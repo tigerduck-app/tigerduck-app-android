@@ -343,6 +343,7 @@
     <string name="login_student_id">Studentské ID</string>
     <string name="more_section_other">Ostatní</string>
     <string name="more_section_pages">Stránky</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Upozorní vás před tím, než vyprší termín úkolu</string>
     <string name="notification_assignment_due_channel_name">Upozornění na blížící se termíny úkolů</string>
     <string name="notification_assignment_due_title">Brzy vyprší termín úkolu</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Příliš pozdě... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Stále je čas to napravit! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Připomenutí úkolu: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Označil(a) jsi ho jako hotový nebo ignoroval(a), ale stále není odevzdán: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Úkol stále není odevzdán</string>
     <string name="notification_bulletin_channel_description">Okamžitá push oznámení pro nové bulletiny NTUST odpovídající vašim odběrům</string>
     <string name="notification_bulletin_channel_name">Školní bulletiny</string>
     <string name="notification_class_preparing_channel_description">Posílá upozornění před začátkem každé hodiny</string>

@@ -343,6 +343,7 @@
     <string name="login_student_id">מספר סטודנט</string>
     <string name="more_section_other">אחר</string>
     <string name="more_section_pages">דפים</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">מזכיר לך לפני שמטלות מגיעות לתאריך הגשה</string>
     <string name="notification_assignment_due_channel_name">תזכורות לתאריך הגשת מטלה</string>
     <string name="notification_assignment_due_title">מטלה עומדת לפוג בקרוב</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">מאוחר מדי... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">עדיין לא מאוחר לתקן את זה! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">תזכורת למשימה: %1$s</string>
+    <string name="notification_assignment_safety_net_body">סימנת אותם כבוצעו או התעלמת, אבל הם עדיין לא הוגשו: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">שיעורי הבית עדיין לא הוגשו</string>
     <string name="notification_bulletin_channel_description">דחיפה בזמן אמת לעלוני NTUST חדשים התואמים למנויים שלך</string>
     <string name="notification_bulletin_channel_name">עלוני בית הספר</string>
     <string name="notification_class_preparing_channel_description">שולח תזכורות לפני תחילת כל שיעור</string>

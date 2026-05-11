@@ -343,6 +343,7 @@
     <string name="login_student_id">Üliõpilase ID</string>
     <string name="more_section_other">Muu</string>
     <string name="more_section_pages">Leheküljed</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Tuletab meelde ülesannete lähenevaid tähtaegu</string>
     <string name="notification_assignment_due_channel_name">Ülesande tähtaja meeldetuletused</string>
     <string name="notification_assignment_due_title">Ülesande tähtaeg läheneb</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Liiga hilja... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Ikka aega parandada! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Ülesande meeldetuletus: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Märkisid selle tehtuks või eirasid, kuid see pole veel esitatud: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Ülesanne pole veel esitatud</string>
     <string name="notification_bulletin_channel_description">Reaalajas tõuketeated uute NTUST bülletäänide kohta, mis vastavad teie tellimustele</string>
     <string name="notification_bulletin_channel_name">Koolibülletäänid</string>
     <string name="notification_class_preparing_channel_description">Saadab meeldetuletuse enne iga tunni algust</string>

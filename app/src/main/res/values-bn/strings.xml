@@ -343,6 +343,7 @@
     <string name="login_student_id">শিক্ষার্থী আইডি</string>
     <string name="more_section_other">অন্যান্য</string>
     <string name="more_section_pages">পৃষ্ঠাসমূহ</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">অ্যাসাইনমেন্টের সময়সীমা আসার আগে আপনাকে স্মরণ করিয়ে দেয়</string>
     <string name="notification_assignment_due_channel_name">অ্যাসাইনমেন্টের সময়সীমা স্মরণিকা</string>
     <string name="notification_assignment_due_title">অ্যাসাইনমেন্ট শীঘ্রই শেষ হবে</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">অনেক দেরি... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">এটা ঠিক করার এখনও সময়! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">অ্যাসাইনমেন্ট রিমাইন্ডার: %1$s</string>
+    <string name="notification_assignment_safety_net_body">আপনি এটি সম্পূর্ণ চিহ্নিত করেছেন বা উপেক্ষা করেছেন, কিন্তু এটি এখনো জমা পড়েনি: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">অ্যাসাইনমেন্ট এখনো জমা দেওয়া হয়নি</string>
     <string name="notification_bulletin_channel_description">আপনার সাবস্ক্রিপশনের সাথে মিলে যাওয়া নতুন NTUST বুলেটিনের জন্য রিয়েল-টাইম পুশ</string>
     <string name="notification_bulletin_channel_name">স্কুল বুলেটিন</string>
     <string name="notification_class_preparing_channel_description">প্রতিটি ক্লাস শুরুর আগে স্মরণিকা পাঠায়</string>

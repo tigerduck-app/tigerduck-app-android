@@ -343,6 +343,7 @@
     <string name="login_student_id">స్టూడెంట్ ID</string>
     <string name="more_section_other">ఇతర</string>
     <string name="more_section_pages">పేజీలు</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">అసైన్‌మెంట్ గడువు సమీపిస్తే మీకు గుర్తు చేస్తుంది</string>
     <string name="notification_assignment_due_channel_name">అసైన్‌మెంట్ గడువు రిమైండర్లు</string>
     <string name="notification_assignment_due_title">అసైన్‌మెంట్ గడువు దగ్గరలో ఉంది</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">చాలా ఆలస్యమైంది... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">ఇంకా సమయం ఉంది! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">అసైన్‌మెంట్ రిమైండర్: %1$s</string>
+    <string name="notification_assignment_safety_net_body">మీరు పూర్తయినట్లు గుర్తించారు లేదా విస్మరించారు, కానీ ఇంకా సమర్పించబడలేదు: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">హోంవర్క్ ఇంకా సమర్పించబడలేదు</string>
     <string name="notification_bulletin_channel_description">మీ సభ్యత్వాలకు సరిపోయే కొత్త NTUST బులెటిన్‌లకు రియల్-టైమ్ పుష్</string>
     <string name="notification_bulletin_channel_name">పాఠశాల బులెటిన్‌లు</string>
     <string name="notification_class_preparing_channel_description">ప్రతి తరగతి మొదలవడానికి ముందు రిమైండర్ పంపిస్తుంది</string>

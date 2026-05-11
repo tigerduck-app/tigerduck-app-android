@@ -343,6 +343,7 @@
     <string name="login_student_id">รหัสนักศึกษา</string>
     <string name="more_section_other">อื่นๆ</string>
     <string name="more_section_pages">หน้า</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">แจ้งเตือนคุณก่อนที่การบ้านจะครบกำหนด</string>
     <string name="notification_assignment_due_channel_name">การแจ้งเตือนการบ้านใกล้ครบกำหนด</string>
     <string name="notification_assignment_due_title">การบ้านใกล้ครบกำหนด</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_assignment_safety_net_body">คุณทำเครื่องหมายว่าเสร็จแล้วหรือเพิกเฉย แต่ยังไม่ได้ส่ง: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">ยังไม่ได้ส่งการบ้าน</string>
     <string name="notification_bulletin_channel_description">การแจ้งเตือนแบบเรียลไทม์สำหรับประกาศ NTUST ใหม่ที่ตรงกับการสมัครรับข้อมูลของคุณ</string>
     <string name="notification_bulletin_channel_name">ประกาศของโรงเรียน</string>
     <string name="notification_class_preparing_channel_description">ส่งการแจ้งเตือนก่อนเริ่มเรียนแต่ละคาบ</string>

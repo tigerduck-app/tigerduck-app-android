@@ -343,6 +343,7 @@
     <string name="login_student_id">Öğrenci numarası</string>
     <string name="more_section_other">Diğer</string>
     <string name="more_section_pages">Sayfalar</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Ödevlerin teslim tarihinden önce sizi uyarır</string>
     <string name="notification_assignment_due_channel_name">Ödev teslim hatırlatıcıları</string>
     <string name="notification_assignment_due_title">Ödev teslim tarihi yaklaşıyor</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Çok geç... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Düzeltmek için hâlâ zaman var! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Ödev hatırlatıcısı: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Tamamlandı olarak işaretledin veya yok saydın ama hâlâ teslim edilmedi: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Ödev hâlâ teslim edilmedi</string>
     <string name="notification_bulletin_channel_description">Aboneliklerinizle eşleşen yeni NTUST bültenleri için gerçek zamanlı push bildirimleri</string>
     <string name="notification_bulletin_channel_name">Okul bültenleri</string>
     <string name="notification_class_preparing_channel_description">Her ders başlamadan önce hatırlatma gönderir</string>

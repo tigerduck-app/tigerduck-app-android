@@ -343,6 +343,7 @@
     <string name="login_student_id">ವಿದ್ಯಾರ್ಥಿ ID</string>
     <string name="more_section_other">ಇತರೆ</string>
     <string name="more_section_pages">ಪುಟಗಳು</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">ಕಾರ್ಯದ ಗಡುವು ಸಮೀಪಿಸುವ ಮುನ್ನ ನಿಮಗೆ ನೆನಪಿಸುತ್ತದೆ</string>
     <string name="notification_assignment_due_channel_name">ಕಾರ್ಯ ಗಡುವು ಜ್ಞಾಪನೆಗಳು</string>
     <string name="notification_assignment_due_title">ಕಾರ್ಯದ ಗಡುವು ಹತ್ತಿರದಲ್ಲಿದೆ</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">ತಡವಾಗಿದೆ... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">ಸರಿಪಡಿಸಲು ಇನ್ನೂ ಸಮಯವಿದೆ! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">ಕಾರ್ಯಯೋಜನೆ ಜ್ಞಾಪನೆ: %1$s</string>
+    <string name="notification_assignment_safety_net_body">ನೀವು ಪೂರ್ಣವೆಂದು ಗುರುತಿಸಿದ್ದೀರಿ ಅಥವಾ ನಿರ್ಲಕ್ಷಿಸಿದ್ದೀರಿ, ಆದರೆ ಇನ್ನೂ ಸಲ್ಲಿಸಿಲ್ಲ: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">ಹೋಮ್‌ವರ್ಕ್ ಇನ್ನೂ ಸಲ್ಲಿಸಿಲ್ಲ</string>
     <string name="notification_bulletin_channel_description">ನಿಮ್ಮ ಚಂದಾದಾರಿಕೆಗಳಿಗೆ ಹೊಂದಿಕೆಯಾಗುವ ಹೊಸ NTUST ಬುಲೆಟಿನ್‌ಗಳಿಗೆ ನೈಜ-ಸಮಯದ ಪುಶ್</string>
     <string name="notification_bulletin_channel_name">ಶಾಲೆಯ ಬುಲೆಟಿನ್‌ಗಳು</string>
     <string name="notification_class_preparing_channel_description">ಪ್ರತಿ ತರಗತಿ ಆರಂಭಕ್ಕೂ ಮುನ್ನ ಜ್ಞಾಪನೆಗಳನ್ನು ಕಳುಹಿಸುತ್ತದೆ</string>

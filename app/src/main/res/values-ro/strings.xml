@@ -343,6 +343,7 @@
     <string name="login_student_id">ID student</string>
     <string name="more_section_other">Altele</string>
     <string name="more_section_pages">Pagini</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Te reamintește înainte ca temele să expire</string>
     <string name="notification_assignment_due_channel_name">Remindere teme scadente</string>
     <string name="notification_assignment_due_title">Temă scadentă în curând</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Ai marcat-o ca terminată sau ai ignorat-o, dar încă nu a fost predată: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Tema încă nu a fost predată</string>
     <string name="notification_bulletin_channel_description">Notificări push în timp real pentru noile buletine NTUST care corespund abonamentelor dvs.</string>
     <string name="notification_bulletin_channel_name">Buletine școlare</string>
     <string name="notification_class_preparing_channel_description">Trimite remindere înainte de începerea fiecărui curs</string>

@@ -343,6 +343,7 @@
     <string name="login_student_id">Student-ID</string>
     <string name="more_section_other">Andet</string>
     <string name="more_section_pages">Sider</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Minder dig om, at en opgave snart udløber</string>
     <string name="notification_assignment_due_channel_name">Påmindelser om opgavefrist</string>
     <string name="notification_assignment_due_title">Opgavefrist nærmer sig</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">For sent... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Stadig tid til at rette det! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Opgavepåmindelse: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Du markerede den som færdig eller ignorerede den, men den er ikke afleveret endnu: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Opgaven er stadig ikke afleveret</string>
     <string name="notification_bulletin_channel_description">Realtidspush for nye NTUST-bulletiner, der matcher dine abonnementer</string>
     <string name="notification_bulletin_channel_name">Skolebulletiner</string>
     <string name="notification_class_preparing_channel_description">Sender påmindelser inden hver undervisningsgang begynder</string>

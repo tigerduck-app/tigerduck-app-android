@@ -343,6 +343,7 @@
     <string name="login_student_id">Студентски номер</string>
     <string name="more_section_other">Друго</string>
     <string name="more_section_pages">Страници</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Напомня Ви преди изтичане на срока на задания</string>
     <string name="notification_assignment_due_channel_name">Напомняния за крайни срокове на задания</string>
     <string name="notification_assignment_due_title">Заданието изтича скоро</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Твърде късно... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Все още има време да го поправите! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Напомняне за задача: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Маркира я като готова или я игнорира, но все още не е предадена: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Задачата все още не е предадена</string>
     <string name="notification_bulletin_channel_description">Push известия в реално време за нови бюлетини на NTUST, съответстващи на вашите абонаменти</string>
     <string name="notification_bulletin_channel_name">Училищни бюлетини</string>
     <string name="notification_class_preparing_channel_description">Изпраща напомняния преди всеки час да започне</string>

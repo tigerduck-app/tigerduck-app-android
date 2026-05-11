@@ -343,6 +343,7 @@
     <string name="login_student_id">Hallgatói azonosító</string>
     <string name="more_section_other">Egyéb</string>
     <string name="more_section_pages">Oldalak</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Emlékeztet a házi feladat közelgő határidejére</string>
     <string name="notification_assignment_due_channel_name">Házi feladat határidő emlékeztetők</string>
     <string name="notification_assignment_due_title">Házi feladat határideje közeleg</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Késznek jelölted vagy figyelmen kívül hagytad, de még nincs beadva: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">A házi feladat még nincs beadva</string>
     <string name="notification_bulletin_channel_description">Valós idejű push értesítések az előfizetéseinek megfelelő új NTUST értesítőkről</string>
     <string name="notification_bulletin_channel_name">Iskolai értesítők</string>
     <string name="notification_class_preparing_channel_description">Emlékeztetőt küld minden óra kezdete előtt</string>

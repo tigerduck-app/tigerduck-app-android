@@ -343,6 +343,7 @@
     <string name="login_student_id">Nemandanúmer</string>
     <string name="more_section_other">Annað</string>
     <string name="more_section_pages">Síður</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Minnir þig á verkefni sem er að renna út</string>
     <string name="notification_assignment_due_channel_name">Verkefnaáminningar</string>
     <string name="notification_assignment_due_title">Verkefni rennur út bráðum</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Þú merktir það lokið eða hunsaðir, en það er enn ekki skilað: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Heimaverkefnið er enn ekki skilað</string>
     <string name="notification_bulletin_channel_description">Rauntíma push tilkynningar fyrir nýjar NTUST tilkynningar sem passa við áskriftir þínar</string>
     <string name="notification_bulletin_channel_name">Skólabréf</string>
     <string name="notification_class_preparing_channel_description">Sendir áminningu áður en hver tími byrjar</string>

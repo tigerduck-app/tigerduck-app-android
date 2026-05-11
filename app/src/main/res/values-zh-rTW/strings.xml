@@ -343,6 +343,7 @@
     <string name="login_student_id">學號</string>
     <string name="more_section_other">其他</string>
     <string name="more_section_pages">頁面</string>
+    <string name="notification_assignment_due_body">%1$s「%2$s」</string>
     <string name="notification_assignment_due_channel_description">提醒你作業即將到期</string>
     <string name="notification_assignment_due_channel_name">作業到期提醒</string>
     <string name="notification_assignment_due_title">作業即將到期</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">涼了... %1$s「%2$s」</string>
     <string name="notification_assignment_reminder_body_multi_hour">還來得及補救!%1$s「%2$s」</string>
     <string name="notification_assignment_reminder_title">作業提醒:%1$s</string>
+    <string name="notification_assignment_safety_net_body">你已忽略或標記為完成,但作業還沒繳交:%1$s「%2$s」</string>
+    <string name="notification_assignment_safety_net_title">作業還沒繳!</string>
     <string name="notification_bulletin_channel_description">符合您訂閱規則的臺科大公告即時推播</string>
     <string name="notification_bulletin_channel_name">校園公告</string>
     <string name="notification_class_preparing_channel_description">在每堂課開始前依設定的時間送出提醒</string>

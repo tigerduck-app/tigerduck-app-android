@@ -343,6 +343,7 @@
     <string name="login_student_id">رقم الطالب</string>
     <string name="more_section_other">أخرى</string>
     <string name="more_section_pages">الصفحات</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">يذكرك قبل اقتراب موعد تسليم الواجبات</string>
     <string name="notification_assignment_due_channel_name">تذكيرات استحقاق الواجبات</string>
     <string name="notification_assignment_due_title">اقترب موعد تسليم الواجب</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">فات الأوان...%1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">لا يزال الوقت لإصلاحه! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">تذكير بالمهمة: %1$s</string>
+    <string name="notification_assignment_safety_net_body">حدّدتَها كمكتملة أو تجاهلتَها، لكنها لم تُسلَّم بعد: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">الواجب لا يزال غير مُسلَّم</string>
     <string name="notification_bulletin_channel_description">إشعارات فورية بنشرات NTUST الجديدة المطابقة لاشتراكاتك</string>
     <string name="notification_bulletin_channel_name">نشرات المدرسة</string>
     <string name="notification_class_preparing_channel_description">يرسل تذكيرات قبل بدء كل محاضرة</string>

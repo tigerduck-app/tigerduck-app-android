@@ -343,6 +343,7 @@
     <string name="login_student_id">மாணவர் ID</string>
     <string name="more_section_other">மற்றவை</string>
     <string name="more_section_pages">பக்கங்கள்</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">ஒப்படைப்புகளின் காலக்கெடு நெருங்கும் முன் நினைவூட்டுகிறது</string>
     <string name="notification_assignment_due_channel_name">ஒப்படைப்பு காலக்கெடு நினைவூட்டல்கள்</string>
     <string name="notification_assignment_due_title">ஒப்படைப்பு காலக்கெடு நெருங்குகிறது</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">தாமதமாகிவிட்டது... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">இன்னும் சரிசெய்ய நேரமுண்டு! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">பணி நினைவூட்டல்: %1$s</string>
+    <string name="notification_assignment_safety_net_body">முடிந்ததாகக் குறித்தீர்கள் அல்லது புறக்கணித்தீர்கள், ஆனால் இன்னும் சமர்ப்பிக்கப்படவில்லை: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">வீட்டுப்பாடம் இன்னும் சமர்ப்பிக்கப்படவில்லை</string>
     <string name="notification_bulletin_channel_description">உங்கள் சந்தாக்களுடன் பொருந்தும் புதிய NTUST அறிக்கைகளுக்கான நிகழ்நேர புஷ்</string>
     <string name="notification_bulletin_channel_name">பள்ளி அறிக்கைகள்</string>
     <string name="notification_class_preparing_channel_description">ஒவ்வொரு வகுப்பும் தொடங்குவதற்கு முன் நினைவூட்டல்கள் அனுப்புகிறது</string>

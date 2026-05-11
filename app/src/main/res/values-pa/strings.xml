@@ -343,6 +343,7 @@
     <string name="login_student_id">ਵਿਦਿਆਰਥੀ ID</string>
     <string name="more_section_other">ਹੋਰ</string>
     <string name="more_section_pages">ਪੰਨੇ</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">ਅਸਾਈਨਮੈਂਟ ਦੀ ਮਿਆਦ ਪੁੱਗਣ ਤੋਂ ਪਹਿਲਾਂ ਯਾਦ ਦਿਵਾਉਂਦਾ ਹੈ</string>
     <string name="notification_assignment_due_channel_name">ਅਸਾਈਨਮੈਂਟ ਦੀ ਮਿਆਦ ਦੇ ਰੀਮਾਈਂਡਰ</string>
     <string name="notification_assignment_due_title">ਅਸਾਈਨਮੈਂਟ ਜਲਦੀ ਖਤਮ ਹੋਣ ਵਾਲੀ ਹੈ</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">ਬਹੁਤ ਦੇਰ ਹੋ ਗਈ... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">ਅਜੇ ਸੁਧਾਰਨ ਦਾ ਸਮਾਂ ਹੈ! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">ਅਸਾਈਨਮੈਂਟ ਯਾਦ-ਦਹਾਨੀ: %1$s</string>
+    <string name="notification_assignment_safety_net_body">ਤੁਸੀਂ ਪੂਰਾ ਨਿਸ਼ਾਨਬੱਧ ਕੀਤਾ ਜਾਂ ਨਜ਼ਰਅੰਦਾਜ਼ ਕੀਤਾ, ਪਰ ਅਜੇ ਸਬਮਿਟ ਨਹੀਂ ਹੋਇਆ: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">ਹੋਮਵਰਕ ਅਜੇ ਸਬਮਿਟ ਨਹੀਂ ਹੋਇਆ</string>
     <string name="notification_bulletin_channel_description">ਤੁਹਾਡੀਆਂ ਗਾਹਕੀਆਂ ਨਾਲ ਮੇਲ ਖਾਂਦੇ ਨਵੇਂ NTUST ਬੁਲੇਟਿਨਾਂ ਲਈ ਰੀਅਲ-ਟਾਈਮ ਪੁਸ਼</string>
     <string name="notification_bulletin_channel_name">ਸਕੂਲ ਬੁਲੇਟਿਨ</string>
     <string name="notification_class_preparing_channel_description">ਹਰ ਕਲਾਸ ਸ਼ੁਰੂ ਹੋਣ ਤੋਂ ਪਹਿਲਾਂ ਰੀਮਾਈਂਡਰ ਭੇਜਦਾ ਹੈ</string>

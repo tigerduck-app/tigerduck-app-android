@@ -343,6 +343,7 @@
     <string name="login_student_id">Numer studenta</string>
     <string name="more_section_other">Inne</string>
     <string name="more_section_pages">Strony</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Przypomina przed terminem oddania zadań</string>
     <string name="notification_assignment_due_channel_name">Przypomnienia o terminach zadań</string>
     <string name="notification_assignment_due_title">Zbliża się termin oddania zadania</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Oznaczyłeś jako zrobione lub zignorowałeś, ale nadal nie oddałeś: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Zadanie nadal nieoddane</string>
     <string name="notification_bulletin_channel_description">Powiadomienia w czasie rzeczywistym o nowych biuletynach NTUST pasujących do Twoich subskrypcji</string>
     <string name="notification_bulletin_channel_name">Biuletyny szkolne</string>
     <string name="notification_class_preparing_channel_description">Wysyła przypomnienia przed rozpoczęciem każdych zajęć</string>

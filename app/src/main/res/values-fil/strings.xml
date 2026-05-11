@@ -343,6 +343,7 @@
     <string name="login_student_id">ID ng estudyante</string>
     <string name="more_section_other">Iba pa</string>
     <string name="more_section_pages">Mga pahina</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Nagpapaalala sa iyo bago mag-due ang takdang-aralin</string>
     <string name="notification_assignment_due_channel_name">Mga paalala sa takdang-aralin</string>
     <string name="notification_assignment_due_title">Malapit na mag-due ang takdang-aralin</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Huli na... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Oras pa para ayusin ito! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Paalala sa takdang-aralin: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Minarkahan mo bilang tapos o binalewala, pero hindi pa naipapasa: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Hindi pa naipapasa ang takdang-aralin</string>
     <string name="notification_bulletin_channel_description">Real-time na push para sa mga bagong bulletin ng NTUST na tumutugma sa iyong mga subscription</string>
     <string name="notification_bulletin_channel_name">Mga bulletin ng paaralan</string>
     <string name="notification_class_preparing_channel_description">Nagpapadala ng paalala bago magsimula ang bawat klase</string>

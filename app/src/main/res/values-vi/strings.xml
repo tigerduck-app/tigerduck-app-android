@@ -343,6 +343,7 @@
     <string name="login_student_id">Mã số sinh viên</string>
     <string name="more_section_other">Khác</string>
     <string name="more_section_pages">Trang</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Nhắc bạn trước khi bài tập đến hạn</string>
     <string name="notification_assignment_due_channel_name">Nhắc bài tập sắp đến hạn</string>
     <string name="notification_assignment_due_title">Bài tập sắp đến hạn</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Trễ rồi... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Vẫn còn kịp sửa! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Nhắc nhở bài tập: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Bạn đã đánh dấu hoàn thành hoặc bỏ qua, nhưng vẫn chưa nộp: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Bài tập vẫn chưa nộp</string>
     <string name="notification_bulletin_channel_description">Đẩy thông báo theo thời gian thực cho các bản tin NTUST mới khớp với đăng ký của bạn</string>
     <string name="notification_bulletin_channel_name">Thông báo trường học</string>
     <string name="notification_class_preparing_channel_description">Gửi nhắc nhở trước khi mỗi lớp học bắt đầu</string>

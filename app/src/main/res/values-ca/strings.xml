@@ -343,6 +343,7 @@
     <string name="login_student_id">ID d\'estudiant</string>
     <string name="more_section_other">Altres</string>
     <string name="more_section_pages">Pàgines</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Us recorda abans que vencin les tasques</string>
     <string name="notification_assignment_due_channel_name">Recordatoris de tasques</string>
     <string name="notification_assignment_due_title">Tasca a punt de vèncer</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Massa tard... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Encara sou a temps d\'arreglar-ho! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Recordatori de la tasca: %1$s</string>
+    <string name="notification_assignment_safety_net_body">L\'has marcada com a feta o l\'has ignorada, però encara no s\'ha lliurat: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">La tasca encara no s\'ha lliurat</string>
     <string name="notification_bulletin_channel_description">Notificacions push en temps real per als nous butlletins de NTUST que coincideixen amb les vostres subscripcions</string>
     <string name="notification_bulletin_channel_name">Butlletins escolars</string>
     <string name="notification_class_preparing_channel_description">Envia recordatoris abans que comenci cada classe</string>

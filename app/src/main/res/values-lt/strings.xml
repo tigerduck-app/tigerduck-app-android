@@ -343,6 +343,7 @@
     <string name="login_student_id">Studento ID</string>
     <string name="more_section_other">Kita</string>
     <string name="more_section_pages">Puslapiai</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Primena prieš pasibaigiant užduočių terminui</string>
     <string name="notification_assignment_due_channel_name">Užduočių terminų priminimai</string>
     <string name="notification_assignment_due_title">Užduoties terminas greitai</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Pažymėjai kaip atliktą arba ignoravai, bet vis dar nepateikta: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Užduotis vis dar nepateikta</string>
     <string name="notification_bulletin_channel_description">Realaus laiko push pranešimai apie naujus NTUST biuletenius, atitinkančius jūsų prenumeratas</string>
     <string name="notification_bulletin_channel_name">Mokyklos biuleteniai</string>
     <string name="notification_class_preparing_channel_description">Siunčia priminimus prieš kiekvienos paskaitos pradžią</string>

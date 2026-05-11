@@ -343,6 +343,7 @@
     <string name="login_student_id">Matrícula</string>
     <string name="more_section_other">Outros</string>
     <string name="more_section_pages">Páginas</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Avisa você antes do prazo das atividades</string>
     <string name="notification_assignment_due_channel_name">Lembretes de prazo de atividades</string>
     <string name="notification_assignment_due_title">Atividade vencendo em breve</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Tarde demais... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Ainda dá tempo de ajustar! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Lembrete de tarefa: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Você marcou como concluído ou ignorou, mas ainda não foi enviado: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Dever de casa ainda não enviado</string>
     <string name="notification_bulletin_channel_description">Notificações em tempo real para novos boletins da NTUST que correspondem às suas assinaturas</string>
     <string name="notification_bulletin_channel_name">Boletins escolares</string>
     <string name="notification_class_preparing_channel_description">Envia lembretes antes do início de cada aula</string>

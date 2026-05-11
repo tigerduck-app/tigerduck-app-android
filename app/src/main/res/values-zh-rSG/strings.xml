@@ -343,6 +343,7 @@
     <string name="login_student_id">学号</string>
     <string name="more_section_other">其他</string>
     <string name="more_section_pages">页面</string>
+    <string name="notification_assignment_due_body">%1$s「%2$s」</string>
     <string name="notification_assignment_due_channel_description">提醒你作业即将到期</string>
     <string name="notification_assignment_due_channel_name">作业到期提醒</string>
     <string name="notification_assignment_due_title">作业即将到期</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">凉了... %1$s「%2$s」</string>
     <string name="notification_assignment_reminder_body_multi_hour">还来得及补救！%1$s「%2$s」</string>
     <string name="notification_assignment_reminder_title">作业提醒：%1$s</string>
+    <string name="notification_assignment_safety_net_body">你已忽略或标记为完成,但作业还没提交:%1$s「%2$s」</string>
+    <string name="notification_assignment_safety_net_title">作业还没交!</string>
     <string name="notification_bulletin_channel_description">符合您订阅规则的台湾科技大学公告实时推送</string>
     <string name="notification_bulletin_channel_name">校园公告</string>
     <string name="notification_class_preparing_channel_description">在每堂课开始前依设置的时间送出提醒</string>

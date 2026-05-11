@@ -343,6 +343,7 @@
     <string name="login_student_id">شماره دانشجویی</string>
     <string name="more_section_other">سایر</string>
     <string name="more_section_pages">صفحه‌ها</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">پیش از موعد، درباره تکلیف به شما یادآوری می‌کند</string>
     <string name="notification_assignment_due_channel_name">یادآورهای موعد تکلیف</string>
     <string name="notification_assignment_due_title">موعد تکلیف نزدیک است</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">خیلی دیر... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">هنوز زمان برای تعمیر آن است! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">یادآوری تکلیف: %1$s</string>
+    <string name="notification_assignment_safety_net_body">آن را به‌عنوان انجام‌شده علامت زدی یا نادیده گرفتی، اما هنوز ارسال نشده است: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">تکلیف هنوز ارسال نشده است</string>
     <string name="notification_bulletin_channel_description">اعلان‌های فوری برای اطلاعیه‌های جدید NTUST مطابق با اشتراک‌های شما</string>
     <string name="notification_bulletin_channel_name">اطلاعیه‌های مدرسه</string>
     <string name="notification_class_preparing_channel_description">پیش از شروع هر کلاس، مطابق تنظیمات به شما یادآوری می‌فرستد</string>

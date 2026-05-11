@@ -343,6 +343,7 @@
     <string name="login_student_id">Studenta ID</string>
     <string name="more_section_other">Cits</string>
     <string name="more_section_pages">Lapas</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Atgādina par tuvojošos uzdevumu termiņiem</string>
     <string name="notification_assignment_due_channel_name">Uzdevumu termiņa atgādinājumi</string>
     <string name="notification_assignment_due_title">Uzdevuma termiņš tuvojas</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Par vēlu... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Vēl ir laiks labot! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Uzdevuma atgādinājums: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Atzīmēji kā paveiktu vai ignorēji, bet tas joprojām nav iesniegts: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Mājasdarbs joprojām nav iesniegts</string>
     <string name="notification_bulletin_channel_description">Reāllaika push paziņojumi par jauniem NTUST biļeteniem, kas atbilst jūsu abonementiem</string>
     <string name="notification_bulletin_channel_name">Skolas biļeteni</string>
     <string name="notification_class_preparing_channel_description">Sūta atgādinājumus pirms katras nodarbības sākuma</string>

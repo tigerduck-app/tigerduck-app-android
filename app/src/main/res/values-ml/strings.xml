@@ -343,6 +343,7 @@
     <string name="login_student_id">വിദ്യാർഥി ഐഡി</string>
     <string name="more_section_other">മറ്റുള്ളവ</string>
     <string name="more_section_pages">പേജുകൾ</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">അസൈൻമെന്റ് സമയം അടുക്കുമ്പോൾ ഓർമ്മപ്പെടുത്തും</string>
     <string name="notification_assignment_due_channel_name">അസൈൻമെന്റ് സമയ ഓർമ്മപ്പെടുത്തലുകൾ</string>
     <string name="notification_assignment_due_title">അസൈൻമെന്റ് സമയം അടുക്കുന്നു</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">വൈകിപ്പോയി... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">ഇനിയും തിരുത്താൻ സമയമുണ്ട്! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">അസൈൻമെന്റ് റിമൈൻഡർ: %1$s</string>
+    <string name="notification_assignment_safety_net_body">നിങ്ങൾ പൂർത്തിയായതായി അടയാളപ്പെടുത്തി അല്ലെങ്കിൽ അവഗണിച്ചു, പക്ഷേ ഇതുവരെ സമർപ്പിച്ചിട്ടില്ല: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">ഹോംവർക്ക് ഇതുവരെ സമർപ്പിച്ചിട്ടില്ല</string>
     <string name="notification_bulletin_channel_description">നിങ്ങളുടെ സബ്‌സ്‌ക്രിപ്‌ഷനുകളുമായി പൊരുത്തപ്പെടുന്ന പുതിയ NTUST ബുള്ളറ്റിനുകൾക്ക് റിയൽ-ടൈം പുഷ്</string>
     <string name="notification_bulletin_channel_name">സ്കൂൾ ബുള്ളറ്റിനുകൾ</string>
     <string name="notification_class_preparing_channel_description">ഓരോ ക്ലാസ് ആരംഭിക്കുന്നതിന് മുമ്പ് ഓർമ്മപ്പെടുത്തൽ അയയ്ക്കുന്നു</string>

@@ -343,6 +343,7 @@
     <string name="login_student_id">NIM</string>
     <string name="more_section_other">Lainnya</string>
     <string name="more_section_pages">Halaman</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Mengingatkan kamu sebelum tugas jatuh tempo</string>
     <string name="notification_assignment_due_channel_name">Pengingat tenggat tugas</string>
     <string name="notification_assignment_due_title">Tugas akan segera jatuh tempo</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Terlambat... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Masih ada waktu untuk memperbaikinya! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Pengingat tugas: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Kamu menandainya selesai atau mengabaikannya, tapi belum dikumpulkan: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">PR masih belum dikumpulkan</string>
     <string name="notification_bulletin_channel_description">Push real-time untuk buletin NTUST baru yang sesuai dengan langganan Anda</string>
     <string name="notification_bulletin_channel_name">Buletin sekolah</string>
     <string name="notification_class_preparing_channel_description">Mengirim pengingat sebelum setiap kelas dimulai</string>

@@ -343,6 +343,7 @@
     <string name="login_student_id">Број индекса</string>
     <string name="more_section_other">Остало</string>
     <string name="more_section_pages">Странице</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Подсећа Вас пре истека рока задатка</string>
     <string name="notification_assignment_due_channel_name">Подсетници за рок задатка</string>
     <string name="notification_assignment_due_title">Рок задатка ускоро истиче</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Означио си га као готов или га игнорисао, али још није предат: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Задатак још није предат</string>
     <string name="notification_bulletin_channel_description">Push obaveštenja u realnom vremenu za nove NTUST biltene koji odgovaraju vašim pretplatama</string>
     <string name="notification_bulletin_channel_name">Школски билтени</string>
     <string name="notification_class_preparing_channel_description">Шаље подсетнике пре почетка сваког часа</string>

@@ -343,6 +343,7 @@
     <string name="login_student_id">Studentnummer</string>
     <string name="more_section_other">Overig</string>
     <string name="more_section_pages">Pagina\'s</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Herinnert je voordat opdrachten verlopen</string>
     <string name="notification_assignment_due_channel_name">Herinneringen voor opdrachtdeadlines</string>
     <string name="notification_assignment_due_title">Opdracht verloopt binnenkort</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Te laat… %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Nog tijd om het te verbeteren! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">Opdrachtherinnering: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Je hebt het als af gemarkeerd of genegeerd, maar het is nog niet ingeleverd: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Huiswerk nog niet ingeleverd</string>
     <string name="notification_bulletin_channel_description">Realtime push voor nieuwe NTUST-bulletins die overeenkomen met uw abonnementen</string>
     <string name="notification_bulletin_channel_name">Schoolbulletins</string>
     <string name="notification_class_preparing_channel_description">Stuurt herinneringen voordat elke les begint</string>

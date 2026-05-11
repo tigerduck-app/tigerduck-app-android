@@ -343,6 +343,7 @@
     <string name="login_student_id">विद्यार्थी ID</string>
     <string name="more_section_other">इतर</string>
     <string name="more_section_pages">पाने</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">असाइनमेंटची मुदत जवळ असताना स्मरणपत्र देते</string>
     <string name="notification_assignment_due_channel_name">असाइनमेंट मुदत स्मरणपत्रे</string>
     <string name="notification_assignment_due_title">असाइनमेंटची मुदत जवळ आहे</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">उशीर झाला... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">अजून वेळ आहे! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">असाइनमेंट स्मरणपत्र: %1$s</string>
+    <string name="notification_assignment_safety_net_body">तुम्ही ते पूर्ण म्हणून चिन्हांकित केले किंवा दुर्लक्ष केले, पण अजून सबमिट केले नाही: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">होमवर्क अजून सबमिट केले नाही</string>
     <string name="notification_bulletin_channel_description">आपल्या सदस्यतेशी जुळणाऱ्या नवीन NTUST बुलेटिनसाठी रिअल-टाइम पुश</string>
     <string name="notification_bulletin_channel_name">शाळा बुलेटिन</string>
     <string name="notification_class_preparing_channel_description">प्रत्येक वर्ग सुरू होण्यापूर्वी स्मरणपत्र पाठवते</string>

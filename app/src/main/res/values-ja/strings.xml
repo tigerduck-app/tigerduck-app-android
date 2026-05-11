@@ -343,6 +343,7 @@
     <string name="login_student_id">学籍番号</string>
     <string name="more_section_other">その他</string>
     <string name="more_section_pages">ページ</string>
+    <string name="notification_assignment_due_body">%1$s「%2$s」</string>
     <string name="notification_assignment_due_channel_description">課題の期限が近づくとお知らせします</string>
     <string name="notification_assignment_due_channel_name">課題の期限リマインダー</string>
     <string name="notification_assignment_due_title">課題の期限が近づいています</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">もう遅い… %1$s「%2$s」</string>
     <string name="notification_assignment_reminder_body_multi_hour">まだ間に合います！ %1$s「%2$s」</string>
     <string name="notification_assignment_reminder_title">課題リマインダー：%1$s</string>
+    <string name="notification_assignment_safety_net_body">完了とマークまたは無視しましたが、まだ提出されていません:%1$s「%2$s」</string>
+    <string name="notification_assignment_safety_net_title">課題はまだ提出されていません</string>
     <string name="notification_bulletin_channel_description">台湾科技大学（NTUST）の掲示板でサブスクリプションに一致する新着をリアルタイムでプッシュ通知</string>
     <string name="notification_bulletin_channel_name">学内掲示板</string>
     <string name="notification_class_preparing_channel_description">各授業の開始前に設定した時間でリマインダーを送信します</string>

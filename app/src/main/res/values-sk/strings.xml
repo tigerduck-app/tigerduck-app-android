@@ -343,6 +343,7 @@
     <string name="login_student_id">Číslo študenta</string>
     <string name="more_section_other">Iné</string>
     <string name="more_section_pages">Stránky</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">Pripomína Vám blížiace sa termíny úloh</string>
     <string name="notification_assignment_due_channel_name">Pripomienky termínov úloh</string>
     <string name="notification_assignment_due_title">Termín úlohy sa blíži</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">Zu spät... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">Es ist immer noch Zeit, das Problem zu beheben! %1$s „%2$s“</string>
     <string name="notification_assignment_reminder_title">Zuweisungserinnerung: %1$s</string>
+    <string name="notification_assignment_safety_net_body">Označil(a) si ju ako hotovú alebo ignoroval(a), no stále nie je odovzdaná: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">Úloha stále nie je odovzdaná</string>
     <string name="notification_bulletin_channel_description">Okamžité push oznámenia pre nové bulletiny NTUST zodpovedajúce vašim odberom</string>
     <string name="notification_bulletin_channel_name">Školské bulletiny</string>
     <string name="notification_class_preparing_channel_description">Odosiela pripomienky pred začiatkom každej hodiny</string>

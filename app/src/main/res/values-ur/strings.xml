@@ -343,6 +343,7 @@
     <string name="login_student_id">طالب علم کی شناخت</string>
     <string name="more_section_other">دیگر</string>
     <string name="more_section_pages">صفحات</string>
+    <string name="notification_assignment_due_body">%1$s — %2$s</string>
     <string name="notification_assignment_due_channel_description">اسائنمنٹ کی آخری تاریخ سے پہلے آپ کو یاد دلاتا ہے</string>
     <string name="notification_assignment_due_channel_name">اسائنمنٹ کی آخری تاریخ کے یاددہانی</string>
     <string name="notification_assignment_due_title">اسائنمنٹ جلد ختم ہونے والی ہے</string>
@@ -354,6 +355,8 @@
     <string name="notification_assignment_reminder_body_5m">بہت دیر ہو گئی... %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_body_multi_hour">ابھی وقت ہے درست کریں! %1$s \"%2$s\"</string>
     <string name="notification_assignment_reminder_title">اسائنمنٹ یاد دہانی: %1$s</string>
+    <string name="notification_assignment_safety_net_body">آپ نے مکمل نشان زد کیا یا نظر انداز کیا، مگر ابھی تک جمع نہیں ہوا: %1$s — %2$s</string>
+    <string name="notification_assignment_safety_net_title">ہوم ورک ابھی تک جمع نہیں ہوا</string>
     <string name="notification_bulletin_channel_description">آپ کی سبسکرپشنز سے مطابقت رکھنے والے NTUST بلیٹنز کی ریئل ٹائم پش اطلاع</string>
     <string name="notification_bulletin_channel_name">اسکول بلیٹنز</string>
     <string name="notification_class_preparing_channel_description">ہر کلاس شروع ہونے سے پہلے یاددہانی بھیجتا ہے</string>
