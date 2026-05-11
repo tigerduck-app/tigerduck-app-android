@@ -378,14 +378,16 @@ private fun computeAccountInputType(
     // mishandle the auto-flip. Don't force Latin in that mode — let the
     // IME render whatever script the user actually wants.
     useStandard -> InputType.TYPE_CLASS_TEXT or capitalization.toInputTypeFlag()
-    // Empty value = the leading letter slot. Pin the IME to Latin/ASCII
-    // for this single keystroke so users on Chinese/Japanese/etc. IMEs
-    // don't have to manually switch language to type the prefix.
-    // `VISIBLE_PASSWORD` is Android's documented "Latin-only, not masked"
-    // input flag.
-    value.isEmpty() -> InputType.TYPE_CLASS_TEXT or
-        InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
-        capitalization.toInputTypeFlag()
+    // Leading-letter slot — either the field is empty, or holds only the
+    // single leading letter (the user backspaced the digits to retype the
+    // prefix). Pin the IME to Latin/ASCII for this keystroke so users on
+    // Chinese/Japanese/etc. IMEs don't have to manually switch language to
+    // type the prefix. `VISIBLE_PASSWORD` is Android's documented
+    // "Latin-only, not masked" input flag.
+    value.isEmpty() || (value.length == 1 && value[0].isLetter()) ->
+        InputType.TYPE_CLASS_TEXT or
+            InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
+            capitalization.toInputTypeFlag()
     // 2nd char onward: numeric pad, no IME-locale juggling.
     else -> InputType.TYPE_CLASS_NUMBER
 }
