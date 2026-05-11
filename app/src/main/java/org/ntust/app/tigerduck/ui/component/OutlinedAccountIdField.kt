@@ -27,7 +27,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -126,24 +125,6 @@ fun OutlinedAccountIdField(
     var isFocused by remember { mutableStateOf(false) }
     var internalUseStandardKeyboard by remember { mutableStateOf(false) }
     val useStandardKeyboard = useStandardKeyboardOverride ?: internalUseStandardKeyboard
-    var editTextRef by remember { mutableStateOf<EditText?>(null) }
-
-    // When the toggle flips (from either source) the `update` block below
-    // updates `editText.inputType` during recomposition; this effect runs
-    // afterwards and tells the IME to reconnect so it picks up the new
-    // type. Skip the very first run so we don't restart on initial
-    // composition (the IME isn't connected yet, or already matches).
-    var skipNextRestart by remember { mutableStateOf(true) }
-    LaunchedEffect(useStandardKeyboard) {
-        if (skipNextRestart) {
-            skipNextRestart = false
-            return@LaunchedEffect
-        }
-        val et = editTextRef ?: return@LaunchedEffect
-        val imm = et.context
-            .getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-        imm?.restartInput(et)
-    }
 
     // Tracks the last inputType pushed to the EditText so the update block
     // only flips it (and asks the IME to reconnect) when the value actually
@@ -176,7 +157,6 @@ fun OutlinedAccountIdField(
                         // transforms the value (e.g. uppercase).
                         tag = false
 
-                        editTextRef = this
                         var focusInteraction: FocusInteraction.Focus? = null
                         setOnFocusChangeListener { _, focused ->
                             isFocused = focused
