@@ -368,9 +368,10 @@ fun ClassTableScreen(
     }
 
     courseToRename?.let { course ->
-        val defaultName = remember(course) { viewModel.defaultNameFor(course) }
+        val liveCourse = courses.find { it.courseNo == course.courseNo } ?: course
+        val defaultName = remember(liveCourse) { viewModel.defaultNameFor(liveCourse) }
         val trimmed = renameText.trim()
-        val hasOverride = course.customCourseName != null
+        val hasOverride = liveCourse.customCourseName != null
         // Revert is meaningful when a stored override exists OR the user has
         // typed away from the default; either way it restores the default.
         val canRevert = hasOverride || (trimmed.isNotEmpty() && trimmed != defaultName)
