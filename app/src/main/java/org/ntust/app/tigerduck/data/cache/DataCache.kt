@@ -77,9 +77,24 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         absorbLegacyCourseCache()
         migrateManualCoursesToUserData(semester)
         val type = object : TypeToken<List<Course>>() {}.type
-        val remote = load<List<Course>>(type, coursesFilename(semester)) ?: emptyList()
-        val manual =
-            loadFromUserData<List<Course>>(type, manualCoursesFilename(semester)) ?: emptyList()
+        // requireContent: v1.4.0 shipped without a keep rule for the moved
+        // shared.Course, so cache files written by that build have R8-
+        // obfuscated keys. Deserializing them returns Course objects with
+        // null-typed-as-non-null Strings — the first caller that reads
+        // `courseNo` / `displayName` NPEs. DataMigration sweeps these
+        // files on first injection of AppState, but Application.onCreate
+        // launches wearBridge.publish() on Dispatchers.IO and can race
+        // ahead of MainActivity-triggered migration. Guard at every read.
+        val remote = load<List<Course>>(
+            type,
+            coursesFilename(semester),
+            requireContent = COURSE_NO_TOKEN,
+        ) ?: emptyList()
+        val manual = loadFromUserData<List<Course>>(
+            type,
+            manualCoursesFilename(semester),
+            requireContent = COURSE_NO_TOKEN,
+        ) ?: emptyList()
         if (manual.isEmpty()) return remote
         val manualNos = manual.map { it.courseNo }.toSet()
         return remote.filter { it.courseNo !in manualNos } + manual
@@ -99,9 +114,17 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
      */
     private suspend fun migrateManualCoursesToUserData(semester: String) {
         val type = object : TypeToken<List<Course>>() {}.type
-        val existing = loadFromUserData<List<Course>>(type, manualCoursesFilename(semester))
+        val existing = loadFromUserData<List<Course>>(
+            type,
+            manualCoursesFilename(semester),
+            requireContent = COURSE_NO_TOKEN,
+        )
         if (!existing.isNullOrEmpty()) return
-        val cached = load<List<Course>>(type, coursesFilename(semester)) ?: return
+        val cached = load<List<Course>>(
+            type,
+            coursesFilename(semester),
+            requireContent = COURSE_NO_TOKEN,
+        ) ?: return
         val manual = cached.filter { it.isManual }
         if (manual.isEmpty()) return
         saveToUserData(manual, manualCoursesFilename(semester))
@@ -318,13 +341,21 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    private suspend fun <T> load(type: java.lang.reflect.Type, filename: String): T? =
+    private suspend fun <T> load(
+        type: java.lang.reflect.Type,
+        filename: String,
+        requireContent: String? = null,
+    ): T? =
         cacheMutex.withLock {
             withContext(Dispatchers.IO) {
                 try {
                     val file = File(cacheDir, filename)
                     if (!file.exists()) return@withContext null
-                    gson.fromJson(file.readText(), type)
+                    val text = file.readText()
+                    if (requireContent != null && !text.contains(requireContent)) {
+                        return@withContext null
+                    }
+                    gson.fromJson(text, type)
                 } catch (e: Exception) {
                     null
                 }
@@ -340,16 +371,35 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    private suspend fun <T> loadFromUserData(type: java.lang.reflect.Type, filename: String): T? =
+    private suspend fun <T> loadFromUserData(
+        type: java.lang.reflect.Type,
+        filename: String,
+        requireContent: String? = null,
+    ): T? =
         userDataMutex.withLock {
             withContext(Dispatchers.IO) {
                 try {
                     val file = File(userDataDir, filename)
                     if (!file.exists()) return@withContext null
-                    gson.fromJson(file.readText(), type)
+                    val text = file.readText()
+                    if (requireContent != null && !text.contains(requireContent)) {
+                        return@withContext null
+                    }
+                    gson.fromJson(text, type)
                 } catch (e: Exception) {
                     null
                 }
             }
         }
+
+    private companion object {
+        // Sentinel literal present in any course JSON written by a build
+        // with un-obfuscated field names. Used by loadCourses to reject
+        // R8-obfuscated v1.4.0 cache files before they reach Gson.
+        // Trailing `:` keeps this anchored to an object key — a payload
+        // string value that contains the substring `courseNo` would not
+        // include an unescaped quote+colon pair, so it can't satisfy the
+        // check and slip past as if the keys were un-obfuscated.
+        const val COURSE_NO_TOKEN = "\"courseNo\":"
+    }
 }

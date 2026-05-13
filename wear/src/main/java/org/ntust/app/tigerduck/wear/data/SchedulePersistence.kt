@@ -83,9 +83,26 @@ class SchedulePersistence(private val context: Context) {
     }
 
     private fun parseCourses(json: String): List<Course> {
-        val type = object : TypeToken<List<CourseWire>>() {}.type
-        val wire: List<CourseWire> = gson.fromJson(json, type) ?: emptyList()
-        return wire.map { it.toCourse() }
+        // v1.4.0 phone shipped without a keep rule for CourseDto, so its
+        // wire JSON used R8-obfuscated keys (e.g. `{"a":"..."}`). v1.4.1
+        // wear expects `"courseNo"` etc. — if the DataStore snapshot was
+        // written by v1.4.0, Gson populates CourseWire with null Strings
+        // and `toCourse()` NPEs through Course's non-null constructor.
+        // The watch's launch-time sync request will replace this snapshot
+        // shortly, so dropping it on the floor is the safest fallback.
+        // Sentinel requires the trailing `:` so a value that happens to
+        // contain the substring `courseNo` cannot fake an object key.
+        // Parse is also try/caught: a truncated or otherwise malformed
+        // payload that still contains the token must not bubble an
+        // exception up through the snapshot flow.
+        if (!json.contains(COURSE_NO_TOKEN)) return emptyList()
+        return try {
+            val type = object : TypeToken<List<CourseWire>>() {}.type
+            val wire: List<CourseWire> = gson.fromJson(json, type) ?: emptyList()
+            wire.map { it.toCourse() }
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     private fun decompress(gz: ByteArray): String =
@@ -121,6 +138,13 @@ class SchedulePersistence(private val context: Context) {
         const val DEFAULT_PADDING_DP = 12
         const val MIN_PADDING_DP = 0
         const val MAX_PADDING_DP = 24
+        // Sentinel for detecting un-obfuscated wire format; see parseCourses.
+        // Trailing `:` proves this is an object key rather than a string
+        // value that incidentally spells `courseNo` (Gson default emits
+        // compact JSON with no whitespace, and any `"` inside a string
+        // value is escaped as `\"`, so the unescaped quote+colon pair
+        // cannot collide with payload content).
+        private const val COURSE_NO_TOKEN = "\"courseNo\":"
         private val KEY_COURSES_JSON = stringPreferencesKey("courses_json")
         private val KEY_ACCENT_HEX = stringPreferencesKey("accent_hex")
         private val KEY_SYNCED_AT = longPreferencesKey("synced_at_ms")

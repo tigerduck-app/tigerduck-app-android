@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import java.io.File
 
 /**
  * One-shot runner for on-device data migrations.
@@ -62,6 +63,7 @@ class DataMigration(
         while (current < CURRENT_SCHEMA) {
             when (current) {
                 0 -> migrate0to1()
+                1 -> migrate1to2()
             }
             current++
             prefs.dataSchemaVersion = current
@@ -77,11 +79,70 @@ class DataMigration(
             .onFailure { Log.w(TAG, "Failed to delete orphaned tigerduck.db", it) }
     }
 
+    /**
+     * v1.4.0 shipped without a keep rule for the moved `:shared.Course`
+     * class, so R8 renamed its JVM fields. Any `courses_*.json` /
+     * `manual_courses_*.json` / legacy `courses.json` saved by that build
+     * has obfuscated keys (e.g. `{"a":"...","b":"..."}`) which v1.4.1
+     * deserializes into null-field Course objects — callers then NPE the
+     * first time they read `courseNo` or `displayName`.
+     *
+     * Detect by content rather than by file presence: if the JSON contains
+     * `"courseNo"` it was written by a build with un-obfuscated field
+     * names (any v1.3.x, or v1.4.1+), and we keep it. Otherwise wipe so
+     * the next sync repopulates from network with the correct schema.
+     * This avoids destroying v1.3.x → v1.4.1 direct upgraders' manual
+     * courses, which still have the original keys on disk.
+     */
+    private fun migrate1to2() {
+        val cacheDir = File(context.cacheDir, CACHE_SUBDIR)
+        val userDataDir = File(context.filesDir, USER_DATA_SUBDIR)
+        sweepCourseFiles(cacheDir) { name ->
+            name == LEGACY_COURSES_FILENAME ||
+                (name.startsWith(COURSES_PREFIX) && name.endsWith(".json"))
+        }
+        sweepCourseFiles(userDataDir) { name ->
+            name.startsWith(MANUAL_COURSES_PREFIX) && name.endsWith(".json")
+        }
+    }
+
+    private fun sweepCourseFiles(dir: File, accept: (String) -> Boolean) {
+        if (!dir.isDirectory) return
+        dir.listFiles()
+            ?.filter { it.isFile && accept(it.name) }
+            ?.forEach { file ->
+                runCatching {
+                    if (!file.readText().contains(COURSE_NO_TOKEN)) {
+                        if (file.delete()) {
+                            Log.i(TAG, "Wiped obfuscated v1.4.0 cache: ${file.name}")
+                        }
+                    }
+                }.onFailure { Log.w(TAG, "Failed to inspect ${file.name}", it) }
+            }
+    }
+
     companion object {
         private const val TAG = "DataMigration"
 
+        // Mirrors DataCache. Kept in sync deliberately — DataMigration must
+        // run before any DataCache access, so we don't import the cache
+        // class here to avoid pulling DI into the migration boot path.
+        private const val CACHE_SUBDIR = "TigerDuckCache"
+        private const val USER_DATA_SUBDIR = "TigerDuckData"
+        private const val LEGACY_COURSES_FILENAME = "courses.json"
+        private const val COURSES_PREFIX = "courses_"
+        private const val MANUAL_COURSES_PREFIX = "manual_courses_"
+
+        // Presence of this literal in the raw file means the writer used
+        // un-obfuscated field names. Absence means an R8-obfuscated v1.4.0
+        // writer or some other corrupt state — either way, drop it.
+        // Trailing `:` anchors the match to an object key — payload
+        // string values cannot legitimately contain an unescaped
+        // quote+colon pair, so they can't masquerade as un-obfuscated.
+        private const val COURSE_NO_TOKEN = "\"courseNo\":"
+
         /** Highest schema this build writes. Bump when adding a new step. */
-        const val CURRENT_SCHEMA = 1
+        const val CURRENT_SCHEMA = 2
 
         /**
          * Lowest schema this build can migrate forward from. Anything below
