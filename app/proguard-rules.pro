@@ -20,6 +20,10 @@
 -keep class org.ntust.app.tigerduck.announcements.SubscriptionsResponse { *; }
 -keep class org.ntust.app.tigerduck.announcements.SubscriptionsPutRequest { *; }
 -keep class org.ntust.app.tigerduck.data.cache.DataCache$* { *; }
+# Wire DTO Gson-serializes to the watch. Unannotated fields, so R8 must
+# not rename them — otherwise the phone sends obfuscated JSON keys the
+# watch-side CourseWire can't recognize.
+-keep class org.ntust.app.tigerduck.wear.WearScheduleBridge$* { *; }
 -dontrepackage
 
 # Gson — TypeToken<List<Course>>() {} anonymous subclasses lose their generic
