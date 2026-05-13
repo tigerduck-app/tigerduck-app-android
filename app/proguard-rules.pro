@@ -1,6 +1,12 @@
 # Add project specific ProGuard rules here.
 -keep class org.ntust.app.tigerduck.network.model.** { *; }
 -keep class org.ntust.app.tigerduck.data.model.** { *; }
+# Course moved from data.model to :shared in v1.4.0. Without this keep,
+# R8 renames Course's fields and Gson can't repopulate them from cache
+# files written by v1.3.x — every reference field deserializes as null
+# and WearScheduleBridge$CourseDto.<init> NPEs from TigerDuckApp.onCreate
+# on the first open after upgrade.
+-keep class org.ntust.app.tigerduck.shared.** { *; }
 # Gson DTOs that live outside the model.** packages. Most fields here lack
 # @SerializedName, so without { *; } R8 renames the JVM fields and Gson
 # silently deserializes nulls — same failure mode as the TypeToken bug.
@@ -14,6 +20,10 @@
 -keep class org.ntust.app.tigerduck.announcements.SubscriptionsResponse { *; }
 -keep class org.ntust.app.tigerduck.announcements.SubscriptionsPutRequest { *; }
 -keep class org.ntust.app.tigerduck.data.cache.DataCache$* { *; }
+# Wire DTO Gson-serializes to the watch. Unannotated fields, so R8 must
+# not rename them — otherwise the phone sends obfuscated JSON keys the
+# watch-side CourseWire can't recognize.
+-keep class org.ntust.app.tigerduck.wear.WearScheduleBridge$* { *; }
 -dontrepackage
 
 # Gson — TypeToken<List<Course>>() {} anonymous subclasses lose their generic
