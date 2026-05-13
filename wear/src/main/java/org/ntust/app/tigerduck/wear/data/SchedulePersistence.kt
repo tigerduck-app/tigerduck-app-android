@@ -83,6 +83,14 @@ class SchedulePersistence(private val context: Context) {
     }
 
     private fun parseCourses(json: String): List<Course> {
+        // v1.4.0 phone shipped without a keep rule for CourseDto, so its
+        // wire JSON used R8-obfuscated keys (e.g. `{"a":"..."}`). v1.4.1
+        // wear expects `"courseNo"` etc. — if the DataStore snapshot was
+        // written by v1.4.0, Gson populates CourseWire with null Strings
+        // and `toCourse()` NPEs through Course's non-null constructor.
+        // The watch's launch-time sync request will replace this snapshot
+        // shortly, so dropping it on the floor is the safest fallback.
+        if (!json.contains(COURSE_NO_TOKEN)) return emptyList()
         val type = object : TypeToken<List<CourseWire>>() {}.type
         val wire: List<CourseWire> = gson.fromJson(json, type) ?: emptyList()
         return wire.map { it.toCourse() }
@@ -121,6 +129,8 @@ class SchedulePersistence(private val context: Context) {
         const val DEFAULT_PADDING_DP = 12
         const val MIN_PADDING_DP = 0
         const val MAX_PADDING_DP = 24
+        // Sentinel for detecting un-obfuscated wire format; see parseCourses.
+        private const val COURSE_NO_TOKEN = "\"courseNo\""
         private val KEY_COURSES_JSON = stringPreferencesKey("courses_json")
         private val KEY_ACCENT_HEX = stringPreferencesKey("accent_hex")
         private val KEY_SYNCED_AT = longPreferencesKey("synced_at_ms")
