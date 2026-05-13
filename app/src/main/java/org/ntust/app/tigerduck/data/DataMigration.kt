@@ -136,7 +136,10 @@ class DataMigration(
         // Presence of this literal in the raw file means the writer used
         // un-obfuscated field names. Absence means an R8-obfuscated v1.4.0
         // writer or some other corrupt state — either way, drop it.
-        private const val COURSE_NO_TOKEN = "\"courseNo\""
+        // Trailing `:` anchors the match to an object key — payload
+        // string values cannot legitimately contain an unescaped
+        // quote+colon pair, so they can't masquerade as un-obfuscated.
+        private const val COURSE_NO_TOKEN = "\"courseNo\":"
 
         /** Highest schema this build writes. Bump when adding a new step. */
         const val CURRENT_SCHEMA = 2

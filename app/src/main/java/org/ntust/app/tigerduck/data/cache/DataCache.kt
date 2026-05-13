@@ -396,6 +396,10 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         // Sentinel literal present in any course JSON written by a build
         // with un-obfuscated field names. Used by loadCourses to reject
         // R8-obfuscated v1.4.0 cache files before they reach Gson.
-        const val COURSE_NO_TOKEN = "\"courseNo\""
+        // Trailing `:` keeps this anchored to an object key — a payload
+        // string value that contains the substring `courseNo` would not
+        // include an unescaped quote+colon pair, so it can't satisfy the
+        // check and slip past as if the keys were un-obfuscated.
+        const val COURSE_NO_TOKEN = "\"courseNo\":"
     }
 }
