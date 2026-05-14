@@ -1,0 +1,119 @@
+name: PR Checklist Check
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+  issue_comment:
+    types: [created, edited, deleted]
+
+permissions:
+  pull-requests: write
+  statuses: write
+  contents: read
+
+jobs:
+  checklist:
+    # Skip comment events that aren't on a PR.
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request != null)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post checklist comment and verify checkboxes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const MARKER = '<!-- pr-checklist-bot -->';
+
+            const DEV_CHECKLIST = `${MARKER}
+            ## Pre-merge checklist (target: \`dev\`)
+
+            > Tick every box before merging. This comment gates the \`pr-checklist\` status check.
+
+            - [ ] I have tested on my phone (watch) / emulator that this branch does **not** break other functions it is not meant to touch.
+            - [ ] I have tested on my phone (watch) / emulator that this branch successfully fixes/adds the function(s) it is intended to fix/add.
+            `;
+
+            const MAIN_CHECKLIST = `${MARKER}
+            ## Pre-merge checklist (target: \`main\`)
+
+            > Tick every box before merging. This comment gates the \`pr-checklist\` status check.
+
+            - [ ] I have compiled both the **fdroid** and **play** flavors using the scripts under \`debug/\` (\`install-fdroid.sh\`, \`install-play.sh\`, \`install-play-release.sh\`) and confirmed they all pass compilation without any warnings.
+            - [ ] I have tested on my phone (watch) / emulator that no existing functions are broken.
+            - [ ] I have tested on my phone (watch) / emulator that upgrading from the previous version does not break the app.
+            - [ ] I am confident that users upgrading from much older versions (3 versions behind) are unlikely to experience breakage or crashes.
+            `;
+
+            // Resolve PR number for either trigger.
+            const prNumber = context.eventName === 'pull_request'
+              ? context.payload.pull_request.number
+              : context.payload.issue.number;
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            const baseRef = pr.base.ref;
+            const headSha = pr.head.sha;
+
+            // Only enforce on PRs into `dev` or `main`.
+            const enforced = ['dev', 'main'];
+            if (!enforced.includes(baseRef)) {
+              core.info(`Target branch \`${baseRef}\` is not enforced. Skipping.`);
+              return;
+            }
+
+            const desiredBody = baseRef === 'main' ? MAIN_CHECKLIST : DEV_CHECKLIST;
+
+            // Find an existing checklist comment (by marker).
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                per_page: 100,
+              },
+            );
+            let botComment = comments.find(c => c.body && c.body.includes(MARKER));
+
+            if (!botComment) {
+              const { data: created } = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: desiredBody,
+              });
+              botComment = created;
+              core.info('Posted new checklist comment.');
+            }
+
+            // Count checkboxes in the bot comment.
+            const unchecked = (botComment.body.match(/- \[ \]/g) || []).length;
+            const checked = (botComment.body.match(/- \[[xX]\]/g) || []).length;
+            const total = unchecked + checked;
+
+            const state = unchecked === 0 && total > 0 ? 'success' : 'failure';
+            const description = total === 0
+              ? 'Checklist comment is empty — restore it from the workflow.'
+              : unchecked === 0
+                ? `All ${total} boxes checked`
+                : `${unchecked} of ${total} box(es) still unchecked`;
+
+            // Report a commit status tied to the PR head SHA so branch protection can require it.
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: headSha,
+              state,
+              context: 'pr-checklist',
+              description,
+              target_url: botComment.html_url,
+            });
+
+            core.info(`Status \`pr-checklist\` -> ${state}: ${description}`);
+            if (state !== 'success') {
+              core.setFailed(description);
+            }
