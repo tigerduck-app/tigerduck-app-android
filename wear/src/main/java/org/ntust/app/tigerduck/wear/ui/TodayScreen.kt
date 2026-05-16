@@ -60,7 +60,7 @@ fun TodayScreen(
             if (entries.isEmpty()) {
                 item {
                     Text(
-                        text = stringResource(R.string.watch_no_upcoming_classes),
+                        text = stringResource(R.string.widget_no_classes_today),
                         modifier = Modifier.padding(vertical = 12.dp),
                     )
                 }
