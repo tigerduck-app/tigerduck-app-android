@@ -1,22 +1,41 @@
 package org.ntust.app.tigerduck.wear.ui
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material3.FilledTonalButton
+import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
+import org.ntust.app.tigerduck.wear.BuildConfig
 import org.ntust.app.tigerduck.wear.R
+import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
+import java.util.concurrent.TimeUnit
 
 @Composable
-fun SettingsListScreen(onPaddingClick: () -> Unit) {
+fun SettingsListScreen(
+    snapshot: WatchSnapshot,
+    onPaddingClick: () -> Unit,
+) {
     val listState = rememberScalingLazyListState()
     val pad = LocalScreenPadding.current
     ScreenScaffold(scrollState = listState) {
@@ -25,10 +44,13 @@ fun SettingsListScreen(onPaddingClick: () -> Unit) {
                 .fillMaxWidth()
                 .padding(horizontal = pad),
             state = listState,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             item {
                 ListHeader { Text(stringResource(R.string.watch_settings)) }
             }
+            item { SignedInRow(loggedIn = snapshot.loggedIn) }
+            item { LastSyncRow(syncedAtMs = snapshot.syncedAtMs) }
             item {
                 FilledTonalButton(
                     onClick = onPaddingClick,
@@ -40,6 +62,74 @@ fun SettingsListScreen(onPaddingClick: () -> Unit) {
                     )
                 }
             }
+            item { VersionRow() }
         }
     }
+}
+
+@Composable
+private fun SignedInRow(loggedIn: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = if (loggedIn) Icons.Filled.CheckCircle else Icons.Filled.Person,
+            contentDescription = null,
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = stringResource(
+                if (loggedIn) R.string.watch_settings_signed_in
+                else R.string.watch_settings_signed_out
+            ),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun LastSyncRow(syncedAtMs: Long?) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(imageVector = Icons.Filled.Schedule, contentDescription = null)
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = lastSyncText(syncedAtMs),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun lastSyncText(syncedAtMs: Long?): String {
+    if (syncedAtMs == null || syncedAtMs <= 0L) {
+        return stringResource(R.string.watch_last_synced_never)
+    }
+    val ageMs = (AppClock.nowMillis() - syncedAtMs).coerceAtLeast(0L)
+    val pretty = if (ageMs < TimeUnit.DAYS.toMillis(1)) {
+        stringResource(
+            R.string.watch_relative_hours_ago_short,
+            TimeUnit.MILLISECONDS.toHours(ageMs).toInt(),
+        )
+    } else {
+        stringResource(
+            R.string.watch_relative_days_ago_short,
+            TimeUnit.MILLISECONDS.toDays(ageMs).toInt(),
+        )
+    }
+    return stringResource(R.string.watch_last_synced_relative, pretty)
+}
+
+@Composable
+private fun VersionRow() {
+    Text(
+        text = "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+        color = Color.Gray,
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+    )
 }
