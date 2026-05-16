@@ -559,6 +559,7 @@
     <string name="watch_course_instructor_label">授課教師</string>
     <string name="watch_empty_not_logged_in">未登入嘅。喺手機開 TigerDuck 啦。</string>
     <string name="watch_ends_at">%1$s 完</string>
+    <string name="watch_just_now">啱啱</string>
     <string name="watch_last_synced_never">未同步過</string>
     <string name="watch_last_synced_relative">上次同步:%1$s</string>
     <string name="watch_next">下一堂</string>
@@ -575,6 +576,7 @@
     <string name="watch_padding_value_dp">%1$d dp</string>
     <string name="watch_relative_days_ago_short">%1$d d ago</string>
     <string name="watch_relative_hours_ago_short">%1$d h ago</string>
+    <string name="watch_relative_minutes_ago_short">%1$d min ago</string>
     <string name="watch_screen_padding">螢幕邊距</string>
     <string name="watch_settings">設定</string>
     <string name="watch_settings_signed_in">登咗入</string>
