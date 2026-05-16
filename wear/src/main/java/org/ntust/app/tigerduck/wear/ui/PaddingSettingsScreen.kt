@@ -86,7 +86,7 @@ fun PaddingSettingsScreen(onBack: () -> Unit) {
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.action_back),
+                    contentDescription = stringResource(R.string.watch_action_back),
                 )
             }
 

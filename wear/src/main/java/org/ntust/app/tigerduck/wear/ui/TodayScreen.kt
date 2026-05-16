@@ -55,12 +55,12 @@ fun TodayScreen(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             item {
-                ListHeader { Text(stringResource(R.string.calendar_today)) }
+                ListHeader { Text(stringResource(R.string.watch_today)) }
             }
             if (entries.isEmpty()) {
                 item {
                     Text(
-                        text = stringResource(R.string.widget_no_classes_today),
+                        text = stringResource(R.string.watch_no_upcoming_classes),
                         modifier = Modifier.padding(vertical = 12.dp),
                     )
                 }
