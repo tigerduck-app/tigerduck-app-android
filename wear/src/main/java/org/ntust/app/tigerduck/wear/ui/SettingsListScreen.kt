@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.wear.ui
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +12,11 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,6 +30,7 @@ import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
+import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.wear.BuildConfig
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.shared.clock.AppClock
@@ -110,19 +117,30 @@ private fun lastSyncText(syncedAtMs: Long?): String {
     if (syncedAtMs == null || syncedAtMs <= 0L) {
         return stringResource(R.string.watch_last_synced_never)
     }
-    val ageMs = (AppClock.nowMillis() - syncedAtMs).coerceAtLeast(0L)
-    val pretty = if (ageMs < TimeUnit.DAYS.toMillis(1)) {
-        stringResource(
-            R.string.watch_relative_hours_ago_short,
-            TimeUnit.MILLISECONDS.toHours(ageMs).toInt(),
-        )
-    } else {
-        stringResource(
-            R.string.watch_relative_days_ago_short,
-            TimeUnit.MILLISECONDS.toDays(ageMs).toInt(),
-        )
-    }
+    val nowMs = currentMinuteTick()
+    // Floor at one minute so DateUtils never renders "0 minutes ago" right
+    // after a successful sync (the unit-less "now" case isn't available with
+    // FORMAT_ABBREV_RELATIVE).
+    val effectiveNow = maxOf(nowMs, syncedAtMs + TimeUnit.MINUTES.toMillis(1))
+    val pretty = DateUtils.getRelativeTimeSpanString(
+        syncedAtMs,
+        effectiveNow,
+        DateUtils.MINUTE_IN_MILLIS,
+        DateUtils.FORMAT_ABBREV_RELATIVE,
+    ).toString()
     return stringResource(R.string.watch_last_synced_relative, pretty)
+}
+
+@Composable
+private fun currentMinuteTick(): Long {
+    var nowMs by remember { mutableLongStateOf(AppClock.nowMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            nowMs = AppClock.nowMillis()
+            delay(TimeUnit.SECONDS.toMillis(60))
+        }
+    }
+    return nowMs
 }
 
 @Composable
