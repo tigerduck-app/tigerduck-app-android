@@ -44,7 +44,7 @@ fun SettingsListScreen(
                 .fillMaxWidth()
                 .padding(horizontal = pad),
             state = listState,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
                 ListHeader { Text(stringResource(R.string.watch_settings)) }
@@ -58,7 +58,7 @@ fun SettingsListScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.watch_screen_padding),
-                        modifier = Modifier.padding(vertical = 2.dp),
+                        modifier = Modifier.padding(vertical = 8.dp),
                     )
                 }
             }
@@ -130,6 +130,6 @@ private fun VersionRow() {
     Text(
         text = "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
         color = Color.Gray,
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
     )
 }
