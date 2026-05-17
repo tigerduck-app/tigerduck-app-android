@@ -7,7 +7,7 @@
 
 ## Pre-merge checklist (enforced)
 
-When you open a PR into `dev` or `main`, the [`PR Checklist Check`](.github/workflows/pr-checklist.yml)
+When you open a PR into `dev` or `main`, the [`PR Checklist Check`](.github/workflows/pr-checklist.yaml)
 workflow automatically posts a checklist comment below your PR description.
 
 - The exact checklist depends on whether the PR targets `dev` or `main`.
