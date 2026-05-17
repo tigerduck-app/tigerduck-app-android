@@ -238,6 +238,13 @@ class AppState @Inject constructor(
     // dialog. Not persisted — lives only within the process.
     var pendingLibraryEnablePrompt by mutableStateOf(false)
 
+    // Transient signal from signed-out empty states (Home, ClassTable,
+    // Calendar, Score): when the user taps the lock icon we navigate to
+    // Settings and flip this so the NTUST account row pulses, drawing the
+    // user's attention to the action they need to take. Consumed (cleared)
+    // by SettingsScreen after the animation finishes.
+    var pendingNtustSignInHighlight by mutableStateOf(false)
+
     private var configuredTabsState by mutableStateOf(prefs.configuredTabs)
 
     var configuredTabs: List<AppFeature>

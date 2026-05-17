@@ -306,14 +306,32 @@ fun MainNavigation(
             popEnterTransition = { fadeIn(tween(150)) },
             popExitTransition = { fadeOut(tween(100)) }
         ) {
+            // Shared by every screen that renders the signed-out lock empty
+            // state: tapping the lock should land the user on Settings with
+            // the NTUST account row pulsing. Defined once here so each
+            // screen needs only a single callback parameter.
+            val openSignInSettings: () -> Unit = {
+                appState.pendingNtustSignInHighlight = true
+                navController.navigate(Screen.Settings.route)
+            }
             composable(Screen.Home.route) {
-                HomeScreen(appState = appState, viewModel = homeViewModel)
+                HomeScreen(
+                    appState = appState,
+                    viewModel = homeViewModel,
+                    onOpenSignInSettings = openSignInSettings,
+                )
             }
             composable(Screen.ClassTable.route) {
-                ClassTableScreen(viewModel = classTableViewModel)
+                ClassTableScreen(
+                    viewModel = classTableViewModel,
+                    onOpenSignInSettings = openSignInSettings,
+                )
             }
             composable(Screen.Calendar.route) {
-                CalendarScreen(viewModel = calendarViewModel)
+                CalendarScreen(
+                    viewModel = calendarViewModel,
+                    onOpenSignInSettings = openSignInSettings,
+                )
             }
             composable(Screen.Announcements.route) {
                 AnnouncementsScreen(
@@ -335,7 +353,9 @@ fun MainNavigation(
                 SubscriptionSettingsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.Library.route) { LibraryScreen() }
-            composable(Screen.Score.route) { ScoreScreen() }
+            composable(Screen.Score.route) {
+                ScoreScreen(onOpenSignInSettings = openSignInSettings)
+            }
             composable(Screen.More.route) { MoreScreen(navController, appState) }
             composable(Screen.Settings.route) {
                 SettingsScreen(

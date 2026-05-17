@@ -108,6 +108,17 @@ fun SettingsScreen(
         }
     }
 
+    // Consume the deep-link signal raised by the signed-out empty-state lock
+    // icons. Capture it into local state so we can pulse exactly once and
+    // re-arm on a future entry, even if the user backs out and taps again.
+    var highlightNtustRow by remember { mutableStateOf(false) }
+    LaunchedEffect(viewModel.appState.pendingNtustSignInHighlight) {
+        if (viewModel.appState.pendingNtustSignInHighlight) {
+            highlightNtustRow = true
+            viewModel.appState.pendingNtustSignInHighlight = false
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
@@ -137,6 +148,8 @@ fun SettingsScreen(
                             onLogin = { showNtustLoginSheet = true },
                             onLogout = { viewModel.logoutNtust() },
                             actionMinWidth = accountButtonMinWidth,
+                            highlight = highlightNtustRow,
+                            onHighlightConsumed = { highlightNtustRow = false },
                         )
 
                         if (libraryEnabled) {
@@ -451,10 +464,37 @@ private fun AccountRow(
     onLogin: () -> Unit,
     onLogout: () -> Unit,
     actionMinWidth: Dp,
+    highlight: Boolean = false,
+    onHighlightConsumed: () -> Unit = {},
 ) {
+    // Two-pulse attention flash when an off-screen surface (e.g. a
+    // signed-out empty state) deep-links here to surface the "Sign in"
+    // action. Uses keyframes so the row briefly tints with the accent
+    // container, fades, tints again, then settles back — enough motion
+    // to catch the eye without being noisy.
+    val highlightAlpha = remember { Animatable(0f) }
+    LaunchedEffect(highlight) {
+        if (!highlight) return@LaunchedEffect
+        highlightAlpha.snapTo(0f)
+        highlightAlpha.animateTo(
+            targetValue = 0f,
+            animationSpec = keyframes {
+                durationMillis = 2200
+                0f at 0
+                1f at 250
+                0f at 900
+                1f at 1200
+                0f at 1900
+            },
+        )
+        onHighlightConsumed()
+    }
+    val highlightColor = MaterialTheme.colorScheme.primaryContainer
+        .copy(alpha = 0.55f * highlightAlpha.value)
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(highlightColor)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

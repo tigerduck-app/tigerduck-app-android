@@ -68,7 +68,8 @@ import kotlin.math.roundToInt
 @Composable
 fun HomeScreen(
     appState: AppState,
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    onOpenSignInSettings: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -274,7 +275,8 @@ fun HomeScreen(
                             // onSkipCourse = { course, date ->
                             //     if (!isEditing) viewModel.toggleSkip(course, date)
                             // },
-                            onWidgetClick = { if (!isEditing) showComingSoon = true }
+                            onWidgetClick = { if (!isEditing) showComingSoon = true },
+                            onOpenSignInSettings = onOpenSignInSettings,
                         )
                     }
                 }
@@ -439,7 +441,8 @@ private fun HomeSectionContent(
     onToggleIgnore: (Assignment) -> Unit,
     onMarkCompleted: (Assignment) -> Unit,
     onSelectFilter: (AssignmentFilter) -> Unit,
-    onWidgetClick: () -> Unit
+    onWidgetClick: () -> Unit,
+    onOpenSignInSettings: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         when (section.type) {
@@ -472,6 +475,7 @@ private fun HomeSectionContent(
                         isLoggedIn = isLoggedIn,
                         isLoading = isLoading || (!initialLoadComplete && isLoggedIn),
                         filter = assignmentFilter,
+                        onOpenSignInSettings = onOpenSignInSettings,
                     )
                 } else {
                     // Resolve the canonical Course for each row's courseNo so
@@ -687,12 +691,14 @@ private fun AssignmentsEmptyState(
     isLoggedIn: Boolean,
     isLoading: Boolean,
     filter: AssignmentFilter,
+    onOpenSignInSettings: () -> Unit = {},
 ) {
     if (!isLoggedIn) {
         EmptyStateView(
             icon = Icons.Filled.Lock,
             title = stringResource(R.string.common_not_logged_in),
             message = stringResource(R.string.common_login_required_feature),
+            onIconClick = onOpenSignInSettings,
         )
         return
     }

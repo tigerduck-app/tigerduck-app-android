@@ -75,7 +75,8 @@ private data class ConflictPickerTarget(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClassTableScreen(
-    viewModel: ClassTableViewModel = hiltViewModel()
+    viewModel: ClassTableViewModel = hiltViewModel(),
+    onOpenSignInSettings: () -> Unit = {},
 ) {
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -173,6 +174,7 @@ fun ClassTableScreen(
                         icon = Icons.Filled.Lock,
                         title = stringResource(R.string.common_not_logged_in),
                         message = stringResource(R.string.common_login_required_feature),
+                        onIconClick = onOpenSignInSettings,
                     )
                     Spacer(Modifier.height(32.dp))
                     return@Column
