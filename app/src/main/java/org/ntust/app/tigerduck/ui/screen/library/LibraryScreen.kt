@@ -88,6 +88,23 @@ fun LibraryScreen(
         }
     }
 
+    // Hold the screen at full brightness while a QR is on screen — handheld
+    // scanners struggle with dim panels. Restore the previous value (which may
+    // be the platform default, BRIGHTNESS_OVERRIDE_NONE = -1f) when the user
+    // navigates away or logs out.
+    DisposableEffect(activity, isLoggedIn) {
+        val window = activity?.window
+        if (window == null || !isLoggedIn) {
+            onDispose { }
+        } else {
+            val previous = window.attributes.screenBrightness
+            window.attributes = window.attributes.apply { screenBrightness = 1.0f }
+            onDispose {
+                window.attributes = window.attributes.apply { screenBrightness = previous }
+            }
+        }
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             when (event) {
