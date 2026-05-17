@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -112,7 +113,25 @@ class LiveActivityNotifier @Inject constructor(
         }
 
         manager.notify(NOTIFICATION_ID, builder.build())
+
+        // Once the class is actually ongoing, the alarm-driven "即將上課" banner
+        // is redundant. The receiver's setTimeoutAfter is a best-effort hint
+        // and can lag past class start, leaving two side-by-side notifications
+        // for the same class. Clear any stragglers explicitly on the
+        // CLASS_PREPARING → IN_CLASS transition.
+        if (scenarioChanged && snapshot.scenario == LiveActivityScenario.IN_CLASS) {
+            cancelClassPreparingBanners()
+        }
+
         lastScenario = snapshot.scenario
+    }
+
+    private fun cancelClassPreparingBanners() {
+        manager.activeNotifications.forEach { sbn ->
+            if (sbn.notification.channelId == ClassPreparingNotificationReceiver.CHANNEL_ID) {
+                manager.cancel(sbn.tag, sbn.id)
+            }
+        }
     }
 
     fun cancel() {
