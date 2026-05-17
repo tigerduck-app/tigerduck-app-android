@@ -57,6 +57,7 @@ fun SettingsScreen(
     onNavigateToLiveActivity: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
+    onNavigateToNotificationDebug: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsState()
@@ -365,7 +366,11 @@ fun SettingsScreen(
                 item { SectionHeader("Developer") }
                 item {
                     ContentCard {
-                        SettingsLinkRow("Developer") { onNavigateToDebug() }
+                        Column {
+                            SettingsLinkRow("Time override") { onNavigateToDebug() }
+                            HorizontalDivider()
+                            SettingsLinkRow("Notification") { onNavigateToNotificationDebug() }
+                        }
                     }
                 }
             }

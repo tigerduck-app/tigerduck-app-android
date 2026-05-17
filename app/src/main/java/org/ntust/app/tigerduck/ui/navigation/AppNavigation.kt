@@ -83,6 +83,7 @@ sealed class Screen(val route: String) {
     object OtherSettings : Screen("otherSettings")
     object VibrationSettings : Screen("vibrationSettings")
     object Debug : Screen("debug")
+    object NotificationDebug : Screen("notificationDebug")
 }
 
 @Composable
@@ -343,11 +344,17 @@ fun MainNavigation(
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
                     onNavigateToDebug = { navController.navigate(Screen.Debug.route) },
+                    onNavigateToNotificationDebug = { navController.navigate(Screen.NotificationDebug.route) },
                 )
             }
             if (BuildConfig.DEBUG) {
                 composable(Screen.Debug.route) {
                     org.ntust.app.tigerduck.ui.screen.debug.DebugScreen(
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(Screen.NotificationDebug.route) {
+                    org.ntust.app.tigerduck.ui.screen.debug.NotificationDebugScreen(
                         onBack = { navController.popBackStack() },
                     )
                 }
