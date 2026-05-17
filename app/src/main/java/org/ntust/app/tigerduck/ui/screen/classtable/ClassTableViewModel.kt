@@ -62,6 +62,12 @@ class ClassTableViewModel @Inject constructor(
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
 
+    // Cached idnumber → numeric Moodle course id, harvested off the
+    // `fetchEnrolledCourses` response. The course-detail popup uses this
+    // to build the `/course/view.php?id=<N>` deep link — Moodle's web
+    // endpoint requires the numeric id, not the idnumber.
+    private val _moodleCourseIdByIdnumber = MutableStateFlow<Map<String, Int>>(emptyMap())
+
     private val _selectedWeekday = MutableStateFlow<Int?>(null)
     private val _selectedPeriodId = MutableStateFlow<String?>(null)
 
@@ -314,6 +320,18 @@ class ClassTableViewModel @Inject constructor(
         _selectedWeekday.value = weekday
         _selectedPeriodId.value = periodId
         _selectedCourse.value = course
+    }
+
+    /**
+     * Numeric Moodle course id for [course], or null when we have no entry
+     * for it in the idnumber map yet (e.g. manual courses without a Moodle
+     * counterpart, or a cold start before the first sync). The detail
+     * popup uses this to decide whether to render the "open in Moodle"
+     * affordance.
+     */
+    fun moodleCourseIdFor(course: Course): Int? {
+        val idnumber = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: return null
+        return _moodleCourseIdByIdnumber.value[idnumber]
     }
 
     fun clearSelection() {
@@ -639,6 +657,17 @@ class ClassTableViewModel @Inject constructor(
                     moodleAll.take(5).map { it.idnumber }
                 } semesters=${moodleAll.map { it.semesterCode }.distinct()}"
             )
+            // Build the idnumber → numeric-id map across ALL semesters
+            // (not just the one currently displayed) so the detail popup's
+            // Moodle button works for historical semesters too. Skip entries
+            // missing either field — both are required to build a usable
+            // deep link.
+            if (moodleAll.isNotEmpty()) {
+                _moodleCourseIdByIdnumber.value = moodleAll
+                    .mapNotNull { c -> c.idnumber?.takeIf { it.isNotEmpty() }?.let { it to c.id } }
+                    .toMap()
+            }
+
             val moodleForSem =
                 moodleAll.filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }
             val moodleByNo = moodleForSem.associateBy { it.courseNo }
