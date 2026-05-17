@@ -345,21 +345,6 @@ fun OnboardingScreen(
                     }
                 }
 
-                // Original "choose features" page — temporarily disabled per
-                // product request. Restore by re-adding the case and bumping
-                // pageCount accordingly.
-                // 2 -> OnboardingPage(
-                //     icon = Icons.Filled.Tune,
-                //     iconTint = Color(0xFFEF6C00),
-                //     title = stringResource(R.string.onboarding_choose_features_title),
-                //     subtitle = stringResource(R.string.onboarding_choose_features_subtitle)
-                // ) {
-                //     Button(
-                //         onClick = { goToPage(3) },
-                //         modifier = Modifier.fillMaxWidth(0.6f)
-                //     ) { Text(stringResource(R.string.action_next)) }
-                // }
-
                 4 -> PermissionsPage(
                     systemPermissions = viewModel.systemPermissions,
                     onContinue = { goToPage(5) },
