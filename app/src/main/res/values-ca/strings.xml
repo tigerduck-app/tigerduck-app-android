@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Pestanyes disponibles</string>
     <string name="tab_editor_section_current_tabs">Pestanyes actuals</string>
     <string name="tab_editor_title">Editor de pestanyes</string>
+    <string name="vibration_settings_motor_warning">Alguns telèfons tenen motors de vibració de menor qualitat que poden ignorar vibracions molt febles o molt curtes. Si no podeu sentir una configuració, proveu d\'augmentar-ne la força o la durada. Podeu començar provant primer el preajust \"Mitjà\".</string>
     <string name="vibration_settings_revert">Restablir per defecte</string>
     <string name="vibration_settings_section_length_ms">Durada (ms)</string>
     <string name="vibration_settings_section_strength_pct">Intensitat</string>

@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Verfügbare Tabs</string>
     <string name="tab_editor_section_current_tabs">Aktuelle Tabs</string>
     <string name="tab_editor_title">Tab-Editor</string>
+    <string name="vibration_settings_motor_warning">Einige Telefone haben Vibrationsmotoren geringerer Qualität, die sehr schwache oder sehr kurze Vibrationen ignorieren können. Falls Sie eine Einstellung nicht spüren, versuchen Sie, die Stärke oder Länge zu erhöhen. Sie können mit der Voreinstellung \"Mittel\" beginnen.</string>
     <string name="vibration_settings_revert">Standard wiederherstellen</string>
     <string name="vibration_settings_section_length_ms">Dauer (ms)</string>
     <string name="vibration_settings_section_strength_pct">Stärke</string>

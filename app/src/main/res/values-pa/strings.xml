@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">ਉਪਲਬਧ ਟੈਬ</string>
     <string name="tab_editor_section_current_tabs">ਮੌਜੂਦਾ ਟੈਬ</string>
     <string name="tab_editor_title">ਟੈਬ ਸੰਪਾਦਕ</string>
+    <string name="vibration_settings_motor_warning">ਕੁਝ ਫੋਨਾਂ ਵਿੱਚ ਘੱਟ ਗੁਣਵੱਤਾ ਵਾਲੇ ਵਾਈਬ੍ਰੇਸ਼ਨ ਮੋਟਰ ਹੁੰਦੇ ਹਨ ਜੋ ਬਹੁਤ ਕਮਜ਼ੋਰ ਜਾਂ ਬਹੁਤ ਛੋਟੇ ਵਾਈਬ੍ਰੇਸ਼ਨ ਨੂੰ ਨਜ਼ਰਅੰਦਾਜ਼ ਕਰ ਸਕਦੇ ਹਨ। ਜੇ ਤੁਸੀਂ ਕੋਈ ਸੈਟਿੰਗ ਮਹਿਸੂਸ ਨਹੀਂ ਕਰ ਸਕਦੇ, ਤਾਂ ਇਸਦੀ ਤਾਕਤ ਜਾਂ ਲੰਬਾਈ ਵਧਾਉਣ ਦੀ ਕੋਸ਼ਿਸ਼ ਕਰੋ। ਤੁਸੀਂ ਪਹਿਲਾਂ \"ਦਰਮਿਆਨਾ\" ਪ੍ਰੀਸੈੱਟ ਅਜ਼ਮਾ ਕੇ ਸ਼ੁਰੂ ਕਰ ਸਕਦੇ ਹੋ।</string>
     <string name="vibration_settings_revert">ਡਿਫੌਲਟ \'ਤੇ ਰੀਸੈੱਟ</string>
     <string name="vibration_settings_section_length_ms">ਅਵਧੀ (ms)</string>
     <string name="vibration_settings_section_strength_pct">ਤੀਬਰਤਾ</string>

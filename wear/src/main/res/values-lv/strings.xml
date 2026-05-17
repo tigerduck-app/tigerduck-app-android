@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Pieejamie cilņi</string>
     <string name="tab_editor_section_current_tabs">Pašreizējie cilņi</string>
     <string name="tab_editor_title">Ciļņu redaktors</string>
+    <string name="vibration_settings_motor_warning">Dažiem telefoniem ir zemākas kvalitātes vibrācijas motori, kas var ignorēt ļoti vājas vai ļoti īsas vibrācijas. Ja nevarat sajust kādu iestatījumu, mēģiniet palielināt tā stiprumu vai ilgumu. Varat sākt, izmēģinot \"Vidējs\" sākotnējo iestatījumu.</string>
     <string name="vibration_settings_revert">Atjaunot noklusējumu</string>
     <string name="vibration_settings_section_length_ms">Ilgums (ms)</string>
     <string name="vibration_settings_section_strength_pct">Spēks</string>

@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">ಲಭ್ಯ ಟ್ಯಾಬ್‌ಗಳು</string>
     <string name="tab_editor_section_current_tabs">ಪ್ರಸ್ತುತ ಟ್ಯಾಬ್‌ಗಳು</string>
     <string name="tab_editor_title">ಟ್ಯಾಬ್ ಸಂಪಾದಕ</string>
+    <string name="vibration_settings_motor_warning">ಕೆಲವು ಫೋನ್‌ಗಳಲ್ಲಿ ಕಡಿಮೆ ಗುಣಮಟ್ಟದ ವೈಬ್ರೇಶನ್ ಮೋಟಾರ್‌ಗಳಿರುತ್ತವೆ, ಅವು ತುಂಬಾ ದುರ್ಬಲ ಅಥವಾ ತುಂಬಾ ಕಡಿಮೆ ಅವಧಿಯ ವೈಬ್ರೇಶನ್‌ಗಳನ್ನು ನಿರ್ಲಕ್ಷಿಸಬಹುದು. ಯಾವುದೇ ಸೆಟ್ಟಿಂಗ್ ಅನ್ನು ಅನುಭವಿಸಲಾಗದಿದ್ದರೆ, ಅದರ ಶಕ್ತಿ ಅಥವಾ ಉದ್ದವನ್ನು ಹೆಚ್ಚಿಸಲು ಪ್ರಯತ್ನಿಸಿ. ಮೊದಲು \"ಮಧ್ಯಮ\" ಪ್ರೀಸೆಟ್ ಅನ್ನು ಪ್ರಯತ್ನಿಸಿ.</string>
     <string name="vibration_settings_revert">ಡೀಫಾಲ್ಟ್‌ಗೆ ಮರುಹೊಂದಿಸಿ</string>
     <string name="vibration_settings_section_length_ms">ಅವಧಿ (ms)</string>
     <string name="vibration_settings_section_strength_pct">ತೀವ್ರತೆ</string>

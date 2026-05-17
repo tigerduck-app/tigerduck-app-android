@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Dostupné karty</string>
     <string name="tab_editor_section_current_tabs">Aktuálne karty</string>
     <string name="tab_editor_title">Editor kariet</string>
+    <string name="vibration_settings_motor_warning">Niektoré telefóny majú vibračné motory nižšej kvality, ktoré môžu ignorovať veľmi slabé alebo veľmi krátke vibrácie. Ak neviete pocítiť nastavenie, skúste zvýšiť jeho silu alebo dĺžku. Môžete začať vyskúšaním predvoľby \"Stredný\".</string>
     <string name="vibration_settings_revert">Obnoviť predvolené</string>
     <string name="vibration_settings_section_length_ms">Trvanie (ms)</string>
     <string name="vibration_settings_section_strength_pct">Sila</string>

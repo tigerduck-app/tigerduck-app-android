@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">دستیاب ٹیبز</string>
     <string name="tab_editor_section_current_tabs">موجودہ ٹیبز</string>
     <string name="tab_editor_title">ٹیب ایڈیٹر</string>
+    <string name="vibration_settings_motor_warning">کچھ فونوں میں کم معیار کے وائبریشن موٹر ہوتے ہیں جو بہت کمزور یا بہت مختصر وائبریشن کو نظرانداز کر سکتے ہیں۔ اگر آپ کوئی ترتیب محسوس نہیں کر سکتے، تو اس کی طاقت یا لمبائی بڑھانے کی کوشش کریں۔ آپ پہلے \"درمیانہ\" پری سیٹ آزما کر شروع کر سکتے ہیں۔</string>
     <string name="vibration_settings_revert">ڈیفالٹ پر ری سیٹ</string>
     <string name="vibration_settings_section_length_ms">مدت (ms)</string>
     <string name="vibration_settings_section_strength_pct">شدت</string>

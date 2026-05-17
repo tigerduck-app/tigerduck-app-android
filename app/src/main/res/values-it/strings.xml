@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Schede disponibili</string>
     <string name="tab_editor_section_current_tabs">Schede attuali</string>
     <string name="tab_editor_title">Editor schede</string>
+    <string name="vibration_settings_motor_warning">Alcuni telefoni hanno motori di vibrazione di qualità inferiore che potrebbero ignorare vibrazioni molto deboli o molto brevi. Se non riesci a sentire un\'impostazione, prova ad aumentarne la forza o la durata. Puoi iniziare provando prima il preset \"Medio\".</string>
     <string name="vibration_settings_revert">Ripristina predefinito</string>
     <string name="vibration_settings_section_length_ms">Durata (ms)</string>
     <string name="vibration_settings_section_strength_pct">Intensità</string>

@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">கிடைக்கக்கூடிய Tab-கள்</string>
     <string name="tab_editor_section_current_tabs">தற்போதைய Tab-கள்</string>
     <string name="tab_editor_title">Tab திருத்தி</string>
+    <string name="vibration_settings_motor_warning">சில தொலைபேசிகளில் குறைந்த தரமான அதிர்வு மோட்டார்கள் உள்ளன, அவை மிகவும் பலவீனமான அல்லது மிகவும் குறுகிய அதிர்வுகளை புறக்கணிக்கக்கூடும். ஒரு அமைப்பை உணர முடியாவிட்டால், அதன் வலிமை அல்லது நீளத்தை அதிகரிக்க முயற்சிக்கவும். முதலில் \"நடுத்தர\" முன்னமைவை முயற்சிப்பதில் இருந்து தொடங்கலாம்.</string>
     <string name="vibration_settings_revert">இயல்புநிலைக்கு மீட்டமை</string>
     <string name="vibration_settings_section_length_ms">கால அளவு (ms)</string>
     <string name="vibration_settings_section_strength_pct">தீவிரம்</string>

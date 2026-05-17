@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Razpoložljivi zavihki</string>
     <string name="tab_editor_section_current_tabs">Trenutni zavihki</string>
     <string name="tab_editor_title">Urejevalnik zavihkov</string>
+    <string name="vibration_settings_motor_warning">Nekateri telefoni imajo vibromotorje nižje kakovosti, ki lahko ignorirajo zelo šibke ali zelo kratke vibracije. Če ne čutite nastavitve, poskusite povečati njeno moč ali dolžino. Začnete lahko s preizkusom prednastavitve \"Srednje\".</string>
     <string name="vibration_settings_revert">Ponastavi privzeto</string>
     <string name="vibration_settings_section_length_ms">Trajanje (ms)</string>
     <string name="vibration_settings_section_strength_pct">Jakost</string>

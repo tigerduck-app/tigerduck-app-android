@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Διαθέσιμες καρτέλες</string>
     <string name="tab_editor_section_current_tabs">Τρέχουσες καρτέλες</string>
     <string name="tab_editor_title">Επεξεργαστής καρτελών</string>
+    <string name="vibration_settings_motor_warning">Ορισμένα τηλέφωνα διαθέτουν κινητήρες δόνησης χαμηλότερης ποιότητας που ενδέχεται να αγνοούν πολύ αδύναμες ή πολύ σύντομες δονήσεις. Αν δεν αισθάνεστε μια ρύθμιση, δοκιμάστε να αυξήσετε την ένταση ή τη διάρκειά της. Μπορείτε να ξεκινήσετε δοκιμάζοντας την προεπιλογή \"Μέτριο\".</string>
     <string name="vibration_settings_revert">Επαναφορά προεπιλογής</string>
     <string name="vibration_settings_section_length_ms">Διάρκεια (ms)</string>
     <string name="vibration_settings_section_strength_pct">Ένταση</string>

@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">แท็บที่ใช้ได้</string>
     <string name="tab_editor_section_current_tabs">แท็บปัจจุบัน</string>
     <string name="tab_editor_title">ตัวแก้ไขแท็บ</string>
+    <string name="vibration_settings_motor_warning">โทรศัพท์บางรุ่นมีมอเตอร์สั่นคุณภาพต่ำที่อาจไม่ตอบสนองต่อการสั่นที่อ่อนมากหรือสั้นมาก หากคุณรู้สึกไม่ได้ถึงการตั้งค่า ให้ลองเพิ่มความแรงหรือความยาว คุณสามารถเริ่มต้นด้วยการลองใช้ค่าตั้งต้น \"ปานกลาง\" ก่อน</string>
     <string name="vibration_settings_revert">รีเซ็ตเป็นค่าเริ่มต้น</string>
     <string name="vibration_settings_section_length_ms">ระยะเวลา (ms)</string>
     <string name="vibration_settings_section_strength_pct">ความแรง</string>

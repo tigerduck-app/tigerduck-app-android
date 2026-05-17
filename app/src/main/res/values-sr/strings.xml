@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Доступне картице</string>
     <string name="tab_editor_section_current_tabs">Тренутне картице</string>
     <string name="tab_editor_title">Уређивач картица</string>
+    <string name="vibration_settings_motor_warning">Неки телефони имају вибромоторе нижег квалитета koji могу игнорисати врло слабе или врло кратке вибрације. Ако не можете да осетите подешавање, покушајте да повећате његову јачину или дужину. Можете почети испробавањем предпоставке \"Средње\".</string>
     <string name="vibration_settings_revert">Врати на подразумевано</string>
     <string name="vibration_settings_section_length_ms">Трајање (ms)</string>
     <string name="vibration_settings_section_strength_pct">Јачина</string>

@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Mga available na tab</string>
     <string name="tab_editor_section_current_tabs">Mga kasalukuyang tab</string>
     <string name="tab_editor_title">Editor ng tab</string>
+    <string name="vibration_settings_motor_warning">Ang ilang mga telepono ay may mas mababang kalidad na vibration motor na maaaring hindi mapansin ang napakahina o napakaikling vibration. Kung hindi mo maramdaman ang isang setting, subukang itaas ang lakas o haba nito. Maaari kang magsimula sa pamamagitan ng pagsubok sa \"Katamtaman\" na preset muna.</string>
     <string name="vibration_settings_revert">I-reset sa default</string>
     <string name="vibration_settings_section_length_ms">Haba (ms)</string>
     <string name="vibration_settings_section_strength_pct">Lakas</string>

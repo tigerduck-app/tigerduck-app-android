@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Доступні вкладки</string>
     <string name="tab_editor_section_current_tabs">Поточні вкладки</string>
     <string name="tab_editor_title">Редактор вкладок</string>
+    <string name="vibration_settings_motor_warning">Деякі телефони мають вібромотори нижчої якості, які можуть ігнорувати дуже слабкі або дуже короткі вібрації. Якщо ви не відчуваєте певне налаштування, спробуйте збільшити його силу або тривалість. Ви можете почати з випробування попереднього налаштування «Середня».</string>
     <string name="vibration_settings_revert">Скинути до стандартних</string>
     <string name="vibration_settings_section_length_ms">Тривалість (ms)</string>
     <string name="vibration_settings_section_strength_pct">Сила</string>

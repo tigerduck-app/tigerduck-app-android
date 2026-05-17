@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">その他の利用可能なタブ</string>
     <string name="tab_editor_section_current_tabs">現在のタブ</string>
     <string name="tab_editor_title">タブエディタ</string>
+    <string name="vibration_settings_motor_warning">一部のスマートフォンは振動モーターの品質が低く、非常に弱い振動や非常に短い振動を無視することがあります。設定を感じられない場合は、強度や長さを上げてみてください。まず「中間」のプリセットから試してみることをお勧めします。</string>
     <string name="vibration_settings_revert">デフォルトに戻す</string>
     <string name="vibration_settings_section_length_ms">長さ (ms)</string>
     <string name="vibration_settings_section_strength_pct">強さ</string>

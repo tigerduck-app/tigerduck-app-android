@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Қол жетімді қойындылар</string>
     <string name="tab_editor_section_current_tabs">Ағымдағы қойындылар</string>
     <string name="tab_editor_title">Қойынды редакторы</string>
+    <string name="vibration_settings_motor_warning">Кейбір телефондарда сапасы төменірек дірілдеткіш моторлары болады, олар өте әлсіз немесе өте қысқа дірілдерді елемеуі мүмкін. Егер параметрді сезбесеңіз, оның күшін немесе ұзақтығын арттырып көріңіз. \"Орташа\" алдын ала орнатымын алдымен сынап бастай аласыз.</string>
     <string name="vibration_settings_revert">Әдепкіге қайтару</string>
     <string name="vibration_settings_section_length_ms">Ұзақтығы (ms)</string>
     <string name="vibration_settings_section_strength_pct">Күш</string>

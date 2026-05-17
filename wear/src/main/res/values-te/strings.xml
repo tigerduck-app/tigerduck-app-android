@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">అందుబాటులో ఉన్న ట్యాబ్‌లు</string>
     <string name="tab_editor_section_current_tabs">ప్రస్తుత ట్యాబ్‌లు</string>
     <string name="tab_editor_title">ట్యాబ్ ఎడిటర్</string>
+    <string name="vibration_settings_motor_warning">కొన్ని ఫోన్లలో తక్కువ నాణ్యమైన వైబ్రేషన్ మోటార్లు ఉంటాయి, అవి చాలా బలహీనమైన లేదా చాలా తక్కువ వ్యవధిగల వైబ్రేషన్లను విస్మరించవచ్చు. మీకు ఏదైనా సెట్టింగ్ అనుభవం కాకపోతే, దాని బలం లేదా పొడవును పెంచడానికి ప్రయత్నించండి. ముందుగా \"మధ్యమ\" ప్రీసెట్‌ను ప్రయత్నించడం ద్వారా ప్రారంభించవచ్చు.</string>
     <string name="vibration_settings_revert">డిఫాల్ట్‌కు రీసెట్ చేయండి</string>
     <string name="vibration_settings_section_length_ms">వ్యవధి (ms)</string>
     <string name="vibration_settings_section_strength_pct">తీవ్రత</string>

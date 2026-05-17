@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Tiltækir flipar</string>
     <string name="tab_editor_section_current_tabs">Núverandi flipar</string>
     <string name="tab_editor_title">Fliparitill</string>
+    <string name="vibration_settings_motor_warning">Sumir símar hafa lægri gæða titringsmótor sem gætu hunsað mjög veika eða mjög stuttar titringshreyfingar. Ef þú finnur ekki fyrir stillingu skaltu reyna að auka styrk hennar eða lengd. Þú getur byrjað á að prófa \"Meðal\" forstillinguna fyrst.</string>
     <string name="vibration_settings_revert">Endurstilla sjálfgefið</string>
     <string name="vibration_settings_section_length_ms">Lengd (ms)</string>
     <string name="vibration_settings_section_strength_pct">Styrkur</string>

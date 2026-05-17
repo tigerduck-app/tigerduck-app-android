@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">التبويبات المتاحة</string>
     <string name="tab_editor_section_current_tabs">التبويبات الحالية</string>
     <string name="tab_editor_title">محرر التبويبات</string>
+    <string name="vibration_settings_motor_warning">تعاني بعض الهواتف من محركات اهتزاز منخفضة الجودة قد تتجاهل الاهتزازات الضعيفة جداً أو القصيرة جداً. إذا كنت لا تشعر بالإعداد، حاول رفع قوته أو مدته. يمكنك البدء بتجربة الإعداد المسبق \"متوسط\" أولاً.</string>
     <string name="vibration_settings_revert">إعادة إلى الافتراضي</string>
     <string name="vibration_settings_section_length_ms">المدة (ms)</string>
     <string name="vibration_settings_section_strength_pct">الشدة</string>

@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">تب‌های در دسترس</string>
     <string name="tab_editor_section_current_tabs">تب‌های فعلی</string>
     <string name="tab_editor_title">ویرایشگر تب‌ها</string>
+    <string name="vibration_settings_motor_warning">برخی گوشی‌ها موتورهای لرزش با کیفیت پایین‌تری دارند که ممکن است لرزش‌های بسیار ضعیف یا بسیار کوتاه را نادیده بگیرند. اگر تنظیمی را حس نمی‌کنید، سعی کنید قدرت یا طول آن را افزایش دهید. می‌توانید با امتحان کردن پیش‌تنظیم \"متوسط\" شروع کنید.</string>
     <string name="vibration_settings_revert">بازگشت به پیش‌فرض</string>
     <string name="vibration_settings_section_length_ms">مدت (ms)</string>
     <string name="vibration_settings_section_strength_pct">شدت</string>

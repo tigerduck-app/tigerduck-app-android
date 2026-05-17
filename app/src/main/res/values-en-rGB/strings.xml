@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Available tabs</string>
     <string name="tab_editor_section_current_tabs">Current tabs</string>
     <string name="tab_editor_title">Tab editor</string>
+    <string name="vibration_settings_motor_warning">Some phones have lower-quality vibration motors that may ignore very weak or very short vibrations. If you can\'t feel a setting, try raising its strength or length. You can start by trying the medium preset first.</string>
     <string name="vibration_settings_revert">Reset to default</string>
     <string name="vibration_settings_section_length_ms">Length (ms)</string>
     <string name="vibration_settings_section_strength_pct">Strength</string>

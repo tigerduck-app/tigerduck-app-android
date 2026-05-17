@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Tillgängliga flikar</string>
     <string name="tab_editor_section_current_tabs">Nuvarande flikar</string>
     <string name="tab_editor_title">Flikredigerare</string>
+    <string name="vibration_settings_motor_warning">Vissa telefoner har vibrationsmotorer av lägre kvalitet som kan ignorera mycket svaga eller mycket korta vibrationer. Om du inte kan känna en inställning, prova att öka dess styrka eller längd. Du kan börja med att prova förinställningen \"Medel\".</string>
     <string name="vibration_settings_revert">Återställ standard</string>
     <string name="vibration_settings_section_length_ms">Varaktighet (ms)</string>
     <string name="vibration_settings_section_strength_pct">Styrka</string>

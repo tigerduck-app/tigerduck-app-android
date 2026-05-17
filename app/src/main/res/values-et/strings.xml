@@ -601,6 +601,7 @@
     <string name="tab_editor_section_available_tabs">Saadaval olevad vahekaardid</string>
     <string name="tab_editor_section_current_tabs">Praegused vahekaardid</string>
     <string name="tab_editor_title">Vahekaartide redaktor</string>
+    <string name="vibration_settings_motor_warning">Mõnel telefonil on madalama kvaliteediga vibraatorimootor, mis võib ignoreerida väga nõrku või väga lühikesi vibratsioone. Kui te seadistust ei tunne, proovige suurendada selle tugevust või pikkust. Võite alustada eelseade \"Keskmine\" proovimisest.</string>
     <string name="vibration_settings_revert">Lähtesta vaikimisi</string>
     <string name="vibration_settings_section_length_ms">Kestus (ms)</string>
     <string name="vibration_settings_section_strength_pct">Tugevus</string>
