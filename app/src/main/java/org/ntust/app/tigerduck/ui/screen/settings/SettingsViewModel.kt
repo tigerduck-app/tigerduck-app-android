@@ -18,6 +18,7 @@ import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.ui.AppState
+import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
 
 @HiltViewModel
@@ -30,6 +31,7 @@ class SettingsViewModel @Inject constructor(
     private val notificationScheduler: AssignmentNotificationScheduler,
     private val courseColorStore: CourseColorStore,
     private val liveActivityManager: LiveActivityManager,
+    private val wearBridge: WearScheduleBridge,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -76,6 +78,11 @@ class SettingsViewModel @Inject constructor(
             try {
                 libraryService.login(username, password)
                 _isLibraryLoggedIn.value = true
+                // The NTUST authState collector in TigerDuckApp pushes library
+                // credentials on NTUST login/logout, but a Settings-only
+                // library login/logout doesn't flip that state — so mirror the
+                // fresh creds to the watch here.
+                wearBridge.publishLibraryCredentials()
             } catch (e: Exception) {
                 _libLoginError.value = e.message?.takeUnless { it.isBlank() }
                     ?: context.getString(R.string.error_login_failed)
@@ -88,6 +95,7 @@ class SettingsViewModel @Inject constructor(
     fun logoutLibrary() {
         credentials.clearLibraryCredentials()
         _isLibraryLoggedIn.value = false
+        viewModelScope.launch { wearBridge.publishLibraryCredentials() }
     }
 
     val libraryUsername: String? get() = credentials.libraryUsername

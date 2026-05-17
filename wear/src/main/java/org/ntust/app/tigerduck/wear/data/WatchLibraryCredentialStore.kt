@@ -1,7 +1,12 @@
+@file:Suppress("DEPRECATION")
+
 package org.ntust.app.tigerduck.wear.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -17,15 +22,15 @@ import org.ntust.app.tigerduck.shared.LibraryCredentialStore
  * shared [LibraryCredentialStore] so the same [LibraryService] code can run on
  * the watch.
  *
- * Backed by plain SharedPreferences so the property getters/setters [LibraryService]
- * expects can stay synchronous. The wear surface area is small — only library
- * credentials live here, not the primary NTUST password — so the encryption
- * trade-off vs. setup complexity tilts toward plain prefs for now.
+ * Backed by [EncryptedSharedPreferences] so the synced phone password and
+ * token are not recoverable from a compromised or rooted watch — same at-rest
+ * protection the phone gives them in `CredentialManager`. The synchronous
+ * property getters/setters [LibraryService] expects keep working because
+ * EncryptedSharedPreferences implements [SharedPreferences].
  */
 class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
 
-    private val prefs: SharedPreferences =
-        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences = createEncryptedPrefs(context.applicationContext)
 
     /** Reactive snapshot for the UI layer — flips between "not synced", "logged out", and "logged in". */
     val state: Flow<LibrarySnapshot> = prefsFlow(prefs)
@@ -99,6 +104,37 @@ class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
                     .also { instance = it }
             }
         }
+
+        /**
+         * Mirrors the phone's [CredentialManager] recovery path: if the
+         * encrypted file is unreadable (corrupted keystore after restore, etc),
+         * delete it and rebuild once. Losing the cached credentials forces a
+         * re-sync from the phone, which is strictly better than crashing on
+         * every read.
+         */
+        private fun createEncryptedPrefs(appContext: Context): SharedPreferences {
+            fun attempt(): SharedPreferences {
+                val masterKey = MasterKey.Builder(appContext)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build()
+                return EncryptedSharedPreferences.create(
+                    appContext,
+                    PREFS_NAME,
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+                )
+            }
+            return try {
+                attempt()
+            } catch (e: Exception) {
+                Log.w(TAG, "EncryptedSharedPreferences unusable; resetting", e)
+                runCatching { appContext.deleteSharedPreferences(PREFS_NAME) }
+                attempt()
+            }
+        }
+
+        private const val TAG = "WatchLibraryCreds"
     }
 }
 
