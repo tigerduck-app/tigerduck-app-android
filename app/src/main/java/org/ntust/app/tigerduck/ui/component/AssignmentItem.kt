@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentStatus
+import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.model.status
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -47,6 +48,7 @@ private val BadgeRed = Color(0xFFFF3B30)
 fun AssignmentItem(
     assignment: Assignment,
     modifier: Modifier = Modifier,
+    course: Course? = null,
     showAbsoluteTime: Boolean = false,
     markedCompleted: Boolean = false,
     onClick: (() -> Unit)? = null
@@ -88,7 +90,7 @@ fun AssignmentItem(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = assignment.courseName,
+                text = courseLineLabel(assignment, course),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
             )
@@ -156,6 +158,22 @@ private fun AssignmentTrailing(
             color = timeColor,
         )
     }
+}
+
+/**
+ * "Course name • Course no." line shown beneath each assignment title.
+ * Mirrors iOS `SDAssignment.courseLineLabel(matching:)`: prefers the in-memory
+ * [Course] so user renames and the canonical NTUST code win over Moodle's
+ * fullname, then falls back to the cached [Assignment.courseName] when the
+ * roster hasn't loaded. Drops the code when it's missing or already equal to
+ * the name (unknown courses whose name falls back to the courseNo).
+ */
+private fun courseLineLabel(assignment: Assignment, course: Course?): String {
+    val matched = course?.takeIf { it.courseNo == assignment.courseNo }
+    val name = matched?.displayName ?: assignment.courseName
+    val code = matched?.courseNo ?: assignment.courseNo
+    if (code.isEmpty() || name.isEmpty() || name == code) return name
+    return "$name • $code"
 }
 
 /** iOS `AssignmentStatus.badgeLabel` + `.tint`, ported verbatim. */

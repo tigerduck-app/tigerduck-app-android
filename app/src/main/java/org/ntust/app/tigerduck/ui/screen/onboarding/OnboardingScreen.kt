@@ -15,6 +15,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -28,14 +29,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.Watch
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -89,6 +92,7 @@ fun OnboardingScreen(
     val scope = rememberCoroutineScope()
     val isLoggingIn by viewModel.isLoggingIn.collectAsState()
     val loginError by viewModel.loginError.collectAsState()
+    val isSignedIn by viewModel.isSignedIn.collectAsState()
 
     var studentId by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -161,7 +165,13 @@ fun OnboardingScreen(
                     icon = Icons.Filled.School,
                     iconTint = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.onboarding_welcome_title),
-                    subtitle = stringResource(R.string.onboarding_welcome_subtitle)
+                    subtitle = stringResource(R.string.onboarding_welcome_subtitle),
+                    actions = {
+                        Button(
+                            onClick = { goToPage(1) },
+                            modifier = Modifier.fillMaxWidth(0.6f)
+                        ) { Text(stringResource(R.string.action_next)) }
+                    },
                 ) {
                     Text(
                         text = stringResource(R.string.onboarding_welcome_description),
@@ -181,18 +191,27 @@ fun OnboardingScreen(
                         label = stringResource(R.string.onboarding_welcome_github_label),
                         url = URL_TIGERDUCK_GITHUB,
                     )
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = { goToPage(1) },
-                        modifier = Modifier.fillMaxWidth(0.6f)
-                    ) { Text(stringResource(R.string.action_next)) }
                 }
 
-                1 -> OnboardingPage(
-                    icon = Icons.Filled.PrivacyTip,
-                    iconTint = MaterialTheme.colorScheme.tertiary,
+                1 -> OnboardingPageScaffold(
+                    iconContent = { FlashingShieldLockIcon(tint = onboardingBlue()) },
                     title = stringResource(R.string.onboarding_privacy_title),
-                    subtitle = stringResource(R.string.onboarding_privacy_subtitle)
+                    subtitle = stringResource(R.string.onboarding_privacy_subtitle),
+                    actions = {
+                        if (!bothAccepted) {
+                            Text(
+                                text = stringResource(R.string.onboarding_privacy_continue_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
+                            )
+                        }
+                        Button(
+                            onClick = { goToPage(2) },
+                            enabled = bothAccepted,
+                            modifier = Modifier.fillMaxWidth(0.6f)
+                        ) { Text(stringResource(R.string.action_next)) }
+                    },
                 ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -211,19 +230,6 @@ fun OnboardingScreen(
                             onCheckedChange = { deleteAccountAccepted = it },
                         )
                     }
-                    if (!bothAccepted) {
-                        Text(
-                            text = stringResource(R.string.onboarding_privacy_continue_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
-                        )
-                    }
-                    Button(
-                        onClick = { goToPage(2) },
-                        enabled = bothAccepted,
-                        modifier = Modifier.fillMaxWidth(0.6f)
-                    ) { Text(stringResource(R.string.action_next)) }
                 }
 
                 2 -> OnboardingPageScaffold(
@@ -234,7 +240,10 @@ fun OnboardingScreen(
                                 tint = MaterialTheme.colorScheme.secondary,
                             )
                         } else {
-                            WatchAnimatedIcon(tint = MaterialTheme.colorScheme.primary)
+                            PulsingIcon(
+                                icon = Icons.Filled.Watch,
+                                tint = onboardingRed(),
+                            )
                         }
                     },
                     title = stringResource(
@@ -245,120 +254,131 @@ fun OnboardingScreen(
                         if (isFdroidFlavor) R.string.onboarding_flavor_fdroid_description
                         else R.string.onboarding_flavor_play_description
                     ),
-                ) {
-                    Button(
-                        onClick = { goToPage(3) },
-                        modifier = Modifier.fillMaxWidth(0.6f)
-                    ) { Text(stringResource(R.string.action_next)) }
-                }
+                    actions = {
+                        Button(
+                            onClick = { goToPage(3) },
+                            modifier = Modifier.fillMaxWidth(0.6f)
+                        ) { Text(stringResource(R.string.action_next)) }
+                    },
+                ) {}
 
-                3 -> OnboardingPage(
-                    icon = Icons.Filled.Key,
-                    iconTint = Color(0xFF2E7D32),
-                    title = stringResource(R.string.onboarding_login_title),
-                    subtitle = stringResource(R.string.onboarding_login_subtitle)
-                ) {
+                3 -> {
                     val focusManager = LocalFocusManager.current
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth(0.8f)
+                    OnboardingPageScaffold(
+                        iconContent = { PersonKeyBadgeIcon(tint = onboardingGreen()) },
+                        title = stringResource(R.string.onboarding_login_title),
+                        subtitle = stringResource(R.string.onboarding_login_subtitle),
+                        actions = {
+                            // Order matches iOS: Skip sits above the prominent
+                            // sign-in button so the affirmative action is the
+                            // last thing the eye lands on before tapping.
+                            TextButton(onClick = { goToPage(4) }) {
+                                Text(
+                                    stringResource(R.string.onboarding_skip_for_now),
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY)
+                                )
+                            }
+                            Button(
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    viewModel.login(studentId, password) { goToPage(4) }
+                                },
+                                enabled = studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn,
+                                modifier = Modifier.fillMaxWidth(0.8f),
+                            ) {
+                                if (isLoggingIn) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                    )
+                                } else {
+                                    Text(stringResource(R.string.onboarding_login_button))
+                                }
+                            }
+                        },
                     ) {
-                        OutlinedAccountIdField(
-                            value = studentId,
-                            onValueChange = { raw ->
-                                studentId = raw.filter { ch -> !ch.isWhitespace() }.uppercase()
-                            },
-                            label = stringResource(R.string.login_student_id),
-                            capitalization = KeyboardCapitalization.Sentences,
-                            imeAction = ImeAction.Next,
-                            onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
-                            enabled = !isLoggingIn,
-                            autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            label = { Text(stringResource(R.string.login_password)) },
-                            singleLine = true,
-                            visualTransformation = if (passwordVisible) VisualTransformation.None
-                            else PasswordVisualTransformation(),
-                            trailingIcon = if (!isLoggingIn) {
-                                {
-                                    PasswordTrailingIcons(
-                                        password = password,
-                                        passwordVisible = passwordVisible,
-                                        onClear = { password = ""; passwordVisible = false },
-                                        onToggleVisibility = { passwordVisible = !passwordVisible },
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth(0.8f),
+                        ) {
+                            OutlinedAccountIdField(
+                                value = studentId,
+                                onValueChange = { raw ->
+                                    studentId = raw.filter { ch -> !ch.isWhitespace() }.uppercase()
+                                },
+                                label = stringResource(R.string.login_student_id),
+                                capitalization = KeyboardCapitalization.Sentences,
+                                imeAction = ImeAction.Next,
+                                onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+                                enabled = !isLoggingIn,
+                                autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            OutlinedTextField(
+                                value = password,
+                                onValueChange = { password = it },
+                                label = { Text(stringResource(R.string.login_password)) },
+                                singleLine = true,
+                                visualTransformation = if (passwordVisible) VisualTransformation.None
+                                else PasswordVisualTransformation(),
+                                trailingIcon = if (!isLoggingIn) {
+                                    {
+                                        PasswordTrailingIcons(
+                                            password = password,
+                                            passwordVisible = passwordVisible,
+                                            onClear = { password = ""; passwordVisible = false },
+                                            onToggleVisibility = { passwordVisible = !passwordVisible },
+                                        )
+                                    }
+                                } else null,
+                                enabled = !isLoggingIn,
+                                keyboardOptions = KeyboardOptions(
+                                    autoCorrectEnabled = false,
+                                    keyboardType = KeyboardType.Password,
+                                    imeAction = ImeAction.Done,
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = {
+                                        focusManager.clearFocus()
+                                        if (studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn) {
+                                            viewModel.login(studentId, password) { goToPage(4) }
+                                        }
+                                    }
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .semantics { contentType = ContentType.Password },
+                            )
+                            if (loginError != null) {
+                                Text(
+                                    text = loginError!!,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            if (isSignedIn) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.CheckCircle,
+                                        contentDescription = null,
+                                        tint = onboardingGreen(),
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.action_done),
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        color = onboardingGreen(),
                                     )
                                 }
-                            } else null,
-                            enabled = !isLoggingIn,
-                            keyboardOptions = KeyboardOptions(
-                                autoCorrectEnabled = false,
-                                keyboardType = KeyboardType.Password,
-                                imeAction = ImeAction.Done,
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onDone = {
-                                    focusManager.clearFocus()
-                                    if (studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn) {
-                                        viewModel.login(studentId, password) { goToPage(4) }
-                                    }
-                                }
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .semantics { contentType = ContentType.Password }
-                        )
-                        if (loginError != null) {
-                            Text(
-                                text = loginError!!,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                        Button(
-                            onClick = {
-                                viewModel.login(studentId, password) { goToPage(4) }
-                            },
-                            enabled = studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            if (isLoggingIn) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            } else {
-                                Text(stringResource(R.string.onboarding_login_button))
                             }
-                        }
-                        TextButton(onClick = { goToPage(4) }) {
-                            Text(
-                                stringResource(R.string.onboarding_skip_for_now),
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY)
-                            )
                         }
                     }
                 }
-
-                // Original "choose features" page — temporarily disabled per
-                // product request. Restore by re-adding the case and bumping
-                // pageCount accordingly.
-                // 2 -> OnboardingPage(
-                //     icon = Icons.Filled.Tune,
-                //     iconTint = Color(0xFFEF6C00),
-                //     title = stringResource(R.string.onboarding_choose_features_title),
-                //     subtitle = stringResource(R.string.onboarding_choose_features_subtitle)
-                // ) {
-                //     Button(
-                //         onClick = { goToPage(3) },
-                //         modifier = Modifier.fillMaxWidth(0.6f)
-                //     ) { Text(stringResource(R.string.action_next)) }
-                // }
 
                 4 -> PermissionsPage(
                     systemPermissions = viewModel.systemPermissions,
@@ -369,13 +389,14 @@ fun OnboardingScreen(
                     icon = Icons.Filled.CheckCircle,
                     iconTint = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.onboarding_ready_title),
-                    subtitle = stringResource(R.string.onboarding_ready_subtitle)
-                ) {
-                    Button(
-                        onClick = { viewModel.completeOnboarding() },
-                        modifier = Modifier.fillMaxWidth(0.6f)
-                    ) { Text(stringResource(R.string.onboarding_start_button)) }
-                }
+                    subtitle = stringResource(R.string.onboarding_ready_subtitle),
+                    actions = {
+                        Button(
+                            onClick = { viewModel.completeOnboarding() },
+                            modifier = Modifier.fillMaxWidth(0.6f)
+                        ) { Text(stringResource(R.string.onboarding_start_button)) }
+                    },
+                ) {}
             }
         }
 
@@ -544,10 +565,7 @@ private fun PermissionsPage(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        PulsingIcon(
-            icon = Icons.Filled.Notifications,
-            tint = MaterialTheme.colorScheme.tertiary,
-        )
+        BellBadgeIcon(tint = onboardingOrange())
         Text(
             stringResource(R.string.onboarding_permissions_title),
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
@@ -577,12 +595,14 @@ private fun OnboardingPage(
     iconTint: Color,
     title: String,
     subtitle: String,
+    actions: @Composable ColumnScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
     OnboardingPageScaffold(
         iconContent = { PulsingIcon(icon = icon, tint = iconTint) },
         title = title,
         subtitle = subtitle,
+        actions = actions,
         content = content,
     )
 }
@@ -592,33 +612,66 @@ private fun OnboardingPageScaffold(
     iconContent: @Composable () -> Unit,
     title: String,
     subtitle: String,
-    content: @Composable ColumnScope.() -> Unit,
+    actions: @Composable ColumnScope.() -> Unit = {},
+    content: @Composable ColumnScope.() -> Unit = {},
 ) {
-    Column(
+    // Layout: one big scrollable column whose inner content is forced to be
+    // at least the viewport tall. With Arrangement.SpaceBetween, that means
+    //   – short body  → actions sit at the visible bottom
+    //   – long body   → inner column grows past the viewport, actions get
+    //                    pushed below the fold but stay reachable by scroll
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .imePadding()
-            .padding(horizontal = 32.dp)
-            .padding(top = 64.dp, bottom = 100.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .imePadding(),
     ) {
-        iconContent()
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY)
-        )
-        Spacer(Modifier.height(16.dp))
-        content()
+        val viewportHeight = this.maxHeight
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = viewportHeight)
+                    .padding(horizontal = 32.dp)
+                    .padding(top = 64.dp, bottom = 96.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    iconContent()
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    content()
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    actions()
+                }
+            }
+        }
     }
 }
 
@@ -654,46 +707,168 @@ private fun PulsingIcon(
     )
 }
 
-// Wear OS onboarding hint icon: a gently rocking + breathing watch.
-// The pulse and rotation use slightly different periods so the motion never
-// looks like a single rigid cycle — gives a subtle "alive on the wrist" feel.
+// iOS system color palette, dark-mode adapted. Used for the per-page accent
+// tints on the onboarding pages so the icons match the iOS app exactly
+// (privacy = blue, watch = red, login = green, notifications = orange).
 @Composable
-private fun WatchAnimatedIcon(
+private fun onboardingBlue(): Color =
+    if (isSystemInDarkTheme()) Color(0xFF0A84FF) else Color(0xFF007AFF)
+
+@Composable
+private fun onboardingRed(): Color =
+    if (isSystemInDarkTheme()) Color(0xFFFF453A) else Color(0xFFFF3B30)
+
+@Composable
+private fun onboardingGreen(): Color =
+    if (isSystemInDarkTheme()) Color(0xFF32D74B) else Color(0xFF34C759)
+
+@Composable
+private fun onboardingOrange(): Color =
+    if (isSystemInDarkTheme()) Color(0xFFFF9F0A) else Color(0xFFFF9500)
+
+// Layered shield + inner lock: matches the iOS `OnboardingPageView.layerFlash`
+// path. The shield holds steady at the accent color while the inner lock
+// pulses its alpha — reads as a slow "flash" on the lock without disturbing
+// the surrounding shield silhouette.
+@Composable
+private fun FlashingShieldLockIcon(
     tint: Color,
     modifier: Modifier = Modifier,
 ) {
-    val transition = rememberInfiniteTransition(label = "watch-animation")
+    val transition = rememberInfiniteTransition(label = "shield-lock-flash")
     val pulse by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 1400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
-        label = "watch-pulse",
+        label = "shield-lock-flash-fraction",
     )
-    val rotation by transition.animateFloat(
-        initialValue = -7f,
-        targetValue = 7f,
+    val lockAlpha = 0.3f + 0.7f * pulse
+    Box(
+        modifier = modifier.size(72.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Shield,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Icon(
+            imageVector = Icons.Filled.Lock,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = lockAlpha),
+            modifier = Modifier
+                .size(42.dp)
+                .offset(y = (-2).dp),
+        )
+    }
+}
+
+// Person silhouette with a key badge in the lower-right — Material's closest
+// approximation of iOS `person.badge.key.fill`. Whole composition pulses
+// together (matching the iOS .symbolEffect(.pulse) on the single SF symbol).
+@Composable
+private fun PersonKeyBadgeIcon(
+    tint: Color,
+    modifier: Modifier = Modifier,
+) {
+    val transition = rememberInfiniteTransition(label = "person-key-pulse")
+    val pulse by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1600, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
-        label = "watch-rotation",
+        label = "person-key-pulse-fraction",
     )
-    val alpha = 0.6f + 0.4f * pulse
-    val scale = 0.96f + 0.06f * pulse
-    Icon(
-        imageVector = Icons.Filled.Watch,
-        contentDescription = null,
-        tint = tint,
+    val alpha = 0.45f + 0.55f * pulse
+    val scale = 0.94f + 0.08f * pulse
+    val background = MaterialTheme.colorScheme.background
+    Box(
         modifier = modifier
             .size(72.dp)
             .graphicsLayer {
                 this.alpha = alpha
                 scaleX = scale
                 scaleY = scale
-                rotationZ = rotation
             },
+    ) {
+        Icon(
+            imageVector = Icons.Filled.AccountCircle,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(background)
+                .padding(2.dp)
+                .clip(CircleShape)
+                .background(tint),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.VpnKey,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+    }
+}
+
+// Bell with a small notification dot in the upper-right — Material's closest
+// approximation of iOS `bell.badge.fill`. Pulses as one composition.
+@Composable
+private fun BellBadgeIcon(
+    tint: Color,
+    modifier: Modifier = Modifier,
+) {
+    val transition = rememberInfiniteTransition(label = "bell-pulse")
+    val pulse by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "bell-pulse-fraction",
     )
+    val alpha = 0.45f + 0.55f * pulse
+    val scale = 0.94f + 0.08f * pulse
+    val background = MaterialTheme.colorScheme.background
+    Box(
+        modifier = modifier
+            .size(72.dp)
+            .graphicsLayer {
+                this.alpha = alpha
+                scaleX = scale
+                scaleY = scale
+            },
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Notifications,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 6.dp, end = 10.dp)
+                .size(16.dp)
+                .clip(CircleShape)
+                .background(background)
+                .padding(2.dp)
+                .clip(CircleShape)
+                .background(tint),
+        )
+    }
 }

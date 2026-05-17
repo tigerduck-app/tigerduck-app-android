@@ -21,4 +21,5 @@ import javax.inject.Singleton
 @Singleton
 class WearScheduleBridge @Inject constructor() {
     suspend fun publish() = Unit
+    suspend fun publishLibraryCredentials() = Unit
 }

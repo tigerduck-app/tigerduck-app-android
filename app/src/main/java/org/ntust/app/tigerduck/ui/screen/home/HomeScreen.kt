@@ -68,7 +68,8 @@ import kotlin.math.roundToInt
 @Composable
 fun HomeScreen(
     appState: AppState,
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    onOpenSignInSettings: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -274,7 +275,8 @@ fun HomeScreen(
                             // onSkipCourse = { course, date ->
                             //     if (!isEditing) viewModel.toggleSkip(course, date)
                             // },
-                            onWidgetClick = { if (!isEditing) showComingSoon = true }
+                            onWidgetClick = { if (!isEditing) showComingSoon = true },
+                            onOpenSignInSettings = onOpenSignInSettings,
                         )
                     }
                 }
@@ -439,7 +441,8 @@ private fun HomeSectionContent(
     onToggleIgnore: (Assignment) -> Unit,
     onMarkCompleted: (Assignment) -> Unit,
     onSelectFilter: (AssignmentFilter) -> Unit,
-    onWidgetClick: () -> Unit
+    onWidgetClick: () -> Unit,
+    onOpenSignInSettings: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         when (section.type) {
@@ -472,8 +475,16 @@ private fun HomeSectionContent(
                         isLoggedIn = isLoggedIn,
                         isLoading = isLoading || (!initialLoadComplete && isLoggedIn),
                         filter = assignmentFilter,
+                        onOpenSignInSettings = onOpenSignInSettings,
                     )
                 } else {
+                    // Resolve the canonical Course for each row's courseNo so
+                    // the "name • courseNo" label reflects user renames and
+                    // the real NTUST code (iOS parity). Memoized to avoid
+                    // rebuilding the map on unrelated state changes.
+                    val courseByNo = remember(allCourses) {
+                        allCourses.associateBy { it.courseNo }
+                    }
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -493,6 +504,7 @@ private fun HomeSectionContent(
                                     assignment.assignmentId in markedCompletedIds
                                 SwipeableAssignmentRow(
                                     assignment = assignment,
+                                    course = courseByNo[assignment.courseNo],
                                     isIgnored = assignment.assignmentId in ignoredAssignmentIds,
                                     isMarkedCompleted = isMarkedCompleted,
                                     showAbsoluteTime = showAbsoluteTime,
@@ -679,12 +691,14 @@ private fun AssignmentsEmptyState(
     isLoggedIn: Boolean,
     isLoading: Boolean,
     filter: AssignmentFilter,
+    onOpenSignInSettings: () -> Unit = {},
 ) {
     if (!isLoggedIn) {
         EmptyStateView(
             icon = Icons.Filled.Lock,
             title = stringResource(R.string.common_not_logged_in),
             message = stringResource(R.string.common_login_required_feature),
+            onIconClick = onOpenSignInSettings,
         )
         return
     }
@@ -736,6 +750,7 @@ private fun AssignmentsEmptyState(
 @Composable
 private fun SwipeableAssignmentRow(
     assignment: Assignment,
+    course: Course?,
     isIgnored: Boolean,
     isMarkedCompleted: Boolean,
     showAbsoluteTime: Boolean,
@@ -859,6 +874,7 @@ private fun SwipeableAssignmentRow(
         ) {
             AssignmentItem(
                 assignment = assignment,
+                course = course,
                 showAbsoluteTime = showAbsoluteTime,
                 markedCompleted = isMarkedCompleted,
                 onClick = onClick,

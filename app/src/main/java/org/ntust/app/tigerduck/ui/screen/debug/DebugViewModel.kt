@@ -46,24 +46,29 @@ class DebugViewModel @Inject constructor(
 
     fun setOverrideEnabled(enabled: Boolean) {
         _uiState.value = _uiState.value.copy(overrideEnabled = enabled)
-        if (!enabled) {
+        if (enabled) {
+            pushOverride()
+        } else {
             controller.setOverride(null)
         }
     }
 
     fun setDate(year: Int, month: Int, day: Int) {
         _uiState.value = _uiState.value.copy(draftYear = year, draftMonth = month, draftDay = day)
+        if (_uiState.value.overrideEnabled) pushOverride()
     }
 
     fun setTime(hour: Int, minute: Int) {
         _uiState.value = _uiState.value.copy(draftHour = hour, draftMinute = minute)
+        if (_uiState.value.overrideEnabled) pushOverride()
     }
 
     fun setFrozen(frozen: Boolean) {
         _uiState.value = _uiState.value.copy(draftFrozen = frozen)
+        if (_uiState.value.overrideEnabled) pushOverride()
     }
 
-    fun apply() {
+    private fun pushOverride() {
         val s = _uiState.value
         val instant = LocalDateTime
             .of(s.draftYear, s.draftMonth, s.draftDay, s.draftHour, s.draftMinute)
@@ -77,11 +82,6 @@ class DebugViewModel @Inject constructor(
                 savedAtRealMillis = System.currentTimeMillis(),
             )
         )
-    }
-
-    fun reset() {
-        controller.setOverride(null)
-        _uiState.value = initialState()
     }
 
     private fun initialState(): DebugUiState {

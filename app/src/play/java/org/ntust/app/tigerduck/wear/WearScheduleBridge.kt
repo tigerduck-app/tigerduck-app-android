@@ -11,10 +11,12 @@ import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.WearProtocol
 import java.io.ByteArrayOutputStream
 import java.util.zip.GZIPOutputStream
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,8 +26,10 @@ class WearScheduleBridge @Inject constructor(
     private val dataCache: DataCache,
     private val authService: AuthService,
     private val appPreferences: AppPreferences,
+    private val credentials: CredentialManager,
 ) {
     private val gson = Gson()
+    private val libraryCredentialsVersion = AtomicLong(0L)
 
     /**
      * Publishes the current course list, accent color, and login state to the
@@ -70,6 +74,46 @@ class WearScheduleBridge @Inject constructor(
             Log.d(TAG, "publish ok: ${courses.size} courses, ${gzipped.size} bytes")
         } catch (t: Throwable) {
             Log.w(TAG, "publish failed: ${t.message}")
+        }
+    }
+
+    /**
+     * Push the current library credentials to the watch over the Data Layer so
+     * it can independently call `api.lib.ntust.edu.tw` for the rotating QR.
+     * Sends a `hasCredentials=false` packet when the user is logged out so the
+     * watch wipes its local copy rather than holding stale creds.
+     */
+    suspend fun publishLibraryCredentials() {
+        val username = credentials.libraryUsername
+        val password = credentials.libraryPassword
+        val hasCredentials = username != null && password != null
+
+        val request = PutDataMapRequest.create(WearProtocol.LibraryCredentials.PATH).apply {
+            dataMap.putBoolean(WearProtocol.LibraryCredentials.KEY_HAS_CREDENTIALS, hasCredentials)
+            // Always include the version counter so two pushes with identical
+            // payload still propagate (DataClient de-dupes by content).
+            dataMap.putLong(
+                WearProtocol.LibraryCredentials.KEY_VERSION,
+                libraryCredentialsVersion.incrementAndGet(),
+            )
+            if (username != null && password != null) {
+                dataMap.putString(WearProtocol.LibraryCredentials.KEY_USERNAME, username)
+                dataMap.putString(WearProtocol.LibraryCredentials.KEY_PASSWORD, password)
+                credentials.libraryToken?.let {
+                    dataMap.putString(WearProtocol.LibraryCredentials.KEY_TOKEN, it)
+                }
+                dataMap.putLong(
+                    WearProtocol.LibraryCredentials.KEY_TOKEN_EXPIRY,
+                    credentials.libraryTokenExpiry,
+                )
+            }
+        }.asPutDataRequest().setUrgent()
+
+        try {
+            Wearable.getDataClient(context).putDataItem(request).await()
+            Log.d(TAG, "library credentials publish ok (has=$hasCredentials)")
+        } catch (t: Throwable) {
+            Log.w(TAG, "library credentials publish failed: ${t.message}")
         }
     }
 

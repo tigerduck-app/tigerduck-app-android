@@ -22,6 +22,25 @@ object WearProtocol {
         const val PATH = "/tigerduck/sync_request"
     }
 
+    /**
+     * Library credentials pushed phone → watch. Lets the watch hit
+     * `api.lib.ntust.edu.tw` directly for the rotating-QR pass without
+     * round-tripping through the phone. `KEY_HAS_CREDENTIALS=false` is the
+     * explicit "user logged out" signal — watch clears its store on receipt.
+     */
+    object LibraryCredentials {
+        const val PATH = "/tigerduck/library_credentials"
+        const val KEY_HAS_CREDENTIALS = "hasCredentials"
+        const val KEY_USERNAME = "libraryUsername"
+        const val KEY_PASSWORD = "libraryPassword"
+        const val KEY_TOKEN = "libraryToken"
+        const val KEY_TOKEN_EXPIRY = "libraryTokenExpiry"
+        // Bumped on every push so the data layer treats two equal-payload
+        // updates as different items and re-delivers them. Without this,
+        // refreshing the same token would silently no-op on the watch.
+        const val KEY_VERSION = "version"
+    }
+
     /** Debug-clock override pushed phone → watch (debug builds only). */
     object DebugClock {
         const val PATH = "/tigerduck/debug-clock"

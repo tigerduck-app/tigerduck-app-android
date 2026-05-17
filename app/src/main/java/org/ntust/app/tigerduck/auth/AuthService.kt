@@ -13,7 +13,7 @@ import org.ntust.app.tigerduck.announcements.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.di.ApplicationScope
-import org.ntust.app.tigerduck.network.LibraryService
+import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.network.SsoLoginError
 import org.ntust.app.tigerduck.network.SsoLoginService

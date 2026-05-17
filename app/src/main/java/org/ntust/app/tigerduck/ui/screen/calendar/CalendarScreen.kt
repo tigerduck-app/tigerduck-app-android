@@ -46,7 +46,8 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarScreen(
-    viewModel: CalendarViewModel = hiltViewModel()
+    viewModel: CalendarViewModel = hiltViewModel(),
+    onOpenSignInSettings: () -> Unit = {},
 ) {
     val events by viewModel.events.collectAsStateWithLifecycle()
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
@@ -107,6 +108,7 @@ fun CalendarScreen(
                             icon = Icons.Filled.Lock,
                             title = stringResource(R.string.common_not_logged_in),
                             message = stringResource(R.string.common_login_required_feature),
+                            onIconClick = onOpenSignInSettings,
                         )
                     }
                 } else {

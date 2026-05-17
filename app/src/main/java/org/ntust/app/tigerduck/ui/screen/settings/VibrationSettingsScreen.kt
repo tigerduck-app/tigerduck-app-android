@@ -63,6 +63,18 @@ fun VibrationSettingsScreen(
                 .padding(padding),
             contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp),
         ) {
+            item(key = "motor_warning") {
+                Text(
+                    text = stringResource(R.string.vibration_settings_motor_warning),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+                Spacer(Modifier.height(16.dp))
+            }
+
             HapticScenario.tunable.forEach { scenario ->
                 item(key = scenario.name) {
                     ScenarioCard(

@@ -239,7 +239,7 @@ class CourseService @Inject constructor(
             moodle ?: return null
             return Course.fromSchedule(
                 courseNo = courseNo,
-                courseName = moodle.fullname ?: courseNo,
+                courseName = (moodle.fullname ?: courseNo).decodeHtmlEntities(),
                 moodleIdNumber = moodle.idnumber,
             )
         }

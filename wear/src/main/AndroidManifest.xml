@@ -3,6 +3,10 @@
 
     <uses-feature android:name="android.hardware.type.watch" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Library page calls api.lib.ntust.edu.tw directly. Wear OS routes
+         this through the active transport (BT-tethered, Wi-Fi, or cellular)
+         as long as INTERNET is granted. -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:name=".WearApplication"

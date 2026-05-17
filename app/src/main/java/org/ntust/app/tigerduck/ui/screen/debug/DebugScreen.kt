@@ -9,14 +9,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -57,7 +54,7 @@ fun DebugScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Developer") },
+                title = { Text("Time override") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
@@ -72,11 +69,6 @@ fun DebugScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                "Time override",
-                style = MaterialTheme.typography.titleMedium,
-            )
-
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Use fake time", modifier = Modifier.weight(1f))
                 Switch(
@@ -140,23 +132,6 @@ fun DebugScreen(
                     ),
                 ),
             )
-
-            Spacer(Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                OutlinedButton(onClick = viewModel::reset) {
-                    Text("Reset")
-                }
-                Button(
-                    onClick = viewModel::apply,
-                    enabled = state.overrideEnabled,
-                ) {
-                    Text("Apply")
-                }
-            }
         }
     }
 
