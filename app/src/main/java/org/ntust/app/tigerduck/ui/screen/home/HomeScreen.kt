@@ -474,6 +474,13 @@ private fun HomeSectionContent(
                         filter = assignmentFilter,
                     )
                 } else {
+                    // Resolve the canonical Course for each row's courseNo so
+                    // the "name • courseNo" label reflects user renames and
+                    // the real NTUST code (iOS parity). Memoized to avoid
+                    // rebuilding the map on unrelated state changes.
+                    val courseByNo = remember(allCourses) {
+                        allCourses.associateBy { it.courseNo }
+                    }
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -493,6 +500,7 @@ private fun HomeSectionContent(
                                     assignment.assignmentId in markedCompletedIds
                                 SwipeableAssignmentRow(
                                     assignment = assignment,
+                                    course = courseByNo[assignment.courseNo],
                                     isIgnored = assignment.assignmentId in ignoredAssignmentIds,
                                     isMarkedCompleted = isMarkedCompleted,
                                     showAbsoluteTime = showAbsoluteTime,
@@ -736,6 +744,7 @@ private fun AssignmentsEmptyState(
 @Composable
 private fun SwipeableAssignmentRow(
     assignment: Assignment,
+    course: Course?,
     isIgnored: Boolean,
     isMarkedCompleted: Boolean,
     showAbsoluteTime: Boolean,
@@ -859,6 +868,7 @@ private fun SwipeableAssignmentRow(
         ) {
             AssignmentItem(
                 assignment = assignment,
+                course = course,
                 showAbsoluteTime = showAbsoluteTime,
                 markedCompleted = isMarkedCompleted,
                 onClick = onClick,
