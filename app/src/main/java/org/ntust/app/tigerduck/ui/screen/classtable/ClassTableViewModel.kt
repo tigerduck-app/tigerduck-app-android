@@ -65,7 +65,10 @@ class ClassTableViewModel @Inject constructor(
     // Cached idnumber → numeric Moodle course id, harvested off the
     // `fetchEnrolledCourses` response. The course-detail popup uses this
     // to build the `/course/view.php?id=<N>` deep link — Moodle's web
-    // endpoint requires the numeric id, not the idnumber.
+    // endpoint requires the numeric id, not the idnumber. Persisted via
+    // [DataCache.saveMoodleCourseIds] so a transient Moodle failure
+    // doesn't make the button vanish; [DataCache.clearAllUserData] wipes
+    // it on logout so a stale map can't survive an account switch.
     private val _moodleCourseIdByIdnumber = MutableStateFlow<Map<String, Int>>(emptyMap())
 
     private val _selectedWeekday = MutableStateFlow<Int?>(null)
@@ -125,6 +128,7 @@ class ClassTableViewModel @Inject constructor(
                     _courses.value = emptyList()
                     _assignments.value = emptyList()
                     _selectedCourse.value = null
+                    _moodleCourseIdByIdnumber.value = emptyMap()
                     hasLoaded = false
                     TigerDuckTheme.buildCourseColorMap(emptyList())
                 } else {
@@ -574,10 +578,14 @@ class ClassTableViewModel @Inject constructor(
         viewModelScope.launch {
             val cached = dataCache.loadCourses(_currentSemester.value)
             val cachedA = dataCache.loadAssignments()
+            val cachedMoodleIds = dataCache.loadMoodleCourseIds()
             if (cached.isNotEmpty()) {
                 _courses.value = cached
                 _assignments.value = cachedA
                 TigerDuckTheme.buildCourseColorMap(cached)
+            }
+            if (cachedMoodleIds.isNotEmpty()) {
+                _moodleCourseIdByIdnumber.value = cachedMoodleIds
             }
             fetchData()
         }
@@ -661,11 +669,16 @@ class ClassTableViewModel @Inject constructor(
             // (not just the one currently displayed) so the detail popup's
             // Moodle button works for historical semesters too. Skip entries
             // missing either field — both are required to build a usable
-            // deep link.
+            // deep link. Only overwrite when Moodle returned something so a
+            // transient failure keeps the previously cached mapping live;
+            // account switches still reset it because logout wipes the
+            // cache file via DataCache.clearAllUserData.
             if (moodleAll.isNotEmpty()) {
-                _moodleCourseIdByIdnumber.value = moodleAll
+                val fresh = moodleAll
                     .mapNotNull { c -> c.idnumber?.takeIf { it.isNotEmpty() }?.let { it to c.id } }
                     .toMap()
+                _moodleCourseIdByIdnumber.value = fresh
+                dataCache.saveMoodleCourseIds(fresh)
             }
 
             val moodleForSem =
