@@ -9,9 +9,11 @@ import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import org.ntust.app.tigerduck.shared.LibraryCredentialStore
 
 @Singleton
-class CredentialManager @Inject constructor(@ApplicationContext context: Context) {
+class CredentialManager @Inject constructor(@ApplicationContext context: Context) :
+    LibraryCredentialStore {
 
     var isEncrypted: Boolean = false
         private set
@@ -83,32 +85,32 @@ class CredentialManager @Inject constructor(@ApplicationContext context: Context
         else
             prefs.edit().remove("ntust_password").apply()
 
-    var libraryUsername: String?
+    override var libraryUsername: String?
         get() = prefs.getString("library_username", null)
         set(value) = if (value != null)
             prefs.edit().putString("library_username", value).apply()
         else
             prefs.edit().remove("library_username").apply()
 
-    var libraryPassword: String?
+    override var libraryPassword: String?
         get() = prefs.getString("library_password", null)
         set(value) = if (value != null)
             prefs.edit().putString("library_password", value).apply()
         else
             prefs.edit().remove("library_password").apply()
 
-    var libraryToken: String?
+    override var libraryToken: String?
         get() = prefs.getString("library_token", null)
         set(value) = if (value != null)
             prefs.edit().putString("library_token", value).apply()
         else
             prefs.edit().remove("library_token").apply()
 
-    var libraryTokenExpiry: Long
+    override var libraryTokenExpiry: Long
         get() = prefs.getLong("library_token_expiry", 0L)
         set(value) = prefs.edit().putLong("library_token_expiry", value).apply()
 
-    val isLibraryTokenValid: Boolean
+    override val isLibraryTokenValid: Boolean
         get() = libraryToken != null && System.currentTimeMillis() < libraryTokenExpiry
 
     /** Long-lived Moodle Mobile wstoken, obtained via the OIDC launch flow. */

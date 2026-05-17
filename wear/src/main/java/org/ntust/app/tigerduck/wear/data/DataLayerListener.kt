@@ -26,26 +26,57 @@ class DataLayerListener : WearableListenerService() {
         for (event in events) {
             if (event.type != DataEvent.TYPE_CHANGED) continue
             val item = event.dataItem
-            if (item.uri.path != WearProtocol.Schedule.PATH) continue
-            val map = DataMapItem.fromDataItem(item).dataMap
-            val courses = map.getByteArray(WearProtocol.Schedule.KEY_COURSES) ?: continue
-            val accent = map.getString(WearProtocol.Schedule.KEY_ACCENT) ?: SchedulePersistence.DEFAULT_ACCENT
-            val syncedAt = map.getLong(WearProtocol.Schedule.KEY_SYNCED_AT)
-            val loggedIn = map.getBoolean(WearProtocol.Schedule.KEY_LOGGED_IN)
-            val language = map.getString(WearProtocol.Schedule.KEY_LANGUAGE)
-            try {
-                ScheduleRepository.get(this).write(courses, accent, syncedAt, loggedIn, language)
-            } catch (e: Exception) {
-                // Most likely a malformed/truncated gzip payload from the Data Layer
-                // (decompress() throws ZipException). Skip this packet rather than
-                // letting the exception escape the SupervisorJob's launch and crash
-                // the service via the thread's uncaught-exception handler.
-                Log.e(TAG, "failed to persist snapshot", e)
-                continue
+            when (item.uri.path) {
+                WearProtocol.Schedule.PATH -> handleSchedule(item)
+                WearProtocol.LibraryCredentials.PATH -> handleLibraryCredentials(item)
             }
-            Log.d(TAG, "received snapshot, lag=${System.currentTimeMillis() - syncedAt} ms")
-            notifyTileAndComplication(applicationContext)
         }
+    }
+
+    private suspend fun handleSchedule(item: com.google.android.gms.wearable.DataItem) {
+        val map = DataMapItem.fromDataItem(item).dataMap
+        val courses = map.getByteArray(WearProtocol.Schedule.KEY_COURSES) ?: return
+        val accent = map.getString(WearProtocol.Schedule.KEY_ACCENT) ?: SchedulePersistence.DEFAULT_ACCENT
+        val syncedAt = map.getLong(WearProtocol.Schedule.KEY_SYNCED_AT)
+        val loggedIn = map.getBoolean(WearProtocol.Schedule.KEY_LOGGED_IN)
+        val language = map.getString(WearProtocol.Schedule.KEY_LANGUAGE)
+        try {
+            ScheduleRepository.get(this@DataLayerListener)
+                .write(courses, accent, syncedAt, loggedIn, language)
+        } catch (e: Exception) {
+            // Most likely a malformed/truncated gzip payload from the Data Layer
+            // (decompress() throws ZipException). Skip this packet rather than
+            // letting the exception escape the SupervisorJob's launch and crash
+            // the service via the thread's uncaught-exception handler.
+            Log.e(TAG, "failed to persist snapshot", e)
+            return
+        }
+        Log.d(TAG, "received snapshot, lag=${System.currentTimeMillis() - syncedAt} ms")
+        notifyTileAndComplication(applicationContext)
+    }
+
+    private fun handleLibraryCredentials(item: com.google.android.gms.wearable.DataItem) {
+        val map = DataMapItem.fromDataItem(item).dataMap
+        val hasCredentials = map.getBoolean(WearProtocol.LibraryCredentials.KEY_HAS_CREDENTIALS)
+        val store = WatchLibraryCredentialStore.get(this)
+        if (!hasCredentials) {
+            // Explicit logout signal — wipe the watch copy so a stale token
+            // doesn't keep showing a working QR after the user signed out
+            // on the phone.
+            store.clear()
+            Log.d(TAG, "library credentials cleared")
+            return
+        }
+        val username = map.getString(WearProtocol.LibraryCredentials.KEY_USERNAME)
+        val password = map.getString(WearProtocol.LibraryCredentials.KEY_PASSWORD)
+        val token = map.getString(WearProtocol.LibraryCredentials.KEY_TOKEN)
+        val tokenExpiry = map.getLong(WearProtocol.LibraryCredentials.KEY_TOKEN_EXPIRY)
+        if (username == null || password == null) {
+            Log.w(TAG, "library credentials payload missing username/password")
+            return
+        }
+        store.replace(username, password, token, tokenExpiry)
+        Log.d(TAG, "library credentials updated for $username")
     }
 
     override fun onDestroy() {

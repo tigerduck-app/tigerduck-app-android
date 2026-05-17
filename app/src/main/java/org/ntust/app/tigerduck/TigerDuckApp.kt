@@ -64,13 +64,21 @@ class TigerDuckApp : Application(), Configuration.Provider {
             appPreferences.accentColorChanged.collect { wearBridge.publish() }
         }
         appScope.launch {
-            authService.authState.collect { wearBridge.publish() }
+            authService.authState.collect {
+                wearBridge.publish()
+                // Auth state flips when SSO + library login finishes (or
+                // when logout clears creds), so this is also the right
+                // moment to (re)mirror the library credentials onto the
+                // paired watch.
+                wearBridge.publishLibraryCredentials()
+            }
         }
         // Mirror language changes to the watch so its UI follows the phone.
         appScope.launch {
             appPreferences.appLanguageChanged.collect { wearBridge.publish() }
         }
         appScope.launch { wearBridge.publish() }  // safety-net publish at launch
+        appScope.launch { wearBridge.publishLibraryCredentials() }
     }
 
     private fun warnIfPinsNearExpiry() {

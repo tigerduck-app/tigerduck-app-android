@@ -14,7 +14,7 @@ import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
-import org.ntust.app.tigerduck.network.LibraryService
+import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.ui.AppState
@@ -77,7 +77,8 @@ class SettingsViewModel @Inject constructor(
                 libraryService.login(username, password)
                 _isLibraryLoggedIn.value = true
             } catch (e: Exception) {
-                _libLoginError.value = e.message ?: context.getString(R.string.error_login_failed)
+                _libLoginError.value = e.message?.takeUnless { it.isBlank() }
+                    ?: context.getString(R.string.error_login_failed)
             } finally {
                 _libIsLoggingIn.value = false
             }

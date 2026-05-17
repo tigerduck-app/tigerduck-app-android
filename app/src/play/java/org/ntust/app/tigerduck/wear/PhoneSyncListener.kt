@@ -22,7 +22,13 @@ class PhoneSyncListener : WearableListenerService() {
     override fun onMessageReceived(messageEvent: MessageEvent) {
         if (messageEvent.path != WearProtocol.SyncRequest.PATH) return
         Log.d(TAG, "sync request from watch: ${messageEvent.sourceNodeId}")
-        scope.launch { bridge.publish() }
+        scope.launch {
+            bridge.publish()
+            // Sync requests cover *all* phone-pushed state, not just the
+            // schedule — republish the library credentials so a freshly
+            // paired watch (or one that was cleared) catches up too.
+            bridge.publishLibraryCredentials()
+        }
     }
 
     override fun onDestroy() {

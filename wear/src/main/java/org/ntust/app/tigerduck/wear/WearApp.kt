@@ -23,6 +23,7 @@ import org.ntust.app.tigerduck.wear.data.SyncRequester
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 import org.ntust.app.tigerduck.wear.ui.CourseDetailScreen
 import org.ntust.app.tigerduck.wear.ui.EmptyStateMessage
+import org.ntust.app.tigerduck.wear.ui.LibraryQRScreen
 import org.ntust.app.tigerduck.wear.ui.NowNextScreen
 import org.ntust.app.tigerduck.wear.ui.PaddingSettingsScreen
 import org.ntust.app.tigerduck.wear.ui.SettingsListScreen
@@ -69,16 +70,21 @@ fun WearApp() {
                 startDestination = "pager",
             ) {
                 composable("pager") {
-                    val pagerState = rememberPagerState(pageCount = { 3 })
+                    // Library QR is page 0 (the leftmost page) so a quick right-
+                    // swipe from the home view surfaces the scannable code. The
+                    // launch default stays Now & Next via initialPage = 1 so
+                    // existing users don't see their home view shift.
+                    val pagerState = rememberPagerState(initialPage = 1, pageCount = { 4 })
                     HorizontalPagerScaffold(pagerState = pagerState) {
                         HorizontalPager(state = pagerState) { page ->
                             when (page) {
-                                0 -> NowNextScreen(snapshot)
-                                1 -> TodayScreen(
+                                0 -> LibraryQRScreen()
+                                1 -> NowNextScreen(snapshot)
+                                2 -> TodayScreen(
                                     snapshot = snapshot,
                                     onRowClick = { courseNo -> navController.navigate("detail/$courseNo") },
                                 )
-                                2 -> SettingsListScreen(
+                                3 -> SettingsListScreen(
                                     snapshot = snapshot,
                                     onPaddingClick = { navController.navigate("settings/padding") },
                                 )
