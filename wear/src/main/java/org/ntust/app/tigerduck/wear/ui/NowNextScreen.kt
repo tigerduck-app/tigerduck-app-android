@@ -176,12 +176,12 @@ private fun formatHm(minuteOfDay: Int): String {
 @Composable
 private fun weekdayShortName(weekday: Int): String = stringResource(
     when (weekday) {
-        1 -> R.string.weekday_mon_short
-        2 -> R.string.weekday_tue_short
-        3 -> R.string.weekday_wed_short
-        4 -> R.string.weekday_thu_short
-        5 -> R.string.weekday_fri_short
-        6 -> R.string.weekday_sat_short
-        else -> R.string.weekday_sun_short
+        1 -> R.string.watch_weekday_mon_short
+        2 -> R.string.watch_weekday_tue_short
+        3 -> R.string.watch_weekday_wed_short
+        4 -> R.string.watch_weekday_thu_short
+        5 -> R.string.watch_weekday_fri_short
+        6 -> R.string.watch_weekday_sat_short
+        else -> R.string.watch_weekday_sun_short
     }
 )

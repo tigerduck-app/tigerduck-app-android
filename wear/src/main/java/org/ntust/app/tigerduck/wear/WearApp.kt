@@ -79,6 +79,7 @@ fun WearApp() {
                                     onRowClick = { courseNo -> navController.navigate("detail/$courseNo") },
                                 )
                                 2 -> SettingsListScreen(
+                                    snapshot = snapshot,
                                     onPaddingClick = { navController.navigate("settings/padding") },
                                 )
                             }

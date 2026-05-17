@@ -55,7 +55,7 @@ fun TodayScreen(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             item {
-                ListHeader { Text(stringResource(R.string.calendar_today)) }
+                ListHeader { Text(stringResource(R.string.watch_today)) }
             }
             if (entries.isEmpty()) {
                 item {
