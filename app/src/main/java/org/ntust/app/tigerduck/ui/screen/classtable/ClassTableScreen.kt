@@ -1087,8 +1087,8 @@ private fun ClassTableCourseNameText(
                 if (displayText != text) displayText = text
                 return@Text
             }
-            if (!layout.hasVisualOverflow) return@Text
-            val capacity = layout.getLineEnd((maxLines - 1).coerceAtLeast(0), visibleEnd = true)
+            if (!layout.hasVisualOverflow || layout.lineCount == 0) return@Text
+            val capacity = layout.getLineEnd(layout.lineCount - 1, visibleEnd = true)
             val next = middleEllipsize(text, capacity.coerceAtLeast(5))
             if (next != displayText) displayText = next
         }

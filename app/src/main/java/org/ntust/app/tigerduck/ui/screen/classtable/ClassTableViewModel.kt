@@ -345,10 +345,10 @@ class ClassTableViewModel @Inject constructor(
     val existingCourseNos: Set<String>
         get() = _courses.value.map { it.courseNo }.toSet()
 
-    fun addCourse(course: Course) {
+    fun addCourse(course: Course): Boolean {
         wouldCauseTripleConflict(course)?.let {
             _tripleConflictEvent.tryEmit(it)
-            return
+            return false
         }
         val flagged = course.copy(isManual = true)
         val updated = _courses.value + flagged
@@ -358,6 +358,7 @@ class ClassTableViewModel @Inject constructor(
             widgetUpdater.requestUpdate()
         }
         TigerDuckTheme.buildCourseColorMap(updated)
+        return true
     }
 
     /**

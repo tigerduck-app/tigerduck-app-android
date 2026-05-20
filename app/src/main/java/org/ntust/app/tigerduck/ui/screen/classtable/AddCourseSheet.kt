@@ -67,7 +67,7 @@ fun AddCourseSheet(
     existingCourseNos: Set<String>,
     courseService: CourseService,
     sheetState: SheetState,
-    onAdd: (Course) -> Unit,
+    onAdd: (Course) -> Boolean,
     onDismiss: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -337,8 +337,9 @@ fun AddCourseSheet(
                                         maxCount = group.maxCount,
                                         schedule = group.schedule
                                     )
-                                    onAdd(course)
-                                    addedCourseNo = group.courseNo
+                                    if (onAdd(course)) {
+                                        addedCourseNo = group.courseNo
+                                    }
                                 }
                                 .padding(vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
