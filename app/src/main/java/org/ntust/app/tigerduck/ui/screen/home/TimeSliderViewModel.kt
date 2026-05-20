@@ -333,8 +333,6 @@ class TimeSliderViewModel {
         const val FLUID_TRACK_HEIGHT = 36f
         const val FLUID_SEGMENT_HEIGHT = 18f
         const val MIN_SEGMENT_WIDTH = 28f
-        /** Gap (dp) between stacked lanes inside the segment band when 衝堂. */
-        const val LANE_GAP = 1.5f
         const val SELECTION_THUMB_WIDTH = 2f
         const val SELECTION_THUMB_HEIGHT = 28f
         const val GLOW_DOT_SIZE = 8f
