@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import java.time.Instant
 import javax.inject.Inject
 
@@ -29,6 +30,7 @@ class AnnouncementsViewModel @Inject constructor(
     private val cache: BulletinCache,
     private val repository: BulletinRepository,
     private val readState: BulletinReadStateStore,
+    private val prefs: AppPreferences,
 ) : ViewModel() {
 
     sealed interface LoadState {
@@ -62,7 +64,16 @@ class AnnouncementsViewModel @Inject constructor(
             get() = filtered.any { it.id !in readIds }
     }
 
-    private val _state = MutableStateFlow(State())
+    private val _state = MutableStateFlow(
+        // Seed selectedOrgs synchronously from prefs so the first applyFilters()
+        // pass (from cache seed in load()) already respects the remembered
+        // filter — avoids a flash of unfiltered cached items.
+        State(
+            selectedOrgs = if (prefs.rememberAnnouncementFilter) {
+                prefs.savedAnnouncementOrgs
+            } else emptySet()
+        )
+    )
     val state: StateFlow<State> = _state.asStateFlow()
 
     init {
@@ -246,8 +257,14 @@ class AnnouncementsViewModel @Inject constructor(
         }
     }
 
-    fun setOrgFilter(orgs: Set<String>) =
+    fun setOrgFilter(orgs: Set<String>) {
+        // Always persist — the AppState setter for rememberAnnouncementFilter
+        // clears this key when the toggle goes false, so writing here can't
+        // accidentally revive a stale selection. Restore on launch is gated
+        // by the toggle (see _state initializer).
+        prefs.savedAnnouncementOrgs = orgs
         _state.update { applyFilters(it.copy(selectedOrgs = orgs)) }
+    }
 
     fun setTagFilter(tags: Set<String>) =
         _state.update { applyFilters(it.copy(selectedTags = tags)) }
