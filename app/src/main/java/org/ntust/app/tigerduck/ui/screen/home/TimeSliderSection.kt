@@ -96,7 +96,7 @@ fun TimeSliderSection(
 ) {
     val viewModel = remember { TimeSliderViewModel() }
 
-    LaunchedEffect(courses.map { it.courseNo }) {
+    LaunchedEffect(courses) {
         viewModel.configure(courses)
     }
 

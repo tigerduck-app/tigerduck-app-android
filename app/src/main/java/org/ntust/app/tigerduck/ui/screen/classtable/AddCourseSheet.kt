@@ -488,11 +488,10 @@ private fun groupResults(
             for ((day, periods) in partial) {
                 merged[day] = (merged[day] ?: emptyList()) + periods
             }
-            val existingRooms = existing.classroom.split(",").map { it.trim() }
             val newClassroom = when {
-                existing.classroom.isEmpty() -> room
-                room.isEmpty() || room in existingRooms -> existing.classroom
-                else -> "${existing.classroom}, $room"
+                existing.classroom.isEmpty() -> Course.dedupRooms(room)
+                room.isEmpty() -> existing.classroom
+                else -> Course.dedupRooms("${existing.classroom}, $room")
             }
             val nodeStr = when {
                 existing.nodeDisplay.isEmpty() -> result.node ?: ""

@@ -304,7 +304,8 @@ class ClassTableViewModel @Inject constructor(
         get() {
             val course = _selectedCourse.value ?: return ""
             val weekday = _selectedWeekday.value ?: return Course.dedupRooms(course.classroom)
-            return course.classroom(weekday)
+            val periodId = _selectedPeriodId.value ?: return course.classroom(weekday)
+            return course.classroom(weekday, periodId)
         }
 
     fun isCourseFinishedToday(course: Course): Boolean {

@@ -105,6 +105,22 @@ data class Course(
         return if (seen.isEmpty()) dedupRooms(classroom) else seen.joinToString(", ")
     }
 
+    /**
+     * Returns the classroom(s) for one specific [weekday]/[period] slot so a
+     * course that meets in different rooms across the same day (e.g. Mon AM
+     * in room A, Mon PM in room B) resolves to just the tapped slot's room.
+     * Falls back to [classroom] for [weekday] when the per-period map has no
+     * entry for this cell.
+     */
+    fun classroom(weekday: Int, period: String): String {
+        val map = classroomMap
+        if (map.isEmpty()) return classroom(weekday)
+        val raw = map["$weekday-$period"] ?: return classroom(weekday)
+        val seen = LinkedHashSet<String>()
+        for (part in splitRooms(raw)) seen.add(part)
+        return if (seen.isEmpty()) classroom(weekday) else seen.joinToString(", ")
+    }
+
     companion object {
         private val scheduleGson = Gson()
         private val roomSeparators = Regex("[,，、]")
