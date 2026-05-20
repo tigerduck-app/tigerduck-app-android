@@ -19,8 +19,16 @@ data class Course(
      * the *right* room for a given (weekday, period). Empty for cached
      * courses written before this field existed; consumers fall back to the
      * flat [classroom] string in that case.
+     *
+     * Nullable so Gson can deserialize courses_*.json / manual_courses_*.json
+     * files written by v1.3.x and v1.4.1 — those files lack this key, and
+     * Gson 2.x bypasses the Kotlin primary constructor (via Unsafe) so the
+     * `"{}"` default is never applied. With a non-null type the field would
+     * be null at runtime and any direct read (e.g. WearScheduleBridge.toDto)
+     * would NPE through Kotlin's parameter null check — the same upgrade
+     * crash mode that bit v1.3.x → v1.4.0.
      */
-    val classroomMapJson: String = "{}",
+    val classroomMapJson: String? = "{}",
     val moodleIdNumber: String? = null,
     /** User-picked tile color as "#RRGGBB". Null means hash-based palette assignment. */
     val customColorHex: String? = null,

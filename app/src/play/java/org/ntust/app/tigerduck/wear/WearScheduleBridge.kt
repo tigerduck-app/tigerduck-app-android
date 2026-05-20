@@ -127,7 +127,11 @@ class WearScheduleBridge @Inject constructor(
         credits = credits,
         classroom = classroom,
         scheduleJson = scheduleJson,
-        classroomMapJson = classroomMapJson,
+        // Coalesce so v1.3.x / v1.4.1 cached Courses (deserialized via
+        // Gson Unsafe with this field absent from JSON) don't pass null
+        // into CourseDto's non-null parameter and NPE the safety-net
+        // publish() launched from TigerDuckApp.onCreate.
+        classroomMapJson = classroomMapJson ?: "{}",
         moodleIdNumber = moodleIdNumber,
         customColorHex = customColorHex,
         isManual = isManual,
