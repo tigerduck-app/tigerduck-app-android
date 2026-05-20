@@ -552,6 +552,8 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                 val majorMarkerHeightPx = TimeSliderViewModel.MAJOR_MARKER_HEIGHT.dp.toPx()
                 val thumbHeightPx = TimeSliderViewModel.SELECTION_THUMB_HEIGHT.dp.toPx()
                 val minSegWidthPx = TimeSliderViewModel.MIN_SEGMENT_WIDTH.dp.toPx()
+                val laneGapPx = TimeSliderViewModel.LANE_GAP.dp.toPx()
+                val layouts = viewModel.slotLayouts
 
                 // Draw course segments
                 for (slot in viewModel.timeSlots) {
@@ -569,15 +571,20 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                             viewModel.selectedTime >= slot.start && viewModel.selectedTime <= slot.end
                         val courseColor = TigerDuckTheme.courseColorVibrant(slot.course.courseNo)
 
+                        // 衝堂: stack lanes vertically inside the segment band.
+                        val layout = layouts[slot.id]
+                        val laneCount = layout?.laneCount ?: 1
+                        val lane = layout?.lane ?: 0
+                        val laneH = if (laneCount <= 1) segHeightPx
+                        else (segHeightPx - laneGapPx * (laneCount - 1)) / laneCount
+                        val laneTop = (trackH - segHeightPx) / 2 + lane * (laneH + laneGapPx)
+
                         drawRoundRect(
                             color = courseColor.copy(
                                 alpha = TigerDuckTheme.tintAlpha(if (isActive) 0.5f else 0.3f)
                             ),
-                            topLeft = Offset(
-                                left,
-                                (trackH - segHeightPx) / 2
-                            ),
-                            size = Size(segW, segHeightPx),
+                            topLeft = Offset(left, laneTop),
+                            size = Size(segW, laneH),
                             cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f)
                         )
                     }

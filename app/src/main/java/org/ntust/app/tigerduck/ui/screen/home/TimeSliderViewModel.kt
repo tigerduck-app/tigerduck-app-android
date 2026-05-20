@@ -16,9 +16,19 @@ import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
 
+/** Layout info for a single [CourseTimeSlot] inside a 衝堂 overlap cluster. */
+data class SlotLayout(val lane: Int, val laneCount: Int)
+
 class TimeSliderViewModel {
 
     var timeSlots by mutableStateOf<List<CourseTimeSlot>>(emptyList())
+        private set
+    /**
+     * Per-slot lane assignment for vertical stacking when courses 衝堂.
+     * Keyed by [CourseTimeSlot.id]; missing entries mean a solo slot
+     * (laneCount = 1).
+     */
+    var slotLayouts by mutableStateOf<Map<String, SlotLayout>>(emptyMap())
         private set
     var selectedTime by mutableStateOf(Date(AppClock.nowMillis()))
     var isUserDragging by mutableStateOf(false)
@@ -44,36 +54,45 @@ class TimeSliderViewModel {
     private fun rebuildTimeline(center: Date) {
         timelineCenterDate = center
         timeSlots = CourseTimeSlot.buildMultiDaySlots(allCourses, center, TIMELINE_DAY_RADIUS)
+        slotLayouts = computeSlotLayouts(timeSlots)
         rebuildAnchors()
     }
 
+    /**
+     * Anchors are emitted per *overlap cluster* rather than per slot so 衝堂
+     * (two simultaneous classes) don't get smeared sideways into a fake
+     * sequential range. Within a cluster, linear x = (t - clusterStart) ·
+     * POINTS_PER_MINUTE, so individual slots interpolate to the right
+     * x-range and the renderer stacks them on separate lanes.
+     */
     private fun rebuildAnchors() {
         if (timeSlots.isEmpty()) {
             anchors = emptyList(); return
         }
 
+        val clusters = buildClusters(timeSlots)
         val result = mutableListOf<Pair<Date, Float>>()
         var x = 0f
 
-        // Padding before first slot
+        // Padding before first cluster
         val paddingBefore = compressedGapWidth(60.0)
-        result.add(Date(timeSlots[0].start.time - 3600_000L) to x)
+        result.add(Date(clusters[0].start.time - 3600_000L) to x)
         x += paddingBefore
 
-        for ((i, slot) in timeSlots.withIndex()) {
-            result.add(slot.start to x)
+        for ((i, cluster) in clusters.withIndex()) {
+            result.add(cluster.start to x)
 
-            val durationMin = (slot.end.time - slot.start.time) / 60_000.0
+            val durationMin = (cluster.end.time - cluster.start.time) / 60_000.0
             x += (durationMin * POINTS_PER_MINUTE).toFloat()
 
-            result.add(slot.end to x)
+            result.add(cluster.end to x)
 
-            if (i + 1 < timeSlots.size) {
-                val next = timeSlots[i + 1]
-                val gapMin = (next.start.time - slot.end.time) / 60_000.0
+            if (i + 1 < clusters.size) {
+                val next = clusters[i + 1]
+                val gapMin = (next.start.time - cluster.end.time) / 60_000.0
 
                 val cal = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ)
-                cal.time = slot.date
+                cal.time = cluster.date
                 val slotDay = cal.get(Calendar.DAY_OF_YEAR)
                 cal.time = next.date
                 val nextDay = cal.get(Calendar.DAY_OF_YEAR)
@@ -82,12 +101,76 @@ class TimeSliderViewModel {
             }
         }
 
-        // Padding after last slot
+        // Padding after last cluster
         x += compressedGapWidth(60.0)
-        result.add(Date(timeSlots.last().end.time + 3600_000L) to x)
+        result.add(Date(clusters.last().end.time + 3600_000L) to x)
 
         anchors = result
     }
+
+    /**
+     * Groups time-sorted slots into overlap clusters. A new cluster starts
+     * once a slot begins at or after the current cluster's running max-end.
+     */
+    private fun buildClusters(slots: List<CourseTimeSlot>): List<TimeCluster> {
+        val out = mutableListOf<TimeCluster>()
+        var members = mutableListOf(slots[0])
+        var curEnd = slots[0].end
+        for (i in 1 until slots.size) {
+            val s = slots[i]
+            if (s.start.time >= curEnd.time) {
+                out.add(TimeCluster(members[0].start, curEnd, members[0].date, members))
+                members = mutableListOf(s)
+                curEnd = s.end
+            } else {
+                members.add(s)
+                if (s.end.time > curEnd.time) curEnd = s.end
+            }
+        }
+        out.add(TimeCluster(members[0].start, curEnd, members[0].date, members))
+        return out
+    }
+
+    /**
+     * Greedy interval-graph coloring per cluster: each slot takes the
+     * lowest-indexed lane whose previous occupant has already ended.
+     * Solo slots (clusters of size 1) are omitted — callers treat a
+     * missing entry as `SlotLayout(0, 1)`.
+     */
+    private fun computeSlotLayouts(slots: List<CourseTimeSlot>): Map<String, SlotLayout> {
+        if (slots.isEmpty()) return emptyMap()
+        val out = mutableMapOf<String, SlotLayout>()
+        for (cluster in buildClusters(slots)) {
+            if (cluster.slots.size <= 1) continue
+            val laneEnds = mutableListOf<Long>()
+            val laneOf = IntArray(cluster.slots.size)
+            for ((i, s) in cluster.slots.withIndex()) {
+                var lane = -1
+                for (j in laneEnds.indices) {
+                    if (laneEnds[j] <= s.start.time) { lane = j; break }
+                }
+                if (lane < 0) {
+                    laneEnds.add(s.end.time)
+                    lane = laneEnds.size - 1
+                } else {
+                    laneEnds[lane] = s.end.time
+                }
+                laneOf[i] = lane
+            }
+            val count = laneEnds.size
+            for ((i, s) in cluster.slots.withIndex()) {
+                out[s.id] = SlotLayout(laneOf[i], count)
+            }
+        }
+        return out
+    }
+
+    private data class TimeCluster(
+        val start: Date,
+        val end: Date,
+        val date: Date,
+        val slots: List<CourseTimeSlot>,
+    )
 
     private fun compressedGapWidth(minutes: Double): Float {
         if (minutes <= 0) return MIN_GAP
@@ -250,6 +333,8 @@ class TimeSliderViewModel {
         const val FLUID_TRACK_HEIGHT = 36f
         const val FLUID_SEGMENT_HEIGHT = 18f
         const val MIN_SEGMENT_WIDTH = 28f
+        /** Gap (dp) between stacked lanes inside the segment band when 衝堂. */
+        const val LANE_GAP = 1.5f
         const val SELECTION_THUMB_WIDTH = 2f
         const val SELECTION_THUMB_HEIGHT = 28f
         const val GLOW_DOT_SIZE = 8f
