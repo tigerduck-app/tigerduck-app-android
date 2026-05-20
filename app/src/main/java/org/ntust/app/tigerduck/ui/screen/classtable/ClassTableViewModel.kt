@@ -293,6 +293,21 @@ class ClassTableViewModel @Inject constructor(
             return "${first.first} - ${last.second}"
         }
 
+    /**
+     * Classroom string scoped to the selected weekday — so tapping a Wed cell
+     * shows only the Wed room even when the course meets in different rooms
+     * on different days. Falls back to the deduped flat classroom string when
+     * no weekday is selected (shouldn't happen via the grid, but covers
+     * external selection paths).
+     */
+    val selectedCourseClassroom: String
+        get() {
+            val course = _selectedCourse.value ?: return ""
+            val weekday = _selectedWeekday.value ?: return Course.dedupRooms(course.classroom)
+            val periodId = _selectedPeriodId.value ?: return course.classroom(weekday)
+            return course.classroom(weekday, periodId)
+        }
+
     fun isCourseFinishedToday(course: Course): Boolean {
         val dayTime = _currentDayTime.value
         val periods = course.schedule[dayTime.weekday]
@@ -345,10 +360,10 @@ class ClassTableViewModel @Inject constructor(
     val existingCourseNos: Set<String>
         get() = _courses.value.map { it.courseNo }.toSet()
 
-    fun addCourse(course: Course) {
+    fun addCourse(course: Course): Boolean {
         wouldCauseTripleConflict(course)?.let {
             _tripleConflictEvent.tryEmit(it)
-            return
+            return false
         }
         val flagged = course.copy(isManual = true)
         val updated = _courses.value + flagged
@@ -358,6 +373,7 @@ class ClassTableViewModel @Inject constructor(
             widgetUpdater.requestUpdate()
         }
         TigerDuckTheme.buildCourseColorMap(updated)
+        return true
     }
 
     /**
@@ -712,15 +728,23 @@ class ClassTableViewModel @Inject constructor(
                                         val schedule = courseService.mergeSchedules(
                                             *results.map { it.node }.toTypedArray()
                                         )
+                                        val classroomMap = courseService.buildClassroomMap(results)
+                                        val allRooms = LinkedHashSet<String>().apply {
+                                            for (row in results) {
+                                                Course.splitRooms(row.classRoomNo ?: "")
+                                                    .forEach { add(it) }
+                                            }
+                                        }
                                         Course.fromSchedule(
                                             courseNo = r.courseNo,
                                             courseName = r.courseName,
                                             instructor = r.courseTeacher,
                                             credits = r.creditPoint.toIntOrNull() ?: 0,
-                                            classroom = r.classRoomNo ?: "",
+                                            classroom = allRooms.joinToString(", "),
                                             enrolledCount = r.chooseStudent ?: 0,
                                             maxCount = r.maxEnrollment,
                                             schedule = schedule,
+                                            classroomMap = classroomMap,
                                             moodleIdNumber = "${r.semester}${r.courseNo}"
                                         )
                                     } else {

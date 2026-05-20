@@ -67,7 +67,7 @@ class ClassPreparingNotificationScheduler @Inject constructor(
                     ClassPreparingNotificationReceiver.EXTRA_COURSE_NAME,
                     slot.course.displayName
                 )
-                putExtra(ClassPreparingNotificationReceiver.EXTRA_CLASSROOM, slot.course.classroom)
+                putExtra(ClassPreparingNotificationReceiver.EXTRA_CLASSROOM, slot.classroom)
                 putExtra(
                     ClassPreparingNotificationReceiver.EXTRA_INSTRUCTOR,
                     slot.course.instructor
@@ -161,7 +161,10 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         val startMs: Long,
         val endMs: Long,
         val id: String,
-    )
+        val weekday: Int,
+    ) {
+        val classroom: String get() = course.classroom(weekday)
+    }
 
     private fun upcomingSlots(
         courses: List<Course>,
@@ -194,6 +197,7 @@ class ClassPreparingNotificationScheduler @Inject constructor(
                         startMs = startMs,
                         endMs = endMs,
                         id = "${course.courseNo}@${isoDate}#${first}-${last}",
+                        weekday = weekdayIdx,
                     )
                 }
             }

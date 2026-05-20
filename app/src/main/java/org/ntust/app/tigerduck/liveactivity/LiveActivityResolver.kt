@@ -79,6 +79,7 @@ class LiveActivityResolver {
         val periods: List<String>,
         val start: Date,
         val end: Date,
+        val weekday: Int,
     ) {
         fun isSkipped(skippedDates: Map<String, List<String>>): Boolean {
             val key = start.toInstant()
@@ -87,6 +88,8 @@ class LiveActivityResolver {
                 .toString()
             return skippedDates[course.courseNo]?.contains(key) == true
         }
+
+        val classroom: String get() = course.classroom(weekday)
     }
 
     private fun buildTodaySlots(courses: List<Course>, now: Date): List<Slot> {
@@ -118,6 +121,7 @@ class LiveActivityResolver {
                     periods = periods,
                     start = Date.from(startZdt.toInstant()),
                     end = Date.from(endZdt.toInstant()),
+                    weekday = weekdayIdx,
                 )
             }
         }
@@ -132,7 +136,7 @@ class LiveActivityResolver {
             scenario = LiveActivityScenario.IN_CLASS,
             title = slot.course.displayName,
             subtitle = formatTimeRange(slot.start, slot.end),
-            locationText = slot.course.classroom.ifBlank { null },
+            locationText = slot.classroom.ifBlank { null },
             instructor = slot.course.instructor.ifBlank { null },
             countdownTarget = slot.end,
             progress = progress,
@@ -146,7 +150,7 @@ class LiveActivityResolver {
             scenario = LiveActivityScenario.CLASS_PREPARING,
             title = slot.course.displayName,
             subtitle = formatTimeRange(slot.start, slot.end),
-            locationText = slot.course.classroom.ifBlank { null },
+            locationText = slot.classroom.ifBlank { null },
             instructor = slot.course.instructor.ifBlank { null },
             countdownTarget = slot.start,
             progress = null,

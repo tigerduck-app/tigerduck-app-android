@@ -116,6 +116,10 @@ class SchedulePersistence(private val context: Context) {
         val credits: Int,
         val classroom: String,
         val scheduleJson: String,
+        // Older phones (pre-classroomMap) won't include this field; Gson
+        // returns "" → fall back to "{}" so [Course.classroomMap] decodes
+        // to an empty map rather than throwing.
+        val classroomMapJson: String? = null,
         val moodleIdNumber: String?,
         val customColorHex: String?,
         val isManual: Boolean,
@@ -127,6 +131,7 @@ class SchedulePersistence(private val context: Context) {
             credits = credits,
             classroom = classroom,
             scheduleJson = scheduleJson,
+            classroomMapJson = classroomMapJson?.takeIf { it.isNotEmpty() } ?: "{}",
             moodleIdNumber = moodleIdNumber,
             customColorHex = customColorHex,
             isManual = isManual,

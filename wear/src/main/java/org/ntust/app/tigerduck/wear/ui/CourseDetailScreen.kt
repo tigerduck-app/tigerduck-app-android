@@ -38,7 +38,7 @@ fun CourseDetailScreen(course: Course) {
             item {
                 LabelValue(
                     label = stringResource(R.string.watch_course_classroom_label),
-                    value = course.classroom,
+                    value = Course.dedupRooms(course.classroom),
                 )
             }
             item {

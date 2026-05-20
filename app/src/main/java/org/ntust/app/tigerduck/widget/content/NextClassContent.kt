@@ -104,14 +104,15 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                         maxLines = 1,
                     )
                     val second = ongoing.getOrNull(1)
+                    val firstRoom = first.classroom(state.currentWeekday)
                     Text(
                         text = if (second != null) second.displayName else buildString {
                             if (endTime.isNotEmpty()) {
                                 append(context.getString(R.string.widget_until_time, endTime))
                             }
-                            if (first.classroom.isNotEmpty()) {
+                            if (firstRoom.isNotEmpty()) {
                                 if (isNotEmpty()) append("  ")
-                                append(first.classroom)
+                                append(firstRoom)
                             }
                         },
                         style = TextStyle(
@@ -150,12 +151,13 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                         ),
                         maxLines = 1,
                     )
+                    val room = course.classroom(state.currentWeekday)
                     Text(
                         text = buildString {
                             if (startTime.isNotEmpty()) append(startTime)
-                            if (course.classroom.isNotEmpty()) {
+                            if (room.isNotEmpty()) {
                                 if (isNotEmpty()) append("  ")
-                                append(course.classroom)
+                                append(room)
                             }
                         },
                         style = TextStyle(
@@ -311,9 +313,10 @@ private fun OngoingCard(course: Course, state: WidgetState, colors: WidgetColors
             text = "$startTime–$endTime  $periodRange",
             style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 13.sp),
         )
-        if (course.classroom.isNotEmpty()) {
+        val room = course.classroom(weekday)
+        if (room.isNotEmpty()) {
             Text(
-                text = course.classroom,
+                text = room,
                 style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 13.sp),
             )
         }
@@ -379,12 +382,13 @@ private fun OngoingMiniCard(course: Course, state: WidgetState, colors: WidgetCo
             maxLines = 1,
         )
     }
+    val room = course.classroom(weekday)
     Text(
         text = buildString {
             if (startTime.isNotEmpty() && endTime.isNotEmpty()) append("$startTime–$endTime")
-            if (course.classroom.isNotEmpty()) {
+            if (room.isNotEmpty()) {
                 if (isNotEmpty()) append("  ")
-                append(course.classroom)
+                append(room)
             }
         },
         style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 10.sp),
@@ -438,9 +442,10 @@ private fun NextCard(course: Course, state: WidgetState, colors: WidgetColors) {
             style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 14.sp),
         )
     }
-    if (course.classroom.isNotEmpty()) {
+    val room = course.classroom(state.currentWeekday)
+    if (room.isNotEmpty()) {
         Text(
-            text = course.classroom,
+            text = room,
             style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 13.sp),
         )
     }

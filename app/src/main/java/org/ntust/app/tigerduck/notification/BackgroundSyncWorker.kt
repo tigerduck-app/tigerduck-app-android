@@ -105,15 +105,23 @@ class BackgroundSyncWorker @AssistedInject constructor(
                                 val schedule = courseService.mergeSchedules(
                                     *results.map { it.node }.toTypedArray()
                                 )
+                                val classroomMap = courseService.buildClassroomMap(results)
+                                val allRooms = LinkedHashSet<String>().apply {
+                                    for (row in results) {
+                                        Course.splitRooms(row.classRoomNo ?: "")
+                                            .forEach { add(it) }
+                                    }
+                                }
                                 Course.fromSchedule(
                                     courseNo = r.courseNo,
                                     courseName = r.courseName,
                                     instructor = r.courseTeacher,
                                     credits = r.creditPoint.toIntOrNull() ?: 0,
-                                    classroom = r.classRoomNo ?: "",
+                                    classroom = allRooms.joinToString(", "),
                                     enrolledCount = r.chooseStudent ?: 0,
                                     maxCount = r.maxEnrollment,
                                     schedule = schedule,
+                                    classroomMap = classroomMap,
                                     moodleIdNumber = moodleByNo[courseNo]?.idnumber
                                         ?: "${r.semester}${r.courseNo}"
                                 )

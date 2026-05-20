@@ -80,6 +80,7 @@ fun SettingsScreen(
 
     val accentColorHex = viewModel.appState.accentColorHex
     val showAbsoluteTime = viewModel.appState.showAbsoluteAssignmentTime
+    val rememberAnnouncementFilter = viewModel.appState.rememberAnnouncementFilter
     val browserPreference = viewModel.appState.browserPreference
     val useEnglishCourseAbbreviation = viewModel.appState.useEnglishCourseAbbreviation
     val useEnglishClassroomAbbreviation = viewModel.appState.useEnglishClassroomAbbreviation
@@ -243,6 +244,13 @@ fun SettingsScreen(
                             showAbsoluteTime
                         ) {
                             viewModel.appState.showAbsoluteAssignmentTime = it
+                        }
+                        HorizontalDivider()
+                        SettingsToggleRow(
+                            stringResource(R.string.settings_remember_bulletin_filter),
+                            rememberAnnouncementFilter
+                        ) {
+                            viewModel.appState.rememberAnnouncementFilter = it
                         }
                         HorizontalDivider()
                         // Link opening method

@@ -125,6 +125,23 @@ class AppState @Inject constructor(
             prefs.showAbsoluteAssignmentTime = value
         }
 
+    private var rememberAnnouncementFilterState by mutableStateOf(prefs.rememberAnnouncementFilter)
+
+    /**
+     * When on, [org.ntust.app.tigerduck.announcements.AnnouncementsViewModel]
+     * restores the persisted org-filter selection on next launch. Flipping
+     * this off wipes the saved selection so re-enabling later doesn't
+     * silently revive a stale filter.
+     */
+    var rememberAnnouncementFilter: Boolean
+        get() = rememberAnnouncementFilterState
+        set(value) {
+            if (rememberAnnouncementFilterState == value) return
+            rememberAnnouncementFilterState = value
+            prefs.rememberAnnouncementFilter = value
+            if (!value) prefs.savedAnnouncementOrgs = emptySet()
+        }
+
     private var useEnglishCourseAbbreviationState by mutableStateOf(prefs.useEnglishCourseAbbreviation)
 
     var useEnglishCourseAbbreviation: Boolean
@@ -324,6 +341,7 @@ class AppState @Inject constructor(
             hasCompletedOnboardingState = prefs.hasCompletedOnboarding
             accentColorHexState = prefs.accentColorHex
             showAbsoluteAssignmentTimeState = prefs.showAbsoluteAssignmentTime
+            rememberAnnouncementFilterState = prefs.rememberAnnouncementFilter
             useEnglishCourseAbbreviationState = prefs.useEnglishCourseAbbreviation
             useEnglishClassroomAbbreviationState = prefs.useEnglishClassroomAbbreviation
             classroomMandarinDisplayState = prefs.classroomMandarinDisplay
