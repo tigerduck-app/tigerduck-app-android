@@ -230,9 +230,9 @@ fun AddCourseSheet(
             return@LaunchedEffect
         }
         // Course codes need to be entered fully; only run the live search once
-        // the code looks complete. For free-text queries, require at least 2
-        // characters so a single CJK keystroke doesn't fire.
-        val minLength = if (looksLikeCourseCode(trimmed)) 8 else 2
+        // the code looks complete. Free-text queries fire from the first
+        // character.
+        val minLength = if (looksLikeCourseCode(trimmed)) 8 else 1
         if (trimmed.length < minLength) return@LaunchedEffect
         delay(300)
         search()
