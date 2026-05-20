@@ -209,6 +209,7 @@ fun ClassTableScreen(
                                 blockEndMinute = info.endMinute,
                                 currentMinute = currentMinute,
                                 hasAssignment = viewModel.hasAssignment(info.course.courseNo),
+                                weekday = info.weekday,
                                 onClick = {
                                     viewModel.selectCourse(
                                         info.course,
@@ -240,6 +241,7 @@ fun ClassTableScreen(
                                 timeRange = timeRange,
                                 hasAssignment = viewModel.hasAssignment(course.courseNo),
                                 isFinished = viewModel.isCourseFinishedToday(course),
+                                weekday = dayIndex,
                                 onClick = {
                                     val firstPeriod = course.schedule[dayIndex]
                                         ?.minByOrNull {
@@ -316,7 +318,7 @@ fun ClassTableScreen(
         CourseDetailDialog(
             course = course,
             title = viewModel.selectedCourseFullName ?: course.displayName,
-            classroom = course.classroom,
+            classroom = viewModel.selectedCourseClassroom,
             timeRange = viewModel.selectedCourseTimeRange,
             assignments = viewModel.assignmentsFor(course.courseNo),
             moodleCourseId = viewModel.moodleCourseIdFor(course),
@@ -444,6 +446,7 @@ fun ClassTableScreen(
         ConflictCoursePickerSheet(
             courseA = target.courseA,
             courseB = target.courseB,
+            weekday = target.weekday,
             onPick = { picked ->
                 viewModel.selectCourse(picked, target.weekday, target.periodId)
                 conflictPicker = null
@@ -607,6 +610,7 @@ private fun TimetableGrid(
                                     cellHeight = cellHeight,
                                     x = x,
                                     y = y,
+                                    weekday = weekday,
                                     hasAssignment = viewModel.hasAssignment(role.course.courseNo),
                                     onTap = {
                                         viewModel.selectCourse(
@@ -727,6 +731,7 @@ private fun SoloCourseCell(
     cellHeight: androidx.compose.ui.unit.Dp,
     x: androidx.compose.ui.unit.Dp,
     y: androidx.compose.ui.unit.Dp,
+    weekday: Int,
     hasAssignment: Boolean,
     onTap: () -> Unit,
     onLongPress: () -> Unit,
@@ -742,11 +747,12 @@ private fun SoloCourseCell(
     val cellTextColor = if (TigerDuckTheme.isDarkMode) Color.White else Color(0xFF1C1C1E)
     var showMenu by remember { mutableStateOf(false) }
     val assignmentLabel = stringResource(R.string.a11y_class_table_cell_assignment_indicator)
+    val cellRoom = course.classroom(weekday)
     val cellLabel = buildString {
         append(course.displayName)
-        if (course.classroom.isNotBlank()) {
+        if (cellRoom.isNotBlank()) {
             append(", ")
-            append(course.classroom)
+            append(cellRoom)
         }
         if (hasAssignment) {
             append(". ")
@@ -913,9 +919,10 @@ private fun ConflictCourseCell(
                 append(conflictPrefix)
                 append(": ")
                 append(course.displayName)
-                if (course.classroom.isNotBlank()) {
+                val room = course.classroom(weekday)
+                if (room.isNotBlank()) {
                     append(", ")
-                    append(course.classroom)
+                    append(room)
                 }
                 if (hasAssignment) {
                     append(". ")

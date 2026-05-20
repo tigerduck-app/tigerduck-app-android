@@ -93,6 +93,22 @@ data class CourseTimeSlot(
     }
 }
 
+/** Weekday (1=Mon..7=Sun) for this slot's date, in Taipei tz. */
+val CourseTimeSlot.weekday: Int
+    get() {
+        val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
+        cal.time = date
+        return when (cal.get(Calendar.DAY_OF_WEEK)) {
+            Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
+            Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
+            Calendar.SUNDAY -> 7; else -> 1
+        }
+    }
+
+/** Classroom resolved for this slot's weekday (see [Course.classroom]). */
+val CourseTimeSlot.classroom: String
+    get() = course.classroom(weekday)
+
 sealed class CourseState {
     data class InClass(val slot: CourseTimeSlot) : CourseState()
     data class Between(val previous: CourseTimeSlot?, val next: CourseTimeSlot?) : CourseState()

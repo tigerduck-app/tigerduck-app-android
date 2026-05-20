@@ -501,7 +501,7 @@ private fun SlotCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 InlineOrStackText(
-                    primary = slot.course.classroom,
+                    primary = slot.classroom,
                     secondary = slot.course.instructor,
                     style = metaStyle,
                     color = metaColor,

@@ -586,7 +586,7 @@ private fun CourseDetailDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
-                    stringResource(R.string.course_classroom_value, course.classroom),
+                    stringResource(R.string.course_classroom_value, Course.dedupRooms(course.classroom)),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(

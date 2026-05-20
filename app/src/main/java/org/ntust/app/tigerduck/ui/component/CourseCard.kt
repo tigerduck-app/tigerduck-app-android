@@ -42,6 +42,7 @@ fun CourseCard(
     timeRange: String? = null,
     hasAssignment: Boolean = false,
     isFinished: Boolean = false,
+    weekday: Int? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -78,10 +79,12 @@ fun CourseCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (course.classroom.isNotEmpty()) {
+                val room = if (weekday != null) course.classroom(weekday)
+                else Course.dedupRooms(course.classroom)
+                if (room.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = course.classroom,
+                        text = room,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY * textAlpha),
                         maxLines = 1,
@@ -122,6 +125,7 @@ fun CurrentClassCard(
     blockEndMinute: Int,
     currentMinute: Int,
     hasAssignment: Boolean = false,
+    weekday: Int? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -171,9 +175,11 @@ fun CurrentClassCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (course.classroom.isNotEmpty()) {
+                val room = if (weekday != null) course.classroom(weekday)
+                else Course.dedupRooms(course.classroom)
+                if (room.isNotEmpty()) {
                     Text(
-                        text = course.classroom,
+                        text = room,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface
                             .copy(alpha = ContentAlpha.SECONDARY),

@@ -34,6 +34,7 @@ import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 fun ConflictCoursePickerSheet(
     courseA: Course,
     courseB: Course,
+    weekday: Int,
     onPick: (Course) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -45,15 +46,15 @@ fun ConflictCoursePickerSheet(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
             Spacer(Modifier.height(4.dp))
-            ConflictCourseRow(courseA, onPick)
+            ConflictCourseRow(courseA, weekday, onPick)
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-            ConflictCourseRow(courseB, onPick)
+            ConflictCourseRow(courseB, weekday, onPick)
         }
     }
 }
 
 @Composable
-private fun ConflictCourseRow(course: Course, onPick: (Course) -> Unit) {
+private fun ConflictCourseRow(course: Course, weekday: Int, onPick: (Course) -> Unit) {
     val swatch = TigerDuckTheme.courseColor(course.courseNo)
     Row(
         modifier = Modifier
@@ -77,7 +78,8 @@ private fun ConflictCourseRow(course: Course, onPick: (Course) -> Unit) {
             val subtitle = buildString {
                 append(course.courseNo)
                 if (course.instructor.isNotBlank()) append(" · ${course.instructor}")
-                if (course.classroom.isNotBlank()) append(" · ${course.classroom}")
+                val room = course.classroom(weekday)
+                if (room.isNotBlank()) append(" · $room")
             }
             Text(
                 subtitle,

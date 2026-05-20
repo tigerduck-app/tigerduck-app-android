@@ -89,7 +89,7 @@ private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int) {
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = "${result.course.classroom} · ${result.course.instructor}",
+            text = "${result.course.classroom(result.weekday)} · ${result.course.instructor}",
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -118,7 +118,7 @@ private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int) {
 private fun NextTodayCard(result: NextClassResult.NextToday, minuteOfDay: Int) {
     val minsUntil = result.startMinute - minuteOfDay
     Text(text = result.course.displayName, maxLines = 2, overflow = TextOverflow.Ellipsis)
-    Text(text = "${result.course.classroom} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Text(text = "${result.course.classroom(result.weekday)} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
     Text(
         text = if (minsUntil in 1..59)
             stringResource(R.string.watch_starts_in_minutes, minsUntil)
@@ -131,7 +131,7 @@ private fun NextTodayCard(result: NextClassResult.NextToday, minuteOfDay: Int) {
 @Composable
 private fun NextFutureCard(result: NextClassResult.NextFuture, todayWeekday: Int) {
     Text(text = result.course.displayName, maxLines = 2, overflow = TextOverflow.Ellipsis)
-    Text(text = "${result.course.classroom} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Text(text = "${result.course.classroom(result.weekday)} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
     val label = if (result.daysAhead == 1) {
         stringResource(R.string.watch_tomorrow_at, formatHm(result.startMinute))
     } else {

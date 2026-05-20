@@ -335,7 +335,8 @@ fun AddCourseSheet(
                                         classroom = group.classroom,
                                         enrolledCount = group.enrolledCount,
                                         maxCount = group.maxCount,
-                                        schedule = group.schedule
+                                        schedule = group.schedule,
+                                        classroomMap = group.classroomMap,
                                     )
                                     if (onAdd(course)) {
                                         addedCourseNo = group.courseNo
@@ -441,6 +442,8 @@ private data class GroupedCourse(
     val enrolledCount: Int,
     val maxCount: Int,
     val schedule: Map<Int, List<String>>,
+    /** "weekday-period" -> deduped room for that slot. See [Course.classroom]. */
+    val classroomMap: Map<String, String>,
     val nodeDisplay: String
 )
 
@@ -471,14 +474,20 @@ private fun groupResults(
 
     for (result in results) {
         val key = result.courseNo
+        val partial = courseService.parseNodeToSchedule(result.node)
+        val room = (result.classRoomNo ?: "").trim()
+        val dedupedRoom = Course.dedupRooms(room)
+        val partialClassroomMap = if (dedupedRoom.isEmpty()) emptyMap() else buildMap {
+            for ((day, periods) in partial) {
+                for (period in periods) put("$day-$period", dedupedRoom)
+            }
+        }
         val existing = seen[key]
         if (existing != null) {
-            val partial = courseService.parseNodeToSchedule(result.node)
             val merged = existing.schedule.toMutableMap()
             for ((day, periods) in partial) {
                 merged[day] = (merged[day] ?: emptyList()) + periods
             }
-            val room = (result.classRoomNo ?: "").trim()
             val existingRooms = existing.classroom.split(",").map { it.trim() }
             val newClassroom = when {
                 existing.classroom.isEmpty() -> room
@@ -493,6 +502,7 @@ private fun groupResults(
             seen[key] = existing.copy(
                 classroom = newClassroom,
                 schedule = merged,
+                classroomMap = existing.classroomMap + partialClassroomMap,
                 nodeDisplay = nodeStr
             )
         } else {
@@ -505,7 +515,8 @@ private fun groupResults(
                 classroom = result.classRoomNo ?: "",
                 enrolledCount = result.chooseStudent ?: 0,
                 maxCount = result.maxEnrollment,
-                schedule = courseService.parseNodeToSchedule(result.node),
+                schedule = partial,
+                classroomMap = partialClassroomMap,
                 nodeDisplay = result.node ?: ""
             )
         }

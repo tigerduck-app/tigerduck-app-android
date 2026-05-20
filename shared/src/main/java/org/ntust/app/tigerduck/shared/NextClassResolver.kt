@@ -6,17 +6,21 @@ sealed class NextClassResult {
         val startMinute: Int,
         val endMinute: Int,
         val nextToday: NextToday?,
+        /** Calendar weekday (1=Mon..7=Sun) — pass to [Course.classroom] for the right room. */
+        val weekday: Int,
     ) : NextClassResult()
 
     data class NextToday(
         val course: Course,
         val startMinute: Int,
+        val weekday: Int,
     ) : NextClassResult()
 
     data class NextFuture(
         val course: Course,
         val daysAhead: Int,        // 1 = tomorrow
         val startMinute: Int,
+        val weekday: Int,
     ) : NextClassResult()
 
     object Empty : NextClassResult()
@@ -31,6 +35,7 @@ data class TodayClassEntry(
     val startMinute: Int,
     val endMinute: Int,
     val status: TodayClassStatus,
+    val weekday: Int,
 )
 
 object NextClassResolver {
@@ -49,18 +54,19 @@ object NextClassResolver {
                 course = ongoing.course,
                 startMinute = currentStart,
                 endMinute = currentEnd,
-                nextToday = nextToday?.let { NextClassResult.NextToday(it.first, it.second) },
+                nextToday = nextToday?.let { NextClassResult.NextToday(it.first, it.second, weekday) },
+                weekday = weekday,
             )
         }
         val next = nextStartingToday(courses, weekday, minuteOfDay, excluding = null)
         if (next != null) {
-            return NextClassResult.NextToday(next.first, next.second)
+            return NextClassResult.NextToday(next.first, next.second, weekday)
         }
         // Walk forward up to 7 days.
         for (offset in 1..7) {
             val futureWeekday = ((weekday - 1 + offset) % 7) + 1
             val first = firstClassOfDay(courses, futureWeekday) ?: continue
-            return NextClassResult.NextFuture(first.first, offset, first.second)
+            return NextClassResult.NextFuture(first.first, offset, first.second, futureWeekday)
         }
         return NextClassResult.Empty
     }
@@ -89,7 +95,7 @@ object NextClassResolver {
                         minuteOfDay in start..end -> TodayClassStatus.Ongoing
                         else -> TodayClassStatus.Upcoming
                     }
-                    entries += TodayClassEntry(course, first, last, start, end, status)
+                    entries += TodayClassEntry(course, first, last, start, end, status, weekday)
                 }
                 i = j + 1
             }
