@@ -347,22 +347,14 @@ private fun SlotCard(
 ) {
     val color = TigerDuckTheme.courseColorVibrant(slot.course.courseNo)
     val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
-    val weekday = run {
-        cal.time = slot.date
-        when (cal.get(Calendar.DAY_OF_WEEK)) {
-            Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
-            Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
-            Calendar.SUNDAY -> 7; else -> 1
+    val timeRange = slot.periods.let { periods ->
+        if (periods.isEmpty()) ""
+        else {
+            val first = AppConstants.PeriodTimes.mapping[periods.first()]
+            val last = AppConstants.PeriodTimes.mapping[periods.last()]
+            if (first != null && last != null) "${first.first} - ${last.second}" else ""
         }
     }
-    val periods = slot.course.schedule[weekday]?.sortedBy {
-        AppConstants.Periods.chronologicalOrder.indexOf(it)
-    }
-    val timeRange = if (!periods.isNullOrEmpty()) {
-        val first = AppConstants.PeriodTimes.mapping[periods.first()]
-        val last = AppConstants.PeriodTimes.mapping[periods.last()]
-        if (first != null && last != null) "${first.first} - ${last.second}" else ""
-    } else ""
 
     val isToday = AppClock.calendar().let {
         val today = it.get(Calendar.DAY_OF_YEAR)
