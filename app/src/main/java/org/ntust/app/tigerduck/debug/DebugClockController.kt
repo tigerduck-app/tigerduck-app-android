@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.notification.ClassPreparingNotificationScheduler
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
 import org.ntust.app.tigerduck.widget.WidgetBoundaryScheduler
+import org.ntust.app.tigerduck.widget.WidgetUpdater
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,6 +29,7 @@ class DebugClockController @Inject constructor(
     private val assignmentScheduler: AssignmentNotificationScheduler,
     private val classPreparingScheduler: ClassPreparingNotificationScheduler,
     private val widgetBoundaryScheduler: WidgetBoundaryScheduler,
+    private val widgetUpdater: WidgetUpdater,
 ) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -83,6 +85,11 @@ class DebugClockController @Inject constructor(
             )
         }
         widgetBoundaryScheduler.scheduleForToday(courses)
+        // The boundary scheduler arms the *next* alarm, but the user has
+        // already moved the clock past the previous boundary — so the
+        // widgets must repaint right now or they'd still show the time
+        // before the override until the next alarm fires.
+        widgetUpdater.updateAll()
         if (liveActivityPreferences.isEnabled) {
             liveActivityManager.refreshAndWait()
         }

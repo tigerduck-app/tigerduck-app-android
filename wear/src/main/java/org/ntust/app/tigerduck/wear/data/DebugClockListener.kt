@@ -9,6 +9,8 @@ import org.ntust.app.tigerduck.shared.WearProtocol
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
 import org.ntust.app.tigerduck.wear.BuildConfig
+import org.ntust.app.tigerduck.wear.complication.NextClassComplicationService
+import org.ntust.app.tigerduck.wear.tile.NextClassTileService
 
 /**
  * Receives debug-clock-override updates from the phone via the Wearable Data
@@ -41,6 +43,11 @@ class DebugClockListener : WearableListenerService() {
             }
             store.save(override)
             AppClock.setOverride(override)
+            // Tile + complication cache their last-rendered frame; nudging
+            // both forces them to re-resolve against the new clock right
+            // away instead of waiting for the next system-driven refresh.
+            NextClassTileService.requestUpdate(applicationContext)
+            NextClassComplicationService.requestUpdate(applicationContext)
             Log.d(TAG, "applied override cleared=$cleared")
         }
     }

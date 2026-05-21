@@ -16,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -31,8 +30,8 @@ import org.ntust.app.tigerduck.shared.TodayClassEntry
 import org.ntust.app.tigerduck.shared.TodayClassStatus
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
-import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
+import org.ntust.app.tigerduck.wear.ui.theme.wearCourseColor
 
 @Composable
 fun TodayScreen(
@@ -75,17 +74,23 @@ fun TodayScreen(
 
 @Composable
 private fun TodayRow(entry: TodayClassEntry, onClick: () -> Unit) {
-    val accent = LocalAccentColor.current
+    val courseColor = wearCourseColor(entry.course)
     val baseAlpha = if (entry.status == TodayClassStatus.Ended) 0.4f else 1f
+    // iOS WatchVisualStylePolicy (TigerDuck preset) tints every row's
+    // background with the course's own color so back-to-back rows stay
+    // distinguishable; the ongoing row simply lifts the alpha to mark it
+    // active, instead of swapping in a single shared accent.
+    val bgAlpha = when (entry.status) {
+        TodayClassStatus.Ongoing -> 0.22f
+        TodayClassStatus.Upcoming -> 0.12f
+        TodayClassStatus.Ended -> 0.08f
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (entry.status == TodayClassStatus.Ongoing) accent.copy(alpha = 0.18f)
-                else Color.Transparent
-            )
+            .background(courseColor.copy(alpha = bgAlpha))
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 6.dp)
             .alpha(baseAlpha),
@@ -95,7 +100,7 @@ private fun TodayRow(entry: TodayClassEntry, onClick: () -> Unit) {
                 Modifier
                     .width(3.dp)
                     .height(28.dp)
-                    .background(accent)
+                    .background(courseColor)
             )
             Spacer(Modifier.width(6.dp))
         }

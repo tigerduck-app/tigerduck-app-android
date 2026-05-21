@@ -24,6 +24,28 @@ sealed class ScheduleCell {
     ) : ScheduleCell() {
         override val length: Int get() = combinedSpan
     }
+
+    /**
+     * 3+ courses transitively connected by overlap — e.g. A on 6-7, B on 6-8,
+     * C on 8-9: A and C share no period but B bridges them. The 2-course L-tile
+     * doesn't generalize, so callers render this variant as vertical lanes with
+     * greedy interval-graph coloring (matches ClassTableViewModel's in-app
+     * MultiConflictStart and TimeSliderViewModel's home-slider 衝堂 lanes).
+     */
+    data class MultiConflict(
+        val members: List<Member>,
+        val combinedSpan: Int,
+        val laneCount: Int,
+    ) : ScheduleCell() {
+        override val length: Int get() = combinedSpan
+
+        data class Member(
+            val course: Course,
+            val span: Int,
+            val offset: Int,
+            val lane: Int,
+        )
+    }
 }
 
 /**
@@ -65,13 +87,16 @@ fun buildScheduleCells(
             // previously-emitted cluster.
             out.add(ScheduleCell.Solo(course, span))
             i = first + span
-        } else {
-            val kept = entries.take(2)
-            val (courseA, firstA, spanA) = kept[0]
-            val (courseB, firstB, spanB) = kept[1]
-            val clusterStart = minOf(firstA, firstB)
-            val clusterEnd = maxOf(firstA + spanA, firstB + spanB)
-            val combined = clusterEnd - clusterStart
+            continue
+        }
+
+        val clusterStart = entries.minOf { it.second }
+        val clusterEnd = entries.maxOf { it.second + it.third }
+        val combined = clusterEnd - clusterStart
+
+        if (entries.size == 2) {
+            val (courseA, firstA, spanA) = entries[0]
+            val (courseB, firstB, spanB) = entries[1]
             out.add(
                 ScheduleCell.Conflict(
                     courseA = courseA,
@@ -83,8 +108,44 @@ fun buildScheduleCells(
                     combinedSpan = combined,
                 )
             )
-            i = clusterStart + combined
+        } else {
+            // 3+ courses: greedy interval-graph lane assignment.
+            val sortedByStart = entries.sortedBy { it.second }
+            val laneEnds = mutableListOf<Int>()
+            val laneAssignments = IntArray(sortedByStart.size)
+            for ((idx, e) in sortedByStart.withIndex()) {
+                val (_, first, span) = e
+                val end = first + span
+                var lane = -1
+                for (j in laneEnds.indices) {
+                    if (laneEnds[j] <= first) { lane = j; break }
+                }
+                if (lane < 0) {
+                    laneEnds.add(end)
+                    lane = laneEnds.size - 1
+                } else {
+                    laneEnds[lane] = end
+                }
+                laneAssignments[idx] = lane
+            }
+            val members = sortedByStart.mapIndexed { idx, e ->
+                val (course, first, span) = e
+                ScheduleCell.MultiConflict.Member(
+                    course = course,
+                    span = span,
+                    offset = first - clusterStart,
+                    lane = laneAssignments[idx],
+                )
+            }
+            out.add(
+                ScheduleCell.MultiConflict(
+                    members = members,
+                    combinedSpan = combined,
+                    laneCount = laneEnds.size,
+                )
+            )
         }
+        i = clusterStart + combined
     }
     return out
 }

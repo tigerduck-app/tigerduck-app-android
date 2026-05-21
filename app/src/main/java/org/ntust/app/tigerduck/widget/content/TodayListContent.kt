@@ -26,6 +26,7 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.widget.WidgetColors
 import org.ntust.app.tigerduck.widget.WidgetState
+import org.ntust.app.tigerduck.widget.widgetCourseColor
 
 @Composable
 fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action) {
@@ -118,10 +119,17 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
                     val endTime = AppConstants.PeriodTimes.mapping[lastPeriod]?.second ?: ""
                     val periodRange = if (firstPeriod == lastPeriod) firstPeriod
                     else "$firstPeriod–$lastPeriod"
-                    val rowBg = if (isOngoing) colors.highlight else colors.surface
+                    // iOS parity: ongoing rows tint with the course's own
+                    // color (not a single shared highlight), so back-to-back
+                    // 衝堂 ongoing rows stay visually distinguishable.
+                    val rowBg = if (isOngoing) {
+                        widgetCourseColor(course, state.courseColors, colors.isDark)
+                    } else {
+                        colors.surface
+                    }
                     val primaryText = if (isOngoing) Color.White else colors.onSurface
                     val secondaryText =
-                        if (isOngoing) Color.White.copy(alpha = 0.8f) else colors.onSurfaceVariant
+                        if (isOngoing) Color.White.copy(alpha = 0.85f) else colors.onSurfaceVariant
 
                     Row(
                         modifier = GlanceModifier

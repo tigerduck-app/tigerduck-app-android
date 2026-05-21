@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.widget.content
 
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -170,12 +171,19 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
             }
 
             else -> {
-                val name = state.tomorrowFirstCourseName
-                val time = state.tomorrowFirstCourseTime
+                val tomorrowCourseNo = state.tomorrowFirstCourseNo
+                val tomorrowCourse = tomorrowCourseNo?.let { no ->
+                    state.courses.find { it.courseNo == no }
+                }
+                val tomorrowPeriodId = state.tomorrowFirstCoursePeriodId
+                val tomorrowStartTime = tomorrowPeriodId
+                    ?.let { AppConstants.PeriodTimes.mapping[it]?.first }
+                val tomorrowWeekday = state.tomorrowFirstCourseWeekday
                 Spacer(GlanceModifier.defaultWeight())
                 Column(horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
                     Text(
-                        text = name ?: context.getString(R.string.widget_no_more_classes),
+                        text = tomorrowCourse?.displayName
+                            ?: context.getString(R.string.widget_no_more_classes),
                         style = TextStyle(
                             color = ColorProvider(colors.onSurface),
                             fontSize = 15.sp,
@@ -183,9 +191,14 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                         ),
                         maxLines = 1,
                     )
-                    if (name != null && time != null) {
+                    if (tomorrowCourse != null && !tomorrowStartTime.isNullOrEmpty()) {
                         Text(
-                            text = context.getString(R.string.widget_tomorrow_time, time),
+                            text = futureCourseTimeLabel(
+                                context = context,
+                                todayWeekday = state.currentWeekday,
+                                futureWeekday = tomorrowWeekday,
+                                startTime = tomorrowStartTime,
+                            ),
                             style = TextStyle(
                                 color = ColorProvider(colors.onSurfaceVariant),
                                 fontSize = 12.sp
@@ -256,10 +269,37 @@ private fun FullLayout(state: WidgetState, colors: WidgetColors, tapAction: Acti
 
             state.nextCourseTodayNo != null -> {
                 val course = state.courses.find { it.courseNo == state.nextCourseTodayNo }
-                if (course != null) NextCard(course, state, colors)
+                if (course != null) {
+                    NextCard(
+                        course = course,
+                        weekday = state.currentWeekday,
+                        label = context.getString(R.string.widget_next_class),
+                        colors = colors,
+                    )
+                }
             }
 
-            else -> TomorrowCard(state, colors)
+            state.tomorrowFirstCourseNo != null -> {
+                // Mirrors iOS `WidgetTimelineDerivation` `.tomorrowFirst` —
+                // same card layout as next-today. `computeTomorrowFirst` scans
+                // up to 7 weekdays ahead, so the label switches to the short
+                // weekday name (e.g., "Mon") when the picked day isn't
+                // literally tomorrow (Fri → Mon after a weekend with no
+                // classes). Classroom resolves against that picked day so the
+                // per-period room reflects it.
+                val course = state.courses.find { it.courseNo == state.tomorrowFirstCourseNo }
+                val weekday = state.tomorrowFirstCourseWeekday
+                if (course != null && weekday != null) {
+                    NextCard(
+                        course = course,
+                        weekday = weekday,
+                        label = futureDayLabel(context, state.currentWeekday, weekday),
+                        colors = colors,
+                    )
+                }
+            }
+
+            else -> NoMoreClassesCard(colors)
         }
     }
 }
@@ -410,16 +450,25 @@ private fun OngoingMiniCard(course: Course, state: WidgetState, colors: WidgetCo
     }
 }
 
+/**
+ * Renders the next-class card for both "next today" and "tomorrow" cases —
+ * iOS pulls these through the same `nextBody`, so the layout is identical and
+ * only the label string + weekday differ. [weekday] selects which day's per-
+ * period schedule and classroom apply (today's vs the picked future day).
+ */
 @Composable
-private fun NextCard(course: Course, state: WidgetState, colors: WidgetColors) {
-    val context = LocalContext.current
+private fun NextCard(
+    course: Course,
+    weekday: Int,
+    label: String,
+    colors: WidgetColors,
+) {
     val order = AppConstants.Periods.chronologicalOrder
-    val periods =
-        course.schedule[state.currentWeekday]?.sortedBy { order.indexOf(it) } ?: emptyList()
+    val periods = course.schedule[weekday]?.sortedBy { order.indexOf(it) } ?: emptyList()
     val startTime = periods.firstOrNull()?.let { AppConstants.PeriodTimes.mapping[it]?.first } ?: ""
 
     Text(
-        text = context.getString(R.string.widget_next_class),
+        text = label,
         style = TextStyle(
             color = ColorProvider(colors.onSurfaceVariant),
             fontSize = 13.sp,
@@ -442,7 +491,7 @@ private fun NextCard(course: Course, state: WidgetState, colors: WidgetColors) {
             style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 14.sp),
         )
     }
-    val room = course.classroom(state.currentWeekday)
+    val room = course.classroom(weekday)
     if (room.isNotEmpty()) {
         Text(
             text = room,
@@ -451,47 +500,59 @@ private fun NextCard(course: Course, state: WidgetState, colors: WidgetColors) {
     }
 }
 
+/**
+ * "Tomorrow" only when [futureWeekday] is literally the calendar day after
+ * [todayWeekday]; otherwise the short weekday name. `computeTomorrowFirst`
+ * scans up to 7 weekdays ahead, so a Friday-afternoon viewer with no Sat/Sun
+ * classes sees Monday's first class — labeling it "Tomorrow" would mislead.
+ */
+private fun futureDayLabel(context: Context, todayWeekday: Int, futureWeekday: Int): String {
+    val literalTomorrow = (todayWeekday % 7) + 1
+    return if (futureWeekday == literalTomorrow) {
+        context.getString(R.string.widget_tomorrow)
+    } else {
+        context.getString(weekdayShortRes(futureWeekday))
+    }
+}
+
+private fun futureCourseTimeLabel(
+    context: Context,
+    todayWeekday: Int,
+    futureWeekday: Int?,
+    startTime: String,
+): String {
+    val literalTomorrow = (todayWeekday % 7) + 1
+    return if (futureWeekday == null || futureWeekday == literalTomorrow) {
+        context.getString(R.string.widget_tomorrow_time, startTime)
+    } else {
+        "${context.getString(weekdayShortRes(futureWeekday))} $startTime"
+    }
+}
+
+private fun weekdayShortRes(weekday: Int): Int = when (weekday) {
+    1 -> R.string.weekday_mon_short
+    2 -> R.string.weekday_tue_short
+    3 -> R.string.weekday_wed_short
+    4 -> R.string.weekday_thu_short
+    5 -> R.string.weekday_fri_short
+    6 -> R.string.weekday_sat_short
+    else -> R.string.weekday_sun_short
+}
+
 @Composable
-private fun TomorrowCard(state: WidgetState, colors: WidgetColors) {
+private fun NoMoreClassesCard(colors: WidgetColors) {
     val context = LocalContext.current
     Box(
         modifier = GlanceModifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
-            Text(
-                text = context.getString(R.string.widget_no_more_classes),
-                style = TextStyle(
-                    color = ColorProvider(colors.onSurface),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                ),
-            )
-            val name = state.tomorrowFirstCourseName
-            val time = state.tomorrowFirstCourseTime
-            if (name != null && time != null) {
-                Spacer(GlanceModifier.height(10.dp))
-                Text(
-                    text = context.getString(R.string.widget_tomorrow),
-                    style = TextStyle(
-                        color = ColorProvider(colors.onSurfaceVariant),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                )
-                Text(
-                    text = name,
-                    style = TextStyle(color = ColorProvider(colors.onSurface), fontSize = 15.sp),
-                    maxLines = 1,
-                )
-                Text(
-                    text = time,
-                    style = TextStyle(
-                        color = ColorProvider(colors.onSurfaceVariant),
-                        fontSize = 13.sp
-                    ),
-                )
-            }
-        }
+        Text(
+            text = context.getString(R.string.widget_no_more_classes),
+            style = TextStyle(
+                color = ColorProvider(colors.onSurface),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+            ),
+        )
     }
 }
