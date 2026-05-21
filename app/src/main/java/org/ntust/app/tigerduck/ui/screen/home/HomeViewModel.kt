@@ -176,8 +176,8 @@ class HomeViewModel @Inject constructor(
     )
     val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
 
-    private val _selectedCourse = MutableStateFlow<Course?>(null)
-    val selectedCourse: StateFlow<Course?> = _selectedCourse
+    private val _selectedCourse = MutableStateFlow<SelectedCourseInfo?>(null)
+    val selectedCourse: StateFlow<SelectedCourseInfo?> = _selectedCourse
 
     private val _syncCompleteEvent = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
@@ -414,15 +414,23 @@ class HomeViewModel @Inject constructor(
                             val schedule = courseService.mergeSchedules(
                                 *results.map { it.node }.toTypedArray()
                             )
+                            val classroomMap = courseService.buildClassroomMap(results)
+                            val allRooms = LinkedHashSet<String>().apply {
+                                for (row in results) {
+                                    Course.splitRooms(row.classRoomNo ?: "")
+                                        .forEach { add(it) }
+                                }
+                            }
                             Course.fromSchedule(
                                 courseNo = r.courseNo,
                                 courseName = r.courseName,
                                 instructor = r.courseTeacher,
                                 credits = r.creditPoint.toIntOrNull() ?: 0,
-                                classroom = r.classRoomNo ?: "",
+                                classroom = allRooms.joinToString(", "),
                                 enrolledCount = r.chooseStudent ?: 0,
                                 maxCount = r.maxEnrollment,
                                 schedule = schedule,
+                                classroomMap = classroomMap,
                                 moodleIdNumber = moodleByNo[courseNo]?.idnumber
                                     ?: "${r.semester}${r.courseNo}"
                             )
@@ -584,8 +592,8 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun selectCourse(course: Course?) {
-        _selectedCourse.value = course
+    fun selectCourse(info: SelectedCourseInfo?) {
+        _selectedCourse.value = info
     }
 
     // 翹課 feature disabled — replaced by the "已忽略" homework flow. Kept as
@@ -633,3 +641,10 @@ class HomeViewModel @Inject constructor(
         prefs.homeSections = _sections.value
     }
 }
+
+/**
+ * Selection context for the Home detail dialog. Carries the slot-resolved
+ * classroom so the popup renders the room for the tapped period only, not
+ * the union across the whole day's split rooms.
+ */
+data class SelectedCourseInfo(val course: Course, val classroom: String)

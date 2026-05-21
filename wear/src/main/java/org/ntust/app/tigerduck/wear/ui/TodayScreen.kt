@@ -55,7 +55,7 @@ fun TodayScreen(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             item {
-                ListHeader { Text(stringResource(R.string.calendar_today)) }
+                ListHeader { Text(stringResource(R.string.watch_today)) }
             }
             if (entries.isEmpty()) {
                 item {
@@ -102,7 +102,7 @@ private fun TodayRow(entry: TodayClassEntry, onClick: () -> Unit) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(text = entry.course.displayName, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                text = "${entry.course.classroom} · ${formatHm(entry.startMinute)}–${formatHm(entry.endMinute)}",
+                text = "${entry.course.classroom(entry.weekday)} · ${formatHm(entry.startMinute)}–${formatHm(entry.endMinute)}",
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

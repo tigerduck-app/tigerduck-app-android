@@ -16,6 +16,7 @@ class OnboardingViewModel @Inject constructor(
 
     val isLoggingIn = authService.isLoggingIn
     val loginError = authService.loginError
+    val isSignedIn = authService.authState
     val systemPermissions = appState.systemPermissions
 
     fun login(studentId: String, password: String, onSuccess: () -> Unit) {

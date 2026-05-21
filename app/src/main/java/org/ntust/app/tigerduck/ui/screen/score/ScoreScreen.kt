@@ -63,7 +63,10 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScoreScreen(viewModel: ScoreViewModel = hiltViewModel()) {
+fun ScoreScreen(
+    viewModel: ScoreViewModel = hiltViewModel(),
+    onOpenSignInSettings: () -> Unit = {},
+) {
     val report by viewModel.report.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
@@ -103,7 +106,8 @@ fun ScoreScreen(viewModel: ScoreViewModel = hiltViewModel()) {
                         icon = Icons.Filled.Lock,
                         title = stringResource(R.string.common_not_logged_in),
                         message = stringResource(R.string.score_not_logged_in_message),
-                        modifier = Modifier.padding(top = 32.dp)
+                        modifier = Modifier.padding(top = 32.dp),
+                        onIconClick = onOpenSignInSettings,
                     )
 
                     !viewModel.hasContent && !isRefreshing -> EmptyStateView(

@@ -102,6 +102,34 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean("showAbsoluteAssignmentTime", false)
         set(value) = prefs.edit().putBoolean("showAbsoluteAssignmentTime", value).apply()
 
+    var rememberAnnouncementFilter: Boolean
+        get() = prefs.getBoolean("rememberAnnouncementFilter", false)
+        set(value) = prefs.edit().putBoolean("rememberAnnouncementFilter", value).apply()
+
+    /**
+     * Persisted department (org) filter for the announcements list. Always
+     * written when the filter changes; restored on launch only when
+     * [rememberAnnouncementFilter] is true. Cleared whenever that toggle
+     * goes false so disabling actually wipes the saved selection.
+     */
+    var savedAnnouncementOrgs: Set<String>
+        get() {
+            val json = prefs.getString("savedAnnouncementOrgs", null) ?: return emptySet()
+            return try {
+                val type = object : TypeToken<List<String>>() {}.type
+                val list: List<String>? = gson.fromJson(json, type)
+                list?.toSet() ?: emptySet()
+            } catch (e: Exception) {
+                emptySet()
+            }
+        }
+        set(value) {
+            val editor = prefs.edit()
+            if (value.isEmpty()) editor.remove("savedAnnouncementOrgs")
+            else editor.putString("savedAnnouncementOrgs", gson.toJson(value.toList()))
+            editor.apply()
+        }
+
     var useEnglishCourseAbbreviation: Boolean
         get() = prefs.getBoolean("useEnglishCourseAbbreviation", true)
         set(value) {

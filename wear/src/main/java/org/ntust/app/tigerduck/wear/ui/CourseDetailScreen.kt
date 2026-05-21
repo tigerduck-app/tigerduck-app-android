@@ -37,13 +37,13 @@ fun CourseDetailScreen(course: Course) {
             item { Spacer(Modifier.height(2.dp)) }
             item {
                 LabelValue(
-                    label = stringResource(R.string.course_detail_classroom_label),
-                    value = course.classroom,
+                    label = stringResource(R.string.watch_course_classroom_label),
+                    value = Course.dedupRooms(course.classroom),
                 )
             }
             item {
                 LabelValue(
-                    label = stringResource(R.string.course_detail_instructor_label),
+                    label = stringResource(R.string.watch_course_instructor_label),
                     value = course.instructor,
                 )
             }

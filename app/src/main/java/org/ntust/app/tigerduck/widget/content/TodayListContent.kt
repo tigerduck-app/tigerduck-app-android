@@ -161,9 +161,10 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
                                 ),
                                 maxLines = 1,
                             )
-                            if (course.classroom.isNotEmpty()) {
+                            val room = course.classroom(today)
+                            if (room.isNotEmpty()) {
                                 Text(
-                                    text = course.classroom,
+                                    text = room,
                                     style = TextStyle(
                                         color = ColorProvider(secondaryText),
                                         fontSize = 11.sp,

@@ -11,6 +11,7 @@ import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.WearProtocol
 import java.io.ByteArrayOutputStream
@@ -24,8 +25,24 @@ class WearScheduleBridge @Inject constructor(
     private val dataCache: DataCache,
     private val authService: AuthService,
     private val appPreferences: AppPreferences,
+    private val credentials: CredentialManager,
 ) {
     private val gson = Gson()
+    // Monotonic credential epoch persisted across phone process death so
+    // the watch's anti-replay guard (`version <= storedVersion` → reject)
+    // sees a strictly increasing version after a phone restart. Kept in a
+    // private prefs file so a SharedPreferences corruption in any other
+    // user-facing prefs can't reset it.
+    private val bridgePrefs = context.getSharedPreferences(
+        "wear_bridge_state", Context.MODE_PRIVATE
+    )
+
+    @Synchronized
+    private fun nextCredentialEpoch(): Long {
+        val next = bridgePrefs.getLong(KEY_CRED_EPOCH, 0L) + 1
+        bridgePrefs.edit().putLong(KEY_CRED_EPOCH, next).apply()
+        return next
+    }
 
     /**
      * Publishes the current course list, accent color, and login state to the
@@ -73,6 +90,53 @@ class WearScheduleBridge @Inject constructor(
         }
     }
 
+    /**
+     * Push the current library credentials to the watch over the Data Layer so
+     * it can independently call `api.lib.ntust.edu.tw` for the rotating QR.
+     * Sends a `hasCredentials=false` packet when the user is logged out so the
+     * watch wipes its local copy rather than holding stale creds.
+     */
+    suspend fun publishLibraryCredentials() {
+        val username = credentials.libraryUsername
+        val password = credentials.libraryPassword
+        val hasCredentials = username != null && password != null
+
+        val request = PutDataMapRequest.create(WearProtocol.LibraryCredentials.PATH).apply {
+            dataMap.putBoolean(WearProtocol.LibraryCredentials.KEY_HAS_CREDENTIALS, hasCredentials)
+            // Monotonic across phone process restarts — see nextCredentialEpoch().
+            dataMap.putLong(
+                WearProtocol.LibraryCredentials.KEY_VERSION,
+                nextCredentialEpoch(),
+            )
+            if (username != null && password != null) {
+                dataMap.putString(WearProtocol.LibraryCredentials.KEY_USERNAME, username)
+                dataMap.putString(WearProtocol.LibraryCredentials.KEY_PASSWORD, password)
+                credentials.libraryToken?.let {
+                    dataMap.putString(WearProtocol.LibraryCredentials.KEY_TOKEN, it)
+                }
+                dataMap.putLong(
+                    WearProtocol.LibraryCredentials.KEY_TOKEN_EXPIRY,
+                    credentials.libraryTokenExpiry,
+                )
+                // Bounds-staleness anchor: the watch wipes its keychain if it
+                // hasn't seen a fresh issuedAtMs within 7 days, so a paired
+                // wearable that goes silent (uninstalled phone, lost watch)
+                // can't hold credentials indefinitely.
+                dataMap.putLong(
+                    WearProtocol.LibraryCredentials.KEY_ISSUED_AT_MS,
+                    System.currentTimeMillis(),
+                )
+            }
+        }.asPutDataRequest().setUrgent()
+
+        try {
+            Wearable.getDataClient(context).putDataItem(request).await()
+            Log.d(TAG, "library credentials publish ok (has=$hasCredentials)")
+        } catch (t: Throwable) {
+            Log.w(TAG, "library credentials publish failed: ${t.message}")
+        }
+    }
+
     private fun Course.toDto(): CourseDto = CourseDto(
         courseNo = courseNo,
         // Send the resolved label so any user-set customCourseName survives the
@@ -83,6 +147,11 @@ class WearScheduleBridge @Inject constructor(
         credits = credits,
         classroom = classroom,
         scheduleJson = scheduleJson,
+        // Coalesce so v1.3.x / v1.4.1 cached Courses (deserialized via
+        // Gson Unsafe with this field absent from JSON) don't pass null
+        // into CourseDto's non-null parameter and NPE the safety-net
+        // publish() launched from TigerDuckApp.onCreate.
+        classroomMapJson = classroomMapJson ?: "{}",
         moodleIdNumber = moodleIdNumber,
         customColorHex = customColorHex,
         isManual = isManual,
@@ -96,6 +165,7 @@ class WearScheduleBridge @Inject constructor(
         val credits: Int,
         val classroom: String,
         val scheduleJson: String,
+        val classroomMapJson: String = "{}",
         val moodleIdNumber: String?,
         val customColorHex: String?,
         val isManual: Boolean,
@@ -103,5 +173,6 @@ class WearScheduleBridge @Inject constructor(
 
     private companion object {
         const val TAG = "WearBridge"
+        const val KEY_CRED_EPOCH = "libraryCredentialEpoch"
     }
 }

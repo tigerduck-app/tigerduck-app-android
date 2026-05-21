@@ -116,8 +116,8 @@ class MoodleService @Inject constructor(
                 Assignment(
                     assignmentId = a.id.toString(),
                     courseNo = course?.courseNo ?: "",
-                    courseName = parseCourseName(course?.fullname),
-                    title = a.name,
+                    courseName = parseCourseName(course?.fullname).decodeHtmlEntities(),
+                    title = a.name.decodeHtmlEntities(),
                     dueDate = Date(a.duedate * 1000),
                     isCompleted = submitted,
                     moodleUrl = "https://moodle2.ntust.edu.tw/mod/assign/view.php?id=${a.cmid}",

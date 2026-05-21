@@ -31,6 +31,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
+import org.ntust.app.tigerduck.network.decodeHtmlEntities
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.util.Calendar
@@ -61,6 +62,15 @@ class ClassTableViewModel @Inject constructor(
 
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
+
+    // Cached idnumber → numeric Moodle course id, harvested off the
+    // `fetchEnrolledCourses` response. The course-detail popup uses this
+    // to build the `/course/view.php?id=<N>` deep link — Moodle's web
+    // endpoint requires the numeric id, not the idnumber. Persisted via
+    // [DataCache.saveMoodleCourseIds] so a transient Moodle failure
+    // doesn't make the button vanish; [DataCache.clearAllUserData] wipes
+    // it on logout so a stale map can't survive an account switch.
+    private val _moodleCourseIdByIdnumber = MutableStateFlow<Map<String, Int>>(emptyMap())
 
     private val _selectedWeekday = MutableStateFlow<Int?>(null)
     private val _selectedPeriodId = MutableStateFlow<String?>(null)
@@ -119,6 +129,7 @@ class ClassTableViewModel @Inject constructor(
                     _courses.value = emptyList()
                     _assignments.value = emptyList()
                     _selectedCourse.value = null
+                    _moodleCourseIdByIdnumber.value = emptyMap()
                     hasLoaded = false
                     TigerDuckTheme.buildCourseColorMap(emptyList())
                 } else {
@@ -283,6 +294,21 @@ class ClassTableViewModel @Inject constructor(
             return "${first.first} - ${last.second}"
         }
 
+    /**
+     * Classroom string scoped to the selected weekday — so tapping a Wed cell
+     * shows only the Wed room even when the course meets in different rooms
+     * on different days. Falls back to the deduped flat classroom string when
+     * no weekday is selected (shouldn't happen via the grid, but covers
+     * external selection paths).
+     */
+    val selectedCourseClassroom: String
+        get() {
+            val course = _selectedCourse.value ?: return ""
+            val weekday = _selectedWeekday.value ?: return Course.dedupRooms(course.classroom)
+            val periodId = _selectedPeriodId.value ?: return course.classroom(weekday)
+            return course.classroom(weekday, periodId)
+        }
+
     fun isCourseFinishedToday(course: Course): Boolean {
         val dayTime = _currentDayTime.value
         val periods = course.schedule[dayTime.weekday]
@@ -316,6 +342,18 @@ class ClassTableViewModel @Inject constructor(
         _selectedCourse.value = course
     }
 
+    /**
+     * Numeric Moodle course id for [course], or null when we have no entry
+     * for it in the idnumber map yet (e.g. manual courses without a Moodle
+     * counterpart, or a cold start before the first sync). The detail
+     * popup uses this to decide whether to render the "open in Moodle"
+     * affordance.
+     */
+    fun moodleCourseIdFor(course: Course): Int? {
+        val idnumber = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: return null
+        return _moodleCourseIdByIdnumber.value[idnumber]
+    }
+
     fun clearSelection() {
         _selectedCourse.value = null
     }
@@ -323,10 +361,10 @@ class ClassTableViewModel @Inject constructor(
     val existingCourseNos: Set<String>
         get() = _courses.value.map { it.courseNo }.toSet()
 
-    fun addCourse(course: Course) {
+    fun addCourse(course: Course): Boolean {
         wouldCauseTripleConflict(course)?.let {
             _tripleConflictEvent.tryEmit(it)
-            return
+            return false
         }
         val flagged = course.copy(isManual = true)
         val updated = _courses.value + flagged
@@ -336,6 +374,7 @@ class ClassTableViewModel @Inject constructor(
             widgetUpdater.requestUpdate()
         }
         TigerDuckTheme.buildCourseColorMap(updated)
+        return true
     }
 
     /**
@@ -425,6 +464,30 @@ class ClassTableViewModel @Inject constructor(
             val combinedSpan: Int
         ) : CellRole()
 
+        /**
+         * 3+ courses transitively connected by overlap — e.g. A on periods 6-7,
+         * B on 6-8, C on 8-9: A and C don't share a period but B bridges them.
+         * The L-split tile of [ConflictStart] only fits 2 courses, so callers
+         * render this variant as vertical lanes (greedy interval-graph coloring
+         * by [Member.lane] within [laneCount], same approach as the home
+         * slider's 衝堂 stacking).
+         */
+        data class MultiConflictStart(
+            val members: List<Member>,
+            val combinedSpan: Int,
+            val laneCount: Int,
+        ) : CellRole() {
+            data class Member(
+                val course: Course,
+                val span: Int,
+                val offset: Int,
+                val lane: Int,
+                /** First period this course occupies — needed so the detail
+                 *  popup resolves the correct per-(weekday, period) room. */
+                val firstPeriodId: String,
+            )
+        }
+
         object Skip : CellRole()
     }
 
@@ -493,23 +556,56 @@ class ClassTableViewModel @Inject constructor(
             return CellRole.SoloStart(course, span)
         }
 
-        // 2+ courses — cap at 2, warn if we dropped any
         val entries = closure.values.toList()
-        val kept = if (entries.size > 2) {
-            Log.w(
-                "ClassTableVM",
-                "Slot weekday=$weekday period=${period.id} has ${entries.size} overlapping courses, rendering only the first 2"
-            )
-            entries.take(2)
-        } else entries
-        val (courseA, firstA, spanA) = kept[0]
-        val (courseB, firstB, spanB) = kept[1]
-        val clusterEnd = maxOf(firstA + spanA, firstB + spanB)
+        val clusterEnd = entries.maxOf { it.second + it.third }
         val combined = clusterEnd - clusterStart
-        return CellRole.ConflictStart(
-            courseA = courseA, spanA = spanA, offsetA = firstA - clusterStart,
-            courseB = courseB, spanB = spanB, offsetB = firstB - clusterStart,
+
+        if (entries.size == 2) {
+            val (courseA, firstA, spanA) = entries[0]
+            val (courseB, firstB, spanB) = entries[1]
+            return CellRole.ConflictStart(
+                courseA = courseA, spanA = spanA, offsetA = firstA - clusterStart,
+                courseB = courseB, spanB = spanB, offsetB = firstB - clusterStart,
+                combinedSpan = combined,
+            )
+        }
+
+        // 3+ courses: lay out as vertical lanes via greedy interval-graph
+        // coloring (each course takes the lowest-indexed lane whose previous
+        // occupant has ended). Mirrors TimeSliderViewModel.computeSlotLayouts.
+        val sortedByStart = entries.sortedBy { it.second }
+        val laneEnds = mutableListOf<Int>()
+        val laneAssignments = IntArray(sortedByStart.size)
+        for ((i, e) in sortedByStart.withIndex()) {
+            val (_, first, span) = e
+            val end = first + span
+            var lane = -1
+            for (j in laneEnds.indices) {
+                if (laneEnds[j] <= first) { lane = j; break }
+            }
+            if (lane < 0) {
+                laneEnds.add(end)
+                lane = laneEnds.size - 1
+            } else {
+                laneEnds[lane] = end
+            }
+            laneAssignments[i] = lane
+        }
+        val members = sortedByStart.mapIndexed { i, e ->
+            val (course, first, span) = e
+            val firstPeriodId = periods.getOrNull(first)?.id ?: period.id
+            CellRole.MultiConflictStart.Member(
+                course = course,
+                span = span,
+                offset = first - clusterStart,
+                lane = laneAssignments[i],
+                firstPeriodId = firstPeriodId,
+            )
+        }
+        return CellRole.MultiConflictStart(
+            members = members,
             combinedSpan = combined,
+            laneCount = laneEnds.size,
         )
     }
 
@@ -556,10 +652,14 @@ class ClassTableViewModel @Inject constructor(
         viewModelScope.launch {
             val cached = dataCache.loadCourses(_currentSemester.value)
             val cachedA = dataCache.loadAssignments()
+            val cachedMoodleIds = dataCache.loadMoodleCourseIds()
             if (cached.isNotEmpty()) {
                 _courses.value = cached
                 _assignments.value = cachedA
                 TigerDuckTheme.buildCourseColorMap(cached)
+            }
+            if (cachedMoodleIds.isNotEmpty()) {
+                _moodleCourseIdByIdnumber.value = cachedMoodleIds
             }
             fetchData()
         }
@@ -639,6 +739,22 @@ class ClassTableViewModel @Inject constructor(
                     moodleAll.take(5).map { it.idnumber }
                 } semesters=${moodleAll.map { it.semesterCode }.distinct()}"
             )
+            // Build the idnumber → numeric-id map across ALL semesters
+            // (not just the one currently displayed) so the detail popup's
+            // Moodle button works for historical semesters too. Skip entries
+            // missing either field — both are required to build a usable
+            // deep link. Only overwrite when Moodle returned something so a
+            // transient failure keeps the previously cached mapping live;
+            // account switches still reset it because logout wipes the
+            // cache file via DataCache.clearAllUserData.
+            if (moodleAll.isNotEmpty()) {
+                val fresh = moodleAll
+                    .mapNotNull { c -> c.idnumber?.takeIf { it.isNotEmpty() }?.let { it to c.id } }
+                    .toMap()
+                _moodleCourseIdByIdnumber.value = fresh
+                dataCache.saveMoodleCourseIds(fresh)
+            }
+
             val moodleForSem =
                 moodleAll.filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }
             val moodleByNo = moodleForSem.associateBy { it.courseNo }
@@ -670,15 +786,23 @@ class ClassTableViewModel @Inject constructor(
                                         val schedule = courseService.mergeSchedules(
                                             *results.map { it.node }.toTypedArray()
                                         )
+                                        val classroomMap = courseService.buildClassroomMap(results)
+                                        val allRooms = LinkedHashSet<String>().apply {
+                                            for (row in results) {
+                                                Course.splitRooms(row.classRoomNo ?: "")
+                                                    .forEach { add(it) }
+                                            }
+                                        }
                                         Course.fromSchedule(
                                             courseNo = r.courseNo,
                                             courseName = r.courseName,
                                             instructor = r.courseTeacher,
                                             credits = r.creditPoint.toIntOrNull() ?: 0,
-                                            classroom = r.classRoomNo ?: "",
+                                            classroom = allRooms.joinToString(", "),
                                             enrolledCount = r.chooseStudent ?: 0,
                                             maxCount = r.maxEnrollment,
                                             schedule = schedule,
+                                            classroomMap = classroomMap,
                                             moodleIdNumber = "${r.semester}${r.courseNo}"
                                         )
                                     } else {
@@ -690,7 +814,7 @@ class ClassTableViewModel @Inject constructor(
                                         moodleByNo[courseNo]?.let { m ->
                                             Course.fromSchedule(
                                                 courseNo = courseNo,
-                                                courseName = m.fullname ?: courseNo,
+                                                courseName = (m.fullname ?: courseNo).decodeHtmlEntities(),
                                                 moodleIdNumber = m.idnumber
                                             )
                                         }
@@ -700,7 +824,7 @@ class ClassTableViewModel @Inject constructor(
                                     moodleByNo[courseNo]?.let { m ->
                                         Course.fromSchedule(
                                             courseNo = courseNo,
-                                            courseName = m.fullname ?: courseNo,
+                                            courseName = (m.fullname ?: courseNo).decodeHtmlEntities(),
                                             moodleIdNumber = m.idnumber
                                         )
                                     }

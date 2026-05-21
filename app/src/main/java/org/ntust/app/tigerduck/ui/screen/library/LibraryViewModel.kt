@@ -2,12 +2,8 @@ package org.ntust.app.tigerduck.ui.screen.library
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.EncodeHintType
-import com.google.zxing.qrcode.QRCodeWriter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -21,13 +17,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
-import org.ntust.app.tigerduck.network.LibraryService
+import org.ntust.app.tigerduck.shared.LibraryQRRenderer
+import org.ntust.app.tigerduck.shared.LibraryService
+import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val libraryService: LibraryService,
     private val credentials: CredentialManager,
+    private val wearBridge: WearScheduleBridge,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -75,11 +74,16 @@ class LibraryViewModel @Inject constructor(
                 libraryService.login(username, password)
                 _isLoggedIn.value = true
                 _storedUsername.value = username
+                // Push the fresh credentials to the paired watch so its
+                // library page can start showing the QR straight away
+                // instead of waiting for the next launch-time mirror.
+                wearBridge.publishLibraryCredentials()
                 refreshQR()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _errorMessage.value = e.message ?: context.getString(R.string.error_login_failed)
+                _errorMessage.value = e.message?.takeUnless { it.isBlank() }
+                    ?: context.getString(R.string.error_login_failed)
             } finally {
                 _isLoggingIn.value = false
             }
@@ -103,7 +107,8 @@ class LibraryViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 _errorMessage.value =
-                    e.message ?: context.getString(R.string.library_qr_generate_failed)
+                    e.message?.takeUnless { it.isBlank() }
+                        ?: context.getString(R.string.library_qr_generate_failed)
                 // If the failure means our session is gone, drop back to the
                 // login prompt instead of looping on a dead token.
                 if (!credentials.isLibraryTokenValid) {
@@ -149,20 +154,8 @@ class LibraryViewModel @Inject constructor(
         refreshJob?.cancel()
     }
 
-    private fun generateQRBitmap(content: String, size: Int = 512): Bitmap {
-        val hints = mapOf(EncodeHintType.MARGIN to 1)
-        val bitMatrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, size, size, hints)
-        // Build a single IntArray then hand it to Bitmap.createBitmap so we
-        // avoid the ~260k setPixel calls the naive loop would do per refresh.
-        val pixels = IntArray(size * size)
-        for (y in 0 until size) {
-            val row = y * size
-            for (x in 0 until size) {
-                pixels[row + x] = if (bitMatrix[x, y]) Color.BLACK else Color.WHITE
-            }
-        }
-        return Bitmap.createBitmap(pixels, size, size, Bitmap.Config.RGB_565)
-    }
+    private fun generateQRBitmap(content: String, size: Int = 512): Bitmap =
+        LibraryQRRenderer.render(content, size)
 
     companion object {
         const val QR_VALID_SECONDS = 30

@@ -89,7 +89,7 @@ private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int) {
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = "${result.course.classroom} · ${result.course.instructor}",
+            text = "${result.course.classroom(result.weekday)} · ${result.course.instructor}",
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -118,7 +118,7 @@ private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int) {
 private fun NextTodayCard(result: NextClassResult.NextToday, minuteOfDay: Int) {
     val minsUntil = result.startMinute - minuteOfDay
     Text(text = result.course.displayName, maxLines = 2, overflow = TextOverflow.Ellipsis)
-    Text(text = "${result.course.classroom} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Text(text = "${result.course.classroom(result.weekday)} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
     Text(
         text = if (minsUntil in 1..59)
             stringResource(R.string.watch_starts_in_minutes, minsUntil)
@@ -131,7 +131,7 @@ private fun NextTodayCard(result: NextClassResult.NextToday, minuteOfDay: Int) {
 @Composable
 private fun NextFutureCard(result: NextClassResult.NextFuture, todayWeekday: Int) {
     Text(text = result.course.displayName, maxLines = 2, overflow = TextOverflow.Ellipsis)
-    Text(text = "${result.course.classroom} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Text(text = "${result.course.classroom(result.weekday)} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
     val label = if (result.daysAhead == 1) {
         stringResource(R.string.watch_tomorrow_at, formatHm(result.startMinute))
     } else {
@@ -176,12 +176,12 @@ private fun formatHm(minuteOfDay: Int): String {
 @Composable
 private fun weekdayShortName(weekday: Int): String = stringResource(
     when (weekday) {
-        1 -> R.string.weekday_mon_short
-        2 -> R.string.weekday_tue_short
-        3 -> R.string.weekday_wed_short
-        4 -> R.string.weekday_thu_short
-        5 -> R.string.weekday_fri_short
-        6 -> R.string.weekday_sat_short
-        else -> R.string.weekday_sun_short
+        1 -> R.string.watch_weekday_mon_short
+        2 -> R.string.watch_weekday_tue_short
+        3 -> R.string.watch_weekday_wed_short
+        4 -> R.string.watch_weekday_thu_short
+        5 -> R.string.watch_weekday_fri_short
+        6 -> R.string.watch_weekday_sat_short
+        else -> R.string.watch_weekday_sun_short
     }
 )

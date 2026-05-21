@@ -211,6 +211,28 @@ class CourseService @Inject constructor(
         return merged
     }
 
+    /**
+     * Build a per-(weekday, period) classroom map from the rows the API
+     * returned for a course. When a course meets in different rooms on
+     * different days, the API returns one row per (room × day-set), each
+     * with its own [CourseSearchResult.node] and [CourseSearchResult.classRoomNo].
+     * The map lets [Course.classroom] resolve the right room for a given day.
+     */
+    fun buildClassroomMap(results: List<CourseSearchResult>): Map<String, String> {
+        val map = mutableMapOf<String, String>()
+        for (row in results) {
+            val room = (row.classRoomNo ?: "").trim()
+            if (room.isEmpty()) continue
+            val deduped = Course.dedupRooms(room)
+            parseNodeToSchedule(row.node).forEach { (day, periods) ->
+                for (period in periods) {
+                    map["$day-$period"] = deduped
+                }
+            }
+        }
+        return map
+    }
+
     fun currentSemesterCode(): String {
         val cal = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ)
         val year = cal.get(Calendar.YEAR)
@@ -239,7 +261,7 @@ class CourseService @Inject constructor(
             moodle ?: return null
             return Course.fromSchedule(
                 courseNo = courseNo,
-                courseName = moodle.fullname ?: courseNo,
+                courseName = (moodle.fullname ?: courseNo).decodeHtmlEntities(),
                 moodleIdNumber = moodle.idnumber,
             )
         }
@@ -299,10 +321,20 @@ class CourseService @Inject constructor(
                 ?.results
                 ?.takeIf { it.isNotEmpty() }
                 ?: return@map course
-            val updated = applyAbbreviations(cached, language).first()
+            val updated = applyAbbreviations(cached, language)
+            val first = updated.first()
+            val allRooms = LinkedHashSet<String>().apply {
+                for (row in updated) {
+                    Course.splitRooms(row.classRoomNo ?: "").forEach { add(it) }
+                }
+            }
+            val flatClassroom = if (allRooms.isEmpty()) course.classroom
+            else allRooms.joinToString(", ")
+            val mapJson = Gson().toJson(buildClassroomMap(updated))
             course.copy(
-                courseName = updated.courseName,
-                classroom = updated.classRoomNo ?: course.classroom,
+                courseName = first.courseName,
+                classroom = flatClassroom,
+                classroomMapJson = mapJson,
             )
         }
     }

@@ -17,8 +17,8 @@ android {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 30
         targetSdk = 36
-        versionCode = 19
-        versionName = "1.4.1"
+        versionCode = 20
+        versionName = "1.4.2"
     }
 
     buildTypes {
@@ -146,6 +146,9 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.work.runtime.ktx)
+    // EncryptedSharedPreferences for the watch-side library credential mirror —
+    // the synced phone password and token must not sit on disk in plain text.
+    implementation(libs.security.crypto)
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)

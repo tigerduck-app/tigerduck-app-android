@@ -68,7 +68,8 @@ import kotlin.math.roundToInt
 @Composable
 fun HomeScreen(
     appState: AppState,
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    onOpenSignInSettings: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -257,8 +258,10 @@ fun HomeScreen(
                             hasUnfinishedAssignment = hasUnfinishedAssignment,
                             showAbsoluteTime = appState.showAbsoluteAssignmentTime,
                             invertDirection = appState.invertSliderDirection,
-                            onCourseClick = {
-                                if (!isEditing) viewModel.selectCourse(it)
+                            onCourseClick = { course, classroom ->
+                                if (!isEditing) {
+                                    viewModel.selectCourse(SelectedCourseInfo(course, classroom))
+                                }
                             },
                             onAssignmentClick = {
                                 if (!isEditing) openAssignmentInMoodle(context, it)
@@ -274,7 +277,8 @@ fun HomeScreen(
                             // onSkipCourse = { course, date ->
                             //     if (!isEditing) viewModel.toggleSkip(course, date)
                             // },
-                            onWidgetClick = { if (!isEditing) showComingSoon = true }
+                            onWidgetClick = { if (!isEditing) showComingSoon = true },
+                            onOpenSignInSettings = onOpenSignInSettings,
                         )
                     }
                 }
@@ -302,14 +306,15 @@ fun HomeScreen(
         ComingSoonDialog(onDismiss = { showComingSoon = false })
     }
 
-    selectedCourse?.let { course ->
+    selectedCourse?.let { info ->
         // Cache per courseNo so re-running the linear filter every parent
         // recomposition (any state tick while the dialog is open) goes away.
-        val dialogAssignments = remember(course.courseNo, upcomingAssignments) {
-            viewModel.assignmentsFor(course.courseNo)
+        val dialogAssignments = remember(info.course.courseNo, upcomingAssignments) {
+            viewModel.assignmentsFor(info.course.courseNo)
         }
         CourseDetailDialog(
-            course = course,
+            course = info.course,
+            classroom = info.classroom,
             assignments = dialogAssignments,
             onDismiss = { viewModel.selectCourse(null) }
         )
@@ -434,12 +439,13 @@ private fun HomeSectionContent(
     hasUnfinishedAssignment: (String) -> Boolean,
     showAbsoluteTime: Boolean,
     invertDirection: Boolean,
-    onCourseClick: (Course) -> Unit,
+    onCourseClick: (Course, String) -> Unit,
     onAssignmentClick: (Assignment) -> Unit,
     onToggleIgnore: (Assignment) -> Unit,
     onMarkCompleted: (Assignment) -> Unit,
     onSelectFilter: (AssignmentFilter) -> Unit,
-    onWidgetClick: () -> Unit
+    onWidgetClick: () -> Unit,
+    onOpenSignInSettings: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         when (section.type) {
@@ -472,8 +478,16 @@ private fun HomeSectionContent(
                         isLoggedIn = isLoggedIn,
                         isLoading = isLoading || (!initialLoadComplete && isLoggedIn),
                         filter = assignmentFilter,
+                        onOpenSignInSettings = onOpenSignInSettings,
                     )
                 } else {
+                    // Resolve the canonical Course for each row's courseNo so
+                    // the "name • courseNo" label reflects user renames and
+                    // the real NTUST code (iOS parity). Memoized to avoid
+                    // rebuilding the map on unrelated state changes.
+                    val courseByNo = remember(allCourses) {
+                        allCourses.associateBy { it.courseNo }
+                    }
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -493,6 +507,7 @@ private fun HomeSectionContent(
                                     assignment.assignmentId in markedCompletedIds
                                 SwipeableAssignmentRow(
                                     assignment = assignment,
+                                    course = courseByNo[assignment.courseNo],
                                     isIgnored = assignment.assignmentId in ignoredAssignmentIds,
                                     isMarkedCompleted = isMarkedCompleted,
                                     showAbsoluteTime = showAbsoluteTime,
@@ -561,6 +576,7 @@ private fun HomeSectionContent(
 @Composable
 private fun CourseDetailDialog(
     course: Course,
+    classroom: String,
     assignments: List<Assignment>,
     onDismiss: () -> Unit
 ) {
@@ -574,7 +590,7 @@ private fun CourseDetailDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
-                    stringResource(R.string.course_classroom_value, course.classroom),
+                    stringResource(R.string.course_classroom_value, classroom),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
@@ -679,12 +695,14 @@ private fun AssignmentsEmptyState(
     isLoggedIn: Boolean,
     isLoading: Boolean,
     filter: AssignmentFilter,
+    onOpenSignInSettings: () -> Unit = {},
 ) {
     if (!isLoggedIn) {
         EmptyStateView(
             icon = Icons.Filled.Lock,
             title = stringResource(R.string.common_not_logged_in),
             message = stringResource(R.string.common_login_required_feature),
+            onIconClick = onOpenSignInSettings,
         )
         return
     }
@@ -736,6 +754,7 @@ private fun AssignmentsEmptyState(
 @Composable
 private fun SwipeableAssignmentRow(
     assignment: Assignment,
+    course: Course?,
     isIgnored: Boolean,
     isMarkedCompleted: Boolean,
     showAbsoluteTime: Boolean,
@@ -859,6 +878,7 @@ private fun SwipeableAssignmentRow(
         ) {
             AssignmentItem(
                 assignment = assignment,
+                course = course,
                 showAbsoluteTime = showAbsoluteTime,
                 markedCompleted = isMarkedCompleted,
                 onClick = onClick,

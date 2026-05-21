@@ -18,7 +18,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.ui.component.ContentCard
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,12 +31,10 @@ fun OtherSettingsScreen(
 ) {
     val context = LocalContext.current
     val invertSlider = viewModel.appState.invertSliderDirection
-    val libraryEnabled = viewModel.appState.libraryFeatureEnabled
     val themeMode = viewModel.appState.themeMode
     val browserPreference = viewModel.appState.browserPreference
     val rotationMode = viewModel.appState.rotationMode
 
-    var showLibraryWarning by remember { mutableStateOf(false) }
     var showResetColorsConfirm by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -62,25 +59,6 @@ fun OtherSettingsScreen(
                 .padding(scaffoldPadding),
             contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp),
         ) {
-            item {
-                ContentCard {
-                    SettingsToggleRow(
-                        stringResource(R.string.settings_library_related_features),
-                        libraryEnabled,
-                    ) { enabled ->
-                        if (enabled) {
-                            showLibraryWarning = true
-                        } else {
-                            viewModel.appState.libraryFeatureEnabled = false
-                            viewModel.appState.configuredTabs =
-                                viewModel.appState.configuredTabs.filter { !it.isLibraryRelated }
-                        }
-                    }
-                }
-            }
-
-            item { Spacer(Modifier.height(24.dp)) }
-
             item {
                 ContentCard {
                     SettingsToggleRow(
@@ -209,22 +187,6 @@ fun OtherSettingsScreen(
                 }
             }
         }
-    }
-
-    if (showLibraryWarning) {
-        LibraryWarningDialog(
-            onConfirm = {
-                viewModel.appState.libraryFeatureEnabled = true
-                if (!viewModel.appState.configuredTabs.contains(AppFeature.LIBRARY) &&
-                    viewModel.appState.configuredTabs.size < 4
-                ) {
-                    viewModel.appState.configuredTabs =
-                        viewModel.appState.configuredTabs + AppFeature.LIBRARY
-                }
-                showLibraryWarning = false
-            },
-            onDismiss = { showLibraryWarning = false },
-        )
     }
 
     if (showResetColorsConfirm) {
