@@ -132,9 +132,14 @@ private fun LoggedInState(username: String?) {
 
     var isFullscreen by remember { mutableStateOf(false) }
 
+    // Respect the user's configured screen padding (Settings → Padding) even
+    // in fullscreen. Round chassis clip the corners of an edge-to-edge square
+    // QR, and the padding is precisely the "content boundary" preview the
+    // settings screen draws.
+    val screenPadding = LocalScreenPadding.current
     val minSideDp = minOf(config.screenWidthDp, config.screenHeightDp)
     val qrSideDp = if (isFullscreen) {
-        minSideDp.toFloat()
+        (minSideDp - 2 * screenPadding.value).coerceAtLeast(96f)
     } else {
         (minSideDp * 0.55f).coerceIn(96f, 160f)
     }
