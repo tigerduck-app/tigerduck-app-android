@@ -21,13 +21,14 @@ import androidx.wear.compose.material3.LinearProgressIndicator
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.NextClassResult
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 import org.ntust.app.tigerduck.shared.clock.AppClock
-import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
+import org.ntust.app.tigerduck.wear.ui.theme.wearCourseColor
 import java.util.concurrent.TimeUnit
 
 @Composable
@@ -51,17 +52,39 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
 
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = pad),
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             ListHeader { Text(stringResource(R.string.watch_now_next_title)) }
             when (result) {
-                is NextClassResult.Ongoing -> OngoingCard(result, minuteOfDay)
-                is NextClassResult.NextToday -> NextTodayCard(result, minuteOfDay)
-                is NextClassResult.NextFuture -> NextFutureCard(result, weekday)
+                is NextClassResult.Ongoing -> {
+                    // iOS NowNextView stacks Now + Next as two separate cards
+                    // when both exist, instead of folding the next-today
+                    // preview into the ongoing card as a single line.
+                    OngoingCard(result, minuteOfDay)
+                    result.nextToday?.let { next ->
+                        NextCard(
+                            course = next.course,
+                            weekday = next.weekday,
+                            statusText = nextStatusText(next.startMinute, minuteOfDay),
+                            titleResId = R.string.watch_next,
+                        )
+                    }
+                }
+                is NextClassResult.NextToday -> NextCard(
+                    course = result.course,
+                    weekday = result.weekday,
+                    statusText = nextStatusText(result.startMinute, minuteOfDay),
+                    titleResId = null,
+                )
+                is NextClassResult.NextFuture -> NextCard(
+                    course = result.course,
+                    weekday = result.weekday,
+                    statusText = futureStatusText(result.daysAhead, result.startMinute, weekday),
+                    titleResId = null,
+                )
                 NextClassResult.Empty -> Text(stringResource(R.string.watch_no_upcoming_classes))
             }
-            Spacer(Modifier.height(8.dp))
             StaleBanner(snapshot.syncedAtMs)
         }
     }
@@ -69,19 +92,20 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
 
 @Composable
 private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int) {
-    val accent = LocalAccentColor.current
+    val courseColor = wearCourseColor(result.course)
     val span = (result.endMinute - result.startMinute).coerceAtLeast(1)
     val progress = ((minuteOfDay - result.startMinute).toFloat() / span).coerceIn(0f, 1f)
     Column(
         modifier = Modifier
+            .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(accent.copy(alpha = 0.18f))
+            .background(courseColor.copy(alpha = 0.22f))
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = stringResource(R.string.watch_now_ends_at, formatHm(result.endMinute)),
-            color = accent,
+            color = courseColor,
         )
         Text(
             text = result.course.displayName,
@@ -94,9 +118,6 @@ private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int) {
             overflow = TextOverflow.Ellipsis,
         )
         Spacer(Modifier.height(6.dp))
-        // Progress through the current period: ticks once a minute via the
-        // parent's currentTaipeiTick(), so the bar fills smoothly enough for
-        // a watch UI without burning a 1-second timer.
         LinearProgressIndicator(
             progress = { progress },
             modifier = Modifier
@@ -104,46 +125,74 @@ private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int) {
                 .height(4.dp),
         )
     }
-    result.nextToday?.let {
-        Spacer(Modifier.height(6.dp))
+}
+
+/**
+ * Unified next-class card used for both [NextClassResult.NextToday] and
+ * [NextClassResult.NextFuture], as well as the "Next" follow-up under an
+ * ongoing course. [titleResId] surfaces the kind label ("Next") only when
+ * the card is paired with another above it; the standalone next-today /
+ * next-future cards skip the label so the time line carries that role —
+ * matches the iOS ClassCard layout.
+ */
+@Composable
+private fun NextCard(
+    course: Course,
+    weekday: Int,
+    statusText: String,
+    titleResId: Int?,
+) {
+    val courseColor = wearCourseColor(course)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(courseColor.copy(alpha = 0.22f))
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (titleResId != null) {
+            Text(text = stringResource(titleResId), color = courseColor)
+        }
         Text(
-            text = stringResource(R.string.watch_next_label, it.course.displayName, formatHm(it.startMinute)),
+            text = course.displayName,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        Text(
+            text = "${course.classroom(weekday)} · ${course.instructor}",
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = statusText,
+            color = courseColor,
+        )
     }
 }
 
 @Composable
-private fun NextTodayCard(result: NextClassResult.NextToday, minuteOfDay: Int) {
-    val minsUntil = result.startMinute - minuteOfDay
-    Text(text = result.course.displayName, maxLines = 2, overflow = TextOverflow.Ellipsis)
-    Text(text = "${result.course.classroom(result.weekday)} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
-    Text(
-        text = if (minsUntil in 1..59)
-            stringResource(R.string.watch_starts_in_minutes, minsUntil)
-        else
-            stringResource(R.string.watch_starts_at, formatHm(result.startMinute)),
-        color = LocalAccentColor.current,
-    )
+private fun nextStatusText(startMinute: Int, minuteOfDay: Int): String {
+    val minsUntil = startMinute - minuteOfDay
+    return if (minsUntil in 1..59) {
+        stringResource(R.string.watch_starts_in_minutes, minsUntil)
+    } else {
+        stringResource(R.string.watch_starts_at, formatHm(startMinute))
+    }
 }
 
 @Composable
-private fun NextFutureCard(result: NextClassResult.NextFuture, todayWeekday: Int) {
-    Text(text = result.course.displayName, maxLines = 2, overflow = TextOverflow.Ellipsis)
-    Text(text = "${result.course.classroom(result.weekday)} · ${result.course.instructor}", maxLines = 1, overflow = TextOverflow.Ellipsis)
-    val label = if (result.daysAhead == 1) {
-        stringResource(R.string.watch_tomorrow_at, formatHm(result.startMinute))
+private fun futureStatusText(daysAhead: Int, startMinute: Int, todayWeekday: Int): String =
+    if (daysAhead == 1) {
+        stringResource(R.string.watch_tomorrow_at, formatHm(startMinute))
     } else {
-        val targetWeekday = ((todayWeekday - 1 + result.daysAhead) % 7) + 1
+        val targetWeekday = ((todayWeekday - 1 + daysAhead) % 7) + 1
         stringResource(
             R.string.watch_weekday_at,
             weekdayShortName(targetWeekday),
-            formatHm(result.startMinute),
+            formatHm(startMinute),
         )
     }
-    Text(text = label, color = LocalAccentColor.current)
-}
 
 @Composable
 private fun StaleBanner(syncedAtMs: Long) {
