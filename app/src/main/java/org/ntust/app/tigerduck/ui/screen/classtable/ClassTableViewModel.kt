@@ -464,6 +464,30 @@ class ClassTableViewModel @Inject constructor(
             val combinedSpan: Int
         ) : CellRole()
 
+        /**
+         * 3+ courses transitively connected by overlap — e.g. A on periods 6-7,
+         * B on 6-8, C on 8-9: A and C don't share a period but B bridges them.
+         * The L-split tile of [ConflictStart] only fits 2 courses, so callers
+         * render this variant as vertical lanes (greedy interval-graph coloring
+         * by [Member.lane] within [laneCount], same approach as the home
+         * slider's 衝堂 stacking).
+         */
+        data class MultiConflictStart(
+            val members: List<Member>,
+            val combinedSpan: Int,
+            val laneCount: Int,
+        ) : CellRole() {
+            data class Member(
+                val course: Course,
+                val span: Int,
+                val offset: Int,
+                val lane: Int,
+                /** First period this course occupies — needed so the detail
+                 *  popup resolves the correct per-(weekday, period) room. */
+                val firstPeriodId: String,
+            )
+        }
+
         object Skip : CellRole()
     }
 
@@ -532,23 +556,56 @@ class ClassTableViewModel @Inject constructor(
             return CellRole.SoloStart(course, span)
         }
 
-        // 2+ courses — cap at 2, warn if we dropped any
         val entries = closure.values.toList()
-        val kept = if (entries.size > 2) {
-            Log.w(
-                "ClassTableVM",
-                "Slot weekday=$weekday period=${period.id} has ${entries.size} overlapping courses, rendering only the first 2"
-            )
-            entries.take(2)
-        } else entries
-        val (courseA, firstA, spanA) = kept[0]
-        val (courseB, firstB, spanB) = kept[1]
-        val clusterEnd = maxOf(firstA + spanA, firstB + spanB)
+        val clusterEnd = entries.maxOf { it.second + it.third }
         val combined = clusterEnd - clusterStart
-        return CellRole.ConflictStart(
-            courseA = courseA, spanA = spanA, offsetA = firstA - clusterStart,
-            courseB = courseB, spanB = spanB, offsetB = firstB - clusterStart,
+
+        if (entries.size == 2) {
+            val (courseA, firstA, spanA) = entries[0]
+            val (courseB, firstB, spanB) = entries[1]
+            return CellRole.ConflictStart(
+                courseA = courseA, spanA = spanA, offsetA = firstA - clusterStart,
+                courseB = courseB, spanB = spanB, offsetB = firstB - clusterStart,
+                combinedSpan = combined,
+            )
+        }
+
+        // 3+ courses: lay out as vertical lanes via greedy interval-graph
+        // coloring (each course takes the lowest-indexed lane whose previous
+        // occupant has ended). Mirrors TimeSliderViewModel.computeSlotLayouts.
+        val sortedByStart = entries.sortedBy { it.second }
+        val laneEnds = mutableListOf<Int>()
+        val laneAssignments = IntArray(sortedByStart.size)
+        for ((i, e) in sortedByStart.withIndex()) {
+            val (_, first, span) = e
+            val end = first + span
+            var lane = -1
+            for (j in laneEnds.indices) {
+                if (laneEnds[j] <= first) { lane = j; break }
+            }
+            if (lane < 0) {
+                laneEnds.add(end)
+                lane = laneEnds.size - 1
+            } else {
+                laneEnds[lane] = end
+            }
+            laneAssignments[i] = lane
+        }
+        val members = sortedByStart.mapIndexed { i, e ->
+            val (course, first, span) = e
+            val firstPeriodId = periods.getOrNull(first)?.id ?: period.id
+            CellRole.MultiConflictStart.Member(
+                course = course,
+                span = span,
+                offset = first - clusterStart,
+                lane = laneAssignments[i],
+                firstPeriodId = firstPeriodId,
+            )
+        }
+        return CellRole.MultiConflictStart(
+            members = members,
             combinedSpan = combined,
+            laneCount = laneEnds.size,
         )
     }
 

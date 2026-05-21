@@ -655,6 +655,30 @@ private fun TimetableGrid(
                                 )
                             }
 
+                            is ClassTableViewModel.CellRole.MultiConflictStart -> {
+                                MultiConflictCourseCell(
+                                    cellRole = role,
+                                    dayColWidth = dayColWidth,
+                                    cellHeight = cellHeight,
+                                    x = x,
+                                    y = y,
+                                    weekday = weekday,
+                                    hasAssignment = { courseNo -> viewModel.hasAssignment(courseNo) },
+                                    onSelect = { course, firstPeriodId ->
+                                        viewModel.selectCourse(course, weekday, firstPeriodId)
+                                    },
+                                    onLongPress = {
+                                        Haptics.perform(
+                                            context,
+                                            HapticScenario.ClassTableLongPress,
+                                        )
+                                    },
+                                    onRename = onRename,
+                                    onPickColor = onPickColor,
+                                    onDelete = onDelete,
+                                )
+                            }
+
                             is ClassTableViewModel.CellRole.Skip -> {
                                 // Rendered as part of an earlier SoloStart / ConflictStart
                             }
@@ -1068,6 +1092,163 @@ private fun ConflictCourseCell(
                 }
             }
         } // BoxWithConstraints
+    }
+}
+
+/**
+ * Renders a cluster of 3+ transitively-overlapping courses as vertical lanes —
+ * each course occupies one column for its own row range, with greedy lane
+ * coloring (see [ClassTableViewModel.cellRole]) packing non-overlapping
+ * courses into the same lane so a chain like A(6-7) / B(6-8) / C(8-9) fits in
+ * two columns instead of three. The 2-course L-shape ([ConflictCourseCell])
+ * can't tile 3 shapes, so this is the fallback. Tapping a lane selects that
+ * specific course directly (no picker), matching the home slider's per-band
+ * behavior.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MultiConflictCourseCell(
+    cellRole: ClassTableViewModel.CellRole.MultiConflictStart,
+    dayColWidth: androidx.compose.ui.unit.Dp,
+    cellHeight: androidx.compose.ui.unit.Dp,
+    x: androidx.compose.ui.unit.Dp,
+    y: androidx.compose.ui.unit.Dp,
+    weekday: Int,
+    hasAssignment: (String) -> Boolean,
+    onSelect: (Course, String) -> Unit,
+    onLongPress: () -> Unit,
+    onRename: (Course) -> Unit,
+    onPickColor: (Course) -> Unit,
+    onDelete: (Course) -> Unit,
+) {
+    val textColor = if (TigerDuckTheme.isDarkMode) Color.White else Color(0xFF1C1C1E)
+    fun bgFor(course: Course) = if (TigerDuckTheme.isDarkMode) {
+        TigerDuckTheme.courseColor(course.courseNo)
+    } else {
+        TigerDuckTheme.courseColorVibrant(course.courseNo).copy(alpha = 0.50f)
+    }
+
+    val conflictPrefix = stringResource(R.string.a11y_class_table_conflict_prefix)
+    val assignmentLabel = stringResource(R.string.a11y_class_table_cell_assignment_indicator)
+    fun cellLabel(course: Course, hasAssignmentForCourse: Boolean): String = buildString {
+        append(conflictPrefix)
+        append(": ")
+        append(course.displayName)
+        val room = course.classroom(weekday)
+        if (room.isNotBlank()) {
+            append(", ")
+            append(room)
+        }
+        if (hasAssignmentForCourse) {
+            append(". ")
+            append(assignmentLabel)
+        }
+    }
+
+    var menuForCourse by remember { mutableStateOf<Course?>(null) }
+
+    Box(
+        modifier = Modifier
+            .width(dayColWidth)
+            .height(cellHeight * cellRole.combinedSpan)
+            .absoluteOffset(x = x, y = y)
+            .padding(1.dp),
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val rowHeight = maxHeight / cellRole.combinedSpan
+            val laneWidth = maxWidth / cellRole.laneCount
+
+            cellRole.members.forEach { member ->
+                val mTop = rowHeight * member.offset
+                val mHeight = rowHeight * member.span
+                val mLeft = laneWidth * member.lane
+                val hasAssignmentForMember = hasAssignment(member.course.courseNo)
+
+                Box(
+                    modifier = Modifier
+                        .width(laneWidth)
+                        .height(mHeight)
+                        .absoluteOffset(x = mLeft, y = mTop)
+                        .padding(0.5.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(bgFor(member.course))
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = cellLabel(member.course, hasAssignmentForMember)
+                            role = Role.Button
+                        }
+                        .combinedClickable(
+                            onClick = { onSelect(member.course, member.firstPeriodId) },
+                            onLongClick = {
+                                onLongPress()
+                                menuForCourse = member.course
+                            },
+                        ),
+                ) {
+                    ClassTableCourseNameText(
+                        text = member.course.displayName,
+                        color = textColor,
+                        maxLines = if (member.span >= 2) 3 else 2,
+                        modifier = Modifier
+                            .padding(2.dp)
+                            .align(Alignment.Center),
+                    )
+                    if (hasAssignmentForMember) {
+                        Icon(
+                            imageVector = Icons.Filled.Book,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(3.dp)
+                                .size(10.dp),
+                            tint = textColor.copy(alpha = 0.7f),
+                        )
+                    }
+                }
+            }
+
+            menuForCourse?.let { course ->
+                DropdownMenu(
+                    expanded = true,
+                    onDismissRequest = { menuForCourse = null },
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.class_table_rename_with_course,
+                                    course.displayName,
+                                )
+                            )
+                        },
+                        onClick = { menuForCourse = null; onRename(course) },
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.class_table_pick_color_with_course,
+                                    course.displayName,
+                                )
+                            )
+                        },
+                        onClick = { menuForCourse = null; onPickColor(course) },
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.class_table_delete_with_course,
+                                    course.displayName,
+                                ),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        onClick = { menuForCourse = null; onDelete(course) },
+                    )
+                }
+            }
+        }
     }
 }
 
