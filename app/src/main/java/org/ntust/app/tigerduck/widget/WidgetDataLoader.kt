@@ -46,7 +46,7 @@ object WidgetDataLoader {
         val nextCourseTodayNo = computeNextCourseTodayNo(
             courses, weekday, minuteOfDay, ongoingNos,
         )
-        val (tomorrowName, tomorrowTime) = computeTomorrowFirst(courses, weekday)
+        val tomorrowFirst = computeTomorrowFirst(courses, weekday)
 
         return WidgetState(
             courses = courses,
@@ -57,11 +57,18 @@ object WidgetDataLoader {
             isLoggedIn = isLoggedIn,
             ongoingCourseNos = ongoingNos,
             nextCourseTodayNo = nextCourseTodayNo,
-            tomorrowFirstCourseName = tomorrowName,
-            tomorrowFirstCourseTime = tomorrowTime,
+            tomorrowFirstCourseNo = tomorrowFirst?.courseNo,
+            tomorrowFirstCourseWeekday = tomorrowFirst?.weekday,
+            tomorrowFirstCoursePeriodId = tomorrowFirst?.periodId,
             courseColors = buildCourseColorAssignments(courses),
         )
     }
+
+    private data class TomorrowFirst(
+        val courseNo: String,
+        val weekday: Int,
+        val periodId: String,
+    )
 
     private fun Calendar.toWeekday(): Int = when (get(Calendar.DAY_OF_WEEK)) {
         Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
@@ -102,21 +109,31 @@ object WidgetDataLoader {
             ?.first?.courseNo
     }
 
+    /**
+     * Scans up to 7 future weekdays for the earliest scheduled class. Mirrors
+     * iOS `WidgetTimelineDerivation.derive`'s `tomorrowFirst` branch — without
+     * the 7-day lookahead, viewing the widget on Friday with no Sat/Sun classes
+     * collapses to "no more classes" instead of surfacing Monday's first class.
+     */
     private fun computeTomorrowFirst(
         courses: List<Course>,
         todayWeekday: Int,
-    ): Pair<String?, String?> {
-        val tomorrowWeekday = if (todayWeekday >= 7) 1 else todayWeekday + 1
+    ): TomorrowFirst? {
         val order = AppConstants.Periods.chronologicalOrder
-        val course = courses
-            .filter { it.schedule.containsKey(tomorrowWeekday) }
-            .minByOrNull { c ->
-                c.schedule[tomorrowWeekday]!!
-                    .minByOrNull { order.indexOf(it) }
-                    ?.let { order.indexOf(it) } ?: Int.MAX_VALUE
-            } ?: return null to null
-        val firstPeriodId = course.schedule[tomorrowWeekday]!!
-            .minByOrNull { order.indexOf(it) }!!
-        return course.displayName to AppConstants.PeriodTimes.mapping[firstPeriodId]?.first
+        for (offset in 1..7) {
+            val target = ((todayWeekday - 1 + offset) % 7) + 1
+            val candidates = courses.mapNotNull { course ->
+                val periods = course.schedule[target] ?: return@mapNotNull null
+                val firstPeriod = periods.minByOrNull { order.indexOf(it) } ?: return@mapNotNull null
+                Triple(course, target, firstPeriod)
+            }
+            val pick = candidates.minByOrNull { order.indexOf(it.third) } ?: continue
+            return TomorrowFirst(
+                courseNo = pick.first.courseNo,
+                weekday = pick.second,
+                periodId = pick.third,
+            )
+        }
+        return null
     }
 }
