@@ -176,8 +176,8 @@ class HomeViewModel @Inject constructor(
     )
     val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
 
-    private val _selectedCourse = MutableStateFlow<Course?>(null)
-    val selectedCourse: StateFlow<Course?> = _selectedCourse
+    private val _selectedCourse = MutableStateFlow<SelectedCourseInfo?>(null)
+    val selectedCourse: StateFlow<SelectedCourseInfo?> = _selectedCourse
 
     private val _syncCompleteEvent = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
@@ -592,8 +592,8 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun selectCourse(course: Course?) {
-        _selectedCourse.value = course
+    fun selectCourse(info: SelectedCourseInfo?) {
+        _selectedCourse.value = info
     }
 
     // 翹課 feature disabled — replaced by the "已忽略" homework flow. Kept as
@@ -641,3 +641,10 @@ class HomeViewModel @Inject constructor(
         prefs.homeSections = _sections.value
     }
 }
+
+/**
+ * Selection context for the Home detail dialog. Carries the slot-resolved
+ * classroom so the popup renders the room for the tapped period only, not
+ * the union across the whole day's split rooms.
+ */
+data class SelectedCourseInfo(val course: Course, val classroom: String)

@@ -258,8 +258,10 @@ fun HomeScreen(
                             hasUnfinishedAssignment = hasUnfinishedAssignment,
                             showAbsoluteTime = appState.showAbsoluteAssignmentTime,
                             invertDirection = appState.invertSliderDirection,
-                            onCourseClick = {
-                                if (!isEditing) viewModel.selectCourse(it)
+                            onCourseClick = { course, classroom ->
+                                if (!isEditing) {
+                                    viewModel.selectCourse(SelectedCourseInfo(course, classroom))
+                                }
                             },
                             onAssignmentClick = {
                                 if (!isEditing) openAssignmentInMoodle(context, it)
@@ -304,14 +306,15 @@ fun HomeScreen(
         ComingSoonDialog(onDismiss = { showComingSoon = false })
     }
 
-    selectedCourse?.let { course ->
+    selectedCourse?.let { info ->
         // Cache per courseNo so re-running the linear filter every parent
         // recomposition (any state tick while the dialog is open) goes away.
-        val dialogAssignments = remember(course.courseNo, upcomingAssignments) {
-            viewModel.assignmentsFor(course.courseNo)
+        val dialogAssignments = remember(info.course.courseNo, upcomingAssignments) {
+            viewModel.assignmentsFor(info.course.courseNo)
         }
         CourseDetailDialog(
-            course = course,
+            course = info.course,
+            classroom = info.classroom,
             assignments = dialogAssignments,
             onDismiss = { viewModel.selectCourse(null) }
         )
@@ -436,7 +439,7 @@ private fun HomeSectionContent(
     hasUnfinishedAssignment: (String) -> Boolean,
     showAbsoluteTime: Boolean,
     invertDirection: Boolean,
-    onCourseClick: (Course) -> Unit,
+    onCourseClick: (Course, String) -> Unit,
     onAssignmentClick: (Assignment) -> Unit,
     onToggleIgnore: (Assignment) -> Unit,
     onMarkCompleted: (Assignment) -> Unit,
@@ -573,6 +576,7 @@ private fun HomeSectionContent(
 @Composable
 private fun CourseDetailDialog(
     course: Course,
+    classroom: String,
     assignments: List<Assignment>,
     onDismiss: () -> Unit
 ) {
@@ -586,7 +590,7 @@ private fun CourseDetailDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
-                    stringResource(R.string.course_classroom_value, Course.dedupRooms(course.classroom)),
+                    stringResource(R.string.course_classroom_value, classroom),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(

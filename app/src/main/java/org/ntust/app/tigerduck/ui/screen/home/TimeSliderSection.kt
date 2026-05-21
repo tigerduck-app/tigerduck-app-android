@@ -92,7 +92,7 @@ fun TimeSliderSection(
     isLoggedIn: Boolean = true,
     initialLoadComplete: Boolean = true,
     onSkipCourse: (Course, Date) -> Unit = { _, _ -> },
-    onSelectCourse: (Course) -> Unit
+    onSelectCourse: (Course, String) -> Unit
 ) {
     val viewModel = remember { TimeSliderViewModel() }
 
@@ -194,7 +194,7 @@ private fun CourseTimeCard(
     state: CourseState,
     skippedDates: Map<String, List<String>>,
     onSkipCourse: (Course, Date) -> Unit,
-    onSelect: (Course) -> Unit
+    onSelect: (Course, String) -> Unit
 ) {
     val isoFmt = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
     val isSkippedFor: (CourseTimeSlot) -> Boolean = { slot ->
@@ -231,7 +231,7 @@ private fun CourseTimeCard(
                         alpha = 1f,
                         isSkipped = isSkippedFor(state.slot),
                         // onSkipToggle = { onSkipCourse(state.slot.course, state.slot.date) },
-                        onClick = { onSelect(state.slot.course) },
+                        onClick = { onSelect(state.slot.course, state.slot.classroom) },
                     )
                 }
 
@@ -241,7 +241,7 @@ private fun CourseTimeCard(
                             slot = it, alpha = 0.8f,
                             isSkipped = isSkippedFor(it),
                             // onSkipToggle = { onSkipCourse(it.course, it.date) },
-                            onClick = { onSelect(it.course) },
+                            onClick = { onSelect(it.course, it.classroom) },
                         )
                     }
                     state.next?.let {
@@ -249,7 +249,7 @@ private fun CourseTimeCard(
                             slot = it, alpha = 0.8f,
                             isSkipped = isSkippedFor(it),
                             // onSkipToggle = { onSkipCourse(it.course, it.date) },
-                            onClick = { onSelect(it.course) },
+                            onClick = { onSelect(it.course, it.classroom) },
                         )
                     }
                 }
@@ -259,7 +259,7 @@ private fun CourseTimeCard(
                         slot = state.next, alpha = 0.8f,
                         isSkipped = isSkippedFor(state.next),
                         // onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
-                        onClick = { onSelect(state.next.course) },
+                        onClick = { onSelect(state.next.course, state.next.classroom) },
                     )
                 }
 
@@ -268,7 +268,7 @@ private fun CourseTimeCard(
                         slot = state.previous, alpha = 0.8f,
                         isSkipped = isSkippedFor(state.previous),
                         // onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
-                        onClick = { onSelect(state.previous.course) },
+                        onClick = { onSelect(state.previous.course, state.previous.classroom) },
                     )
                 }
             }
