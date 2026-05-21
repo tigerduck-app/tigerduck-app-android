@@ -149,7 +149,13 @@ val CourseTimeSlot.classroom: String
     }
 
 sealed class CourseState {
-    data class InClass(val slot: CourseTimeSlot) : CourseState()
+    /**
+     * One or more slots whose [start, end] currently contains the selected
+     * time. 衝堂 (overlapping concurrent classes) produces a list with >1
+     * entry; each must remain individually selectable so callers can open
+     * the right slot's per-period room and assignments.
+     */
+    data class InClass(val slots: List<CourseTimeSlot>) : CourseState()
     data class Between(val previous: CourseTimeSlot?, val next: CourseTimeSlot?) : CourseState()
     data class BeforeFirst(val next: CourseTimeSlot) : CourseState()
     data class AfterLast(val previous: CourseTimeSlot) : CourseState()

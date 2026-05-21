@@ -226,13 +226,17 @@ private fun CourseTimeCard(
             // + "翹課" indicator are inert. Re-enable by restoring the commented lines.
             when (state) {
                 is CourseState.InClass -> {
-                    SlotCard(
-                        slot = state.slot,
-                        alpha = 1f,
-                        isSkipped = isSkippedFor(state.slot),
-                        // onSkipToggle = { onSkipCourse(state.slot.course, state.slot.date) },
-                        onClick = { onSelect(state.slot.course, state.slot.classroom) },
-                    )
+                    // 衝堂: render one card per overlapping slot so each
+                    // can be tapped individually for its own room/assignments.
+                    state.slots.forEach { slot ->
+                        SlotCard(
+                            slot = slot,
+                            alpha = 1f,
+                            isSkipped = isSkippedFor(slot),
+                            // onSkipToggle = { onSkipCourse(slot.course, slot.date) },
+                            onClick = { onSelect(slot.course, slot.classroom) },
+                        )
+                    }
                 }
 
                 is CourseState.Between -> {
@@ -644,7 +648,7 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
 
                 // Glow dot
                 val glowColor = when (val s = viewModel.currentCourseState) {
-                    is CourseState.InClass -> TigerDuckTheme.courseColorVibrant(s.slot.course.courseNo)
+                    is CourseState.InClass -> TigerDuckTheme.courseColorVibrant(s.slots.first().course.courseNo)
                     else -> Color.White
                 }
                 val gs = TimeSliderViewModel.GLOW_DOT_SIZE

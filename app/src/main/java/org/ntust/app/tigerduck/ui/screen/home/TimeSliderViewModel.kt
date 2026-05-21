@@ -195,10 +195,12 @@ class TimeSliderViewModel {
     }
 
     fun courseState(at: Date): CourseState {
-        for (slot in timeSlots) {
-            if (at >= slot.start && at <= slot.end) {
-                return CourseState.InClass(slot)
-            }
+        // Collect every slot currently containing `at` so 衝堂 overlaps
+        // surface all active courses, not just the first match. timeSlots
+        // is sorted by start, so the resulting list mirrors lane order.
+        val active = timeSlots.filter { at >= it.start && at <= it.end }
+        if (active.isNotEmpty()) {
+            return CourseState.InClass(active)
         }
         val previous = timeSlots.lastOrNull { it.end <= at }
         val next = timeSlots.firstOrNull { it.start > at }
