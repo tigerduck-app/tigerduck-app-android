@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.widget.content
 
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -177,6 +178,7 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                 val tomorrowPeriodId = state.tomorrowFirstCoursePeriodId
                 val tomorrowStartTime = tomorrowPeriodId
                     ?.let { AppConstants.PeriodTimes.mapping[it]?.first }
+                val tomorrowWeekday = state.tomorrowFirstCourseWeekday
                 Spacer(GlanceModifier.defaultWeight())
                 Column(horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
                     Text(
@@ -191,8 +193,11 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                     )
                     if (tomorrowCourse != null && !tomorrowStartTime.isNullOrEmpty()) {
                         Text(
-                            text = context.getString(
-                                R.string.widget_tomorrow_time, tomorrowStartTime,
+                            text = futureCourseTimeLabel(
+                                context = context,
+                                todayWeekday = state.currentWeekday,
+                                futureWeekday = tomorrowWeekday,
+                                startTime = tomorrowStartTime,
                             ),
                             style = TextStyle(
                                 color = ColorProvider(colors.onSurfaceVariant),
@@ -276,16 +281,19 @@ private fun FullLayout(state: WidgetState, colors: WidgetColors, tapAction: Acti
 
             state.tomorrowFirstCourseNo != null -> {
                 // Mirrors iOS `WidgetTimelineDerivation` `.tomorrowFirst` —
-                // same card layout as next-today, just with a "Tomorrow"
-                // label and resolved against the picked future weekday so the
-                // classroom string reflects that day's per-period room.
+                // same card layout as next-today. `computeTomorrowFirst` scans
+                // up to 7 weekdays ahead, so the label switches to the short
+                // weekday name (e.g., "Mon") when the picked day isn't
+                // literally tomorrow (Fri → Mon after a weekend with no
+                // classes). Classroom resolves against that picked day so the
+                // per-period room reflects it.
                 val course = state.courses.find { it.courseNo == state.tomorrowFirstCourseNo }
                 val weekday = state.tomorrowFirstCourseWeekday
                 if (course != null && weekday != null) {
                     NextCard(
                         course = course,
                         weekday = weekday,
-                        label = context.getString(R.string.widget_tomorrow),
+                        label = futureDayLabel(context, state.currentWeekday, weekday),
                         colors = colors,
                     )
                 }
@@ -490,6 +498,45 @@ private fun NextCard(
             style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 13.sp),
         )
     }
+}
+
+/**
+ * "Tomorrow" only when [futureWeekday] is literally the calendar day after
+ * [todayWeekday]; otherwise the short weekday name. `computeTomorrowFirst`
+ * scans up to 7 weekdays ahead, so a Friday-afternoon viewer with no Sat/Sun
+ * classes sees Monday's first class — labeling it "Tomorrow" would mislead.
+ */
+private fun futureDayLabel(context: Context, todayWeekday: Int, futureWeekday: Int): String {
+    val literalTomorrow = (todayWeekday % 7) + 1
+    return if (futureWeekday == literalTomorrow) {
+        context.getString(R.string.widget_tomorrow)
+    } else {
+        context.getString(weekdayShortRes(futureWeekday))
+    }
+}
+
+private fun futureCourseTimeLabel(
+    context: Context,
+    todayWeekday: Int,
+    futureWeekday: Int?,
+    startTime: String,
+): String {
+    val literalTomorrow = (todayWeekday % 7) + 1
+    return if (futureWeekday == null || futureWeekday == literalTomorrow) {
+        context.getString(R.string.widget_tomorrow_time, startTime)
+    } else {
+        "${context.getString(weekdayShortRes(futureWeekday))} $startTime"
+    }
+}
+
+private fun weekdayShortRes(weekday: Int): Int = when (weekday) {
+    1 -> R.string.weekday_mon_short
+    2 -> R.string.weekday_tue_short
+    3 -> R.string.weekday_wed_short
+    4 -> R.string.weekday_thu_short
+    5 -> R.string.weekday_fri_short
+    6 -> R.string.weekday_sat_short
+    else -> R.string.weekday_sun_short
 }
 
 @Composable
