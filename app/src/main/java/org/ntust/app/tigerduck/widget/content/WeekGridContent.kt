@@ -206,6 +206,14 @@ private fun ScheduleCellBox(
             blockHeight = blockHeight,
             blockWidth = blockWidth,
         )
+
+        is ScheduleCell.MultiConflict -> MultiConflictCell(
+            cell = cell,
+            colors = colors,
+            courseColors = courseColors,
+            ongoingCourseNos = ongoingCourseNos,
+            blockHeight = blockHeight,
+        )
     }
 }
 
@@ -373,6 +381,93 @@ private fun ConflictCell(
                 boxBottomPadding = rowHeight * (cell.combinedSpan - cell.offsetB - cell.spanB),
                 barWidth = barWidth,
             )
+        }
+    }
+}
+
+/**
+ * Renders a 3+ course cluster as side-by-side lane columns. Each lane stacks
+ * its members vertically with empty gaps preserved as transparent spacers, so
+ * the in-app class-table's MultiConflictStart layout is mirrored on widgets
+ * without needing a 3-tile bitmap path.
+ */
+@Composable
+private fun MultiConflictCell(
+    cell: ScheduleCell.MultiConflict,
+    colors: WidgetColors,
+    courseColors: Map<String, Color>,
+    ongoingCourseNos: List<String>,
+    blockHeight: Dp,
+) {
+    val rowHeight = blockHeight / cell.combinedSpan.coerceAtLeast(1)
+    val textColor: Color = if (colors.isDark) Color.White else Color(0xFF1C1C1E)
+
+    fun tileBg(course: Course): Color {
+        val base = widgetCourseColor(course, courseColors, colors.isDark)
+        return when {
+            course.courseNo in ongoingCourseNos -> colors.highlight
+            colors.isDark -> base
+            else -> base.copy(alpha = 0.55f)
+        }
+    }
+
+    Box(
+        modifier = GlanceModifier
+            .fillMaxWidth()
+            .height(blockHeight)
+            .padding(vertical = 1.dp),
+    ) {
+        Row(modifier = GlanceModifier.fillMaxSize()) {
+            for (laneIdx in 0 until cell.laneCount) {
+                val laneMembers = cell.members
+                    .filter { it.lane == laneIdx }
+                    .sortedBy { it.offset }
+                Column(
+                    modifier = GlanceModifier
+                        .defaultWeight()
+                        .fillMaxHeight()
+                        .padding(horizontal = 0.5.dp),
+                ) {
+                    var cursor = 0
+                    laneMembers.forEach { member ->
+                        if (member.offset > cursor) {
+                            Box(modifier = GlanceModifier.height(rowHeight * (member.offset - cursor))) {}
+                        }
+                        val ongoing = member.course.courseNo in ongoingCourseNos
+                        val tileTextColor = if (ongoing) Color.White else textColor
+                        Box(
+                            modifier = GlanceModifier
+                                .fillMaxWidth()
+                                .height(rowHeight * member.span)
+                                .padding(vertical = 0.5.dp),
+                        ) {
+                            Box(
+                                modifier = GlanceModifier
+                                    .fillMaxSize()
+                                    .background(ColorProvider(tileBg(member.course)))
+                                    .cornerRadius(4.dp)
+                                    .padding(1.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = member.course.displayName,
+                                    style = TextStyle(
+                                        color = ColorProvider(tileTextColor),
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        textAlign = TextAlign.Center,
+                                    ),
+                                    maxLines = if (member.span >= 2) 3 else 2,
+                                )
+                            }
+                        }
+                        cursor = member.offset + member.span
+                    }
+                    if (cursor < cell.combinedSpan) {
+                        Box(modifier = GlanceModifier.height(rowHeight * (cell.combinedSpan - cursor))) {}
+                    }
+                }
+            }
         }
     }
 }
