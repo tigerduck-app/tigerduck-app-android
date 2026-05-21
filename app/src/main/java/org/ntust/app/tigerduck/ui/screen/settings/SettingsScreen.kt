@@ -35,6 +35,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.component.ContentCard
@@ -69,6 +70,7 @@ fun SettingsScreen(
 
     var showNtustLoginSheet by remember { mutableStateOf(false) }
     var showLibraryLoginSheet by remember { mutableStateOf(false) }
+    var showLibraryWarning by remember { mutableStateOf(false) }
 
     // Auto-dismiss dialogs when login succeeds
     LaunchedEffect(isNtustLoggedIn) {
@@ -364,7 +366,22 @@ fun SettingsScreen(
             item { SectionHeader(stringResource(R.string.settings_section_other_settings)) }
             item {
                 ContentCard {
-                    SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
+                    Column {
+                        SettingsToggleRow(
+                            stringResource(R.string.settings_library_related_features),
+                            libraryEnabled,
+                        ) { enabled ->
+                            if (enabled) {
+                                showLibraryWarning = true
+                            } else {
+                                viewModel.appState.libraryFeatureEnabled = false
+                                viewModel.appState.configuredTabs =
+                                    viewModel.appState.configuredTabs.filter { !it.isLibraryRelated }
+                            }
+                        }
+                        HorizontalDivider()
+                        SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
+                    }
                 }
             }
 
@@ -422,6 +439,22 @@ fun SettingsScreen(
             loginError = libLoginError,
             onLogin = { u, p -> viewModel.loginLibrary(u, p) },
             onDismiss = { showLibraryLoginSheet = false },
+        )
+    }
+
+    if (showLibraryWarning) {
+        LibraryWarningDialog(
+            onConfirm = {
+                viewModel.appState.libraryFeatureEnabled = true
+                if (!viewModel.appState.configuredTabs.contains(AppFeature.LIBRARY) &&
+                    viewModel.appState.configuredTabs.size < 4
+                ) {
+                    viewModel.appState.configuredTabs =
+                        viewModel.appState.configuredTabs + AppFeature.LIBRARY
+                }
+                showLibraryWarning = false
+            },
+            onDismiss = { showLibraryWarning = false },
         )
     }
 
