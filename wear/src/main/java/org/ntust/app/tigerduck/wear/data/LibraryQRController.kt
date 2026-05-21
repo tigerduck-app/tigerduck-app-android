@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.wear.data
 
 import android.graphics.Bitmap
+import android.graphics.Rect
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,6 +29,16 @@ class LibraryQRController(
 ) {
     private val _qrBitmap = MutableStateFlow<Bitmap?>(null)
     val qrBitmap: StateFlow<Bitmap?> = _qrBitmap.asStateFlow()
+
+    /**
+     * Bounding box of the actual QR module pattern within [qrBitmap],
+     * excluding the embedded quiet zone and zxing's floor-rounding leftover
+     * white border. The fullscreen view draws only this sub-rect at the
+     * brackets-indicated size so what the user sees lines up with the
+     * QR-padding settings preview.
+     */
+    private val _qrPatternBounds = MutableStateFlow<Rect?>(null)
+    val qrPatternBounds: StateFlow<Rect?> = _qrPatternBounds.asStateFlow()
 
     private val _countdown = MutableStateFlow(0)
     val countdown: StateFlow<Int> = _countdown.asStateFlow()
@@ -57,6 +68,7 @@ class LibraryQRController(
     fun reset() {
         stop()
         _qrBitmap.value = null
+        _qrPatternBounds.value = null
         _countdown.value = 0
         _error.value = null
     }
@@ -66,10 +78,12 @@ class LibraryQRController(
         _error.value = null
         try {
             val qrData = service.generateQRCode()
-            val bitmap = withContext(Dispatchers.Default) {
-                LibraryQRRenderer.render(qrData, qrSidePx)
+            val rendered = withContext(Dispatchers.Default) {
+                val bmp = LibraryQRRenderer.render(qrData, qrSidePx)
+                bmp to LibraryQRRenderer.patternBounds(bmp)
             }
-            _qrBitmap.value = bitmap
+            _qrBitmap.value = rendered.first
+            _qrPatternBounds.value = rendered.second
             startCountdown(qrSidePx)
         } catch (e: Exception) {
             // Surface the real reason (network failure, server message, etc.)
@@ -80,6 +94,7 @@ class LibraryQRController(
                 ?: e::class.simpleName
                 ?: "QR fetch failed"
             _qrBitmap.value = null
+            _qrPatternBounds.value = null
         } finally {
             _isLoading.value = false
         }

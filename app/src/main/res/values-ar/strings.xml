@@ -184,6 +184,8 @@
     <string name="course_card_assignment_content_description">يوجد واجب</string>
     <string name="course_card_current_class">المحاضرة الحالية</string>
     <string name="course_classroom_value">القاعة: %1$s</string>
+    <string name="course_color_picker_custom_badge">مخصص</string>
+    <string name="course_color_picker_custom_label">لون مخصص</string>
     <string name="course_color_picker_reset_action">استعادة اللون الافتراضي</string>
     <string name="course_credits_value">الساعات المعتمدة: %1$d</string>
     <string name="course_detail_classroom_label">الفصل الدراسي</string>
@@ -564,8 +566,8 @@
     <string name="settings_push_server_nav_label">دفع الخادم (تجريبي)</string>
     <string name="settings_remember_bulletin_filter">تذكر مرشحات النشرة</string>
     <string name="settings_reset_course_colors">إعادة تعيين ألوان المقررات</string>
-    <string name="settings_reset_course_colors_confirm_message">سيؤدي ذلك إلى إعادة توزيع ألوان الجدول الدراسي عشوائيًا باستخدام الإعدادات المسبقة الافتراضية.</string>
-    <string name="settings_reset_course_colors_confirm_title">هل تريد إعادة تعيين ألوان الجدول الدراسي؟</string>
+    <string name="settings_reset_course_colors_confirm_message">سيُسنَد لكل مقرر لون فريد جديد — من اللوحة المحددة أولاً، ثم عشوائياً عند نفاد اللوحة.</string>
+    <string name="settings_reset_course_colors_confirm_title">هل تريد إعادة تعيين ألوان المقررات؟</string>
     <string name="settings_screen_rotation">تدوير الشاشة</string>
     <string name="settings_section_abbreviation">اختصارات</string>
     <string name="settings_section_about">حول</string>
@@ -615,6 +617,10 @@
     <string name="watch_just_now">Just now</string>
     <string name="watch_last_synced_never">Never synced</string>
     <string name="watch_last_synced_relative">آخر مزامنة %1$s</string>
+    <string name="watch_library_loading">Generating…</string>
+    <string name="watch_library_refresh_in_seconds">%lld s</string>
+    <string name="watch_library_signin_prompt">Sign in on iPhone</string>
+    <string name="watch_library_title">Library</string>
     <string name="watch_next">NEXT</string>
     <string name="watch_next_label">التالي: %1$s · %2$s</string>
     <string name="watch_no_courses_synced">لا توجد مقررات متزامنة.</string>
@@ -627,6 +633,7 @@
     <string name="watch_padding_decrease_cd">تقليل المسافة</string>
     <string name="watch_padding_increase_cd">زيادة المسافة</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_qr_padding">Library QR padding</string>
     <string name="watch_relative_days_ago_short">%1$d d ago</string>
     <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_relative_minutes_ago_short">%1$d min ago</string>

@@ -184,6 +184,8 @@
     <string name="course_card_assignment_content_description">과제 있음</string>
     <string name="course_card_current_class">현재 수업</string>
     <string name="course_classroom_value">강의실: %1$s</string>
+    <string name="course_color_picker_custom_badge">사용자 지정</string>
+    <string name="course_color_picker_custom_label">사용자 지정 색상</string>
     <string name="course_color_picker_reset_action">기본 색상으로 복원</string>
     <string name="course_credits_value">학점: %1$d</string>
     <string name="course_detail_classroom_label">강의실</string>
@@ -563,9 +565,9 @@
     <string name="settings_privacy_policy">개인정보 처리방침</string>
     <string name="settings_push_server_nav_label">서버 푸시 (실험적)</string>
     <string name="settings_remember_bulletin_filter">게시판 필터 기억</string>
-    <string name="settings_reset_course_colors">수업 색상 재설정</string>
-    <string name="settings_reset_course_colors_confirm_message">기본 프리셋을 사용해 시간표 색상이 무작위로 다시 할당됩니다.</string>
-    <string name="settings_reset_course_colors_confirm_title">시간표 색상을 재설정할까요?</string>
+    <string name="settings_reset_course_colors">수업 색상 재할당</string>
+    <string name="settings_reset_course_colors_confirm_message">모든 수업에 고유한 새 색상을 할당합니다. 먼저 프리셋 팔레트에서, 팔레트가 부족하면 무작위로 생성됩니다.</string>
+    <string name="settings_reset_course_colors_confirm_title">수업 색상을 재할당할까요?</string>
     <string name="settings_screen_rotation">화면 회전</string>
     <string name="settings_section_abbreviation">약어</string>
     <string name="settings_section_about">정보</string>
@@ -615,6 +617,10 @@
     <string name="watch_just_now">방금 전</string>
     <string name="watch_last_synced_never">Never synced</string>
     <string name="watch_last_synced_relative">마지막 동기화: %1$s</string>
+    <string name="watch_library_loading">Generating…</string>
+    <string name="watch_library_refresh_in_seconds">%lld s</string>
+    <string name="watch_library_signin_prompt">Sign in on iPhone</string>
+    <string name="watch_library_title">Library</string>
     <string name="watch_next">NEXT</string>
     <string name="watch_next_label">다음: %1$s · %2$s</string>
     <string name="watch_no_courses_synced">동기화된 강의가 없습니다.</string>
@@ -627,6 +633,7 @@
     <string name="watch_padding_decrease_cd">여백 줄이기</string>
     <string name="watch_padding_increase_cd">여백 늘리기</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_qr_padding">Library QR padding</string>
     <string name="watch_relative_days_ago_short">%1$d일 전</string>
     <string name="watch_relative_hours_ago_short">%1$d시간 전</string>
     <string name="watch_relative_minutes_ago_short">%1$d분 전</string>

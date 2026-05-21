@@ -184,6 +184,8 @@
     <string name="course_card_assignment_content_description">Ödev var</string>
     <string name="course_card_current_class">Mevcut ders</string>
     <string name="course_classroom_value">Derslik: %1$s</string>
+    <string name="course_color_picker_custom_badge">Özel</string>
+    <string name="course_color_picker_custom_label">Özel renk</string>
     <string name="course_color_picker_reset_action">Varsayılan rengi geri yükle</string>
     <string name="course_credits_value">Kredi: %1$d</string>
     <string name="course_detail_classroom_label">Derslik</string>
@@ -563,9 +565,9 @@
     <string name="settings_privacy_policy">Gizlilik politikası</string>
     <string name="settings_push_server_nav_label">Sunucu push (Deneysel)</string>
     <string name="settings_remember_bulletin_filter">Bülten filtrelerini hatırla</string>
-    <string name="settings_reset_course_colors">Ders renklerini sıfırla</string>
-    <string name="settings_reset_course_colors_confirm_message">Bu işlem, ders programı renklerini varsayılan ön ayarları kullanarak rastgele yeniden atayacaktır.</string>
-    <string name="settings_reset_course_colors_confirm_title">Ders programı renkleri sıfırlansın mı?</string>
+    <string name="settings_reset_course_colors">Ders renklerini yeniden ata</string>
+    <string name="settings_reset_course_colors_confirm_message">Her ders yeni ve benzersiz bir renk alır — önce hazır paletten, palet bitince rastgele.</string>
+    <string name="settings_reset_course_colors_confirm_title">Ders renkleri yeniden atansın mı?</string>
     <string name="settings_screen_rotation">Ekran döndürme</string>
     <string name="settings_section_abbreviation">Kısaltmalar</string>
     <string name="settings_section_about">Hakkında</string>
@@ -615,6 +617,10 @@
     <string name="watch_just_now">Just now</string>
     <string name="watch_last_synced_never">Never synced</string>
     <string name="watch_last_synced_relative">Son eşitleme %1$s</string>
+    <string name="watch_library_loading">Generating…</string>
+    <string name="watch_library_refresh_in_seconds">%lld s</string>
+    <string name="watch_library_signin_prompt">Sign in on iPhone</string>
+    <string name="watch_library_title">Library</string>
     <string name="watch_next">NEXT</string>
     <string name="watch_next_label">Sonraki: %1$s · %2$s</string>
     <string name="watch_no_courses_synced">Eşitlenmiş ders yok.</string>
@@ -627,6 +633,7 @@
     <string name="watch_padding_decrease_cd">Boşluğu azalt</string>
     <string name="watch_padding_increase_cd">Boşluğu artır</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_qr_padding">Library QR padding</string>
     <string name="watch_relative_days_ago_short">%1$d d ago</string>
     <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_relative_minutes_ago_short">%1$d min ago</string>

@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit
 fun SettingsListScreen(
     snapshot: WatchSnapshot,
     onPaddingClick: () -> Unit,
+    onQrPaddingClick: () -> Unit,
 ) {
     val listState = rememberScalingLazyListState()
     val pad = LocalScreenPadding.current
@@ -64,6 +65,17 @@ fun SettingsListScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.watch_screen_padding),
+                        modifier = Modifier.padding(vertical = 8.dp),
+                    )
+                }
+            }
+            item {
+                FilledTonalButton(
+                    onClick = onQrPaddingClick,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = stringResource(R.string.watch_qr_padding),
                         modifier = Modifier.padding(vertical = 8.dp),
                     )
                 }

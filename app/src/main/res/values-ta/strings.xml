@@ -184,6 +184,8 @@
     <string name="course_card_assignment_content_description">ஒப்படைப்பு உள்ளது</string>
     <string name="course_card_current_class">தற்போதைய வகுப்பு</string>
     <string name="course_classroom_value">வகுப்பறை: %1$s</string>
+    <string name="course_color_picker_custom_badge">தனிப்பயன்</string>
+    <string name="course_color_picker_custom_label">தனிப்பயன் வண்ணம்</string>
     <string name="course_color_picker_reset_action">இயல்புநிலை நிறத்தை மீட்டமை</string>
     <string name="course_credits_value">கிரெடிட்கள்: %1$d</string>
     <string name="course_detail_classroom_label">வகுப்பறை</string>
@@ -563,9 +565,9 @@
     <string name="settings_privacy_policy">தனியுரிமை கொள்கை</string>
     <string name="settings_push_server_nav_label">சேவையக புஷ் (சோதனை முறை)</string>
     <string name="settings_remember_bulletin_filter">அறிவிப்பு வடிகட்டிகளை நினைவில் வை</string>
-    <string name="settings_reset_course_colors">வகுப்பு நிறங்களை மீட்டமை</string>
-    <string name="settings_reset_course_colors_confirm_message">இது இயல்புநிலை முன்னமைவுகளைப் பயன்படுத்தி வகுப்பு அட்டவணை நிறங்களை சீரற்று மீண்டும் ஒதுக்கும்.</string>
-    <string name="settings_reset_course_colors_confirm_title">வகுப்பு அட்டவணை நிறங்களை மீட்டமைக்கவா?</string>
+    <string name="settings_reset_course_colors">பாடநெறி வண்ணங்களை மீண்டும் ஒதுக்குங்கள்</string>
+    <string name="settings_reset_course_colors_confirm_message">ஒவ்வொரு பாடநெறிக்கும் புதிய, தனித்துவமான வண்ணம் ஒதுக்கப்படும் — முதலில் முன்னமைப்பு வண்ணப்பலகையில் இருந்து, பின்னர் அது தீர்ந்துவிட்டால் எழுந்தாற்போல்.</string>
+    <string name="settings_reset_course_colors_confirm_title">பாடநெறி வண்ணங்களை மீண்டும் ஒதுக்கவா?</string>
     <string name="settings_screen_rotation">திரை சுழற்சி</string>
     <string name="settings_section_abbreviation">சுருக்கங்கள்</string>
     <string name="settings_section_about">பற்றி</string>
@@ -615,6 +617,10 @@
     <string name="watch_just_now">Just now</string>
     <string name="watch_last_synced_never">Never synced</string>
     <string name="watch_last_synced_relative">கடைசியாக ஒத்திசைக்கப்பட்டது %1$s</string>
+    <string name="watch_library_loading">Generating…</string>
+    <string name="watch_library_refresh_in_seconds">%lld s</string>
+    <string name="watch_library_signin_prompt">Sign in on iPhone</string>
+    <string name="watch_library_title">Library</string>
     <string name="watch_next">NEXT</string>
     <string name="watch_next_label">அடுத்து: %1$s · %2$s</string>
     <string name="watch_no_courses_synced">ஒத்திசைக்கப்பட்ட பாடங்கள் இல்லை.</string>
@@ -627,6 +633,7 @@
     <string name="watch_padding_decrease_cd">இடைவெளியைக் குறைக்க</string>
     <string name="watch_padding_increase_cd">இடைவெளியைக் கூட்ட</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_qr_padding">Library QR padding</string>
     <string name="watch_relative_days_ago_short">%1$d d ago</string>
     <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_relative_minutes_ago_short">%1$d min ago</string>

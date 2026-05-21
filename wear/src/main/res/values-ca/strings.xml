@@ -184,6 +184,8 @@
     <string name="course_card_assignment_content_description">Té tasca</string>
     <string name="course_card_current_class">Classe actual</string>
     <string name="course_classroom_value">Aula: %1$s</string>
+    <string name="course_color_picker_custom_badge">Personalitzat</string>
+    <string name="course_color_picker_custom_label">Color personalitzat</string>
     <string name="course_color_picker_reset_action">Restaura el color predeterminat</string>
     <string name="course_credits_value">Crèdits: %1$d</string>
     <string name="course_detail_classroom_label">Aula</string>
@@ -563,9 +565,9 @@
     <string name="settings_privacy_policy">Política de privadesa</string>
     <string name="settings_push_server_nav_label">Push del servidor (experimental)</string>
     <string name="settings_remember_bulletin_filter">Recordeu els filtres de butlletins</string>
-    <string name="settings_reset_course_colors">Restableix els colors dels cursos</string>
-    <string name="settings_reset_course_colors_confirm_message">Els colors de l\'horari de classes es reassignaran aleatòriament usant els colors predeterminats.</string>
-    <string name="settings_reset_course_colors_confirm_title">Voleu restablir els colors de l\'horari de classes?</string>
+    <string name="settings_reset_course_colors">Reassigna els colors dels cursos</string>
+    <string name="settings_reset_course_colors_confirm_message">A cada curs se li assignarà un color nou i únic — primer de la paleta preestablerta i, després, aleatòriament quan s\'esgoti.</string>
+    <string name="settings_reset_course_colors_confirm_title">Reassigna els colors dels cursos?</string>
     <string name="settings_screen_rotation">Rotació de pantalla</string>
     <string name="settings_section_abbreviation">Abreviatures</string>
     <string name="settings_section_about">Quant a</string>
@@ -615,6 +617,10 @@
     <string name="watch_just_now">Just now</string>
     <string name="watch_last_synced_never">Never synced</string>
     <string name="watch_last_synced_relative">Última sincronització %1$s</string>
+    <string name="watch_library_loading">Generating…</string>
+    <string name="watch_library_refresh_in_seconds">%lld s</string>
+    <string name="watch_library_signin_prompt">Sign in on iPhone</string>
+    <string name="watch_library_title">Library</string>
     <string name="watch_next">NEXT</string>
     <string name="watch_next_label">Següent: %1$s · %2$s</string>
     <string name="watch_no_courses_synced">No hi ha cursos sincronitzats.</string>
@@ -627,6 +633,7 @@
     <string name="watch_padding_decrease_cd">Redueix el marge</string>
     <string name="watch_padding_increase_cd">Augmenta el marge</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_qr_padding">Library QR padding</string>
     <string name="watch_relative_days_ago_short">%1$d d ago</string>
     <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_relative_minutes_ago_short">%1$d min ago</string>

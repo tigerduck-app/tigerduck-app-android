@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -48,6 +49,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.ListHeader
@@ -61,6 +64,8 @@ import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.wear.BuildConfig
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.LibraryQRController
+import org.ntust.app.tigerduck.wear.data.ScheduleRepository
+import org.ntust.app.tigerduck.wear.data.SchedulePersistence
 import org.ntust.app.tigerduck.wear.data.WatchLibraryCredentialStore
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
@@ -132,14 +137,13 @@ private fun LoggedInState(username: String?) {
 
     var isFullscreen by remember { mutableStateOf(false) }
 
-    // Respect the user's configured screen padding (Settings → Padding) even
-    // in fullscreen. Round chassis clip the corners of an edge-to-edge square
-    // QR, and the padding is precisely the "content boundary" preview the
-    // settings screen draws.
-    val screenPadding = LocalScreenPadding.current
+    val qrPaddingRepo = remember(context) { ScheduleRepository.get(context) }
+    val qrPaddingDp by qrPaddingRepo.qrPaddingDpFlow.collectAsState(
+        initial = SchedulePersistence.DEFAULT_QR_PADDING_DP
+    )
     val minSideDp = minOf(config.screenWidthDp, config.screenHeightDp)
     val qrSideDp = if (isFullscreen) {
-        (minSideDp - 2 * screenPadding.value).coerceAtLeast(96f)
+        qrFullscreenSideDp(minSideDp, qrPaddingDp, config.isScreenRound)
     } else {
         (minSideDp * 0.55f).coerceIn(96f, 160f)
     }
@@ -151,6 +155,7 @@ private fun LoggedInState(username: String?) {
     val controller = remember(service) { LibraryQRController(service, scope) }
 
     val bitmap by controller.qrBitmap.collectAsState()
+    val patternBounds by controller.qrPatternBounds.collectAsState()
     val countdown by controller.countdown.collectAsState()
     val isLoading by controller.isLoading.collectAsState()
     val error by controller.error.collectAsState()
@@ -169,6 +174,7 @@ private fun LoggedInState(username: String?) {
     if (isFullscreen) {
         FullscreenQR(
             bitmap = bitmap,
+            patternBounds = patternBounds,
             qrSideDp = qrSideDp.dp,
             onExit = { isFullscreen = false },
         )
@@ -267,6 +273,7 @@ private fun NormalQR(
 @Composable
 private fun FullscreenQR(
     bitmap: android.graphics.Bitmap?,
+    patternBounds: android.graphics.Rect?,
     qrSideDp: androidx.compose.ui.unit.Dp,
     onExit: () -> Unit,
 ) {
@@ -298,12 +305,34 @@ private fun FullscreenQR(
         contentAlignment = Alignment.Center,
     ) {
         if (bitmap != null) {
+            // Draw only the pattern bounding box at qrSideDp so the rendered
+            // QR's edge matches what the QR-padding settings preview shows.
+            // The bitmap also contains a white quiet zone / floor-rounding
+            // border around the pattern; cropping via BitmapPainter's
+            // srcOffset/srcSize keeps that out of the displayed square. The
+            // surrounding white background still gives scanners a quiet zone.
+            val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
+            val rect = patternBounds
+            val painter = remember(imageBitmap, rect) {
+                if (rect == null || rect.isEmpty) {
+                    BitmapPainter(
+                        image = imageBitmap,
+                        filterQuality = FilterQuality.None,
+                    )
+                } else {
+                    BitmapPainter(
+                        image = imageBitmap,
+                        srcOffset = IntOffset(rect.left, rect.top),
+                        srcSize = IntSize(rect.width(), rect.height()),
+                        filterQuality = FilterQuality.None,
+                    )
+                }
+            }
             Image(
-                bitmap = bitmap.asImageBitmap(),
+                painter = painter,
                 contentDescription = stringResource(R.string.library_qr_content_description),
                 modifier = Modifier.size(qrSideDp),
                 contentScale = ContentScale.Fit,
-                filterQuality = FilterQuality.None,
             )
         } else {
             CircularProgressIndicator()
@@ -369,4 +398,28 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
+}
+
+/**
+ * Largest fullscreen-QR square side (in dp) that fits without being clipped by
+ * either the round chassis (corners) or the user's configured QR padding.
+ *
+ * On a round face the chassis caps the side at `diameter / √2` — pushing past
+ * that even with zero padding would clip the corners through the round mask.
+ * The configured padding is a flat per-side inset and only tightens the
+ * result when set large enough to drop below the chassis cap.
+ *
+ * Shared by [LoggedInState]'s fullscreen rendering and by
+ * `QRPaddingSettingsScreen`'s corner-bracket preview so both show the exact
+ * same square.
+ */
+internal fun qrFullscreenSideDp(
+    minScreenSideDp: Int,
+    qrPaddingDp: Int,
+    isScreenRound: Boolean,
+): Float {
+    val chassisLimit =
+        if (isScreenRound) minScreenSideDp / 1.41421356f else minScreenSideDp.toFloat()
+    val paddingLimit = (minScreenSideDp - 2 * qrPaddingDp).coerceAtLeast(0).toFloat()
+    return minOf(chassisLimit, paddingLimit).coerceAtLeast(96f)
 }

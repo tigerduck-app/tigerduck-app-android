@@ -184,6 +184,8 @@
     <string name="course_card_assignment_content_description">അസൈൻമെന്റ് ഉണ്ട്</string>
     <string name="course_card_current_class">നിലവിലെ ക്ലാസ്</string>
     <string name="course_classroom_value">ക്ലാസ്മുറി: %1$s</string>
+    <string name="course_color_picker_custom_badge">ഇഷ്ടാനുസൃതം</string>
+    <string name="course_color_picker_custom_label">ഇഷ്ടാനുസൃത നിറം</string>
     <string name="course_color_picker_reset_action">ഡിഫോൾട്ട് നിറം പുനഃസ്ഥാപിക്കുക</string>
     <string name="course_credits_value">ക്രെഡിറ്റുകൾ: %1$d</string>
     <string name="course_detail_classroom_label">ക്ലാസ്റൂം</string>
@@ -563,9 +565,9 @@
     <string name="settings_privacy_policy">സ്വകാര്യതാ നയം</string>
     <string name="settings_push_server_nav_label">സെർവർ പുഷ് (പരീക്ഷണാത്മകം)</string>
     <string name="settings_remember_bulletin_filter">ബുള്ളറ്റിൻ ഫിൽട്ടറുകൾ ഓർക്കുക</string>
-    <string name="settings_reset_course_colors">കോഴ്‌സ് നിറങ്ങൾ പുനഃക്രമീകരിക്കുക</string>
-    <string name="settings_reset_course_colors_confirm_message">ഇത് ഡിഫോൾട്ട് presets ഉപയോഗിച്ച് ക്ലാസ് ടൈംടേബിൾ നിറങ്ങൾ ക്രമരഹിതമായി പുനഃനിയോഗിക്കും.</string>
-    <string name="settings_reset_course_colors_confirm_title">ക്ലാസ് ടൈംടേബിൾ നിറങ്ങൾ പുനഃക്രമീകരിക്കണോ?</string>
+    <string name="settings_reset_course_colors">കോഴ്സ് നിറങ്ങൾ പുനഃനൽകുക</string>
+    <string name="settings_reset_course_colors_confirm_message">ഓരോ കോഴ്സിനും പുതിയ, വ്യത്യസ്തമായ ഒരു നിറം നൽകും — ആദ്യം പ്രീസെറ്റ് പാലെറ്റിൽ നിന്നു, അത് തീർന്നാൽ ക്രമരഹിതമായി.</string>
+    <string name="settings_reset_course_colors_confirm_title">കോഴ്സ് നിറങ്ങൾ പുനഃനൽകണോ?</string>
     <string name="settings_screen_rotation">സ്ക്രീൻ റൊട്ടേഷൻ</string>
     <string name="settings_section_abbreviation">ചുരുക്കങ്ങൾ</string>
     <string name="settings_section_about">ആപ്പിനെ കുറിച്ച്</string>
@@ -615,6 +617,10 @@
     <string name="watch_just_now">Just now</string>
     <string name="watch_last_synced_never">Never synced</string>
     <string name="watch_last_synced_relative">അവസാനം സമന്വയിപ്പിച്ചത് %1$s</string>
+    <string name="watch_library_loading">Generating…</string>
+    <string name="watch_library_refresh_in_seconds">%lld s</string>
+    <string name="watch_library_signin_prompt">Sign in on iPhone</string>
+    <string name="watch_library_title">Library</string>
     <string name="watch_next">NEXT</string>
     <string name="watch_next_label">അടുത്തത്: %1$s · %2$s</string>
     <string name="watch_no_courses_synced">സമന്വയിപ്പിച്ച കോഴ്സുകളില്ല.</string>
@@ -627,6 +633,7 @@
     <string name="watch_padding_decrease_cd">പാഡിംഗ് കുറയ്ക്കുക</string>
     <string name="watch_padding_increase_cd">പാഡിംഗ് വർദ്ധിപ്പിക്കുക</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_qr_padding">Library QR padding</string>
     <string name="watch_relative_days_ago_short">%1$d d ago</string>
     <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_relative_minutes_ago_short">%1$d min ago</string>

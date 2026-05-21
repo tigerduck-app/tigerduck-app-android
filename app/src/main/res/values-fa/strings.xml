@@ -184,6 +184,8 @@
     <string name="course_card_assignment_content_description">دارای تکلیف</string>
     <string name="course_card_current_class">کلاس فعلی</string>
     <string name="course_classroom_value">کلاس: %1$s</string>
+    <string name="course_color_picker_custom_badge">سفارشی</string>
+    <string name="course_color_picker_custom_label">رنگ سفارشی</string>
     <string name="course_color_picker_reset_action">بازیابی رنگ پیش فرض</string>
     <string name="course_credits_value">واحد: %1$d</string>
     <string name="course_detail_classroom_label">کلاس درس</string>
@@ -563,9 +565,9 @@
     <string name="settings_privacy_policy">سیاست حریم خصوصی</string>
     <string name="settings_push_server_nav_label">فشار سرور (تجربی)</string>
     <string name="settings_remember_bulletin_filter">فیلترهای بولتن را به خاطر بسپارید</string>
-    <string name="settings_reset_course_colors">بازنشانی رنگ‌های درس‌ها</string>
-    <string name="settings_reset_course_colors_confirm_message">این کار رنگ‌های برنامه کلاس‌ها را با استفاده از رنگ‌های پیش‌فرض به‌صورت تصادفی دوباره تخصیص می‌دهد.</string>
-    <string name="settings_reset_course_colors_confirm_title">رنگ‌های برنامه کلاس‌ها بازنشانی شود؟</string>
+    <string name="settings_reset_course_colors">اختصاص دوبارهٔ رنگ‌های درس</string>
+    <string name="settings_reset_course_colors_confirm_message">به هر درس یک رنگ جدید و منحصربه‌فرد اختصاص می‌یابد — ابتدا از پالت پیش‌فرض، پس از پایان پالت به‌صورت تصادفی.</string>
+    <string name="settings_reset_course_colors_confirm_title">رنگ‌های درس دوباره اختصاص داده شوند؟</string>
     <string name="settings_screen_rotation">چرخش صفحه</string>
     <string name="settings_section_abbreviation">مخفف‌ها</string>
     <string name="settings_section_about">درباره</string>
@@ -615,6 +617,10 @@
     <string name="watch_just_now">Just now</string>
     <string name="watch_last_synced_never">Never synced</string>
     <string name="watch_last_synced_relative">آخرین همگام‌سازی %1$s</string>
+    <string name="watch_library_loading">Generating…</string>
+    <string name="watch_library_refresh_in_seconds">%lld s</string>
+    <string name="watch_library_signin_prompt">Sign in on iPhone</string>
+    <string name="watch_library_title">Library</string>
     <string name="watch_next">NEXT</string>
     <string name="watch_next_label">بعدی: %1$s · %2$s</string>
     <string name="watch_no_courses_synced">هیچ درسی همگام‌سازی نشده است.</string>
@@ -627,6 +633,7 @@
     <string name="watch_padding_decrease_cd">کاهش حاشیه</string>
     <string name="watch_padding_increase_cd">افزایش حاشیه</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_qr_padding">Library QR padding</string>
     <string name="watch_relative_days_ago_short">%1$d d ago</string>
     <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_relative_minutes_ago_short">%1$d min ago</string>

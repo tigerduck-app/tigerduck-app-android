@@ -184,6 +184,8 @@
     <string name="course_card_assignment_content_description">יש מטלה</string>
     <string name="course_card_current_class">שיעור נוכחי</string>
     <string name="course_classroom_value">כיתה: %1$s</string>
+    <string name="course_color_picker_custom_badge">מותאם אישית</string>
+    <string name="course_color_picker_custom_label">צבע מותאם אישית</string>
     <string name="course_color_picker_reset_action">שחזר צבע ברירת מחדל</string>
     <string name="course_credits_value">נקודות זכות: %1$d</string>
     <string name="course_detail_classroom_label">כיתה</string>
@@ -563,9 +565,9 @@
     <string name="settings_privacy_policy">מדיניות פרטיות</string>
     <string name="settings_push_server_nav_label">דחיפת שרת (ניסיוני)</string>
     <string name="settings_remember_bulletin_filter">זכור את מסנני העדכונים</string>
-    <string name="settings_reset_course_colors">אפס צבעי קורסים</string>
-    <string name="settings_reset_course_colors_confirm_message">פעולה זו תקצה מחדש באופן אקראי את צבעי מערכת השעות תוך שימוש בערכות צבעים ברירת מחדל.</string>
-    <string name="settings_reset_course_colors_confirm_title">לאפס את צבעי מערכת השעות?</string>
+    <string name="settings_reset_course_colors">הקצאה מחדש של צבעי קורסים</string>
+    <string name="settings_reset_course_colors_confirm_message">כל קורס יקבל צבע חדש וייחודי — תחילה מהפלטה המוגדרת מראש, ולאחר מכן באופן אקראי כשהפלטה מתמצה.</string>
+    <string name="settings_reset_course_colors_confirm_title">להקצות מחדש צבעי קורסים?</string>
     <string name="settings_screen_rotation">סיבוב מסך</string>
     <string name="settings_section_abbreviation">קיצורים</string>
     <string name="settings_section_about">אודות</string>
@@ -615,6 +617,10 @@
     <string name="watch_just_now">Just now</string>
     <string name="watch_last_synced_never">Never synced</string>
     <string name="watch_last_synced_relative">סנכרון אחרון %1$s</string>
+    <string name="watch_library_loading">Generating…</string>
+    <string name="watch_library_refresh_in_seconds">%lld s</string>
+    <string name="watch_library_signin_prompt">Sign in on iPhone</string>
+    <string name="watch_library_title">Library</string>
     <string name="watch_next">NEXT</string>
     <string name="watch_next_label">הבא: %1$s · %2$s</string>
     <string name="watch_no_courses_synced">אין קורסים מסונכרנים.</string>
@@ -627,6 +633,7 @@
     <string name="watch_padding_decrease_cd">הקטן ריווח</string>
     <string name="watch_padding_increase_cd">הגדל ריווח</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_qr_padding">Library QR padding</string>
     <string name="watch_relative_days_ago_short">%1$d d ago</string>
     <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_relative_minutes_ago_short">%1$d min ago</string>

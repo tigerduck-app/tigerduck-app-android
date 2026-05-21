@@ -184,6 +184,8 @@
     <string name="course_card_assignment_content_description">అసైన్‌మెంట్ ఉంది</string>
     <string name="course_card_current_class">ప్రస్తుత తరగతి</string>
     <string name="course_classroom_value">తరగతి గది: %1$s</string>
+    <string name="course_color_picker_custom_badge">అనుకూల</string>
+    <string name="course_color_picker_custom_label">అనుకూల రంగు</string>
     <string name="course_color_picker_reset_action">డిఫాల్ట్ రంగును పునరుద్ధరించు</string>
     <string name="course_credits_value">క్రెడిట్‌లు: %1$d</string>
     <string name="course_detail_classroom_label">తరగతి గది</string>
@@ -563,9 +565,9 @@
     <string name="settings_privacy_policy">గోప్యతా విధానం</string>
     <string name="settings_push_server_nav_label">సర్వర్ పుష్ (ప్రయోగాత్మకం)</string>
     <string name="settings_remember_bulletin_filter">బులెటిన్ ఫిల్టర్‌లను గుర్తుంచుకో</string>
-    <string name="settings_reset_course_colors">కోర్సు రంగులు రీసెట్ చేయండి</string>
-    <string name="settings_reset_course_colors_confirm_message">ఇది డిఫాల్ట్ ప్రీసెట్లు వాడి తరగతి షెడ్యూల్ రంగులను యాదృచ్ఛికంగా తిరిగి కేటాయిస్తుంది.</string>
-    <string name="settings_reset_course_colors_confirm_title">తరగతి షెడ్యూల్ రంగులు రీసెట్ చేయాలా?</string>
+    <string name="settings_reset_course_colors">కోర్సు రంగులను తిరిగి కేటాయించండి</string>
+    <string name="settings_reset_course_colors_confirm_message">ప్రతి కోర్సుకు కొత్త, ప్రత్యేకమైన రంగు కేటాయించబడుతుంది — మొదట ముందుగా అమర్చిన ప్యాలెట్ నుండి, ప్యాలెట్ అయిపోయాక యాదృచ్ఛికంగా.</string>
+    <string name="settings_reset_course_colors_confirm_title">కోర్సు రంగులను తిరిగి కేటాయించాలా?</string>
     <string name="settings_screen_rotation">స్క్రీన్ రొటేషన్</string>
     <string name="settings_section_abbreviation">సంక్షేపాలు</string>
     <string name="settings_section_about">గురించి</string>
@@ -615,6 +617,10 @@
     <string name="watch_just_now">Just now</string>
     <string name="watch_last_synced_never">Never synced</string>
     <string name="watch_last_synced_relative">చివరిగా సమకాలీకరించబడింది %1$s</string>
+    <string name="watch_library_loading">Generating…</string>
+    <string name="watch_library_refresh_in_seconds">%lld s</string>
+    <string name="watch_library_signin_prompt">Sign in on iPhone</string>
+    <string name="watch_library_title">Library</string>
     <string name="watch_next">NEXT</string>
     <string name="watch_next_label">తదుపరి: %1$s · %2$s</string>
     <string name="watch_no_courses_synced">ఏ కోర్సులు సమకాలీకరించబడలేదు.</string>
@@ -627,6 +633,7 @@
     <string name="watch_padding_decrease_cd">ప్యాడింగ్ తగ్గించండి</string>
     <string name="watch_padding_increase_cd">ప్యాడింగ్ పెంచండి</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_qr_padding">Library QR padding</string>
     <string name="watch_relative_days_ago_short">%1$d d ago</string>
     <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_relative_minutes_ago_short">%1$d min ago</string>

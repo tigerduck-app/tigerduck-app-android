@@ -184,6 +184,8 @@
     <string name="course_card_assignment_content_description">Ma zadanie</string>
     <string name="course_card_current_class">Bieżące zajęcia</string>
     <string name="course_classroom_value">Sala: %1$s</string>
+    <string name="course_color_picker_custom_badge">Niestandardowy</string>
+    <string name="course_color_picker_custom_label">Kolor niestandardowy</string>
     <string name="course_color_picker_reset_action">Standardfarbe wiederherstellen</string>
     <string name="course_credits_value">Punkty ECTS: %1$d</string>
     <string name="course_detail_classroom_label">Klassenzimmer</string>
@@ -563,9 +565,9 @@
     <string name="settings_privacy_policy">Polityka prywatności</string>
     <string name="settings_push_server_nav_label">Push serwera (eksperymentalne)</string>
     <string name="settings_remember_bulletin_filter">Zapamiętaj filtry biuletynu</string>
-    <string name="settings_reset_course_colors">Zresetuj kolory przedmiotów</string>
-    <string name="settings_reset_course_colors_confirm_message">Spowoduje to losowe przypisanie kolorów planu zajęć z domyślnych predefiniowanych ustawień.</string>
-    <string name="settings_reset_course_colors_confirm_title">Zresetować kolory planu zajęć?</string>
+    <string name="settings_reset_course_colors">Przypisz kolory kursów ponownie</string>
+    <string name="settings_reset_course_colors_confirm_message">Każdy kurs otrzyma nowy, unikalny kolor — najpierw z gotowej palety, a po jej wyczerpaniu losowo.</string>
+    <string name="settings_reset_course_colors_confirm_title">Przypisać kolory kursów ponownie?</string>
     <string name="settings_screen_rotation">Obrót ekranu</string>
     <string name="settings_section_abbreviation">Skróty</string>
     <string name="settings_section_about">O aplikacji</string>
@@ -615,6 +617,10 @@
     <string name="watch_just_now">Just now</string>
     <string name="watch_last_synced_never">Never synced</string>
     <string name="watch_last_synced_relative">Ostatnia synchronizacja %1$s</string>
+    <string name="watch_library_loading">Generating…</string>
+    <string name="watch_library_refresh_in_seconds">%lld s</string>
+    <string name="watch_library_signin_prompt">Sign in on iPhone</string>
+    <string name="watch_library_title">Library</string>
     <string name="watch_next">NEXT</string>
     <string name="watch_next_label">Następne: %1$s · %2$s</string>
     <string name="watch_no_courses_synced">Brak zsynchronizowanych kursów.</string>
@@ -627,6 +633,7 @@
     <string name="watch_padding_decrease_cd">Zmniejsz odstęp</string>
     <string name="watch_padding_increase_cd">Zwiększ odstęp</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_qr_padding">Library QR padding</string>
     <string name="watch_relative_days_ago_short">%1$d d ago</string>
     <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_relative_minutes_ago_short">%1$d min ago</string>

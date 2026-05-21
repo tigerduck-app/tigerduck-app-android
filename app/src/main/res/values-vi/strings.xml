@@ -184,6 +184,8 @@
     <string name="course_card_assignment_content_description">Có bài tập</string>
     <string name="course_card_current_class">Lớp hiện tại</string>
     <string name="course_classroom_value">Phòng học: %1$s</string>
+    <string name="course_color_picker_custom_badge">Tùy chỉnh</string>
+    <string name="course_color_picker_custom_label">Màu tùy chỉnh</string>
     <string name="course_color_picker_reset_action">Khôi phục màu mặc định</string>
     <string name="course_credits_value">Tín chỉ: %1$d</string>
     <string name="course_detail_classroom_label">Phòng học</string>
@@ -563,9 +565,9 @@
     <string name="settings_privacy_policy">Chính sách quyền riêng tư</string>
     <string name="settings_push_server_nav_label">Đẩy máy chủ (Thử nghiệm)</string>
     <string name="settings_remember_bulletin_filter">Ghi nhớ bộ lọc bản tin</string>
-    <string name="settings_reset_course_colors">Đặt lại màu môn học</string>
-    <string name="settings_reset_course_colors_confirm_message">Thao tác này sẽ ngẫu nhiên gán lại màu thời khóa biểu bằng các màu mặc định có sẵn.</string>
-    <string name="settings_reset_course_colors_confirm_title">Đặt lại màu thời khóa biểu?</string>
+    <string name="settings_reset_course_colors">Gán lại màu khóa học</string>
+    <string name="settings_reset_course_colors_confirm_message">Mỗi khóa học sẽ nhận màu mới, không trùng — trước hết từ bảng màu định sẵn, sau đó ngẫu nhiên khi đã dùng hết.</string>
+    <string name="settings_reset_course_colors_confirm_title">Gán lại màu khóa học?</string>
     <string name="settings_screen_rotation">Xoay màn hình</string>
     <string name="settings_section_abbreviation">Viết tắt</string>
     <string name="settings_section_about">Giới thiệu</string>
@@ -615,6 +617,10 @@
     <string name="watch_just_now">Just now</string>
     <string name="watch_last_synced_never">Never synced</string>
     <string name="watch_last_synced_relative">Đồng bộ lần cuối %1$s</string>
+    <string name="watch_library_loading">Generating…</string>
+    <string name="watch_library_refresh_in_seconds">%lld s</string>
+    <string name="watch_library_signin_prompt">Sign in on iPhone</string>
+    <string name="watch_library_title">Library</string>
     <string name="watch_next">NEXT</string>
     <string name="watch_next_label">Tiếp theo: %1$s · %2$s</string>
     <string name="watch_no_courses_synced">Chưa có khóa học nào được đồng bộ.</string>
@@ -627,6 +633,7 @@
     <string name="watch_padding_decrease_cd">Giảm lề</string>
     <string name="watch_padding_increase_cd">Tăng lề</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_qr_padding">Library QR padding</string>
     <string name="watch_relative_days_ago_short">%1$d d ago</string>
     <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_relative_minutes_ago_short">%1$d min ago</string>

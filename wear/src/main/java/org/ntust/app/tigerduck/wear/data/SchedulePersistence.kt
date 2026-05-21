@@ -68,6 +68,15 @@ class SchedulePersistence(private val context: Context) {
     val paddingDpFlow: Flow<Int> =
         context.scheduleDataStore.data.map { prefs -> prefs[KEY_PADDING_DP] ?: DEFAULT_PADDING_DP }
 
+    suspend fun writeQrPaddingDp(value: Int) {
+        context.scheduleDataStore.edit { prefs -> prefs[KEY_QR_PADDING_DP] = value }
+    }
+
+    val qrPaddingDpFlow: Flow<Int> =
+        context.scheduleDataStore.data.map { prefs ->
+            prefs[KEY_QR_PADDING_DP] ?: DEFAULT_QR_PADDING_DP
+        }
+
     private fun readSnapshot(prefs: Preferences): WatchSnapshot {
         val json = prefs[KEY_COURSES_JSON]
         val courses: List<Course> = if (json.isNullOrBlank()) emptyList() else parseCourses(json)
@@ -143,6 +152,12 @@ class SchedulePersistence(private val context: Context) {
         const val DEFAULT_PADDING_DP = 12
         const val MIN_PADDING_DP = 0
         const val MAX_PADDING_DP = 24
+        // QR padding is its own setting (fullscreen library QR only). Default
+        // 0 — the QR fills the chassis-inscribed limit unless the user pulls
+        // it in. Range matches the screen padding for UX consistency.
+        const val DEFAULT_QR_PADDING_DP = 0
+        const val MIN_QR_PADDING_DP = 0
+        const val MAX_QR_PADDING_DP = 24
         // Sentinel for detecting un-obfuscated wire format; see parseCourses.
         // Trailing `:` proves this is an object key rather than a string
         // value that incidentally spells `courseNo` (Gson default emits
@@ -156,6 +171,8 @@ class SchedulePersistence(private val context: Context) {
         private val KEY_LOGGED_IN = booleanPreferencesKey("logged_in")
         private val KEY_LANGUAGE = stringPreferencesKey("language_tag")
         private val KEY_PADDING_DP = androidx.datastore.preferences.core.intPreferencesKey("padding_dp")
+        private val KEY_QR_PADDING_DP =
+            androidx.datastore.preferences.core.intPreferencesKey("qr_padding_dp")
         private const val BOOTSTRAP_KEY_LANGUAGE = "language_tag"
     }
 }

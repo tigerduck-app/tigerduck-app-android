@@ -184,6 +184,8 @@
     <string name="course_card_assignment_content_description">有作業</string>
     <string name="course_card_current_class">現在課程</string>
     <string name="course_classroom_value">教室：%1$s</string>
+    <string name="course_color_picker_custom_badge">自訂</string>
+    <string name="course_color_picker_custom_label">自訂顏色</string>
     <string name="course_color_picker_reset_action">恢復預設顏色</string>
     <string name="course_credits_value">學分：%1$d</string>
     <string name="course_detail_classroom_label">教室</string>
@@ -563,9 +565,9 @@
     <string name="settings_privacy_policy">隱私權政策</string>
     <string name="settings_push_server_nav_label">伺服器推播（實驗性）</string>
     <string name="settings_remember_bulletin_filter">記住公告篩選條件</string>
-    <string name="settings_reset_course_colors">重設課表顏色</string>
-    <string name="settings_reset_course_colors_confirm_message">這將會把課表的顏色依照預設顏色隨機重新分配</string>
-    <string name="settings_reset_course_colors_confirm_title">確定要重設課表顏色？</string>
+    <string name="settings_reset_course_colors">重新分配課表顏色</string>
+    <string name="settings_reset_course_colors_confirm_message">每門課都會被指派一個全新且不重複的顏色——優先使用預設色盤，色盤用完後隨機產生。</string>
+    <string name="settings_reset_course_colors_confirm_title">確定要重新分配課表顏色？</string>
     <string name="settings_screen_rotation">螢幕旋轉</string>
     <string name="settings_section_abbreviation">縮寫</string>
     <string name="settings_section_about">關於</string>
@@ -615,6 +617,10 @@
     <string name="watch_just_now">啱啱</string>
     <string name="watch_last_synced_never">未同步過</string>
     <string name="watch_last_synced_relative">上次同步:%1$s</string>
+    <string name="watch_library_loading">產生中…</string>
+    <string name="watch_library_refresh_in_seconds">%lld 秒</string>
+    <string name="watch_library_signin_prompt">請於 iPhone 登入</string>
+    <string name="watch_library_title">圖書館</string>
     <string name="watch_next">下一堂</string>
     <string name="watch_next_label">下一節:%1$s · %2$s</string>
     <string name="watch_no_courses_synced">未有課程資料。</string>
@@ -627,6 +633,7 @@
     <string name="watch_padding_decrease_cd">減少邊距</string>
     <string name="watch_padding_increase_cd">增加邊距</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_qr_padding">圖書館 QR 邊距</string>
     <string name="watch_relative_days_ago_short">%1$d d ago</string>
     <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_relative_minutes_ago_short">%1$d min ago</string>

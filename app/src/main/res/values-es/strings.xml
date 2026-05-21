@@ -184,6 +184,8 @@
     <string name="course_card_assignment_content_description">Tiene tarea</string>
     <string name="course_card_current_class">Clase actual</string>
     <string name="course_classroom_value">Aula: %1$s</string>
+    <string name="course_color_picker_custom_badge">Personalizado</string>
+    <string name="course_color_picker_custom_label">Color personalizado</string>
     <string name="course_color_picker_reset_action">Restaurar color predeterminado</string>
     <string name="course_credits_value">Créditos: %1$d</string>
     <string name="course_detail_classroom_label">Aula</string>
@@ -563,9 +565,9 @@
     <string name="settings_privacy_policy">Política de privacidad</string>
     <string name="settings_push_server_nav_label">Empuje del servidor (experimental)</string>
     <string name="settings_remember_bulletin_filter">Recuerde los filtros del boletín</string>
-    <string name="settings_reset_course_colors">Restablecer colores de cursos</string>
-    <string name="settings_reset_course_colors_confirm_message">Esto reasignará aleatoriamente los colores del horario de clases usando los valores predefinidos.</string>
-    <string name="settings_reset_course_colors_confirm_title">¿Restablecer los colores del horario de clases?</string>
+    <string name="settings_reset_course_colors">Reasignar colores de cursos</string>
+    <string name="settings_reset_course_colors_confirm_message">Cada curso recibirá un color nuevo y único — primero de la paleta de presets, luego aleatoriamente cuando la paleta se agote.</string>
+    <string name="settings_reset_course_colors_confirm_title">¿Reasignar los colores de los cursos?</string>
     <string name="settings_screen_rotation">Rotación de pantalla</string>
     <string name="settings_section_abbreviation">Abreviaturas</string>
     <string name="settings_section_about">Acerca de</string>
@@ -615,6 +617,10 @@
     <string name="watch_just_now">Just now</string>
     <string name="watch_last_synced_never">Never synced</string>
     <string name="watch_last_synced_relative">Última sincronización %1$s</string>
+    <string name="watch_library_loading">Generating…</string>
+    <string name="watch_library_refresh_in_seconds">%lld s</string>
+    <string name="watch_library_signin_prompt">Sign in on iPhone</string>
+    <string name="watch_library_title">Library</string>
     <string name="watch_next">NEXT</string>
     <string name="watch_next_label">Siguiente: %1$s · %2$s</string>
     <string name="watch_no_courses_synced">No hay cursos sincronizados.</string>
@@ -627,6 +633,7 @@
     <string name="watch_padding_decrease_cd">Reducir espaciado</string>
     <string name="watch_padding_increase_cd">Aumentar espaciado</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_qr_padding">Library QR padding</string>
     <string name="watch_relative_days_ago_short">%1$d d ago</string>
     <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_relative_minutes_ago_short">%1$d min ago</string>

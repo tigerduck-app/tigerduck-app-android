@@ -184,6 +184,8 @@
     <string name="course_card_assignment_content_description">Má úkol</string>
     <string name="course_card_current_class">Aktuální hodina</string>
     <string name="course_classroom_value">Učebna: %1$s</string>
+    <string name="course_color_picker_custom_badge">Vlastní</string>
+    <string name="course_color_picker_custom_label">Vlastní barva</string>
     <string name="course_color_picker_reset_action">Obnovit výchozí barvu</string>
     <string name="course_credits_value">Kredity: %1$d</string>
     <string name="course_detail_classroom_label">Třída</string>
@@ -563,9 +565,9 @@
     <string name="settings_privacy_policy">Zásady ochrany osobních údajů</string>
     <string name="settings_push_server_nav_label">Server push (experimentální)</string>
     <string name="settings_remember_bulletin_filter">Pamatujte na filtry bulletinů</string>
-    <string name="settings_reset_course_colors">Obnovit barvy kurzů</string>
-    <string name="settings_reset_course_colors_confirm_message">Tato akce náhodně přepřiřadí barvy rozvrhu pomocí výchozích předvoleb.</string>
-    <string name="settings_reset_course_colors_confirm_title">Obnovit barvy rozvrhu?</string>
+    <string name="settings_reset_course_colors">Znovu přiřadit barvy kurzů</string>
+    <string name="settings_reset_course_colors_confirm_message">Každý kurz dostane novou jedinečnou barvu — nejprve z přednastavené palety, po vyčerpání náhodně.</string>
+    <string name="settings_reset_course_colors_confirm_title">Znovu přiřadit barvy kurzů?</string>
     <string name="settings_screen_rotation">Otáčení obrazovky</string>
     <string name="settings_section_abbreviation">Zkratky</string>
     <string name="settings_section_about">O aplikaci</string>
@@ -615,6 +617,10 @@
     <string name="watch_just_now">Just now</string>
     <string name="watch_last_synced_never">Never synced</string>
     <string name="watch_last_synced_relative">Naposledy synchronizováno %1$s</string>
+    <string name="watch_library_loading">Generating…</string>
+    <string name="watch_library_refresh_in_seconds">%lld s</string>
+    <string name="watch_library_signin_prompt">Sign in on iPhone</string>
+    <string name="watch_library_title">Library</string>
     <string name="watch_next">NEXT</string>
     <string name="watch_next_label">Další: %1$s · %2$s</string>
     <string name="watch_no_courses_synced">Žádné synchronizované předměty.</string>
@@ -627,6 +633,7 @@
     <string name="watch_padding_decrease_cd">Zmenšit okraj</string>
     <string name="watch_padding_increase_cd">Zvětšit okraj</string>
     <string name="watch_padding_value_dp">%1$d dp</string>
+    <string name="watch_qr_padding">Library QR padding</string>
     <string name="watch_relative_days_ago_short">%1$d d ago</string>
     <string name="watch_relative_hours_ago_short">%1$d h ago</string>
     <string name="watch_relative_minutes_ago_short">%1$d min ago</string>

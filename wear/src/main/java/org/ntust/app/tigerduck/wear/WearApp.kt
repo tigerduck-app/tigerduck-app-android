@@ -36,6 +36,7 @@ import org.ntust.app.tigerduck.wear.ui.EmptyStateMessage
 import org.ntust.app.tigerduck.wear.ui.LibraryQRScreen
 import org.ntust.app.tigerduck.wear.ui.NowNextScreen
 import org.ntust.app.tigerduck.wear.ui.PaddingSettingsScreen
+import org.ntust.app.tigerduck.wear.ui.QRPaddingSettingsScreen
 import org.ntust.app.tigerduck.wear.ui.SettingsListScreen
 import org.ntust.app.tigerduck.wear.ui.TodayScreen
 import org.ntust.app.tigerduck.wear.ui.theme.WearTheme
@@ -124,6 +125,7 @@ fun WearApp() {
                                 3 -> SettingsListScreen(
                                     snapshot = snapshot,
                                     onPaddingClick = { navController.navigate("settings/padding") },
+                                    onQrPaddingClick = { navController.navigate("settings/qr_padding") },
                                 )
                             }
                         }
@@ -137,6 +139,9 @@ fun WearApp() {
                 }
                 composable("settings/padding") {
                     PaddingSettingsScreen(onBack = { navController.popBackStack() })
+                }
+                composable("settings/qr_padding") {
+                    QRPaddingSettingsScreen(onBack = { navController.popBackStack() })
                 }
             }
         }
