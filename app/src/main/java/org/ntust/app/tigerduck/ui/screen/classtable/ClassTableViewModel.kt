@@ -31,6 +31,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
+import org.ntust.app.tigerduck.network.decodeHtmlEntities
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.util.Calendar
@@ -756,7 +757,7 @@ class ClassTableViewModel @Inject constructor(
                                         moodleByNo[courseNo]?.let { m ->
                                             Course.fromSchedule(
                                                 courseNo = courseNo,
-                                                courseName = m.fullname ?: courseNo,
+                                                courseName = (m.fullname ?: courseNo).decodeHtmlEntities(),
                                                 moodleIdNumber = m.idnumber
                                             )
                                         }
@@ -766,7 +767,7 @@ class ClassTableViewModel @Inject constructor(
                                     moodleByNo[courseNo]?.let { m ->
                                         Course.fromSchedule(
                                             courseNo = courseNo,
-                                            courseName = m.fullname ?: courseNo,
+                                            courseName = (m.fullname ?: courseNo).decodeHtmlEntities(),
                                             moodleIdNumber = m.idnumber
                                         )
                                     }

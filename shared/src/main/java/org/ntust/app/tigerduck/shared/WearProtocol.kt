@@ -35,10 +35,15 @@ object WearProtocol {
         const val KEY_PASSWORD = "libraryPassword"
         const val KEY_TOKEN = "libraryToken"
         const val KEY_TOKEN_EXPIRY = "libraryTokenExpiry"
-        // Bumped on every push so the data layer treats two equal-payload
-        // updates as different items and re-delivers them. Without this,
-        // refreshing the same token would silently no-op on the watch.
+        // Strictly monotonic across phone app restarts (persisted on the
+        // phone). The watch rejects pushes with `version <= storedVersion`
+        // as replay, so the same constant also defeats DataClient's
+        // identical-payload de-dup — both roles in one counter.
         const val KEY_VERSION = "version"
+        // Wall-clock ms when the phone composed this push. Anchors the
+        // watch's 7-day staleness TTL: independent of WC delivery time, so
+        // a payload that sits queued for a week still expires correctly.
+        const val KEY_ISSUED_AT_MS = "issuedAtMs"
     }
 
     /** Debug-clock override pushed phone → watch (debug builds only). */

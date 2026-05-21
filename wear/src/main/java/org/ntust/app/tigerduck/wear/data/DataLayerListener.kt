@@ -58,25 +58,28 @@ class DataLayerListener : WearableListenerService() {
     private fun handleLibraryCredentials(item: com.google.android.gms.wearable.DataItem) {
         val map = DataMapItem.fromDataItem(item).dataMap
         val hasCredentials = map.getBoolean(WearProtocol.LibraryCredentials.KEY_HAS_CREDENTIALS)
-        val store = WatchLibraryCredentialStore.get(this)
-        if (!hasCredentials) {
-            // Explicit logout signal — wipe the watch copy so a stale token
-            // doesn't keep showing a working QR after the user signed out
-            // on the phone.
-            store.clear()
-            Log.d(TAG, "library credentials cleared")
-            return
-        }
         val username = map.getString(WearProtocol.LibraryCredentials.KEY_USERNAME)
         val password = map.getString(WearProtocol.LibraryCredentials.KEY_PASSWORD)
         val token = map.getString(WearProtocol.LibraryCredentials.KEY_TOKEN)
         val tokenExpiry = map.getLong(WearProtocol.LibraryCredentials.KEY_TOKEN_EXPIRY)
-        if (username == null || password == null) {
-            Log.w(TAG, "library credentials payload missing username/password")
-            return
-        }
-        store.replace(username, password, token, tokenExpiry)
-        Log.d(TAG, "library credentials updated for $username")
+        val version = map.getLong(WearProtocol.LibraryCredentials.KEY_VERSION)
+        // Stamp on receive when the phone is older than this watch build and
+        // doesn't publish `issuedAtMs` yet — gives the new TTL a starting
+        // anchor instead of treating creds as orphan-on-arrival.
+        val issuedAtMs = map.getLong(WearProtocol.LibraryCredentials.KEY_ISSUED_AT_MS)
+            .takeIf { it > 0L } ?: System.currentTimeMillis()
+
+        val store = WatchLibraryCredentialStore.get(this)
+        val result = store.applyPush(
+            hasCredentials = hasCredentials,
+            username = username,
+            password = password,
+            token = token,
+            tokenExpiry = tokenExpiry,
+            version = version,
+            issuedAtMs = issuedAtMs,
+        )
+        Log.d(TAG, "library credentials push: $result (version=$version, has=$hasCredentials)")
     }
 
     override fun onDestroy() {

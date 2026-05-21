@@ -79,6 +79,12 @@ jobs:
             );
             let botComment = comments.find(c => c.body && c.body.includes(MARKER));
 
+            // Marker that pins a comment body to a specific base branch. If the
+            // PR was retargeted (dev → main or main → dev) the stored checklist
+            // is for the wrong release gate; reset it so checked boxes from the
+            // prior base can't satisfy the new base's stricter items.
+            const baseTargetTag = `(target: \`${baseRef}\`)`;
+
             if (!botComment) {
               const { data: created } = await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -88,6 +94,15 @@ jobs:
               });
               botComment = created;
               core.info('Posted new checklist comment.');
+            } else if (!botComment.body.includes(baseTargetTag)) {
+              const { data: updated } = await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: desiredBody,
+              });
+              botComment = updated;
+              core.info(`Reset checklist comment for new base \`${baseRef}\`.`);
             }
 
             // Count checkboxes in the bot comment.

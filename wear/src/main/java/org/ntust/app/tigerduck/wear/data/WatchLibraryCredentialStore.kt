@@ -38,17 +38,26 @@ class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
         .distinctUntilChanged()
 
     override var libraryUsername: String?
-        get() = prefs.getString(KEY_USERNAME, null)
+        get() {
+            purgeIfStale()
+            return prefs.getString(KEY_USERNAME, null)
+        }
         set(value) = if (value != null) prefs.edit().putString(KEY_USERNAME, value).apply()
         else prefs.edit().remove(KEY_USERNAME).apply()
 
     override var libraryPassword: String?
-        get() = prefs.getString(KEY_PASSWORD, null)
+        get() {
+            purgeIfStale()
+            return prefs.getString(KEY_PASSWORD, null)
+        }
         set(value) = if (value != null) prefs.edit().putString(KEY_PASSWORD, value).apply()
         else prefs.edit().remove(KEY_PASSWORD).apply()
 
     override var libraryToken: String?
-        get() = prefs.getString(KEY_TOKEN, null)
+        get() {
+            purgeIfStale()
+            return prefs.getString(KEY_TOKEN, null)
+        }
         set(value) = if (value != null) prefs.edit().putString(KEY_TOKEN, value).apply()
         else prefs.edit().remove(KEY_TOKEN).apply()
 
@@ -59,21 +68,71 @@ class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
     override val isLibraryTokenValid: Boolean
         get() = libraryToken != null && System.currentTimeMillis() < libraryTokenExpiry
 
-    /** Bulk replace; used by the Data Layer listener on phone push. */
-    fun replace(
+    /** Outcome of an incoming Data Layer push — for caller logging only. */
+    enum class ApplyResult { APPLIED, WIPED, REJECTED_REPLAY, MALFORMED }
+
+    /**
+     * Apply a phone-side credential push. Enforces anti-replay
+     * (`version <= storedVersion` → REJECTED_REPLAY) and routes to either a
+     * keychain replace (`hasCredentials = true`) or a keys-only wipe
+     * (`hasCredentials = false`) that preserves the monotonic version
+     * counter — so a delayed-but-stale `set` packet can't re-credential the
+     * watch after a `wipe`.
+     */
+    @Synchronized
+    fun applyPush(
+        hasCredentials: Boolean,
         username: String?,
         password: String?,
         token: String?,
         tokenExpiry: Long,
-    ) {
-        prefs.edit()
-            .apply {
-                if (username == null) remove(KEY_USERNAME) else putString(KEY_USERNAME, username)
-                if (password == null) remove(KEY_PASSWORD) else putString(KEY_PASSWORD, password)
-                if (token == null) remove(KEY_TOKEN) else putString(KEY_TOKEN, token)
-                putLong(KEY_TOKEN_EXPIRY, tokenExpiry)
-            }
+        version: Long,
+        issuedAtMs: Long,
+    ): ApplyResult {
+        val stored = prefs.getLong(KEY_LAST_VERSION, 0L)
+        if (version <= stored) return ApplyResult.REJECTED_REPLAY
+
+        val edit = prefs.edit()
+        if (hasCredentials) {
+            if (username == null || password == null) return ApplyResult.MALFORMED
+            edit.putString(KEY_USERNAME, username)
+                .putString(KEY_PASSWORD, password)
+                .putLong(KEY_TOKEN_EXPIRY, tokenExpiry)
+                .putLong(KEY_ISSUED_AT_MS, issuedAtMs)
+            if (token == null) edit.remove(KEY_TOKEN) else edit.putString(KEY_TOKEN, token)
+            edit.putLong(KEY_LAST_VERSION, version).apply()
+            return ApplyResult.APPLIED
+        }
+
+        edit.remove(KEY_USERNAME)
+            .remove(KEY_PASSWORD)
+            .remove(KEY_TOKEN)
+            .remove(KEY_TOKEN_EXPIRY)
+            .remove(KEY_ISSUED_AT_MS)
+            .putLong(KEY_LAST_VERSION, version)
             .apply()
+        return ApplyResult.WIPED
+    }
+
+    /**
+     * Bounded-staleness purge: if the watch hasn't heard a fresh credential
+     * push within 7 days, wipe everything (including the version counter)
+     * so the next phone push lands cleanly. Also catches the "watch app
+     * upgraded ahead of phone app" case where credentials exist but
+     * `issuedAtMs == 0` — those orphan creds have no TTL anchor, so we
+     * treat them as expired.
+     */
+    private fun purgeIfStale() {
+        val username = prefs.getString(KEY_USERNAME, null) ?: return
+        if (username.isEmpty()) return
+        val issuedAtMs = prefs.getLong(KEY_ISSUED_AT_MS, 0L)
+        val now = System.currentTimeMillis()
+        val isOrphan = issuedAtMs <= 0L
+        val isExpired = !isOrphan && now - issuedAtMs > CREDENTIAL_TTL_MS
+        if (isOrphan || isExpired) {
+            Log.i(TAG, "purging stale credentials (orphan=$isOrphan, expired=$isExpired)")
+            clear()
+        }
     }
 
     fun clear() {
@@ -89,11 +148,20 @@ class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
     }
 
     companion object {
+        /** Bounded staleness window for cached credentials — see [purgeIfStale]. */
+        const val CREDENTIAL_TTL_MS: Long = 7L * 24 * 60 * 60 * 1000
+
         private const val PREFS_NAME = "wear_library_credentials"
         private const val KEY_USERNAME = "library_username"
         private const val KEY_PASSWORD = "library_password"
         private const val KEY_TOKEN = "library_token"
         private const val KEY_TOKEN_EXPIRY = "library_token_expiry"
+        // Phone composed-at timestamp; anchors the 7-day TTL.
+        private const val KEY_ISSUED_AT_MS = "library_issued_at_ms"
+        // Last applied phone-side epoch — anti-replay guard. Survives a
+        // `.wipe`-style push so a delayed earlier `.set` can't re-credential
+        // the watch after logout.
+        private const val KEY_LAST_VERSION = "library_last_version"
 
         @Volatile
         private var instance: WatchLibraryCredentialStore? = null
