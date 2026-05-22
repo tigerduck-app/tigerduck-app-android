@@ -51,6 +51,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
+import org.ntust.app.tigerduck.ui.component.SecureScreen
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 @Composable
@@ -104,6 +105,12 @@ fun LibraryScreen(
             }
         }
     }
+
+    // Keep the library QR — a credential-equivalent token — out of screenshots
+    // and screen recordings the whole time it is on screen (issue #88). Keyed
+    // on isLoggedIn rather than the bitmap so the 30 s auto-refresh doesn't
+    // toggle FLAG_SECURE on and off.
+    SecureScreen(secure = isLoggedIn)
 
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -347,6 +354,9 @@ private fun LoginPromptCard(
     val focusManager = LocalFocusManager.current
     val passwordFocusRequester = remember { FocusRequester() }
     var passwordVisible by remember { mutableStateOf(false) }
+    // Block screenshots / screen-recording while the library password is
+    // revealed as plaintext (issue #88).
+    SecureScreen(secure = passwordVisible)
     Card(
         modifier = Modifier
             .fillMaxWidth()

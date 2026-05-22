@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
+import android.view.WindowManager
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -170,6 +171,11 @@ private fun LoggedInState(username: String?) {
     // Hold the screen at full brightness while a QR is visible on either
     // mode — librarians' scanners read poorly through the dim default.
     KeepScreenBright(active = bitmap != null)
+
+    // Keep the QR — a credential-equivalent token — out of screenshots and
+    // screen recordings the whole time the logged-in page is on screen
+    // (issue #88).
+    SecureScreen()
 
     if (isFullscreen) {
         FullscreenQR(
@@ -389,6 +395,29 @@ private fun KeepScreenBright(active: Boolean) {
             window.attributes = window.attributes.apply { screenBrightness = 1.0f }
             onDispose {
                 window.attributes = window.attributes.apply { screenBrightness = previous }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SecureScreen() {
+    val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
+    DisposableEffect(activity) {
+        val window = activity?.window
+        // Snapshot whether the window was already secure (set by another owner
+        // or earlier). Only clear FLAG_SECURE on dispose if this composable is
+        // the one that added it — otherwise leaving the logged-in page would
+        // strip protection this helper never owned.
+        val alreadySecure = window != null && (window.attributes.flags and
+            WindowManager.LayoutParams.FLAG_SECURE) != 0
+        if (window != null && !alreadySecure) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        onDispose {
+            if (window != null && !alreadySecure) {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             }
         }
     }
