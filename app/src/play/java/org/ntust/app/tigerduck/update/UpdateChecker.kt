@@ -3,6 +3,8 @@ package org.ntust.app.tigerduck.update
 import android.app.Activity
 import android.content.Context
 import android.util.Log
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.appupdate.AppUpdateOptions
 import com.google.android.play.core.install.InstallStateUpdatedListener
@@ -56,8 +58,13 @@ class UpdateChecker @Inject constructor(
         }
     }
 
-    /** Query Play and start the FLEXIBLE flow if eligible and not rate-limited. */
-    fun maybePromptForUpdate(activity: Activity) {
+    /**
+     * Query Play and start the FLEXIBLE flow if eligible and not rate-limited.
+     * [launcher] receives the confirmation-UI result; the caller must route it
+     * back through [onUpdateFlowResult] so the install listener is attached
+     * only for a flow the user actually accepted.
+     */
+    fun maybePromptForUpdate(launcher: ActivityResultLauncher<IntentSenderRequest>) {
         manager.appUpdateInfo
             .addOnSuccessListener { info ->
                 runCatching {
@@ -72,34 +79,41 @@ class UpdateChecker @Inject constructor(
                     )
                     if (!allowed) return@runCatching
 
-                    // Drop any listener a previously abandoned flexible flow
-                    // left attached, so this singleton can't accumulate
-                    // registrations across repeated eligible prompts.
-                    manager.unregisterListener(installListener)
-                    manager.registerListener(installListener)
-
+                    // No listener is registered here: registration is deferred
+                    // to onUpdateFlowResult so a throw on this line, a launch
+                    // that returns false, or a user cancellation can never
+                    // leave this singleton holding a stale registration.
                     val launched = manager.startUpdateFlowForResult(
                         info,
-                        activity,
+                        launcher,
                         AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build(),
-                        UPDATE_REQUEST_CODE,
                     )
                     if (launched) {
                         // Record the prompt only once the flow actually
                         // launched — the cooldown must not suppress a prompt
-                        // the user never saw. If startUpdateFlowForResult
-                        // throws, the runCatching below swallows it and nothing
-                        // is recorded either.
+                        // the user never saw.
                         appPreferences.lastUpdatePromptVersionCode = info.availableVersionCode()
                         appPreferences.lastUpdatePromptEpoch = System.currentTimeMillis()
-                    } else {
-                        // Play declined to launch (another flow already active,
-                        // etc.) — there is nothing for the listener to observe.
-                        manager.unregisterListener(installListener)
                     }
                 }.onFailure { Log.w(TAG, "update prompt failed", it) }
             }
             .addOnFailureListener { Log.w(TAG, "appUpdateInfo query failed", it) }
+    }
+
+    /**
+     * Handle the result of Play's update confirmation UI. The install listener
+     * is registered here, and only on acceptance: a cancelled or failed flow
+     * starts no download, so there is nothing for the listener to observe and
+     * it must not be attached to this singleton.
+     */
+    fun onUpdateFlowResult(resultCode: Int) {
+        if (resultCode != Activity.RESULT_OK) return
+        runCatching {
+            // Re-register defensively: an earlier accepted flow's listener may
+            // still be attached, and registerListener alone could stack it.
+            manager.unregisterListener(installListener)
+            manager.registerListener(installListener)
+        }.onFailure { Log.w(TAG, "update flow result handling failed", it) }
     }
 
     /** Re-check on return to foreground: surface an update that finished downloading while away. */
@@ -123,6 +137,5 @@ class UpdateChecker @Inject constructor(
 
     companion object {
         private const val TAG = "UpdateChecker"
-        private const val UPDATE_REQUEST_CODE = 17_390
     }
 }

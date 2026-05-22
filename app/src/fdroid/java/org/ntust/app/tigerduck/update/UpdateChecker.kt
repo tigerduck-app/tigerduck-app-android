@@ -1,6 +1,8 @@
 package org.ntust.app.tigerduck.update
 
 import android.app.Activity
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,7 +25,9 @@ class UpdateChecker @Inject constructor() {
     /** Never flips — fdroid has no in-app update flow. */
     val installReady: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
 
-    fun maybePromptForUpdate(activity: Activity) = Unit
+    fun maybePromptForUpdate(launcher: ActivityResultLauncher<IntentSenderRequest>) = Unit
+
+    fun onUpdateFlowResult(resultCode: Int) = Unit
 
     fun resume(activity: Activity) = Unit
 

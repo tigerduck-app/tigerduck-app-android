@@ -68,6 +68,14 @@ class MainActivity : AppCompatActivity() {
             if (granted) liveActivityManager.refresh()
         }
 
+    // Receives the result of Play's in-app update confirmation UI. Routing it
+    // back lets UpdateChecker attach its install listener only when the user
+    // accepted, so a cancelled flow leaves nothing registered (issue #89).
+    private val updateFlowLauncher =
+        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            updateChecker.onUpdateFlowResult(result.resultCode)
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -87,7 +95,7 @@ class MainActivity : AppCompatActivity() {
         // Re-prompt for app updates only on a genuine fresh start, never on a
         // rotation/config-change recreation (issue #89).
         if (savedInstanceState == null) {
-            updateChecker.maybePromptForUpdate(this)
+            updateChecker.maybePromptForUpdate(updateFlowLauncher)
         }
         // Resolve "What's new" on every onCreate, including config-change
         // recreations: the dialog's versionCode is recorded only once the user
