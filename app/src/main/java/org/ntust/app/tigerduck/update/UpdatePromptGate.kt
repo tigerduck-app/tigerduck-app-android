@@ -21,7 +21,9 @@ object UpdatePromptGate {
 
     /**
      * @param stalenessDays Play's `clientVersionStalenessDays()` — null when
-     *   Play has not yet determined how stale the installed version is.
+     *   Play has not yet determined how stale the installed version is. A null
+     *   value does not block the prompt: Play already reported the update as
+     *   available, so missing staleness data must not suppress it.
      * @param availableVersionCode the versionCode Play is offering.
      * @param lastPromptVersionCode the versionCode last prompted for (-1 if none).
      * @param lastPromptEpoch epoch-ms of the last prompt (0 if none).
@@ -34,7 +36,7 @@ object UpdatePromptGate {
         lastPromptEpoch: Long,
         now: Long,
     ): Boolean {
-        if ((stalenessDays ?: 0) < STALENESS_THRESHOLD_DAYS) return false
+        if (stalenessDays != null && stalenessDays < STALENESS_THRESHOLD_DAYS) return false
         val sameVersionWithinCooldown =
             availableVersionCode == lastPromptVersionCode &&
                 now - lastPromptEpoch < COOLDOWN_MS

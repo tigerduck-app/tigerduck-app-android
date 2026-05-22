@@ -93,8 +93,9 @@ class MainActivity : AppCompatActivity() {
         // recreations: the dialog's versionCode is recorded only once the user
         // dismisses it (see resolveWhatsNew), so re-deriving here re-shows a
         // dialog the user had not yet dismissed instead of dropping it
-        // permanently on rotation (issue #89).
-        resolveWhatsNew()
+        // permanently on rotation (issue #89). freshStart keeps the debug
+        // "Replay" sentinel from being consumed by a mere recreation.
+        resolveWhatsNew(freshStart = savedInstanceState == null)
 
         setContent {
             // Re-apply orientation whenever the user changes the setting
@@ -225,31 +226,54 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Decides whether to show the "What's new" dialog. Fresh installs
-     * (sentinel last-seen versionCode) silently record the current version and
-     * show nothing; upgrades show the dialog if `whatsnew.json` has an entry.
-     * The debug "Replay What's new" sentinel forces the newest authored entry.
+     * Decides whether to show the "What's new" dialog. A fresh install records
+     * the current version and shows nothing; upgrades show the dialog if
+     * `whatsnew.json` has an entry. A user upgrading from a build that predates
+     * the last-seen pref has no recorded versionCode either, but — unlike a
+     * fresh install — has completed onboarding; that distinguishes the two so
+     * real upgrades still get the dialog once. The debug "Replay What's new"
+     * sentinel forces the newest authored entry.
      *
      * Safe to call on every onCreate: when a dialog is shown the last-seen
      * versionCode is recorded on dismiss (not here), so a config-change
      * recreation re-runs this and re-shows a still-pending dialog instead of
-     * dropping it permanently (issue #89).
+     * dropping it permanently (issue #89). [freshStart] is false for such
+     * recreations; the debug replay sentinel is only consumed when it is true,
+     * so rotating after tapping the debug row can't pop the dialog mid-session.
      */
-    private fun resolveWhatsNew() {
+    private fun resolveWhatsNew(freshStart: Boolean) {
         val current = BuildConfig.VERSION_CODE
         val lastSeen = appPreferences.lastSeenWhatsNewVersionCode
-        if (lastSeen == AppPreferences.WHATS_NEW_UNSET) {
+        val languageTag = resources.configuration.locales[0].toLanguageTag()
+
+        // Debug "Replay What's new": show the newest authored entry even if
+        // this build's versionCode predates it — whatsnew.json is usually
+        // written ahead of the version bump. Only consume the sentinel on a
+        // genuine process start; on a rotation/config-change recreation leave
+        // it set so the replay fires on the *next* launch as the Settings row
+        // promises, instead of popping the dialog the instant the device turns.
+        if (lastSeen == AppPreferences.WHATS_NEW_REPLAY) {
+            if (!freshStart) return
+            val replay = whatsNewRepository.latestEntry(languageTag)
+            whatsNewContent.value = replay
+            if (replay == null) appPreferences.lastSeenWhatsNewVersionCode = current
+            return
+        }
+
+        // No versionCode on record. A genuine fresh install shows nothing — a
+        // new user has missed nothing. A user upgrading from a build that
+        // predates this pref also has no record, but has completed onboarding;
+        // fall through and show the current version's entry once.
+        if (lastSeen == AppPreferences.WHATS_NEW_UNSET && !appPreferences.hasCompletedOnboarding) {
             appPreferences.lastSeenWhatsNewVersionCode = current
             return
         }
-        val languageTag = resources.configuration.locales[0].toLanguageTag()
+
         val content = when {
-            // Debug "Replay What's new": show the newest authored entry even if
-            // this build's versionCode predates it — whatsnew.json is usually
-            // written ahead of the version bump, so entryFor(current) would miss.
-            lastSeen == AppPreferences.WHATS_NEW_REPLAY ->
-                whatsNewRepository.latestEntry(languageTag)
-            WhatsNewGate.shouldShow(lastSeen, current) ->
+            // UNSET here means a pre-feature upgrade (onboarding already done);
+            // the normal gate only fires for a recorded older versionCode.
+            lastSeen == AppPreferences.WHATS_NEW_UNSET ||
+                WhatsNewGate.shouldShow(lastSeen, current) ->
                 whatsNewRepository.entryFor(current, languageTag)
             else -> null
         }

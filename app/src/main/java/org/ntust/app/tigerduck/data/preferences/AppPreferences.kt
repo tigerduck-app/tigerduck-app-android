@@ -70,9 +70,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         set(value) = prefs.edit().putLong("lastUpdatePromptEpoch", value).apply()
 
     // --- "What's new" dialog ---
-    // WHATS_NEW_UNSET (-1) means "fresh install" — no prior version was seen,
-    // so the dialog is suppressed and this is silently set to the current
-    // versionCode on first launch.
+    // WHATS_NEW_UNSET (-1) means no versionCode has been recorded yet — either
+    // a fresh install or an upgrade from a build that predates this pref.
+    // MainActivity.resolveWhatsNew() tells the two apart via
+    // hasCompletedOnboarding: a fresh install is suppressed, a real upgrade
+    // shows the dialog once.
     // WHATS_NEW_REPLAY (0) is the debug "Replay What's new" sentinel — it is
     // not a real versionCode, and tells resolveWhatsNew() to show the newest
     // authored entry regardless of this build's versionCode.

@@ -40,9 +40,19 @@ class UpdateChecker @Inject constructor(
     /** True once a FLEXIBLE update has finished downloading and can be installed. */
     val installReady: StateFlow<Boolean> = _installReady.asStateFlow()
 
-    private val installListener = InstallStateUpdatedListener { state ->
-        if (state.installStatus() == InstallStatus.DOWNLOADED) {
-            _installReady.value = true
+    // Explicit type: the lambda references installListener itself (to
+    // self-unregister), which would otherwise make type inference recursive.
+    private val installListener: InstallStateUpdatedListener = InstallStateUpdatedListener { state ->
+        when (state.installStatus()) {
+            InstallStatus.DOWNLOADED -> _installReady.value = true
+            // Terminal states: the flexible flow is over. Drop the listener so
+            // a cancelled or failed download can't leave this singleton holding
+            // a stale registration (and live callback) until process death.
+            InstallStatus.INSTALLED,
+            InstallStatus.FAILED,
+            InstallStatus.CANCELED ->
+                runCatching { manager.unregisterListener(installListener) }
+            else -> Unit
         }
     }
 
@@ -62,19 +72,31 @@ class UpdateChecker @Inject constructor(
                     )
                     if (!allowed) return@runCatching
 
+                    // Drop any listener a previously abandoned flexible flow
+                    // left attached, so this singleton can't accumulate
+                    // registrations across repeated eligible prompts.
+                    manager.unregisterListener(installListener)
                     manager.registerListener(installListener)
-                    manager.startUpdateFlowForResult(
+
+                    val launched = manager.startUpdateFlowForResult(
                         info,
                         activity,
                         AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build(),
                         UPDATE_REQUEST_CODE,
                     )
-                    // Record the prompt only after the flow actually launched.
-                    // If startUpdateFlowForResult throws, the runCatching below
-                    // swallows it — the cooldown must not then suppress a
-                    // prompt the user never saw.
-                    appPreferences.lastUpdatePromptVersionCode = info.availableVersionCode()
-                    appPreferences.lastUpdatePromptEpoch = System.currentTimeMillis()
+                    if (launched) {
+                        // Record the prompt only once the flow actually
+                        // launched — the cooldown must not suppress a prompt
+                        // the user never saw. If startUpdateFlowForResult
+                        // throws, the runCatching below swallows it and nothing
+                        // is recorded either.
+                        appPreferences.lastUpdatePromptVersionCode = info.availableVersionCode()
+                        appPreferences.lastUpdatePromptEpoch = System.currentTimeMillis()
+                    } else {
+                        // Play declined to launch (another flow already active,
+                        // etc.) — there is nothing for the listener to observe.
+                        manager.unregisterListener(installListener)
+                    }
                 }.onFailure { Log.w(TAG, "update prompt failed", it) }
             }
             .addOnFailureListener { Log.w(TAG, "appUpdateInfo query failed", it) }
