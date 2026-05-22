@@ -1,10 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Generated from localization/source/*.json. Do not edit directly. -->
+    <string name="a11y_assignment_open_moodle_hint">Double tap to open the assignment in Moodle</string>
+    <string name="a11y_calendar_day">%1$@, %2$lld events</string>
+    <string name="a11y_calendar_nav_next">Next month</string>
+    <string name="a11y_calendar_nav_prev">Previous month</string>
     <string name="a11y_class_table_cell_assignment_indicator">Has assignment</string>
     <string name="a11y_class_table_conflict_prefix">Class conflict</string>
+    <string name="a11y_course_card_open_details_hint">Double tap for details</string>
+    <string name="a11y_course_detail_open_moodle">Open in Moodle</string>
     <string name="a11y_dropdown_action_hint">Double tap to choose another option</string>
+    <string name="a11y_rankings_trend_chart">GPA trend by semester</string>
+    <string name="a11y_rankings_trend_no_selection">No semester selected</string>
+    <string name="a11y_rankings_trend_point">%1$@ GPA %2$@</string>
     <string name="a11y_time_slider_swipe_hint">Swipe left or right to change the time</string>
+    <string name="a11y_timetable_cell">%1$@ period %2$@: %3$@</string>
     <string name="account_id_use_standard_keyboard">Teclado padrão</string>
     <string name="action_add">Adicionar</string>
     <string name="action_allow">Permitir</string>
@@ -603,6 +613,8 @@
     <string name="tab_editor_section_available_tabs">Abas disponíveis</string>
     <string name="tab_editor_section_current_tabs">Abas atuais</string>
     <string name="tab_editor_title">Editor de abas</string>
+    <string name="update_ready_message">An update is ready to install.</string>
+    <string name="update_restart_action">Restart</string>
     <string name="vibration_settings_motor_warning">Alguns celulares têm motores de vibração de menor qualidade que podem ignorar vibrações muito fracas ou muito curtas. Se você não conseguir sentir uma configuração, tente aumentar sua intensidade ou duração. Você pode começar experimentando a predefinição \"Médio\" primeiro.</string>
     <string name="vibration_settings_revert">Restaurar padrão</string>
     <string name="vibration_settings_section_length_ms">Duração (ms)</string>

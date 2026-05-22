@@ -1,10 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Generated from localization/source/*.json. Do not edit directly. -->
+    <string name="a11y_assignment_open_moodle_hint">Double tap to open the assignment in Moodle</string>
+    <string name="a11y_calendar_day">%1$@, %2$lld events</string>
+    <string name="a11y_calendar_nav_next">Next month</string>
+    <string name="a11y_calendar_nav_prev">Previous month</string>
     <string name="a11y_class_table_cell_assignment_indicator">Has assignment</string>
     <string name="a11y_class_table_conflict_prefix">Class conflict</string>
+    <string name="a11y_course_card_open_details_hint">Double tap for details</string>
+    <string name="a11y_course_detail_open_moodle">Open in Moodle</string>
     <string name="a11y_dropdown_action_hint">Double tap to choose another option</string>
+    <string name="a11y_rankings_trend_chart">GPA trend by semester</string>
+    <string name="a11y_rankings_trend_no_selection">No semester selected</string>
+    <string name="a11y_rankings_trend_point">%1$@ GPA %2$@</string>
     <string name="a11y_time_slider_swipe_hint">Swipe left or right to change the time</string>
+    <string name="a11y_timetable_cell">%1$@ period %2$@: %3$@</string>
     <string name="account_id_use_standard_keyboard">ప్రామాణిక కీబోర్డ్</string>
     <string name="action_add">జోడించు</string>
     <string name="action_allow">అనుమతించు</string>
@@ -603,6 +613,8 @@
     <string name="tab_editor_section_available_tabs">అందుబాటులో ఉన్న ట్యాబ్‌లు</string>
     <string name="tab_editor_section_current_tabs">ప్రస్తుత ట్యాబ్‌లు</string>
     <string name="tab_editor_title">ట్యాబ్ ఎడిటర్</string>
+    <string name="update_ready_message">An update is ready to install.</string>
+    <string name="update_restart_action">Restart</string>
     <string name="vibration_settings_motor_warning">కొన్ని ఫోన్లలో తక్కువ నాణ్యమైన వైబ్రేషన్ మోటార్లు ఉంటాయి, అవి చాలా బలహీనమైన లేదా చాలా తక్కువ వ్యవధిగల వైబ్రేషన్లను విస్మరించవచ్చు. మీకు ఏదైనా సెట్టింగ్ అనుభవం కాకపోతే, దాని బలం లేదా పొడవును పెంచడానికి ప్రయత్నించండి. ముందుగా \"మధ్యమ\" ప్రీసెట్‌ను ప్రయత్నించడం ద్వారా ప్రారంభించవచ్చు.</string>
     <string name="vibration_settings_revert">డిఫాల్ట్‌కు రీసెట్ చేయండి</string>
     <string name="vibration_settings_section_length_ms">వ్యవధి (ms)</string>
