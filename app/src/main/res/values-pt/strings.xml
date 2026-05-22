@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">Separadores disponíveis</string>
     <string name="tab_editor_section_current_tabs">Separadores atuais</string>
     <string name="tab_editor_title">Editor de separadores</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">A atualização foi transferida e está pronta para instalar.</string>
+    <string name="update_restart_action">Reiniciar</string>
     <string name="vibration_settings_motor_warning">Alguns telemóveis têm motores de vibração de menor qualidade que podem ignorar vibrações muito fracas ou muito curtas. Se não conseguir sentir uma definição, tente aumentar a sua intensidade ou duração. Pode começar por experimentar a predefinição \"Médio\" primeiro.</string>
     <string name="vibration_settings_revert">Repor predefinição</string>
     <string name="vibration_settings_section_length_ms">Duração (ms)</string>

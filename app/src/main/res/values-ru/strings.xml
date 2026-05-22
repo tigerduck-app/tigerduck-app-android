@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">Доступные вкладки</string>
     <string name="tab_editor_section_current_tabs">Текущие вкладки</string>
     <string name="tab_editor_title">Редактор вкладок</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">Обновление загружено и готово к установке.</string>
+    <string name="update_restart_action">Перезапустить</string>
     <string name="vibration_settings_motor_warning">На некоторых телефонах установлены вибромоторы более низкого качества, которые могут игнорировать очень слабые или очень короткие вибрации. Если вы не ощущаете настройку, попробуйте увеличить её силу или длину. Для начала рекомендуем попробовать предустановку «Средняя».</string>
     <string name="vibration_settings_revert">Сбросить к умолчанию</string>
     <string name="vibration_settings_section_length_ms">Длительность (ms)</string>

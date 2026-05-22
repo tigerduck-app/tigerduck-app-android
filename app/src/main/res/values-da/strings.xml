@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">Tilgængelige faneblade</string>
     <string name="tab_editor_section_current_tabs">Aktuelle faneblade</string>
     <string name="tab_editor_title">Fanebladseditor</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">Opdateringen er hentet og klar til installation.</string>
+    <string name="update_restart_action">Genstart</string>
     <string name="vibration_settings_motor_warning">Nogle telefoner har vibrationsmotor af lavere kvalitet, som muligvis ignorerer meget svage eller meget korte vibrationer. Hvis du ikke kan mærke en indstilling, kan du prøve at øge dens styrke eller længde. Du kan starte med at prøve \"Middel\"-forudindstillingen.</string>
     <string name="vibration_settings_revert">Gendan standard</string>
     <string name="vibration_settings_section_length_ms">Varighed (ms)</string>

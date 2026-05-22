@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">উপলব্ধ ট্যাবসমূহ</string>
     <string name="tab_editor_section_current_tabs">বর্তমান ট্যাবসমূহ</string>
     <string name="tab_editor_title">ট্যাব এডিটর</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">আপডেট ডাউনলোড হয়েছে, ইনস্টল করতে প্রস্তুত।</string>
+    <string name="update_restart_action">পুনরায় চালু করুন</string>
     <string name="vibration_settings_motor_warning">কিছু ফোনে নিম্নমানের ভাইব্রেশন মোটর থাকে যা খুব দুর্বল বা খুব ছোট ভাইব্রেশন উপেক্ষা করতে পারে। যদি কোনো সেটিং অনুভব না করেন, তাহলে এর শক্তি বা দৈর্ঘ্য বাড়ানোর চেষ্টা করুন। আপনি প্রথমে \"মাঝারি\" প্রিসেট দিয়ে শুরু করতে পারেন।</string>
     <string name="vibration_settings_revert">ডিফল্টে ফিরুন</string>
     <string name="vibration_settings_section_length_ms">দৈর্ঘ্য (ms)</string>

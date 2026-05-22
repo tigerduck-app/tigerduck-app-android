@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">Tab tersedia</string>
     <string name="tab_editor_section_current_tabs">Tab semasa</string>
     <string name="tab_editor_title">Editor tab</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">Kemas kini telah dimuat turun dan sedia untuk dipasang.</string>
+    <string name="update_restart_action">Mulakan semula</string>
     <string name="vibration_settings_motor_warning">Sesetengah telefon mempunyai motor getaran berkualiti lebih rendah yang mungkin mengabaikan getaran yang sangat lemah atau sangat pendek. Jika anda tidak dapat merasai sesuatu tetapan, cuba naikkan kekuatan atau panjangnya. Anda boleh mula dengan mencuba pratetap \"Sederhana\" terlebih dahulu.</string>
     <string name="vibration_settings_revert">Tetapkan semula ke lalai</string>
     <string name="vibration_settings_section_length_ms">Tempoh (ms)</string>

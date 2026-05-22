@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">ലഭ്യമായ ടാബുകൾ</string>
     <string name="tab_editor_section_current_tabs">നിലവിലെ ടാബുകൾ</string>
     <string name="tab_editor_title">ടാബ് എഡിറ്റർ</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">അപ്‌ഡേറ്റ് ഡൗൺലോഡ് ആയി, ഇൻസ്റ്റാൾ ചെയ്യാൻ തയ്യാർ.</string>
+    <string name="update_restart_action">പുനരാരംഭിക്കുക</string>
     <string name="vibration_settings_motor_warning">ചില ഫോണുകളിൽ നിലവാരം കുറഞ്ഞ വൈബ്രേഷൻ മോട്ടോറുകൾ ഉണ്ട്, അവ വളരെ ദുർബലമോ വളരെ ചെറുതോ ആയ വൈബ്രേഷനുകൾ അവഗണിക്കാം. ഒരു ക്രമീകരണം അനുഭവപ്പെടുന്നില്ലെങ്കിൽ, അതിന്റെ ശക്തി അല്ലെങ്കിൽ ദൈർഘ്യം വർദ്ധിപ്പിക്കാൻ ശ്രമിക്കൂ. ആദ്യം \"ഇടത്തരം\" പ്രീസെറ്റ് പരീക്ഷിക്കുന്നതിൽ നിന്ന് ആരംഭിക്കാം.</string>
     <string name="vibration_settings_revert">ഡിഫോൾട്ടിലേക്ക് പുനഃസജ്ജമാക്കുക</string>
     <string name="vibration_settings_section_length_ms">ദൈർഘ്യം (ms)</string>

@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">Dostupné záložky</string>
     <string name="tab_editor_section_current_tabs">Aktuální záložky</string>
     <string name="tab_editor_title">Editor záložek</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">Aktualizace je stažena a připravena k instalaci.</string>
+    <string name="update_restart_action">Restartovat</string>
     <string name="vibration_settings_motor_warning">Některé telefony mají vibromotorek nižší kvality, který může ignorovat velmi slabé nebo velmi krátké vibrace. Pokud nastavení necítíte, zkuste zvýšit jeho sílu nebo délku. Můžete začít vyzkoušením předvolby \"Střední\".</string>
     <string name="vibration_settings_revert">Obnovit výchozí</string>
     <string name="vibration_settings_section_length_ms">Délka (ms)</string>

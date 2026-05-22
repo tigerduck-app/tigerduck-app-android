@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">Elérhető lapok</string>
     <string name="tab_editor_section_current_tabs">Jelenlegi lapok</string>
     <string name="tab_editor_title">Lap szerkesztő</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">A frissítés letöltve, telepítésre kész.</string>
+    <string name="update_restart_action">Újraindítás</string>
     <string name="vibration_settings_motor_warning">Egyes telefonokon alacsonyabb minőségű vibrációs motor van, amely figyelmen kívül hagyhatja a nagyon gyenge vagy nagyon rövid rezgéseket. Ha nem érez egy beállítást, próbálja növelni annak erősségét vagy hosszát. Kezdheti a \"Közepes\" előbeállítás kipróbálásával.</string>
     <string name="vibration_settings_revert">Alapértelmezett visszaállítása</string>
     <string name="vibration_settings_section_length_ms">Időtartam (ms)</string>

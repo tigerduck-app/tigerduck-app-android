@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">File disponibile</string>
     <string name="tab_editor_section_current_tabs">File curente</string>
     <string name="tab_editor_title">Editor file</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">Actualizarea a fost descărcată și este gata de instalare.</string>
+    <string name="update_restart_action">Repornire</string>
     <string name="vibration_settings_motor_warning">Unele telefoane au motoare de vibrație de calitate mai scăzută care pot ignora vibrațiile foarte slabe sau foarte scurte. Dacă nu simțiți o setare, încercați să îi creșteți intensitatea sau durata. Puteți începe încercând mai întâi presetul \"Mediu\".</string>
     <string name="vibration_settings_revert">Restabilire implicită</string>
     <string name="vibration_settings_section_length_ms">Durată (ms)</string>

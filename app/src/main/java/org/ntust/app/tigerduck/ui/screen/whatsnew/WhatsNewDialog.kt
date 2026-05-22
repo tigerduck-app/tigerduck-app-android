@@ -13,7 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.update.WhatsNewContent
 
 /**
@@ -44,7 +43,8 @@ fun WhatsNewDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_got_it))
+                // Framework string — localized by the platform in every locale.
+                Text(stringResource(android.R.string.ok))
             }
         },
     )

@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">Pestañas disponibles</string>
     <string name="tab_editor_section_current_tabs">Pestañas actuales</string>
     <string name="tab_editor_title">Editor de pestañas</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">La actualización se ha descargado y está lista para instalar.</string>
+    <string name="update_restart_action">Reiniciar</string>
     <string name="vibration_settings_motor_warning">Algunos teléfonos tienen motores de vibración de menor calidad que pueden ignorar vibraciones muy débiles o muy cortas. Si no puedes sentir una configuración, intenta aumentar su intensidad o duración. Puedes empezar probando el ajuste preestablecido \"Medio\".</string>
     <string name="vibration_settings_revert">Restablecer por defecto</string>
     <string name="vibration_settings_section_length_ms">Duración (ms)</string>

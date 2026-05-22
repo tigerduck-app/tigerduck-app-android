@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">ઉપલબ્ધ ટૅબ</string>
     <string name="tab_editor_section_current_tabs">વર્તમાન ટૅબ</string>
     <string name="tab_editor_title">ટૅબ એડિટર</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">અપડેટ ડાઉનલોડ થઈ ગઈ છે, ઇન્સ્ટોલ કરવા તૈયાર છે.</string>
+    <string name="update_restart_action">પુનઃપ્રારંભ કરો</string>
     <string name="vibration_settings_motor_warning">કેટલા ફોનમાં નીચી ગુણવત્તાના વાઇબ્રેશન મોટર હોય છે જે ખૂબ જ નબળા અથવા ખૂબ ટૂંકા વાઇબ્રેશનને અવગણી શકે છે. જો તમને કોઈ સેટિંગ ન અનુભવાય, તો તેની શક્તિ અથવા લંબાઈ વધારવાનો પ્રયાસ કરો. તમે પહેલા \"મધ્યમ\" પ્રીસેટ અજમાવીને શરૂ કરી શકો છો.</string>
     <string name="vibration_settings_revert">ડિફૉલ્ટ પર રીસેટ</string>
     <string name="vibration_settings_section_length_ms">સમયગાળો (ms)</string>

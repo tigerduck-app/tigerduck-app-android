@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">Tilgjengelige faner</string>
     <string name="tab_editor_section_current_tabs">Gjeldende faner</string>
     <string name="tab_editor_title">Faneredaktør</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">Oppdateringen er lastet ned og klar til installering.</string>
+    <string name="update_restart_action">Start på nytt</string>
     <string name="vibration_settings_motor_warning">Noen telefoner har vibrasjonsmotorer av lavere kvalitet som kan ignorere veldig svake eller veldig korte vibrasjoner. Hvis du ikke kan kjenne en innstilling, prøv å øke styrken eller lengden. Du kan begynne med å prøve \"Middels\" forhåndsinnstillingen.</string>
     <string name="vibration_settings_revert">Gjenopprett standard</string>
     <string name="vibration_settings_section_length_ms">Varighet (ms)</string>

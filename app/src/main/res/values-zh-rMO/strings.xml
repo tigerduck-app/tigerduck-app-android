@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">其他可用的 Tab</string>
     <string name="tab_editor_section_current_tabs">目前的 Tab</string>
     <string name="tab_editor_title">Tab 編輯器</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">更新已下載完成，準備安裝。</string>
+    <string name="update_restart_action">重新啟動</string>
     <string name="vibration_settings_motor_warning">部分手機嘅震動馬達質素較差，過弱或過短嘅震動可能完全感受唔到。若感受唔到震動，請試吓調高強度或時長。建議先試試「中」預設。</string>
     <string name="vibration_settings_revert">還原預設</string>
     <string name="vibration_settings_section_length_ms">長度 (ms)</string>

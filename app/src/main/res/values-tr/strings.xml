@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">Kullanılabilir sekmeler</string>
     <string name="tab_editor_section_current_tabs">Mevcut sekmeler</string>
     <string name="tab_editor_title">Sekme düzenleyici</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">Güncelleme indirildi ve yüklenmeye hazır.</string>
+    <string name="update_restart_action">Yeniden başlat</string>
     <string name="vibration_settings_motor_warning">Bazı telefonlarda çok zayıf veya çok kısa titreşimleri görmezden gelebilecek daha düşük kaliteli titreşim motorları bulunur. Bir ayarı hissedemiyorsanız gücünü veya uzunluğunu artırmayı deneyin. \"Orta\" ön ayarını deneyerek başlayabilirsiniz.</string>
     <string name="vibration_settings_revert">Varsayılana sıfırla</string>
     <string name="vibration_settings_section_length_ms">Süre (ms)</string>

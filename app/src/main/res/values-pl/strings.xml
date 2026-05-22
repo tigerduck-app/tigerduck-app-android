@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">Dostępne zakładki</string>
     <string name="tab_editor_section_current_tabs">Bieżące zakładki</string>
     <string name="tab_editor_title">Edytor zakładek</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">Aktualizacja została pobrana i jest gotowa do zainstalowania.</string>
+    <string name="update_restart_action">Uruchom ponownie</string>
     <string name="vibration_settings_motor_warning">Niektóre telefony mają silniki wibracji niższej jakości, które mogą ignorować bardzo słabe lub bardzo krótkie wibracje. Jeśli nie czujesz ustawienia, spróbuj zwiększyć jego siłę lub długość. Możesz zacząć od wypróbowania ustawienia wstępnego \"Średni\".</string>
     <string name="vibration_settings_revert">Przywróć domyślne</string>
     <string name="vibration_settings_section_length_ms">Czas trwania (ms)</string>

@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">Tab có sẵn</string>
     <string name="tab_editor_section_current_tabs">Tab hiện tại</string>
     <string name="tab_editor_title">Trình chỉnh sửa Tab</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">Bản cập nhật đã tải xong, sẵn sàng cài đặt.</string>
+    <string name="update_restart_action">Khởi động lại</string>
     <string name="vibration_settings_motor_warning">Một số điện thoại có động cơ rung chất lượng thấp hơn có thể bỏ qua những rung động rất yếu hoặc rất ngắn. Nếu bạn không cảm nhận được một cài đặt, hãy thử tăng cường độ hoặc độ dài của nó. Bạn có thể bắt đầu bằng cách thử cài đặt trước \"Vừa\" trước.</string>
     <string name="vibration_settings_revert">Đặt lại mặc định</string>
     <string name="vibration_settings_section_length_ms">Thời lượng (ms)</string>

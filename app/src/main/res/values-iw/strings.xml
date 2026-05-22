@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">טאבים זמינים</string>
     <string name="tab_editor_section_current_tabs">טאבים נוכחיים</string>
     <string name="tab_editor_title">עורך טאבים</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">העדכון הורד ומוכן להתקנה.</string>
+    <string name="update_restart_action">הפעל מחדש</string>
     <string name="vibration_settings_motor_warning">לחלק מהטלפונים יש מנועי רטט באיכות נמוכה יותר שעלולים להתעלם מרטטים חלשים מאוד או קצרים מאוד. אם אינך מרגיש הגדרה מסוימת, נסה להגביר את עוצמתה או אורכה. תוכל להתחיל בניסוי הקבוע \"בינוני\" תחילה.</string>
     <string name="vibration_settings_revert">אפס לברירת מחדל</string>
     <string name="vibration_settings_section_length_ms">משך (ms)</string>

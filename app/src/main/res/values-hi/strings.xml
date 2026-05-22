@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">उपलब्ध Tabs</string>
     <string name="tab_editor_section_current_tabs">वर्तमान Tabs</string>
     <string name="tab_editor_title">Tab संपादक</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">अपडेट डाउनलोड हो गया है, इंस्टॉल करने के लिए तैयार है।</string>
+    <string name="update_restart_action">पुनः प्रारंभ करें</string>
     <string name="vibration_settings_motor_warning">कुछ फोनों में कम गुणवत्ता वाले वाइब्रेशन मोटर होते हैं जो बहुत कमज़ोर या बहुत छोटे वाइब्रेशन को अनदेखा कर सकते हैं। अगर आप कोई सेटिंग महसूस नहीं कर पाते, तो उसकी ताकत या लंबाई बढ़ाने की कोशिश करें। आप पहले \"मध्यम\" प्रीसेट आज़माकर शुरू कर सकते हैं।</string>
     <string name="vibration_settings_revert">डिफ़ॉल्ट पर रीसेट</string>
     <string name="vibration_settings_section_length_ms">अवधि (ms)</string>

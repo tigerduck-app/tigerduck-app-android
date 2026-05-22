@@ -613,8 +613,8 @@
     <string name="tab_editor_section_available_tabs">Abas disponíveis</string>
     <string name="tab_editor_section_current_tabs">Abas atuais</string>
     <string name="tab_editor_title">Editor de abas</string>
-    <string name="update_ready_message">An update is ready to install.</string>
-    <string name="update_restart_action">Restart</string>
+    <string name="update_ready_message">A atualização foi baixada e está pronta para instalar.</string>
+    <string name="update_restart_action">Reiniciar</string>
     <string name="vibration_settings_motor_warning">Alguns celulares têm motores de vibração de menor qualidade que podem ignorar vibrações muito fracas ou muito curtas. Se você não conseguir sentir uma configuração, tente aumentar sua intensidade ou duração. Você pode começar experimentando a predefinição \"Médio\" primeiro.</string>
     <string name="vibration_settings_revert">Restaurar padrão</string>
     <string name="vibration_settings_section_length_ms">Duração (ms)</string>
