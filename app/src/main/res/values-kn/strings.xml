@@ -1,10 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Generated from localization/source/*.json. Do not edit directly. -->
+    <string name="a11y_assignment_open_moodle_hint">Double tap to open the assignment in Moodle</string>
+    <string name="a11y_calendar_day">%1$@, %2$lld events</string>
+    <string name="a11y_calendar_nav_next">Next month</string>
+    <string name="a11y_calendar_nav_prev">Previous month</string>
     <string name="a11y_class_table_cell_assignment_indicator">Has assignment</string>
     <string name="a11y_class_table_conflict_prefix">Class conflict</string>
+    <string name="a11y_course_card_open_details_hint">Double tap for details</string>
+    <string name="a11y_course_detail_open_moodle">Open in Moodle</string>
     <string name="a11y_dropdown_action_hint">Double tap to choose another option</string>
+    <string name="a11y_rankings_trend_chart">GPA trend by semester</string>
+    <string name="a11y_rankings_trend_no_selection">No semester selected</string>
+    <string name="a11y_rankings_trend_point">%1$@ GPA %2$@</string>
     <string name="a11y_time_slider_swipe_hint">Swipe left or right to change the time</string>
+    <string name="a11y_timetable_cell">%1$@ period %2$@: %3$@</string>
     <string name="account_id_use_standard_keyboard">ಪ್ರಮಾಣಿತ ಕೀಬೋರ್ಡ್</string>
     <string name="action_add">ಸೇರಿಸಿ</string>
     <string name="action_allow">ಅನುಮತಿಸಿ</string>
@@ -603,6 +613,8 @@
     <string name="tab_editor_section_available_tabs">ಲಭ್ಯ ಟ್ಯಾಬ್‌ಗಳು</string>
     <string name="tab_editor_section_current_tabs">ಪ್ರಸ್ತುತ ಟ್ಯಾಬ್‌ಗಳು</string>
     <string name="tab_editor_title">ಟ್ಯಾಬ್ ಸಂಪಾದಕ</string>
+    <string name="update_ready_message">ಅಪ್‌ಡೇಟ್ ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ, ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲು ಸಿದ್ಧ.</string>
+    <string name="update_restart_action">ಮರುಪ್ರಾರಂಭಿಸಿ</string>
     <string name="vibration_settings_motor_warning">ಕೆಲವು ಫೋನ್‌ಗಳಲ್ಲಿ ಕಡಿಮೆ ಗುಣಮಟ್ಟದ ವೈಬ್ರೇಶನ್ ಮೋಟಾರ್‌ಗಳಿರುತ್ತವೆ, ಅವು ತುಂಬಾ ದುರ್ಬಲ ಅಥವಾ ತುಂಬಾ ಕಡಿಮೆ ಅವಧಿಯ ವೈಬ್ರೇಶನ್‌ಗಳನ್ನು ನಿರ್ಲಕ್ಷಿಸಬಹುದು. ಯಾವುದೇ ಸೆಟ್ಟಿಂಗ್ ಅನ್ನು ಅನುಭವಿಸಲಾಗದಿದ್ದರೆ, ಅದರ ಶಕ್ತಿ ಅಥವಾ ಉದ್ದವನ್ನು ಹೆಚ್ಚಿಸಲು ಪ್ರಯತ್ನಿಸಿ. ಮೊದಲು \"ಮಧ್ಯಮ\" ಪ್ರೀಸೆಟ್ ಅನ್ನು ಪ್ರಯತ್ನಿಸಿ.</string>
     <string name="vibration_settings_revert">ಡೀಫಾಲ್ಟ್‌ಗೆ ಮರುಹೊಂದಿಸಿ</string>
     <string name="vibration_settings_section_length_ms">ಅವಧಿ (ms)</string>

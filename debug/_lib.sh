@@ -25,6 +25,39 @@ require() {
   }
 }
 
+# Run "$@", killing it after <secs> seconds. Returns the command's own exit
+# status, or 124 if it had to be killed for overrunning. Prefers GNU
+# `timeout` / `gtimeout`; falls back to a background-process watchdog because
+# macOS ships no `timeout`.
+run_with_timeout() {
+  local secs="$1"; shift
+  local tool
+  if tool="$(command -v timeout || command -v gtimeout || true)" && [[ -n "$tool" ]]; then
+    "$tool" "$secs" "$@"
+    return $?
+  fi
+  # The watchdog records that it fired (non-empty marker) before killing the
+  # command. A timeout is then detected from that fact — not inferred from the
+  # watchdog no longer being alive, which cannot tell "I killed it" apart from
+  # "I expired just as the command finished on its own".
+  local marker
+  marker="$(mktemp "${TMPDIR:-/tmp}/rwt.XXXXXX")"
+  "$@" &
+  local cmd_pid=$!
+  ( sleep "$secs"; printf fired >"$marker"; kill -TERM "$cmd_pid" 2>/dev/null ) &
+  local watch_pid=$!
+  local rc=0
+  wait "$cmd_pid" 2>/dev/null || rc=$?
+  # Stop the watchdog the instant the command is done: if it was still
+  # sleeping it never fires and the marker stays empty; if it already fired
+  # the marker is non-empty and this kill is a harmless no-op.
+  kill -TERM "$watch_pid" 2>/dev/null || true
+  wait "$watch_pid" 2>/dev/null || true
+  [[ -s "$marker" ]] && rc=124
+  rm -f "$marker"
+  return "$rc"
+}
+
 # Print a serial for an interactive device pick. Lists every connected adb
 # device (phones, watches, emulators) and lets the user choose. If exactly
 # one is connected, returns it without prompting. Optional first arg is a
@@ -40,12 +73,29 @@ pick_device() {
   # (adb shell inherits stdin and would consume the remaining lines, leaving
   # us with only the first device — and a silent auto-pick).
   while IFS= read -r line <&3; do
-    [[ "$line" =~ ^([^[:space:]]+)[[:space:]]+device([[:space:]].*)?$ ]] || continue
+    # The state column ("device") is always the last whitespace-separated
+    # field; the serial is everything before it. A greedy (.+) is required
+    # because mDNS-discovered wireless devices report a serial that itself
+    # contains a space — e.g. "adb-SERIAL (2)._adb-tls-connect._tcp", where
+    # " (2)" is Bonjour's duplicate-name disambiguator. A [^space]+ token
+    # would split on that space and fail to match, silently dropping the
+    # device.
+    [[ "$line" =~ ^(.+)[[:space:]]+device([[:space:]].*)?$ ]] || continue
     local serial="${BASH_REMATCH[1]}"
-    local chars model tag=""
-    chars="$(adb -s "$serial" shell getprop ro.build.characteristics </dev/null 2>/dev/null | tr -d '\r' || true)"
-    model="$(adb -s "$serial" shell getprop ro.product.model </dev/null 2>/dev/null | tr -d '\r' || true)"
-    [[ "$chars" == *watch* ]] && tag=" [watch]"
+    # Probe model + form factor in one timed `adb shell` round-trip. A stale
+    # transport (e.g. a dropped wireless connection still listed as `device`)
+    # makes `adb shell` hang forever, which would freeze the whole picker — so
+    # cap it and tag the device [unresponsive] instead of blocking.
+    local chars="" model="" tag="" probe
+    if probe="$(run_with_timeout 5 adb -s "$serial" shell \
+        'getprop ro.build.characteristics; getprop ro.product.model' \
+        </dev/null 2>/dev/null)"; then
+      probe="${probe//$'\r'/}"
+      { IFS= read -r chars; IFS= read -r model; } <<< "$probe" || true
+    else
+      tag=" [unresponsive]"
+    fi
+    [[ "$chars" == *watch* ]] && tag="$tag [watch]"
     [[ "$serial" == emulator-* ]] && tag="$tag [emulator]"
     serials+=("$serial")
     labels+=("$serial  ${model:-?}$tag")
@@ -115,7 +165,10 @@ print(int(dt.timestamp() * 1000))
   saved="$(python3 -c 'import time; print(int(time.time()*1000))')"
 
   local tmp
-  tmp="$(mktemp -t debug_clock.XXXXXX.xml)"
+  # Pass a full template path rather than `mktemp -t PREFIX`: GNU and BSD
+  # (macOS) mktemp interpret `-t` differently, but both accept a template
+  # operand ending in XXXXXX.
+  tmp="$(mktemp "${TMPDIR:-/tmp}/debug_clock.XXXXXX")"
   cat >"$tmp" <<XML
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <map>

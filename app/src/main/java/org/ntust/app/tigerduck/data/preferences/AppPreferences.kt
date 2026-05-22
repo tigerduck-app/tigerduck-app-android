@@ -59,6 +59,29 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
         set(value) = prefs.edit().putBoolean("hasCompletedOnboarding", value).apply()
 
+    // --- Update notification (issue #89) ---
+    // Sentinel for "no update prompt shown yet".
+    var lastUpdatePromptVersionCode: Int
+        get() = prefs.getInt("lastUpdatePromptVersionCode", -1)
+        set(value) = prefs.edit().putInt("lastUpdatePromptVersionCode", value).apply()
+
+    var lastUpdatePromptEpoch: Long
+        get() = prefs.getLong("lastUpdatePromptEpoch", 0L)
+        set(value) = prefs.edit().putLong("lastUpdatePromptEpoch", value).apply()
+
+    // --- "What's new" dialog ---
+    // WHATS_NEW_UNSET (-1) means no versionCode has been recorded yet — either
+    // a fresh install or an upgrade from a build that predates this pref.
+    // MainActivity.resolveWhatsNew() tells the two apart via
+    // hasCompletedOnboarding: a fresh install is suppressed, a real upgrade
+    // shows the dialog once.
+    // WHATS_NEW_REPLAY (0) is the debug "Replay What's new" sentinel — it is
+    // not a real versionCode, and tells resolveWhatsNew() to show the newest
+    // authored entry regardless of this build's versionCode.
+    var lastSeenWhatsNewVersionCode: Int
+        get() = prefs.getInt("lastSeenWhatsNewVersionCode", WHATS_NEW_UNSET)
+        set(value) = prefs.edit().putInt("lastSeenWhatsNewVersionCode", value).apply()
+
     private val _accentColorChanged = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -303,6 +326,9 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     }
 
     companion object {
+        const val WHATS_NEW_UNSET = -1
+        const val WHATS_NEW_REPLAY = 0
+
         const val MIN_TUNABLE_HAPTIC_DURATION_MS = 5
         const val MAX_TUNABLE_HAPTIC_DURATION_MS = 60
 

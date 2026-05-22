@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
@@ -93,6 +94,7 @@ fun SettingsScreen(
     val shouldShowEnglishAbbreviationToggle = AppLanguageManager.isCourseApiEnglish(appLanguage)
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val appVersion = remember { BuildConfig.VERSION_NAME }
 
@@ -408,6 +410,19 @@ fun SettingsScreen(
                             SettingsLinkRow("Time override") { onNavigateToDebug() }
                             HorizontalDivider()
                             SettingsLinkRow("Notification") { onNavigateToNotificationDebug() }
+                            HorizontalDivider()
+                            // Set the replay sentinel so resolveWhatsNew() shows
+                            // the newest whatsnew.json entry on the next process
+                            // start, regardless of this build's versionCode.
+                            SettingsLinkRow("Replay \"What's new\" on next launch") {
+                                viewModel.prefs.lastSeenWhatsNewVersionCode =
+                                    AppPreferences.WHATS_NEW_REPLAY
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        "\"What's new\" will show on next app launch.",
+                                    )
+                                }
+                            }
                         }
                     }
                 }

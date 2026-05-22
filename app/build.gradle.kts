@@ -46,8 +46,8 @@ android {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 29
         targetSdk = 36
-        versionCode = 20
-        versionName = "1.4.2"
+        versionCode = 21
+        versionName = "1.4.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -187,6 +187,7 @@ tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }
 dependencies {
     implementation(project(":shared"))
     "playImplementation"(libs.play.services.wearable)
+    "playImplementation"(libs.play.app.update.ktx)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
