@@ -51,4 +51,39 @@ class WhatsNewRepositoryTest {
         """.trimIndent()
         assertNull(WhatsNewRepository.parse(blank, versionCode = 21, languageTag = "en-US"))
     }
+
+    @Test
+    fun `parseLatest returns the entry for the only version present`() {
+        val content = WhatsNewRepository.parseLatest(json, languageTag = "en-US")
+        assertEquals("What's new in 1.5.0", content?.title)
+    }
+
+    @Test
+    fun `parseLatest picks the highest version by numeric value, not lexically`() {
+        // Lexically "9" > "10"; numerically 10 wins.
+        val multi = """
+            {
+              "9":  { "en": { "title": "Old", "highlights": ["a"] } },
+              "10": { "en": { "title": "New", "highlights": ["b"] } }
+            }
+        """.trimIndent()
+        val content = WhatsNewRepository.parseLatest(multi, languageTag = "en-US")
+        assertEquals("New", content?.title)
+    }
+
+    @Test
+    fun `parseLatest respects locale selection`() {
+        val content = WhatsNewRepository.parseLatest(json, languageTag = "zh-Hant-TW")
+        assertEquals(listOf("一", "二"), content?.highlights)
+    }
+
+    @Test
+    fun `parseLatest returns null for malformed json`() {
+        assertNull(WhatsNewRepository.parseLatest("{ not json", languageTag = "en-US"))
+    }
+
+    @Test
+    fun `parseLatest returns null when no version entry exists`() {
+        assertNull(WhatsNewRepository.parseLatest("{}", languageTag = "en-US"))
+    }
 }

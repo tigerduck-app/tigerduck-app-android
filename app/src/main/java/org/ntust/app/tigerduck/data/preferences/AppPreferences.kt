@@ -73,6 +73,9 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     // WHATS_NEW_UNSET (-1) means "fresh install" — no prior version was seen,
     // so the dialog is suppressed and this is silently set to the current
     // versionCode on first launch.
+    // WHATS_NEW_REPLAY (0) is the debug "Replay What's new" sentinel — it is
+    // not a real versionCode, and tells resolveWhatsNew() to show the newest
+    // authored entry regardless of this build's versionCode.
     var lastSeenWhatsNewVersionCode: Int
         get() = prefs.getInt("lastSeenWhatsNewVersionCode", WHATS_NEW_UNSET)
         set(value) = prefs.edit().putInt("lastSeenWhatsNewVersionCode", value).apply()
@@ -322,6 +325,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
 
     companion object {
         const val WHATS_NEW_UNSET = -1
+        const val WHATS_NEW_REPLAY = 0
 
         const val MIN_TUNABLE_HAPTIC_DURATION_MS = 5
         const val MAX_TUNABLE_HAPTIC_DURATION_MS = 60

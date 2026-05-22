@@ -207,6 +207,7 @@ class MainActivity : AppCompatActivity() {
      * Decides whether to show the "What's new" dialog. Fresh installs
      * (sentinel last-seen versionCode) silently record the current version and
      * show nothing; upgrades show the dialog if `whatsnew.json` has an entry.
+     * The debug "Replay What's new" sentinel forces the newest authored entry.
      */
     private fun resolveWhatsNew() {
         val current = BuildConfig.VERSION_CODE
@@ -215,8 +216,13 @@ class MainActivity : AppCompatActivity() {
             appPreferences.lastSeenWhatsNewVersionCode = current
             return
         }
-        if (WhatsNewGate.shouldShow(lastSeen, current)) {
-            val languageTag = resources.configuration.locales[0].toLanguageTag()
+        val languageTag = resources.configuration.locales[0].toLanguageTag()
+        if (lastSeen == AppPreferences.WHATS_NEW_REPLAY) {
+            // Debug "Replay What's new": show the newest authored entry even if
+            // this build's versionCode predates it — whatsnew.json is usually
+            // written ahead of the version bump, so entryFor(current) would miss.
+            whatsNewContent.value = whatsNewRepository.latestEntry(languageTag)
+        } else if (WhatsNewGate.shouldShow(lastSeen, current)) {
             whatsNewContent.value = whatsNewRepository.entryFor(current, languageTag)
         }
         // Record regardless of whether an entry existed, so a missing entry

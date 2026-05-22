@@ -411,12 +411,12 @@ fun SettingsScreen(
                             HorizontalDivider()
                             SettingsLinkRow("Notification") { onNavigateToNotificationDebug() }
                             HorizontalDivider()
-                            // Rewind the last-seen versionCode below the current
-                            // build so resolveWhatsNew() re-triggers the dialog on
-                            // the next process start. 0 (not WHATS_NEW_UNSET) makes
-                            // the gate treat this as an upgrade, not a fresh install.
+                            // Set the replay sentinel so resolveWhatsNew() shows
+                            // the newest whatsnew.json entry on the next process
+                            // start, regardless of this build's versionCode.
                             SettingsLinkRow("Replay \"What's new\" on next launch") {
-                                viewModel.prefs.lastSeenWhatsNewVersionCode = 0
+                                viewModel.prefs.lastSeenWhatsNewVersionCode =
+                                    AppPreferences.WHATS_NEW_REPLAY
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
                                         "\"What's new\" will show on next app launch.",
