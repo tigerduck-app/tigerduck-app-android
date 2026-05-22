@@ -10,7 +10,7 @@ AuthorWebSite: https://github.com/tigerduck-app
 SourceCode: https://github.com/tigerduck-app/tigerduck-app-android
 IssueTracker: https://github.com/tigerduck-app/tigerduck-app-android/issues
 
-AutoName: TigerDuck
+AutoName: TigerDuck | 臺科大學生的校園助手
 
 RepoType: git
 Repo: https://github.com/tigerduck-app/tigerduck-app-android.git
