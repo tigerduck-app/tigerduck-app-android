@@ -76,9 +76,16 @@ gh issue create --repo tigerduck-app/tigerduck-app-android \
 
   > <upstream body, quoted; keep images/attachment URLs intact>
   ```
-- **Labels**: map upstream → this repo. This repo has `bug`, `enhancement`,
-  `security` (run `gh label list` to confirm). Drop labels that don't
-  exist here (e.g. upstream `language`); don't invent new ones.
+- **Labels**: run `gh label list --repo tigerduck-app/tigerduck-app-android`
+  for the authoritative set (don't trust this list to stay current), then
+  map upstream → this repo:
+  - Same name on both → keep (`bug`, `enhancement`, `security`,
+    `documentation`).
+  - Form factor: upstream `iPhone` → `phone`; upstream `watch` → `watch`.
+    Also apply `phone` / `watch` when the issue *text* scopes it that way
+    (e.g. "only phone", "手錶和手機") even if no label carries it.
+  - Drop labels with no Android equivalent: `iPad`, `macOS`, `language`.
+  - Never invent a label.
 
 ### 6. Add the analysis comment
 
