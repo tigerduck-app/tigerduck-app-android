@@ -43,6 +43,7 @@ jobs:
             - [ ] I have tested on my phone (watch) / emulator that no existing functions are broken.
             - [ ] I have tested on my phone (watch) / emulator that upgrading from the previous version does not break the app.
             - [ ] I am confident that users upgrading from much older versions (3 versions behind) are unlikely to experience breakage or crashes.
+            - [ ] I have updated the \`whatsnew.json\` under \`app/src/main/assets/\`.
             `;
 
             // Resolve PR number for either trigger.

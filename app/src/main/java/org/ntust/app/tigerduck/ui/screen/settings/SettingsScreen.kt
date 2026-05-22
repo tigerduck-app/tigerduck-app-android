@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
@@ -93,6 +94,7 @@ fun SettingsScreen(
     val shouldShowEnglishAbbreviationToggle = AppLanguageManager.isCourseApiEnglish(appLanguage)
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val appVersion = remember { BuildConfig.VERSION_NAME }
 
@@ -408,6 +410,19 @@ fun SettingsScreen(
                             SettingsLinkRow("Time override") { onNavigateToDebug() }
                             HorizontalDivider()
                             SettingsLinkRow("Notification") { onNavigateToNotificationDebug() }
+                            HorizontalDivider()
+                            // Rewind the last-seen versionCode below the current
+                            // build so resolveWhatsNew() re-triggers the dialog on
+                            // the next process start. 0 (not WHATS_NEW_UNSET) makes
+                            // the gate treat this as an upgrade, not a fresh install.
+                            SettingsLinkRow("Replay \"What's new\" on next launch") {
+                                viewModel.prefs.lastSeenWhatsNewVersionCode = 0
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        "\"What's new\" will show on next app launch.",
+                                    )
+                                }
+                            }
                         }
                     }
                 }
