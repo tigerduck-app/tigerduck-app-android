@@ -25,6 +25,34 @@ require() {
   }
 }
 
+# Run "$@", killing it after <secs> seconds. Returns the command's own exit
+# status, or 124 if it had to be killed for overrunning. Prefers GNU
+# `timeout` / `gtimeout`; falls back to a background-process watchdog because
+# macOS ships no `timeout`.
+run_with_timeout() {
+  local secs="$1"; shift
+  local tool
+  if tool="$(command -v timeout || command -v gtimeout || true)" && [[ -n "$tool" ]]; then
+    "$tool" "$secs" "$@"
+    return $?
+  fi
+  "$@" &
+  local cmd_pid=$!
+  ( sleep "$secs"; kill -TERM "$cmd_pid" 2>/dev/null ) &
+  local watch_pid=$!
+  local rc=0
+  wait "$cmd_pid" 2>/dev/null || rc=$?
+  if kill -0 "$watch_pid" 2>/dev/null; then
+    # Command finished on its own — cancel the watchdog.
+    kill -TERM "$watch_pid" 2>/dev/null || true
+    wait "$watch_pid" 2>/dev/null || true
+  else
+    # Watchdog already exited → it fired and killed the command.
+    rc=124
+  fi
+  return "$rc"
+}
+
 # Print a serial for an interactive device pick. Lists every connected adb
 # device (phones, watches, emulators) and lets the user choose. If exactly
 # one is connected, returns it without prompting. Optional first arg is a
@@ -49,10 +77,20 @@ pick_device() {
     # device.
     [[ "$line" =~ ^(.+)[[:space:]]+device([[:space:]].*)?$ ]] || continue
     local serial="${BASH_REMATCH[1]}"
-    local chars model tag=""
-    chars="$(adb -s "$serial" shell getprop ro.build.characteristics </dev/null 2>/dev/null | tr -d '\r' || true)"
-    model="$(adb -s "$serial" shell getprop ro.product.model </dev/null 2>/dev/null | tr -d '\r' || true)"
-    [[ "$chars" == *watch* ]] && tag=" [watch]"
+    # Probe model + form factor in one timed `adb shell` round-trip. A stale
+    # transport (e.g. a dropped wireless connection still listed as `device`)
+    # makes `adb shell` hang forever, which would freeze the whole picker — so
+    # cap it and tag the device [unresponsive] instead of blocking.
+    local chars="" model="" tag="" probe
+    if probe="$(run_with_timeout 5 adb -s "$serial" shell \
+        'getprop ro.build.characteristics; getprop ro.product.model' \
+        </dev/null 2>/dev/null)"; then
+      probe="${probe//$'\r'/}"
+      { IFS= read -r chars; IFS= read -r model; } <<< "$probe" || true
+    else
+      tag=" [unresponsive]"
+    fi
+    [[ "$chars" == *watch* ]] && tag="$tag [watch]"
     [[ "$serial" == emulator-* ]] && tag="$tag [emulator]"
     serials+=("$serial")
     labels+=("$serial  ${model:-?}$tag")
