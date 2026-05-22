@@ -70,6 +70,7 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
+import org.ntust.app.tigerduck.ui.component.SecureScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupContent
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -151,6 +152,12 @@ fun OnboardingScreen(
             }
         }
     }
+
+    // Block screenshots / screen-recording while the NTUST password is
+    // revealed as plaintext on the login page (issue #88). FLAG_SECURE is
+    // window-wide, so it is only raised while the eye toggle is on AND the
+    // login page is the one on screen.
+    SecureScreen(secure = passwordVisible && pagerState.currentPage == 3)
 
     Box(modifier = Modifier
         .fillMaxSize()
