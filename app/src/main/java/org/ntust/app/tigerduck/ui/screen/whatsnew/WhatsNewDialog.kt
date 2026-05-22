@@ -17,7 +17,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.update.WhatsNewContent
 
 /**
- * Shown on the first launch after an upgrade (issue #89). Content comes from
+ * Shown on the first launch after an upgrade. Content comes from
  * `assets/whatsnew.json` via `WhatsNewRepository`. Rendered as an AlertDialog
  * to match the rest of the app's dialogs (e.g. AddSectionDialog).
  */
