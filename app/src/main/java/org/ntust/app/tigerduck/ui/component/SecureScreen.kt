@@ -44,14 +44,15 @@ fun SecureScreen(secure: Boolean = true) {
 
 /**
  * The window backing the current composition: a Compose `Dialog` hosts its
- * content in a view whose parent implements [DialogWindowProvider], exposing
- * the dialog's own window; outside a dialog we fall back to the Activity
- * window.
+ * content under a view implementing [DialogWindowProvider] — which may be
+ * `LocalView.current` itself or one of its ancestors — exposing the dialog's
+ * own window; outside a dialog we fall back to the Activity window.
  */
 @Composable
 private fun rememberHostWindow(): Window? {
     val view = LocalView.current
     return remember(view) {
+        if (view is DialogWindowProvider) return@remember view.window
         var parent: ViewParent? = view.parent
         while (parent != null) {
             if (parent is DialogWindowProvider) return@remember parent.window
