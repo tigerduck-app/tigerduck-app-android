@@ -187,6 +187,7 @@ tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }
 dependencies {
     implementation(project(":shared"))
     "playImplementation"(libs.play.services.wearable)
+    "playImplementation"(libs.play.app.update.ktx)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
