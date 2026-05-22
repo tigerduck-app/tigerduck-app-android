@@ -40,7 +40,14 @@ pick_device() {
   # (adb shell inherits stdin and would consume the remaining lines, leaving
   # us with only the first device — and a silent auto-pick).
   while IFS= read -r line <&3; do
-    [[ "$line" =~ ^([^[:space:]]+)[[:space:]]+device([[:space:]].*)?$ ]] || continue
+    # The state column ("device") is always the last whitespace-separated
+    # field; the serial is everything before it. A greedy (.+) is required
+    # because mDNS-discovered wireless devices report a serial that itself
+    # contains a space — e.g. "adb-SERIAL (2)._adb-tls-connect._tcp", where
+    # " (2)" is Bonjour's duplicate-name disambiguator. A [^space]+ token
+    # would split on that space and fail to match, silently dropping the
+    # device.
+    [[ "$line" =~ ^(.+)[[:space:]]+device([[:space:]].*)?$ ]] || continue
     local serial="${BASH_REMATCH[1]}"
     local chars model tag=""
     chars="$(adb -s "$serial" shell getprop ro.build.characteristics </dev/null 2>/dev/null | tr -d '\r' || true)"
@@ -115,7 +122,10 @@ print(int(dt.timestamp() * 1000))
   saved="$(python3 -c 'import time; print(int(time.time()*1000))')"
 
   local tmp
-  tmp="$(mktemp -t debug_clock.XXXXXX.xml)"
+  # Pass a full template path rather than `mktemp -t PREFIX`: GNU and BSD
+  # (macOS) mktemp interpret `-t` differently, but both accept a template
+  # operand ending in XXXXXX.
+  tmp="$(mktemp "${TMPDIR:-/tmp}/debug_clock.XXXXXX")"
   cat >"$tmp" <<XML
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <map>
