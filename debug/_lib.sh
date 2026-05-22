@@ -36,20 +36,25 @@ run_with_timeout() {
     "$tool" "$secs" "$@"
     return $?
   fi
+  # The watchdog records that it fired (non-empty marker) before killing the
+  # command. A timeout is then detected from that fact — not inferred from the
+  # watchdog no longer being alive, which cannot tell "I killed it" apart from
+  # "I expired just as the command finished on its own".
+  local marker
+  marker="$(mktemp "${TMPDIR:-/tmp}/rwt.XXXXXX")"
   "$@" &
   local cmd_pid=$!
-  ( sleep "$secs"; kill -TERM "$cmd_pid" 2>/dev/null ) &
+  ( sleep "$secs"; printf fired >"$marker"; kill -TERM "$cmd_pid" 2>/dev/null ) &
   local watch_pid=$!
   local rc=0
   wait "$cmd_pid" 2>/dev/null || rc=$?
-  if kill -0 "$watch_pid" 2>/dev/null; then
-    # Command finished on its own — cancel the watchdog.
-    kill -TERM "$watch_pid" 2>/dev/null || true
-    wait "$watch_pid" 2>/dev/null || true
-  else
-    # Watchdog already exited → it fired and killed the command.
-    rc=124
-  fi
+  # Stop the watchdog the instant the command is done: if it was still
+  # sleeping it never fires and the marker stays empty; if it already fired
+  # the marker is non-empty and this kill is a harmless no-op.
+  kill -TERM "$watch_pid" 2>/dev/null || true
+  wait "$watch_pid" 2>/dev/null || true
+  [[ -s "$marker" ]] && rc=124
+  rm -f "$marker"
   return "$rc"
 }
 

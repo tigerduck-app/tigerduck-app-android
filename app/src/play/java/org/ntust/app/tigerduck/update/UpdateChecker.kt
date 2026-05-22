@@ -62,8 +62,6 @@ class UpdateChecker @Inject constructor(
                     )
                     if (!allowed) return@runCatching
 
-                    appPreferences.lastUpdatePromptVersionCode = info.availableVersionCode()
-                    appPreferences.lastUpdatePromptEpoch = System.currentTimeMillis()
                     manager.registerListener(installListener)
                     manager.startUpdateFlowForResult(
                         info,
@@ -71,6 +69,12 @@ class UpdateChecker @Inject constructor(
                         AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build(),
                         UPDATE_REQUEST_CODE,
                     )
+                    // Record the prompt only after the flow actually launched.
+                    // If startUpdateFlowForResult throws, the runCatching below
+                    // swallows it — the cooldown must not then suppress a
+                    // prompt the user never saw.
+                    appPreferences.lastUpdatePromptVersionCode = info.availableVersionCode()
+                    appPreferences.lastUpdatePromptEpoch = System.currentTimeMillis()
                 }.onFailure { Log.w(TAG, "update prompt failed", it) }
             }
             .addOnFailureListener { Log.w(TAG, "appUpdateInfo query failed", it) }

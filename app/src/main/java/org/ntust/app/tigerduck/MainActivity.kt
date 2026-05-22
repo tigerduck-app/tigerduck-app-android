@@ -14,7 +14,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -81,12 +84,17 @@ class MainActivity : AppCompatActivity() {
 
         widgetStartRoute.value = resolveStartRoute(intent)
 
-        // Update prompt + "what's new" — only on the first creation, not on
-        // rotation/config-change recreations (issue #89).
+        // Re-prompt for app updates only on a genuine fresh start, never on a
+        // rotation/config-change recreation (issue #89).
         if (savedInstanceState == null) {
             updateChecker.maybePromptForUpdate(this)
-            resolveWhatsNew()
         }
+        // Resolve "What's new" on every onCreate, including config-change
+        // recreations: the dialog's versionCode is recorded only once the user
+        // dismisses it (see resolveWhatsNew), so re-deriving here re-shows a
+        // dialog the user had not yet dismissed instead of dropping it
+        // permanently on rotation (issue #89).
+        resolveWhatsNew()
 
         setContent {
             // Re-apply orientation whenever the user changes the setting
@@ -128,14 +136,27 @@ class MainActivity : AppCompatActivity() {
                         val updateSnackbarHostState = remember { SnackbarHostState() }
                         SnackbarHost(
                             updateSnackbarHostState,
-                            modifier = Modifier.align(Alignment.BottomCenter),
+                            // Bare SnackbarHost (unlike Scaffold) applies no
+                            // insets; pad it so the snackbar clears the system
+                            // navigation bar and the IME under enableEdgeToEdge.
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .windowInsetsPadding(WindowInsets.safeDrawing),
                         )
                         UpdateInstallSnackbar(updateChecker, updateSnackbarHostState)
 
                         whatsNewContent.value?.let { content ->
                             WhatsNewDialog(
                                 content = content,
-                                onDismiss = { whatsNewContent.value = null },
+                                onDismiss = {
+                                    whatsNewContent.value = null
+                                    // Record the seen versionCode only now: a
+                                    // dialog dropped by a config-change
+                                    // recreation before this runs is re-shown
+                                    // on the next onCreate (issue #89).
+                                    appPreferences.lastSeenWhatsNewVersionCode =
+                                        BuildConfig.VERSION_CODE
+                                },
                             )
                         }
                     }
@@ -208,6 +229,11 @@ class MainActivity : AppCompatActivity() {
      * (sentinel last-seen versionCode) silently record the current version and
      * show nothing; upgrades show the dialog if `whatsnew.json` has an entry.
      * The debug "Replay What's new" sentinel forces the newest authored entry.
+     *
+     * Safe to call on every onCreate: when a dialog is shown the last-seen
+     * versionCode is recorded on dismiss (not here), so a config-change
+     * recreation re-runs this and re-shows a still-pending dialog instead of
+     * dropping it permanently (issue #89).
      */
     private fun resolveWhatsNew() {
         val current = BuildConfig.VERSION_CODE
@@ -217,17 +243,23 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val languageTag = resources.configuration.locales[0].toLanguageTag()
-        if (lastSeen == AppPreferences.WHATS_NEW_REPLAY) {
+        val content = when {
             // Debug "Replay What's new": show the newest authored entry even if
             // this build's versionCode predates it — whatsnew.json is usually
             // written ahead of the version bump, so entryFor(current) would miss.
-            whatsNewContent.value = whatsNewRepository.latestEntry(languageTag)
-        } else if (WhatsNewGate.shouldShow(lastSeen, current)) {
-            whatsNewContent.value = whatsNewRepository.entryFor(current, languageTag)
+            lastSeen == AppPreferences.WHATS_NEW_REPLAY ->
+                whatsNewRepository.latestEntry(languageTag)
+            WhatsNewGate.shouldShow(lastSeen, current) ->
+                whatsNewRepository.entryFor(current, languageTag)
+            else -> null
         }
-        // Record regardless of whether an entry existed, so a missing entry
-        // does not re-trigger the lookup on every launch.
-        appPreferences.lastSeenWhatsNewVersionCode = current
+        whatsNewContent.value = content
+        if (content == null) {
+            // Nothing to show — record now so a missing entry does not
+            // re-trigger the lookup on every launch. When a dialog *is* shown,
+            // its onDismiss records the versionCode instead.
+            appPreferences.lastSeenWhatsNewVersionCode = current
+        }
     }
 
     private fun requestNotificationPermissionIfNeeded() {
