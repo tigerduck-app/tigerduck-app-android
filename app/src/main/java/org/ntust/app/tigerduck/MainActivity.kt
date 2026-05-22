@@ -13,10 +13,15 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
@@ -26,8 +31,14 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.navigation.AppNavigation
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewDialog
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.update.UpdateChecker
+import org.ntust.app.tigerduck.update.UpdateInstallSnackbar
+import org.ntust.app.tigerduck.update.WhatsNewContent
+import org.ntust.app.tigerduck.update.WhatsNewGate
+import org.ntust.app.tigerduck.update.WhatsNewRepository
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -39,8 +50,15 @@ class MainActivity : AppCompatActivity() {
     lateinit var liveActivityManager: LiveActivityManager
     @Inject
     lateinit var authService: AuthService
+    @Inject
+    lateinit var updateChecker: UpdateChecker
+    @Inject
+    lateinit var whatsNewRepository: WhatsNewRepository
+    @Inject
+    lateinit var appPreferences: AppPreferences
 
     private val widgetStartRoute = mutableStateOf<String?>(null)
+    private val whatsNewContent = mutableStateOf<WhatsNewContent?>(null)
 
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -63,6 +81,13 @@ class MainActivity : AppCompatActivity() {
 
         widgetStartRoute.value = resolveStartRoute(intent)
 
+        // Update prompt + "what's new" — only on the first creation, not on
+        // rotation/config-change recreations (issue #89).
+        if (savedInstanceState == null) {
+            updateChecker.maybePromptForUpdate(this)
+            resolveWhatsNew()
+        }
+
         setContent {
             // Re-apply orientation whenever the user changes the setting
             // from within the app — Settings lives inside this Activity, so
@@ -79,21 +104,41 @@ class MainActivity : AppCompatActivity() {
 
             TigerDuckAppTheme(darkTheme = dark, accentColor = appState.accentColor(dark)) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    AppNavigation(
-                        appState = appState,
-                        widgetStartRoute = widgetStartRoute.value,
-                        onStartRouteConsumed = {
-                            widgetStartRoute.value = null
-                            // Clear the deep-link payload so a later onCreate
-                            // (e.g. after rotation) doesn't re-navigate to the
-                            // route the user already consumed.
-                            intent?.let {
-                                it.data = null
-                                it.removeExtra("start_route")
-                                intent = it
-                            }
-                        },
-                    )
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AppNavigation(
+                            appState = appState,
+                            widgetStartRoute = widgetStartRoute.value,
+                            onStartRouteConsumed = {
+                                widgetStartRoute.value = null
+                                // Clear the deep-link payload so a later onCreate
+                                // (e.g. after rotation) doesn't re-navigate to the
+                                // route the user already consumed.
+                                intent?.let {
+                                    it.data = null
+                                    it.removeExtra("start_route")
+                                    intent = it
+                                }
+                            },
+                        )
+
+                        // App-global snackbar host for the in-app update
+                        // "ready to install" prompt (issue #89). The app's
+                        // other snackbar hosts are per-screen; this one
+                        // outlives navigation.
+                        val updateSnackbarHostState = remember { SnackbarHostState() }
+                        SnackbarHost(
+                            updateSnackbarHostState,
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        )
+                        UpdateInstallSnackbar(updateChecker, updateSnackbarHostState)
+
+                        whatsNewContent.value?.let { content ->
+                            WhatsNewDialog(
+                                content = content,
+                                onDismiss = { whatsNewContent.value = null },
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -102,6 +147,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         liveActivityManager.refresh()
+        updateChecker.resume(this)
         // Pref may have changed in Settings (which itself can run while
         // landscape-locked). Re-apply on every resume so the new choice
         // takes effect without needing an Activity recreate.
@@ -155,6 +201,27 @@ class MainActivity : AppCompatActivity() {
             return "announcements/detail/$id"
         }
         return null
+    }
+
+    /**
+     * Decides whether to show the "What's new" dialog. Fresh installs
+     * (sentinel last-seen versionCode) silently record the current version and
+     * show nothing; upgrades show the dialog if `whatsnew.json` has an entry.
+     */
+    private fun resolveWhatsNew() {
+        val current = BuildConfig.VERSION_CODE
+        val lastSeen = appPreferences.lastSeenWhatsNewVersionCode
+        if (lastSeen == AppPreferences.WHATS_NEW_UNSET) {
+            appPreferences.lastSeenWhatsNewVersionCode = current
+            return
+        }
+        if (WhatsNewGate.shouldShow(lastSeen, current)) {
+            val languageTag = resources.configuration.locales[0].toLanguageTag()
+            whatsNewContent.value = whatsNewRepository.entryFor(current, languageTag)
+        }
+        // Record regardless of whether an entry existed, so a missing entry
+        // does not re-trigger the lookup on every launch.
+        appPreferences.lastSeenWhatsNewVersionCode = current
     }
 
     private fun requestNotificationPermissionIfNeeded() {
