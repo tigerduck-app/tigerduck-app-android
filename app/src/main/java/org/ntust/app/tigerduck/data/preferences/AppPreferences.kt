@@ -59,6 +59,24 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
         set(value) = prefs.edit().putBoolean("hasCompletedOnboarding", value).apply()
 
+    // --- Update notification (issue #89) ---
+    // Sentinel for "no update prompt shown yet".
+    var lastUpdatePromptVersionCode: Int
+        get() = prefs.getInt("lastUpdatePromptVersionCode", -1)
+        set(value) = prefs.edit().putInt("lastUpdatePromptVersionCode", value).apply()
+
+    var lastUpdatePromptEpoch: Long
+        get() = prefs.getLong("lastUpdatePromptEpoch", 0L)
+        set(value) = prefs.edit().putLong("lastUpdatePromptEpoch", value).apply()
+
+    // --- "What's new" dialog ---
+    // WHATS_NEW_UNSET (-1) means "fresh install" — no prior version was seen,
+    // so the dialog is suppressed and this is silently set to the current
+    // versionCode on first launch.
+    var lastSeenWhatsNewVersionCode: Int
+        get() = prefs.getInt("lastSeenWhatsNewVersionCode", WHATS_NEW_UNSET)
+        set(value) = prefs.edit().putInt("lastSeenWhatsNewVersionCode", value).apply()
+
     private val _accentColorChanged = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -303,6 +321,8 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     }
 
     companion object {
+        const val WHATS_NEW_UNSET = -1
+
         const val MIN_TUNABLE_HAPTIC_DURATION_MS = 5
         const val MAX_TUNABLE_HAPTIC_DURATION_MS = 60
 
