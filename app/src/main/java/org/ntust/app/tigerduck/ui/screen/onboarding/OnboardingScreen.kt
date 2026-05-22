@@ -129,6 +129,13 @@ fun OnboardingScreen(
     }
 
     fun goToPage(page: Int) {
+        // Mask any revealed password before the scroll animation starts.
+        // animateScrollToPage flips pagerState.currentPage while the login
+        // page (3) is still partly visible, so gating FLAG_SECURE on
+        // currentPage alone would clear it mid-transition and expose the
+        // plaintext to a screenshot (issue #88). Hiding the password first
+        // means there is nothing sensitive on screen once the flag drops.
+        passwordVisible = false
         scope.launch { pagerState.animateScrollToPage(page) }
     }
 

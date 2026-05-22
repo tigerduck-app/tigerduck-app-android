@@ -73,25 +73,40 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
  * destroyed Activity's or dismissed dialog's window is not retained.
  */
 private object SecureWindowRegistry {
-    private val holders = HashMap<Window, Int>()
+    /**
+     * [preexisting] records whether FLAG_SECURE was already set on the window
+     * when its first holder acquired it (e.g. another screen marked the whole
+     * window secure independently of this registry). When true, the last
+     * release must NOT clear the flag — doing so would strip protection this
+     * registry never added and leave the rest of the window screenshot-able.
+     */
+    private class Entry(var count: Int, val preexisting: Boolean)
+
+    private val holders = HashMap<Window, Entry>()
 
     fun acquire(window: Window) {
-        val count = (holders[window] ?: 0) + 1
-        holders[window] = count
-        if (count == 1) {
+        val entry = holders[window]
+        if (entry != null) {
+            entry.count++
+            return
+        }
+        val alreadySecure = (window.attributes.flags and
+            WindowManager.LayoutParams.FLAG_SECURE) != 0
+        holders[window] = Entry(count = 1, preexisting = alreadySecure)
+        if (!alreadySecure) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
     }
 
     fun release(window: Window) {
-        val count = (holders[window] ?: return) - 1
-        if (count <= 0) {
-            holders.remove(window)
+        val entry = holders[window] ?: return
+        entry.count--
+        if (entry.count > 0) return
+        holders.remove(window)
+        if (!entry.preexisting) {
             // The window may already be detached (dialog dismissed / Activity
             // destroyed); clearFlags on a dead window is a harmless no-op.
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        } else {
-            holders[window] = count
         }
     }
 }

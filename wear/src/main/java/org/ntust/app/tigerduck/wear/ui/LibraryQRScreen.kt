@@ -406,8 +406,20 @@ private fun SecureScreen() {
     val activity = remember(context) { context.findActivity() }
     DisposableEffect(activity) {
         val window = activity?.window
-        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+        // Snapshot whether the window was already secure (set by another owner
+        // or earlier). Only clear FLAG_SECURE on dispose if this composable is
+        // the one that added it — otherwise leaving the logged-in page would
+        // strip protection this helper never owned.
+        val alreadySecure = window != null && (window.attributes.flags and
+            WindowManager.LayoutParams.FLAG_SECURE) != 0
+        if (window != null && !alreadySecure) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        onDispose {
+            if (window != null && !alreadySecure) {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
     }
 }
 
