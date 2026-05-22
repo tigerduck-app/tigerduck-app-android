@@ -20,6 +20,10 @@
 -keep class org.ntust.app.tigerduck.announcements.SubscriptionsResponse { *; }
 -keep class org.ntust.app.tigerduck.announcements.SubscriptionsPutRequest { *; }
 -keep class org.ntust.app.tigerduck.data.cache.DataCache$* { *; }
+# What's-new content (assets/whatsnew.json) is Gson-deserialized into
+# WhatsNewContent. Without this keep, R8 renames its fields and Gson reads
+# nulls — same failure mode as the other unannotated DTOs above.
+-keep class org.ntust.app.tigerduck.update.WhatsNewContent { *; }
 # Wire DTO Gson-serializes to the watch. Unannotated fields, so R8 must
 # not rename them — otherwise the phone sends obfuscated JSON keys the
 # watch-side CourseWire can't recognize.

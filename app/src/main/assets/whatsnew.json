@@ -1,0 +1,18 @@
+{
+  "21": {
+    "zh-TW": {
+      "title": "1.5.0 有什麼新功能",
+      "highlights": [
+        "新版本推出時會在 App 內提醒你更新。",
+        "升級後首次開啟會顯示這個「新功能」說明。"
+      ]
+    },
+    "en": {
+      "title": "What's new in 1.5.0",
+      "highlights": [
+        "The app now reminds you in-app when a new version is available.",
+        "After upgrading, this \"What's new\" summary appears on first launch."
+      ]
+    }
+  }
+}
