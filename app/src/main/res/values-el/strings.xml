@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Δυνατό</string>
     <string name="haptic_preset_subtle">Απαλό</string>
     <string name="haptic_scenario_class_table_long_press">Παρατεταμένο πάτημα στο πρόγραμμα</string>
+    <string name="haptic_scenario_flip_to_library">Αναποδογύρισε για να ανοίξεις τη βιβλιοθήκη</string>
     <string name="haptic_scenario_library_warning">Προειδοποίηση βιβλιοθήκης</string>
     <string name="haptic_scenario_pull_to_refresh">Σύρσιμο για ανανέωση</string>
     <string name="haptic_scenario_tab_reorder">Αναδιάταξη καρτελών</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Εμφάνιση μετάφρασης</string>
     <string name="settings_color_theme">Θέμα χρωμάτων</string>
     <string name="settings_feedback_bug_report">Σχόλια / Αναφορά προβλήματος</string>
+    <string name="settings_flip_to_library_summary">Αναποδογύρισε το τηλέφωνο με την οθόνη προς τα κάτω για να ανοίξεις τον QR της βιβλιοθήκης.</string>
+    <string name="settings_flip_to_library_title">Αναποδογύρισε για να δεις τον QR της βιβλιοθήκης</string>
+    <string name="settings_flip_to_library_unsupported">Η συσκευή σου δεν διαθέτει τον απαιτούμενο αισθητήρα.</string>
     <string name="settings_invert_slider_direction">Αντιστροφή κατεύθυνσης ρυθμιστικού</string>
     <string name="settings_language">Γλώσσα (Language)</string>
     <string name="settings_language_english">Αγγλικά</string>

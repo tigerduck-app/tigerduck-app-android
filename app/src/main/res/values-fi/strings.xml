@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Voimakas</string>
     <string name="haptic_preset_subtle">Kevyt</string>
     <string name="haptic_scenario_class_table_long_press">Pitkä painallus lukujärjestyksessä</string>
+    <string name="haptic_scenario_flip_to_library">Käännä kirjaston avaamiseksi</string>
     <string name="haptic_scenario_library_warning">Kirjaston varoitusikkuna</string>
     <string name="haptic_scenario_pull_to_refresh">Päivitä vetämällä</string>
     <string name="haptic_scenario_tab_reorder">Välilehtien uudelleenjärjestely</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Näytä käännös</string>
     <string name="settings_color_theme">Väriteema</string>
     <string name="settings_feedback_bug_report">Palaute / Ilmoita ongelma</string>
+    <string name="settings_flip_to_library_summary">Käännä puhelin näyttö alaspäin avataksesi kirjaston QR-koodin.</string>
+    <string name="settings_flip_to_library_title">Käännä kirjaston QR-koodin näyttämiseksi</string>
+    <string name="settings_flip_to_library_unsupported">Laitteesta puuttuu tarvittava anturi.</string>
     <string name="settings_invert_slider_direction">Käännä liukusäätimen suunta</string>
     <string name="settings_language">Kieli (Language)</string>
     <string name="settings_language_english">Englanti</string>

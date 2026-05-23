@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Stærk</string>
     <string name="haptic_preset_subtle">Blid</string>
     <string name="haptic_scenario_class_table_long_press">Langt tryk i skemaet</string>
+    <string name="haptic_scenario_flip_to_library">Vend om for at åbne biblioteket</string>
     <string name="haptic_scenario_library_warning">Biblioteksadvarsel</string>
     <string name="haptic_scenario_pull_to_refresh">Træk for at opdatere</string>
     <string name="haptic_scenario_tab_reorder">Omarranger faner</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Vis oversættelse</string>
     <string name="settings_color_theme">Farvetema</string>
     <string name="settings_feedback_bug_report">Feedback / Rapportér problem</string>
+    <string name="settings_flip_to_library_summary">Vend telefonen med skærmen nedad for at åbne bibliotekets QR.</string>
+    <string name="settings_flip_to_library_title">Vend om for at vise bibliotekets QR</string>
+    <string name="settings_flip_to_library_unsupported">Din enhed mangler den nødvendige sensor.</string>
     <string name="settings_invert_slider_direction">Inverter skyderretning</string>
     <string name="settings_language">Sprog (Language)</string>
     <string name="settings_language_english">Engelsk</string>

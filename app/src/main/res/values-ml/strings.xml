@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">ശക്തമായ</string>
     <string name="haptic_preset_subtle">മൃദുവായ</string>
     <string name="haptic_scenario_class_table_long_press">ക്ലാസ് ടേബിളിൽ നീണ്ട അമർത്തൽ</string>
+    <string name="haptic_scenario_flip_to_library">ലൈബ്രറി തുറക്കാൻ മറിക്കുക</string>
     <string name="haptic_scenario_library_warning">ലൈബ്രറി മുന്നറിയിപ്പ് ഡയലോഗ്</string>
     <string name="haptic_scenario_pull_to_refresh">റിഫ്രഷ് ചെയ്യാൻ വലിക്കുക</string>
     <string name="haptic_scenario_tab_reorder">ടാബ് പുനഃക്രമീകരിക്കുക</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">വിവർത്തനം കാണിക്കുക</string>
     <string name="settings_color_theme">നിറ തീം</string>
     <string name="settings_feedback_bug_report">ഫീഡ്‌ബാക്ക് / പ്രശ്‌നം റിപ്പോർട്ട് ചെയ്യുക</string>
+    <string name="settings_flip_to_library_summary">ലൈബ്രറി QR തുറക്കാൻ ഫോൺ സ്ക്രീൻ താഴ്ത്തി മറിക്കുക.</string>
+    <string name="settings_flip_to_library_title">ലൈബ്രറി QR കാണിക്കാൻ മറിക്കുക</string>
+    <string name="settings_flip_to_library_unsupported">നിങ്ങളുടെ ഉപകരണത്തിൽ ആവശ്യമായ സെൻസർ ഇല്ല.</string>
     <string name="settings_invert_slider_direction">സ്ലൈഡർ ദിശ നേർമാറ്റം ചെയ്യുക</string>
     <string name="settings_language">ഭാഷ (Language)</string>
     <string name="settings_language_english">English</string>

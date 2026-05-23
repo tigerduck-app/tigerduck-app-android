@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Malakas</string>
     <string name="haptic_preset_subtle">Mahinahon</string>
     <string name="haptic_scenario_class_table_long_press">Matagal na pindot sa class table</string>
+    <string name="haptic_scenario_flip_to_library">I-flip para buksan ang library</string>
     <string name="haptic_scenario_library_warning">Dialog ng babala sa library</string>
     <string name="haptic_scenario_pull_to_refresh">I-pull para i-refresh</string>
     <string name="haptic_scenario_tab_reorder">Muling pag-aayos ng mga tab</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Ipakita ang salin</string>
     <string name="settings_color_theme">Kulay na tema</string>
     <string name="settings_feedback_bug_report">Feedback / Mag-ulat ng isyu</string>
+    <string name="settings_flip_to_library_summary">I-flip ang telepono naka-mukha ang screen pababa para buksan ang library QR.</string>
+    <string name="settings_flip_to_library_title">I-flip para ipakita ang library QR</string>
+    <string name="settings_flip_to_library_unsupported">Wala sa iyong device ang kinakailangang sensor.</string>
     <string name="settings_invert_slider_direction">I-invert ang direksyon ng slider</string>
     <string name="settings_language">Wika (Language)</string>
     <string name="settings_language_english">English</string>

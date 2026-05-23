@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">强</string>
     <string name="haptic_preset_subtle">弱</string>
     <string name="haptic_scenario_class_table_long_press">课程表长按</string>
+    <string name="haptic_scenario_flip_to_library">翻转打开图书馆</string>
     <string name="haptic_scenario_library_warning">图书馆警告对话框</string>
     <string name="haptic_scenario_pull_to_refresh">下拉刷新</string>
     <string name="haptic_scenario_tab_reorder">标签编辑器重新排序</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">颜色主题</string>
     <string name="settings_feedback_bug_report">回馈/问题回报</string>
+    <string name="settings_flip_to_library_summary">将手机屏幕朝下即可打开图书馆 QR。</string>
+    <string name="settings_flip_to_library_title">翻转显示图书馆 QR</string>
+    <string name="settings_flip_to_library_unsupported">此设备缺少所需的传感器。</string>
     <string name="settings_invert_slider_direction">反转滑条方向</string>
     <string name="settings_language">语言 (Language)</string>
     <string name="settings_language_english">English</string>

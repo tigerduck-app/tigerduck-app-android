@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">ਮਜ਼ਬੂਤ</string>
     <string name="haptic_preset_subtle">ਹਲਕਾ</string>
     <string name="haptic_scenario_class_table_long_press">ਕਲਾਸ ਟੇਬਲ \'ਤੇ ਲੰਮਾ ਦਬਾਅ</string>
+    <string name="haptic_scenario_flip_to_library">ਲਾਇਬ੍ਰੇਰੀ ਖੋਲ੍ਹਣ ਲਈ ਫਲਿੱਪ ਕਰੋ</string>
     <string name="haptic_scenario_library_warning">ਲਾਇਬ੍ਰੇਰੀ ਚੇਤਾਵਨੀ ਡਾਇਲਾਗ</string>
     <string name="haptic_scenario_pull_to_refresh">ਰਿਫ੍ਰੈਸ਼ ਲਈ ਖਿੱਚੋ</string>
     <string name="haptic_scenario_tab_reorder">ਟੈਬ ਮੁੜ ਵਿਵਸਥਿਤ ਕਰੋ</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">ਅਨੁਵਾਦ ਵਿਖਾਓ</string>
     <string name="settings_color_theme">ਰੰਗ ਥੀਮ</string>
     <string name="settings_feedback_bug_report">ਫੀਡਬੈਕ / ਸਮੱਸਿਆ ਰਿਪੋਰਟ ਕਰੋ</string>
+    <string name="settings_flip_to_library_summary">ਲਾਇਬ੍ਰੇਰੀ QR ਖੋਲ੍ਹਣ ਲਈ ਫ਼ੋਨ ਨੂੰ ਸਕਰੀਨ ਹੇਠਾਂ ਕਰਕੇ ਫਲਿੱਪ ਕਰੋ।</string>
+    <string name="settings_flip_to_library_title">ਲਾਇਬ੍ਰੇਰੀ QR ਦਿਖਾਉਣ ਲਈ ਫਲਿੱਪ ਕਰੋ</string>
+    <string name="settings_flip_to_library_unsupported">ਤੁਹਾਡੇ ਡਿਵਾਈਸ ਵਿੱਚ ਲੋੜੀਂਦਾ ਸੈਂਸਰ ਨਹੀਂ ਹੈ।</string>
     <string name="settings_invert_slider_direction">ਸਲਾਈਡਰ ਦਿਸ਼ਾ ਉਲਟੀ ਕਰੋ</string>
     <string name="settings_language">ਭਾਸ਼ਾ (Language)</string>
     <string name="settings_language_english">ਅੰਗਰੇਜ਼ੀ</string>

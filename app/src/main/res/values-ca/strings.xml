@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Fort</string>
     <string name="haptic_preset_subtle">Suau</string>
     <string name="haptic_scenario_class_table_long_press">Pulsació llarga a l\'horari</string>
+    <string name="haptic_scenario_flip_to_library">Gira per obrir la biblioteca</string>
     <string name="haptic_scenario_library_warning">Diàleg d\'advertència de la biblioteca</string>
     <string name="haptic_scenario_pull_to_refresh">Estirar per actualitzar</string>
     <string name="haptic_scenario_tab_reorder">Reordenació de pestanyes</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Mostra traducció</string>
     <string name="settings_color_theme">Tema de color</string>
     <string name="settings_feedback_bug_report">Comentaris / Informeu d\'un problema</string>
+    <string name="settings_flip_to_library_summary">Gira el telèfon amb la pantalla cap avall per obrir el QR de la biblioteca.</string>
+    <string name="settings_flip_to_library_title">Gira per mostrar el QR de la biblioteca</string>
+    <string name="settings_flip_to_library_unsupported">El teu dispositiu no té el sensor necessari.</string>
     <string name="settings_invert_slider_direction">Inverteix la direcció del control lliscant</string>
     <string name="settings_language">Idioma (Language)</string>
     <string name="settings_language_english">Anglès</string>

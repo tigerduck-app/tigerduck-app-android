@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">قوي</string>
     <string name="haptic_preset_subtle">خفيف</string>
     <string name="haptic_scenario_class_table_long_press">ضغط مطول على جدول الدروس</string>
+    <string name="haptic_scenario_flip_to_library">اقلب لفتح المكتبة</string>
     <string name="haptic_scenario_library_warning">حوار تحذير المكتبة</string>
     <string name="haptic_scenario_pull_to_refresh">السحب للتحديث</string>
     <string name="haptic_scenario_tab_reorder">إعادة ترتيب التبويبات</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">عرض الترجمة</string>
     <string name="settings_color_theme">نسق الألوان</string>
     <string name="settings_feedback_bug_report">ملاحظات / الإبلاغ عن مشكلة</string>
+    <string name="settings_flip_to_library_summary">اقلب هاتفك بحيث يكون الشاشة لأسفل لفتح رمز QR للمكتبة.</string>
+    <string name="settings_flip_to_library_title">اقلب لعرض رمز QR للمكتبة</string>
+    <string name="settings_flip_to_library_unsupported">جهازك لا يحتوي على المستشعر المطلوب.</string>
     <string name="settings_invert_slider_direction">عكس اتجاه شريط التمرير</string>
     <string name="settings_language">(Language) اللغة</string>
     <string name="settings_language_english">الإنجليزية</string>

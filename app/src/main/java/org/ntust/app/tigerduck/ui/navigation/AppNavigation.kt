@@ -133,6 +133,7 @@ fun MainNavigation(
     onStartRouteConsumed: () -> Unit = {},
 ) {
     val navController = rememberNavController()
+    FlipToLibraryEffect(navController = navController, appState = appState)
     LaunchedEffect(widgetStartRoute) {
         widgetStartRoute ?: return@LaunchedEffect
         // The library-shortcut widget emits a sentinel instead of a direct

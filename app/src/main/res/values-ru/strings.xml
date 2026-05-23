@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Сильная</string>
     <string name="haptic_preset_subtle">Слабая</string>
     <string name="haptic_scenario_class_table_long_press">Долгое нажатие в расписании</string>
+    <string name="haptic_scenario_flip_to_library">Перевернуть и открыть библиотеку</string>
     <string name="haptic_scenario_library_warning">Предупреждение библиотеки</string>
     <string name="haptic_scenario_pull_to_refresh">Потяните для обновления</string>
     <string name="haptic_scenario_tab_reorder">Изменение порядка вкладок</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Показать перевод</string>
     <string name="settings_color_theme">Цветовая тема</string>
     <string name="settings_feedback_bug_report">Отзыв / Сообщить о проблеме</string>
+    <string name="settings_flip_to_library_summary">Переверните телефон экраном вниз, чтобы открыть QR библиотеки.</string>
+    <string name="settings_flip_to_library_title">Перевернуть для отображения QR библиотеки</string>
+    <string name="settings_flip_to_library_unsupported">На вашем устройстве нет необходимого датчика.</string>
     <string name="settings_invert_slider_direction">Инвертировать направление ползунка</string>
     <string name="settings_language">Язык (Language)</string>
     <string name="settings_language_english">English</string>

@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Spēcīgs</string>
     <string name="haptic_preset_subtle">Viegls</string>
     <string name="haptic_scenario_class_table_long_press">Ilgs pieskāriens stundu sarakstā</string>
+    <string name="haptic_scenario_flip_to_library">Apvērst, lai atvērtu bibliotēku</string>
     <string name="haptic_scenario_library_warning">Bibliotēkas brīdinājums</string>
     <string name="haptic_scenario_pull_to_refresh">Velkt, lai atsvaidzinātu</string>
     <string name="haptic_scenario_tab_reorder">Ciļņu pārkārtošana</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Rādīt tulkojumu</string>
     <string name="settings_color_theme">Krāsu tēma</string>
     <string name="settings_feedback_bug_report">Atsauksme / Ziņot par problēmu</string>
+    <string name="settings_flip_to_library_summary">Apvērs tālruni ar ekrānu uz leju, lai atvērtu bibliotēkas QR.</string>
+    <string name="settings_flip_to_library_title">Apvērst, lai parādītu bibliotēkas QR</string>
+    <string name="settings_flip_to_library_unsupported">Ierīcei nav nepieciešamā sensora.</string>
     <string name="settings_invert_slider_direction">Invertēt slīdņa virzienu</string>
     <string name="settings_language">Valoda (Language)</string>
     <string name="settings_language_english">English</string>

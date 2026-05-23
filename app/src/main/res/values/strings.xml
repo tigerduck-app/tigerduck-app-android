@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Strong</string>
     <string name="haptic_preset_subtle">Subtle</string>
     <string name="haptic_scenario_class_table_long_press">Class table long-press</string>
+    <string name="haptic_scenario_flip_to_library">Flip to open library</string>
     <string name="haptic_scenario_library_warning">Library warning dialog</string>
     <string name="haptic_scenario_pull_to_refresh">Pull to refresh</string>
     <string name="haptic_scenario_tab_reorder">Tab editor reorder</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">Color theme</string>
     <string name="settings_feedback_bug_report">Feedback / Report issue</string>
+    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
+    <string name="settings_flip_to_library_title">Flip to show library QR</string>
+    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
     <string name="settings_invert_slider_direction">Invert slider direction</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_english">English</string>

@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Jako</string>
     <string name="haptic_preset_subtle">Nježno</string>
     <string name="haptic_scenario_class_table_long_press">Dugi pritisak u rasporedu</string>
+    <string name="haptic_scenario_flip_to_library">Preokreni za otvaranje knjižnice</string>
     <string name="haptic_scenario_library_warning">Upozorenje knjižnice</string>
     <string name="haptic_scenario_pull_to_refresh">Povuci za osvježavanje</string>
     <string name="haptic_scenario_tab_reorder">Preuređivanje kartica</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Prikaži prijevod</string>
     <string name="settings_color_theme">Tema boja</string>
     <string name="settings_feedback_bug_report">Povratne informacije / Prijava problema</string>
+    <string name="settings_flip_to_library_summary">Preokrenite telefon zaslonom prema dolje da otvorite QR knjižnice.</string>
+    <string name="settings_flip_to_library_title">Preokreni za prikaz QR-a knjižnice</string>
+    <string name="settings_flip_to_library_unsupported">Uređaj nema potrebni senzor.</string>
     <string name="settings_invert_slider_direction">Obrni smjer klizača</string>
     <string name="settings_language">Jezik (Language)</string>
     <string name="settings_language_english">English</string>

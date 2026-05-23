@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Fort</string>
     <string name="haptic_preset_subtle">Subtil</string>
     <string name="haptic_scenario_class_table_long_press">Appui long sur l\'emploi du temps</string>
+    <string name="haptic_scenario_flip_to_library">Retourner pour ouvrir la bibliothèque</string>
     <string name="haptic_scenario_library_warning">Dialogue d\'avertissement de la bibliothèque</string>
     <string name="haptic_scenario_pull_to_refresh">Tirer pour actualiser</string>
     <string name="haptic_scenario_tab_reorder">Réorganisation des onglets</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Afficher la traduction</string>
     <string name="settings_color_theme">Thème de couleur</string>
     <string name="settings_feedback_bug_report">Commentaires / Signaler un problème</string>
+    <string name="settings_flip_to_library_summary">Retournez votre téléphone écran vers le bas pour afficher le QR de la bibliothèque.</string>
+    <string name="settings_flip_to_library_title">Retourner pour afficher le QR de la bibliothèque</string>
+    <string name="settings_flip_to_library_unsupported">Votre appareil ne dispose pas du capteur requis.</string>
     <string name="settings_invert_slider_direction">Inverser le sens du curseur</string>
     <string name="settings_language">Langue (Language)</string>
     <string name="settings_language_english">Anglais</string>

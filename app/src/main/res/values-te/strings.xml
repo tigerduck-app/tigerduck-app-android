@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">బలమైన</string>
     <string name="haptic_preset_subtle">మృదువైన</string>
     <string name="haptic_scenario_class_table_long_press">క్లాస్ టేబుల్‌లో సుదీర్ఘ నొక్కుడు</string>
+    <string name="haptic_scenario_flip_to_library">లైబ్రరీ తెరవడానికి తిప్పండి</string>
     <string name="haptic_scenario_library_warning">లైబ్రరీ హెచ్చరిక డైలాగ్</string>
     <string name="haptic_scenario_pull_to_refresh">రిఫ్రెష్ కోసం లాగండి</string>
     <string name="haptic_scenario_tab_reorder">ట్యాబ్‌లను మళ్లీ వరుసలో పెట్టండి</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">అనువాదాన్ని చూపించు</string>
     <string name="settings_color_theme">రంగు థీమ్</string>
     <string name="settings_feedback_bug_report">ఫీడ్‌బ్యాక్ / సమస్య నివేదించు</string>
+    <string name="settings_flip_to_library_summary">లైబ్రరీ QR తెరవడానికి ఫోన్‌ని స్క్రీన్ కిందకు పెట్టి తిప్పండి.</string>
+    <string name="settings_flip_to_library_title">లైబ్రరీ QR చూపించడానికి తిప్పండి</string>
+    <string name="settings_flip_to_library_unsupported">మీ పరికరానికి అవసరమైన సెన్సార్ లేదు.</string>
     <string name="settings_invert_slider_direction">స్లైడర్ దిశ తిరగబెట్టండి</string>
     <string name="settings_language">భాష (Language)</string>
     <string name="settings_language_english">ఇంగ్లీష్</string>

@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Güçlü</string>
     <string name="haptic_preset_subtle">Hafif</string>
     <string name="haptic_scenario_class_table_long_press">Ders tablosunda uzun basış</string>
+    <string name="haptic_scenario_flip_to_library">Kütüphaneyi açmak için çevir</string>
     <string name="haptic_scenario_library_warning">Kütüphane uyarı iletişim kutusu</string>
     <string name="haptic_scenario_pull_to_refresh">Yenilemek için çekin</string>
     <string name="haptic_scenario_tab_reorder">Sekmeleri yeniden sırala</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Çevirisi göster</string>
     <string name="settings_color_theme">Renk teması</string>
     <string name="settings_feedback_bug_report">Geri bildirim / Sorun bildir</string>
+    <string name="settings_flip_to_library_summary">Kütüphane QR\'ını açmak için telefonu ekran aşağı gelecek şekilde çevir.</string>
+    <string name="settings_flip_to_library_title">Kütüphane QR\'ını göstermek için çevir</string>
+    <string name="settings_flip_to_library_unsupported">Cihazınızda gerekli sensör bulunmuyor.</string>
     <string name="settings_invert_slider_direction">Kaydırıcı yönünü ters çevir</string>
     <string name="settings_language">Dil (Language)</string>
     <string name="settings_language_english">İngilizce</string>

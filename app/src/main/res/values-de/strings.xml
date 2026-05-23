@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Stark</string>
     <string name="haptic_preset_subtle">Sanft</string>
     <string name="haptic_scenario_class_table_long_press">Stundenplan langer Druck</string>
+    <string name="haptic_scenario_flip_to_library">Umdrehen zum Öffnen der Bibliothek</string>
     <string name="haptic_scenario_library_warning">Bibliothek-Warnhinweis</string>
     <string name="haptic_scenario_pull_to_refresh">Zum Aktualisieren ziehen</string>
     <string name="haptic_scenario_tab_reorder">Tab-Editor neu anordnen</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Übersetzung anzeigen</string>
     <string name="settings_color_theme">Farbschema</string>
     <string name="settings_feedback_bug_report">Feedback / Fehler melden</string>
+    <string name="settings_flip_to_library_summary">Lege das Handy mit dem Display nach unten, um den Bibliotheks-QR zu öffnen.</string>
+    <string name="settings_flip_to_library_title">Bibliotheks-QR per Umdrehen anzeigen</string>
+    <string name="settings_flip_to_library_unsupported">Dieses Gerät verfügt nicht über den erforderlichen Sensor.</string>
     <string name="settings_invert_slider_direction">Schieberichtung umkehren</string>
     <string name="settings_language">Sprache (Language)</string>
     <string name="settings_language_english">Englisch</string>

@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">तेज़</string>
     <string name="haptic_preset_subtle">हल्का</string>
     <string name="haptic_scenario_class_table_long_press">क्लास टेबल पर लंबा दबाव</string>
+    <string name="haptic_scenario_flip_to_library">लाइब्रेरी खोलने के लिए पलटें</string>
     <string name="haptic_scenario_library_warning">लाइब्रेरी चेतावनी डायलॉग</string>
     <string name="haptic_scenario_pull_to_refresh">रिफ्रेश के लिए खींचें</string>
     <string name="haptic_scenario_tab_reorder">टैब पुनर्व्यवस्थित करें</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">अनुवाद दिखाएँ</string>
     <string name="settings_color_theme">रंग थीम</string>
     <string name="settings_feedback_bug_report">फीडबैक / समस्या रिपोर्ट करें</string>
+    <string name="settings_flip_to_library_summary">लाइब्रेरी QR खोलने के लिए फ़ोन को स्क्रीन नीचे करके पलटें।</string>
+    <string name="settings_flip_to_library_title">लाइब्रेरी QR दिखाने के लिए पलटें</string>
+    <string name="settings_flip_to_library_unsupported">आपके डिवाइस में आवश्यक सेंसर नहीं है।</string>
     <string name="settings_invert_slider_direction">स्लाइडर दिशा उलटें</string>
     <string name="settings_language">भाषा (Language)</string>
     <string name="settings_language_english">English</string>

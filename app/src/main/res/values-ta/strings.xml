@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">வலிமையான</string>
     <string name="haptic_preset_subtle">மெல்லிய</string>
     <string name="haptic_scenario_class_table_long_press">வகுப்பு அட்டவணையில் நீண்ட அழுத்தம்</string>
+    <string name="haptic_scenario_flip_to_library">நூலகம் திறக்க திருப்பவும்</string>
     <string name="haptic_scenario_library_warning">நூலக எச்சரிக்கை உரையாடல்</string>
     <string name="haptic_scenario_pull_to_refresh">புதுப்பிக்க இழுக்கவும்</string>
     <string name="haptic_scenario_tab_reorder">தாவல்களை மறுவரிசைப்படுத்தவும்</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">மொழிபெயர்ப்பைக் காட்டு</string>
     <string name="settings_color_theme">நிற தீம்</string>
     <string name="settings_feedback_bug_report">கருத்து / சிக்கல் அறிக்கை</string>
+    <string name="settings_flip_to_library_summary">நூலக QR திறக்க தொலைபேசியை திரை கீழே வைத்து திருப்பவும்.</string>
+    <string name="settings_flip_to_library_title">நூலக QR காட்ட திருப்பவும்</string>
+    <string name="settings_flip_to_library_unsupported">உங்கள் சாதனத்தில் தேவையான சென்சார் இல்லை.</string>
     <string name="settings_invert_slider_direction">ஸ்லைடர் திசையை மாற்று</string>
     <string name="settings_language">மொழி (Language)</string>
     <string name="settings_language_english">English</string>

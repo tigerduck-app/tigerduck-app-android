@@ -39,6 +39,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.sensor.FlipDetector
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
@@ -367,6 +368,9 @@ fun SettingsScreen(
             // MARK: Other settings
             item { SectionHeader(stringResource(R.string.settings_section_other_settings)) }
             item {
+                val flipSensorSupported = remember(context) {
+                    FlipDetector.isSupported(context)
+                }
                 ContentCard {
                     Column {
                         SettingsToggleRow(
@@ -380,6 +384,20 @@ fun SettingsScreen(
                                 viewModel.appState.configuredTabs =
                                     viewModel.appState.configuredTabs.filter { !it.isLibraryRelated }
                             }
+                        }
+                        if (libraryEnabled) {
+                            HorizontalDivider()
+                            SettingsToggleRow(
+                                label = stringResource(R.string.settings_flip_to_library_title),
+                                checked = viewModel.appState.flipToLibraryEnabled && flipSensorSupported,
+                                enabled = flipSensorSupported,
+                                subtitle = if (flipSensorSupported) {
+                                    stringResource(R.string.settings_flip_to_library_summary)
+                                } else {
+                                    stringResource(R.string.settings_flip_to_library_unsupported)
+                                },
+                                onCheckedChange = { viewModel.appState.flipToLibraryEnabled = it },
+                            )
                         }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
@@ -632,19 +650,39 @@ private fun SettingsRow(label: String, value: String) {
 internal fun SettingsToggleRow(
     label: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    enabled: Boolean = true,
+    subtitle: String? = null,
+    onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(SettingRowHeight)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .heightIn(min = SettingRowHeight)
+            .padding(horizontal = 16.dp, vertical = if (subtitle != null) 8.dp else 0.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(
+                    alpha = if (enabled) 1f else ContentAlpha.DISABLED,
+                ),
+            )
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = if (enabled) ContentAlpha.SECONDARY else ContentAlpha.DISABLED,
+                    ),
+                )
+            }
+        }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
+            enabled = enabled,
             colors = tigerDuckSwitchColors(),
         )
     }

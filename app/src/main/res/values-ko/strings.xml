@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">강하게</string>
     <string name="haptic_preset_subtle">약하게</string>
     <string name="haptic_scenario_class_table_long_press">수업표 길게 누르기</string>
+    <string name="haptic_scenario_flip_to_library">뒤집어서 도서관 열기</string>
     <string name="haptic_scenario_library_warning">도서관 경고 다이얼로그</string>
     <string name="haptic_scenario_pull_to_refresh">당겨서 새로고침</string>
     <string name="haptic_scenario_tab_reorder">탭 순서 변경</string>
@@ -555,6 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">번역 표시</string>
     <string name="settings_color_theme">색상 테마</string>
     <string name="settings_feedback_bug_report">피드백 / 문제 신고</string>
+    <string name="settings_flip_to_library_summary">화면을 아래로 뒤집으면 도서관 QR이 열립니다.</string>
+    <string name="settings_flip_to_library_title">뒤집어서 도서관 QR 표시</string>
+    <string name="settings_flip_to_library_unsupported">이 기기에는 필요한 센서가 없습니다.</string>
     <string name="settings_invert_slider_direction">슬라이더 방향 반전</string>
     <string name="settings_language">언어 (Language)</string>
     <string name="settings_language_english">English</string>

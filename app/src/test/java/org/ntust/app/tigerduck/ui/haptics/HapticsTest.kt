@@ -8,7 +8,7 @@ class HapticsTest {
     @Test
     fun `tunable filter excludes library warning`() {
         val tunable = HapticScenario.tunable
-        assertEquals(5, tunable.size)
+        assertEquals(6, tunable.size)
         assert(HapticScenario.LibraryWarning !in tunable)
     }
 
