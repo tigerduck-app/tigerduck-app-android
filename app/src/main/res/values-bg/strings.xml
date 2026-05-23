@@ -555,6 +555,9 @@
     <string name="settings_classroom_mandarin_display_translated">Показване на превод</string>
     <string name="settings_color_theme">Цветова тема</string>
     <string name="settings_feedback_bug_report">Обратна връзка / Докладване на проблем</string>
+    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
+    <string name="settings_flip_to_library_title">Flip to show library QR</string>
+    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
     <string name="settings_invert_slider_direction">Обръщане на посоката на плъзгача</string>
     <string name="settings_language">Език (Language)</string>
     <string name="settings_language_english">English</string>

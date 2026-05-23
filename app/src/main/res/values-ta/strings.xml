@@ -555,6 +555,9 @@
     <string name="settings_classroom_mandarin_display_translated">மொழிபெயர்ப்பைக் காட்டு</string>
     <string name="settings_color_theme">நிற தீம்</string>
     <string name="settings_feedback_bug_report">கருத்து / சிக்கல் அறிக்கை</string>
+    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
+    <string name="settings_flip_to_library_title">Flip to show library QR</string>
+    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
     <string name="settings_invert_slider_direction">ஸ்லைடர் திசையை மாற்று</string>
     <string name="settings_language">மொழி (Language)</string>
     <string name="settings_language_english">English</string>

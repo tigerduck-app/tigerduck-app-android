@@ -555,6 +555,9 @@
     <string name="settings_classroom_mandarin_display_translated">Display translated</string>
     <string name="settings_color_theme">顏色主題</string>
     <string name="settings_feedback_bug_report">回饋/問題回報</string>
+    <string name="settings_flip_to_library_summary">將手機螢幕朝下即可開啟圖書館 QR。</string>
+    <string name="settings_flip_to_library_title">翻轉顯示圖書館 QR</string>
+    <string name="settings_flip_to_library_unsupported">此裝置缺少所需的感應器。</string>
     <string name="settings_invert_slider_direction">反轉滑條方向</string>
     <string name="settings_language">語言 (Language)</string>
     <string name="settings_language_english">English</string>

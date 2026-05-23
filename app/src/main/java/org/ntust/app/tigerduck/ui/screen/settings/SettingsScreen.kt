@@ -39,6 +39,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.sensor.FlipDetector
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
@@ -367,6 +368,9 @@ fun SettingsScreen(
             // MARK: Other settings
             item { SectionHeader(stringResource(R.string.settings_section_other_settings)) }
             item {
+                val flipSensorSupported = remember(context) {
+                    FlipDetector.isSupported(context)
+                }
                 ContentCard {
                     Column {
                         SettingsToggleRow(
@@ -380,6 +384,20 @@ fun SettingsScreen(
                                 viewModel.appState.configuredTabs =
                                     viewModel.appState.configuredTabs.filter { !it.isLibraryRelated }
                             }
+                        }
+                        if (libraryEnabled) {
+                            HorizontalDivider()
+                            SettingsToggleRow(
+                                label = stringResource(R.string.settings_flip_to_library_title),
+                                checked = viewModel.appState.flipToLibraryEnabled && flipSensorSupported,
+                                enabled = flipSensorSupported,
+                                subtitle = if (flipSensorSupported) {
+                                    stringResource(R.string.settings_flip_to_library_summary)
+                                } else {
+                                    stringResource(R.string.settings_flip_to_library_unsupported)
+                                },
+                                onCheckedChange = { viewModel.appState.flipToLibraryEnabled = it },
+                            )
                         }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
