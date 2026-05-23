@@ -136,16 +136,24 @@ fun ApiEndpointDebugScreen(onBack: () -> Unit) {
                             error = "Enter a URL or use Clear to remove the override."
                             return@Button
                         }
-                        val validation = validateOverride(trimmed)
-                        if (validation != null) {
-                            error = validation
-                            return@Button
+                        val result = OverrideValidator.validate(trimmed)
+                        when (result) {
+                            is OverrideValidator.Result.Invalid -> {
+                                error = result.message
+                                return@Button
+                            }
+                            is OverrideValidator.Result.Ok -> {
+                                prefs.announcementApiBaseUrlOverride = result.normalized
+                                stored = prefs.announcementApiBaseUrlOverride
+                                effective = resolveEffective(prefs)
+                                draft = stored.orEmpty()
+                                savedNote = if (result.rewrittenToHttp) {
+                                    "Saved as $effective (https rewritten to http for LAN host)."
+                                } else {
+                                    "Saved. Takes effect on the next Announcement request."
+                                }
+                            }
                         }
-                        prefs.announcementApiBaseUrlOverride = trimmed
-                        stored = prefs.announcementApiBaseUrlOverride
-                        effective = resolveEffective(prefs)
-                        draft = stored.orEmpty()
-                        savedNote = "Saved. Takes effect on the next Announcement request."
                     },
                     enabled = draft.trim().isNotEmpty(),
                 ) { Text("Save") }
@@ -168,8 +176,11 @@ fun ApiEndpointDebugScreen(onBack: () -> Unit) {
 
             Spacer(Modifier.height(4.dp))
             Text(
-                "Only the Announcement (bulletin) base URL is overridden. Push registration " +
-                    "still uses the build's default endpoint.",
+                "Allowed: loopback, RFC1918 private IPv4 (10.x, 172.16–31.x, 192.168.x), " +
+                    "or *.api.tigerduck.app (HTTPS only). LAN backends speak HTTP — " +
+                    "https://192.168.X.X:… is auto-rewritten to http:// at save time. " +
+                    "Only the Announcement (bulletin) base URL is overridden; push " +
+                    "registration still uses the build's default endpoint.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -183,21 +194,80 @@ private fun resolveEffective(prefs: AppPreferences): String {
 }
 
 /**
- * Returns an error message if [raw] is not a usable override, or null if
- * it's accepted. Validation is intentionally minimal — the screen is
- * DEBUG-only and we want LAN dev backends to work without an allowlist.
+ * Mirrors the iOS `PushServerConfig.isOverrideAllowed` / `normalize` pair so
+ * the two platforms accept the same dev backends. Public hosts must be on
+ * the `*.api.tigerduck.app` allowlist and speak HTTPS. Loopback / RFC1918
+ * accept either scheme; `https://` to those hosts is rewritten to `http://`
+ * so the most common LAN typo doesn't fail at the TLS handshake.
  */
-private fun validateOverride(raw: String): String? {
-    val url = runCatching { URI(raw) }.getOrNull()
-        ?: return "URL is malformed."
-    val scheme = url.scheme?.lowercase()
-    if (scheme != "http" && scheme != "https") {
-        return "Scheme must be http or https."
+internal object OverrideValidator {
+    private val publicHostExactAllowlist = setOf("api.tigerduck.app")
+    private val publicHostSuffixAllowlist = listOf(".api.tigerduck.app")
+
+    sealed interface Result {
+        data class Ok(val normalized: String, val rewrittenToHttp: Boolean) : Result
+        data class Invalid(val message: String) : Result
     }
-    if (url.host.isNullOrBlank()) {
-        return "URL is missing a host."
+
+    fun validate(raw: String): Result {
+        val parsed = runCatching { URI(raw) }.getOrNull()
+            ?: return Result.Invalid("URL is malformed.")
+        val scheme = parsed.scheme?.lowercase()
+            ?: return Result.Invalid("URL is missing a scheme.")
+        if (scheme != "http" && scheme != "https") {
+            return Result.Invalid("Scheme must be http or https.")
+        }
+        val host = parsed.host?.lowercase()
+        if (host.isNullOrBlank()) return Result.Invalid("URL is missing a host.")
+
+        val isLocal = host == "localhost" || host == "127.0.0.1" || isPrivateIpv4(host)
+        val isPublic = isAllowedPublicHost(host)
+
+        if (!isLocal && !isPublic) {
+            return Result.Invalid(
+                "Rejected by allowlist. Only loopback, RFC1918 " +
+                    "(10.x / 172.16–31.x / 192.168.x), or *.api.tigerduck.app are accepted.",
+            )
+        }
+        if (isPublic && scheme != "https") {
+            return Result.Invalid("Public hosts must use https.")
+        }
+
+        // Auto-downgrade https→http for LAN backends (LAN dev servers usually
+        // don't terminate TLS; pasting https://192.168.X.X:… would otherwise
+        // fail at handshake with WRONG_VERSION_NUMBER).
+        return if (isLocal && scheme == "https") {
+            val rewritten = URI(
+                "http", parsed.userInfo, parsed.host, parsed.port,
+                parsed.path, parsed.query, parsed.fragment,
+            )
+            Result.Ok(normalized = rewritten.toString(), rewrittenToHttp = true)
+        } else {
+            Result.Ok(normalized = parsed.toString(), rewrittenToHttp = false)
+        }
     }
-    return null
+
+    private fun isAllowedPublicHost(host: String): Boolean {
+        if (host in publicHostExactAllowlist) return true
+        return publicHostSuffixAllowlist.any { suffix ->
+            // host must be longer than the suffix so the apex isn't
+            // double-counted via the suffix branch.
+            host.length > suffix.length && host.endsWith(suffix)
+        }
+    }
+
+    private fun isPrivateIpv4(host: String): Boolean {
+        val parts = host.split(".")
+        if (parts.size != 4) return false
+        val octets = parts.mapNotNull { it.toIntOrNull() }
+        if (octets.size != 4 || octets.any { it !in 0..255 }) return false
+        return when {
+            octets[0] == 10 -> true
+            octets[0] == 172 && octets[1] in 16..31 -> true
+            octets[0] == 192 && octets[1] == 168 -> true
+            else -> false
+        }
+    }
 }
 
 @EntryPoint
