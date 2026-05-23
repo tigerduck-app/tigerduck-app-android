@@ -12,9 +12,11 @@ When you open a PR into `dev` or `main`, the
 checklist comment below your PR description.
 
 - The exact checklist depends on whether the PR targets `dev` or `main`.
-- You must tick **every** box in that comment before the `pr-checklist` status check turns green.
-- The check re-evaluates every time the comment is edited, the PR is updated, or a new commit is
-  pushed.
+- Tick **every** box before merging — reviewers rely on this to confirm the author ran the test
+  plan. The `pr-checklist` status check is informational (always reports green); merging is gated
+  by team approval, not by the boxes.
+- The check description re-evaluates every time the comment is edited, the PR is updated, or a new
+  commit is pushed.
 
 If the checklist comment is missing (e.g. on an older PR opened before this
 workflow existed), push an empty commit or edit the PR body to retrigger the
