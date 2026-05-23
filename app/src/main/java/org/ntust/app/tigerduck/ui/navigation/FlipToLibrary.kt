@@ -19,6 +19,9 @@ import org.ntust.app.tigerduck.ui.haptics.Haptics
  * The detector is registered only while:
  *   - the device has a rotation-vector sensor, AND
  *   - the user has opted in via `appState.flipToLibraryEnabled`, AND
+ *   - the parent Library feature itself is on (`appState.libraryFeatureEnabled`),
+ *     so disabling Library actually stops the sensor instead of leaving it
+ *     running while every callback bails at a fire-time guard, AND
  *   - the host activity is at least STARTED.
  *
  * The library-session check ([AppState.isLibraryLoggedIn]) runs at fire time
@@ -40,18 +43,25 @@ fun FlipToLibraryEffect(
     val supported = remember(context) { FlipDetector.isSupported(context) }
     if (!supported) return
 
-    // Reading the Compose-state-backed property here makes the enclosing
+    // Reading the Compose-state-backed properties here makes the enclosing
     // composition observe changes, so the DisposableEffect below restarts
-    // when the user toggles the setting.
-    val enabled = appState.flipToLibraryEnabled
+    // when the user toggles either setting.
+    val enabled = appState.flipToLibraryEnabled && appState.libraryFeatureEnabled
 
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val detector = remember(navController, appState) {
         FlipDetector(context) {
-            // Fire-time guards. Both checks are synchronous and main-thread —
+            // Fire-time guards. All checks are synchronous and main-thread —
             // sensor callbacks deliver on the main thread by default.
             if (!appState.libraryFeatureEnabled) return@FlipDetector
             if (!appState.isLibraryLoggedIn) return@FlipDetector
+            // Cold-start race: MainNavigation installs this effect before
+            // the NavHost declares its graph, so a flip during initial
+            // composition can navigate() with no destinations registered.
+            // currentBackStackEntry stays null until startDestination is
+            // routed; drop early flips rather than queueing — the gesture
+            // is opportunistic and the user can just flip again.
+            if (navController.currentBackStackEntry == null) return@FlipDetector
             val currentRoute = navController.currentDestination?.route
             if (currentRoute == Screen.Library.route) return@FlipDetector
             navController.navigate(Screen.Library.route) {
