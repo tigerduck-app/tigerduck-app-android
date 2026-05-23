@@ -86,13 +86,6 @@ class FlipDetector(
         internal const val FACE_DOWN_R8_THRESHOLD = -0.85f
 
         /**
-         * Re-arm threshold for the inverse transition (FaceDown -> Upright).
-         * Looser so a momentary jiggle while reading the QR doesn't trip the
-         * detector back to Upright and immediately re-fire.
-         */
-        internal const val UPRIGHT_R8_THRESHOLD = -0.5f
-
-        /**
          * Returns `true` when the rotation vector indicates the device is
          * roughly face-down (within ~32 degrees of perfectly inverted).
          *

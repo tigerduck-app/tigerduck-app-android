@@ -48,6 +48,7 @@ fun FlipToLibraryEffect(
         FlipDetector(context) {
             // Fire-time guards. Both checks are synchronous and main-thread —
             // sensor callbacks deliver on the main thread by default.
+            if (!appState.libraryFeatureEnabled) return@FlipDetector
             if (!appState.isLibraryLoggedIn) return@FlipDetector
             val currentRoute = navController.currentDestination?.route
             if (currentRoute == Screen.Library.route) return@FlipDetector
