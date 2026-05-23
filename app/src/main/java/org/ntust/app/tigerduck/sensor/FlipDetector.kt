@@ -2,6 +2,8 @@ package org.ntust.app.tigerduck.sensor
 
 import android.content.Context
 import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 
 /**
@@ -18,16 +20,49 @@ import android.hardware.SensorManager
  * Phone-only: do not instantiate from `:wear`.
  */
 class FlipDetector(
-    private val context: Context,
+    context: Context,
     private val onFaceDown: () -> Unit,
 ) {
 
-    fun register() {
-        // Filled in by Task 4.
+    private val sensorManager: SensorManager? =
+        context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+    private val sensor: Sensor? =
+        sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+
+    private var registered = false
+    private var state = DetectorState.initial()
+
+    private val listener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent) {
+            if (event.sensor.type != Sensor.TYPE_ROTATION_VECTOR) return
+            val faceDown = isFaceDown(event.values)
+            state = nextState(state, faceDown, event.timestamp)
+            if (state.fired) onFaceDown()
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
     }
 
+    /**
+     * Idempotent. No-op if already registered or no rotation-vector sensor
+     * exists on this device.
+     */
+    fun register() {
+        if (registered) return
+        val sm = sensorManager ?: return
+        val s = sensor ?: return
+        // Reset the state machine each time we (re-)register so a sensor
+        // event from a previous session can't leak into the new debounce window.
+        state = DetectorState.initial()
+        sm.registerListener(listener, s, SensorManager.SENSOR_DELAY_UI)
+        registered = true
+    }
+
+    /** Idempotent. */
     fun unregister() {
-        // Filled in by Task 4.
+        if (!registered) return
+        sensorManager?.unregisterListener(listener)
+        registered = false
     }
 
     companion object {
