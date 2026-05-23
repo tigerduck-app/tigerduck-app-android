@@ -1,13 +1,21 @@
 package org.ntust.app.tigerduck.ui.navigation
 
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import org.ntust.app.tigerduck.sensor.FlipDetector
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
@@ -48,6 +56,15 @@ fun FlipToLibraryEffect(
     // when the user toggles either setting.
     val enabled = appState.flipToLibraryEnabled && appState.libraryFeatureEnabled
 
+    // Cold-start race: MainNavigation installs this effect before NavHost
+    // declares its graph, so a flip during initial composition lands before
+    // navigate() has any destinations to route to. Dropping the callback
+    // would also strand the detector in FaceDown (it only fires once per
+    // Upright -> FaceDown transition), forcing the user to re-arm with a
+    // full upright -> face-down cycle before the next try would register.
+    // Queue the pending flip and consume it once the back stack appears.
+    var pendingFlip by remember(navController, appState) { mutableStateOf(false) }
+
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val detector = remember(navController, appState) {
         FlipDetector(context) {
@@ -55,19 +72,28 @@ fun FlipToLibraryEffect(
             // sensor callbacks deliver on the main thread by default.
             if (!appState.libraryFeatureEnabled) return@FlipDetector
             if (!appState.isLibraryLoggedIn) return@FlipDetector
-            // Cold-start race: MainNavigation installs this effect before
-            // the NavHost declares its graph, so a flip during initial
-            // composition can navigate() with no destinations registered.
-            // currentBackStackEntry stays null until startDestination is
-            // routed; drop early flips rather than queueing — the gesture
-            // is opportunistic and the user can just flip again.
-            if (navController.currentBackStackEntry == null) return@FlipDetector
-            val currentRoute = navController.currentDestination?.route
-            if (currentRoute == Screen.Library.route) return@FlipDetector
-            navController.navigate(Screen.Library.route) {
-                launchSingleTop = true
+            if (navController.currentBackStackEntry == null) {
+                pendingFlip = true
+                return@FlipDetector
             }
-            Haptics.perform(context, HapticScenario.FlipToLibrary)
+            navigateToLibrary(navController, context)
+        }
+    }
+
+    if (pendingFlip) {
+        LaunchedEffect(Unit) {
+            snapshotFlow { navController.currentBackStackEntry }
+                .filterNotNull()
+                .first()
+            // Re-check gates at consume time — `enabled` and the session
+            // can change while the back stack is being built.
+            if (appState.flipToLibraryEnabled &&
+                appState.libraryFeatureEnabled &&
+                appState.isLibraryLoggedIn
+            ) {
+                navigateToLibrary(navController, context)
+            }
+            pendingFlip = false
         }
     }
 
@@ -88,4 +114,13 @@ fun FlipToLibraryEffect(
             detector.unregister()
         }
     }
+}
+
+private fun navigateToLibrary(navController: NavController, context: Context) {
+    val currentRoute = navController.currentDestination?.route
+    if (currentRoute == Screen.Library.route) return
+    navController.navigate(Screen.Library.route) {
+        launchSingleTop = true
+    }
+    Haptics.perform(context, HapticScenario.FlipToLibrary)
 }
