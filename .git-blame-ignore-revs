@@ -1,0 +1,15 @@
+# Revisions to ignore from `git blame`.
+#
+# Enable locally with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub honors this file automatically in its blame UI.
+#
+# Add entries below as `<full-sha>  # short reason`. Use only for
+# whole-file mechanical rewrites (formatters, mass rename passes) where
+# the diff is noise for `blame` purposes. Real changes — even small ones
+# — should stay visible.
+
+# IDE 'Reformat Code' pass across the project (Kotlin / XML / docs).
+7226e488143c1e6c0e9a5b9feb00ee1136b4c8eb  # chore(reformat): Kotlin sources
+b3c0da8f9bc19739d26577a4e008fdcd1bc59e0e  # chore(reformat): XML resources
+9f35c7812c9e0c49ed32a12d87d9eea42512ad5c  # chore(reformat): docs, workflows, submodule pin
