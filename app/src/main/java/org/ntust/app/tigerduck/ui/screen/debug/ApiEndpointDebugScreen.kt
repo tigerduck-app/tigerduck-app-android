@@ -109,7 +109,7 @@ fun ApiEndpointDebugScreen(onBack: () -> Unit) {
                     if (error != null) error = null
                 },
                 singleLine = true,
-                placeholder = { Text("https://api.example.com/v2") },
+                placeholder = { Text("http://192.168.X.X:40000/v2") },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Uri,
                     imeAction = ImeAction.Done,
