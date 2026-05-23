@@ -225,6 +225,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean("libraryFeatureEnabled", false)
         set(value) = prefs.edit().putBoolean("libraryFeatureEnabled", value).apply()
 
+    var flipToLibraryEnabled: Boolean
+        get() = prefs.getBoolean("flipToLibraryEnabled", false)
+        set(value) = prefs.edit().putBoolean("flipToLibraryEnabled", value).apply()
+
     var notifyAssignments: Boolean
         get() = prefs.getBoolean("notifyAssignments", true)
         set(value) = prefs.edit().putBoolean("notifyAssignments", value).apply()

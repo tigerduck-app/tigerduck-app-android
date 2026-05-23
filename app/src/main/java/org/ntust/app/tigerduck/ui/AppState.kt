@@ -249,6 +249,16 @@ class AppState @Inject constructor(
             prefs.libraryFeatureEnabled = value
         }
 
+    private var flipToLibraryEnabledState by mutableStateOf(prefs.flipToLibraryEnabled)
+
+    var flipToLibraryEnabled: Boolean
+        get() = flipToLibraryEnabledState
+        set(value) {
+            if (flipToLibraryEnabledState == value) return
+            flipToLibraryEnabledState = value
+            prefs.flipToLibraryEnabled = value
+        }
+
     // Transient signal from the library-shortcut widget: when the user taps
     // the widget while the library feature is disabled, we navigate to
     // Settings and flip this so SettingsScreen surfaces an "enable first"
@@ -352,6 +362,7 @@ class AppState @Inject constructor(
             rotationModeState = prefs.rotationMode
             notifyAssignmentsState = prefs.notifyAssignments
             libraryFeatureEnabledState = prefs.libraryFeatureEnabled
+            flipToLibraryEnabledState = prefs.flipToLibraryEnabled
             configuredTabsState = prefs.configuredTabs
             HapticScenario.tunable.forEach { scenario ->
                 hapticStrengthStates[scenario] = prefs.hapticStrength(scenario)
