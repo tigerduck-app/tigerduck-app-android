@@ -79,13 +79,13 @@ gh issue create --repo tigerduck-app/tigerduck-app-android \
 - **Labels**: run `gh label list --repo tigerduck-app/tigerduck-app-android`
   for the authoritative set (don't trust this list to stay current), then
   map upstream → this repo:
-  - Same name on both → keep (`bug`, `enhancement`, `security`,
-    `documentation`).
-  - Form factor: upstream `iPhone` → `phone`; upstream `watch` → `watch`.
-    Also apply `phone` / `watch` when the issue *text* scopes it that way
-    (e.g. "only phone", "手錶和手機") even if no label carries it.
-  - Drop labels with no Android equivalent: `iPad`, `macOS`, `language`.
-  - Never invent a label.
+    - Same name on both → keep (`bug`, `enhancement`, `security`,
+      `documentation`).
+    - Form factor: upstream `iPhone` → `phone`; upstream `watch` → `watch`.
+      Also apply `phone` / `watch` when the issue *text* scopes it that way
+      (e.g. "only phone", "手錶和手機") even if no label carries it.
+    - Drop labels with no Android equivalent: `iPad`, `macOS`, `language`.
+    - Never invent a label.
 
 ### 6. Add the analysis comment
 
@@ -123,13 +123,13 @@ skipped as a duplicate and why.
 
 ## Quick reference
 
-| Thing | Value |
-|---|---|
-| Upstream repo | `tigerduck-app/tigerduck-app` |
-| This repo | `tigerduck-app/tigerduck-app-android` |
-| Upstream label | `Android too` |
-| Body marker (for dedup) | `Mirrored from upstream …#<N>` |
-| Comment prefix | `**By Claude — executed by <git user>.**` |
+| Thing                   | Value                                     |
+|-------------------------|-------------------------------------------|
+| Upstream repo           | `tigerduck-app/tigerduck-app`             |
+| This repo               | `tigerduck-app/tigerduck-app-android`     |
+| Upstream label          | `Android too`                             |
+| Body marker (for dedup) | `Mirrored from upstream …#<N>`            |
+| Comment prefix          | `**By Claude — executed by <git user>.**` |
 
 ## Common mistakes
 

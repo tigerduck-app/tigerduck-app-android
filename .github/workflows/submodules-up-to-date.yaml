@@ -2,7 +2,7 @@ name: Submodules up to date
 
 on:
   pull_request:
-    branches: [main, dev]
+    branches: [ main, dev ]
 
 jobs:
   check:

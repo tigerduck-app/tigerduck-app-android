@@ -10,6 +10,7 @@ publishes a GitHub Release with the artifacts attached. Does **not** upload to
 Google Play.
 
 Inputs:
+
 - `tag` — e.g. `v1.2.3`. Created on `main` if it does not already exist; if it
   exists, the existing tag is checked out and artifacts are attached to the
   existing release.
@@ -32,7 +33,8 @@ pushes to the Play Store production track at 10% staged rollout.
 
 Currently suspended.
 
-### `release-manual-playstore-internal.yaml` — Release (Manual + Play Store (Internal)) — **suspended**
+### `release-manual-playstore-internal.yaml` — Release (Manual + Play Store (Internal)) — *
+*suspended**
 
 Manual dispatch by tag. Same as the production variant but uploads to the Play
 Store **internal** track with `status: completed` (no staged rollout). Accepts

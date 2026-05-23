@@ -2,19 +2,22 @@
 
 ## Quick install (scripts in this dir)
 
-| Script | What it does |
-| --- | --- |
-| `./debug/install-fdroid.sh` | Build + install `:app:fdroidDebug` to a chosen phone. |
-| `./debug/install-play.sh` | Build + install `:app:playDebug` to a chosen phone; asks if you want `:wear:debug` on a paired watch too. |
-| `./debug/install-play-release.sh` | Build + install `:app:playRelease` (and optionally `:wear:release`) APK(s) via `adb install`. Use when you need to test release-mode behavior (R8/ProGuard, signing) without going through Internal Testing. |
-| `./debug/sync-localizations.sh` | Regenerate `app/` and `wear/` `values-*/strings.xml` from the localization submodule. Run after `git submodule update --remote localization` so committed resources match the new submodule pointer before you build or commit. |
+| Script                            | What it does                                                                                                                                                                                                                    |
+|-----------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `./debug/install-fdroid.sh`       | Build + install `:app:fdroidDebug` to a chosen phone.                                                                                                                                                                           |
+| `./debug/install-play.sh`         | Build + install `:app:playDebug` to a chosen phone; asks if you want `:wear:debug` on a paired watch too.                                                                                                                       |
+| `./debug/install-play-release.sh` | Build + install `:app:playRelease` (and optionally `:wear:release`) APK(s) via `adb install`. Use when you need to test release-mode behavior (R8/ProGuard, signing) without going through Internal Testing.                    |
+| `./debug/sync-localizations.sh`   | Regenerate `app/` and `wear/` `values-*/strings.xml` from the localization submodule. Run after `git submodule update --remote localization` so committed resources match the new submodule pointer before you build or commit. |
 
 The `install-*` scripts:
 
 - Run from the project root.
-- Auto-pick the device when only one matching phone/watch is connected; otherwise prompt with `0/1/2…`.
-- Filter by `ro.build.characteristics` so wear-only and phone-only steps don't accidentally cross-target.
-- Use `adb install -r -d` so they don't trip on existing installs or downgrades during fast iteration.
+- Auto-pick the device when only one matching phone/watch is connected; otherwise prompt with
+  `0/1/2…`.
+- Filter by `ro.build.characteristics` so wear-only and phone-only steps don't accidentally
+  cross-target.
+- Use `adb install -r -d` so they don't trip on existing installs or downgrades during fast
+  iteration.
 
 `_lib.sh` is the shared helper (sourced by the others). Don't run it directly.
 
@@ -23,12 +26,12 @@ The `install-*` scripts:
 The app ships in two **distribution flavors** crossed with the standard
 **debug / release** build types, so there are four variants:
 
-| Variant | Distribution channel | FCM push | Cleartext to dev backend | Use when |
-| --- | --- | --- | --- | --- |
-| `playDebug` | Sideload + dev | Yes | Yes (one LAN IP allowlisted — see *Cleartext HTTP* below) | Day-to-day local dev with the laptop backend. Default in Android Studio. |
-| `playRelease` | Google Play Store | Yes | No | Producing the Play Store APK / bundle. |
-| `fdroidDebug` | Sideload of the F-Droid build | No | Yes | Smoke-testing the FOSS variant locally. |
-| `fdroidRelease` | F-Droid (anti-features-clean) | No | No | The artifact F-Droid's buildserver actually produces. |
+| Variant         | Distribution channel          | FCM push | Cleartext to dev backend                                  | Use when                                                                 |
+|-----------------|-------------------------------|----------|-----------------------------------------------------------|--------------------------------------------------------------------------|
+| `playDebug`     | Sideload + dev                | Yes      | Yes (one LAN IP allowlisted — see *Cleartext HTTP* below) | Day-to-day local dev with the laptop backend. Default in Android Studio. |
+| `playRelease`   | Google Play Store             | Yes      | No                                                        | Producing the Play Store APK / bundle.                                   |
+| `fdroidDebug`   | Sideload of the F-Droid build | No       | Yes                                                       | Smoke-testing the FOSS variant locally.                                  |
+| `fdroidRelease` | F-Droid (anti-features-clean) | No       | No                                                        | The artifact F-Droid's buildserver actually produces.                    |
 
 `fdroid*` builds get an `applicationIdSuffix` of `.fdroid`, so they install
 side-by-side with the play build. They contain **zero Firebase / Google Play

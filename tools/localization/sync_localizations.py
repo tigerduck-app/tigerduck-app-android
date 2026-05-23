@@ -19,7 +19,6 @@ import sys
 from pathlib import Path
 from typing import Iterable, Set
 
-
 ROOT = Path(__file__).resolve().parents[2]
 LOCALIZATION_DIR = ROOT / "localization"
 CONFIG_PATH = LOCALIZATION_DIR / "config" / "locales.json"

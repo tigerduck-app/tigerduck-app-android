@@ -28,40 +28,50 @@
 </picture>
 
 TigerDuck is a campus companion app built by a group of students at **NTUST**.  
-It was created to solve common pain points: scattered resources, delayed notifications, and unintuitive interfaces.  
-Ever used [TAT](https://github.com/morris13579/tat_ntust)? We're working hard to make TigerDuck feel even more OAO!
+It was created to solve common pain points: scattered resources, delayed notifications, and
+unintuitive interfaces.  
+Ever used [TAT](https://github.com/morris13579/tat_ntust)? We're working hard to make TigerDuck feel
+even more OAO!
 
 > The project is under active development; some features are still being polished.
 
 ### 📚 **Assignments**
+
 - See how many **assignments are still due** at a glance
 - **Fully automatic** sync of assignments and deadlines from Moodle — no more surprise due dates!
 - **Ongoing notifications** and push alerts — don't wait until the last hour for Moodle's reminder
 
 ### 📋 **Class Table**
+
 - Synced directly from the course enrollment system — no more **Moodle delay**
 - Interactive Time Slider — see exactly where your next class is
 
 ### 📊 **GPA & Rankings**
+
 - Per-semester / cumulative GPA, rankings, and per-course grades in one place
 - Interactive charts to track grade trends over time
 
 ### 🗓️ **Calendar**
+
 - Aggregates the school's ICS calendar with Moodle deadlines
 - Month view, date navigation, pull-to-refresh
 
 ### 🏛️ **Library** (Experimental)
+
 - Instant library entry QR code with zero delay
 
 ### 🌏 **Multilingual**
+
 - **50+ locales shared with the iOS client** — follow the system language or set per-app
 - Course / classroom names **automatically abbreviated** when long
 
 ### 🎨 **Customization**
+
 - Add what you want, remove what you don't
 - Editable tabs, freely add/remove home sections, accent color theming
 
 ### ⌚ **Wear OS** (Play only)
+
 - **Now & Next** main screen: current / upcoming class with an in-progress progress bar
 - **Today** list and per-course detail screen
 - **Tile** and **Complication** to surface the next class on the watch face
@@ -73,53 +83,66 @@ Ever used [TAT](https://github.com/morris13579/tat_ntust)? We're working hard to
 ## Roadmap
 
 ### 🎓 Academics & Learning
+
 - [x] **Assignments** — Fully automatic Moodle assignment sync
 - [x] **Assignments+** — Push and ongoing notifications
 - [x] **Class Table** — Fetched from the course enrollment system
 - [x] **Class Table+** — Editable course names, deletable courses
 - [x] **Calendar** — Aggregated events from school announcements, Moodle, etc.
-- [x] **Historical GPA & Rankings** — Per-semester / cumulative / per-course grades + interactive charts
-- [ ] **Graduation Credit Calculator** — Check completion status for general education categories, college / department credits, PE, Chinese, English, and other requirements
+- [x] **Historical GPA & Rankings** — Per-semester / cumulative / per-course grades + interactive
+  charts
+- [ ] **Graduation Credit Calculator** — Check completion status for general education categories,
+  college / department credits, PE, Chinese, English, and other requirements
 
 ### 📝 Course Enrollment
+
 - [ ] **Course Search** — Display GPA alongside results for better enrollment decisions
-- [ ] **Lottery Probability & Preference Suggestions** — Estimate admission odds based on capacity and current enrollment
+- [ ] **Lottery Probability & Preference Suggestions** — Estimate admission odds based on capacity
+  and current enrollment
 
 ### 📚 Library Services
+
 - [x] **Library Entry QR Code** — Quick access to the library entry QR code
 - [ ] **Study Room Booking** — Reserve and check availability of library study rooms
 - [ ] **NTUST Library Events** — Event registration and lookup (campus network required)
 
 ### 📣 Campus Information
+
 - [X] **Department & Office Announcements** — Aggregated announcements
-- [X] **LLM-classified bulletins + subscriptions** — Server-side classification & de-duplication, subscribable categories, unread filter
+- [X] **LLM-classified bulletins + subscriptions** — Server-side classification & de-duplication,
+  subscribable categories, unread filter
 - [ ] **Scholarships** — Filterable by eligibility (low-income, indigenous, etc.)
 - [ ] **Daily Club Activities** — Curated daily club event listings
 - [ ] **Empty Classroom Finder** — Quickly find currently available classrooms
 
 ### 🍱 Campus Life
-- [ ] **Free Lunch Notifications** — Anyone can register (real-name); aggregates info from NTUST and NTU with push notifications
+
+- [ ] **Free Lunch Notifications** — Anyone can register (real-name); aggregates info from NTUST and
+  NTU with push notifications
 
 ### 🌏 Localization & Accessibility
+
 - [x] **Multilingual (50+ locales, shared with iOS)** — Follows system language or per-app override
 - [x] **Course / Classroom name abbreviations** — One-tap toggle, fully reversible
 - [X] **RTL layout fixes** — Arabic / Hebrew and other right-to-left scripts
 
 ### ⌚ Wear OS (Play only)
+
 - [x] **Now & Next main screen** — Current / next class with an in-progress progress bar
 - [x] **Today list + course detail**
 - [x] **Tile and Complication** — Surface the next class directly on the home screen / watch face
-- [x] **Phone ↔ Watch sync** — Schedule, auth state, locale, and accent color over the Wearable Data Layer
+- [x] **Phone ↔ Watch sync** — Schedule, auth state, locale, and accent color over the Wearable Data
+  Layer
 - [x] **Empty-state wake** — Tap on the watch to open TigerDuck on the phone
 
 ## System Requirements
-| Item | Requirement |
-|------|-------------|
-| OS | Android 10 (API 29) or later |
-| Wear OS | Wear OS 4 (API 30) or later, paired with the Play build of the phone app |
-| SSO Account | Student account (required for some features) |
-| Library | Library account (required for some features) |
 
+| Item        | Requirement                                                              |
+|-------------|--------------------------------------------------------------------------|
+| OS          | Android 10 (API 29) or later                                             |
+| Wear OS     | Wear OS 4 (API 30) or later, paired with the Play build of the phone app |
+| SSO Account | Student account (required for some features)                             |
+| Library     | Library account (required for some features)                             |
 
 <br/><br/>
 
@@ -128,15 +151,18 @@ Ever used [TAT](https://github.com/morris13579/tat_ntust)? We're working hard to
 <br/><br/>
 
 ## Development Setup
+
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.3-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android Studio](https://img.shields.io/badge/Android%20Studio-Latest-3DDC84?style=for-the-badge&logo=androidstudio&logoColor=white)](https://developer.android.com/studio)
 
 ### Prerequisites
+
 - Android Studio (latest preferred)
 - Android SDK Platform 36
 - JDK 11
 
 ### Android App
+
 ```bash
 # Clone the repository (with submodules: localization, name-abbr)
 git clone --recurse-submodules https://github.com/tigerduck-app/tigerduck-app-android.git
@@ -151,22 +177,28 @@ git submodule update --init --recursive
 ./gradlew :app:installFdroidDebug    # or :app:installPlayDebug
 ```
 
-> 💡 Course / classroom abbreviations (`name-abbr/`) and localization strings (`localization/generated/android/`) come from submodules. **Always** initialize submodules before opening Android Studio, otherwise the build will fail to locate resource files.
+> 💡 Course / classroom abbreviations (`name-abbr/`) and localization strings (
+`localization/generated/android/`) come from submodules. **Always** initialize submodules before
+> opening Android Studio, otherwise the build will fail to locate resource files.
 
 ### Wear OS App (`:wear` module)
 
-The Wear app is **Play only**: it shares `applicationId = org.ntust.app.tigerduck` with the Play phone build, and shares `Course` / `PeriodTimes` / `NextClassResolver` / `AppClock` with the phone via the new `:shared` module.
+The Wear app is **Play only**: it shares `applicationId = org.ntust.app.tigerduck` with the Play
+phone build, and shares `Course` / `PeriodTimes` / `NextClassResolver` / `AppClock` with the phone
+via the new `:shared` module.
 
 ```bash
 ./gradlew :wear:assembleDebug
 ./gradlew :wear:installDebug   # requires a Wear OS emulator or paired watch
 ```
 
-> ⚠️ The wear app depends on `play-services-wearable` (GMS) for pairing, which is incompatible with F-Droid policy — there is **no F-Droid variant** of the wear app, and it will not appear on F-Droid.
+> ⚠️ The wear app depends on `play-services-wearable` (GMS) for pairing, which is incompatible with
+> F-Droid policy — there is **no F-Droid variant** of the wear app, and it will not appear on F-Droid.
 
 ### Quick install scripts (`debug/`)
 
-Three install scripts under `debug/` filter by `ro.build.characteristics` so they push each APK to the right device, which is especially handy when a phone and watch are connected at the same time:
+Three install scripts under `debug/` filter by `ro.build.characteristics` so they push each APK to
+the right device, which is especially handy when a phone and watch are connected at the same time:
 
 | Script                            | What it does                                                                                            |
 |-----------------------------------|---------------------------------------------------------------------------------------------------------|
@@ -174,17 +206,22 @@ Three install scripts under `debug/` filter by `ro.build.characteristics` so the
 | `./debug/install-play.sh`         | Build + install `:app:playDebug`, optionally pushing `:wear:debug` to a paired watch in the same run    |
 | `./debug/install-play-release.sh` | Build + install `:app:playRelease` (and optionally `:wear:release`) — for testing R8 / signing behavior |
 
-For the full picture of build variants, the debug clock override (time-travel testing), wireless ADB, push backend wiring, and common pitfalls, see [`debug/DEBUG.md`](debug/DEBUG.md).
+For the full picture of build variants, the debug clock override (time-travel testing), wireless
+ADB, push backend wiring, and common pitfalls, see [`debug/DEBUG.md`](debug/DEBUG.md).
 
 ### Localization (shared with iOS)
 
-Translation strings live in the [`localization/`](https://github.com/tigerduck-app/app-translation) submodule and are shared with the iOS client.
+Translation strings live in the [`localization/`](https://github.com/tigerduck-app/app-translation)
+submodule and are shared with the iOS client.
 
-- Source files in `localization/source/` — 50+ locales (`en.json`, `zh-Hant.json`, `ja.json`, `ko.json`, `ar.json`, …)
+- Source files in `localization/source/` — 50+ locales (`en.json`, `zh-Hant.json`, `ja.json`,
+  `ko.json`, `ar.json`, …)
 - Generated outputs in `localization/generated/`:
-  - Android: `android/values/strings.xml` (Traditional Chinese as default), `android/values-<lang>/strings.xml`
-  - iOS: `ios/<lang>.lproj/Localizable.strings`
-- The Android app's `app/src/main/res/values*/strings.xml` is overwritten by the same script — **do not** edit generated files by hand.
+    - Android: `android/values/strings.xml` (Traditional Chinese as default),
+      `android/values-<lang>/strings.xml`
+    - iOS: `ios/<lang>.lproj/Localizable.strings`
+- The Android app's `app/src/main/res/values*/strings.xml` is overwritten by the same script — **do
+  not** edit generated files by hand.
 
 Run a one-shot sync:
 
@@ -192,13 +229,18 @@ Run a one-shot sync:
 python3 tools/localization/sync_localizations.py
 ```
 
-The Android build wires this in automatically (`preBuild` depends on `syncLocalizations`), so editing `localization/source/*.json` regenerates Android/iOS outputs before each build.
+The Android build wires this in automatically (`preBuild` depends on `syncLocalizations`), so
+editing `localization/source/*.json` regenerates Android/iOS outputs before each build.
 
-For new locales or strings, open a separate PR against the [`localization/`](https://github.com/tigerduck-app/app-translation) submodule — do **not** edit generated files.
+For new locales or strings, open a separate PR against the
+[`localization/`](https://github.com/tigerduck-app/app-translation) submodule — do **not** edit
+generated files.
 
 ### Course Name Abbreviations
 
-The [`name-abbr/`](https://github.com/tigerduck-app/name-abbr) submodule ships shared course / classroom abbreviation dictionaries used by both the Android and iOS apps to keep long names readable.
+The [`name-abbr/`](https://github.com/tigerduck-app/name-abbr) submodule ships shared course /
+classroom abbreviation dictionaries used by both the Android and iOS apps to keep long names
+readable.
 
 ## Project Structure
 
@@ -257,14 +299,20 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.3 / Co
 ```
 
 ## Contributing
+
 Pull requests and issues are welcome!
 
 Before submitting, please make sure to:
+
 1. Follow the existing Kotlin / Compose code style and architectural conventions
-2. Run at least `:app:compileFdroidDebugKotlin` / `:app:compilePlayDebugKotlin` or `:app:assembleFdroidDebug` / `:app:assemblePlayDebug` once
+2. Run at least `:app:compileFdroidDebugKotlin` / `:app:compilePlayDebugKotlin` or
+   `:app:assembleFdroidDebug` / `:app:assemblePlayDebug` once
 3. Name your branch using `feature/your-feature` or `fix/your-fix`
 4. Target the `dev` branch when opening a PR, and enable Copilot review
-5. For translation strings, open a separate PR against the [`localization/`](https://github.com/tigerduck-app/app-translation) submodule — do **not** edit generated files
+5. For translation strings, open a separate PR against the
+   [`localization/`](https://github.com/tigerduck-app/app-translation) submodule — do **not** edit
+   generated files
 
 ## License
+
 This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).

@@ -19,10 +19,12 @@ Release web UI (or hand back a file they can pipe).
 ### 1. Establish version scope
 
 Ask or confirm:
+
 - **Target tag** (e.g. `v1.4.3`) — what version is being released
 - **Previous tag** (e.g. `v1.4.2`) — what we're diffing against
 
-If the user didn't say, infer from `git tag --list 'v*' --sort=-version:refname | head -3` and `git log --oneline <prev>..HEAD` and confirm.
+If the user didn't say, infer from `git tag --list 'v*' --sort=-version:refname | head -3` and
+`git log --oneline <prev>..HEAD` and confirm.
 
 ### 2. Gather the actual changes
 
@@ -146,33 +148,33 @@ write it to a file or use `gh release edit <tag> --notes-file -`.
 Use these for section / sub-section headers. Pick the one that already
 exists in prior releases over inventing new ones.
 
-| Emoji | When to use |
-|-------|-------------|
-| `✨ 新功能` | Top-level new-features section |
-| `🐛 修正` | Top-level fixes section |
-| `🔧 改善與優化` | Top-level improvements section |
-| `🏗️ 架構與相依升級` | Top-level architecture / deps |
-| `🔖 版本` | Version-bump footer |
-| `🔁 比較` | Diff link footer |
-| `⌚` | Anything Wear OS / watch |
-| `📚` | Schedule / 衝堂 / class-table |
-| `🏫` | Classroom / room-resolution |
-| `📋` | Course detail / popup |
-| `🏠` | Home screen |
-| `🚪` | Onboarding |
-| `⚙️` | Settings |
-| `🔔` / `📢` | Notifications / push / bulletins |
-| `📨` | Moodle |
-| `🔐` | Auth / login / security |
-| `🧱` | Widgets |
-| `♿` | Accessibility / TalkBack |
-| `⏱️` | Live Activity / scheduling |
-| `🌐` | Localization / i18n |
-| `🧹` | Cleanup / cache / data |
-| `🚨` | Crash hotfix |
-| `🛡️` | Runtime guards / safety nets |
-| `🧪` | Debug / developer tooling |
-| `🛠️` | Internal tooling |
+| Emoji         | When to use                      |
+|---------------|----------------------------------|
+| `✨ 新功能`       | Top-level new-features section   |
+| `🐛 修正`       | Top-level fixes section          |
+| `🔧 改善與優化`    | Top-level improvements section   |
+| `🏗️ 架構與相依升級` | Top-level architecture / deps    |
+| `🔖 版本`       | Version-bump footer              |
+| `🔁 比較`       | Diff link footer                 |
+| `⌚`           | Anything Wear OS / watch         |
+| `📚`          | Schedule / 衝堂 / class-table      |
+| `🏫`          | Classroom / room-resolution      |
+| `📋`          | Course detail / popup            |
+| `🏠`          | Home screen                      |
+| `🚪`          | Onboarding                       |
+| `⚙️`          | Settings                         |
+| `🔔` / `📢`   | Notifications / push / bulletins |
+| `📨`          | Moodle                           |
+| `🔐`          | Auth / login / security          |
+| `🧱`          | Widgets                          |
+| `♿`           | Accessibility / TalkBack         |
+| `⏱️`          | Live Activity / scheduling       |
+| `🌐`          | Localization / i18n              |
+| `🧹`          | Cleanup / cache / data           |
+| `🚨`          | Crash hotfix                     |
+| `🛡️`         | Runtime guards / safety nets     |
+| `🧪`          | Debug / developer tooling        |
+| `🛠️`         | Internal tooling                 |
 
 ## Translation principles (Taiwan Mandarin)
 
@@ -207,17 +209,17 @@ the English structure.
 These are real corrections from past releases. Pattern-match against
 them — if your draft has the same shape as the "bad" column, rewrite.
 
-| Bad (literal) | Good (natural Taiwan Mandarin) | Why |
-|---------------|--------------------------------|-----|
-| 全螢幕 QR **尊重** padding 邊界 | 全螢幕 QR **使用** padding 邊界 | `respects` ≠ `尊重`; `尊重` reads as "to respect a person/opinion". The intent is "honors the setting" → `使用` (or `套用` / `依照`). |
-| 修正手錶全螢幕掃碼畫面**忽略** padding 設定**的問題** | 修正手錶全螢幕掃碼畫面**未套用** padding 設定的問題 | `ignored` → `未套用` is more natural for a bug description than the literal `忽略`. |
-| **記住**科系篩選 | **記憶**科系篩選 / **保留**科系篩選 | `remember` as a setting-state verb is usually `記憶` or `保留`, not the conversational `記住`. |
-| 滑桿**揭露**所有衝堂時段 | 滑桿**展開**所有衝堂時段 / **顯示**所有衝堂時段 | `expose` is a CS metaphor; `揭露` means "reveal a scandal". Use `展開` or `顯示`. |
-| 課程**標題與**課程名稱解碼 HTML entities | 課程標題**和**課程名稱解碼 HTML entities | Stacked `與` reads stiff. One `和` flows better in spoken Mandarin. |
-| **觸發**搜尋從第 1 個字 | 輸入第 1 個字即開始搜尋 | Don't preserve English word order; rewrite as the natural Chinese clause shape (subject → time → action). |
-| 在**對應的**時段顯示**正確的**教室 | 該時段對應的教室 | Don't double-translate `correct` + `corresponding`. One adjective is enough. |
-| 重設計**了** / 修正**了** in bullets | 重設計 / 修正 | Bullet-style zh-TW drops the perfective `了` — it's prose-style. |
-| 同步**與** Apple 版本 | 與 Apple 版本同步 | Don't transliterate `synced with X` as `同步與 X`; the `與` goes before the verb in Chinese. |
+| Bad (literal)                       | Good (natural Taiwan Mandarin)   | Why                                                                                                                         |
+|-------------------------------------|----------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+| 全螢幕 QR **尊重** padding 邊界            | 全螢幕 QR **使用** padding 邊界         | `respects` ≠ `尊重`; `尊重` reads as "to respect a person/opinion". The intent is "honors the setting" → `使用` (or `套用` / `依照`). |
+| 修正手錶全螢幕掃碼畫面**忽略** padding 設定**的問題** | 修正手錶全螢幕掃碼畫面**未套用** padding 設定的問題 | `ignored` → `未套用` is more natural for a bug description than the literal `忽略`.                                              |
+| **記住**科系篩選                          | **記憶**科系篩選 / **保留**科系篩選          | `remember` as a setting-state verb is usually `記憶` or `保留`, not the conversational `記住`.                                    |
+| 滑桿**揭露**所有衝堂時段                      | 滑桿**展開**所有衝堂時段 / **顯示**所有衝堂時段    | `expose` is a CS metaphor; `揭露` means "reveal a scandal". Use `展開` or `顯示`.                                                 |
+| 課程**標題與**課程名稱解碼 HTML entities       | 課程標題**和**課程名稱解碼 HTML entities    | Stacked `與` reads stiff. One `和` flows better in spoken Mandarin.                                                           |
+| **觸發**搜尋從第 1 個字                     | 輸入第 1 個字即開始搜尋                    | Don't preserve English word order; rewrite as the natural Chinese clause shape (subject → time → action).                   |
+| 在**對應的**時段顯示**正確的**教室               | 該時段對應的教室                         | Don't double-translate `correct` + `corresponding`. One adjective is enough.                                                |
+| 重設計**了** / 修正**了** in bullets       | 重設計 / 修正                         | Bullet-style zh-TW drops the perfective `了` — it's prose-style.                                                             |
+| 同步**與** Apple 版本                    | 與 Apple 版本同步                     | Don't transliterate `synced with X` as `同步與 X`; the `與` goes before the verb in Chinese.                                    |
 
 ### Quick self-check before submitting a zh-TW line
 
@@ -225,9 +227,12 @@ Read it aloud (mentally). If your reaction is "no Taiwanese person would
 phrase it this way", rewrite. Common smell tests:
 
 - Does it contain `了` in a section that's noun-phrase-style? Drop the `了`.
-- Does it use a literal English-cognate verb (`尊重`, `揭露`, `觸發`) where a domain verb (`使用`, `展開`, `啟動`) is the natural choice?
-- Did you keep English word order (Subject-Verb-PrepPhrase) instead of Chinese topic-comment? Restructure.
-- Did you translate every adjective in the English bullet? Chinese tolerates fewer modifiers; drop redundant ones.
+- Does it use a literal English-cognate verb (`尊重`, `揭露`, `觸發`) where a domain verb (`使用`,
+  `展開`, `啟動`) is the natural choice?
+- Did you keep English word order (Subject-Verb-PrepPhrase) instead of Chinese topic-comment?
+  Restructure.
+- Did you translate every adjective in the English bullet? Chinese tolerates fewer modifiers; drop
+  redundant ones.
 
 ## Section ordering convention
 
@@ -246,18 +251,18 @@ headline is the Wear OS library QR", `### ⌚` goes first under `✨`.
 
 ## Common mistakes
 
-| Mistake | Fix |
-|---------|-----|
-| Drafting the summary before asking what to emphasize | Always ask first via `AskUserQuestion`. |
-| Translating word-by-word so the zh-TW is Chinglish | Read it aloud; rewrite as a sentence a Taiwanese reader would naturally say. |
-| Using Simplified Chinese vocabulary (`优化`, `軟件`, `默認`) | Traditional + Taiwan tech vocab only. |
-| Inventing changes from imagination | Pull from `git log <prev>..HEAD` and PR bodies. If you can't find evidence, drop it. |
-| Force-translating English tech terms (`填充` for padding, `小部件` for widget) | Keep `padding` / `Widget` / `Tile` in English. |
-| Calling `gh release create` / `gh release edit --notes` without the user explicitly approving | Always show the draft first. Only publish on explicit go-ahead. |
-| Omitting the bilingual pair (zh line without en, or vice versa) | Every bullet ships both languages. |
-| Skipping the Notes block when there's an upgrade-path nuance | If the release changes persistence, auth, or signing, surface the upgrade impact in the `注意 / Notes` block. |
-| Including the Wear OS notes bullet on a release that didn't touch `:wear` | The bullet is conditional, not boilerplate. |
-| Adding `🤖 Generated with Claude Code` / `Co-Authored-By: Claude` to a commit that lands the notes file | Global rule: never. |
+| Mistake                                                                                                 | Fix                                                                                                         |
+|---------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| Drafting the summary before asking what to emphasize                                                    | Always ask first via `AskUserQuestion`.                                                                     |
+| Translating word-by-word so the zh-TW is Chinglish                                                      | Read it aloud; rewrite as a sentence a Taiwanese reader would naturally say.                                |
+| Using Simplified Chinese vocabulary (`优化`, `軟件`, `默認`)                                                  | Traditional + Taiwan tech vocab only.                                                                       |
+| Inventing changes from imagination                                                                      | Pull from `git log <prev>..HEAD` and PR bodies. If you can't find evidence, drop it.                        |
+| Force-translating English tech terms (`填充` for padding, `小部件` for widget)                               | Keep `padding` / `Widget` / `Tile` in English.                                                              |
+| Calling `gh release create` / `gh release edit --notes` without the user explicitly approving           | Always show the draft first. Only publish on explicit go-ahead.                                             |
+| Omitting the bilingual pair (zh line without en, or vice versa)                                         | Every bullet ships both languages.                                                                          |
+| Skipping the Notes block when there's an upgrade-path nuance                                            | If the release changes persistence, auth, or signing, surface the upgrade impact in the `注意 / Notes` block. |
+| Including the Wear OS notes bullet on a release that didn't touch `:wear`                               | The bullet is conditional, not boilerplate.                                                                 |
+| Adding `🤖 Generated with Claude Code` / `Co-Authored-By: Claude` to a commit that lands the notes file | Global rule: never.                                                                                         |
 
 ## When NOT to use this skill
 

@@ -2,9 +2,9 @@ name: PR Checklist Check
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, edited]
+    types: [ opened, reopened, synchronize, edited ]
   issue_comment:
-    types: [created, edited, deleted]
+    types: [ created, edited, deleted ]
 
 permissions:
   pull-requests: write

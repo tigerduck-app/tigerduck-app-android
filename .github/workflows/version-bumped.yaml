@@ -2,7 +2,7 @@ name: Version bumped
 
 on:
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   check:

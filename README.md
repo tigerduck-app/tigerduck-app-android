@@ -34,34 +34,42 @@ TigerDuck 是由一群學生共同開發的校園助手
 > 專案目前持續開發中，部分功能仍在完善與調整。
 
 ### 📚 **作業**
+
 - 一眼就知道還有多少**作業沒有繳交**
 - **全自動**從 Moodle 同步作業與截止日期，再也不被教授偷襲！
 - **進行中通知**與訊息提醒，別等到最後一小時才收到 Moodle 的通知
 
 ### 📋 **課表**
+
 - 從選課系統同步，不用再**等 Moodle 延遲**
 - 互動式時間軸滑條，下一節課在哪一目了然！
 
 ### 📊 **歷年成績**
+
 - 學期 / 累計 GPA、排名、各科成績一次看完
 - 互動式圖表追蹤成績走勢
 
 ### 🗓️ **行事曆**
+
 - 整合校方 ICS 行程與 Moodle 作業截止
 - 月曆檢視、切換日期、下拉同步
 
 ### 🏛️ **圖書館**（實驗性）
+
 - 秒開入館 QR-Code，無任何延遲
 
 ### 🌏 **外觀**
+
 - 與 iOS **共用 50+ 種語系翻譯**，自行設定或跟著系統語言切換
 - 名字過長？課程 / 教室名稱**自動簡寫**
 
 ### 🎨 **客製化**
+
 - 要就加，不要就刪掉
 - 編輯 Tab、首頁區塊自由增減、選擇主題色
 
 ### ⌚ **Wear OS**（Play 限定）
+
 - **Now & Next** 主畫面：當下 / 下一節課與進行中課程進度條
 - **Today** 列表與課程詳情頁
 - **Tile** 與 **Complication**，把下一節課放到主畫面 / 錶面
@@ -73,6 +81,7 @@ TigerDuck 是由一群學生共同開發的校園助手
 ## 開發規劃
 
 ### 🎓 教務與學習
+
 - [x] **作業** – 全自動同步 Moodle 作業
 - [x] **作業+** – 訊息與進行中通知
 - [x] **課表** – 擷取自選課系統
@@ -82,15 +91,18 @@ TigerDuck 是由一群學生共同開發的校園助手
 - [ ] **畢業門檻學分計算** – 各通識向度、院 / 系學分、體育、國文、英文等檢核
 
 ### 📝 選課相關
+
 - [ ] **選課查詢** – 同時顯示 GPA，提升選課決策效率
 - [ ] **中籤機率估算與志願序建議** – 根據人數上限與目前選課人數估算
 
 ### 📚 圖書館服務
+
 - [x] **圖書館出入館 QR-Code** – 快速開啟入館 QR-Code
 - [ ] **圖書館討論小間借用** – 支援討論室預約與借用查詢
 - [ ] **臺科大圖書館講座活動** – 包含活動報名與查詢（需校內連線）
 
 ### 📣 校園資訊
+
 - [X] **各處室、中心公告** – 支援公告整合
 - [X] **公告 LLM 分類 + 訂閱通知** – 後端自動分類去重、可訂閱類別、未讀篩選
 - [ ] **獎學金資訊** – 支援 Filter，可依低收、中低收、原住民等條件過濾
@@ -98,14 +110,17 @@ TigerDuck 是由一群學生共同開發的校園助手
 - [ ] **空教室查詢** – 快速查詢目前可使用的教室
 
 ### 🍱 校園生活
+
 - [ ] **免費便當通知** – 任何人可實名登記，並整合台科大、台大相關資訊，主動推播通知
 
 ### 🌏 在地化與無障礙
+
 - [x] **多語系（與 iOS 共用，50+ 語系）** – 跟著系統或在 App 內單獨切換
 - [x] **課程 / 教室名稱簡稱** – 一鍵切換、可還原
 - [X] **RTL 版面修正** – 阿拉伯語 / 希伯來語等右至左語系排版
 
 ### ⌚ Wear OS（Play 限定）
+
 - [x] **Now & Next 主畫面** – 當下 / 下一節課與進行中課程進度條
 - [x] **Today 列表 + 課程詳情**
 - [x] **Tile 與 Complication** – 下一節課直接顯示在主畫面 / 錶面
@@ -113,13 +128,13 @@ TigerDuck 是由一群學生共同開發的校園助手
 - [x] **空狀態喚醒** – 從手錶呼起手機上的 TigerDuck
 
 ## 系統需求
-| 項目 | 需求 |
-|------|------|
-| 作業系統 | Android 10（API 29）以上 |
-| Wear OS | Wear OS 4（API 30）以上，需與 Play 版手機 App 配對 |
-| SSO 帳號 | 學生帳號（部分功能需要）|
-| 圖書館 | 圖書館帳號（部分功能需要）|
 
+| 項目      | 需求                                     |
+|---------|----------------------------------------|
+| 作業系統    | Android 10（API 29）以上                   |
+| Wear OS | Wear OS 4（API 30）以上，需與 Play 版手機 App 配對 |
+| SSO 帳號  | 學生帳號（部分功能需要）                           |
+| 圖書館     | 圖書館帳號（部分功能需要）                          |
 
 <br/><br/>
 
@@ -128,15 +143,18 @@ TigerDuck 是由一群學生共同開發的校園助手
 <br/><br/>
 
 ## 開發環境建置
+
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.3-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android Studio](https://img.shields.io/badge/Android%20Studio-Latest-3DDC84?style=for-the-badge&logo=androidstudio&logoColor=white)](https://developer.android.com/studio)
 
 ### 需求
+
 - Android Studio（建議最新版）
 - Android SDK Platform 36
 - JDK 11
 
 ### Android App
+
 ```bash
 # clone 專案（含子模組：localization、name-abbr）
 git clone --recurse-submodules https://github.com/tigerduck-app/tigerduck-app-android.git
@@ -151,39 +169,45 @@ git submodule update --init --recursive
 ./gradlew :app:installFdroidDebug    # 或 :app:installPlayDebug
 ```
 
-> 💡 課程/教室簡稱（`name-abbr/`）與多語系字串（`localization/generated/android/`）皆由子模組提供，clone 後**務必**先抓子模組再開 Android Studio，否則 build 會找不到資源檔。
+> 💡 課程/教室簡稱（`name-abbr/`）與多語系字串（`localization/generated/android/`）皆由子模組提供，clone 後
+**務必**先抓子模組再開 Android Studio，否則 build 會找不到資源檔。
 
 ### Wear OS App（`:wear` 模組）
 
-Wear OS 為 **Play 限定**：與 Play 版手機 App 共用 `applicationId = org.ntust.app.tigerduck`，並透過 `:shared` 模組共用 `Course` / `PeriodTimes` / `NextClassResolver` / `AppClock` 等課表邏輯。
+Wear OS 為 **Play 限定**：與 Play 版手機 App 共用 `applicationId = org.ntust.app.tigerduck`，並透過
+`:shared` 模組共用 `Course` / `PeriodTimes` / `NextClassResolver` / `AppClock` 等課表邏輯。
 
 ```bash
 ./gradlew :wear:assembleDebug
 ./gradlew :wear:installDebug   # 需先連上 Wear OS 模擬器或實機
 ```
 
-> ⚠️ Wear App 依賴 `play-services-wearable`（GMS）才能與手機配對，與 F-Droid 政策不相容，因此**不提供 F-Droid 變體**，也不會出現在 F-Droid 商店上。
+> ⚠️ Wear App 依賴 `play-services-wearable`（GMS）才能與手機配對，與 F-Droid 政策不相容，因此**不提供
+F-Droid 變體**，也不會出現在 F-Droid 商店上。
 
 ### 一鍵安裝腳本（`debug/`）
 
-`debug/` 目錄收錄了三支安裝腳本，會依 `ro.build.characteristics` 自動把 APK 推到對的裝置，遇到同時連著手機 + 手錶時尤其方便：
+`debug/` 目錄收錄了三支安裝腳本，會依 `ro.build.characteristics` 自動把 APK
+推到對的裝置，遇到同時連著手機 + 手錶時尤其方便：
 
-| 腳本                              | 用途                                                                  |
-|-----------------------------------|-----------------------------------------------------------------------|
-| `./debug/install-fdroid.sh`       | 編譯並安裝 `:app:fdroidDebug`                                          |
-| `./debug/install-play.sh`         | 編譯並安裝 `:app:playDebug`，並可同時把 `:wear:debug` 推到配對的手錶 |
+| 腳本                                | 用途                                                        |
+|-----------------------------------|-----------------------------------------------------------|
+| `./debug/install-fdroid.sh`       | 編譯並安裝 `:app:fdroidDebug`                                  |
+| `./debug/install-play.sh`         | 編譯並安裝 `:app:playDebug`，並可同時把 `:wear:debug` 推到配對的手錶        |
 | `./debug/install-play-release.sh` | 編譯並安裝 `:app:playRelease`（與 `:wear:release`），用來測 R8 / 簽章行為 |
 
-更詳細的 build variant 說明、debug 時鐘覆寫（時光旅行測試）、無線 ADB、push backend 對接與常見錯誤排查，請見 [`debug/DEBUG.md`](debug/DEBUG.md)。
+更詳細的 build variant 說明、debug 時鐘覆寫（時光旅行測試）、無線 ADB、push backend
+對接與常見錯誤排查，請見 [`debug/DEBUG.md`](debug/DEBUG.md)。
 
 ### 多語系翻譯（Android + iOS 共用）
 
 翻譯字串放在 [`localization/`](https://github.com/tigerduck-app/app-translation) 子模組，與 iOS 共用。
 
-- 翻譯原始檔在 `localization/source/`，共 50+ 種語系（`en.json`、`zh-Hant.json`、`ja.json`、`ko.json`、`ar.json` …）
+- 翻譯原始檔在 `localization/source/`，共 50+ 種語系（`en.json`、`zh-Hant.json`、`ja.json`、`ko.json`、
+  `ar.json` …）
 - 共用翻譯輸出在 `localization/generated/`：
-  - Android：`android/values/strings.xml`（繁中預設）、`android/values-<lang>/strings.xml`
-  - iOS：`ios/<lang>.lproj/Localizable.strings`
+    - Android：`android/values/strings.xml`（繁中預設）、`android/values-<lang>/strings.xml`
+    - iOS：`ios/<lang>.lproj/Localizable.strings`
 - Android App 使用的 `app/src/main/res/values*/strings.xml` 會由同一支腳本同步覆寫，請不要手動改動生成檔。
 
 手動同步一次翻譯：
@@ -192,13 +216,16 @@ Wear OS 為 **Play 限定**：與 Play 版手機 App 共用 `applicationId = org
 python3 tools/localization/sync_localizations.py
 ```
 
-Android build 已綁定自動同步（`preBuild` 依賴 `syncLocalizations`），只要修改 `localization/source/*.json` 就會在編譯前自動更新 Android/iOS 生成檔。
+Android build 已綁定自動同步（`preBuild` 依賴 `syncLocalizations`），只要修改
+`localization/source/*.json` 就會在編譯前自動更新 Android/iOS 生成檔。
 
-新語系或字串請對 [`localization/`](https://github.com/tigerduck-app/app-translation) 子模組另開 PR，**不要**直接改生成檔。
+新語系或字串請對 [`localization/`](https://github.com/tigerduck-app/app-translation) 子模組另開 PR，*
+*不要**直接改生成檔。
 
 ### 課程名稱簡稱
 
-[`name-abbr/`](https://github.com/tigerduck-app/name-abbr) 子模組提供與 iOS 共用的課程 / 教室簡稱字典，避免長名稱破版。
+[`name-abbr/`](https://github.com/tigerduck-app/name-abbr) 子模組提供與 iOS 共用的課程 /
+教室簡稱字典，避免長名稱破版。
 
 ## 專案架構
 
@@ -257,14 +284,19 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.3 / C
 ```
 
 ## 貢獻
+
 歡迎 PR 與 Issue！
 
 送出前請確認
+
 1. 遵循現有的 Kotlin / Compose 程式碼風格與架構慣例
-2. 至少完成一次 `:app:compileFdroidDebugKotlin` / `:app:compilePlayDebugKotlin` 或 `:app:assembleFdroidDebug` / `:app:assemblePlayDebug`
+2. 至少完成一次 `:app:compileFdroidDebugKotlin` / `:app:compilePlayDebugKotlin` 或
+   `:app:assembleFdroidDebug` / `:app:assemblePlayDebug`
 3. 以 `feature/your-feature` 或 `fix/your-fix` 命名分支
 4. 發布 PR 時，目標分支為 `dev`，且必須勾選 Copilot 做 Revise
-5. 翻譯字串請改 [`localization/`](https://github.com/tigerduck-app/app-translation) 子模組（透過獨立 PR），不要直接改生成檔
+5. 翻譯字串請改 [`localization/`](https://github.com/tigerduck-app/app-translation) 子模組（透過獨立
+   PR），不要直接改生成檔
 
 ## 授權
+
 本專案採用 [GNU Affero General Public License v3.0](LICENSE) 授權。
