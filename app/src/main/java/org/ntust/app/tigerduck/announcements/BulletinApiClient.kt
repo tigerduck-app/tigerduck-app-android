@@ -11,6 +11,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,10 +20,22 @@ class BulletinApiException(message: String) : Exception(message)
 @Singleton
 class BulletinApiClient @Inject constructor(
     baseClient: OkHttpClient,
+    private val prefs: AppPreferences,
 ) {
 
-    private val baseUrl = BuildConfig.PUSH_BASE_URL.trimEnd('/')
+    private val defaultBaseUrl = BuildConfig.PUSH_BASE_URL.trimEnd('/')
     private val sharedSecret = BuildConfig.PUSH_SHARED_SECRET
+
+    // Resolved per call so a Debug build's Settings → Developer → API
+    // endpoint override takes effect on the next request without an app
+    // relaunch. Release builds can never write the override (the screen
+    // is DEBUG-gated), so this collapses to defaultBaseUrl in production.
+    private val baseUrl: String
+        get() = if (BuildConfig.DEBUG) {
+            prefs.announcementApiBaseUrlOverride?.trimEnd('/') ?: defaultBaseUrl
+        } else {
+            defaultBaseUrl
+        }
     private val gson = Gson()
     private val jsonType = "application/json".toMediaType()
 
