@@ -632,19 +632,39 @@ private fun SettingsRow(label: String, value: String) {
 internal fun SettingsToggleRow(
     label: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    enabled: Boolean = true,
+    subtitle: String? = null,
+    onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(SettingRowHeight)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .heightIn(min = SettingRowHeight)
+            .padding(horizontal = 16.dp, vertical = if (subtitle != null) 8.dp else 0.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(
+                    alpha = if (enabled) 1f else ContentAlpha.DISABLED,
+                ),
+            )
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = if (enabled) ContentAlpha.SECONDARY else ContentAlpha.DISABLED,
+                    ),
+                )
+            }
+        }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
+            enabled = enabled,
             colors = tigerDuckSwitchColors(),
         )
     }
