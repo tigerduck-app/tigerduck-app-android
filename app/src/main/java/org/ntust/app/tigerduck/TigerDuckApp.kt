@@ -27,16 +27,22 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
+
     @Inject
     lateinit var appPreferences: AppPreferences
+
     @Inject
     lateinit var fcmBootstrap: FcmBootstrap
+
     @Inject
     lateinit var dataCache: DataCache
+
     @Inject
     lateinit var authService: AuthService
+
     @Inject
     lateinit var wearBridge: WearScheduleBridge
+
     @Inject
     lateinit var debugClockController: DebugClockController
 

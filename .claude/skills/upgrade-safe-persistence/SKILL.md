@@ -38,12 +38,12 @@ You're about to edit ANY of:
 - `app/src/play/java/org/ntust/app/tigerduck/wear/WearScheduleBridge.kt`
 - `wear/src/main/java/org/ntust/app/tigerduck/wear/data/SchedulePersistence.kt`
 - Any class listed in `app/proguard-rules.pro` keep rules:
-  - `network.model.**`
-  - `data.model.**`
-  - `data.cache.DataCache$*`
-  - `wear.WearScheduleBridge$*`
-  - `announcements.{BulletinSummary, BulletinDetail, BulletinListResponse, OrgLabel, TagLabel, TaxonomyResponse, SubscriptionRule, SubscriptionsResponse, SubscriptionsPutRequest}`
-  - `org.ntust.app.tigerduck.shared.**`
+    - `network.model.**`
+    - `data.model.**`
+    - `data.cache.DataCache$*`
+    - `wear.WearScheduleBridge$*`
+    - `announcements.{BulletinSummary, BulletinDetail, BulletinListResponse, OrgLabel, TagLabel, TaxonomyResponse, SubscriptionRule, SubscriptionsResponse, SubscriptionsPutRequest}`
+    - `org.ntust.app.tigerduck.shared.**`
 - `app/proguard-rules.pro` itself
 
 ## Checklist — run before saving the edit
@@ -74,6 +74,7 @@ grep -rn "\.<newFieldName>" app/src wear/src shared/src
 ```
 
 Each access must either:
+
 - Be inside a try/catch that catches `Exception`
 - Use `?.` / `?: default` / `if (x != null)`
 - NOT pass the value to a non-null parameter without coalescing
@@ -92,8 +93,7 @@ If yes:
   account switches and logout actually wipe it. The recent
   `moodle_course_ids.json` (commit `ac11f3d`) is the template.
 
-### 4. Did you change the SHAPE of an existing persisted JSON (rename a
-   field, change a type from `String` to `List<String>`, etc.)?
+### 4. Did you change the SHAPE of an existing persisted JSON (rename a field, change a type from `String` to `List<String>`, etc.)?
 
 This is a hard migration. You **must** add a `DataMigration` step. The
 existing `migrate1to2` (sweep R8-obfuscated v1.4.0 caches) is the
@@ -101,8 +101,7 @@ template. Use content-based detection (a sentinel substring in the
 raw JSON), not file-presence checks, so direct upgrades from very old
 versions still work.
 
-### 5. Did you add or move a class under `org.ntust.app.tigerduck.shared.**`
-   or any of the keep-list packages?
+### 5. Did you add or move a class under `org.ntust.app.tigerduck.shared.**` or any of the keep-list packages?
 
 R8 keep rules in `app/proguard-rules.pro` are load-bearing. If the
 class is reachable through Gson serialization, it MUST be in the keep
@@ -111,8 +110,7 @@ and you get the v1.3.x → v1.4.0 incident again. **A green build is not
 proof** — the failure only triggers on release-flavor obfuscated builds
 running against caches written by a prior version.
 
-### 6. Are you reading from `DataCache` in a path that runs from
-   `TigerDuckApp.onCreate`?
+### 6. Are you reading from `DataCache` in a path that runs from `TigerDuckApp.onCreate`?
 
 `appScope.launch { wearBridge.publish() }` and similar safety-net
 launches run BEFORE `DataMigration` (which fires from MainActivity-

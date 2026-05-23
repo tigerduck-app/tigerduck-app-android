@@ -19,7 +19,8 @@ class MainActivity : ComponentActivity() {
         // titles) resolves against the right locale. AppCompatDelegate /
         // LocaleManager also get notified for system-side state (per-app
         // locale persistence, settings UI surface).
-        val tag = runCatching { ScheduleRepository.get(newBase).readLanguageTagBlocking() }.getOrNull()
+        val tag =
+            runCatching { ScheduleRepository.get(newBase).readLanguageTagBlocking() }.getOrNull()
         if (tag.isNullOrBlank()) {
             super.attachBaseContext(newBase)
             return

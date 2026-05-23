@@ -7,9 +7,9 @@ import android.content.Intent
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.parseHm
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -44,7 +44,11 @@ class WidgetBoundaryScheduler @Inject constructor(
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerCal.timeInMillis), pi)
+            alarmManager.set(
+                AlarmManager.RTC_WAKEUP,
+                AppClock.realTimeFor(triggerCal.timeInMillis),
+                pi
+            )
         } else {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,

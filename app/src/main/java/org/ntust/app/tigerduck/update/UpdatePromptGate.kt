@@ -39,7 +39,7 @@ object UpdatePromptGate {
         if (stalenessDays != null && stalenessDays < STALENESS_THRESHOLD_DAYS) return false
         val sameVersionWithinCooldown =
             availableVersionCode == lastPromptVersionCode &&
-                now - lastPromptEpoch < COOLDOWN_MS
+                    now - lastPromptEpoch < COOLDOWN_MS
         return !sameVersionWithinCooldown
     }
 }

@@ -389,8 +389,8 @@ private fun computeAccountInputType(
     // all digits down to the lone letter and wants to retype the prefix,
     // they need the standard-keyboard toggle to escape the numeric pad.
     value.isEmpty() -> InputType.TYPE_CLASS_TEXT or
-        InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
-        capitalization.toInputTypeFlag()
+            InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
+            capitalization.toInputTypeFlag()
     // 2nd char onward: numeric pad, no IME-locale juggling.
     else -> InputType.TYPE_CLASS_NUMBER
 }

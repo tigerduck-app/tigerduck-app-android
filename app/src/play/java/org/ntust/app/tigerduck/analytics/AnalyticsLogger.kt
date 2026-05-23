@@ -40,11 +40,12 @@ class AnalyticsLogger @Inject constructor(
     fun log(event: String, params: Map<String, Any?> = emptyMap()) {
         val fa = analytics ?: return
         if (!validateName("event name", event, MAX_NAME_CHARS)) return
-        val entries = if (validate("event '$event' has ${params.size} params (max $MAX_PARAMS)") { params.size <= MAX_PARAMS }) {
-            params.entries
-        } else {
-            params.entries.take(MAX_PARAMS)
-        }
+        val entries =
+            if (validate("event '$event' has ${params.size} params (max $MAX_PARAMS)") { params.size <= MAX_PARAMS }) {
+                params.entries
+            } else {
+                params.entries.take(MAX_PARAMS)
+            }
         val bundle = Bundle().apply {
             entries.forEach { (key, value) ->
                 if (!validateName("param key on '$event'", key, MAX_NAME_CHARS)) return@forEach
@@ -68,7 +69,10 @@ class AnalyticsLogger @Inject constructor(
         if (!validateName("user property name", name, MAX_USER_PROPERTY_NAME_CHARS)) return
         val truncated = value?.let { safeTruncate(it, MAX_USER_PROPERTY_VALUE_CHARS) }
         if (value != null && value.length > MAX_USER_PROPERTY_VALUE_CHARS) {
-            Log.w(TAG, "user property '$name' value of ${value.length} chars exceeds $MAX_USER_PROPERTY_VALUE_CHARS")
+            Log.w(
+                TAG,
+                "user property '$name' value of ${value.length} chars exceeds $MAX_USER_PROPERTY_VALUE_CHARS"
+            )
         }
         fa.setUserProperty(name, truncated)
     }
@@ -89,7 +93,10 @@ class AnalyticsLogger @Inject constructor(
 
     private fun truncateValue(event: String, key: String, value: String): String {
         if (value.length <= MAX_VALUE_CHARS) return value
-        Log.w(TAG, "param '$key' on '$event' value of ${value.length} chars exceeds $MAX_VALUE_CHARS")
+        Log.w(
+            TAG,
+            "param '$key' on '$event' value of ${value.length} chars exceeds $MAX_VALUE_CHARS"
+        )
         return safeTruncate(value, MAX_VALUE_CHARS)
     }
 
@@ -143,10 +150,12 @@ class AnalyticsLogger @Inject constructor(
 
     private companion object {
         const val TAG = "AnalyticsLogger"
+
         // Firebase Analytics hard limits — silently dropped/truncated upstream.
         const val MAX_NAME_CHARS = 40
         const val MAX_VALUE_CHARS = 100
         const val MAX_PARAMS = 25
+
         // User properties have stricter limits than events.
         const val MAX_USER_PROPERTY_NAME_CHARS = 24
         const val MAX_USER_PROPERTY_VALUE_CHARS = 36

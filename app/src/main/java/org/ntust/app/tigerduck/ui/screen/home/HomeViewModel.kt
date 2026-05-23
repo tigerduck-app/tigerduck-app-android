@@ -22,9 +22,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
-import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -37,6 +35,7 @@ import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.time.format.DateTimeFormatter
 import java.util.Calendar

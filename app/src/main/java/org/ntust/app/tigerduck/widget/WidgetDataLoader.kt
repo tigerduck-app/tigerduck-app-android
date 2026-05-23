@@ -8,10 +8,10 @@ import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.computeOngoingCourses
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.parseHm
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.buildCourseColorAssignments
 import java.util.Calendar
 
@@ -124,7 +124,8 @@ object WidgetDataLoader {
             val target = ((todayWeekday - 1 + offset) % 7) + 1
             val candidates = courses.mapNotNull { course ->
                 val periods = course.schedule[target] ?: return@mapNotNull null
-                val firstPeriod = periods.minByOrNull { order.indexOf(it) } ?: return@mapNotNull null
+                val firstPeriod =
+                    periods.minByOrNull { order.indexOf(it) } ?: return@mapNotNull null
                 Triple(course, target, firstPeriod)
             }
             val pick = candidates.minByOrNull { order.indexOf(it.third) } ?: continue

@@ -15,9 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
 import androidx.compose.ui.res.stringResource
 import androidx.wear.compose.foundation.pager.HorizontalPager
 import androidx.wear.compose.foundation.pager.rememberPagerState
@@ -27,8 +24,11 @@ import androidx.wear.compose.material3.HorizontalPagerScaffold
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
-import org.ntust.app.tigerduck.wear.data.ScheduleRepository
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import org.ntust.app.tigerduck.wear.data.SchedulePersistence
+import org.ntust.app.tigerduck.wear.data.ScheduleRepository
 import org.ntust.app.tigerduck.wear.data.SyncRequester
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 import org.ntust.app.tigerduck.wear.ui.CourseDetailScreen
@@ -122,6 +122,7 @@ fun WearApp() {
                                     snapshot = snapshot,
                                     onRowClick = { courseNo -> navController.navigate("detail/$courseNo") },
                                 )
+
                                 3 -> SettingsListScreen(
                                     snapshot = snapshot,
                                     onPaddingClick = { navController.navigate("settings/padding") },

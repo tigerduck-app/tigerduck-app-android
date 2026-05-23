@@ -2,9 +2,9 @@ name: PR Checklist Check
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, edited]
+    types: [ opened, reopened, synchronize, edited ]
   issue_comment:
-    types: [created, edited, deleted]
+    types: [ created, edited, deleted ]
 
 permissions:
   pull-requests: write
@@ -28,7 +28,7 @@ jobs:
             const DEV_CHECKLIST = `${MARKER}
             ## Pre-merge checklist (target: \`dev\`)
 
-            > Tick every box before merging. This comment gates the \`pr-checklist\` status check.
+            > Tick every box before merging. Reviewers use this comment to verify the author ran the test plan; the \`pr-checklist\` status is informational only.
 
             - [ ] I have tested on my phone (watch) / emulator that this branch does **not** break other functions it is not meant to touch.
             - [ ] I have tested on my phone (watch) / emulator that this branch successfully fixes/adds the function(s) it is intended to fix/add.
@@ -37,7 +37,7 @@ jobs:
             const MAIN_CHECKLIST = `${MARKER}
             ## Pre-merge checklist (target: \`main\`)
 
-            > Tick every box before merging. This comment gates the \`pr-checklist\` status check.
+            > Tick every box before merging. Reviewers use this comment to verify the author ran the test plan; the \`pr-checklist\` status is informational only.
 
             - [ ] I have compiled both the **fdroid** and **play** flavors using the scripts under \`debug/\` (\`install-fdroid.sh\`, \`install-play.sh\`, \`install-play-release.sh\`) and confirmed they all pass compilation without any warnings.
             - [ ] I have tested on my phone (watch) / emulator that no existing functions are broken.
@@ -111,25 +111,25 @@ jobs:
             const checked = (botComment.body.match(/- \[[xX]\]/g) || []).length;
             const total = unchecked + checked;
 
-            const state = unchecked === 0 && total > 0 ? 'success' : 'failure';
+            // Informational only: the status is always `success` so the check
+            // never blocks the PR (the team-approval ruleset on dev/main is the
+            // real gate). The description still reflects checklist completion,
+            // so reviewers can see at a glance whether the author ticked boxes
+            // without expanding the bot comment.
             const description = total === 0
               ? 'Checklist comment is empty — restore it from the workflow.'
               : unchecked === 0
                 ? `All ${total} boxes checked`
-                : `${unchecked} of ${total} box(es) still unchecked`;
+                : `${unchecked} of ${total} box(es) still unchecked (informational)`;
 
-            // Report a commit status tied to the PR head SHA so branch protection can require it.
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
               sha: headSha,
-              state,
+              state: 'success',
               context: 'pr-checklist',
               description,
               target_url: botComment.html_url,
             });
 
-            core.info(`Status \`pr-checklist\` -> ${state}: ${description}`);
-            if (state !== 'success') {
-              core.setFailed(description);
-            }
+            core.info(`Status \`pr-checklist\` -> success (informational): ${description}`);

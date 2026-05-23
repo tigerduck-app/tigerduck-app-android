@@ -99,7 +99,7 @@ class DataMigration(
         val userDataDir = File(context.filesDir, USER_DATA_SUBDIR)
         sweepCourseFiles(cacheDir) { name ->
             name == LEGACY_COURSES_FILENAME ||
-                (name.startsWith(COURSES_PREFIX) && name.endsWith(".json"))
+                    (name.startsWith(COURSES_PREFIX) && name.endsWith(".json"))
         }
         sweepCourseFiles(userDataDir) { name ->
             name.startsWith(MANUAL_COURSES_PREFIX) && name.endsWith(".json")

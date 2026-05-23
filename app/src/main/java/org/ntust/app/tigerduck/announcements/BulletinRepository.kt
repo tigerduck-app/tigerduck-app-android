@@ -17,6 +17,7 @@ class BulletinRepository @Inject constructor() {
 
     private val summaries = HashMap<Int, BulletinSummary>()
     private val details = HashMap<Int, BulletinDetail>()
+
     @Volatile
     private var taxonomyValue: TaxonomyResponse? = null
     private val taxonomyMutex = Mutex()

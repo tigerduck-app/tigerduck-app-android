@@ -588,10 +588,22 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                                     top = laneTop,
                                     right = left + segW,
                                     bottom = laneTop + laneH,
-                                    topLeftCornerRadius = androidx.compose.ui.geometry.CornerRadius(topR, topR),
-                                    topRightCornerRadius = androidx.compose.ui.geometry.CornerRadius(topR, topR),
-                                    bottomLeftCornerRadius = androidx.compose.ui.geometry.CornerRadius(bottomR, bottomR),
-                                    bottomRightCornerRadius = androidx.compose.ui.geometry.CornerRadius(bottomR, bottomR),
+                                    topLeftCornerRadius = androidx.compose.ui.geometry.CornerRadius(
+                                        topR,
+                                        topR
+                                    ),
+                                    topRightCornerRadius = androidx.compose.ui.geometry.CornerRadius(
+                                        topR,
+                                        topR
+                                    ),
+                                    bottomLeftCornerRadius = androidx.compose.ui.geometry.CornerRadius(
+                                        bottomR,
+                                        bottomR
+                                    ),
+                                    bottomRightCornerRadius = androidx.compose.ui.geometry.CornerRadius(
+                                        bottomR,
+                                        bottomR
+                                    ),
                                 )
                             )
                         }

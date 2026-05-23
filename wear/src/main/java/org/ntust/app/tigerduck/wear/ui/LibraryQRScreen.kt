@@ -58,18 +58,18 @@ import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import androidx.wear.remote.interactions.RemoteActivityHelper
-import kotlin.math.abs
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.shared.LibraryApi
 import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.wear.BuildConfig
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.LibraryQRController
-import org.ntust.app.tigerduck.wear.data.ScheduleRepository
 import org.ntust.app.tigerduck.wear.data.SchedulePersistence
+import org.ntust.app.tigerduck.wear.data.ScheduleRepository
 import org.ntust.app.tigerduck.wear.data.WatchLibraryCredentialStore
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
+import kotlin.math.abs
 
 @Composable
 fun LibraryQRScreen() {
@@ -82,7 +82,9 @@ fun LibraryQRScreen() {
     if (!snapshot.isLoggedIn) {
         ScreenScaffold {
             Column(
-                modifier = Modifier.fillMaxSize().padding(horizontal = LocalScreenPadding.current),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = LocalScreenPadding.current),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -187,7 +189,9 @@ private fun LoggedInState(username: String?) {
     } else {
         ScreenScaffold {
             Column(
-                modifier = Modifier.fillMaxSize().padding(horizontal = LocalScreenPadding.current),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = LocalScreenPadding.current),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -238,7 +242,9 @@ private fun NormalQR(
             bitmap != null -> Image(
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = stringResource(R.string.library_qr_content_description),
-                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(6.dp)),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(6.dp)),
                 contentScale = ContentScale.Fit,
                 filterQuality = FilterQuality.None,
             )
@@ -411,7 +417,7 @@ private fun SecureScreen() {
         // the one that added it — otherwise leaving the logged-in page would
         // strip protection this helper never owned.
         val alreadySecure = window != null && (window.attributes.flags and
-            WindowManager.LayoutParams.FLAG_SECURE) != 0
+                WindowManager.LayoutParams.FLAG_SECURE) != 0
         if (window != null && !alreadySecure) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }

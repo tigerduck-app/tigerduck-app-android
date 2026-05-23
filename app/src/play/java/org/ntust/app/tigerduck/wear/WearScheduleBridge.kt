@@ -28,6 +28,7 @@ class WearScheduleBridge @Inject constructor(
     private val credentials: CredentialManager,
 ) {
     private val gson = Gson()
+
     // Monotonic credential epoch persisted across phone process death so
     // the watch's anti-replay guard (`version <= storedVersion` → reject)
     // sees a strictly increasing version after a phone restart. Kept in a

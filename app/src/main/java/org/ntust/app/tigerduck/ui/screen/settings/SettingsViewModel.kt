@@ -14,9 +14,9 @@ import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
-import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
+import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject

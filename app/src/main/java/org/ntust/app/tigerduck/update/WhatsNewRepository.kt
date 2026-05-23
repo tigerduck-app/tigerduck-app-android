@@ -5,6 +5,8 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.update.WhatsNewRepository.Companion.parse
+import org.ntust.app.tigerduck.update.WhatsNewRepository.Companion.select
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -68,7 +70,8 @@ class WhatsNewRepository @Inject constructor(
          */
         fun parseLatest(json: String, languageTag: String): WhatsNewContent? {
             val byVersion = deserialize(json) ?: return null
-            val latestKey = byVersion.keys.mapNotNull(String::toIntOrNull).maxOrNull() ?: return null
+            val latestKey =
+                byVersion.keys.mapNotNull(String::toIntOrNull).maxOrNull() ?: return null
             return select(byVersion[latestKey.toString()], languageTag)
         }
 

@@ -156,8 +156,10 @@ class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
         private const val KEY_PASSWORD = "library_password"
         private const val KEY_TOKEN = "library_token"
         private const val KEY_TOKEN_EXPIRY = "library_token_expiry"
+
         // Phone composed-at timestamp; anchors the 7-day TTL.
         private const val KEY_ISSUED_AT_MS = "library_issued_at_ms"
+
         // Last applied phone-side epoch — anti-replay guard. Survives a
         // `.wipe`-style push so a delayed earlier `.set` can't re-credential
         // the watch after logout.

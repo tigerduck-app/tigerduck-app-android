@@ -36,7 +36,8 @@ class DataLayerListener : WearableListenerService() {
     private suspend fun handleSchedule(item: com.google.android.gms.wearable.DataItem) {
         val map = DataMapItem.fromDataItem(item).dataMap
         val courses = map.getByteArray(WearProtocol.Schedule.KEY_COURSES) ?: return
-        val accent = map.getString(WearProtocol.Schedule.KEY_ACCENT) ?: SchedulePersistence.DEFAULT_ACCENT
+        val accent =
+            map.getString(WearProtocol.Schedule.KEY_ACCENT) ?: SchedulePersistence.DEFAULT_ACCENT
         val syncedAt = map.getLong(WearProtocol.Schedule.KEY_SYNCED_AT)
         val loggedIn = map.getBoolean(WearProtocol.Schedule.KEY_LOGGED_IN)
         val language = map.getString(WearProtocol.Schedule.KEY_LANGUAGE)

@@ -49,14 +49,19 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var appState: AppState
+
     @Inject
     lateinit var liveActivityManager: LiveActivityManager
+
     @Inject
     lateinit var authService: AuthService
+
     @Inject
     lateinit var updateChecker: UpdateChecker
+
     @Inject
     lateinit var whatsNewRepository: WhatsNewRepository
+
     @Inject
     lateinit var appPreferences: AppPreferences
 
@@ -281,8 +286,9 @@ class MainActivity : AppCompatActivity() {
             // UNSET here means a pre-feature upgrade (onboarding already done);
             // the normal gate only fires for a recorded older versionCode.
             lastSeen == AppPreferences.WHATS_NEW_UNSET ||
-                WhatsNewGate.shouldShow(lastSeen, current) ->
+                    WhatsNewGate.shouldShow(lastSeen, current) ->
                 whatsNewRepository.entryFor(current, languageTag)
+
             else -> null
         }
         whatsNewContent.value = content

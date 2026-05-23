@@ -50,7 +50,11 @@ class FlipDetectorDebounceTest {
         assertFalse(s.fired)
 
         // Past the window: transition fires.
-        s = FlipDetector.nextState(s, isFaceDown = true, timestampNanos = flipStart + DEBOUNCE_NANOS + 1)
+        s = FlipDetector.nextState(
+            s,
+            isFaceDown = true,
+            timestampNanos = flipStart + DEBOUNCE_NANOS + 1
+        )
         assertEquals(FlipDetector.Phase.FaceDown, s.phase)
         assertTrue("Upright -> FaceDown must fire", s.fired)
     }
@@ -66,7 +70,11 @@ class FlipDetectorDebounceTest {
         // Face-down for half the window, then back to upright.
         val flicker = DEBOUNCE_NANOS + 1
         s = FlipDetector.nextState(s, isFaceDown = true, timestampNanos = flicker)
-        s = FlipDetector.nextState(s, isFaceDown = false, timestampNanos = flicker + DEBOUNCE_NANOS / 2)
+        s = FlipDetector.nextState(
+            s,
+            isFaceDown = false,
+            timestampNanos = flicker + DEBOUNCE_NANOS / 2
+        )
         assertEquals(FlipDetector.Phase.Upright, s.phase)
         assertFalse(s.fired)
     }

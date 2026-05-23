@@ -54,12 +54,16 @@ class CourseService @Inject constructor(
     private val lookupCache = ConcurrentHashMap<String, DataCache.CourseLookupEntry>()
     private val lookupCacheMutex = Mutex()
     private val abbreviationCacheMutex = Mutex()
+
     @Volatile
     private var lookupCacheLoaded = false
+
     @Volatile
     private var abbreviationCacheLoaded = false
+
     @Volatile
     private var courseNameAbbr: Map<String, String> = emptyMap()
+
     @Volatile
     private var classroomNameAbbr: Map<String, ClassroomAbbrEntry> = emptyMap()
 

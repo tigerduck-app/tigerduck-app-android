@@ -56,6 +56,7 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
         const val EXTRA_TITLE = "title"
         const val EXTRA_COURSE_NAME = "course_name"
         const val EXTRA_ASSIGNMENT_ID = "assignment_id"
+
         // Distinguishes the regular "homework due in 1h" reminder from the
         // safety-net reminder shown for assignments the user has ignored or
         // marked-as-done but never actually submitted on Moodle.
