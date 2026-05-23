@@ -84,5 +84,79 @@ class FlipDetector(
             val r8 = 1f - 2f * (qx * qx + qy * qy)
             return r8 <= FACE_DOWN_R8_THRESHOLD
         }
+
+        /** Debounce window — must be sustained before a transition is committed. */
+        internal const val DEBOUNCE_NANOS: Long = 400_000_000L  // 400 ms
+
+        /**
+         * Sentinel stored in [DetectorState.windowStartNanos] before the first
+         * sensor event is received. Guaranteed to be distinct from any real
+         * nanosecond timestamp the sensor delivers.
+         */
+        private const val WINDOW_UNSET = Long.MIN_VALUE
+
+        /**
+         * Advance the debounce machine by one sensor event.
+         *
+         * The committed [Phase] transitions only when the predicate has held
+         * for at least [DEBOUNCE_NANOS]. `fired` is `true` only on the
+         * specific transition Upright -> FaceDown; all other transitions
+         * (including the cold-start Unknown -> FaceDown) leave `fired = false`.
+         */
+        internal fun nextState(
+            current: DetectorState,
+            isFaceDown: Boolean,
+            timestampNanos: Long,
+        ): DetectorState {
+            // Start the window on the very first event, or whenever the
+            // observed predicate changes direction.
+            if (current.windowStartNanos == WINDOW_UNSET || isFaceDown != current.pendingFaceDown) {
+                return current.copy(
+                    pendingFaceDown = isFaceDown,
+                    windowStartNanos = timestampNanos,
+                    fired = false,
+                )
+            }
+            val elapsed = timestampNanos - current.windowStartNanos
+            if (elapsed < DEBOUNCE_NANOS) {
+                // Window still open — phase unchanged, callback not fired.
+                return current.copy(fired = false)
+            }
+            // Window satisfied. Decide whether to commit the new phase.
+            val targetPhase = if (isFaceDown) Phase.FaceDown else Phase.Upright
+            if (targetPhase == current.phase) {
+                return current.copy(fired = false)
+            }
+            val didFire = current.phase == Phase.Upright && targetPhase == Phase.FaceDown
+            return current.copy(phase = targetPhase, fired = didFire)
+        }
+    }
+
+    /** Tri-state for the debounce machine. */
+    enum class Phase { Unknown, Upright, FaceDown }
+
+    /**
+     * Immutable state for the debounce machine.
+     *
+     * @property phase the committed phase (only changes after the window elapses)
+     * @property pendingFaceDown the predicate value observed during the current window
+     * @property windowStartNanos timestamp of the first event in the current window
+     * @property fired `true` iff this transition fired the onFaceDown callback;
+     *                 callers consume and reset this on each step.
+     */
+    data class DetectorState(
+        val phase: Phase,
+        val pendingFaceDown: Boolean,
+        val windowStartNanos: Long,
+        val fired: Boolean,
+    ) {
+        companion object {
+            fun initial(): DetectorState = DetectorState(
+                phase = Phase.Unknown,
+                pendingFaceDown = false,
+                windowStartNanos = Long.MIN_VALUE,
+                fired = false,
+            )
+        }
     }
 }
