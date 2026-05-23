@@ -23,6 +23,7 @@ class TimeSliderViewModel {
 
     var timeSlots by mutableStateOf<List<CourseTimeSlot>>(emptyList())
         private set
+
     /**
      * Per-slot lane assignment for vertical stacking when courses 衝堂.
      * Keyed by [CourseTimeSlot.id]; missing entries mean a solo slot
@@ -147,7 +148,9 @@ class TimeSliderViewModel {
             for ((i, s) in cluster.slots.withIndex()) {
                 var lane = -1
                 for (j in laneEnds.indices) {
-                    if (laneEnds[j] <= s.start.time) { lane = j; break }
+                    if (laneEnds[j] <= s.start.time) {
+                        lane = j; break
+                    }
                 }
                 if (lane < 0) {
                     laneEnds.add(s.end.time)

@@ -5,6 +5,9 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import org.ntust.app.tigerduck.sensor.FlipDetector.Companion.DEBOUNCE_NANOS
+import org.ntust.app.tigerduck.sensor.FlipDetector.Companion.isFaceDown
+import org.ntust.app.tigerduck.sensor.FlipDetector.Companion.nextState
 
 /**
  * Detects a sustained "phone face-down" gesture using the rotation-vector

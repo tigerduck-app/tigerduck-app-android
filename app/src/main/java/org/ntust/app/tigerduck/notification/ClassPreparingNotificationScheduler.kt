@@ -7,10 +7,9 @@ import android.content.Intent
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.collapseContiguousPeriods
 import org.ntust.app.tigerduck.data.model.Course
-import java.time.LocalDate
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.time.LocalTime
 import java.time.ZonedDateTime
 import javax.inject.Inject
@@ -90,7 +89,11 @@ class ClassPreparingNotificationScheduler @Inject constructor(
 
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerTime), pendingIntent)
+                    alarmManager.set(
+                        AlarmManager.RTC_WAKEUP,
+                        AppClock.realTimeFor(triggerTime),
+                        pendingIntent
+                    )
                 } else {
                     alarmManager.setExactAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP,
@@ -99,7 +102,11 @@ class ClassPreparingNotificationScheduler @Inject constructor(
                     )
                 }
             } catch (_: SecurityException) {
-                alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerTime), pendingIntent)
+                alarmManager.set(
+                    AlarmManager.RTC_WAKEUP,
+                    AppClock.realTimeFor(triggerTime),
+                    pendingIntent
+                )
             }
             scheduled.add(slot.id)
         }

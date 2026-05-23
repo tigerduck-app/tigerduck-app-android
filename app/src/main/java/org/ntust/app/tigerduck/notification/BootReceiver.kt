@@ -22,16 +22,22 @@ class BootReceiver : BroadcastReceiver() {
 
     @Inject
     lateinit var scheduler: AssignmentNotificationScheduler
+
     @Inject
     lateinit var classPreparingScheduler: ClassPreparingNotificationScheduler
+
     @Inject
     lateinit var liveActivityPreferences: LiveActivityPreferences
+
     @Inject
     lateinit var dataCache: DataCache
+
     @Inject
     lateinit var appPreferences: AppPreferences
+
     @Inject
     lateinit var widgetBoundaryScheduler: WidgetBoundaryScheduler
+
     @Inject
     lateinit var liveActivityManager: LiveActivityManager
 

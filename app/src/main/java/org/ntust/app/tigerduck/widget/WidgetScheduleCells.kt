@@ -118,7 +118,9 @@ fun buildScheduleCells(
                 val end = first + span
                 var lane = -1
                 for (j in laneEnds.indices) {
-                    if (laneEnds[j] <= first) { lane = j; break }
+                    if (laneEnds[j] <= first) {
+                        lane = j; break
+                    }
                 }
                 if (lane < 0) {
                     laneEnds.add(end)

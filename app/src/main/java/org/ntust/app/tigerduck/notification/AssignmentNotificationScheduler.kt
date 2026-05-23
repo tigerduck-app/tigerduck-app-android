@@ -69,7 +69,11 @@ class AssignmentNotificationScheduler @Inject constructor(
 
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerTime), pendingIntent)
+                    alarmManager.set(
+                        AlarmManager.RTC_WAKEUP,
+                        AppClock.realTimeFor(triggerTime),
+                        pendingIntent
+                    )
                 } else {
                     alarmManager.setExactAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP,
@@ -78,7 +82,11 @@ class AssignmentNotificationScheduler @Inject constructor(
                     )
                 }
             } catch (_: SecurityException) {
-                alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerTime), pendingIntent)
+                alarmManager.set(
+                    AlarmManager.RTC_WAKEUP,
+                    AppClock.realTimeFor(triggerTime),
+                    pendingIntent
+                )
             }
             scheduledIds.add(assignment.assignmentId)
         }

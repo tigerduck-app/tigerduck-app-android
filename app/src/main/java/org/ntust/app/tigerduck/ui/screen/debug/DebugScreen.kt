@@ -85,7 +85,12 @@ fun DebugScreen(
                 ) {
                     Text(
                         LocalDate.of(state.draftYear, state.draftMonth, state.draftDay)
-                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd (E)", Locale.getDefault())),
+                            .format(
+                                DateTimeFormatter.ofPattern(
+                                    "yyyy-MM-dd (E)",
+                                    Locale.getDefault()
+                                )
+                            ),
                     )
                 }
             }

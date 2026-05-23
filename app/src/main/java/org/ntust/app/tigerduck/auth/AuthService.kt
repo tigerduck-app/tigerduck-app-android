@@ -13,11 +13,11 @@ import org.ntust.app.tigerduck.announcements.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.di.ApplicationScope
-import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.network.SsoLoginError
 import org.ntust.app.tigerduck.network.SsoLoginService
 import org.ntust.app.tigerduck.push.PushRegistrationService
+import org.ntust.app.tigerduck.shared.LibraryService
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException

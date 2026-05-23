@@ -92,7 +92,7 @@ class LibraryQRController(
             android.util.Log.w("LibraryQRController", "QR refresh failed", e)
             _error.value = e.message?.takeUnless { it.isBlank() }
                 ?: e::class.simpleName
-                ?: "QR fetch failed"
+                        ?: "QR fetch failed"
             _qrBitmap.value = null
             _qrPatternBounds.value = null
         } finally {

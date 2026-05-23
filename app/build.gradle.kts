@@ -15,7 +15,7 @@ plugins {
 // project level, which we gate on the JSON's presence so a fresh checkout
 // without it (e.g. the F-Droid buildserver) is buildable end-to-end.
 val hasGoogleServices = file("src/play/google-services.json").exists() ||
-    file("google-services.json").exists()
+        file("google-services.json").exists()
 if (hasGoogleServices) {
     apply(plugin = libs.plugins.google.services.get().pluginId)
     // Without this, building the fdroid flavor fails because the plugin
@@ -35,6 +35,7 @@ val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
+
 fun localProp(key: String, default: String = ""): String =
     localProps.getProperty(key) ?: (project.findProperty(key) as? String) ?: default
 
@@ -98,8 +99,10 @@ android {
             buildConfigField(
                 "String",
                 "PUSH_BASE_URL",
-                "\"${System.getenv("PUSH_BASE_URL")
-                    ?: localProp("pushBaseUrlRelease", "https://api.tigerduck.app/v2")}\"",
+                "\"${
+                    System.getenv("PUSH_BASE_URL")
+                        ?: localProp("pushBaseUrlRelease", "https://api.tigerduck.app/v2")
+                }\"",
             )
             buildConfigField(
                 "String",
@@ -169,7 +172,8 @@ val verifyNameAbbrSubmodule by tasks.registering {
     // this list when CourseService starts loading additional JSONs.
     val requiredFiles = listOf("class-name-abbr.json", "classroom-name-abbr.json")
     doLast {
-        val hint = "Run `git submodule update --init` (or pass submodules: true to actions/checkout in CI)."
+        val hint =
+            "Run `git submodule update --init` (or pass submodules: true to actions/checkout in CI)."
         val jsonFiles = nameAbbrDir.listFiles { f -> f.isFile && f.extension == "json" }.orEmpty()
         if (jsonFiles.isEmpty()) {
             throw GradleException("name-abbr submodule is empty (no JSON files in $nameAbbrDir). $hint")
@@ -274,7 +278,7 @@ val syncLocalizations by tasks.registering(Exec::class) {
             }.getOrDefault(false)
         } ?: throw GradleException(
             "syncLocalizations requires Python 3 on PATH (tried python3, python, py). " +
-                "Install Python 3 from https://www.python.org/ and re-run."
+                    "Install Python 3 from https://www.python.org/ and re-run."
         )
         commandLine(python, script)
     }

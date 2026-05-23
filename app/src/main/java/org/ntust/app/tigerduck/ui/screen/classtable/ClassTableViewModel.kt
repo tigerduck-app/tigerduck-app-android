@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
-import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.OngoingCourseInfo
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -33,6 +32,7 @@ import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.network.decodeHtmlEntities
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.util.Calendar
 import javax.inject.Inject
@@ -581,7 +581,9 @@ class ClassTableViewModel @Inject constructor(
             val end = first + span
             var lane = -1
             for (j in laneEnds.indices) {
-                if (laneEnds[j] <= first) { lane = j; break }
+                if (laneEnds[j] <= first) {
+                    lane = j; break
+                }
             }
             if (lane < 0) {
                 laneEnds.add(end)
@@ -814,7 +816,8 @@ class ClassTableViewModel @Inject constructor(
                                         moodleByNo[courseNo]?.let { m ->
                                             Course.fromSchedule(
                                                 courseNo = courseNo,
-                                                courseName = (m.fullname ?: courseNo).decodeHtmlEntities(),
+                                                courseName = (m.fullname
+                                                    ?: courseNo).decodeHtmlEntities(),
                                                 moodleIdNumber = m.idnumber
                                             )
                                         }
@@ -824,7 +827,8 @@ class ClassTableViewModel @Inject constructor(
                                     moodleByNo[courseNo]?.let { m ->
                                         Course.fromSchedule(
                                             courseNo = courseNo,
-                                            courseName = (m.fullname ?: courseNo).decodeHtmlEntities(),
+                                            courseName = (m.fullname
+                                                ?: courseNo).decodeHtmlEntities(),
                                             moodleIdNumber = m.idnumber
                                         )
                                     }

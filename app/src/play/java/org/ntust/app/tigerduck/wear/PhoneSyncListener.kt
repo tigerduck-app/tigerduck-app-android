@@ -15,7 +15,8 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class PhoneSyncListener : WearableListenerService() {
 
-    @Inject lateinit var bridge: WearScheduleBridge
+    @Inject
+    lateinit var bridge: WearScheduleBridge
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

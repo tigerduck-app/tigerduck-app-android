@@ -20,8 +20,11 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class FcmService : FirebaseMessagingService() {
 
-    @Inject lateinit var registration: PushRegistrationService
-    @Inject @ApplicationScope lateinit var scope: CoroutineScope
+    @Inject
+    lateinit var registration: PushRegistrationService
+    @Inject
+    @ApplicationScope
+    lateinit var scope: CoroutineScope
 
     override fun onNewToken(token: String) {
         scope.launch { registration.update(token) }

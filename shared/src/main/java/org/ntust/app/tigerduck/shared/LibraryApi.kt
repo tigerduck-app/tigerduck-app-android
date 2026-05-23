@@ -62,6 +62,7 @@ sealed class LibraryServiceError : Exception() {
     data class LoginFailed(val msg: String) : LibraryServiceError() {
         override val message: String get() = msg
     }
+
     data class QRGenerationFailed(val msg: String) : LibraryServiceError() {
         override val message: String get() = msg
     }

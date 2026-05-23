@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.wear.tile
 
 import android.content.Context
+import androidx.concurrent.futures.ResolvableFuture
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
@@ -10,7 +11,6 @@ import androidx.wear.protolayout.TypeBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
-import androidx.concurrent.futures.ResolvableFuture
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -47,21 +47,38 @@ class NextClassTileService : TileService() {
         val minuteOfDay = now.hour * 60 + now.minute
 
         val (label, body, sub) = when {
-            snapshot.syncedAtMs == null -> Triple(getString(R.string.watch_open_phone_to_sync), "", "")
-            snapshot.courses.isEmpty() -> Triple(getString(R.string.watch_no_courses_synced), "", "")
-            else -> when (val r = NextClassResolver.resolve(snapshot.courses, weekday, minuteOfDay)) {
+            snapshot.syncedAtMs == null -> Triple(
+                getString(R.string.watch_open_phone_to_sync),
+                "",
+                ""
+            )
+
+            snapshot.courses.isEmpty() -> Triple(
+                getString(R.string.watch_no_courses_synced),
+                "",
+                ""
+            )
+
+            else -> when (val r =
+                NextClassResolver.resolve(snapshot.courses, weekday, minuteOfDay)) {
                 is NextClassResult.Ongoing -> Triple(
                     getString(R.string.watch_now_ends_at, formatHm(r.endMinute)),
                     "${r.course.displayName}\n${r.course.classroom(r.weekday)} · ${r.course.instructor}",
                     r.nextToday?.let {
-                        getString(R.string.watch_next_label, it.course.displayName, formatHm(it.startMinute))
+                        getString(
+                            R.string.watch_next_label,
+                            it.course.displayName,
+                            formatHm(it.startMinute)
+                        )
                     } ?: "",
                 )
+
                 is NextClassResult.NextToday -> Triple(
                     getString(R.string.watch_starts_at, formatHm(r.startMinute)),
                     "${r.course.displayName}\n${r.course.classroom(r.weekday)} · ${r.course.instructor}",
                     "",
                 )
+
                 is NextClassResult.NextFuture -> Triple(
                     if (r.daysAhead == 1) {
                         getString(R.string.watch_tomorrow_at, formatHm(r.startMinute))
@@ -76,7 +93,12 @@ class NextClassTileService : TileService() {
                     "${r.course.displayName}\n${r.course.classroom(r.weekday)} · ${r.course.instructor}",
                     "",
                 )
-                NextClassResult.Empty -> Triple(getString(R.string.watch_no_upcoming_classes), "", "")
+
+                NextClassResult.Empty -> Triple(
+                    getString(R.string.watch_no_upcoming_classes),
+                    "",
+                    ""
+                )
             }
         }
 

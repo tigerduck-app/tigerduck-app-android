@@ -92,7 +92,7 @@ private object SecureWindowRegistry {
             return
         }
         val alreadySecure = (window.attributes.flags and
-            WindowManager.LayoutParams.FLAG_SECURE) != 0
+                WindowManager.LayoutParams.FLAG_SECURE) != 0
         holders[window] = Entry(count = 1, preexisting = alreadySecure)
         if (!alreadySecure) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)

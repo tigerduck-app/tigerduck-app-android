@@ -30,9 +30,9 @@ import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import kotlinx.coroutines.delay
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.BuildConfig
 import org.ntust.app.tigerduck.wear.R
-import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
 import java.util.concurrent.TimeUnit
@@ -88,7 +88,9 @@ fun SettingsListScreen(
 @Composable
 private fun SignedInRow(loggedIn: Boolean) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -110,7 +112,9 @@ private fun SignedInRow(loggedIn: Boolean) {
 @Composable
 private fun LastSyncRow(syncedAtMs: Long?) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(imageVector = Icons.Filled.Schedule, contentDescription = null)
@@ -135,10 +139,12 @@ private fun lastSyncText(syncedAtMs: Long?): String {
             R.string.watch_relative_minutes_ago_short,
             TimeUnit.MILLISECONDS.toMinutes(ageMs).toInt(),
         )
+
         ageMs < TimeUnit.DAYS.toMillis(1) -> stringResource(
             R.string.watch_relative_hours_ago_short,
             TimeUnit.MILLISECONDS.toHours(ageMs).toInt(),
         )
+
         else -> stringResource(
             R.string.watch_relative_days_ago_short,
             TimeUnit.MILLISECONDS.toDays(ageMs).toInt(),

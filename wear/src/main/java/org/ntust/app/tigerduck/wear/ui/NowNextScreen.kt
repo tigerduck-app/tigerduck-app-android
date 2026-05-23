@@ -24,9 +24,9 @@ import androidx.wear.compose.material3.Text
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.NextClassResult
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
-import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
 import org.ntust.app.tigerduck.wear.ui.theme.wearCourseColor
 import java.util.concurrent.TimeUnit
@@ -36,13 +36,16 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
     val pad = LocalScreenPadding.current
     ScreenScaffold {
         if (snapshot.syncedAtMs == null) {
-            EmptyStateMessage(text = stringResource(R.string.watch_open_phone_to_sync), openPhoneOnTap = true)
+            EmptyStateMessage(
+                text = stringResource(R.string.watch_open_phone_to_sync),
+                openPhoneOnTap = true
+            )
             return@ScreenScaffold
         }
         if (snapshot.courses.isEmpty()) {
             EmptyStateMessage(
                 text = if (snapshot.loggedIn) stringResource(R.string.watch_no_courses_synced)
-                       else stringResource(R.string.watch_open_phone_to_sync)
+                else stringResource(R.string.watch_open_phone_to_sync)
             )
             return@ScreenScaffold
         }
@@ -51,7 +54,9 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
         val result = NextClassResolver.resolve(snapshot.courses, weekday, minuteOfDay)
 
         Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = pad),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = pad),
             verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -71,18 +76,21 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
                         )
                     }
                 }
+
                 is NextClassResult.NextToday -> NextCard(
                     course = result.course,
                     weekday = result.weekday,
                     statusText = nextStatusText(result.startMinute, minuteOfDay),
                     titleResId = null,
                 )
+
                 is NextClassResult.NextFuture -> NextCard(
                     course = result.course,
                     weekday = result.weekday,
                     statusText = futureStatusText(result.daysAhead, result.startMinute, weekday),
                     titleResId = null,
                 )
+
                 NextClassResult.Empty -> Text(stringResource(R.string.watch_no_upcoming_classes))
             }
             StaleBanner(snapshot.syncedAtMs)

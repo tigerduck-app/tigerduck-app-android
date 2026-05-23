@@ -7,9 +7,9 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.shared.LibraryCredentialStore
 import javax.inject.Inject
 import javax.inject.Singleton
-import org.ntust.app.tigerduck.shared.LibraryCredentialStore
 
 @Singleton
 class CredentialManager @Inject constructor(@ApplicationContext context: Context) :

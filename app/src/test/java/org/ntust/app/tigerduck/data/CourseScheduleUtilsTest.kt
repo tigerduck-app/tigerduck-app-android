@@ -1,8 +1,10 @@
 package org.ntust.app.tigerduck.data
 
-import org.ntust.app.tigerduck.data.model.Course
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.data.model.Course
 
 class CourseScheduleUtilsTest {
 
@@ -25,7 +27,8 @@ class CourseScheduleUtilsTest {
 
     @Test
     fun `returns ongoing course when current time is within a contiguous block`() {
-        val course = Course.fromSchedule("CS101", "Algorithms", schedule = mapOf(1 to listOf("3", "4")))
+        val course =
+            Course.fromSchedule("CS101", "Algorithms", schedule = mapOf(1 to listOf("3", "4")))
         val results = computeOngoingCourses(listOf(course), weekday = 1, minuteOfDay = 660)
         assertEquals(1, results.size)
         val result = results.first()
@@ -37,7 +40,8 @@ class CourseScheduleUtilsTest {
 
     @Test
     fun `returns empty when between two non-contiguous blocks of the same course`() {
-        val course = Course.fromSchedule("CS101", "Algorithms", schedule = mapOf(1 to listOf("3", "6")))
+        val course =
+            Course.fromSchedule("CS101", "Algorithms", schedule = mapOf(1 to listOf("3", "6")))
         assertTrue(computeOngoingCourses(listOf(course), weekday = 1, minuteOfDay = 750).isEmpty())
     }
 

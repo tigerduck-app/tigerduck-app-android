@@ -4,7 +4,6 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.collapseContiguousPeriods
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.Course
-import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZonedDateTime
 import java.util.Calendar

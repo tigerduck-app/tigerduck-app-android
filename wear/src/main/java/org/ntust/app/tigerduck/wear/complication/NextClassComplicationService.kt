@@ -40,10 +40,12 @@ class NextClassComplicationService : ComplicationDataSourceService() {
             text = PlainComplicationText.Builder("CN").build(),
             contentDescription = PlainComplicationText.Builder("Next class").build(),
         ).setTitle(PlainComplicationText.Builder("14:30").build()).build()
+
         ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
             text = PlainComplicationText.Builder("T2-103").build(),
             contentDescription = PlainComplicationText.Builder("Next class").build(),
         ).setTitle(PlainComplicationText.Builder("14:30 · CN").build()).build()
+
         else -> null
     }
 
@@ -64,27 +66,43 @@ class NextClassComplicationService : ComplicationDataSourceService() {
             is NextClassResult.Ongoing -> when (type) {
                 ComplicationType.SHORT_TEXT -> ShortTextComplicationData.Builder(
                     text = PlainComplicationText.Builder(truncate(r.course.displayName, 7)).build(),
-                    contentDescription = PlainComplicationText.Builder(r.course.displayName).build(),
+                    contentDescription = PlainComplicationText.Builder(r.course.displayName)
+                        .build(),
                 ).setTitle(PlainComplicationText.Builder("NOW").build()).setTapAction(tap).build()
+
                 ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
                     text = PlainComplicationText.Builder(r.course.classroom(r.weekday)).build(),
-                    contentDescription = PlainComplicationText.Builder(r.course.displayName).build(),
-                ).setTitle(PlainComplicationText.Builder("NOW · ${truncate(r.course.displayName, 7)}").build())
-                  .setTapAction(tap).build()
+                    contentDescription = PlainComplicationText.Builder(r.course.displayName)
+                        .build(),
+                ).setTitle(
+                    PlainComplicationText.Builder(
+                        "NOW · ${
+                            truncate(
+                                r.course.displayName,
+                                7
+                            )
+                        }"
+                    ).build()
+                )
+                    .setTapAction(tap).build()
+
                 else -> NoDataComplicationData()
             }
+
             is NextClassResult.NextToday -> shortOrLong(
                 type, r.course.displayName, r.course.classroom(r.weekday),
                 titleShort = formatHm(r.startMinute),
                 titleLong = "${formatHm(r.startMinute)} · ${truncate(r.course.displayName, 7)}",
                 tap = tap,
             )
+
             is NextClassResult.NextFuture -> shortOrLong(
                 type, r.course.displayName, r.course.classroom(r.weekday),
                 titleShort = formatHm(r.startMinute),
                 titleLong = "${formatHm(r.startMinute)} · +${r.daysAhead}d",
                 tap = tap,
             )
+
             NextClassResult.Empty -> NoDataComplicationData()
         }
     }
@@ -101,10 +119,12 @@ class NextClassComplicationService : ComplicationDataSourceService() {
             text = PlainComplicationText.Builder(truncate(courseName, 7)).build(),
             contentDescription = PlainComplicationText.Builder(courseName).build(),
         ).setTitle(PlainComplicationText.Builder(titleShort).build()).setTapAction(tap).build()
+
         ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
             text = PlainComplicationText.Builder(classroom).build(),
             contentDescription = PlainComplicationText.Builder(courseName).build(),
         ).setTitle(PlainComplicationText.Builder(titleLong).build()).setTapAction(tap).build()
+
         else -> NoDataComplicationData()
     }
 

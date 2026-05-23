@@ -33,30 +33,33 @@ import javax.inject.Singleton
  */
 @Singleton
 class UpdateChecker @Inject constructor(
-    @param:ApplicationContext context: Context,
+    @ApplicationContext context: Context,
     private val appPreferences: AppPreferences,
 ) {
     private val manager = AppUpdateManagerFactory.create(context)
 
     private val _installReady = MutableStateFlow(false)
+
     /** True once a FLEXIBLE update has finished downloading and can be installed. */
     val installReady: StateFlow<Boolean> = _installReady.asStateFlow()
 
     // Explicit type: the lambda references installListener itself (to
     // self-unregister), which would otherwise make type inference recursive.
-    private val installListener: InstallStateUpdatedListener = InstallStateUpdatedListener { state ->
-        when (state.installStatus()) {
-            InstallStatus.DOWNLOADED -> _installReady.value = true
-            // Terminal states: the flexible flow is over. Drop the listener so
-            // a cancelled or failed download can't leave this singleton holding
-            // a stale registration (and live callback) until process death.
-            InstallStatus.INSTALLED,
-            InstallStatus.FAILED,
-            InstallStatus.CANCELED ->
-                runCatching { manager.unregisterListener(installListener) }
-            else -> Unit
+    private val installListener: InstallStateUpdatedListener =
+        InstallStateUpdatedListener { state ->
+            when (state.installStatus()) {
+                InstallStatus.DOWNLOADED -> _installReady.value = true
+                // Terminal states: the flexible flow is over. Drop the listener so
+                // a cancelled or failed download can't leave this singleton holding
+                // a stale registration (and live callback) until process death.
+                InstallStatus.INSTALLED,
+                InstallStatus.FAILED,
+                InstallStatus.CANCELED ->
+                    runCatching { manager.unregisterListener(installListener) }
+
+                else -> Unit
+            }
         }
-    }
 
     /**
      * Query Play and start the FLEXIBLE flow if eligible and not rate-limited.

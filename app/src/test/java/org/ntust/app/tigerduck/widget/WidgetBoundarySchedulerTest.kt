@@ -1,8 +1,9 @@
 package org.ntust.app.tigerduck.widget
 
-import org.ntust.app.tigerduck.data.model.Course
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
+import org.ntust.app.tigerduck.data.model.Course
 
 class WidgetBoundarySchedulerTest {
 
@@ -11,7 +12,11 @@ class WidgetBoundarySchedulerTest {
         val course = Course.fromSchedule("CS101", "Test", schedule = mapOf(1 to listOf("3")))
         assertEquals(
             620,
-            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(listOf(course), weekday = 1, currentMinute = 500),
+            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(
+                listOf(course),
+                weekday = 1,
+                currentMinute = 500
+            ),
         )
     }
 
@@ -20,7 +25,11 @@ class WidgetBoundarySchedulerTest {
         val course = Course.fromSchedule("CS101", "Test", schedule = mapOf(1 to listOf("3")))
         assertEquals(
             670,
-            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(listOf(course), weekday = 1, currentMinute = 650),
+            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(
+                listOf(course),
+                weekday = 1,
+                currentMinute = 650
+            ),
         )
     }
 
@@ -28,18 +37,34 @@ class WidgetBoundarySchedulerTest {
     fun `returns null when no future boundaries today`() {
         val course = Course.fromSchedule("CS101", "Test", schedule = mapOf(1 to listOf("3")))
         assertNull(
-            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(listOf(course), weekday = 1, currentMinute = 700),
+            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(
+                listOf(course),
+                weekday = 1,
+                currentMinute = 700
+            ),
         )
     }
 
     @Test
     fun `returns null for empty course list`() {
-        assertNull(WidgetBoundaryScheduler.nextBoundaryMinuteAfter(emptyList(), weekday = 1, currentMinute = 0))
+        assertNull(
+            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(
+                emptyList(),
+                weekday = 1,
+                currentMinute = 0
+            )
+        )
     }
 
     @Test
     fun `ignores courses on other weekdays`() {
         val course = Course.fromSchedule("CS101", "Test", schedule = mapOf(2 to listOf("3")))
-        assertNull(WidgetBoundaryScheduler.nextBoundaryMinuteAfter(listOf(course), weekday = 1, currentMinute = 0))
+        assertNull(
+            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(
+                listOf(course),
+                weekday = 1,
+                currentMinute = 0
+            )
+        )
     }
 }
