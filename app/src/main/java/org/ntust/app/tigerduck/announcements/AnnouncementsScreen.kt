@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -47,6 +48,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -60,6 +62,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
@@ -132,143 +135,183 @@ fun AnnouncementsScreen(
             }
     }
 
+    // Header height is measured at runtime so the empty state can size
+    // itself to exactly the area below the headers — without this the
+    // EmptyStateView either uses fillParentMaxSize (icon ends up off-center
+    // and the user can drag-scroll the empty pane past the viewport) or a
+    // brittle hardcoded dp value.
+    var headerHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+
     // Wraps the whole screen so pull-to-refresh fires from any region —
     // page header, search bar, filter chips, empty state, or bulletin list.
     // Mirrors HomeScreen's structure (the "main page").
-    TigerPullToRefresh(
-        isRefreshing = state.loadState is AnnouncementsViewModel.LoadState.Loading,
-        onRefresh = viewModel::refresh,
-        onDragProgress = { pullProgress = it },
-        modifier = Modifier.fillMaxSize(),
-        refreshingMessage = stringResource(R.string.refreshing_message),
-    ) {
-        LazyColumn(
-            state = listState,
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val viewportHeightPx = with(density) { maxHeight.toPx() }
+        val emptyStateHeight = with(density) {
+            (viewportHeightPx - headerHeightPx).coerceAtLeast(0f).toDp()
+        }
+
+        TigerPullToRefresh(
+            isRefreshing = state.loadState is AnnouncementsViewModel.LoadState.Loading,
+            onRefresh = viewModel::refresh,
+            onDragProgress = { pullProgress = it },
             modifier = Modifier.fillMaxSize(),
+            refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
-            item(key = "page-header") {
-                PageHeader(title = stringResource(R.string.feature_announcements)) {
-                    SyncIndicator(
-                        isLoading = isLoading,
-                        showCheckmark = showCheckmark,
-                        dragProgress = pullProgress,
-                    )
-                    if (state.unreadOnly && state.hasUnread) {
-                        IconButton(onClick = viewModel::markAllRead) {
-                            Icon(
-                                Icons.Filled.DoneAll,
-                                contentDescription = stringResource(R.string.bulletin_mark_all_read_action),
-                            )
-                        }
-                    }
-                    val unreadOnlyLabel =
-                        stringResource(R.string.bulletin_show_unread_only_action)
-                    Box(
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                // Headers grouped into a single item so total header height
+                // can be measured in one onSizeChanged pass.
+                item(key = "headers") {
+                    Column(
                         modifier = Modifier
-                            .minimumInteractiveComponentSize()
-                            .toggleable(
-                                value = state.unreadOnly,
-                                role = Role.Switch,
-                                onValueChange = { viewModel.setUnreadOnly(it) },
-                            )
-                            .semantics {
-                                contentDescription = unreadOnlyLabel
-                            },
-                        contentAlignment = Alignment.Center,
+                            .fillMaxWidth()
+                            .onSizeChanged { headerHeightPx = it.height },
                     ) {
-                        Icon(
-                            if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
-                            contentDescription = null,
-                        )
-                    }
-                    IconButton(onClick = onOpenSubscriptions) {
-                        Icon(
-                            Icons.Filled.Settings,
-                            contentDescription = stringResource(R.string.bulletin_notifications_title),
-                        )
-                    }
-                }
-            }
-
-            item(key = "search-bar") {
-                SearchBar(
-                    value = state.searchText,
-                    onValueChange = viewModel::setSearch,
-                )
-            }
-
-            item(key = "filter-section") {
-                FilterSection(
-                    taxonomy = state.taxonomy,
-                    selectedOrgs = state.selectedOrgs,
-                    selectedTags = state.selectedTags,
-                    onOrgsChange = viewModel::setOrgFilter,
-                    onTagsChange = viewModel::setTagFilter,
-                )
-            }
-
-            val displayed = state.displayed
-            val loadState = state.loadState
-            when {
-                displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Loaded -> {
-                    item(key = "empty-state") {
-                        EmptyStateView(
-                            icon = Icons.Filled.Campaign,
-                            title = stringResource(
-                                if (state.unreadOnly) R.string.bulletin_no_unread_title
-                                else R.string.bulletin_no_bulletins_title
-                            ),
-                            message = stringResource(R.string.bulletin_no_bulletins_message),
-                            modifier = Modifier.fillParentMaxSize(),
-                        )
-                    }
-                }
-
-                displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Failed -> {
-                    item(key = "failed-state") {
-                        EmptyStateView(
-                            icon = Icons.Filled.Campaign,
-                            title = stringResource(R.string.bulletin_load_failed_title),
-                            message = loadState.message,
-                            modifier = Modifier.fillParentMaxSize(),
-                        )
-                    }
-                }
-
-                else -> {
-                    items(displayed, key = { it.id }) { item ->
-                        // 8dp gap above each card stands in for the
-                        // verticalArrangement.spacedBy on the old list-only
-                        // LazyColumn; horizontal padding moved off the
-                        // (now mixed) LazyColumn's contentPadding so the
-                        // header items keep their edge-to-edge layout.
-                        SwipeableBulletinCard(
-                            item = item,
-                            taxonomy = state.taxonomy,
-                            isRead = item.id in state.readIds,
-                            onClick = { onOpenBulletin(item.id) },
-                            onToggleRead = { viewModel.toggleRead(item.id) },
-                            modifier = Modifier.padding(
-                                start = 16.dp,
-                                end = 16.dp,
-                                top = 8.dp,
-                            ),
-                        )
-                    }
-                    if (state.isPaginating) {
-                        item(key = "pagination-spinner") {
+                        PageHeader(title = stringResource(R.string.feature_announcements)) {
+                            SyncIndicator(
+                                isLoading = isLoading,
+                                showCheckmark = showCheckmark,
+                                dragProgress = pullProgress,
+                            )
+                            if (state.unreadOnly && state.hasUnread) {
+                                IconButton(onClick = viewModel::markAllRead) {
+                                    Icon(
+                                        Icons.Filled.DoneAll,
+                                        contentDescription = stringResource(R.string.bulletin_mark_all_read_action),
+                                    )
+                                }
+                            }
+                            val unreadOnlyLabel =
+                                stringResource(R.string.bulletin_show_unread_only_action)
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
+                                    .minimumInteractiveComponentSize()
+                                    .toggleable(
+                                        value = state.unreadOnly,
+                                        role = Role.Switch,
+                                        onValueChange = { viewModel.setUnreadOnly(it) },
+                                    )
+                                    .semantics {
+                                        contentDescription = unreadOnlyLabel
+                                    },
                                 contentAlignment = Alignment.Center,
-                            ) { CircularProgressIndicator() }
+                            ) {
+                                Icon(
+                                    if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
+                                    contentDescription = null,
+                                )
+                            }
+                            IconButton(onClick = onOpenSubscriptions) {
+                                Icon(
+                                    Icons.Filled.Settings,
+                                    contentDescription = stringResource(R.string.bulletin_notifications_title),
+                                )
+                            }
+                        }
+                        SearchBar(
+                            value = state.searchText,
+                            onValueChange = viewModel::setSearch,
+                        )
+                        FilterSection(
+                            taxonomy = state.taxonomy,
+                            selectedOrgs = state.selectedOrgs,
+                            selectedTags = state.selectedTags,
+                            onOrgsChange = viewModel::setOrgFilter,
+                            onTagsChange = viewModel::setTagFilter,
+                        )
+                    }
+                }
+
+                val displayed = state.displayed
+                val loadState = state.loadState
+                when {
+                    displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Loaded -> {
+                        item(key = "empty-state") {
+                            CenteredEmptyState(
+                                height = emptyStateHeight,
+                                title = stringResource(
+                                    if (state.unreadOnly) R.string.bulletin_no_unread_title
+                                    else R.string.bulletin_no_bulletins_title
+                                ),
+                                message = stringResource(R.string.bulletin_no_bulletins_message),
+                            )
                         }
                     }
-                    item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
+
+                    displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Failed -> {
+                        item(key = "failed-state") {
+                            CenteredEmptyState(
+                                height = emptyStateHeight,
+                                title = stringResource(R.string.bulletin_load_failed_title),
+                                message = loadState.message,
+                            )
+                        }
+                    }
+
+                    else -> {
+                        items(displayed, key = { it.id }) { item ->
+                            // 8dp gap above each card stands in for the
+                            // verticalArrangement.spacedBy on the old list-only
+                            // LazyColumn; horizontal padding moved off the
+                            // (now mixed) LazyColumn's contentPadding so the
+                            // header items keep their edge-to-edge layout.
+                            SwipeableBulletinCard(
+                                item = item,
+                                taxonomy = state.taxonomy,
+                                isRead = item.id in state.readIds,
+                                onClick = { onOpenBulletin(item.id) },
+                                onToggleRead = { viewModel.toggleRead(item.id) },
+                                modifier = Modifier.padding(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = 8.dp,
+                                ),
+                            )
+                        }
+                        if (state.isPaginating) {
+                            item(key = "pagination-spinner") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 16.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) { CircularProgressIndicator() }
+                            }
+                        }
+                        item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
+                    }
                 }
             }
         }
+    }
+}
+
+/**
+ * Empty / failed state sized to fit exactly the area below the sticky
+ * headers, so the icon lands at the visual center of the available space
+ * and the LazyColumn doesn't become scrollable past the viewport.
+ */
+@Composable
+private fun CenteredEmptyState(
+    height: androidx.compose.ui.unit.Dp,
+    title: String,
+    message: String,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(height),
+        contentAlignment = Alignment.Center,
+    ) {
+        EmptyStateView(
+            icon = Icons.Filled.Campaign,
+            title = title,
+            message = message,
+        )
     }
 }
 
