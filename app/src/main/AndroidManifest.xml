@@ -14,29 +14,33 @@
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.TigerDuck"
-        android:localeConfig="@xml/locales_config"
-        android:networkSecurityConfig="@xml/network_security_config"
         android:usesCleartextTraffic="false">
 
         <activity
             android:name="org.ntust.app.tigerduck.MainActivity"
+            android:configChanges="locale|layoutDirection|screenSize|screenLayout|smallestScreenSize|orientation"
             android:exported="true"
             android:launchMode="singleTop"
-            android:windowSoftInputMode="adjustResize"
-            android:configChanges="locale|layoutDirection|screenSize|screenLayout|smallestScreenSize|orientation"
-            android:theme="@style/Theme.TigerDuck">
+            android:theme="@style/Theme.TigerDuck"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="tigerduck" android:host="announcement" />
+
+                <data
+                    android:host="announcement"
+                    android:scheme="tigerduck" />
             </intent-filter>
         </activity>
 
@@ -67,8 +71,8 @@
 
         <receiver
             android:name="org.ntust.app.tigerduck.widget.receivers.WeekLightWidgetReceiver"
-            android:label="@string/widget_week_light_label"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_week_light_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -79,8 +83,8 @@
 
         <receiver
             android:name="org.ntust.app.tigerduck.widget.receivers.WeekDarkWidgetReceiver"
-            android:label="@string/widget_week_dark_label"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_week_dark_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -91,8 +95,8 @@
 
         <receiver
             android:name="org.ntust.app.tigerduck.widget.receivers.TodayLightWidgetReceiver"
-            android:label="@string/widget_today_light_label"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_today_light_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -103,8 +107,8 @@
 
         <receiver
             android:name="org.ntust.app.tigerduck.widget.receivers.TodayDarkWidgetReceiver"
-            android:label="@string/widget_today_dark_label"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_today_dark_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -115,8 +119,8 @@
 
         <receiver
             android:name="org.ntust.app.tigerduck.widget.receivers.NextClassLightWidgetReceiver"
-            android:label="@string/widget_next_class_light_label"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_next_class_light_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -127,8 +131,8 @@
 
         <receiver
             android:name="org.ntust.app.tigerduck.widget.receivers.NextClassDarkWidgetReceiver"
-            android:label="@string/widget_next_class_dark_label"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_next_class_dark_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -139,8 +143,8 @@
 
         <receiver
             android:name="org.ntust.app.tigerduck.widget.LibraryShortcutWidgetReceiver"
-            android:label="@string/widget_library_shortcut_label"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_library_shortcut_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
