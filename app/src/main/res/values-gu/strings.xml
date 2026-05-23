@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">મજબૂત</string>
     <string name="haptic_preset_subtle">હળવો</string>
     <string name="haptic_scenario_class_table_long_press">ક્લાસ ટેબલ પર લાંબો ટેપ</string>
+    <string name="haptic_scenario_flip_to_library">લાઇબ્રેરી ખોલવા ફ્લિપ કરો</string>
     <string name="haptic_scenario_library_warning">લાઇબ્રેરી ચેતવણી સંવાદ</string>
     <string name="haptic_scenario_pull_to_refresh">રિફ્રેશ માટે ખેંચો</string>
     <string name="haptic_scenario_tab_reorder">ટેબ ફરીથી ગોઠવો</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">અનુવાદ બતાવો</string>
     <string name="settings_color_theme">કલર થીમ</string>
     <string name="settings_feedback_bug_report">ફીડબૅક / સમસ્યા જણાવો</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">લાઇબ્રેરી QR ખોલવા ફોનને સ્ક્રીન નીચે રાખી ફ્લિપ કરો.</string>
+    <string name="settings_flip_to_library_title">લાઇબ્રેરી QR બતાવવા ફ્લિપ કરો</string>
+    <string name="settings_flip_to_library_unsupported">તમારા ઉપકરણમાં જરૂરી સેન્સર નથી.</string>
     <string name="settings_invert_slider_direction">સ્લાઇડર દિશા ઊંધી કરો</string>
     <string name="settings_language">ભાષા (Language)</string>
     <string name="settings_language_english">English</string>

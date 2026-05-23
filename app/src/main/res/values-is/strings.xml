@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Sterkur</string>
     <string name="haptic_preset_subtle">Mildur</string>
     <string name="haptic_scenario_class_table_long_press">Langt ýt á stundatöflu</string>
+    <string name="haptic_scenario_flip_to_library">Snúa til að opna bókasafnið</string>
     <string name="haptic_scenario_library_warning">Bókasafnsviðvörun</string>
     <string name="haptic_scenario_pull_to_refresh">Draga til að uppfæra</string>
     <string name="haptic_scenario_tab_reorder">Endurraða flipum</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Sýna þýðingu</string>
     <string name="settings_color_theme">Litaþema</string>
     <string name="settings_feedback_bug_report">Endurgjöf / Tilkynna villu</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">Snúðu símann með skjánum niður til að opna QR kóða bókasafnsins.</string>
+    <string name="settings_flip_to_library_title">Snúa til að sýna QR kóða bókasafnsins</string>
+    <string name="settings_flip_to_library_unsupported">Tækið er ekki með nauðsynlegan skynjara.</string>
     <string name="settings_invert_slider_direction">Snúa sleðastefnu við</string>
     <string name="settings_language">Tungumál (Language)</string>
     <string name="settings_language_english">Enska</string>

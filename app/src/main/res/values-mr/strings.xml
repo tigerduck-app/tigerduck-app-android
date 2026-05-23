@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">तीव्र</string>
     <string name="haptic_preset_subtle">सौम्य</string>
     <string name="haptic_scenario_class_table_long_press">वर्ग सारणीवर दीर्घ दाब</string>
+    <string name="haptic_scenario_flip_to_library">लायब्ररी उघडण्यासाठी फ्लिप करा</string>
     <string name="haptic_scenario_library_warning">ग्रंथालय चेतावणी संवाद</string>
     <string name="haptic_scenario_pull_to_refresh">रिफ्रेशसाठी खेचा</string>
     <string name="haptic_scenario_tab_reorder">टॅब पुनर्मांडणी</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">भाषांतर दर्शवा</string>
     <string name="settings_color_theme">रंग थीम</string>
     <string name="settings_feedback_bug_report">अभिप्राय / समस्या अहवाल</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">लायब्ररी QR उघडण्यासाठी फोन स्क्रीन खाली करून फ्लिप करा.</string>
+    <string name="settings_flip_to_library_title">लायब्ररी QR दाखवण्यासाठी फ्लिप करा</string>
+    <string name="settings_flip_to_library_unsupported">तुमच्या डिव्हाइसमध्ये आवश्यक सेन्सर नाही.</string>
     <string name="settings_invert_slider_direction">स्लायडर दिशा उलटवा</string>
     <string name="settings_language">भाषा (Language)</string>
     <string name="settings_language_english">इंग्रजी</string>

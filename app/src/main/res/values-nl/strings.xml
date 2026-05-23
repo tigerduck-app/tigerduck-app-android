@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Sterk</string>
     <string name="haptic_preset_subtle">Zacht</string>
     <string name="haptic_scenario_class_table_long_press">Lang indrukken in rooster</string>
+    <string name="haptic_scenario_flip_to_library">Omdraaien om bibliotheek te openen</string>
     <string name="haptic_scenario_library_warning">Bibliotheek waarschuwing</string>
     <string name="haptic_scenario_pull_to_refresh">Omlaag trekken om te vernieuwen</string>
     <string name="haptic_scenario_tab_reorder">Tabbladen herordenen</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Vertaling weergeven</string>
     <string name="settings_color_theme">Kleurthema</string>
     <string name="settings_feedback_bug_report">Feedback / Probleem melden</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">Leg je telefoon met het scherm naar beneden om de bibliotheek-QR te openen.</string>
+    <string name="settings_flip_to_library_title">Omdraaien om bibliotheek-QR te tonen</string>
+    <string name="settings_flip_to_library_unsupported">Dit apparaat heeft de vereiste sensor niet.</string>
     <string name="settings_invert_slider_direction">Schuifregelaarrichting omkeren</string>
     <string name="settings_language">Taal (Language)</string>
     <string name="settings_language_english">English</string>

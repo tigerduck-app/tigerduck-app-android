@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Tugev</string>
     <string name="haptic_preset_subtle">Õrn</string>
     <string name="haptic_scenario_class_table_long_press">Tunniplaanil pikk vajutus</string>
+    <string name="haptic_scenario_flip_to_library">Pööra raamatukogu avamiseks</string>
     <string name="haptic_scenario_library_warning">Raamatukogu hoiatusdialoog</string>
     <string name="haptic_scenario_pull_to_refresh">Tõmba värskendamiseks</string>
     <string name="haptic_scenario_tab_reorder">Vahekaartide ümberjärjestamine</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Kuva tõlge</string>
     <string name="settings_color_theme">Värvi teema</string>
     <string name="settings_feedback_bug_report">Tagasiside / Vea aruanne</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">Pööra telefon ekraaniga allapoole, et avada raamatukogu QR.</string>
+    <string name="settings_flip_to_library_title">Pööra raamatukogu QR-i näitamiseks</string>
+    <string name="settings_flip_to_library_unsupported">Seadmel puudub vajalik andur.</string>
     <string name="settings_invert_slider_direction">Pööra liuguri suund ümber</string>
     <string name="settings_language">Keel (Language)</string>
     <string name="settings_language_english">English</string>

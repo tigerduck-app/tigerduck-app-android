@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Јако</string>
     <string name="haptic_preset_subtle">Нежно</string>
     <string name="haptic_scenario_class_table_long_press">Дуги притисак у распореду</string>
+    <string name="haptic_scenario_flip_to_library">Окрени за отварање библиотеке</string>
     <string name="haptic_scenario_library_warning">Упозорење библиотеке</string>
     <string name="haptic_scenario_pull_to_refresh">Потегни за освежавање</string>
     <string name="haptic_scenario_tab_reorder">Преуређивање картица</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Приказ превода</string>
     <string name="settings_color_theme">Тема боја</string>
     <string name="settings_feedback_bug_report">Повратне информације / Пријави проблем</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">Окрените телефон екраном надоле да отворите QR библиотеке.</string>
+    <string name="settings_flip_to_library_title">Окрени за приказ QR-а библиотеке</string>
+    <string name="settings_flip_to_library_unsupported">Ваш уређај нема потребни сензор.</string>
     <string name="settings_invert_slider_direction">Обрни смер клизача</string>
     <string name="settings_language">Језик (Language)</string>
     <string name="settings_language_english">Енглески</string>

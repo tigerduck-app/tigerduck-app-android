@@ -46,6 +46,13 @@ enum class HapticScenario(
         userTunable = true,
         labelRes = R.string.haptic_scenario_class_table_long_press,
     ),
+    FlipToLibrary(
+        prefKey = "flipToLibrary",
+        defaultStrengthPct = 60,
+        defaultDurationMs = 20,
+        userTunable = true,
+        labelRes = R.string.haptic_scenario_flip_to_library,
+    ),
     LibraryWarning(
         prefKey = "libraryWarning",
         defaultStrengthPct = 100,

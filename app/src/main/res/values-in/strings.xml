@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Kuat</string>
     <string name="haptic_preset_subtle">Halus</string>
     <string name="haptic_scenario_class_table_long_press">Tekan lama di jadwal kelas</string>
+    <string name="haptic_scenario_flip_to_library">Balik untuk membuka perpustakaan</string>
     <string name="haptic_scenario_library_warning">Dialog peringatan perpustakaan</string>
     <string name="haptic_scenario_pull_to_refresh">Tarik untuk muat ulang</string>
     <string name="haptic_scenario_tab_reorder">Susun ulang tab</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Tampilkan terjemahan</string>
     <string name="settings_color_theme">Tema warna</string>
     <string name="settings_feedback_bug_report">Umpan balik / Laporkan masalah</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">Balik ponsel dengan layar menghadap bawah untuk membuka QR perpustakaan.</string>
+    <string name="settings_flip_to_library_title">Balik untuk menampilkan QR perpustakaan</string>
+    <string name="settings_flip_to_library_unsupported">Perangkat Anda tidak memiliki sensor yang diperlukan.</string>
     <string name="settings_invert_slider_direction">Balik arah slider</string>
     <string name="settings_language">Bahasa (Language)</string>
     <string name="settings_language_english">English</string>

@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">مضبوط</string>
     <string name="haptic_preset_subtle">ہلکا</string>
     <string name="haptic_scenario_class_table_long_press">کلاس ٹیبل پر لمبا دباؤ</string>
+    <string name="haptic_scenario_flip_to_library">لائبریری کھولنے کے لیے پلٹائیں</string>
     <string name="haptic_scenario_library_warning">لائبریری وارننگ ڈائیلاگ</string>
     <string name="haptic_scenario_pull_to_refresh">ریفریش کے لیے کھینچیں</string>
     <string name="haptic_scenario_tab_reorder">ٹیب دوبارہ ترتیب دیں</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">ترجمہ دکھائیں</string>
     <string name="settings_color_theme">رنگ تھیم</string>
     <string name="settings_feedback_bug_report">رائے / مسئلہ رپورٹ کریں</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">لائبریری QR کھولنے کے لیے فون کو اسکرین نیچے کر کے پلٹائیں۔</string>
+    <string name="settings_flip_to_library_title">لائبریری QR دکھانے کے لیے پلٹائیں</string>
+    <string name="settings_flip_to_library_unsupported">آپ کے آلے میں مطلوبہ سینسر نہیں ہے۔</string>
     <string name="settings_invert_slider_direction">سلائیڈر کی سمت پلٹائیں</string>
     <string name="settings_language">(Language) زبان</string>
     <string name="settings_language_english">انگریزی</string>

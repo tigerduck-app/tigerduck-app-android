@@ -10,6 +10,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import org.ntust.app.tigerduck.sensor.FlipDetector
 import org.ntust.app.tigerduck.ui.AppState
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 
 /**
  * Side-effect composable that wires [FlipDetector] into the nav controller.
@@ -55,6 +57,7 @@ fun FlipToLibraryEffect(
             navController.navigate(Screen.Library.route) {
                 launchSingleTop = true
             }
+            Haptics.perform(context, HapticScenario.FlipToLibrary)
         }
     }
 

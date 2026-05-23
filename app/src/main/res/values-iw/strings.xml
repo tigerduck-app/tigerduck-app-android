@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">חזק</string>
     <string name="haptic_preset_subtle">עדין</string>
     <string name="haptic_scenario_class_table_long_press">לחיצה ארוכה על לוח הזמנים</string>
+    <string name="haptic_scenario_flip_to_library">הפוך לפתיחת הספרייה</string>
     <string name="haptic_scenario_library_warning">תיבת דו-שיח של אזהרת ספרייה</string>
     <string name="haptic_scenario_pull_to_refresh">משוך לרענון</string>
     <string name="haptic_scenario_tab_reorder">סידור מחדש של לשוניות</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">הצג תרגום</string>
     <string name="settings_color_theme">ערכת צבעים</string>
     <string name="settings_feedback_bug_report">משוב / דיווח על בעיה</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">הפוך את הטלפון עם המסך כלפי מטה כדי לפתוח את ה-QR של הספרייה.</string>
+    <string name="settings_flip_to_library_title">הפוך להצגת ה-QR של הספרייה</string>
+    <string name="settings_flip_to_library_unsupported">המכשיר שלך לא כולל את החיישן הנדרש.</string>
     <string name="settings_invert_slider_direction">הפוך כיוון מחוון</string>
     <string name="settings_language">(Language) שפה</string>
     <string name="settings_language_english">English</string>

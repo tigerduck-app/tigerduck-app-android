@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Stark</string>
     <string name="haptic_preset_subtle">Mjuk</string>
     <string name="haptic_scenario_class_table_long_press">Långt tryck i schemat</string>
+    <string name="haptic_scenario_flip_to_library">Vänd för att öppna biblioteket</string>
     <string name="haptic_scenario_library_warning">Biblioteksvarning</string>
     <string name="haptic_scenario_pull_to_refresh">Dra för att uppdatera</string>
     <string name="haptic_scenario_tab_reorder">Ändra ordning på flikar</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Visa översättning</string>
     <string name="settings_color_theme">Färgtema</string>
     <string name="settings_feedback_bug_report">Feedback / Rapportera problem</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">Vänd telefonen med skärmen nedåt för att öppna bibliotekets QR.</string>
+    <string name="settings_flip_to_library_title">Vänd för att visa bibliotekets QR</string>
+    <string name="settings_flip_to_library_unsupported">Enheten saknar den nödvändiga sensorn.</string>
     <string name="settings_invert_slider_direction">Invertera skjutreglageriktning</string>
     <string name="settings_language">Språk (Language)</string>
     <string name="settings_language_english">English</string>

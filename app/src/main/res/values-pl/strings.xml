@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Mocny</string>
     <string name="haptic_preset_subtle">Delikatny</string>
     <string name="haptic_scenario_class_table_long_press">Długie naciśnięcie w planie zajęć</string>
+    <string name="haptic_scenario_flip_to_library">Odwróć, aby otworzyć bibliotekę</string>
     <string name="haptic_scenario_library_warning">Ostrzeżenie biblioteki</string>
     <string name="haptic_scenario_pull_to_refresh">Pociągnij, aby odświeżyć</string>
     <string name="haptic_scenario_tab_reorder">Zmień kolejność kart</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Wyświetl tłumaczenie</string>
     <string name="settings_color_theme">Motyw kolorystyczny</string>
     <string name="settings_feedback_bug_report">Opinie / Zgłoś problem</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">Odwróć telefon ekranem w dół, aby otworzyć QR biblioteki.</string>
+    <string name="settings_flip_to_library_title">Odwróć, aby pokazać QR biblioteki</string>
+    <string name="settings_flip_to_library_unsupported">Twoje urządzenie nie ma wymaganego czujnika.</string>
     <string name="settings_invert_slider_direction">Odwróć kierunek suwaka</string>
     <string name="settings_language">Język (Language)</string>
     <string name="settings_language_english">Angielski</string>

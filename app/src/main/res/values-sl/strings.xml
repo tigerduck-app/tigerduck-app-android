@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Močno</string>
     <string name="haptic_preset_subtle">Nežno</string>
     <string name="haptic_scenario_class_table_long_press">Dolg pritisk v urniku</string>
+    <string name="haptic_scenario_flip_to_library">Obrni za odpiranje knjižnice</string>
     <string name="haptic_scenario_library_warning">Opozorilo knjižnice</string>
     <string name="haptic_scenario_pull_to_refresh">Povleci za osvežitev</string>
     <string name="haptic_scenario_tab_reorder">Prerazporeditev zavihkov</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Prikaži prevod</string>
     <string name="settings_color_theme">Barvna tema</string>
     <string name="settings_feedback_bug_report">Povratne informacije / Prijava napake</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">Obrni telefon z zaslonom navzdol, da odpreš QR knjižnice.</string>
+    <string name="settings_flip_to_library_title">Obrni za prikaz QR knjižnice</string>
+    <string name="settings_flip_to_library_unsupported">Naprava nima zahtevanega senzorja.</string>
     <string name="settings_invert_slider_direction">Obrni smer drsnika</string>
     <string name="settings_language">Jezik (Language)</string>
     <string name="settings_language_english">Angleščina</string>

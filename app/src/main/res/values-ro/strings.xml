@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Puternic</string>
     <string name="haptic_preset_subtle">Ușor</string>
     <string name="haptic_scenario_class_table_long_press">Apăsare lungă în orar</string>
+    <string name="haptic_scenario_flip_to_library">Întoarce pentru a deschide biblioteca</string>
     <string name="haptic_scenario_library_warning">Avertisment bibliotecă</string>
     <string name="haptic_scenario_pull_to_refresh">Trage pentru reîmprospătare</string>
     <string name="haptic_scenario_tab_reorder">Reordonare file</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Afișează traducere</string>
     <string name="settings_color_theme">Temă de culori</string>
     <string name="settings_feedback_bug_report">Feedback / Raportare problemă</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">Întoarce telefonul cu ecranul în jos pentru a deschide QR-ul bibliotecii.</string>
+    <string name="settings_flip_to_library_title">Întoarce pentru a afișa QR-ul bibliotecii</string>
+    <string name="settings_flip_to_library_unsupported">Dispozitivul tău nu are senzorul necesar.</string>
     <string name="settings_invert_slider_direction">Inversează direcția glisorului</string>
     <string name="settings_language">Limbă (Language)</string>
     <string name="settings_language_english">Engleză</string>

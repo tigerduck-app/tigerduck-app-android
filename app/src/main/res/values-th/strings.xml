@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">แรง</string>
     <string name="haptic_preset_subtle">เบา</string>
     <string name="haptic_scenario_class_table_long_press">กดค้างที่ตารางเรียน</string>
+    <string name="haptic_scenario_flip_to_library">พลิกเพื่อเปิดห้องสมุด</string>
     <string name="haptic_scenario_library_warning">กล่องโต้ตอบเตือนห้องสมุด</string>
     <string name="haptic_scenario_pull_to_refresh">ดึงเพื่อรีเฟรช</string>
     <string name="haptic_scenario_tab_reorder">เรียงลำดับแท็บใหม่</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">แสดงคำแปล</string>
     <string name="settings_color_theme">ธีมสี</string>
     <string name="settings_feedback_bug_report">ความคิดเห็น / รายงานปัญหา</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">พลิกโทรศัพท์คว่ำหน้าลงเพื่อเปิด QR ห้องสมุด</string>
+    <string name="settings_flip_to_library_title">พลิกเพื่อแสดง QR ห้องสมุด</string>
+    <string name="settings_flip_to_library_unsupported">อุปกรณ์ของคุณไม่มีเซ็นเซอร์ที่จำเป็น</string>
     <string name="settings_invert_slider_direction">สลับทิศทางแถบเลื่อน</string>
     <string name="settings_language">ภาษา (Language)</string>
     <string name="settings_language_english">English</string>

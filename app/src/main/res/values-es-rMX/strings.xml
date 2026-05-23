@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Fuerte</string>
     <string name="haptic_preset_subtle">Suave</string>
     <string name="haptic_scenario_class_table_long_press">Pulsación larga en el horario</string>
+    <string name="haptic_scenario_flip_to_library">Voltear para abrir la biblioteca</string>
     <string name="haptic_scenario_library_warning">Aviso de biblioteca</string>
     <string name="haptic_scenario_pull_to_refresh">Deslizar para actualizar</string>
     <string name="haptic_scenario_tab_reorder">Reordenar pestañas</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Mostrar traducción</string>
     <string name="settings_color_theme">Tema de color</string>
     <string name="settings_feedback_bug_report">Comentarios / Reportar problema</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">Voltea el teléfono boca abajo para abrir el QR de la biblioteca.</string>
+    <string name="settings_flip_to_library_title">Voltear para mostrar el QR de la biblioteca</string>
+    <string name="settings_flip_to_library_unsupported">Tu dispositivo no tiene el sensor requerido.</string>
     <string name="settings_invert_slider_direction">Invertir dirección del control deslizante</string>
     <string name="settings_language">Idioma (Language)</string>
     <string name="settings_language_english">Inglés</string>

@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">Mạnh</string>
     <string name="haptic_preset_subtle">Nhẹ</string>
     <string name="haptic_scenario_class_table_long_press">Nhấn giữ trong bảng thời khóa biểu</string>
+    <string name="haptic_scenario_flip_to_library">Lật để mở thư viện</string>
     <string name="haptic_scenario_library_warning">Hộp thoại cảnh báo thư viện</string>
     <string name="haptic_scenario_pull_to_refresh">Kéo để làm mới</string>
     <string name="haptic_scenario_tab_reorder">Sắp xếp lại thẻ</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">Hiển thị bản dịch</string>
     <string name="settings_color_theme">Chủ đề màu</string>
     <string name="settings_feedback_bug_report">Phản hồi / Báo lỗi</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">Lật điện thoại úp màn hình xuống để mở QR thư viện.</string>
+    <string name="settings_flip_to_library_title">Lật để hiển thị QR thư viện</string>
+    <string name="settings_flip_to_library_unsupported">Thiết bị của bạn không có cảm biến cần thiết.</string>
     <string name="settings_invert_slider_direction">Đảo hướng thanh trượt</string>
     <string name="settings_language">Ngôn ngữ (Language)</string>
     <string name="settings_language_english">English</string>

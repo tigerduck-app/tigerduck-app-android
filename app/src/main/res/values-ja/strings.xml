@@ -315,6 +315,7 @@
     <string name="haptic_preset_strong">強い</string>
     <string name="haptic_preset_subtle">弱い</string>
     <string name="haptic_scenario_class_table_long_press">時間割の長押し</string>
+    <string name="haptic_scenario_flip_to_library">裏返して図書館を開く</string>
     <string name="haptic_scenario_library_warning">図書館警告ダイアログ</string>
     <string name="haptic_scenario_pull_to_refresh">引っ張って更新</string>
     <string name="haptic_scenario_tab_reorder">タブの並び替え</string>
@@ -555,9 +556,9 @@
     <string name="settings_classroom_mandarin_display_translated">訳語を表示</string>
     <string name="settings_color_theme">カラーテーマ</string>
     <string name="settings_feedback_bug_report">フィードバック / 不具合報告</string>
-    <string name="settings_flip_to_library_summary">Flip your phone face-down to open the library QR.</string>
-    <string name="settings_flip_to_library_title">Flip to show library QR</string>
-    <string name="settings_flip_to_library_unsupported">Your device doesn\'t have the required sensor.</string>
+    <string name="settings_flip_to_library_summary">スマホを画面下向きに裏返すと図書館QRを開きます。</string>
+    <string name="settings_flip_to_library_title">裏返して図書館QRを表示</string>
+    <string name="settings_flip_to_library_unsupported">このデバイスには必要なセンサーがありません。</string>
     <string name="settings_invert_slider_direction">スライダーの方向を反転</string>
     <string name="settings_language">言語 (Language)</string>
     <string name="settings_language_english">English</string>
