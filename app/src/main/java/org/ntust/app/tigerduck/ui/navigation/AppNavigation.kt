@@ -385,9 +385,21 @@ fun MainNavigation(
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
-                    onNavigateToDebug = { navController.navigate(Screen.Debug.route) },
-                    onNavigateToNotificationDebug = { navController.navigate(Screen.NotificationDebug.route) },
-                    onNavigateToApiEndpointDebug = { navController.navigate(Screen.ApiEndpointDebug.route) },
+                    // Debug-route navigation is no-op in release builds:
+                    // the composables themselves are registered only inside
+                    // the `if (BuildConfig.DEBUG)` block below, so an
+                    // unguarded call here would throw IllegalArgumentException
+                    // ('destination cannot be found') if the SettingsScreen
+                    // row gating ever drifts.
+                    onNavigateToDebug = {
+                        if (BuildConfig.DEBUG) navController.navigate(Screen.Debug.route)
+                    },
+                    onNavigateToNotificationDebug = {
+                        if (BuildConfig.DEBUG) navController.navigate(Screen.NotificationDebug.route)
+                    },
+                    onNavigateToApiEndpointDebug = {
+                        if (BuildConfig.DEBUG) navController.navigate(Screen.ApiEndpointDebug.route)
+                    },
                 )
             }
             if (BuildConfig.DEBUG) {

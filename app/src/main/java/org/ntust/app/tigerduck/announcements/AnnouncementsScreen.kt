@@ -3,11 +3,11 @@ package org.ntust.app.tigerduck.announcements
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -87,6 +87,7 @@ import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AnnouncementsScreen(
     onOpenBulletin: (Int) -> Unit,
@@ -119,39 +120,49 @@ fun AnnouncementsScreen(
         listState.scrollToItem(0)
     }
 
-    // Pagination trigger that's robust to the header items above the
-    // bulletin rows: only react when the bottommost visible item carries an
-    // Int key (i.e. it's a bulletin, not a header/empty-state slot).
+    // Pagination trigger uses the LazyColumn index (not the bulletin id) so
+    // the lookup into `displayed` stays O(1) regardless of list length. The
+    // sticky-header item occupies index 0; bulletins occupy 1..displayed.size.
+    // We filter to Int-keyed items so spinner/spacer (String keys) don't
+    // drive the trigger.
     val currentDisplayed by rememberUpdatedState(state.displayed)
     val currentOnLastVisible by rememberUpdatedState(viewModel::loadMoreIfNeeded)
     LaunchedEffect(listState) {
         snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo.lastOrNull { it.key is Int }?.key as? Int
+            listState.layoutInfo.visibleItemsInfo.lastOrNull { it.key is Int }?.index
         }
             .filterNotNull()
             .distinctUntilChanged()
-            .collect { id ->
-                currentDisplayed.find { it.id == id }?.let(currentOnLastVisible)
+            .collect { lastIndex ->
+                // headers are item 0; bulletinIndex = lastIndex - 1.
+                currentDisplayed.getOrNull(lastIndex - 1)?.let(currentOnLastVisible)
             }
     }
 
-    // Header height is measured at runtime so the empty state can size
-    // itself to exactly the area below the headers — without this the
-    // EmptyStateView either uses fillParentMaxSize (icon ends up off-center
-    // and the user can drag-scroll the empty pane past the viewport) or a
-    // brittle hardcoded dp value.
+    // Empty-state height = viewport - header. Both are measured via
+    // onSizeChanged, and we hold off rendering the empty state until both
+    // measurements have arrived — otherwise the first composition uses 0
+    // for the header and sizes the empty state to the full viewport,
+    // briefly making the LazyColumn scrollable past the bottom.
     var headerHeightPx by remember { mutableIntStateOf(0) }
+    var viewportHeightPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
+    val emptyStateHeight = with(density) {
+        (viewportHeightPx - headerHeightPx).coerceAtLeast(0).toDp()
+    }
+    val canShowEmptyState = viewportHeightPx > 0 && headerHeightPx > 0
 
-    // Wraps the whole screen so pull-to-refresh fires from any region —
-    // page header, search bar, filter chips, empty state, or bulletin list.
-    // Mirrors HomeScreen's structure (the "main page").
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val viewportHeightPx = with(density) { maxHeight.toPx() }
-        val emptyStateHeight = with(density) {
-            (viewportHeightPx - headerHeightPx).coerceAtLeast(0f).toDp()
-        }
-
+    // Plain Box (not BoxWithConstraints) avoids SubcomposeLayout: the latter
+    // re-subcomposes its content lambda whenever incoming constraints change
+    // (IME open/close, rotation, system-bar inset animations), which would
+    // tear down and rebuild the entire LazyColumn each time. onSizeChanged
+    // also can't fire with an infinite value, so this survives unbounded
+    // vertical constraints from any future host.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged { viewportHeightPx = it.height },
+    ) {
         TigerPullToRefresh(
             isRefreshing = state.loadState is AnnouncementsViewModel.LoadState.Loading,
             onRefresh = viewModel::refresh,
@@ -163,12 +174,16 @@ fun AnnouncementsScreen(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
             ) {
-                // Headers grouped into a single item so total header height
-                // can be measured in one onSizeChanged pass.
-                item(key = "headers") {
+                // stickyHeader keeps the page title, search field, and filter
+                // chips pinned at the top while the bulletin list scrolls —
+                // matching the always-visible chrome the old non-LazyColumn
+                // layout provided, and preventing the search field from being
+                // disposed (losing IME focus) when it scrolls off.
+                stickyHeader(key = "headers") {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surface)
                             .onSizeChanged { headerHeightPx = it.height },
                     ) {
                         PageHeader(title = stringResource(R.string.feature_announcements)) {
@@ -230,25 +245,29 @@ fun AnnouncementsScreen(
                 val loadState = state.loadState
                 when {
                     displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Loaded -> {
-                        item(key = "empty-state") {
-                            CenteredEmptyState(
-                                height = emptyStateHeight,
-                                title = stringResource(
-                                    if (state.unreadOnly) R.string.bulletin_no_unread_title
-                                    else R.string.bulletin_no_bulletins_title
-                                ),
-                                message = stringResource(R.string.bulletin_no_bulletins_message),
-                            )
+                        if (canShowEmptyState) {
+                            item(key = "empty-state") {
+                                CenteredEmptyState(
+                                    height = emptyStateHeight,
+                                    title = stringResource(
+                                        if (state.unreadOnly) R.string.bulletin_no_unread_title
+                                        else R.string.bulletin_no_bulletins_title
+                                    ),
+                                    message = stringResource(R.string.bulletin_no_bulletins_message),
+                                )
+                            }
                         }
                     }
 
                     displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Failed -> {
-                        item(key = "failed-state") {
-                            CenteredEmptyState(
-                                height = emptyStateHeight,
-                                title = stringResource(R.string.bulletin_load_failed_title),
-                                message = loadState.message,
-                            )
+                        if (canShowEmptyState) {
+                            item(key = "failed-state") {
+                                CenteredEmptyState(
+                                    height = emptyStateHeight,
+                                    title = stringResource(R.string.bulletin_load_failed_title),
+                                    message = loadState.message,
+                                )
+                            }
                         }
                     }
 
@@ -292,7 +311,7 @@ fun AnnouncementsScreen(
 
 /**
  * Empty / failed state sized to fit exactly the area below the sticky
- * headers, so the icon lands at the visual center of the available space
+ * header, so the icon lands at the visual center of the available space
  * and the LazyColumn doesn't become scrollable past the viewport.
  */
 @Composable
