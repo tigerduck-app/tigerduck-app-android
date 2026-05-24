@@ -133,12 +133,14 @@ class PushRegistrationService @Inject constructor(
         // Without a signed-in user we register under an anonymous user_id
         // so the device row exists and subscriptions PUT doesn't 404.
         val userId = identity.userId() ?: "anon-$deviceId"
+        val serverPushOptOut = prefs.getBoolean(KEY_SERVER_PUSH_OPT_OUT, false)
         runCatching {
             api.register(
                 DeviceRegisterRequest(
                     userId = userId,
                     deviceId = deviceId,
                     ptsTokenHex = token,
+                    serverPushEnabled = !serverPushOptOut,
                 )
             )
         }.onSuccess {
@@ -184,6 +186,26 @@ class PushRegistrationService @Inject constructor(
         lastError = prefs.getString(KEY_LAST_ERR, null),
     )
 
+    /** Current value of the user-facing server-push opt-out. Default `false`
+     *  (i.e. opted in). Reads SharedPreferences synchronously — safe for
+     *  initial UI hydration in the settings screen. */
+    fun isServerPushOptedOut(): Boolean = prefs.getBoolean(KEY_SERVER_PUSH_OPT_OUT, false)
+
+    /** Persist the opt-out and PATCH the backend so the change takes effect
+     *  before the next register() rolls around. On network failure we don't
+     *  retry inline — the next register() will re-send the flag, so eventual
+     *  consistency is preserved. */
+    suspend fun updateServerPushOptOut(optOut: Boolean) {
+        prefs.edit().putBoolean(KEY_SERVER_PUSH_OPT_OUT, optOut).apply()
+        val deviceId = identity.deviceId()
+        runCatching {
+            api.updateDevicePreferences(deviceId, serverPushEnabled = !optOut)
+        }.onFailure { e ->
+            if (e is CancellationException) throw e
+            Log.w(TAG, "preferences PATCH failed", e)
+        }
+    }
+
     private companion object {
         const val TAG = "Push.Register"
         const val PREFS_NAME = "push_diagnostics"
@@ -191,5 +213,6 @@ class PushRegistrationService @Inject constructor(
         const val KEY_REGISTERED = "registered"
         const val KEY_LAST_REG = "last_registration_at"
         const val KEY_LAST_ERR = "last_error"
+        const val KEY_SERVER_PUSH_OPT_OUT = "server_push_user_opt_out"
     }
 }
