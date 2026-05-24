@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.push
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -48,13 +49,39 @@ class FcmService : FirebaseMessagingService() {
             )
         }
         val data = message.data
-        val bulletinId = data["bulletin_id"]?.toIntOrNull() ?: return
-        val title = data["title"] ?: return
-        val body = data["body"].orEmpty()
-        showBulletinNotification(bulletinId, title, body)
+        val forceRing = data["force_ring"] == "true"
+        when (data["kind"]) {
+            "custom_push_bulletin" -> {
+                val bulletinId = data["bulletin_id"]?.toIntOrNull() ?: return
+                val title = data["title"].orEmpty()
+                val body = data["body"].orEmpty()
+                showBulletinNotification(bulletinId, title, body, forceRing)
+            }
+            "custom_push_popup" -> {
+                val nid = data["notification_id"] ?: return
+                val title = data["title"].orEmpty()
+                val body = data["body"].orEmpty()
+                showServerPopupNotification(nid, title, body, forceRing)
+            }
+            else -> {
+                // Legacy / scraped-bulletin path — preserved verbatim, just
+                // routed through the new helper for channel + priority. The
+                // scraped path has always been heads-up + sound, so pin
+                // forceRing=true regardless of the (typically missing) flag.
+                val bulletinId = data["bulletin_id"]?.toIntOrNull() ?: return
+                val title = data["title"] ?: return
+                val body = data["body"].orEmpty()
+                showBulletinNotification(bulletinId, title, body, forceRing = true)
+            }
+        }
     }
 
-    private fun showBulletinNotification(id: Int, title: String, body: String) {
+    private fun showBulletinNotification(
+        id: Int,
+        title: String,
+        body: String,
+        forceRing: Boolean,
+    ) {
         val intent = Intent(
             Intent.ACTION_VIEW,
             "tigerduck://announcement/$id".toUri(),
@@ -74,7 +101,10 @@ class FcmService : FirebaseMessagingService() {
         // POST_NOTIFICATIONS permission is denied; an uncaught throw here
         // would crash FirebaseMessagingService and the whole process.
         if (!manager.areNotificationsEnabled()) return
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+        val channelId =
+            if (forceRing) NotificationChannels.BULLETINS_SOUND
+            else NotificationChannels.BULLETINS_SILENT
+        val notification = NotificationCompat.Builder(this, channelId)
             // Status-bar small icon must be a transparent monochrome
             // silhouette; passing the full-color launcher mipmap lets
             // Android fall back to a generic circle.
@@ -84,10 +114,56 @@ class FcmService : FirebaseMessagingService() {
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(
+                if (forceRing) NotificationCompat.PRIORITY_HIGH
+                else NotificationCompat.PRIORITY_DEFAULT,
+            )
             .build()
         runCatching { manager.notify(id, notification) }
             .onFailure { Log.w(TAG, "notify failed for bulletin $id", it) }
+    }
+
+    private fun showServerPopupNotification(
+        notificationId: String,
+        title: String,
+        body: String,
+        forceRing: Boolean,
+    ) {
+        val encoded = "$notificationId?title=${Uri.encode(title.take(256))}" +
+            "&body=${Uri.encode(body.take(256))}"
+        val intent = Intent(
+            Intent.ACTION_VIEW,
+            "tigerduck://server-push/$encoded".toUri(),
+            this,
+            MainActivity::class.java,
+        ).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pi = PendingIntent.getActivity(
+            this,
+            notificationId.hashCode(),
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val manager = NotificationManagerCompat.from(this)
+        if (!manager.areNotificationsEnabled()) return
+        val channelId =
+            if (forceRing) NotificationChannels.BULLETINS_SOUND
+            else NotificationChannels.BULLETINS_SILENT
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setAutoCancel(true)
+            .setContentIntent(pi)
+            .setPriority(
+                if (forceRing) NotificationCompat.PRIORITY_HIGH
+                else NotificationCompat.PRIORITY_DEFAULT,
+            )
+            .build()
+        runCatching { manager.notify(notificationId.hashCode(), notification) }
+            .onFailure { Log.w(TAG, "notify failed for popup $notificationId", it) }
     }
 
     companion object {

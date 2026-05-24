@@ -248,6 +248,9 @@ dependencies {
     // Markdown rendering for announcement bodies
     implementation(libs.markdown.renderer.m3)
 
+    // DataStore Preferences (server-push popup dedupe set)
+    implementation(libs.androidx.datastore.preferences)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
