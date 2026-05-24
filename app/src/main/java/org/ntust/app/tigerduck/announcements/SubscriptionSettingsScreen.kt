@@ -158,6 +158,15 @@ fun SubscriptionSettingsScreen(
 
                 if (!isFdroidFlavor) {
                     item {
+                        ServerPushToggleRow(
+                            checked = state.serverPushOn,
+                            onCheckedChange = viewModel::setServerPushOn,
+                        )
+                    }
+                }
+
+                if (!isFdroidFlavor) {
+                    item {
                         Text(
                             text = stringResource(R.string.bulletin_rules_header),
                             style = MaterialTheme.typography.titleSmall,
@@ -664,4 +673,36 @@ private fun ContentCard(content: @Composable () -> Unit) {
         color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier.fillMaxWidth(),
     ) { content() }
+}
+
+/// Switch row for operator-issued "server" pushes. ON by default; users
+/// can opt out without disabling FCM or unsubscribing from bulletin rules.
+@Composable
+private fun ServerPushToggleRow(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    ContentCard {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.settings_server_push_label),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    stringResource(R.string.settings_server_push_footer),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(checked = checked, onCheckedChange = onCheckedChange)
+        }
+    }
 }

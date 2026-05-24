@@ -62,6 +62,9 @@ class SubscriptionSettingsViewModel @Inject constructor(
         val loadState: LoadState = LoadState.Loading,
         val saveState: SaveState = SaveState.Idle,
         val diagnostic: PushDiagnostic = PushDiagnostic(false, false, null, null),
+        /// Inverse of `serverPushUserOptOut` — ON means the user receives
+        /// operator-issued custom pushes.
+        val serverPushOn: Boolean = true,
     )
 
     private val _state = MutableStateFlow(State())
@@ -73,8 +76,18 @@ class SubscriptionSettingsViewModel @Inject constructor(
         pushRegistration.diagnostic
             .onEach { d -> _state.update { it.copy(diagnostic = d) } }
             .launchIn(viewModelScope)
+        _state.update { it.copy(serverPushOn = !pushRegistration.isServerPushOptedOut()) }
         viewModelScope.launch { fetchTaxonomy() }
         load()
+    }
+
+    /// Toggle the user-facing server-push opt-out. UI passes `isOn`; we
+    /// invert to opt-out for storage + backend PATCH.
+    fun setServerPushOn(isOn: Boolean) {
+        _state.update { it.copy(serverPushOn = isOn) }
+        viewModelScope.launch {
+            pushRegistration.updateServerPushOptOut(optOut = !isOn)
+        }
     }
 
     private suspend fun fetchTaxonomy() {
