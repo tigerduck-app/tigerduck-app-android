@@ -183,7 +183,7 @@ fun AnnouncementsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surface)
+                            .background(MaterialTheme.colorScheme.background)
                             .onSizeChanged { headerHeightPx = it.height },
                     ) {
                         PageHeader(title = stringResource(R.string.feature_announcements)) {
