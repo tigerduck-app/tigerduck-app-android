@@ -83,4 +83,26 @@ class PushApiClient @Inject constructor(
             }
         }
     }
+
+    /** PATCH the user-facing server-push opt-out for this device. */
+    suspend fun updateDevicePreferences(
+        deviceId: String,
+        serverPushEnabled: Boolean,
+    ): DevicePreferencesResponse = withContext(Dispatchers.IO) {
+        val payload = UpdateDevicePreferencesRequest(serverPushEnabled = serverPushEnabled)
+        val body = gson.toJson(payload).toRequestBody(jsonType)
+        val request = Request.Builder()
+            .url("$baseUrl/devices/$deviceId/preferences")
+            .patch(body)
+            .build()
+        client.newCall(request).execute().use { response ->
+            val text = response.body.string()
+            if (!response.isSuccessful) {
+                throw PushApiException("updateDevicePreferences failed: HTTP ${response.code} $text")
+            }
+            if (text.isBlank()) throw PushApiException("updateDevicePreferences: empty body")
+            gson.fromJson(text, DevicePreferencesResponse::class.java)
+                ?: throw PushApiException("updateDevicePreferences: empty body")
+        }
+    }
 }
