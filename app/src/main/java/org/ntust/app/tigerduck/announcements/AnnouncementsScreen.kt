@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.announcements
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -48,6 +48,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,6 +62,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
@@ -85,6 +87,7 @@ import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AnnouncementsScreen(
     onOpenBulletin: (Int) -> Unit,
@@ -117,61 +120,49 @@ fun AnnouncementsScreen(
         listState.scrollToItem(0)
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        PageHeader(title = stringResource(R.string.feature_announcements)) {
-            SyncIndicator(
-                isLoading = isLoading,
-                showCheckmark = showCheckmark,
-                dragProgress = pullProgress,
-            )
-            if (state.unreadOnly && state.hasUnread) {
-                IconButton(onClick = viewModel::markAllRead) {
-                    Icon(
-                        Icons.Filled.DoneAll,
-                        contentDescription = stringResource(R.string.bulletin_mark_all_read_action),
-                    )
-                }
-            }
-            val unreadOnlyLabel = stringResource(R.string.bulletin_show_unread_only_action)
-            Box(
-                modifier = Modifier
-                    .minimumInteractiveComponentSize()
-                    .toggleable(
-                        value = state.unreadOnly,
-                        role = Role.Switch,
-                        onValueChange = { viewModel.setUnreadOnly(it) },
-                    )
-                    .semantics {
-                        contentDescription = unreadOnlyLabel
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
-                    contentDescription = null,
-                )
-            }
-            IconButton(onClick = onOpenSubscriptions) {
-                Icon(
-                    Icons.Filled.Settings,
-                    contentDescription = stringResource(R.string.bulletin_notifications_title),
-                )
-            }
+    // Pagination trigger uses the LazyColumn index (not the bulletin id) so
+    // the lookup into `displayed` stays O(1) regardless of list length. The
+    // sticky-header item occupies index 0; bulletins occupy 1..displayed.size.
+    // We filter to Int-keyed items so spinner/spacer (String keys) don't
+    // drive the trigger.
+    val currentDisplayed by rememberUpdatedState(state.displayed)
+    val currentOnLastVisible by rememberUpdatedState(viewModel::loadMoreIfNeeded)
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.layoutInfo.visibleItemsInfo.lastOrNull { it.key is Int }?.index
         }
+            .filterNotNull()
+            .distinctUntilChanged()
+            .collect { lastIndex ->
+                // headers are item 0; bulletinIndex = lastIndex - 1.
+                currentDisplayed.getOrNull(lastIndex - 1)?.let(currentOnLastVisible)
+            }
+    }
 
-        SearchBar(
-            value = state.searchText,
-            onValueChange = viewModel::setSearch,
-        )
+    // Empty-state height = viewport - header. Both are measured via
+    // onSizeChanged, and we hold off rendering the empty state until both
+    // measurements have arrived — otherwise the first composition uses 0
+    // for the header and sizes the empty state to the full viewport,
+    // briefly making the LazyColumn scrollable past the bottom.
+    var headerHeightPx by remember { mutableIntStateOf(0) }
+    var viewportHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val emptyStateHeight = with(density) {
+        (viewportHeightPx - headerHeightPx).coerceAtLeast(0).toDp()
+    }
+    val canShowEmptyState = viewportHeightPx > 0 && headerHeightPx > 0
 
-        FilterSection(
-            taxonomy = state.taxonomy,
-            selectedOrgs = state.selectedOrgs,
-            selectedTags = state.selectedTags,
-            onOrgsChange = viewModel::setOrgFilter,
-            onTagsChange = viewModel::setTagFilter,
-        )
-
+    // Plain Box (not BoxWithConstraints) avoids SubcomposeLayout: the latter
+    // re-subcomposes its content lambda whenever incoming constraints change
+    // (IME open/close, rotation, system-bar inset animations), which would
+    // tear down and rebuild the entire LazyColumn each time. onSizeChanged
+    // also can't fire with an infinite value, so this survives unbounded
+    // vertical constraints from any future host.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged { viewportHeightPx = it.height },
+    ) {
         TigerPullToRefresh(
             isRefreshing = state.loadState is AnnouncementsViewModel.LoadState.Loading,
             onRefresh = viewModel::refresh,
@@ -179,41 +170,167 @@ fun AnnouncementsScreen(
             modifier = Modifier.fillMaxSize(),
             refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
-            val displayed = state.displayed
-            when {
-                displayed.isEmpty() && state.loadState is AnnouncementsViewModel.LoadState.Loaded -> {
-                    EmptyStateView(
-                        icon = Icons.Filled.Campaign,
-                        title = stringResource(
-                            if (state.unreadOnly) R.string.bulletin_no_unread_title
-                            else R.string.bulletin_no_bulletins_title
-                        ),
-                        message = stringResource(R.string.bulletin_no_bulletins_message),
-                        modifier = Modifier.fillMaxSize(),
-                    )
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                // stickyHeader keeps the page title, search field, and filter
+                // chips pinned at the top while the bulletin list scrolls —
+                // matching the always-visible chrome the old non-LazyColumn
+                // layout provided, and preventing the search field from being
+                // disposed (losing IME focus) when it scrolls off.
+                stickyHeader(key = "headers") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.background)
+                            .onSizeChanged { headerHeightPx = it.height },
+                    ) {
+                        PageHeader(title = stringResource(R.string.feature_announcements)) {
+                            SyncIndicator(
+                                isLoading = isLoading,
+                                showCheckmark = showCheckmark,
+                                dragProgress = pullProgress,
+                            )
+                            if (state.unreadOnly && state.hasUnread) {
+                                IconButton(onClick = viewModel::markAllRead) {
+                                    Icon(
+                                        Icons.Filled.DoneAll,
+                                        contentDescription = stringResource(R.string.bulletin_mark_all_read_action),
+                                    )
+                                }
+                            }
+                            val unreadOnlyLabel =
+                                stringResource(R.string.bulletin_show_unread_only_action)
+                            Box(
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .toggleable(
+                                        value = state.unreadOnly,
+                                        role = Role.Switch,
+                                        onValueChange = { viewModel.setUnreadOnly(it) },
+                                    )
+                                    .semantics {
+                                        contentDescription = unreadOnlyLabel
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
+                                    contentDescription = null,
+                                )
+                            }
+                            IconButton(onClick = onOpenSubscriptions) {
+                                Icon(
+                                    Icons.Filled.Settings,
+                                    contentDescription = stringResource(R.string.bulletin_notifications_title),
+                                )
+                            }
+                        }
+                        SearchBar(
+                            value = state.searchText,
+                            onValueChange = viewModel::setSearch,
+                        )
+                        FilterSection(
+                            taxonomy = state.taxonomy,
+                            selectedOrgs = state.selectedOrgs,
+                            selectedTags = state.selectedTags,
+                            onOrgsChange = viewModel::setOrgFilter,
+                            onTagsChange = viewModel::setTagFilter,
+                        )
+                    }
                 }
 
-                displayed.isEmpty() && state.loadState is AnnouncementsViewModel.LoadState.Failed -> {
-                    EmptyStateView(
-                        icon = Icons.Filled.Campaign,
-                        title = stringResource(R.string.bulletin_load_failed_title),
-                        message = (state.loadState as AnnouncementsViewModel.LoadState.Failed).message,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+                val displayed = state.displayed
+                val loadState = state.loadState
+                when {
+                    displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Loaded -> {
+                        if (canShowEmptyState) {
+                            item(key = "empty-state") {
+                                CenteredEmptyState(
+                                    height = emptyStateHeight,
+                                    title = stringResource(
+                                        if (state.unreadOnly) R.string.bulletin_no_unread_title
+                                        else R.string.bulletin_no_bulletins_title
+                                    ),
+                                    message = stringResource(R.string.bulletin_no_bulletins_message),
+                                )
+                            }
+                        }
+                    }
 
-                else -> BulletinList(
-                    items = displayed,
-                    taxonomy = state.taxonomy,
-                    readIds = state.readIds,
-                    isPaginating = state.isPaginating,
-                    listState = listState,
-                    onClick = onOpenBulletin,
-                    onToggleRead = viewModel::toggleRead,
-                    onLastVisible = viewModel::loadMoreIfNeeded,
-                )
+                    displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Failed -> {
+                        if (canShowEmptyState) {
+                            item(key = "failed-state") {
+                                CenteredEmptyState(
+                                    height = emptyStateHeight,
+                                    title = stringResource(R.string.bulletin_load_failed_title),
+                                    message = loadState.message,
+                                )
+                            }
+                        }
+                    }
+
+                    else -> {
+                        items(displayed, key = { it.id }) { item ->
+                            // 8dp gap above each card stands in for the
+                            // verticalArrangement.spacedBy on the old list-only
+                            // LazyColumn; horizontal padding moved off the
+                            // (now mixed) LazyColumn's contentPadding so the
+                            // header items keep their edge-to-edge layout.
+                            SwipeableBulletinCard(
+                                item = item,
+                                taxonomy = state.taxonomy,
+                                isRead = item.id in state.readIds,
+                                onClick = { onOpenBulletin(item.id) },
+                                onToggleRead = { viewModel.toggleRead(item.id) },
+                                modifier = Modifier.padding(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = 8.dp,
+                                ),
+                            )
+                        }
+                        if (state.isPaginating) {
+                            item(key = "pagination-spinner") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 16.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) { CircularProgressIndicator() }
+                            }
+                        }
+                        item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
+                    }
+                }
             }
         }
+    }
+}
+
+/**
+ * Empty / failed state sized to fit exactly the area below the sticky
+ * header, so the icon lands at the visual center of the available space
+ * and the LazyColumn doesn't become scrollable past the viewport.
+ */
+@Composable
+private fun CenteredEmptyState(
+    height: androidx.compose.ui.unit.Dp,
+    title: String,
+    message: String,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(height),
+        contentAlignment = Alignment.Center,
+    ) {
+        EmptyStateView(
+            icon = Icons.Filled.Campaign,
+            title = title,
+            message = message,
+        )
     }
 }
 
@@ -304,58 +421,6 @@ private fun ChipRow(
                     onClick = { onToggle(id) },
                     label = { Text(label) },
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun BulletinList(
-    items: List<BulletinSummary>,
-    taxonomy: TaxonomyResponse?,
-    readIds: Set<Int>,
-    isPaginating: Boolean,
-    listState: LazyListState,
-    onClick: (Int) -> Unit,
-    onToggleRead: (Int) -> Unit,
-    onLastVisible: (BulletinSummary) -> Unit,
-) {
-    // Single layoutInfo subscription instead of N per-item LaunchedEffects.
-    // rememberUpdatedState lets the long-lived collector see the latest list
-    // without restarting on every page append.
-    val currentItems by rememberUpdatedState(items)
-    val currentOnLastVisible by rememberUpdatedState(onLastVisible)
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-            .filterNotNull()
-            .distinctUntilChanged()
-            .collect { lastIndex ->
-                currentItems.getOrNull(lastIndex)?.let(currentOnLastVisible)
-            }
-    }
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        items(items, key = { it.id }) { item ->
-            SwipeableBulletinCard(
-                item = item,
-                taxonomy = taxonomy,
-                isRead = item.id in readIds,
-                onClick = { onClick(item.id) },
-                onToggleRead = { onToggleRead(item.id) },
-            )
-        }
-        if (isPaginating) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    contentAlignment = Alignment.Center,
-                ) { CircularProgressIndicator() }
             }
         }
     }
@@ -466,6 +531,7 @@ private fun SwipeableBulletinCard(
     isRead: Boolean,
     onClick: () -> Unit,
     onToggleRead: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val latestOnToggleRead by rememberUpdatedState(onToggleRead)
     val density = LocalDensity.current
@@ -480,7 +546,7 @@ private fun SwipeableBulletinCard(
         else R.string.bulletin_mark_as_read_action
     )
 
-    Box(modifier = Modifier.fillMaxWidth()) {
+    Box(modifier = modifier.fillMaxWidth()) {
         val progress = (abs(swipeOffset.value) / thresholdPx).coerceIn(0f, 1f)
 
         if (swipeOffset.value > 0f) {

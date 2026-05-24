@@ -81,6 +81,26 @@ rename the fields under `release` and re-introduce the same crash.
 Confidence: high. This is a known-deadly pattern with two production
 data points.
 
+## Debug network-security cleartext base-config
+
+- In `app/src/debug/res/xml/network_security_config.xml`, do **not** flag the
+  `<base-config cleartextTrafficPermitted="true" />` line. Do not suggest
+  narrowing it to specific `<domain-config>` entries, do not suggest reverting
+  to `cleartextTrafficPermitted="false"`, and do not flag it as a security
+  regression vs the prior config that had cleartext disabled at the base.
+    - **Why:** The Settings → Developer → API endpoint override
+      (`ApiEndpointDebugScreen` + `OverrideValidator`) lets developers point
+      the Announcement client at any RFC1918 LAN address (e.g.
+      `http://192.168.X.X:40000/v2`). Android's network-security-config XML
+      cannot express CIDR ranges or wildcards for IP literals — every dev's
+      LAN IP differs — so narrowing the base to specific `<domain-config>`
+      entries would either break the feature or force every dev to hand-edit
+      the XML for their own LAN. The app-level `OverrideValidator` allowlist
+      (loopback / RFC1918 / `*.api.tigerduck.app` HTTPS-only) is the
+      canonical gate. The file lives under `app/src/debug/`, so release
+      builds are unaffected — they use the locked-down `app/src/main/`
+      variant which keeps `cleartextTrafficPermitted="false"`.
+
 ## Account-ID field IME flip
 
 - In `app/src/main/java/org/ntust/app/tigerduck/ui/component/OutlinedAccountIdField.kt`, the

@@ -260,6 +260,22 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     }
 
     /**
+     * Debug-only override for the Announcement (bulletin) base URL.
+     * Written from Settings → Developer → API endpoint; read on every
+     * BulletinApiClient call so changes take effect without relaunch.
+     * Null means "use BuildConfig.PUSH_BASE_URL". The writer screen is
+     * DEBUG-gated, so release builds never see a non-null value here.
+     */
+    var announcementApiBaseUrlOverride: String?
+        get() = prefs.getString("announcementApiBaseUrlOverride", null)?.takeIf { it.isNotBlank() }
+        set(value) {
+            val editor = prefs.edit()
+            if (value.isNullOrBlank()) editor.remove("announcementApiBaseUrlOverride")
+            else editor.putString("announcementApiBaseUrlOverride", value)
+            editor.apply()
+        }
+
+    /**
      * Monotonic version for on-device user-data layout. Bumped whenever the
      * app ships a change that needs a one-shot migration (see DataMigration).
      * 0 covers every pre-migration-system build (fresh install or upgrade).

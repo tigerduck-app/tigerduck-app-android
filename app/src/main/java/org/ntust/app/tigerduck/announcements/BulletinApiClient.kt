@@ -11,6 +11,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,10 +20,22 @@ class BulletinApiException(message: String) : Exception(message)
 @Singleton
 class BulletinApiClient @Inject constructor(
     baseClient: OkHttpClient,
+    private val prefs: AppPreferences,
 ) {
 
-    private val baseUrl = BuildConfig.PUSH_BASE_URL.trimEnd('/')
     private val sharedSecret = BuildConfig.PUSH_SHARED_SECRET
+
+    // Resolved per call so a Debug build's Settings → Developer → API
+    // endpoint override takes effect on the next request without an app
+    // relaunch. Release builds can never write the override (the screen
+    // is DEBUG-gated), so the resolver collapses to the default URL in
+    // production. The resolver re-applies the save-time allowlist so a
+    // stale stored value `OverrideValidator` would now reject (e.g. an
+    // `adb`-set `http://example.com/v2`) cannot reach the subscription
+    // endpoints below — those send `X-Push-Token` and must never hit a
+    // disallowed host.
+    private val baseUrl: String
+        get() = resolveAnnouncementEndpoint(prefs).url
     private val gson = Gson()
     private val jsonType = "application/json".toMediaType()
 

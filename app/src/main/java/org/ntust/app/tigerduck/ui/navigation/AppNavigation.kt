@@ -104,6 +104,7 @@ sealed class Screen(val route: String) {
     object VibrationSettings : Screen("vibrationSettings")
     object Debug : Screen("debug")
     object NotificationDebug : Screen("notificationDebug")
+    object ApiEndpointDebug : Screen("apiEndpointDebug")
 }
 
 @Composable
@@ -384,8 +385,21 @@ fun MainNavigation(
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
-                    onNavigateToDebug = { navController.navigate(Screen.Debug.route) },
-                    onNavigateToNotificationDebug = { navController.navigate(Screen.NotificationDebug.route) },
+                    // Debug-route navigation is no-op in release builds:
+                    // the composables themselves are registered only inside
+                    // the `if (BuildConfig.DEBUG)` block below, so an
+                    // unguarded call here would throw IllegalArgumentException
+                    // ('destination cannot be found') if the SettingsScreen
+                    // row gating ever drifts.
+                    onNavigateToDebug = {
+                        if (BuildConfig.DEBUG) navController.navigate(Screen.Debug.route)
+                    },
+                    onNavigateToNotificationDebug = {
+                        if (BuildConfig.DEBUG) navController.navigate(Screen.NotificationDebug.route)
+                    },
+                    onNavigateToApiEndpointDebug = {
+                        if (BuildConfig.DEBUG) navController.navigate(Screen.ApiEndpointDebug.route)
+                    },
                 )
             }
             if (BuildConfig.DEBUG) {
@@ -396,6 +410,11 @@ fun MainNavigation(
                 }
                 composable(Screen.NotificationDebug.route) {
                     org.ntust.app.tigerduck.ui.screen.debug.NotificationDebugScreen(
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(Screen.ApiEndpointDebug.route) {
+                    org.ntust.app.tigerduck.ui.screen.debug.ApiEndpointDebugScreen(
                         onBack = { navController.popBackStack() },
                     )
                 }

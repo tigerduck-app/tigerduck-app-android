@@ -106,6 +106,7 @@ fun SettingsScreen(
     onNavigateToOtherSettings: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToNotificationDebug: () -> Unit = {},
+    onNavigateToApiEndpointDebug: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsState()
@@ -486,6 +487,8 @@ fun SettingsScreen(
                                     )
                                 }
                             }
+                            HorizontalDivider()
+                            SettingsLinkRow("API endpoint") { onNavigateToApiEndpointDebug() }
                         }
                     }
                 }
