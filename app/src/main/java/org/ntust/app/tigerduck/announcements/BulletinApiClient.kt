@@ -5,7 +5,6 @@ import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -24,24 +23,19 @@ class BulletinApiClient @Inject constructor(
     private val prefs: AppPreferences,
 ) {
 
-    private val defaultBaseUrl = BuildConfig.PUSH_BASE_URL.trimEnd('/')
     private val sharedSecret = BuildConfig.PUSH_SHARED_SECRET
 
     // Resolved per call so a Debug build's Settings → Developer → API
     // endpoint override takes effect on the next request without an app
     // relaunch. Release builds can never write the override (the screen
-    // is DEBUG-gated), so this collapses to defaultBaseUrl in production.
-    // Re-validates the override with toHttpUrlOrNull before use: a stale
-    // value (older validator, adb-set, manual prefs edit) that URI accepts
-    // but OkHttp rejects would otherwise crash every request at HttpUrl
-    // construction with no path back to the override screen.
+    // is DEBUG-gated), so the resolver collapses to the default URL in
+    // production. The resolver re-applies the save-time allowlist so a
+    // stale stored value `OverrideValidator` would now reject (e.g. an
+    // `adb`-set `http://example.com/v2`) cannot reach the subscription
+    // endpoints below — those send `X-Push-Token` and must never hit a
+    // disallowed host.
     private val baseUrl: String
-        get() {
-            if (!BuildConfig.DEBUG) return defaultBaseUrl
-            val override = prefs.announcementApiBaseUrlOverride?.trimEnd('/')
-                ?: return defaultBaseUrl
-            return if (override.toHttpUrlOrNull() != null) override else defaultBaseUrl
-        }
+        get() = resolveAnnouncementEndpoint(prefs).url
     private val gson = Gson()
     private val jsonType = "application/json".toMediaType()
 
