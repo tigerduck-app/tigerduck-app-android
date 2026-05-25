@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.push
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -109,6 +110,11 @@ class FcmService : FirebaseMessagingService() {
             // silhouette; passing the full-color launcher mipmap lets
             // Android fall back to a generic circle.
             .setSmallIcon(R.drawable.ic_notification)
+            // Large icon (rendered in the notification body) is the
+            // full-color TigerDuck character — gives the brand visible
+            // presence without violating the silhouette-only contract
+            // the status bar enforces above.
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
@@ -152,6 +158,10 @@ class FcmService : FirebaseMessagingService() {
             else NotificationChannels.BULLETINS_SILENT
         val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_notification)
+            // Same brand presence in the notification body as the bulletin
+            // path — see showBulletinNotification for the silhouette /
+            // large-icon split rationale.
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))

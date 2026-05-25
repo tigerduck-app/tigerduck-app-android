@@ -1,10 +1,23 @@
+<!-- Status-bar small icon. Android only uses the alpha channel here and
+     tints with the system color, so this is a flat white silhouette of the
+     TigerDuck character (round body + two pointed cat-suit ears). The
+     full-color logo is set via setLargeIcon and appears in the notification
+     body. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:tint="@android:color/white"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Left ear -->
     <path
-        android:fillColor="@android:color/white"
-        android:pathData="M12,22c1.1,0 2,-0.9 2,-2h-4c0,1.1 0.9,2 2,2zm6,-6v-5c0,-3.07 -1.63,-5.64 -4.5,-6.32V4c0,-0.83 -0.67,-1.5 -1.5,-1.5s-1.5,0.67 -1.5,1.5v0.68C7.64,5.36 6,7.92 6,11v5l-2,2v1h16v-1l-2,-2z" />
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M5.4,5.2 L8.3,2.2 L9.4,7.5 Z" />
+    <!-- Right ear -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M18.6,5.2 L15.7,2.2 L14.6,7.5 Z" />
+    <!-- Rounded body / head -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,5 C7.3,5 4,8.8 4,13.5 C4,18.2 7.3,22 12,22 C16.7,22 20,18.2 20,13.5 C20,8.8 16.7,5 12,5 Z" />
 </vector>
