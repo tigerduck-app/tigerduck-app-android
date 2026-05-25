@@ -103,6 +103,7 @@ fun SettingsScreen(
     onNavigateToTabEditor: () -> Unit = {},
     onNavigateToLanguagePicker: () -> Unit = {},
     onNavigateToLiveActivity: () -> Unit = {},
+    onNavigateToServerPush: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToNotificationDebug: () -> Unit = {},
@@ -387,6 +388,13 @@ fun SettingsScreen(
                         }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) { onNavigateToLiveActivity() }
+                        // Hide on F-Droid flavor since the Server Push pipeline
+                        // (FCM) isn't compiled in there — same rule as
+                        // SubscriptionSettingsScreen's existing toggle gate.
+                        if (!BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                            HorizontalDivider()
+                            SettingsLinkRow(stringResource(R.string.settings_push_server_nav_label)) { onNavigateToServerPush() }
+                        }
                     }
                 }
             }

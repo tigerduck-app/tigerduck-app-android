@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -39,19 +40,25 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.announcements.OverrideValidator
 import org.ntust.app.tigerduck.announcements.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.push.PushRegistrationService
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ApiEndpointDebugScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val prefs = remember(context) {
-        EntryPointAccessors
-            .fromApplication(context.applicationContext, AppPreferencesEntryPoint::class.java)
-            .appPreferences()
+    val entryPoint = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            ApiEndpointEntryPoint::class.java,
+        )
     }
+    val prefs = remember(entryPoint) { entryPoint.appPreferences() }
+    val pushRegistration = remember(entryPoint) { entryPoint.pushRegistrationService() }
+    val scope = rememberCoroutineScope()
 
     var draft by remember { mutableStateOf(prefs.announcementApiBaseUrlOverride.orEmpty()) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -152,10 +159,16 @@ fun ApiEndpointDebugScreen(onBack: () -> Unit) {
                                 stored = prefs.announcementApiBaseUrlOverride
                                 resolved = resolveAnnouncementEndpoint(prefs)
                                 draft = stored.orEmpty()
+                                // Re-register the device against the new endpoint
+                                // so the change takes effect immediately —
+                                // PushApiClient picks the URL up per call, but
+                                // without a fresh upsert the new backend has no
+                                // row for this device yet.
+                                scope.launch { pushRegistration.syncNow() }
                                 savedNote = if (result.rewrittenToHttp) {
-                                    "Saved as ${resolved.url} (https rewritten to http for LAN host)."
+                                    "Saved as ${resolved.url} (https rewritten to http for LAN host). Re-registering…"
                                 } else {
-                                    "Saved. Takes effect on the next Announcement request."
+                                    "Saved. Re-registering with ${resolved.url}…"
                                 }
                             }
                         }
@@ -170,7 +183,8 @@ fun ApiEndpointDebugScreen(onBack: () -> Unit) {
                         resolved = resolveAnnouncementEndpoint(prefs)
                         draft = ""
                         error = null
-                        savedNote = "Override cleared."
+                        scope.launch { pushRegistration.syncNow() }
+                        savedNote = "Override cleared. Re-registering with ${resolved.url}…"
                     },
                     enabled = stored != null,
                     colors = ButtonDefaults.outlinedButtonColors(
@@ -184,8 +198,8 @@ fun ApiEndpointDebugScreen(onBack: () -> Unit) {
                 "Allowed: loopback, RFC1918 private IPv4 (10.x, 172.16–31.x, 192.168.x), " +
                     "or *.api.tigerduck.app (HTTPS only). LAN backends speak HTTP — " +
                     "https://192.168.X.X:… is auto-rewritten to http:// at save time. " +
-                    "Only the Announcement (bulletin) base URL is overridden; push " +
-                    "registration still uses the build's default endpoint.",
+                    "Save / Clear takes effect immediately and re-registers this " +
+                    "device against the new endpoint.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -195,6 +209,7 @@ fun ApiEndpointDebugScreen(onBack: () -> Unit) {
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
-private interface AppPreferencesEntryPoint {
+private interface ApiEndpointEntryPoint {
     fun appPreferences(): AppPreferences
+    fun pushRegistrationService(): PushRegistrationService
 }

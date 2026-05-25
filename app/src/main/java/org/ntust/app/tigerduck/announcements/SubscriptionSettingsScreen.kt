@@ -1,10 +1,7 @@
 package org.ntust.app.tigerduck.announcements
 
 import android.Manifest
-import android.content.Intent
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,7 +26,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
@@ -59,7 +55,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -69,8 +64,6 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.notification.AppPermission
 import org.ntust.app.tigerduck.notification.SystemPermissions
-import java.text.DateFormat
-import java.util.Date
 
 private data class EditingTarget(
     val rule: SubscriptionRule,
@@ -142,26 +135,17 @@ fun SubscriptionSettingsScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item {
-                    if (isFdroidFlavor) {
-                        FdroidNoticeCard()
-                    } else {
-                        PushStatusCard(state.diagnostic)
-                    }
+                // The server-push status card, opt-out toggle, and device ID
+                // live on the dedicated Settings → Notifications → Server push
+                // screen now (see ServerPushScreen). This screen is for
+                // bulletin-subscription rules only.
+                if (isFdroidFlavor) {
+                    item { FdroidNoticeCard() }
                 }
 
                 if (!isFdroidFlavor) {
                     item {
                         NotificationPermissionCard(viewModel.systemPermissions)
-                    }
-                }
-
-                if (!isFdroidFlavor) {
-                    item {
-                        ServerPushToggleRow(
-                            checked = state.serverPushOn,
-                            onCheckedChange = viewModel::setServerPushOn,
-                        )
                     }
                 }
 
@@ -261,149 +245,6 @@ fun SubscriptionSettingsScreen(
             }
         }
     }
-}
-
-// -----------------------------------------------------------------------------
-// Push status card (Play flavor only)
-// -----------------------------------------------------------------------------
-
-@Composable
-private fun PushStatusCard(diagnostic: org.ntust.app.tigerduck.push.PushDiagnostic) {
-    val context = LocalContext.current
-    fun checkNotificationGranted(): Boolean =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS,
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        } else true
-
-    var permissionGranted by remember { mutableStateOf(checkNotificationGranted()) }
-
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> permissionGranted = granted }
-
-    // Re-check on ON_RESUME so revoking POST_NOTIFICATIONS in system settings
-    // and returning to this screen reflects the current grant, not the stale
-    // value captured on first composition.
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                permissionGranted = checkNotificationGranted()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    ContentCard {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = stringResource(R.string.push_server_status_section),
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-            )
-            Spacer(Modifier.height(8.dp))
-            StatusRow(
-                label = stringResource(R.string.bulletin_push_status_label),
-                ok = permissionGranted,
-                okText = stringResource(R.string.permission_granted),
-                badText = stringResource(R.string.bulletin_push_status_denied),
-            )
-            StatusRow(
-                label = stringResource(R.string.push_server_status_device_registration),
-                ok = diagnostic.isRegistered,
-                okText = stringResource(R.string.bulletin_push_status_registration_done),
-                badText = if (diagnostic.hasFcmToken) {
-                    stringResource(R.string.push_server_status_waiting_token)
-                } else {
-                    stringResource(R.string.bulletin_push_status_registration_pending)
-                },
-            )
-            diagnostic.lastRegistrationAt?.let { ts ->
-                Spacer(Modifier.height(4.dp))
-                LabeledText(
-                    label = stringResource(R.string.push_server_last_registration),
-                    value = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-                        .format(Date(ts)),
-                )
-            }
-            diagnostic.lastError?.let { msg ->
-                Spacer(Modifier.height(4.dp))
-                LabeledText(
-                    label = stringResource(R.string.push_server_latest_error),
-                    value = msg,
-                    valueColor = MaterialTheme.colorScheme.error,
-                )
-            }
-
-            if (!permissionGranted) {
-                Spacer(Modifier.height(12.dp))
-                Button(
-                    onClick = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        } else {
-                            openAppSettings(context)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.bulletin_push_reopen_settings))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatusRow(label: String, ok: Boolean, okText: String, badText: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-    ) {
-        Icon(
-            imageVector = if (ok) Icons.Filled.CheckCircle else Icons.Filled.WarningAmber,
-            contentDescription = null,
-            tint = if (ok) Color(0xFF34C759) else Color(0xFFFF9500),
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        Text(
-            text = if (ok) okText else badText,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.outline,
-        )
-    }
-}
-
-@Composable
-private fun LabeledText(
-    label: String,
-    value: String,
-    valueColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
-) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.outline
-        )
-        Spacer(Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodySmall, color = valueColor)
-    }
-}
-
-private fun openAppSettings(context: android.content.Context) {
-    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-        data = Uri.fromParts("package", context.packageName, null)
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-    }
-    runCatching { context.startActivity(intent) }
 }
 
 // -----------------------------------------------------------------------------
@@ -675,34 +516,3 @@ private fun ContentCard(content: @Composable () -> Unit) {
     ) { content() }
 }
 
-/// Switch row for operator-issued "server" pushes. ON by default; users
-/// can opt out without disabling FCM or unsubscribing from bulletin rules.
-@Composable
-private fun ServerPushToggleRow(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    ContentCard {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.settings_server_push_label),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    stringResource(R.string.settings_server_push_footer),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
-        }
-    }
-}

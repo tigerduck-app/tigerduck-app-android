@@ -500,6 +500,9 @@
     <string name="push_server_notification_status_unknown">Unknown</string>
     <string name="push_server_pending_incomplete">Not yet done</string>
     <string name="push_server_settings_title">Server push</string>
+    <string name="device_id_label">Device ID</string>
+    <string name="device_id_copy_action">Copy device ID</string>
+    <string name="device_id_copied">Device ID copied</string>
     <string name="push_server_status_device_registration">Device registration</string>
     <string name="push_server_status_done">Complete</string>
     <string name="push_server_status_enabled">Enabled</string>

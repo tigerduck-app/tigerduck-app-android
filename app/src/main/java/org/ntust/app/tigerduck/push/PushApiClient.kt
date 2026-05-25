@@ -10,6 +10,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.announcements.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,9 +20,16 @@ class PushApiException(message: String) : Exception(message)
 @Singleton
 class PushApiClient @Inject constructor(
     baseClient: OkHttpClient,
+    private val prefs: AppPreferences,
 ) {
 
-    private val baseUrl = BuildConfig.PUSH_BASE_URL.trimEnd('/')
+    // Resolved per call so the debug API-endpoint override applies to push
+    // immediately (no relaunch). Resolver name is historical — the override
+    // governs both Announcement and Push API base URLs now. Release builds
+    // never write the override, so the resolver collapses to the build's
+    // default endpoint there.
+    private val baseUrl: String
+        get() = resolveAnnouncementEndpoint(prefs).url.trimEnd('/')
     private val sharedSecret = BuildConfig.PUSH_SHARED_SECRET
     private val gson = Gson()
     private val jsonType = "application/json".toMediaType()

@@ -500,6 +500,9 @@
     <string name="push_server_notification_status_unknown">未知</string>
     <string name="push_server_pending_incomplete">尚未完成</string>
     <string name="push_server_settings_title">伺服器推播</string>
+    <string name="device_id_label">裝置 ID</string>
+    <string name="device_id_copy_action">複製裝置 ID</string>
+    <string name="device_id_copied">已複製裝置 ID</string>
     <string name="push_server_status_device_registration">裝置註冊</string>
     <string name="push_server_status_done">完成</string>
     <string name="push_server_status_enabled">已啟用</string>

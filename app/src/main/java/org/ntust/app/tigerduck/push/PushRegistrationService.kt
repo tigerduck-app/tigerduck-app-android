@@ -28,6 +28,7 @@ data class PushDiagnostic(
     val hasFcmToken: Boolean,
     val isRegistered: Boolean,
     val lastRegistrationAt: Long?,
+    val lastSyncAt: Long?,
     val lastError: String?,
 )
 
@@ -120,21 +121,22 @@ class PushRegistrationService @Inject constructor(
                     hasFcmToken = false,
                     isRegistered = false,
                     lastRegistrationAt = null,
+                    lastSyncAt = null,
                     lastError = null,
                 )
             }
         }
     }
 
-    private suspend fun performRegister() {
-        val token = mutex.withLock { if (isUnregistering) null else fcmToken } ?: return
+    private suspend fun performRegister(): Boolean {
+        val token = mutex.withLock { if (isUnregistering) null else fcmToken } ?: return false
         val deviceId = identity.deviceId()
         // Bulletin push is opt-in via subscriptions, not gated on sign-in.
         // Without a signed-in user we register under an anonymous user_id
         // so the device row exists and subscriptions PUT doesn't 404.
         val userId = identity.userId() ?: "anon-$deviceId"
         val serverPushOptOut = prefs.getBoolean(KEY_SERVER_PUSH_OPT_OUT, false)
-        runCatching {
+        return runCatching {
             api.register(
                 DeviceRegisterRequest(
                     userId = userId,
@@ -143,20 +145,39 @@ class PushRegistrationService @Inject constructor(
                     serverPushEnabled = !serverPushOptOut,
                 )
             )
-        }.onSuccess {
-            updateDiagnostic {
-                it.copy(
-                    hasFcmToken = true,
-                    isRegistered = true,
-                    lastRegistrationAt = System.currentTimeMillis(),
-                    lastError = null,
-                )
-            }
-        }.onFailure { e ->
-            if (e is CancellationException) throw e
-            Log.w(TAG, "register failed", e)
-            updateDiagnostic { it.copy(lastError = e.message ?: e::class.java.simpleName) }
+        }.fold(
+            onSuccess = {
+                updateDiagnostic {
+                    it.copy(
+                        hasFcmToken = true,
+                        isRegistered = true,
+                        lastRegistrationAt = System.currentTimeMillis(),
+                        lastError = null,
+                    )
+                }
+                true
+            },
+            onFailure = { e ->
+                if (e is CancellationException) throw e
+                Log.w(TAG, "register failed", e)
+                updateDiagnostic { it.copy(lastError = e.message ?: e::class.java.simpleName) }
+                false
+            },
+        )
+    }
+
+    /**
+     * User-triggered re-registration from the Server Push settings screen.
+     * Bumps `lastSyncAt` on success so the operator can see a "last sync"
+     * timestamp separate from the FCM-token / sign-in driven registrations
+     * — mirrors iOS PushServerSettingsView's "Sync now" button.
+     */
+    suspend fun syncNow(): Boolean {
+        val ok = performRegister()
+        if (ok) {
+            updateDiagnostic { it.copy(lastSyncAt = System.currentTimeMillis()) }
         }
+        return ok
     }
 
     /**
@@ -173,6 +194,8 @@ class PushRegistrationService @Inject constructor(
                 .putBoolean(KEY_REGISTERED, next.isRegistered)
             if (next.lastRegistrationAt == null) editor.remove(KEY_LAST_REG)
             else editor.putLong(KEY_LAST_REG, next.lastRegistrationAt)
+            if (next.lastSyncAt == null) editor.remove(KEY_LAST_SYNC)
+            else editor.putLong(KEY_LAST_SYNC, next.lastSyncAt)
             if (next.lastError == null) editor.remove(KEY_LAST_ERR)
             else editor.putString(KEY_LAST_ERR, next.lastError)
             editor.apply()
@@ -183,6 +206,7 @@ class PushRegistrationService @Inject constructor(
         hasFcmToken = prefs.getBoolean(KEY_HAS_TOKEN, false),
         isRegistered = prefs.getBoolean(KEY_REGISTERED, false),
         lastRegistrationAt = prefs.getLong(KEY_LAST_REG, 0L).takeIf { it > 0 },
+        lastSyncAt = prefs.getLong(KEY_LAST_SYNC, 0L).takeIf { it > 0 },
         lastError = prefs.getString(KEY_LAST_ERR, null),
     )
 
@@ -212,6 +236,7 @@ class PushRegistrationService @Inject constructor(
         const val KEY_HAS_TOKEN = "has_token"
         const val KEY_REGISTERED = "registered"
         const val KEY_LAST_REG = "last_registration_at"
+        const val KEY_LAST_SYNC = "last_sync_at"
         const val KEY_LAST_ERR = "last_error"
         const val KEY_SERVER_PUSH_OPT_OUT = "server_push_user_opt_out"
     }
