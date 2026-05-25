@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">כעת</string>
     <string name="desktop_widget_starts_in">מתחיל בעוד %@</string>
     <string name="desktop_widget_up_next">הבא</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">הכניסה נכשלה</string>
     <string name="error_network_unavailable">לא ניתן להתחבר. בדוק את חיבור הרשת שלך.</string>
     <string name="error_no_response">אין תגובה</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">הצג פיניין</string>
     <string name="settings_classroom_mandarin_display_translated">הצג תרגום</string>
     <string name="settings_color_theme">ערכת צבעים</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">משוב / דיווח על בעיה</string>
     <string name="settings_flip_to_library_summary">הפוך את הטלפון עם המסך כלפי מטה כדי לפתוח את ה-QR של הספרייה.</string>
     <string name="settings_flip_to_library_title">הפוך להצגת ה-QR של הספרייה</string>

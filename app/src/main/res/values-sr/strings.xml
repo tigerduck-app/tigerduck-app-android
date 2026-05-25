@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">NOW</string>
     <string name="desktop_widget_starts_in">Почиње за %@</string>
     <string name="desktop_widget_up_next">Up next</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">Пријава није успела</string>
     <string name="error_network_unavailable">Није могуће успоставити везу. Проверите мрежну везу.</string>
     <string name="error_no_response">Нема одговора</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Приказ пињина</string>
     <string name="settings_classroom_mandarin_display_translated">Приказ превода</string>
     <string name="settings_color_theme">Тема боја</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">Повратне информације / Пријави проблем</string>
     <string name="settings_flip_to_library_summary">Окрените телефон екраном надоле да отворите QR библиотеке.</string>
     <string name="settings_flip_to_library_title">Окрени за приказ QR-а библиотеке</string>

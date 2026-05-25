@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">SEKARANG</string>
     <string name="desktop_widget_starts_in">Dimulai dalam %@</string>
     <string name="desktop_widget_up_next">Berikutnya</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">Login gagal</string>
     <string name="error_network_unavailable">Tidak dapat terhubung. Silakan periksa koneksi jaringan kamu.</string>
     <string name="error_no_response">Tidak ada respons</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Tampilkan pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Tampilkan terjemahan</string>
     <string name="settings_color_theme">Tema warna</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">Umpan balik / Laporkan masalah</string>
     <string name="settings_flip_to_library_summary">Balik ponsel dengan layar menghadap bawah untuk membuka QR perpustakaan.</string>
     <string name="settings_flip_to_library_title">Balik untuk menampilkan QR perpustakaan</string>

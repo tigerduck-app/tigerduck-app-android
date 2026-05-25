@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">진행 중</string>
     <string name="desktop_widget_starts_in">%@ 후 시작</string>
     <string name="desktop_widget_up_next">다음 강의</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">로그인 실패</string>
     <string name="error_network_unavailable">연결할 수 없습니다. 네트워크 연결을 확인해 주세요.</string>
     <string name="error_no_response">응답 없음</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">병음 표시</string>
     <string name="settings_classroom_mandarin_display_translated">번역 표시</string>
     <string name="settings_color_theme">색상 테마</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">피드백 / 문제 신고</string>
     <string name="settings_flip_to_library_summary">화면을 아래로 뒤집으면 도서관 QR이 열립니다.</string>
     <string name="settings_flip_to_library_title">뒤집어서 도서관 QR 표시</string>

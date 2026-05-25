@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">NOW</string>
     <string name="desktop_widget_starts_in">%@ இல் தொடங்கும்</string>
     <string name="desktop_widget_up_next">Up next</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">லாக்-இன் தோல்வியடைந்தது</string>
     <string name="error_network_unavailable">இணைக்க முடியவில்லை. உங்கள் நெட்வொர்க் இணைப்பை சரிபார்க்கவும்.</string>
     <string name="error_no_response">எந்த பதிலும் இல்லை</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">பின்யினைக் காட்டு</string>
     <string name="settings_classroom_mandarin_display_translated">மொழிபெயர்ப்பைக் காட்டு</string>
     <string name="settings_color_theme">நிற தீம்</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">கருத்து / சிக்கல் அறிக்கை</string>
     <string name="settings_flip_to_library_summary">நூலக QR திறக்க தொலைபேசியை திரை கீழே வைத்து திருப்பவும்.</string>
     <string name="settings_flip_to_library_title">நூலக QR காட்ட திருப்பவும்</string>

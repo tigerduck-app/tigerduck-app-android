@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">NYT</string>
     <string name="desktop_widget_starts_in">Alkaa %@:n kuluttua</string>
     <string name="desktop_widget_up_next">Seuraava</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">Kirjautuminen epäonnistui</string>
     <string name="error_network_unavailable">Yhteys epäonnistui. Tarkista verkkoyhteys.</string>
     <string name="error_no_response">Ei vastausta</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Näytä pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Näytä käännös</string>
     <string name="settings_color_theme">Väriteema</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">Palaute / Ilmoita ongelma</string>
     <string name="settings_flip_to_library_summary">Käännä puhelin näyttö alaspäin avataksesi kirjaston QR-koodin.</string>
     <string name="settings_flip_to_library_title">Käännä kirjaston QR-koodin näyttämiseksi</string>

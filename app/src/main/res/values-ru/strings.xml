@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">СЕЙЧАС</string>
     <string name="desktop_widget_starts_in">Начнётся через %@</string>
     <string name="desktop_widget_up_next">Следующее</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">Не удалось войти</string>
     <string name="error_network_unavailable">Не удаётся подключиться. Проверьте подключение к сети.</string>
     <string name="error_no_response">Нет ответа</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Показать пиньинь</string>
     <string name="settings_classroom_mandarin_display_translated">Показать перевод</string>
     <string name="settings_color_theme">Цветовая тема</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">Отзыв / Сообщить о проблеме</string>
     <string name="settings_flip_to_library_summary">Переверните телефон экраном вниз, чтобы открыть QR библиотеки.</string>
     <string name="settings_flip_to_library_title">Перевернуть для отображения QR библиотеки</string>

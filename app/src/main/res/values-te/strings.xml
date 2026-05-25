@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">NOW</string>
     <string name="desktop_widget_starts_in">%@ లో ప్రారంభమవుతుంది</string>
     <string name="desktop_widget_up_next">Up next</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">లాగిన్ విఫలమైంది</string>
     <string name="error_network_unavailable">కనెక్ట్ చేయడం సాధ్యం కాలేదు. దయచేసి మీ నెట్‌వర్క్ కనెక్షన్ తనిఖీ చేయండి.</string>
     <string name="error_no_response">స్పందన లేదు</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">పిన్యిన్ చూపించు</string>
     <string name="settings_classroom_mandarin_display_translated">అనువాదాన్ని చూపించు</string>
     <string name="settings_color_theme">రంగు థీమ్</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">ఫీడ్‌బ్యాక్ / సమస్య నివేదించు</string>
     <string name="settings_flip_to_library_summary">లైబ్రరీ QR తెరవడానికి ఫోన్‌ని స్క్రీన్ కిందకు పెట్టి తిప్పండి.</string>
     <string name="settings_flip_to_library_title">లైబ్రరీ QR చూపించడానికి తిప్పండి</string>

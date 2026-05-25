@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">اکنون</string>
     <string name="desktop_widget_starts_in">شروع در %@</string>
     <string name="desktop_widget_up_next">بعدی</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">ورود ناموفق بود</string>
     <string name="error_network_unavailable">اتصال ممکن نیست. لطفاً اتصال شبکه را بررسی کنید.</string>
     <string name="error_no_response">پاسخی دریافت نشد</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">نمایش پینیین</string>
     <string name="settings_classroom_mandarin_display_translated">نمایش ترجمه شده</string>
     <string name="settings_color_theme">تم رنگ</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">بازخورد / گزارش مشکل</string>
     <string name="settings_flip_to_library_summary">گوشی را صفحه‌رو به پایین برگردانید تا QR کتابخانه باز شود.</string>
     <string name="settings_flip_to_library_title">برگرداندن برای نمایش QR کتابخانه</string>

@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">进行中</string>
     <string name="desktop_widget_starts_in">%@ 后开始</string>
     <string name="desktop_widget_up_next">下一堂</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">登录失败</string>
     <string name="error_network_unavailable">无法连接，请检查网络连接</string>
     <string name="error_no_response">无回应</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">显示拼音</string>
     <string name="settings_classroom_mandarin_display_translated">显示翻译</string>
     <string name="settings_color_theme">颜色主题</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">回馈/问题回报</string>
     <string name="settings_flip_to_library_summary">将手机屏幕朝下即可打开图书馆 QR。</string>
     <string name="settings_flip_to_library_title">翻转显示图书馆 QR</string>

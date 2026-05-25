@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">NOW</string>
     <string name="desktop_widget_starts_in">Začína o %@</string>
     <string name="desktop_widget_up_next">Up next</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">Prihlásenie zlyhalo</string>
     <string name="error_network_unavailable">Nedá sa pripojiť. Skontrolujte prosím sieťové pripojenie.</string>
     <string name="error_no_response">Žiadna odpoveď</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Zobraziť pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Zobraziť preklad</string>
     <string name="settings_color_theme">Farebná téma</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">Spätná väzba / Nahlásenie problému</string>
     <string name="settings_flip_to_library_summary">Otočte telefón obrazovkou nadol a otvoríte QR knižnice.</string>
     <string name="settings_flip_to_library_title">Otočiť pre zobrazenie QR knižnice</string>

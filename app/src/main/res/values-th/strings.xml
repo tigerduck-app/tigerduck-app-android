@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">ตอนนี้</string>
     <string name="desktop_widget_starts_in">เริ่มใน %@</string>
     <string name="desktop_widget_up_next">ถัดไป</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">เข้าสู่ระบบล้มเหลว</string>
     <string name="error_network_unavailable">ไม่สามารถเชื่อมต่อได้ กรุณาตรวจสอบการเชื่อมต่อเครือข่าย</string>
     <string name="error_no_response">ไม่มีการตอบสนอง</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">แสดงพินอิน</string>
     <string name="settings_classroom_mandarin_display_translated">แสดงคำแปล</string>
     <string name="settings_color_theme">ธีมสี</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">ความคิดเห็น / รายงานปัญหา</string>
     <string name="settings_flip_to_library_summary">พลิกโทรศัพท์คว่ำหน้าลงเพื่อเปิด QR ห้องสมุด</string>
     <string name="settings_flip_to_library_title">พลิกเพื่อแสดง QR ห้องสมุด</string>

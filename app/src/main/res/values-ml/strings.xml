@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">NOW</string>
     <string name="desktop_widget_starts_in">%@ ൽ ആരംഭിക്കും</string>
     <string name="desktop_widget_up_next">Up next</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">ലോഗിൻ പരാജയപ്പെട്ടു</string>
     <string name="error_network_unavailable">കണക്റ്റ് ചെയ്യാൻ കഴിഞ്ഞില്ല. നെറ്റ്‌വർക്ക് കണക്ഷൻ പരിശോധിക്കുക.</string>
     <string name="error_no_response">പ്രതികരണം ലഭിച്ചില്ല</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">പിൻയിൻ കാണിക്കുക</string>
     <string name="settings_classroom_mandarin_display_translated">വിവർത്തനം കാണിക്കുക</string>
     <string name="settings_color_theme">നിറ തീം</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">ഫീഡ്‌ബാക്ക് / പ്രശ്‌നം റിപ്പോർട്ട് ചെയ്യുക</string>
     <string name="settings_flip_to_library_summary">ലൈബ്രറി QR തുറക്കാൻ ഫോൺ സ്ക്രീൻ താഴ്ത്തി മറിക്കുക.</string>
     <string name="settings_flip_to_library_title">ലൈബ്രറി QR കാണിക്കാൻ മറിക്കുക</string>

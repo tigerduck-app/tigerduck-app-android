@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">進行中</string>
     <string name="desktop_widget_starts_in">%@ 後開始</string>
     <string name="desktop_widget_up_next">下一堂</string>
+    <string name="device_id_copied">已複製裝置 ID</string>
+    <string name="device_id_copy_action">複製裝置 ID</string>
     <string name="error_login_failed">登入失敗</string>
     <string name="error_network_unavailable">無法連線，請檢查網路連線</string>
     <string name="error_no_response">無回應</string>
@@ -500,9 +502,6 @@
     <string name="push_server_notification_status_unknown">未知</string>
     <string name="push_server_pending_incomplete">尚未完成</string>
     <string name="push_server_settings_title">伺服器推播</string>
-    <string name="device_id_label">裝置 ID</string>
-    <string name="device_id_copy_action">複製裝置 ID</string>
-    <string name="device_id_copied">已複製裝置 ID</string>
     <string name="push_server_status_device_registration">裝置註冊</string>
     <string name="push_server_status_done">完成</string>
     <string name="push_server_status_enabled">已啟用</string>
@@ -576,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">顯示拼音</string>
     <string name="settings_classroom_mandarin_display_translated">顯示翻譯</string>
     <string name="settings_color_theme">顏色主題</string>
+    <string name="settings_delete_account">刪除帳號</string>
     <string name="settings_feedback_bug_report">回饋/問題回報</string>
     <string name="settings_flip_to_library_summary">將手機螢幕朝下即可開啟圖書館 QR。</string>
     <string name="settings_flip_to_library_title">翻轉顯示圖書館 QR</string>

@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">JETZT</string>
     <string name="desktop_widget_starts_in">Beginnt in %@</string>
     <string name="desktop_widget_up_next">Als Nächstes</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">Anmeldung fehlgeschlagen</string>
     <string name="error_network_unavailable">Verbindung nicht möglich. Bitte überprüfen Sie Ihre Netzwerkverbindung.</string>
     <string name="error_no_response">Keine Antwort</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Pinyin anzeigen</string>
     <string name="settings_classroom_mandarin_display_translated">Übersetzung anzeigen</string>
     <string name="settings_color_theme">Farbschema</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">Feedback / Fehler melden</string>
     <string name="settings_flip_to_library_summary">Lege das Handy mit dem Display nach unten, um den Bibliotheks-QR zu öffnen.</string>
     <string name="settings_flip_to_library_title">Bibliotheks-QR per Umdrehen anzeigen</string>

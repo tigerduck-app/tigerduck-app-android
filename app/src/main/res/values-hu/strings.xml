@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">NOW</string>
     <string name="desktop_widget_starts_in">Kezdés %@ múlva</string>
     <string name="desktop_widget_up_next">Up next</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">Bejelentkezés sikertelen</string>
     <string name="error_network_unavailable">Nem lehet csatlakozni. Kérjük, ellenőrizze a hálózati kapcsolatot.</string>
     <string name="error_no_response">Nincs válasz</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Pinyin megjelenítése</string>
     <string name="settings_classroom_mandarin_display_translated">Fordítás megjelenítése</string>
     <string name="settings_color_theme">Színtéma</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">Visszajelzés / Hibabejelentés</string>
     <string name="settings_flip_to_library_summary">Fordítsd az okostelefont képernyővel lefelé a könyvtári QR-kód megnyitásához.</string>
     <string name="settings_flip_to_library_title">Fordítsd meg a könyvtári QR-kód megjelenítéséhez</string>

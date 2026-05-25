@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">NOW</string>
     <string name="desktop_widget_starts_in">Sākas pēc %@</string>
     <string name="desktop_widget_up_next">Up next</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">Pieteikšanās neizdevās</string>
     <string name="error_network_unavailable">Nevar izveidot savienojumu. Lūdzu, pārbaudiet tīkla savienojumu.</string>
     <string name="error_no_response">Nav atbildes</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Rādīt pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Rādīt tulkojumu</string>
     <string name="settings_color_theme">Krāsu tēma</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">Atsauksme / Ziņot par problēmu</string>
     <string name="settings_flip_to_library_summary">Apvērs tālruni ar ekrānu uz leju, lai atvērtu bibliotēkas QR.</string>
     <string name="settings_flip_to_library_title">Apvērst, lai parādītu bibliotēkas QR</string>

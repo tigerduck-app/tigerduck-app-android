@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">ORA</string>
     <string name="desktop_widget_starts_in">Inizia tra %@</string>
     <string name="desktop_widget_up_next">Prossimo</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">Accesso non riuscito</string>
     <string name="error_network_unavailable">Impossibile connettersi. Controlla la connessione di rete.</string>
     <string name="error_no_response">Nessuna risposta</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Mostra pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Mostra tradotto</string>
     <string name="settings_color_theme">Tema colore</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">Feedback / Segnala un problema</string>
     <string name="settings_flip_to_library_summary">Capovolgi il telefono con lo schermo verso il basso per aprire il QR della biblioteca.</string>
     <string name="settings_flip_to_library_title">Capovolgi per mostrare il QR della biblioteca</string>

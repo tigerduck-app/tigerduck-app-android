@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">NOW</string>
     <string name="desktop_widget_starts_in">Comença en %@</string>
     <string name="desktop_widget_up_next">Up next</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">Error d\'inici de sessió</string>
     <string name="error_network_unavailable">No es pot connectar. Comproveu la connexió de xarxa.</string>
     <string name="error_no_response">Sense resposta</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Mostra pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Mostra traducció</string>
     <string name="settings_color_theme">Tema de color</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">Comentaris / Informeu d\'un problema</string>
     <string name="settings_flip_to_library_summary">Gira el telèfon amb la pantalla cap avall per obrir el QR de la biblioteca.</string>
     <string name="settings_flip_to_library_title">Gira per mostrar el QR de la biblioteca</string>

@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">進行中</string>
     <string name="desktop_widget_starts_in">%@後に開始</string>
     <string name="desktop_widget_up_next">次の授業</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">ログインに失敗しました</string>
     <string name="error_network_unavailable">接続できません。ネットワーク接続を確認してください。</string>
     <string name="error_no_response">応答がありません</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">ピンインを表示</string>
     <string name="settings_classroom_mandarin_display_translated">訳語を表示</string>
     <string name="settings_color_theme">カラーテーマ</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">フィードバック / 不具合報告</string>
     <string name="settings_flip_to_library_summary">スマホを画面下向きに裏返すと図書館QRを開きます。</string>
     <string name="settings_flip_to_library_title">裏返して図書館QRを表示</string>

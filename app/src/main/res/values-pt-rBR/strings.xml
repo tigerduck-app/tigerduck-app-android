@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">AGORA</string>
     <string name="desktop_widget_starts_in">Começa em %@</string>
     <string name="desktop_widget_up_next">Em seguida</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">Falha no login</string>
     <string name="error_network_unavailable">Não foi possível conectar. Verifique sua conexão de internet.</string>
     <string name="error_no_response">Sem resposta</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Mostrar pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Mostrar tradução</string>
     <string name="settings_color_theme">Tema de cores</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">Feedback / Reportar problema</string>
     <string name="settings_flip_to_library_summary">Vire o telefone com a tela para baixo para abrir o QR da biblioteca.</string>
     <string name="settings_flip_to_library_title">Virar para mostrar o QR da biblioteca</string>

@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">NOW</string>
     <string name="desktop_widget_starts_in">%@ ನಲ್ಲಿ ಪ್ರಾರಂಭ</string>
     <string name="desktop_widget_up_next">Up next</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">ಲಾಗಿನ್ ವಿಫಲವಾಯಿತು</string>
     <string name="error_network_unavailable">ಸಂಪರ್ಕಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ನಿಮ್ಮ ನೆಟ್‌ವರ್ಕ್ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ.</string>
     <string name="error_no_response">ಯಾವುದೇ ಪ್ರತಿಕ್ರಿಯೆ ಇಲ್ಲ</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">ಪಿನ್ಯಿನ್ ತೋರಿಸು</string>
     <string name="settings_classroom_mandarin_display_translated">ಅನುವಾದ ತೋರಿಸು</string>
     <string name="settings_color_theme">ಬಣ್ಣ ಥೀಮ್</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">ಪ್ರತಿಕ್ರಿಯೆ / ಸಮಸ್ಯೆ ವರದಿ</string>
     <string name="settings_flip_to_library_summary">ಲೈಬ್ರರಿ QR ತೆರೆಯಲು ಫೋನ್ ಅನ್ನು ಸ್ಕ್ರೀನ್ ಕೆಳಕ್ಕೆ ಮಾಡಿ ಫ್ಲಿಪ್ ಮಾಡಿ.</string>
     <string name="settings_flip_to_library_title">ಲೈಬ್ರರಿ QR ತೋರಿಸಲು ಫ್ಲಿಪ್ ಮಾಡಿ</string>

@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">NOW</string>
     <string name="desktop_widget_starts_in">Algab %@ pärast</string>
     <string name="desktop_widget_up_next">Up next</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">Sisselogimine ebaõnnestus</string>
     <string name="error_network_unavailable">Ühendamine ebaõnnestus. Kontrollige oma võrguühendust.</string>
     <string name="error_no_response">Vastust ei saadud</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Kuva pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Kuva tõlge</string>
     <string name="settings_color_theme">Värvi teema</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">Tagasiside / Vea aruanne</string>
     <string name="settings_flip_to_library_summary">Pööra telefon ekraaniga allapoole, et avada raamatukogu QR.</string>
     <string name="settings_flip_to_library_title">Pööra raamatukogu QR-i näitamiseks</string>

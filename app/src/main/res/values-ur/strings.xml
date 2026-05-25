@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">ابھی</string>
     <string name="desktop_widget_starts_in">%@ میں شروع ہوگا</string>
     <string name="desktop_widget_up_next">اگلا</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">لاگ ان ناکام ہو گیا</string>
     <string name="error_network_unavailable">کنکشن ناممکن ہے۔ براہ کرم اپنا نیٹ ورک کنکشن چیک کریں۔</string>
     <string name="error_no_response">کوئی جواب نہیں</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">پنین دکھائیں</string>
     <string name="settings_classroom_mandarin_display_translated">ترجمہ دکھائیں</string>
     <string name="settings_color_theme">رنگ تھیم</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">رائے / مسئلہ رپورٹ کریں</string>
     <string name="settings_flip_to_library_summary">لائبریری QR کھولنے کے لیے فون کو اسکرین نیچے کر کے پلٹائیں۔</string>
     <string name="settings_flip_to_library_title">لائبریری QR دکھانے کے لیے پلٹائیں</string>

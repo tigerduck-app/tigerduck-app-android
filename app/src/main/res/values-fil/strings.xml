@@ -269,6 +269,8 @@
     <string name="desktop_widget_now">NGAYON</string>
     <string name="desktop_widget_starts_in">Magsisimula sa %@</string>
     <string name="desktop_widget_up_next">Susunod</string>
+    <string name="device_id_copied">Device ID copied</string>
+    <string name="device_id_copy_action">Copy device ID</string>
     <string name="error_login_failed">Nabigong mag-login</string>
     <string name="error_network_unavailable">Hindi makakonekta. Pakisuri ang iyong koneksyon sa network.</string>
     <string name="error_no_response">Walang tugon</string>
@@ -573,6 +575,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">Ipakita ang pinyin</string>
     <string name="settings_classroom_mandarin_display_translated">Ipakita ang salin</string>
     <string name="settings_color_theme">Kulay na tema</string>
+    <string name="settings_delete_account">Delete account</string>
     <string name="settings_feedback_bug_report">Feedback / Mag-ulat ng isyu</string>
     <string name="settings_flip_to_library_summary">I-flip ang telepono naka-mukha ang screen pababa para buksan ang library QR.</string>
     <string name="settings_flip_to_library_title">I-flip para ipakita ang library QR</string>
