@@ -366,8 +366,12 @@ private fun RuleRow(
 @Composable
 private fun ruleTitle(rule: SubscriptionRule, taxonomy: TaxonomyResponse?): String {
     rule.name?.takeIf { it.isNotBlank() }?.let { return it }
+    val ctx = LocalContext.current
     val orgsLabel = rule.orgs.joinToString(", ") { id -> taxonomy?.orgLabel(id) ?: id }
-    val tagsLabel = rule.tags.joinToString(", ") { id -> taxonomy?.tagLabel(id) ?: id }
+    // Use localizedTagLabel so the `server_notification` tag matches what the
+    // announcements feed/detail render — bare tagLabel would show whatever
+    // raw label the backend taxonomy ships, diverging cross-screen.
+    val tagsLabel = rule.tags.joinToString(", ") { id -> taxonomy.localizedTagLabel(id, ctx) }
     val joiner = stringResource(
         if (rule.mode == "AND") R.string.bulletin_rule_join_and else R.string.bulletin_rule_join_or
     )
@@ -382,8 +386,9 @@ private fun ruleTitle(rule: SubscriptionRule, taxonomy: TaxonomyResponse?): Stri
 @Composable
 private fun ruleSubtitle(rule: SubscriptionRule, taxonomy: TaxonomyResponse?): String? {
     if (rule.name.isNullOrBlank()) return null
+    val ctx = LocalContext.current
     val orgsLabel = rule.orgs.joinToString(", ") { id -> taxonomy?.orgLabel(id) ?: id }
-    val tagsLabel = rule.tags.joinToString(", ") { id -> taxonomy?.tagLabel(id) ?: id }
+    val tagsLabel = rule.tags.joinToString(", ") { id -> taxonomy.localizedTagLabel(id, ctx) }
     val joiner = stringResource(
         if (rule.mode == "AND") R.string.bulletin_rule_join_and else R.string.bulletin_rule_join_or
     )

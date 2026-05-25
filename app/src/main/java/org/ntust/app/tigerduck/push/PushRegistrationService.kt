@@ -129,13 +129,19 @@ class PushRegistrationService @Inject constructor(
     }
 
     private suspend fun performRegister(): Boolean {
-        val token = mutex.withLock { if (isUnregistering) null else fcmToken } ?: return false
+        // Snapshot token and opt-out under the same mutex so a concurrent
+        // updateServerPushOptOut can't flip the pref between read and POST
+        // and race the PATCH on the wire.
+        val (token, serverPushOptOut) = mutex.withLock {
+            if (isUnregistering) null to false
+            else fcmToken to prefs.getBoolean(KEY_SERVER_PUSH_OPT_OUT, false)
+        }
+        if (token == null) return false
         val deviceId = identity.deviceId()
         // Bulletin push is opt-in via subscriptions, not gated on sign-in.
         // Without a signed-in user we register under an anonymous user_id
         // so the device row exists and subscriptions PUT doesn't 404.
         val userId = identity.userId() ?: "anon-$deviceId"
-        val serverPushOptOut = prefs.getBoolean(KEY_SERVER_PUSH_OPT_OUT, false)
         return runCatching {
             api.register(
                 DeviceRegisterRequest(
@@ -171,11 +177,28 @@ class PushRegistrationService @Inject constructor(
      * Bumps `lastSyncAt` on success so the operator can see a "last sync"
      * timestamp separate from the FCM-token / sign-in driven registrations
      * — mirrors iOS PushServerSettingsView's "Sync now" button.
+     *
+     * On a no-op return (no FCM token yet, or unregister in flight)
+     * surfaces the reason via `lastError` so the UI's spinner-stops-without-
+     * feedback doesn't silently lie about success.
      */
     suspend fun syncNow(): Boolean {
         val ok = performRegister()
         if (ok) {
             updateDiagnostic { it.copy(lastSyncAt = System.currentTimeMillis()) }
+        } else {
+            val reason = mutex.withLock {
+                when {
+                    isUnregistering -> "Unregister in progress"
+                    fcmToken == null -> "Waiting for FCM token"
+                    else -> null
+                }
+            }
+            // Only stamp a reason when performRegister bailed *before* the API
+            // call — register-API failures already set lastError themselves.
+            if (reason != null) {
+                updateDiagnostic { it.copy(lastError = reason) }
+            }
         }
         return ok
     }
@@ -216,18 +239,35 @@ class PushRegistrationService @Inject constructor(
     fun isServerPushOptedOut(): Boolean = prefs.getBoolean(KEY_SERVER_PUSH_OPT_OUT, false)
 
     /** Persist the opt-out and PATCH the backend so the change takes effect
-     *  before the next register() rolls around. On network failure we don't
-     *  retry inline — the next register() will re-send the flag, so eventual
-     *  consistency is preserved. */
-    suspend fun updateServerPushOptOut(optOut: Boolean) {
-        prefs.edit().putBoolean(KEY_SERVER_PUSH_OPT_OUT, optOut).apply()
+     *  before the next register() rolls around. Returns `true` on full success
+     *  (local + backend), `false` if the PATCH failed. On failure the local
+     *  pref is still flipped so the next `performRegister` reconciles, and
+     *  `lastError` is surfaced via the diagnostic for the status card. */
+    suspend fun updateServerPushOptOut(optOut: Boolean): Boolean {
         val deviceId = identity.deviceId()
-        runCatching {
-            api.updateDevicePreferences(deviceId, serverPushEnabled = !optOut)
-        }.onFailure { e ->
-            if (e is CancellationException) throw e
-            Log.w(TAG, "preferences PATCH failed", e)
+        // Hold the mutex across the pref write AND the PATCH so a concurrent
+        // performRegister (which snapshots under the same mutex) can't read
+        // an in-flight value, and so rapid toggle taps serialize their
+        // PATCH calls on the wire instead of racing to last-write-wins.
+        // updateDiagnostic also acquires the mutex, so it has to run outside
+        // this critical section to avoid self-deadlock.
+        val error: String? = mutex.withLock {
+            prefs.edit().putBoolean(KEY_SERVER_PUSH_OPT_OUT, optOut).apply()
+            runCatching {
+                api.updateDevicePreferences(deviceId, serverPushEnabled = !optOut)
+            }.fold(
+                onSuccess = { null },
+                onFailure = { e ->
+                    if (e is CancellationException) throw e
+                    Log.w(TAG, "preferences PATCH failed", e)
+                    e.message ?: e::class.java.simpleName
+                },
+            )
         }
+        // Clear stale errors on success, set them on failure — either way the
+        // status card now reflects backend reachability for this PATCH.
+        updateDiagnostic { it.copy(lastError = error) }
+        return error == null
     }
 
     private companion object {

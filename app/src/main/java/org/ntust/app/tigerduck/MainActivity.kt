@@ -258,6 +258,13 @@ class MainActivity : AppCompatActivity() {
         val nid = data.pathSegments.firstOrNull() ?: return
         val title = data.getQueryParameter("title").orEmpty()
         val body = data.getQueryParameter("body").orEmpty()
+        // Null the data immediately so a rotation/recreate (which re-runs
+        // onCreate with the original intent) doesn't re-dispatch the same
+        // payload — the coordinator's dedupe set absorbs the duplicate, but
+        // its DataStore write isn't synchronous with this method, so a
+        // fast recreate could race it. Belt-and-suspenders.
+        intent.data = null
+        setIntent(intent)
         lifecycleScope.launch {
             serverPushPopupCoordinator.request(
                 ServerPopupRequest(

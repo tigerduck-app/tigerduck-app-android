@@ -92,7 +92,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ServerPushViewModel @Inject constructor(
     private val pushRegistration: PushRegistrationService,
-    identity: PushIdentity,
+    private val identity: PushIdentity,
 ) : ViewModel() {
 
     data class State(
@@ -101,6 +101,7 @@ class ServerPushViewModel @Inject constructor(
         val userId: String = "",
         val deviceId: String = "",
         val isSyncing: Boolean = false,
+        val isToggling: Boolean = false,
     )
 
     private val _state = MutableStateFlow(
@@ -122,10 +123,32 @@ class ServerPushViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
+    /** Re-read identity from PushIdentity. Called on screen ON_RESUME so a
+     *  sign-in / sign-out that happened while the screen was backgrounded
+     *  reflects in the IDs card instead of stranding the constructor-time
+     *  `anon-<deviceId>` snapshot. */
+    fun refreshIdentity() {
+        val deviceId = identity.deviceId()
+        val userId = identity.userId() ?: "anon-$deviceId"
+        _state.update { it.copy(userId = userId, deviceId = deviceId) }
+    }
+
     fun setServerPushOn(isOn: Boolean) {
-        _state.update { it.copy(serverPushOn = isOn) }
+        // Gate rapid taps so two PATCH calls don't race on the wire — the
+        // service mutex serializes them safely, but a third tap while the
+        // first is still in flight would still queue up redundant work.
+        if (_state.value.isToggling || _state.value.serverPushOn == isOn) return
+        _state.update { it.copy(serverPushOn = isOn, isToggling = true) }
         viewModelScope.launch {
-            pushRegistration.updateServerPushOptOut(optOut = !isOn)
+            try {
+                pushRegistration.updateServerPushOptOut(optOut = !isOn)
+                // PATCH failure surfaces via `diagnostic.lastError` (set by
+                // PushRegistrationService); the toggle continues to reflect
+                // user intent — pref is the source of truth, next register
+                // reconciles backend state.
+            } finally {
+                _state.update { it.copy(isToggling = false) }
+            }
         }
     }
 
@@ -149,6 +172,18 @@ fun ServerPushScreen(
     viewModel: ServerPushViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Re-read userId/deviceId on every ON_RESUME so a sign-in / sign-out that
+    // happened while the screen was backgrounded reflects in the IDs card
+    // instead of stranding the constructor-time anon snapshot.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshIdentity()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold(
         topBar = {
@@ -178,6 +213,7 @@ fun ServerPushScreen(
                 item {
                     ServerPushToggleCard(
                         checked = state.serverPushOn,
+                        enabled = !state.isToggling,
                         onCheckedChange = viewModel::setServerPushOn,
                     )
                 }
@@ -199,6 +235,7 @@ fun ServerPushScreen(
 @Composable
 private fun ServerPushToggleCard(
     checked: Boolean,
+    enabled: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     ContentCard {
@@ -221,7 +258,11 @@ private fun ServerPushToggleCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = enabled,
+            )
         }
     }
 }

@@ -50,13 +50,18 @@ class FcmService : FirebaseMessagingService() {
             )
         }
         val data = message.data
-        val forceRing = data["force_ring"] == "true"
+        // Accept any case-variant the backend might emit ("true"/"True"/"TRUE")
+        // plus "1"; anything else (including null) defaults to silent.
+        val forceRing = data["force_ring"]?.lowercase() in setOf("true", "1")
         when (data["kind"]) {
             "custom_push_bulletin" -> {
                 val bulletinId = data["bulletin_id"]?.toIntOrNull() ?: return
                 val title = data["title"].orEmpty()
                 val body = data["body"].orEmpty()
-                showBulletinNotification(bulletinId, title, body, forceRing)
+                val channelId =
+                    if (forceRing) NotificationChannels.BULLETINS_SOUND
+                    else NotificationChannels.BULLETINS_SILENT
+                showBulletinNotification(bulletinId, title, body, channelId, forceRing)
             }
             "custom_push_popup" -> {
                 val nid = data["notification_id"] ?: return
@@ -65,14 +70,20 @@ class FcmService : FirebaseMessagingService() {
                 showServerPopupNotification(nid, title, body, forceRing)
             }
             else -> {
-                // Legacy / scraped-bulletin path — preserved verbatim, just
-                // routed through the new helper for channel + priority. The
-                // scraped path has always been heads-up + sound, so pin
-                // forceRing=true regardless of the (typically missing) flag.
+                // Legacy / scraped subscription bulletins. Route through the
+                // pre-existing BULLETINS channel so any per-channel mute or
+                // sound override the user set on prior versions is preserved
+                // — BULLETINS_SOUND is reserved for operator one-offs.
                 val bulletinId = data["bulletin_id"]?.toIntOrNull() ?: return
                 val title = data["title"] ?: return
                 val body = data["body"].orEmpty()
-                showBulletinNotification(bulletinId, title, body, forceRing = true)
+                showBulletinNotification(
+                    bulletinId,
+                    title,
+                    body,
+                    NotificationChannels.BULLETINS,
+                    forceRing = true,
+                )
             }
         }
     }
@@ -81,6 +92,7 @@ class FcmService : FirebaseMessagingService() {
         id: Int,
         title: String,
         body: String,
+        channelId: String,
         forceRing: Boolean,
     ) {
         val intent = Intent(
@@ -102,9 +114,6 @@ class FcmService : FirebaseMessagingService() {
         // POST_NOTIFICATIONS permission is denied; an uncaught throw here
         // would crash FirebaseMessagingService and the whole process.
         if (!manager.areNotificationsEnabled()) return
-        val channelId =
-            if (forceRing) NotificationChannels.BULLETINS_SOUND
-            else NotificationChannels.BULLETINS_SILENT
         val notification = NotificationCompat.Builder(this, channelId)
             // Status-bar small icon must be a transparent monochrome
             // silhouette; passing the full-color launcher mipmap lets
@@ -135,7 +144,11 @@ class FcmService : FirebaseMessagingService() {
         body: String,
         forceRing: Boolean,
     ) {
-        val encoded = "$notificationId?title=${Uri.encode(title.take(256))}" +
+        // Encode the id as a single path segment so any URI-reserved char
+        // (`?`, `/`, `#`, `&`) in a backend-issued id can't shift query
+        // boundaries and corrupt MainActivity.handleServerPushIntent's parse.
+        val encoded = Uri.encode(notificationId) +
+            "?title=${Uri.encode(title.take(256))}" +
             "&body=${Uri.encode(body.take(256))}"
         val intent = Intent(
             Intent.ACTION_VIEW,
@@ -145,6 +158,9 @@ class FcmService : FirebaseMessagingService() {
         ).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
+        // PendingIntent equality uses Intent.filterEquals, which compares the
+        // Data URI — distinct nids already yield distinct PendingIntents
+        // regardless of requestCode, so hashCode collisions here are benign.
         val pi = PendingIntent.getActivity(
             this,
             notificationId.hashCode(),
@@ -172,12 +188,19 @@ class FcmService : FirebaseMessagingService() {
                 else NotificationCompat.PRIORITY_DEFAULT,
             )
             .build()
-        runCatching { manager.notify(notificationId.hashCode(), notification) }
+        // Use the raw notificationId as the notify() tag with a fixed int id
+        // so distinct nids never collide in the shade — relying on
+        // nid.hashCode() as the int id alone would let two different popups
+        // overwrite each other on a 32-bit hash collision.
+        runCatching { manager.notify(notificationId, NOTIFY_ID_SERVER_POPUP, notification) }
             .onFailure { Log.w(TAG, "notify failed for popup $notificationId", it) }
     }
 
     companion object {
         const val CHANNEL_ID = NotificationChannels.BULLETINS
         private const val TAG = "FcmService"
+        // Fixed notify() id paired with per-popup tag (notificationId) so
+        // the (tag, id) pair stays unique without hashing collision risk.
+        private const val NOTIFY_ID_SERVER_POPUP = 1
     }
 }
