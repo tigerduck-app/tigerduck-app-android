@@ -42,6 +42,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.serverpush.ServerPopupRequest
+import org.ntust.app.tigerduck.serverpush.ServerPushIntentToken
 import org.ntust.app.tigerduck.serverpush.ServerPushPopupCoordinator
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.navigation.AppNavigation
@@ -78,6 +79,9 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var serverPushPopupCoordinator: ServerPushPopupCoordinator
+
+    @Inject
+    lateinit var serverPushIntentToken: ServerPushIntentToken
 
     private val widgetStartRoute = mutableStateOf<String?>(null)
     private val whatsNewContent = mutableStateOf<WhatsNewContent?>(null)
@@ -255,6 +259,16 @@ class MainActivity : AppCompatActivity() {
     private fun handleServerPushIntent(intent: Intent?) {
         val data = intent?.data ?: return
         if (data.scheme != "tigerduck" || data.authority != "server-push") return
+        // MainActivity is exported (it's the launcher), so any installed app
+        // can fire an explicit intent at this deep-link path. The token is a
+        // per-install secret embedded by FcmService into the PendingIntent's
+        // extras; an external intent will lack it and is dropped silently.
+        val token = intent.getStringExtra(ServerPushIntentToken.EXTRA_NAME)
+        if (token != serverPushIntentToken.value) {
+            intent.data = null
+            setIntent(intent)
+            return
+        }
         val nid = data.pathSegments.firstOrNull() ?: return
         val title = data.getQueryParameter("title").orEmpty()
         val body = data.getQueryParameter("body").orEmpty()

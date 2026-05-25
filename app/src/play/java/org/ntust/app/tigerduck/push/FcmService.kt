@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.notification.NotificationChannels
+import org.ntust.app.tigerduck.serverpush.ServerPushIntentToken
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -27,6 +28,8 @@ class FcmService : FirebaseMessagingService() {
     @Inject
     @ApplicationScope
     lateinit var scope: CoroutineScope
+    @Inject
+    lateinit var intentToken: ServerPushIntentToken
 
     override fun onNewToken(token: String) {
         scope.launch { registration.update(token) }
@@ -147,9 +150,12 @@ class FcmService : FirebaseMessagingService() {
         // Encode the id as a single path segment so any URI-reserved char
         // (`?`, `/`, `#`, `&`) in a backend-issued id can't shift query
         // boundaries and corrupt MainActivity.handleServerPushIntent's parse.
+        // Title / body are carried in full: a prior cap of 256 chars left the
+        // notification shade showing more than the in-app AlertDialog, which
+        // truncated mid-instruction.
         val encoded = Uri.encode(notificationId) +
-            "?title=${Uri.encode(title.take(256))}" +
-            "&body=${Uri.encode(body.take(256))}"
+            "?title=${Uri.encode(title)}" +
+            "&body=${Uri.encode(body)}"
         val intent = Intent(
             Intent.ACTION_VIEW,
             "tigerduck://server-push/$encoded".toUri(),
@@ -157,6 +163,11 @@ class FcmService : FirebaseMessagingService() {
             MainActivity::class.java,
         ).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            // Stamp the PendingIntent so MainActivity can tell it apart from
+            // an explicit intent crafted by another installed app — MainActivity
+            // is the exported launcher, so the deep-link path would otherwise
+            // accept attacker-chosen title / body.
+            putExtra(ServerPushIntentToken.EXTRA_NAME, intentToken.value)
         }
         // PendingIntent equality uses Intent.filterEquals, which compares the
         // Data URI — distinct nids already yield distinct PendingIntents
