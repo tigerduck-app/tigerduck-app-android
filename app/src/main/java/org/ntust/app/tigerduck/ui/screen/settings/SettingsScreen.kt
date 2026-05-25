@@ -399,26 +399,6 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Language
-            item { SectionHeader(stringResource(R.string.feature_category_language)) }
-            item {
-                ContentCard {
-                    SettingsLinkRowWithValue(
-                        label = stringResource(R.string.settings_language),
-                        value = run {
-                            val normalized = AppLanguageManager.normalize(appLanguage)
-                            if (normalized == AppLanguageManager.SYSTEM) {
-                                stringResource(R.string.settings_language_follow_system)
-                            } else {
-                                val locale = Locale.forLanguageTag(normalized)
-                                locale.getDisplayName(locale).ifBlank { normalized }
-                            }
-                        },
-                        onClick = onNavigateToLanguagePicker,
-                    )
-                }
-            }
-
             // MARK: Other settings
             item { SectionHeader(stringResource(R.string.settings_section_other_settings)) }
             item {
@@ -456,6 +436,26 @@ fun SettingsScreen(
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
                     }
+                }
+            }
+
+            // MARK: Language
+            item { SectionHeader(stringResource(R.string.feature_category_language)) }
+            item {
+                ContentCard {
+                    SettingsLinkRowWithValue(
+                        label = stringResource(R.string.settings_language),
+                        value = run {
+                            val normalized = AppLanguageManager.normalize(appLanguage)
+                            if (normalized == AppLanguageManager.SYSTEM) {
+                                stringResource(R.string.settings_language_follow_system)
+                            } else {
+                                val locale = Locale.forLanguageTag(normalized)
+                                locale.getDisplayName(locale).ifBlank { normalized }
+                            }
+                        },
+                        onClick = onNavigateToLanguagePicker,
+                    )
                 }
             }
 
@@ -757,9 +757,13 @@ internal fun SettingsPickerRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(SettingRowHeight)
+            // `heightIn` (not `height`) so a long label that wraps to two
+            // lines can grow the row instead of getting its descenders
+            // clipped — e.g. Mandarin labels like "中文教室名稱顯示方式"
+            // are tall enough to need the extra room.
+            .heightIn(min = SettingRowHeight)
             .clickable { expanded = true }
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
