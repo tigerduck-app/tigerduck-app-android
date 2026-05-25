@@ -98,6 +98,7 @@ class ServerPushViewModel @Inject constructor(
     data class State(
         val serverPushOn: Boolean = true,
         val diagnostic: PushDiagnostic = PushDiagnostic(false, false, null, null, null),
+        val userId: String = "",
         val deviceId: String = "",
         val isSyncing: Boolean = false,
     )
@@ -105,6 +106,11 @@ class ServerPushViewModel @Inject constructor(
     private val _state = MutableStateFlow(
         State(
             serverPushOn = !pushRegistration.isServerPushOptedOut(),
+            // Mirror what the backend has registered for this device:
+            // signed-in user_id when available, otherwise the same
+            // `anon-<device_id>` fallback PushRegistrationService sends.
+            // Support staff can match either back to a device record.
+            userId = identity.userId() ?: "anon-${identity.deviceId()}",
             deviceId = identity.deviceId(),
         )
     )
@@ -183,7 +189,7 @@ fun ServerPushScreen(
                     )
                 }
                 item {
-                    DeviceIdCard(state.deviceId)
+                    IdsCard(userId = state.userId, deviceId = state.deviceId)
                 }
             }
         }
@@ -340,45 +346,68 @@ private fun PushStatusCard(
 }
 
 @Composable
-private fun DeviceIdCard(deviceId: String) {
+private fun IdsCard(userId: String, deviceId: String) {
+    ContentCard {
+        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+            Text(
+                // Raw label — labels in the IDs card are deliberately kept
+                // out of the localization submodule. These strings carry
+                // no translatable meaning (they're for support handoff)
+                // and adding them via the i18n pipeline would block this
+                // change on a separate submodule bump.
+                text = "IDs",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            IdRow(label = "User ID", value = userId, clipLabel = "user_id")
+            IdRow(label = "Device ID", value = deviceId, clipLabel = "device_id")
+        }
+    }
+}
+
+@Composable
+private fun IdRow(label: String, value: String, clipLabel: String) {
     val context = LocalContext.current
     val copiedMessage = stringResource(R.string.device_id_copied)
-    ContentCard {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                    cm?.setPrimaryClip(ClipData.newPlainText("device_id", deviceId))
-                    // Android 13+ shows a system-level "Copied" chip on its own,
-                    // so suppress the toast there to avoid double feedback.
-                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                        Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
-                    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                cm?.setPrimaryClip(ClipData.newPlainText(clipLabel, value))
+                // Android 13+ shows a system-level "Copied" chip on its own,
+                // so suppress the toast there to avoid double feedback.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
                 }
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.device_id_label),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = deviceId.ifBlank { "—" },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
-            Icon(
-                Icons.Filled.ContentCopy,
-                contentDescription = stringResource(R.string.device_id_copy_action),
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(Modifier.height(2.dp))
+            // No maxLines / overflow — IDs are short today but tokens we
+            // might surface here later can be 150+ chars, and the user
+            // explicitly asked for the full value to be visible; let it
+            // wrap to multiple lines instead of truncating.
+            Text(
+                text = value.ifBlank { "—" },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        Spacer(Modifier.width(8.dp))
+        Icon(
+            Icons.Filled.ContentCopy,
+            contentDescription = stringResource(R.string.device_id_copy_action),
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 
