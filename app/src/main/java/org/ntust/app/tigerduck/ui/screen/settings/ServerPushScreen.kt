@@ -267,13 +267,14 @@ private fun PushStatusCard(
                 text = stringResource(R.string.push_server_status_section),
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
             StatusRow(
                 label = stringResource(R.string.bulletin_push_status_label),
                 ok = permissionGranted,
                 okText = stringResource(R.string.permission_granted),
                 badText = stringResource(R.string.bulletin_push_status_denied),
             )
+            Spacer(Modifier.height(8.dp))
             StatusRow(
                 label = stringResource(R.string.push_server_status_device_registration),
                 ok = diagnostic.isRegistered,
@@ -285,7 +286,7 @@ private fun PushStatusCard(
                 },
             )
             diagnostic.lastRegistrationAt?.let { ts ->
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(10.dp))
                 LabeledText(
                     label = stringResource(R.string.push_server_last_registration),
                     value = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
@@ -293,7 +294,7 @@ private fun PushStatusCard(
                 )
             }
             diagnostic.lastSyncAt?.let { ts ->
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(10.dp))
                 LabeledText(
                     label = stringResource(R.string.push_server_last_sync),
                     value = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
@@ -301,7 +302,7 @@ private fun PushStatusCard(
                 )
             }
             diagnostic.lastError?.let { msg ->
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(10.dp))
                 LabeledText(
                     label = stringResource(R.string.push_server_latest_error),
                     value = msg,
@@ -417,7 +418,7 @@ private fun StatusRow(label: String, ok: Boolean, okText: String, badText: Strin
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp),
+            .padding(vertical = 6.dp),
     ) {
         Icon(
             imageVector = if (ok) Icons.Filled.CheckCircle else Icons.Filled.WarningAmber,
