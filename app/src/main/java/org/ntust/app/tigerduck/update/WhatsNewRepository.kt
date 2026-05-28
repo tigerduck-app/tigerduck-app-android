@@ -14,7 +14,7 @@ import javax.inject.Singleton
  * Loads maintainer-authored "What's new" content from `assets/whatsnew.json`.
  *
  * The JSON is an object keyed by versionCode string; each version holds a
- * per-locale map (`zh-TW`, `en`) of [WhatsNewContent].
+ * per-locale map (`zh-Hant`, `en`) of [WhatsNewContent].
  */
 @Singleton
 class WhatsNewRepository @Inject constructor(
@@ -84,7 +84,7 @@ class WhatsNewRepository @Inject constructor(
 
         /**
          * Picks the localized [WhatsNewContent] out of one version's per-locale
-         * map. A Chinese [languageTag] (`zh-*`) maps to the `zh-TW` block;
+         * map. A Chinese [languageTag] (`zh-*`) maps to the `zh-Hant` block;
          * everything else falls back to `en`. An entry with no usable text is
          * treated as absent.
          */
@@ -93,7 +93,7 @@ class WhatsNewRepository @Inject constructor(
             languageTag: String,
         ): WhatsNewContent? {
             versionEntry ?: return null
-            val localeKey = if (languageTag.startsWith("zh", ignoreCase = true)) "zh-TW" else "en"
+            val localeKey = if (languageTag.startsWith("zh", ignoreCase = true)) "zh-Hant" else "en"
             val content = versionEntry[localeKey] ?: versionEntry["en"] ?: return null
             if (content.title.isNullOrBlank() || content.highlights.isNullOrEmpty()) return null
             return content
