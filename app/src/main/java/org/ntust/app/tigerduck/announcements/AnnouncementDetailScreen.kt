@@ -279,13 +279,14 @@ private fun DetailBody(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
                 chrome.contentTags.forEach { id ->
                     Surface(
                         shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                     ) {
                         Text(
-                            text = "#${taxonomy?.tagLabel(id) ?: id}",
+                            text = "#${taxonomy.localizedTagLabel(id, ctx)}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),

@@ -54,9 +54,17 @@ TigerDuck 是由一群學生共同開發的校園助手
 - 整合校方 ICS 行程與 Moodle 作業截止
 - 月曆檢視、切換日期、下拉同步
 
+### 📢 **公告**
+
+- 各處室、中心公告全部整合在一頁
+- 後端 LLM 自動分類去重，可訂閱類別並設未讀篩選
+- 重要消息可由運營者透過伺服器推播即時送達（設定中可關閉）
+
 ### 🏛️ **圖書館**（實驗性）
 
 - 秒開入館 QR-Code，無任何延遲
+- **翻面就開**：把手機面朝下放著，自動跳到入館 QR-Code
+- 登入、QR 等敏感畫面自動啟用 `FLAG_SECURE`，防止截圖 / 錄影
 
 ### 🌏 **外觀**
 
@@ -67,6 +75,12 @@ TigerDuck 是由一群學生共同開發的校園助手
 
 - 要就加，不要就刪掉
 - 編輯 Tab、首頁區塊自由增減、選擇主題色
+- 各情境震動可逐項開關（含翻面開啟 QR 等）
+
+### 🔄 **自動更新**（Play 限定）
+
+- 內建 Play In-App Update FLEXIBLE 流程，新版本主動提示
+- 升級後顯示「最新更新內容」對話框，讓你一眼看完新功能
 
 ### ⌚ **Wear OS**（Play 限定）
 
@@ -98,6 +112,7 @@ TigerDuck 是由一群學生共同開發的校園助手
 ### 📚 圖書館服務
 
 - [x] **圖書館出入館 QR-Code** – 快速開啟入館 QR-Code
+- [x] **翻面開啟 QR-Code** – 手機面朝下放置自動跳到入館 QR
 - [ ] **圖書館討論小間借用** – 支援討論室預約與借用查詢
 - [ ] **臺科大圖書館講座活動** – 包含活動報名與查詢（需校內連線）
 
@@ -105,6 +120,7 @@ TigerDuck 是由一群學生共同開發的校園助手
 
 - [X] **各處室、中心公告** – 支援公告整合
 - [X] **公告 LLM 分類 + 訂閱通知** – 後端自動分類去重、可訂閱類別、未讀篩選
+- [X] **伺服器推播提醒** – 由運營者手動發送的單次推播，可在設定開關
 - [ ] **獎學金資訊** – 支援 Filter，可依低收、中低收、原住民等條件過濾
 - [ ] **當日社團活動** – 整理每日社團活動資訊
 - [ ] **空教室查詢** – 快速查詢目前可使用的教室
@@ -118,6 +134,14 @@ TigerDuck 是由一群學生共同開發的校園助手
 - [x] **多語系（與 iOS 共用，50+ 語系）** – 跟著系統或在 App 內單獨切換
 - [x] **課程 / 教室名稱簡稱** – 一鍵切換、可還原
 - [X] **RTL 版面修正** – 阿拉伯語 / 希伯來語等右至左語系排版
+
+### 🔔 通知與隱私
+
+- [x] **TigerDuck 風格通知圖示與震動情境設定**
+- [x] **公告通知頻道**（一般 / 靜音）可獨立調整
+- [x] **In-App Update + 最新更新內容對話框** – Play 版升級主動提示
+- [x] **敏感畫面 `FLAG_SECURE`** – 登入、入館 QR 等防止截圖 / 螢幕錄影
+- [x] **帳號刪除入口** – 設定內可申請刪除伺服器端推播身分
 
 ### ⌚ Wear OS（Play 限定）
 
@@ -234,18 +258,22 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.3 / C
 ├── app/                                # 手機 App（fdroid / play 兩種 flavor）
 │   ├── build.gradle.kts
 │   └── src/main/java/org/ntust/app/tigerduck/
+│       ├── announcements/              # 公告整合、LLM 分類、訂閱規則
 │       ├── auth/                       # NTUST SSO 認證、登入狀態
 │       ├── data/
 │       │   ├── cache/                  # 檔案快取
 │       │   ├── local/                  # Room 資料層
 │       │   ├── model/                  # Domain / DTO 模型
 │       │   └── preferences/            # App 偏好與憑證管理（EncryptedSharedPreferences）
-│       ├── debug/                      # Debug 時鐘覆寫等開發者工具（僅 debug build）
+│       ├── debug/                      # Debug 時鐘覆寫、API endpoint override 等開發者工具
 │       ├── di/                         # Hilt 模組
 │       ├── liveactivity/               # 即時動態 / 進行中通知
 │       ├── network/                    # 課表 / Moodle / 公告 / 圖書館 API
 │       │   └── model/
-│       ├── notification/               # 作業到期通知排程
+│       ├── notification/               # 作業到期通知排程、通知頻道
+│       ├── push/                       # FCM 註冊與伺服器 API 用戶端
+│       ├── sensor/                     # 翻面偵測（FlipDetector）
+│       ├── serverpush/                 # 伺服器推播彈窗協調 + intent token
 │       ├── ui/
 │       │   ├── component/              # 共用 Composable
 │       │   ├── navigation/             # NavHost / Tab navigation
@@ -256,10 +284,12 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.3 / C
 │       │   │   ├── library/            # 圖書館
 │       │   │   ├── score/              # 歷年成績與排名
 │       │   │   ├── more/               # 「更多」聚合頁
-│       │   │   ├── settings/           # 設定（語言、Tab、通知、即時動態、來源碼）
+│       │   │   ├── settings/           # 設定（語言、Tab、通知、震動、伺服器推播、即時動態、來源碼）
+│       │   │   ├── whatsnew/           # 「最新更新內容」對話框
 │       │   │   └── onboarding/         # 初次使用引導 + 隱私同意
 │       │   ├── theme/                  # 主題、配色、視覺預設
 │       │   └── AppState.kt
+│       ├── update/                     # In-App Update gate + What's new repository
 │       ├── widget/                     # 桌面 widget
 │       ├── MainActivity.kt
 │       └── TigerDuckApp.kt

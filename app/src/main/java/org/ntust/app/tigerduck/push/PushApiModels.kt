@@ -11,6 +11,8 @@ data class DeviceRegisterRequest(
     val platform: String = "android",
     @SerializedName("pts_token_hex") val ptsTokenHex: String,
     @SerializedName("bundle_id") val bundleId: String = "org.ntust.app.tigerduck",
+    @SerializedName("device_class") val deviceClass: String = "android",
+    @SerializedName("server_push_enabled") val serverPushEnabled: Boolean = true,
 )
 
 data class DeviceRegisterResponse(
@@ -22,4 +24,13 @@ data class DeviceRegisterResponse(
 
 data class DeviceUnregisterRequest(
     @SerializedName("device_id") val deviceId: String,
+)
+
+data class UpdateDevicePreferencesRequest(
+    @SerializedName("server_push_enabled") val serverPushEnabled: Boolean,
+)
+
+data class DevicePreferencesResponse(
+    @SerializedName("device_id") val deviceId: String,
+    @SerializedName("server_push_enabled") val serverPushEnabled: Boolean,
 )

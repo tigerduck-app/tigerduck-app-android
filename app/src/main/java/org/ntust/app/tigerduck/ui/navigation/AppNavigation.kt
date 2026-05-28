@@ -75,6 +75,7 @@ import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.ServerPushScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SourceCodePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
@@ -101,6 +102,7 @@ sealed class Screen(val route: String) {
     object NotificationSetup : Screen("notificationSetup")
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
+    object ServerPush : Screen("serverPush")
     object VibrationSettings : Screen("vibrationSettings")
     object Debug : Screen("debug")
     object NotificationDebug : Screen("notificationDebug")
@@ -384,6 +386,7 @@ fun MainNavigation(
                     onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
+                    onNavigateToServerPush = { navController.navigate(Screen.ServerPush.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
                     // Debug-route navigation is no-op in release builds:
                     // the composables themselves are registered only inside
@@ -444,6 +447,9 @@ fun MainNavigation(
             }
             composable(Screen.LiveActivitySettings.route) {
                 LiveActivitySettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.ServerPush.route) {
+                ServerPushScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.SourceCodePicker.route) {
                 SourceCodePickerScreen(onBack = { navController.popBackStack() })

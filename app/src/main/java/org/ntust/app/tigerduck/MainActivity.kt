@@ -18,20 +18,32 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
+import org.ntust.app.tigerduck.serverpush.ServerPopupRequest
+import org.ntust.app.tigerduck.serverpush.ServerPushIntentToken
+import org.ntust.app.tigerduck.serverpush.ServerPushPopupCoordinator
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.navigation.AppNavigation
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewDialog
@@ -65,6 +77,12 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var appPreferences: AppPreferences
 
+    @Inject
+    lateinit var serverPushPopupCoordinator: ServerPushPopupCoordinator
+
+    @Inject
+    lateinit var serverPushIntentToken: ServerPushIntentToken
+
     private val widgetStartRoute = mutableStateOf<String?>(null)
     private val whatsNewContent = mutableStateOf<WhatsNewContent?>(null)
 
@@ -96,6 +114,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         widgetStartRoute.value = resolveStartRoute(intent)
+        handleServerPushIntent(intent)
 
         // Re-prompt for app updates only on a genuine fresh start, never on a
         // rotation/config-change recreation (issue #89).
@@ -173,6 +192,11 @@ class MainActivity : AppCompatActivity() {
                                 },
                             )
                         }
+
+                        // Operator-issued popup: rendered over whatever screen
+                        // the user lands on after tapping the notification.
+                        // Coordinator's dedupe set short-circuits replays.
+                        ServerPushPopupHost(serverPushPopupCoordinator)
                     }
                 }
             }
@@ -220,6 +244,50 @@ class MainActivity : AppCompatActivity() {
         // the deep-link URI rather than the launcher MAIN intent.
         setIntent(intent)
         widgetStartRoute.value = resolveStartRoute(intent)
+        handleServerPushIntent(intent)
+    }
+
+    /**
+     * Branches `tigerduck://server-push/<nid>?title=...&body=...` deep links
+     * (built by [org.ntust.app.tigerduck.push.FcmService.showServerPopupNotification])
+     * into the popup coordinator instead of the NavHost. Unlike the
+     * `announcement` host, server-push has no destination route — it pops an
+     * AlertDialog over whatever screen the user lands on. The coordinator's
+     * dedupe set guarantees a re-delivered intent (rotation, Recents tap)
+     * doesn't re-show the same dialog.
+     */
+    private fun handleServerPushIntent(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme != "tigerduck" || data.authority != "server-push") return
+        // MainActivity is exported (it's the launcher), so any installed app
+        // can fire an explicit intent at this deep-link path. The token is a
+        // per-install secret embedded by FcmService into the PendingIntent's
+        // extras; an external intent will lack it and is dropped silently.
+        val token = intent.getStringExtra(ServerPushIntentToken.EXTRA_NAME)
+        if (token != serverPushIntentToken.value) {
+            intent.data = null
+            setIntent(intent)
+            return
+        }
+        val nid = data.pathSegments.firstOrNull() ?: return
+        val title = data.getQueryParameter("title").orEmpty()
+        val body = data.getQueryParameter("body").orEmpty()
+        // Null the data immediately so a rotation/recreate (which re-runs
+        // onCreate with the original intent) doesn't re-dispatch the same
+        // payload — the coordinator's dedupe set absorbs the duplicate, but
+        // its DataStore write isn't synchronous with this method, so a
+        // fast recreate could race it. Belt-and-suspenders.
+        intent.data = null
+        setIntent(intent)
+        lifecycleScope.launch {
+            serverPushPopupCoordinator.request(
+                ServerPopupRequest(
+                    notificationId = nid,
+                    title = title,
+                    body = body,
+                ),
+            )
+        }
     }
 
     /**
@@ -311,5 +379,22 @@ class MainActivity : AppCompatActivity() {
         if (!granted) {
             requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+}
+
+@Composable
+private fun ServerPushPopupHost(coordinator: ServerPushPopupCoordinator) {
+    val popup by coordinator.pending.collectAsStateWithLifecycle()
+    popup?.let { req ->
+        AlertDialog(
+            onDismissRequest = { coordinator.acknowledge() },
+            title = { Text(req.title) },
+            text = { Text(req.body) },
+            confirmButton = {
+                TextButton(onClick = { coordinator.acknowledge() }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+        )
     }
 }

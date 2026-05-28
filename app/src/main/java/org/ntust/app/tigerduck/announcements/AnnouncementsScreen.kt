@@ -694,9 +694,10 @@ private fun TagStrip(tags: List<String>, taxonomy: TaxonomyResponse?) {
     ) {
         val visible = tags.take(3)
         val overflow = tags.size - visible.size
+        val ctx = androidx.compose.ui.platform.LocalContext.current
         visible.forEach { id ->
             Text(
-                text = "#${taxonomy?.tagLabel(id) ?: id}",
+                text = "#${taxonomy.localizedTagLabel(id, ctx)}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(start = 6.dp),

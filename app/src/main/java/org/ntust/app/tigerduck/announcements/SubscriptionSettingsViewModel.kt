@@ -9,15 +9,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.notification.SystemPermissions
-import org.ntust.app.tigerduck.push.PushDiagnostic
 import org.ntust.app.tigerduck.push.PushIdentity
-import org.ntust.app.tigerduck.push.PushRegistrationService
 import javax.inject.Inject
 
 /**
@@ -38,7 +34,6 @@ import javax.inject.Inject
 class SubscriptionSettingsViewModel @Inject constructor(
     private val api: BulletinApiClient,
     private val identity: PushIdentity,
-    private val pushRegistration: PushRegistrationService,
     private val repository: BulletinRepository,
     val systemPermissions: SystemPermissions,
 ) : ViewModel() {
@@ -61,18 +56,12 @@ class SubscriptionSettingsViewModel @Inject constructor(
         val taxonomy: TaxonomyResponse? = null,
         val loadState: LoadState = LoadState.Loading,
         val saveState: SaveState = SaveState.Idle,
-        val diagnostic: PushDiagnostic = PushDiagnostic(false, false, null, null),
     )
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
     init {
-        // Wire the diagnostic observer first so it's robust against future
-        // refactors that might move load() / fetchTaxonomy() above it.
-        pushRegistration.diagnostic
-            .onEach { d -> _state.update { it.copy(diagnostic = d) } }
-            .launchIn(viewModelScope)
         viewModelScope.launch { fetchTaxonomy() }
         load()
     }

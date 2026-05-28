@@ -79,6 +79,19 @@ internal fun TaxonomyResponse.orgLabel(id: String): String =
 internal fun TaxonomyResponse.tagLabel(id: String): String =
     tags.firstOrNull { it.id == id }?.label ?: id
 
+/// Same as [tagLabel] but overrides the special `server_notification` tag
+/// with the locale-aware string instead of whatever the server shipped
+/// (every other tag is zh-only per the backend taxonomy contract).
+internal fun TaxonomyResponse?.localizedTagLabel(
+    id: String,
+    context: android.content.Context,
+): String {
+    if (id == "server_notification") {
+        return context.getString(org.ntust.app.tigerduck.R.string.tag_server_notification)
+    }
+    return this?.tagLabel(id) ?: id
+}
+
 data class SubscriptionRule(
     val id: Int? = null,
     val name: String? = null,

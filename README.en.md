@@ -56,9 +56,17 @@ even more OAO!
 - Aggregates the school's ICS calendar with Moodle deadlines
 - Month view, date navigation, pull-to-refresh
 
+### 📢 **Bulletins**
+
+- Every department / center announcement aggregated into one feed
+- Backend LLM auto-classifies and de-duplicates; subscribe to categories and filter to unread
+- Operators can push one-off alerts to all devices (toggle in Settings)
+
 ### 🏛️ **Library** (Experimental)
 
 - Instant library entry QR code with zero delay
+- **Flip-to-open**: leave the phone face-down and it jumps straight to the entry QR
+- Login / QR and other sensitive screens auto-enable `FLAG_SECURE` to block screenshots and screen recording
 
 ### 🌏 **Multilingual**
 
@@ -69,6 +77,12 @@ even more OAO!
 
 - Add what you want, remove what you don't
 - Editable tabs, freely add/remove home sections, accent color theming
+- Per-scenario haptics — toggle each one independently (including the flip-to-QR gesture)
+
+### 🔄 **Auto-Update** (Play only)
+
+- Play In-App Update FLEXIBLE flow built in — proactively prompts when a new version ships
+- Post-upgrade "What's new" dialog highlights what changed at a glance
 
 ### ⌚ **Wear OS** (Play only)
 
@@ -103,6 +117,7 @@ even more OAO!
 ### 📚 Library Services
 
 - [x] **Library Entry QR Code** — Quick access to the library entry QR code
+- [x] **Flip-to-open QR** — Place the phone face-down to jump straight to the entry QR
 - [ ] **Study Room Booking** — Reserve and check availability of library study rooms
 - [ ] **NTUST Library Events** — Event registration and lookup (campus network required)
 
@@ -111,6 +126,8 @@ even more OAO!
 - [X] **Department & Office Announcements** — Aggregated announcements
 - [X] **LLM-classified bulletins + subscriptions** — Server-side classification & de-duplication,
   subscribable categories, unread filter
+- [X] **Server-push alerts** — One-off notifications sent manually by operators; toggleable in
+  Settings
 - [ ] **Scholarships** — Filterable by eligibility (low-income, indigenous, etc.)
 - [ ] **Daily Club Activities** — Curated daily club event listings
 - [ ] **Empty Classroom Finder** — Quickly find currently available classrooms
@@ -125,6 +142,16 @@ even more OAO!
 - [x] **Multilingual (50+ locales, shared with iOS)** — Follows system language or per-app override
 - [x] **Course / Classroom name abbreviations** — One-tap toggle, fully reversible
 - [X] **RTL layout fixes** — Arabic / Hebrew and other right-to-left scripts
+
+### 🔔 Notifications & Privacy
+
+- [x] **TigerDuck-branded notification icons + per-scenario haptics**
+- [x] **Bulletin notification channels** (sound / silent) — adjustable independently
+- [x] **In-App Update + What's new dialog** — Play build prompts on new releases
+- [x] **`FLAG_SECURE` on sensitive screens** — Login and library QR block screenshots /
+  screen recording
+- [x] **Account deletion entry** — Request deletion of the server-side push identity from
+  Settings
 
 ### ⌚ Wear OS (Play only)
 
@@ -249,18 +276,22 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.3 / Co
 ├── app/                                # Phone app (fdroid / play flavors)
 │   ├── build.gradle.kts
 │   └── src/main/java/org/ntust/app/tigerduck/
+│       ├── announcements/              # Bulletin feed, LLM categories, subscription rules
 │       ├── auth/                       # NTUST SSO authentication, login state
 │       ├── data/
 │       │   ├── cache/                  # File cache
 │       │   ├── local/                  # Room data layer
 │       │   ├── model/                  # Domain / DTO models
 │       │   └── preferences/            # App preferences and credential vault (EncryptedSharedPreferences)
-│       ├── debug/                      # Developer tools incl. debug clock override (debug builds only)
+│       ├── debug/                      # Developer tools incl. debug clock + API endpoint override
 │       ├── di/                         # Hilt modules
 │       ├── liveactivity/               # Live activity / ongoing notification
 │       ├── network/                    # Class table / Moodle / bulletins / library APIs
 │       │   └── model/
-│       ├── notification/               # Assignment due notification scheduling
+│       ├── notification/               # Assignment due notification scheduling + channels
+│       ├── push/                       # FCM registration + server-push API client
+│       ├── sensor/                     # Flip-to-library detector
+│       ├── serverpush/                 # Server-push popup coordinator + intent token
 │       ├── ui/
 │       │   ├── component/              # Shared composables
 │       │   ├── navigation/             # NavHost / tab navigation
@@ -271,10 +302,12 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.3 / Co
 │       │   │   ├── library/            # Library
 │       │   │   ├── score/              # Historical GPA & rankings
 │       │   │   ├── more/               # "More" hub
-│       │   │   ├── settings/           # Settings (language, tabs, notifications, live activity, source)
+│       │   │   ├── settings/           # Settings (language, tabs, notifications, haptics, server push, live activity, source)
+│       │   │   ├── whatsnew/           # "What's new" dialog
 │       │   │   └── onboarding/         # First-run onboarding + privacy gate
 │       │   ├── theme/                  # Tokens, palette, visual presets
 │       │   └── AppState.kt
+│       ├── update/                     # In-App Update gate + What's new repository
 │       ├── widget/                     # Home screen widgets
 │       ├── MainActivity.kt
 │       └── TigerDuckApp.kt

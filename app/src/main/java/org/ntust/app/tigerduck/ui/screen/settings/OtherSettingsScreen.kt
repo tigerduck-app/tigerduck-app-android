@@ -192,6 +192,14 @@ fun OtherSettingsScreen(
                             )
                         }
                         HorizontalDivider()
+                        SettingsLinkRow(stringResource(R.string.settings_delete_account)) {
+                            openUrl(
+                                context,
+                                "https://tigerduck.app/delete-account",
+                                browserPreference,
+                            )
+                        }
+                        HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_open_source_licenses)) {
                             openUrl(
                                 context,

@@ -134,6 +134,30 @@ class TigerDuckApp : Application(), Configuration.Provider {
                 description = ctx.getString(R.string.notification_bulletin_channel_description)
             }
         )
+        // High-importance: heads-up banner + default sound. Used when the
+        // operator picks `force_ring=true` on a custom push.
+        notificationManager.createNotificationChannel(
+            NotificationChannel(
+                NotificationChannels.BULLETINS_SOUND,
+                ctx.getString(R.string.notification_bulletin_sound_channel_name),
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = ctx.getString(R.string.notification_bulletin_sound_channel_description)
+            }
+        )
+        // Default-importance silent: banner shows but no sound or vibration.
+        // Used when the operator picks `force_ring=false`.
+        notificationManager.createNotificationChannel(
+            NotificationChannel(
+                NotificationChannels.BULLETINS_SILENT,
+                ctx.getString(R.string.notification_bulletin_silent_channel_name),
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply {
+                description = ctx.getString(R.string.notification_bulletin_silent_channel_description)
+                setSound(null, null)
+                enableVibration(false)
+            }
+        )
     }
 
     @android.annotation.SuppressLint("AppBundleLocaleChanges")
