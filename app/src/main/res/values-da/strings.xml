@@ -55,7 +55,7 @@
     <string name="assignment_mark_complete_undo">Fortryd markering som fuldført</string>
     <string name="assignment_reminder_offset_10m">10 minutter før</string>
     <string name="assignment_reminder_offset_15m">15 minutter før</string>
-    <string name="assignment_reminder_offset_16h">16 hours before</string>
+    <string name="assignment_reminder_offset_16h">16 timer før</string>
     <string name="assignment_reminder_offset_1h">1 time før</string>
     <string name="assignment_reminder_offset_24h">24 timer før</string>
     <string name="assignment_reminder_offset_2h">2 timer før</string>

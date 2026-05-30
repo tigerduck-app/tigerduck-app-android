@@ -55,7 +55,7 @@
     <string name="assignment_mark_complete_undo">I-undo ang pagmamarka bilang tapos</string>
     <string name="assignment_reminder_offset_10m">10 minuto bago</string>
     <string name="assignment_reminder_offset_15m">15 minuto bago</string>
-    <string name="assignment_reminder_offset_16h">16 hours before</string>
+    <string name="assignment_reminder_offset_16h">16 oras bago</string>
     <string name="assignment_reminder_offset_1h">1 oras bago</string>
     <string name="assignment_reminder_offset_24h">24 oras bago</string>
     <string name="assignment_reminder_offset_2h">2 oras bago</string>

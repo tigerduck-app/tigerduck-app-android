@@ -55,7 +55,7 @@
     <string name="assignment_mark_complete_undo">Deshacer marcar como completa</string>
     <string name="assignment_reminder_offset_10m">10 minutos antes</string>
     <string name="assignment_reminder_offset_15m">15 minutos antes</string>
-    <string name="assignment_reminder_offset_16h">16 hours before</string>
+    <string name="assignment_reminder_offset_16h">16 horas antes</string>
     <string name="assignment_reminder_offset_1h">1 hora antes</string>
     <string name="assignment_reminder_offset_24h">24 horas antes</string>
     <string name="assignment_reminder_offset_2h">2 horas antes</string>

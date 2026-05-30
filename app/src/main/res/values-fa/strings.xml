@@ -55,7 +55,7 @@
     <string name="assignment_mark_complete_undo">لغو علامت‌گذاری انجام‌شده</string>
     <string name="assignment_reminder_offset_10m">10 دقیقه قبل</string>
     <string name="assignment_reminder_offset_15m">15 دقیقه قبل</string>
-    <string name="assignment_reminder_offset_16h">16 hours before</string>
+    <string name="assignment_reminder_offset_16h">16 ساعت قبل</string>
     <string name="assignment_reminder_offset_1h">1 ساعت قبل</string>
     <string name="assignment_reminder_offset_24h">24 ساعت قبل</string>
     <string name="assignment_reminder_offset_2h">2 ساعت قبل</string>

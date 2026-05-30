@@ -55,7 +55,7 @@
     <string name="assignment_mark_complete_undo">Отмяна на маркиране като завършено</string>
     <string name="assignment_reminder_offset_10m">10 минути преди</string>
     <string name="assignment_reminder_offset_15m">15 минути преди това</string>
-    <string name="assignment_reminder_offset_16h">16 hours before</string>
+    <string name="assignment_reminder_offset_16h">16 часа преди</string>
     <string name="assignment_reminder_offset_1h">1 час преди</string>
     <string name="assignment_reminder_offset_24h">24 часа преди</string>
     <string name="assignment_reminder_offset_2h">2 часа преди</string>

@@ -55,7 +55,7 @@
     <string name="assignment_mark_complete_undo">Markierung „Erledigt“ rückgängig machen</string>
     <string name="assignment_reminder_offset_10m">10 Minuten vorher</string>
     <string name="assignment_reminder_offset_15m">15 Minuten vorher</string>
-    <string name="assignment_reminder_offset_16h">16 hours before</string>
+    <string name="assignment_reminder_offset_16h">16 Stunden vorher</string>
     <string name="assignment_reminder_offset_1h">1 Stunde vorher</string>
     <string name="assignment_reminder_offset_24h">24 Stunden vorher</string>
     <string name="assignment_reminder_offset_2h">2 Stunden vorher</string>

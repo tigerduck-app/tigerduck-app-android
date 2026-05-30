@@ -55,7 +55,7 @@
     <string name="assignment_mark_complete_undo">Αναίρεση επισήμανσης ως ολοκληρωμένο</string>
     <string name="assignment_reminder_offset_10m">10 λεπτά πριν</string>
     <string name="assignment_reminder_offset_15m">15 λεπτά πριν</string>
-    <string name="assignment_reminder_offset_16h">16 hours before</string>
+    <string name="assignment_reminder_offset_16h">16 ώρες πριν</string>
     <string name="assignment_reminder_offset_1h">1 ώρα πριν</string>
     <string name="assignment_reminder_offset_24h">24 ώρες πριν</string>
     <string name="assignment_reminder_offset_2h">2 ώρες πριν</string>

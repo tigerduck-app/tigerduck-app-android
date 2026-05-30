@@ -55,7 +55,7 @@
     <string name="assignment_mark_complete_undo">تراجع عن التحديد كمكتمل</string>
     <string name="assignment_reminder_offset_10m">قبل 10 دقائق</string>
     <string name="assignment_reminder_offset_15m">قبل 15 دقيقة</string>
-    <string name="assignment_reminder_offset_16h">16 hours before</string>
+    <string name="assignment_reminder_offset_16h">قبل 16 ساعة</string>
     <string name="assignment_reminder_offset_1h">قبل ساعة واحدة</string>
     <string name="assignment_reminder_offset_24h">قبل 24 ساعة</string>
     <string name="assignment_reminder_offset_2h">قبل ساعتين</string>

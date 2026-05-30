@@ -55,7 +55,7 @@
     <string name="assignment_mark_complete_undo">সম্পন্ন চিহ্ন বাতিল করুন</string>
     <string name="assignment_reminder_offset_10m">10 মিনিট আগে</string>
     <string name="assignment_reminder_offset_15m">15 মিনিট আগে</string>
-    <string name="assignment_reminder_offset_16h">16 hours before</string>
+    <string name="assignment_reminder_offset_16h">16 ঘন্টা আগে</string>
     <string name="assignment_reminder_offset_1h">১ ঘণ্টা আগে</string>
     <string name="assignment_reminder_offset_24h">24 ঘন্টা আগে</string>
     <string name="assignment_reminder_offset_2h">2 ঘন্টা আগে</string>

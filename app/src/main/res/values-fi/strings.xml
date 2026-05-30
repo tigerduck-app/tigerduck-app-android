@@ -55,7 +55,7 @@
     <string name="assignment_mark_complete_undo">Kumoa tehty-merkintä</string>
     <string name="assignment_reminder_offset_10m">10 minuuttia ennen</string>
     <string name="assignment_reminder_offset_15m">15 minuuttia ennen</string>
-    <string name="assignment_reminder_offset_16h">16 hours before</string>
+    <string name="assignment_reminder_offset_16h">16 tuntia ennen</string>
     <string name="assignment_reminder_offset_1h">1 tunti ennen</string>
     <string name="assignment_reminder_offset_24h">24 tuntia ennen</string>
     <string name="assignment_reminder_offset_2h">2 tuntia ennen</string>
