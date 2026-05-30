@@ -14,10 +14,16 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import org.ntust.app.tigerduck.sensor.FlipDetector
 import org.ntust.app.tigerduck.ui.AppState
+import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptController
+import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptKey
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 
@@ -51,6 +57,13 @@ fun FlipToLibraryEffect(
     val supported = remember(context) { FlipDetector.isSupported(context) }
     if (!supported) return
 
+    val firstTriggerController = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            FlipToLibraryEntryPoint::class.java,
+        ).firstTriggerPromptController()
+    }
+
     // Reading the Compose-state-backed properties here makes the enclosing
     // composition observe changes, so the DisposableEffect below restarts
     // when the user toggles either setting.
@@ -71,6 +84,16 @@ fun FlipToLibraryEffect(
             // Fire-time guards. All checks are synchronous and main-thread —
             // sensor callbacks deliver on the main thread by default.
             if (!appState.libraryFeatureEnabled) return@FlipDetector
+            // First-trigger UX: the first successful flip surfaces a root-level
+            // keep/turn-off prompt instead of jumping tabs, so the user isn't
+            // dropped into an unfamiliar screen before agreeing to the gesture.
+            // Independent of the library session — the prompt is about the
+            // gesture, and the root dialog needs no back stack, so this runs
+            // before the login / cold-start guards below.
+            if (!firstTriggerController.hasSeen(FirstTriggerPromptKey.FLIP_TO_LIBRARY)) {
+                FlipToLibraryFirstTrigger.request(firstTriggerController, appState)
+                return@FlipDetector
+            }
             if (!appState.isLibraryLoggedIn) return@FlipDetector
             if (navController.currentBackStackEntry == null) {
                 pendingFlip = true
@@ -123,4 +146,30 @@ private fun navigateToLibrary(navController: NavController, context: Context) {
         launchSingleTop = true
     }
     Haptics.perform(context, HapticScenario.FlipToLibrary)
+}
+
+/**
+ * Shared builder for the flip-to-library first-trigger prompt. Extracted so the
+ * debug Triggers screen can replay the exact prompt a real face-down gesture
+ * surfaces. No-ops once the prompt has been seen — call
+ * [FirstTriggerPromptController.reset] first to re-test it.
+ *
+ * Keep leaves the toggle on and does not navigate on this first flip (the user
+ * has only just learned the gesture). Turn off disables the feature, which the
+ * `DisposableEffect` in [FlipToLibraryEffect] observes to tear down the sensor.
+ */
+object FlipToLibraryFirstTrigger {
+    fun request(controller: FirstTriggerPromptController, appState: AppState) {
+        controller.requestIfFirstTime(
+            key = FirstTriggerPromptKey.FLIP_TO_LIBRARY,
+            onAccept = { /* keep enabled; no navigation on the first flip */ },
+            onDecline = { appState.flipToLibraryEnabled = false },
+        )
+    }
+}
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+private interface FlipToLibraryEntryPoint {
+    fun firstTriggerPromptController(): FirstTriggerPromptController
 }

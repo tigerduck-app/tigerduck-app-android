@@ -18,7 +18,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
+class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
+    FirstTriggerSeenStore {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences("tigerduck_prefs", Context.MODE_PRIVATE)
@@ -68,6 +69,14 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     var lastUpdatePromptEpoch: Long
         get() = prefs.getLong("lastUpdatePromptEpoch", 0L)
         set(value) = prefs.edit().putLong("lastUpdatePromptEpoch", value).apply()
+
+    // -1 sentinel = no version skipped. Tapping "Skip this version" on the
+    // update prompt writes the offered versionCode here; any future check that
+    // resolves to the same versionCode is suppressed indefinitely. A newer
+    // versionCode re-arms the prompt because the equality check fails.
+    var skippedUpdateVersionCode: Int
+        get() = prefs.getInt("skippedUpdateVersionCode", -1)
+        set(value) = prefs.edit().putInt("skippedUpdateVersionCode", value).apply()
 
     // --- "What's new" dialog ---
     // WHATS_NEW_UNSET (-1) means no versionCode has been recorded yet — either
@@ -225,9 +234,28 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean("libraryFeatureEnabled", false)
         set(value) = prefs.edit().putBoolean("libraryFeatureEnabled", value).apply()
 
+    // Defaults ON (matching iOS): the user discovers the gesture on their first
+    // accidental flip, where the first-trigger prompt explains it and offers to
+    // turn it off. The sensor still only runs while the parent Library feature
+    // is enabled, so a user with Library off pays no battery cost.
     var flipToLibraryEnabled: Boolean
-        get() = prefs.getBoolean("flipToLibraryEnabled", false)
+        get() = prefs.getBoolean("flipToLibraryEnabled", true)
         set(value) = prefs.edit().putBoolean("flipToLibraryEnabled", value).apply()
+
+    // --- First-trigger prompts ---
+    // One-shot "you just did X for the first time — keep it?" prompts, keyed by
+    // a stable storage slug (see FirstTriggerPromptKey). The flag is written
+    // only when the user makes a Keep / Turn-off choice, never on mere display,
+    // so a prompt dismissed by any other path re-arms on the next trigger.
+    override fun hasSeenFirstTriggerPrompt(storageKey: String): Boolean =
+        prefs.getBoolean("firstTriggerPromptSeen.$storageKey", false)
+
+    override fun setFirstTriggerPromptSeen(storageKey: String, seen: Boolean) {
+        prefs.edit().apply {
+            if (seen) putBoolean("firstTriggerPromptSeen.$storageKey", true)
+            else remove("firstTriggerPromptSeen.$storageKey")
+        }.apply()
+    }
 
     var notifyAssignments: Boolean
         get() = prefs.getBoolean("notifyAssignments", true)

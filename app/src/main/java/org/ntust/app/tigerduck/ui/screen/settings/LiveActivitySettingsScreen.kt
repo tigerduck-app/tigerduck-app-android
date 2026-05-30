@@ -28,7 +28,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,6 +82,7 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.notification.AppPermission
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.ui.component.ContentCard
+import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.tigerDuckSwitchColors
@@ -439,21 +439,17 @@ fun LiveActivitySettingsScreen(
     }
 
     if (showResetConfirm) {
-        AlertDialog(
+        TigerDuckDialog(
             onDismissRequest = { showResetConfirm = false },
-            title = { Text(stringResource(R.string.live_activity_settings_reset_confirm_title)) },
-            text = { Text(stringResource(R.string.live_activity_settings_reset_confirm_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.resetDefaults()
-                    showResetConfirm = false
-                }) { Text(stringResource(R.string.live_activity_settings_reset)) }
+            title = stringResource(R.string.live_activity_settings_reset_confirm_title),
+            message = stringResource(R.string.live_activity_settings_reset_confirm_message),
+            confirmText = stringResource(R.string.live_activity_settings_reset),
+            onConfirm = {
+                viewModel.resetDefaults()
+                showResetConfirm = false
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    showResetConfirm = false
-                }) { Text(stringResource(R.string.action_cancel)) }
-            },
+            dismissText = stringResource(R.string.action_cancel),
+            onDismiss = { showResetConfirm = false },
         )
     }
 

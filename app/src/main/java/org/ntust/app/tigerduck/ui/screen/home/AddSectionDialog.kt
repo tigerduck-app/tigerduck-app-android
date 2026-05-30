@@ -9,20 +9,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DashboardCustomize
 import androidx.compose.material.icons.filled.HourglassBottom
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.HomeSection
+import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 
 /**
  * Lets the user add a new home section. Mirrors the iOS AddSectionSheet:
@@ -61,12 +58,14 @@ fun AddSectionDialog(
         ).filter { it !in existingTypes }
     }
 
-    AlertDialog(
+    TigerDuckDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.home_add_section_title)) },
-        text = {
+        title = stringResource(R.string.home_add_section_title),
+        confirmText = stringResource(R.string.action_cancel),
+        onConfirm = onDismiss,
+        content = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 if (availableBuiltin.isNotEmpty()) {
@@ -115,9 +114,6 @@ fun AddSectionDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }

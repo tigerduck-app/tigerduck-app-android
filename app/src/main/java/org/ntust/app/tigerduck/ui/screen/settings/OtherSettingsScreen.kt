@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -23,7 +22,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,6 +37,7 @@ import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.ContentCard
+import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -218,21 +217,17 @@ fun OtherSettingsScreen(
     }
 
     if (showResetColorsConfirm) {
-        AlertDialog(
+        TigerDuckDialog(
             onDismissRequest = { showResetColorsConfirm = false },
-            title = { Text(stringResource(R.string.settings_reset_course_colors_confirm_title)) },
-            text = { Text(stringResource(R.string.settings_reset_course_colors_confirm_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.resetCourseColors()
-                    showResetColorsConfirm = false
-                }) { Text(stringResource(R.string.action_confirm)) }
+            title = stringResource(R.string.settings_reset_course_colors_confirm_title),
+            message = stringResource(R.string.settings_reset_course_colors_confirm_message),
+            confirmText = stringResource(R.string.action_confirm),
+            onConfirm = {
+                viewModel.resetCourseColors()
+                showResetColorsConfirm = false
             },
-            dismissButton = {
-                TextButton(onClick = { showResetColorsConfirm = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
+            dismissText = stringResource(R.string.action_cancel),
+            onDismiss = { showResetColorsConfirm = false },
         )
     }
 }

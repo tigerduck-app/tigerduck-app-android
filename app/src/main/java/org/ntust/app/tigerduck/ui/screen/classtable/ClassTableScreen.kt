@@ -36,7 +36,6 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -86,6 +85,7 @@ import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.ColorPickerSheet
 import org.ntust.app.tigerduck.ui.component.ConflictCoursePickerSheet
+import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.component.ConflictLOrientation
 import org.ntust.app.tigerduck.ui.component.ConflictLShape
 import org.ntust.app.tigerduck.ui.component.CourseCard
@@ -378,11 +378,18 @@ fun ClassTableScreen(
         // Revert is meaningful when a stored override exists OR the user has
         // typed away from the default; either way it restores the default.
         val canRevert = hasOverride || (trimmed.isNotEmpty() && trimmed != defaultName)
-        AlertDialog(
+        TigerDuckDialog(
             onDismissRequest = { courseToRename = null },
-            title = { Text(stringResource(R.string.class_table_rename_title)) },
-            text = {
-                Column {
+            title = stringResource(R.string.class_table_rename_title),
+            confirmText = stringResource(R.string.action_confirm),
+            onConfirm = {
+                viewModel.setCustomCourseName(course.courseNo, renameText)
+                courseToRename = null
+            },
+            dismissText = stringResource(R.string.action_cancel),
+            onDismiss = { courseToRename = null },
+            content = {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
                         value = renameText,
                         onValueChange = { renameText = it },
@@ -427,17 +434,6 @@ fun ClassTableScreen(
                             )
                         }
                     }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.setCustomCourseName(course.courseNo, renameText)
-                    courseToRename = null
-                }) { Text(stringResource(R.string.action_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { courseToRename = null }) {
-                    Text(stringResource(R.string.action_cancel))
                 }
             },
         )
@@ -495,26 +491,19 @@ fun ClassTableScreen(
 
     tripleConflictError?.let { err ->
         val dayLabel = weekdayShortLabels.getOrElse(err.weekday) { err.weekday.toString() }
-        AlertDialog(
+        TigerDuckDialog(
             onDismissRequest = { tripleConflictError = null },
-            title = { Text(stringResource(R.string.class_table_conflict_add_failed_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.class_table_conflict_add_failed_message,
-                        err.newCourseName,
-                        dayLabel,
-                        err.periodId,
-                        err.existingA.displayName,
-                        err.existingB.displayName,
-                    ),
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { tripleConflictError = null }) {
-                    Text(stringResource(R.string.action_confirm))
-                }
-            },
+            title = stringResource(R.string.class_table_conflict_add_failed_title),
+            message = stringResource(
+                R.string.class_table_conflict_add_failed_message,
+                err.newCourseName,
+                dayLabel,
+                err.periodId,
+                err.existingA.displayName,
+                err.existingB.displayName,
+            ),
+            confirmText = stringResource(R.string.action_confirm),
+            onConfirm = { tripleConflictError = null },
         )
     }
 

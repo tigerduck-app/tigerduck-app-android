@@ -33,7 +33,6 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,7 +43,6 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -73,7 +71,6 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
@@ -84,6 +81,7 @@ import org.ntust.app.tigerduck.data.model.GradeStatus
 import org.ntust.app.tigerduck.data.model.SemesterRanking
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -863,14 +861,16 @@ private fun creditTypeLabel(type: CreditType): String? = when (type) {
 
 @Composable
 private fun CourseDetailDialog(course: CourseGrade, onDismiss: () -> Unit) {
-    AlertDialog(
+    TigerDuckDialog(
         onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
-        },
-        title = { Text(course.name) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        title = course.name,
+        confirmText = stringResource(R.string.action_close),
+        onConfirm = onDismiss,
+        content = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 InfoLine(stringResource(R.string.score_info_course_code), course.code)
                 InfoLine(stringResource(R.string.score_info_term), displayTerm(course.term))
                 InfoLine(stringResource(R.string.score_info_credits), "${course.credits ?: 0}")
@@ -899,7 +899,6 @@ private fun CourseDetailDialog(course: CourseGrade, onDismiss: () -> Unit) {
                 )
             }
         },
-        properties = DialogProperties()
     )
 }
 

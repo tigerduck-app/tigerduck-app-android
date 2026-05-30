@@ -12,14 +12,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -59,6 +57,7 @@ import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
+import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarScreen
@@ -107,6 +106,7 @@ sealed class Screen(val route: String) {
     object Debug : Screen("debug")
     object NotificationDebug : Screen("notificationDebug")
     object ApiEndpointDebug : Screen("apiEndpointDebug")
+    object TriggersDebug : Screen("triggersDebug")
 }
 
 @Composable
@@ -130,21 +130,13 @@ fun AppNavigation(
     if (needsReset) {
         // Non-dismissable: the app is in an unrecoverable data state, so the
         // only way forward is to reset and walk through onboarding again.
-        AlertDialog(
+        TigerDuckDialog(
             onDismissRequest = {},
-            title = { Text(stringResource(R.string.app_reset_required_title)) },
-            text = {
-                Text(stringResource(R.string.app_reset_required_message))
-            },
-            confirmButton = {
-                TextButton(onClick = { appState.performFullReset() }) {
-                    Text(stringResource(R.string.app_reset_required_action))
-                }
-            },
-            properties = DialogProperties(
-                dismissOnBackPress = false,
-                dismissOnClickOutside = false,
-            ),
+            dismissable = false,
+            title = stringResource(R.string.app_reset_required_title),
+            message = stringResource(R.string.app_reset_required_message),
+            confirmText = stringResource(R.string.app_reset_required_action),
+            onConfirm = { appState.performFullReset() },
         )
     }
 }
@@ -403,6 +395,9 @@ fun MainNavigation(
                     onNavigateToApiEndpointDebug = {
                         if (BuildConfig.DEBUG) navController.navigate(Screen.ApiEndpointDebug.route)
                     },
+                    onNavigateToTriggersDebug = {
+                        if (BuildConfig.DEBUG) navController.navigate(Screen.TriggersDebug.route)
+                    },
                 )
             }
             if (BuildConfig.DEBUG) {
@@ -418,6 +413,12 @@ fun MainNavigation(
                 }
                 composable(Screen.ApiEndpointDebug.route) {
                     org.ntust.app.tigerduck.ui.screen.debug.ApiEndpointDebugScreen(
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(Screen.TriggersDebug.route) {
+                    org.ntust.app.tigerduck.ui.screen.debug.TriggersDebugScreen(
+                        appState = appState,
                         onBack = { navController.popBackStack() },
                     )
                 }
