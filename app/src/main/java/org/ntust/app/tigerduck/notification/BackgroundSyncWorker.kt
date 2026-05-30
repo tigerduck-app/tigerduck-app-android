@@ -192,6 +192,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 notificationScheduler.scheduleAll(
                     merged.filter { !it.isCompleted },
                     ignored + marked,
+                    prefs.notifyAssignmentOffsets,
                 )
             }
             true

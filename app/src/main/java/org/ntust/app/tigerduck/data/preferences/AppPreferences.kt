@@ -13,6 +13,7 @@ import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.data.preferences.AppPreferences.Companion.themeColorsDark
+import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -270,6 +271,26 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     var notifyAssignments: Boolean
         get() = prefs.getBoolean("notifyAssignments", true)
         set(value) = prefs.edit().putBoolean("notifyAssignments", value).apply()
+
+    /**
+     * Per-offset opt-in for assignment due reminders. Persisted as raw-value
+     * strings so a freshly-added [AssignmentReminderOffset] entry deserialises
+     * cleanly (unknown rawValues are simply dropped on read).
+     *
+     * Absent key (fresh install or upgrade from <= v1.4.x where only a single
+     * 1h-before reminder existed) → seed with [AssignmentReminderOffset.DEFAULTS].
+     */
+    var notifyAssignmentOffsets: Set<AssignmentReminderOffset>
+        get() {
+            val stored = prefs.getStringSet("notifyAssignmentOffsets", null)
+                ?: return AssignmentReminderOffset.DEFAULTS
+            return stored.mapNotNullTo(mutableSetOf()) { AssignmentReminderOffset.fromRawValue(it) }
+        }
+        set(value) {
+            prefs.edit()
+                .putStringSet("notifyAssignmentOffsets", value.map { it.rawValue }.toSet())
+                .apply()
+        }
 
     var homeSections: List<HomeSection>
         get() {

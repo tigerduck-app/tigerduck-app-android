@@ -514,6 +514,7 @@ class HomeViewModel @Inject constructor(
         notificationScheduler.scheduleAll(
             assignments.filter { !it.isCompleted },
             safetyNetIds,
+            prefs.notifyAssignmentOffsets,
         )
     }
 

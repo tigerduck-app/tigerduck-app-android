@@ -109,6 +109,7 @@ fun SettingsScreen(
     onNavigateToTabEditor: () -> Unit = {},
     onNavigateToLanguagePicker: () -> Unit = {},
     onNavigateToLiveActivity: () -> Unit = {},
+    onNavigateToAssignmentReminders: () -> Unit = {},
     onNavigateToServerPush: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
@@ -143,7 +144,6 @@ fun SettingsScreen(
     val useEnglishCourseAbbreviation = viewModel.appState.useEnglishCourseAbbreviation
     val useEnglishClassroomAbbreviation = viewModel.appState.useEnglishClassroomAbbreviation
     val classroomMandarinDisplay = viewModel.appState.classroomMandarinDisplay
-    val notifyAssignments = viewModel.appState.notifyAssignments
     val libraryEnabled = viewModel.appState.libraryFeatureEnabled
     val appLanguage = viewModel.appState.appLanguage
     val shouldShowEnglishAbbreviationToggle = AppLanguageManager.isCourseApiEnglish(appLanguage)
@@ -398,13 +398,9 @@ fun SettingsScreen(
             item {
                 ContentCard {
                     Column {
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_assignment_due_reminder),
-                            notifyAssignments
-                        ) {
-                            viewModel.appState.notifyAssignments = it
-                            if (!it) viewModel.cancelAllAssignmentNotifications()
-                        }
+                        SettingsLinkRow(
+                            stringResource(R.string.settings_assignment_due_reminder)
+                        ) { onNavigateToAssignmentReminders() }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) { onNavigateToLiveActivity() }
                         // Hide on F-Droid flavor since the Server Push pipeline

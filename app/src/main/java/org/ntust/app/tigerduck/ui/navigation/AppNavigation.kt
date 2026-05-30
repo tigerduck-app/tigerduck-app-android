@@ -71,6 +71,7 @@ import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
 import org.ntust.app.tigerduck.ui.screen.score.ScoreScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
+import org.ntust.app.tigerduck.ui.screen.settings.AssignmentReminderSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
@@ -98,6 +99,7 @@ sealed class Screen(val route: String) {
     object TabEditor : Screen("tabEditor")
     object LanguagePicker : Screen("languagePicker")
     object LiveActivitySettings : Screen("liveActivitySettings")
+    object AssignmentReminderSettings : Screen("assignmentReminderSettings")
     object NotificationSetup : Screen("notificationSetup")
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
@@ -378,6 +380,7 @@ fun MainNavigation(
                     onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
+                    onNavigateToAssignmentReminders = { navController.navigate(Screen.AssignmentReminderSettings.route) },
                     onNavigateToServerPush = { navController.navigate(Screen.ServerPush.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
                     // Debug-route navigation is no-op in release builds:
@@ -448,6 +451,9 @@ fun MainNavigation(
             }
             composable(Screen.LiveActivitySettings.route) {
                 LiveActivitySettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.AssignmentReminderSettings.route) {
+                AssignmentReminderSettingsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.ServerPush.route) {
                 ServerPushScreen(onBack = { navController.popBackStack() })

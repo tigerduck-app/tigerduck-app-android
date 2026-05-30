@@ -29,6 +29,7 @@ import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.LoadingState
 import org.ntust.app.tigerduck.network.NtustSessionManager
+import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
@@ -239,6 +240,16 @@ class AppState @Inject constructor(
             prefs.notifyAssignments = value
         }
 
+    private var notifyAssignmentOffsetsState by mutableStateOf(prefs.notifyAssignmentOffsets)
+
+    var notifyAssignmentOffsets: Set<AssignmentReminderOffset>
+        get() = notifyAssignmentOffsetsState
+        set(value) {
+            if (notifyAssignmentOffsetsState == value) return
+            notifyAssignmentOffsetsState = value
+            prefs.notifyAssignmentOffsets = value
+        }
+
     private var libraryFeatureEnabledState by mutableStateOf(prefs.libraryFeatureEnabled)
 
     var libraryFeatureEnabled: Boolean
@@ -372,6 +383,7 @@ class AppState @Inject constructor(
             invertSliderDirectionState = prefs.invertSliderDirection
             rotationModeState = prefs.rotationMode
             notifyAssignmentsState = prefs.notifyAssignments
+            notifyAssignmentOffsetsState = prefs.notifyAssignmentOffsets
             libraryFeatureEnabledState = prefs.libraryFeatureEnabled
             flipToLibraryEnabledState = prefs.flipToLibraryEnabled
             disableScreenCaptureProtectionState = prefs.disableScreenCaptureProtection
