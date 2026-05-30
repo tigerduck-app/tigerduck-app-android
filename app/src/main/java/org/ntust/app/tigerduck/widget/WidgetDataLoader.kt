@@ -11,6 +11,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.computeOngoingCourses
 import org.ntust.app.tigerduck.data.model.Course
 import org.ntust.app.tigerduck.data.parseHm
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.buildCourseColorAssignments
 import java.util.Calendar
@@ -20,6 +21,7 @@ import java.util.Calendar
 interface WidgetEntryPoint {
     fun dataCache(): DataCache
     fun authService(): AuthService
+    fun appPreferences(): AppPreferences
 }
 
 object WidgetDataLoader {
@@ -61,6 +63,7 @@ object WidgetDataLoader {
             tomorrowFirstCourseWeekday = tomorrowFirst?.weekday,
             tomorrowFirstCoursePeriodId = tomorrowFirst?.periodId,
             courseColors = buildCourseColorAssignments(courses),
+            courseNameScale = entry.appPreferences().courseNameScale,
         )
     }
 

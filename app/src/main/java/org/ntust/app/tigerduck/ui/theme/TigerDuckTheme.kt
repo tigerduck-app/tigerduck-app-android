@@ -8,6 +8,7 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -77,6 +78,18 @@ object TigerDuckTheme {
 
     fun setDarkMode(dark: Boolean) {
         if (_isDarkMode.value != dark) _isDarkMode.value = dark
+    }
+
+    // User-tunable course-name scale (0.8…1.6, default 1.0). Mirrored here
+    // from AppState so call sites in unrelated component files (CourseCard)
+    // can read it without threading a parameter through every caller —
+    // same shape as [isDarkMode]. Always normalized by the AppState setter
+    // before reaching this state holder.
+    private val _courseNameScale = mutableFloatStateOf(1.0f)
+    val courseNameScale: Float get() = _courseNameScale.floatValue
+
+    fun setCourseNameScale(scale: Float) {
+        if (_courseNameScale.floatValue != scale) _courseNameScale.floatValue = scale
     }
 
     /**

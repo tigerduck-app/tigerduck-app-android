@@ -1315,7 +1315,7 @@ private fun ClassTableCourseNameText(
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
         modifier = modifier,
-        fontSize = 10.sp,
+        fontSize = 10.sp * TigerDuckTheme.courseNameScale,
         onTextLayout = { layout ->
             if (!useMiddle) {
                 if (displayText != text) displayText = text

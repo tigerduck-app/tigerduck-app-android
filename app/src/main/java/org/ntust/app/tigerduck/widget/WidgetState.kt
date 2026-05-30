@@ -29,6 +29,15 @@ data class WidgetState(
      * hash-based palette color inside [widgetCourseColor].
      */
     val courseColors: Map<String, Color>,
+    /**
+     * User-tunable multiplier (0.8…1.6, default 1.0) applied to course-name
+     * `fontSize` in every widget. Pulled from
+     * [org.ntust.app.tigerduck.data.preferences.AppPreferences.courseNameScale]
+     * at load time so the widget render and the in-app class table stay in
+     * sync — [org.ntust.app.tigerduck.ui.AppState] requests a widget refresh
+     * whenever the slider moves.
+     */
+    val courseNameScale: Float,
 ) {
     companion object {
         /**

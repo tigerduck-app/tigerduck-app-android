@@ -38,6 +38,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +47,7 @@ fun OtherSettingsScreen(
     onNavigateToNotificationSetup: () -> Unit,
     onNavigateToSourceCode: () -> Unit,
     onNavigateToVibration: () -> Unit,
+    onNavigateToCourseNameSize: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -53,6 +55,7 @@ fun OtherSettingsScreen(
     val themeMode = viewModel.appState.themeMode
     val browserPreference = viewModel.appState.browserPreference
     val rotationMode = viewModel.appState.rotationMode
+    val courseNameScale = viewModel.appState.courseNameScale
 
     var showResetColorsConfirm by remember { mutableStateOf(false) }
 
@@ -126,6 +129,27 @@ fun OtherSettingsScreen(
             }
 
             item { Spacer(Modifier.height(24.dp)) }
+
+            item {
+                ContentCard {
+                    SettingsLinkRowWithValue(
+                        label = stringResource(R.string.settings_font_size_title),
+                        value = "%.2f×".format(courseNameScale),
+                        onClick = onNavigateToCourseNameSize,
+                    )
+                }
+            }
+            item {
+                Text(
+                    stringResource(R.string.settings_font_size_summary),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                        .copy(alpha = ContentAlpha.SECONDARY),
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                )
+            }
+
+            item { Spacer(Modifier.height(8.dp)) }
 
             item {
                 ContentCard {

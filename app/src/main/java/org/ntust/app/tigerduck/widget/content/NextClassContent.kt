@@ -99,7 +99,7 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                         text = first.displayName,
                         style = TextStyle(
                             color = ColorProvider(colors.onSurface),
-                            fontSize = 15.sp,
+                            fontSize = 15.sp * state.courseNameScale,
                             fontWeight = FontWeight.Bold
                         ),
                         maxLines = 1,
@@ -118,7 +118,10 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                         },
                         style = TextStyle(
                             color = ColorProvider(if (second != null) colors.onSurface else colors.onSurfaceVariant),
-                            fontSize = if (second != null) 14.sp else 12.sp,
+                            // Only the second-course branch is a course name; the
+                            // fallback string is "until …  room" metadata so it
+                            // stays at the fixed 12.sp regardless of the slider.
+                            fontSize = if (second != null) 14.sp * state.courseNameScale else 12.sp,
                             fontWeight = if (second != null) FontWeight.Bold else FontWeight.Normal,
                         ),
                         maxLines = 1,
@@ -147,7 +150,7 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                         text = course.displayName,
                         style = TextStyle(
                             color = ColorProvider(colors.onSurface),
-                            fontSize = 15.sp,
+                            fontSize = 15.sp * state.courseNameScale,
                             fontWeight = FontWeight.Bold
                         ),
                         maxLines = 1,
@@ -186,7 +189,14 @@ private fun CompactLayout(state: WidgetState, colors: WidgetColors, tapAction: A
                             ?: context.getString(R.string.widget_no_more_classes),
                         style = TextStyle(
                             color = ColorProvider(colors.onSurface),
-                            fontSize = 15.sp,
+                            // The fallback "no more classes" string is empty-state
+                            // copy, not a course name — keep it at the baseline
+                            // 15.sp so the slider doesn't blow it up.
+                            fontSize = if (tomorrowCourse != null) {
+                                15.sp * state.courseNameScale
+                            } else {
+                                15.sp
+                            },
                             fontWeight = FontWeight.Bold
                         ),
                         maxLines = 1,
@@ -275,6 +285,7 @@ private fun FullLayout(state: WidgetState, colors: WidgetColors, tapAction: Acti
                         weekday = state.currentWeekday,
                         label = context.getString(R.string.widget_next_class),
                         colors = colors,
+                        courseNameScale = state.courseNameScale,
                     )
                 }
             }
@@ -295,6 +306,7 @@ private fun FullLayout(state: WidgetState, colors: WidgetColors, tapAction: Acti
                         weekday = weekday,
                         label = futureDayLabel(context, state.currentWeekday, weekday),
                         colors = colors,
+                        courseNameScale = state.courseNameScale,
                     )
                 }
             }
@@ -343,7 +355,7 @@ private fun OngoingCard(course: Course, state: WidgetState, colors: WidgetColors
             text = course.displayName,
             style = TextStyle(
                 color = ColorProvider(colors.onSurface),
-                fontSize = 19.sp,
+                fontSize = 19.sp * state.courseNameScale,
                 fontWeight = FontWeight.Bold,
             ),
             maxLines = 2,
@@ -416,7 +428,7 @@ private fun OngoingMiniCard(course: Course, state: WidgetState, colors: WidgetCo
             text = course.displayName,
             style = TextStyle(
                 color = ColorProvider(colors.onSurface),
-                fontSize = 13.sp,
+                fontSize = 13.sp * state.courseNameScale,
                 fontWeight = FontWeight.Bold,
             ),
             maxLines = 1,
@@ -462,6 +474,7 @@ private fun NextCard(
     weekday: Int,
     label: String,
     colors: WidgetColors,
+    courseNameScale: Float,
 ) {
     val order = AppConstants.Periods.chronologicalOrder
     val periods = course.schedule[weekday]?.sortedBy { order.indexOf(it) } ?: emptyList()
@@ -480,7 +493,7 @@ private fun NextCard(
         text = course.displayName,
         style = TextStyle(
             color = ColorProvider(colors.onSurface),
-            fontSize = 19.sp,
+            fontSize = 19.sp * courseNameScale,
             fontWeight = FontWeight.Bold,
         ),
         maxLines = 2,

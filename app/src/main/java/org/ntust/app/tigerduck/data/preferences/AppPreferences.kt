@@ -231,6 +231,23 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getBoolean("invertSliderDirection", false)
         set(value) = prefs.edit().putBoolean("invertSliderDirection", value).apply()
 
+    /**
+     * Multiplier (0.8…1.6, step 0.05) applied to the course-name text in
+     * class-table cards. Always normalized on read so a manually-edited
+     * pref or a value persisted by a future range tweak can't escape the
+     * current bounds.
+     */
+    var courseNameScale: Float
+        get() {
+            if (!prefs.contains("courseNameScale")) return CourseNameScale.DEFAULT
+            return CourseNameScale.normalize(
+                prefs.getFloat("courseNameScale", CourseNameScale.DEFAULT)
+            )
+        }
+        set(value) = prefs.edit()
+            .putFloat("courseNameScale", CourseNameScale.normalize(value))
+            .apply()
+
     /** One of "auto", "enabled", "disabled". */
     var rotationMode: String
         get() = prefs.getString("rotationMode", null)

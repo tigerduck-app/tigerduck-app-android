@@ -932,7 +932,7 @@ internal fun SettingsLinkRow(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun SettingsLinkRowWithValue(label: String, value: String, onClick: () -> Unit) {
+internal fun SettingsLinkRowWithValue(label: String, value: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()

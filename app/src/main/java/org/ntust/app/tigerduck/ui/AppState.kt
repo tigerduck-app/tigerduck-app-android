@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.ui
 
 import android.content.Context
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +26,7 @@ import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.CourseNameScale
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.LoadingState
@@ -219,6 +221,30 @@ class AppState @Inject constructor(
             prefs.invertSliderDirection = value
         }
 
+    private var courseNameScaleState by mutableFloatStateOf(
+        prefs.courseNameScale.also { TigerDuckTheme.setCourseNameScale(it) }
+    )
+
+    /**
+     * Live-observable course-name scale (0.8…1.6×). Reads recompose every
+     * call site that touches it (e.g. `CourseCard`'s name `Text`), so the
+     * slider in `CourseNameSizeSettingsScreen` updates the class table
+     * mid-drag. Always normalized on write so the persisted value never
+     * drifts off the 0.05× ticks. Also mirrored to [TigerDuckTheme] so
+     * unrelated component files can read it without DI, and pushes a widget
+     * refresh so the launcher tiles re-read the new scale on the next render.
+     */
+    var courseNameScale: Float
+        get() = courseNameScaleState
+        set(value) {
+            val normalized = CourseNameScale.normalize(value)
+            if (courseNameScaleState == normalized) return
+            courseNameScaleState = normalized
+            prefs.courseNameScale = normalized
+            TigerDuckTheme.setCourseNameScale(normalized)
+            widgetUpdater.requestUpdate()
+        }
+
     private var rotationModeState by mutableStateOf(prefs.rotationMode)
 
     /** One of "auto", "enabled", "disabled". */
@@ -381,6 +407,9 @@ class AppState @Inject constructor(
             themeModeState = prefs.themeMode
             appLanguageState = prefs.appLanguage
             invertSliderDirectionState = prefs.invertSliderDirection
+            courseNameScaleState = prefs.courseNameScale.also {
+                TigerDuckTheme.setCourseNameScale(it)
+            }
             rotationModeState = prefs.rotationMode
             notifyAssignmentsState = prefs.notifyAssignments
             notifyAssignmentOffsetsState = prefs.notifyAssignmentOffsets
