@@ -9,8 +9,15 @@ import android.view.WindowManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
+import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.ui.AppState
 
 /**
  * While [secure] is true, applies `WindowManager.LayoutParams.FLAG_SECURE` to
@@ -32,14 +39,38 @@ import androidx.compose.ui.window.DialogWindowProvider
 @Composable
 fun SecureScreen(secure: Boolean = true) {
     val window = rememberHostWindow()
-    DisposableEffect(window, secure) {
-        if (window == null || !secure) {
+    val overridden = secure && rememberScreenCaptureProtectionOverridden()
+    val effective = secure && !overridden
+    DisposableEffect(window, effective) {
+        if (window == null || !effective) {
             onDispose { }
         } else {
             SecureWindowRegistry.acquire(window)
             onDispose { SecureWindowRegistry.release(window) }
         }
     }
+}
+
+/**
+ * Debug-only escape hatch wired in Settings → Developer. Always false in
+ * release builds so a stale-from-debug pref cannot weaken release protection.
+ */
+@Composable
+private fun rememberScreenCaptureProtectionOverridden(): Boolean {
+    if (!BuildConfig.DEBUG) return false
+    val context = LocalContext.current
+    val appState = remember(context) {
+        EntryPointAccessors
+            .fromApplication(context.applicationContext, SecureScreenEntryPoint::class.java)
+            .appState()
+    }
+    return appState.disableScreenCaptureProtection
+}
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+internal interface SecureScreenEntryPoint {
+    fun appState(): AppState
 }
 
 /**

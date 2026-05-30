@@ -83,6 +83,15 @@ class TigerDuckApp : Application(), Configuration.Provider {
         appScope.launch {
             appPreferences.appLanguageChanged.collect { wearBridge.publish() }
         }
+        // Mirror the debug screen-capture override so flipping the toggle
+        // takes effect on the paired watch's LibraryQR window without a
+        // wear-app restart. No-op in release builds (the toggle row is
+        // hidden and the pref can't change).
+        appScope.launch {
+            appPreferences.disableScreenCaptureProtectionChanged.collect {
+                wearBridge.publish()
+            }
+        }
         appScope.launch { wearBridge.publish() }  // safety-net publish at launch
         appScope.launch { wearBridge.publishLibraryCredentials() }
     }

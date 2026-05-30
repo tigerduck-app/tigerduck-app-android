@@ -56,6 +56,16 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     val classroomMandarinDisplayChanged: SharedFlow<Unit> =
         _classroomMandarinDisplayChanged.asSharedFlow()
 
+    // Toggle flips emit so `TigerDuckApp` can mirror the new value to the
+    // paired watch via `WearScheduleBridge.publish()`. Phone-side SecureScreen
+    // reads the AppState mutable state directly and doesn't need this signal.
+    private val _disableScreenCaptureProtectionChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val disableScreenCaptureProtectionChanged: SharedFlow<Unit> =
+        _disableScreenCaptureProtectionChanged.asSharedFlow()
+
     var hasCompletedOnboarding: Boolean
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
         set(value) = prefs.edit().putBoolean("hasCompletedOnboarding", value).apply()
@@ -286,6 +296,24 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     fun clearSsoTimestamp() {
         prefs.edit().remove("ssoLoginTimestamp").apply()
     }
+
+    /**
+     * Debug-only escape hatch from the Developer section: when true,
+     * [org.ntust.app.tigerduck.ui.component.SecureScreen] skips applying
+     * `WindowManager.LayoutParams.FLAG_SECURE`, allowing screenshots and
+     * screen recordings of normally-protected surfaces (login sheets,
+     * library account screen, onboarding password page). The Developer
+     * row that writes this is gated on `BuildConfig.DEBUG`, and the
+     * SecureScreen reader is gated the same way so a release build can
+     * never honor a stale-from-debug value.
+     */
+    var disableScreenCaptureProtection: Boolean
+        get() = prefs.getBoolean("disableScreenCaptureProtection", false)
+        set(value) {
+            val previous = disableScreenCaptureProtection
+            prefs.edit().putBoolean("disableScreenCaptureProtection", value).apply()
+            if (value != previous) _disableScreenCaptureProtectionChanged.tryEmit(Unit)
+        }
 
     /**
      * Debug-only override for the Announcement (bulletin) base URL.

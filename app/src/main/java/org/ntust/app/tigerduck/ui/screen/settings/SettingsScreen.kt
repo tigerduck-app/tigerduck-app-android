@@ -531,6 +531,15 @@ fun SettingsScreen(
                             // flip-to-library first trigger) live behind here so
                             // they can be re-fired after a single dismissal.
                             SettingsLinkRow("Triggers") { onNavigateToTriggersDebug() }
+                            HorizontalDivider()
+                            SettingsToggleRow(
+                                label = "Disable screen-capture protection",
+                                checked = viewModel.appState.disableScreenCaptureProtection,
+                                subtitle = "Allows screenshots/recordings of normally-protected surfaces (login sheet, library, onboarding password).",
+                                onCheckedChange = {
+                                    viewModel.appState.disableScreenCaptureProtection = it
+                                },
+                            )
                         }
                     }
                 }

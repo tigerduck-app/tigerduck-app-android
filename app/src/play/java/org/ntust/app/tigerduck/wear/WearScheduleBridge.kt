@@ -7,6 +7,7 @@ import com.google.android.gms.wearable.Wearable
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.tasks.await
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
@@ -75,12 +76,25 @@ class WearScheduleBridge @Inject constructor(
             rawLanguage
         }
 
+        // Mirror the debug-only screen-capture override to the watch. Force
+        // false in release builds so a stale-from-debug pref on disk cannot
+        // weaken watch-side protection — the developer-section toggle that
+        // writes the pref is itself DEBUG-gated, so this is purely a
+        // defense-in-depth for the unlikely "downgrade debug→release with
+        // pref carried over" path.
+        val disableScreenCaptureProtection =
+            BuildConfig.DEBUG && appPreferences.disableScreenCaptureProtection
+
         val request = PutDataMapRequest.create(WearProtocol.Schedule.PATH).apply {
             dataMap.putByteArray(WearProtocol.Schedule.KEY_COURSES, gzipped)
             dataMap.putString(WearProtocol.Schedule.KEY_ACCENT, accentHex)
             dataMap.putLong(WearProtocol.Schedule.KEY_SYNCED_AT, System.currentTimeMillis())
             dataMap.putBoolean(WearProtocol.Schedule.KEY_LOGGED_IN, loggedIn)
             dataMap.putString(WearProtocol.Schedule.KEY_LANGUAGE, languageTag)
+            dataMap.putBoolean(
+                WearProtocol.Schedule.KEY_DISABLE_SCREEN_CAPTURE_PROTECTION,
+                disableScreenCaptureProtection,
+            )
         }.asPutDataRequest().setUrgent()
 
         try {

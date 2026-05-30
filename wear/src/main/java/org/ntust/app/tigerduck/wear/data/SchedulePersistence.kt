@@ -35,12 +35,23 @@ class SchedulePersistence(private val context: Context) {
     val flow: Flow<WatchSnapshot> =
         context.scheduleDataStore.data.map { prefs -> readSnapshot(prefs) }
 
+    /**
+     * Dedicated flow for the screen-capture override so `LibraryQRScreen.
+     * SecureScreen` doesn't have to depend on the full snapshot (and
+     * recompose on every accent / course list change just to read a bool).
+     */
+    val disableScreenCaptureProtectionFlow: Flow<Boolean> =
+        context.scheduleDataStore.data.map { prefs ->
+            prefs[KEY_DISABLE_SCREEN_CAPTURE_PROTECTION] ?: false
+        }
+
     suspend fun write(
         coursesGzipped: ByteArray,
         accentHex: String,
         syncedAtMs: Long,
         loggedIn: Boolean,
         languageTag: String?,
+        disableScreenCaptureProtection: Boolean,
     ) {
         val coursesJson = decompress(coursesGzipped)
         context.scheduleDataStore.edit { prefs ->
@@ -49,6 +60,7 @@ class SchedulePersistence(private val context: Context) {
             prefs[KEY_SYNCED_AT] = syncedAtMs
             prefs[KEY_LOGGED_IN] = loggedIn
             if (languageTag != null) prefs[KEY_LANGUAGE] = languageTag
+            prefs[KEY_DISABLE_SCREEN_CAPTURE_PROTECTION] = disableScreenCaptureProtection
         }
         if (languageTag != null) {
             bootstrapPrefs.edit().putString(BOOTSTRAP_KEY_LANGUAGE, languageTag).apply()
@@ -177,6 +189,8 @@ class SchedulePersistence(private val context: Context) {
             androidx.datastore.preferences.core.intPreferencesKey("padding_dp")
         private val KEY_QR_PADDING_DP =
             androidx.datastore.preferences.core.intPreferencesKey("qr_padding_dp")
+        private val KEY_DISABLE_SCREEN_CAPTURE_PROTECTION =
+            booleanPreferencesKey("disable_screen_capture_protection")
         private const val BOOTSTRAP_KEY_LANGUAGE = "language_tag"
     }
 }

@@ -259,6 +259,17 @@ class AppState @Inject constructor(
             prefs.flipToLibraryEnabled = value
         }
 
+    private var disableScreenCaptureProtectionState by
+            mutableStateOf(prefs.disableScreenCaptureProtection)
+
+    var disableScreenCaptureProtection: Boolean
+        get() = disableScreenCaptureProtectionState
+        set(value) {
+            if (disableScreenCaptureProtectionState == value) return
+            disableScreenCaptureProtectionState = value
+            prefs.disableScreenCaptureProtection = value
+        }
+
     // Transient signal from the library-shortcut widget: when the user taps
     // the widget while the library feature is disabled, we navigate to
     // Settings and flip this so SettingsScreen surfaces an "enable first"
@@ -363,6 +374,7 @@ class AppState @Inject constructor(
             notifyAssignmentsState = prefs.notifyAssignments
             libraryFeatureEnabledState = prefs.libraryFeatureEnabled
             flipToLibraryEnabledState = prefs.flipToLibraryEnabled
+            disableScreenCaptureProtectionState = prefs.disableScreenCaptureProtection
             configuredTabsState = prefs.configuredTabs
             HapticScenario.tunable.forEach { scenario ->
                 hapticStrengthStates[scenario] = prefs.hapticStrength(scenario)
