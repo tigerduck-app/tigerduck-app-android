@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Notifikationsrelaterede tilladelser er slået fra</string>
     <string name="push_server_enable_toggle">Aktiver server-push</string>
     <string name="push_server_footer">Bruges til at modtage skolebulletinmeddelelser i realtid og til aktivt at udløse påmindelser.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Sidste tilmelding</string>
     <string name="push_server_last_sync">Sidste synkronisering</string>
     <string name="push_server_latest_error">Seneste fejl</string>

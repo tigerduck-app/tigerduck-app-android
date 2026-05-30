@@ -491,6 +491,7 @@
     <string name="permission_warning_title">નોટિફિકેશન-સંબંધિત પરમિશન બંધ</string>
     <string name="push_server_enable_toggle">સર્વર પુશ સક્ષમ કરો</string>
     <string name="push_server_footer">રીઅલ-ટાઇમ સ્કૂલ બુલેટિન સૂચનાઓ પ્રાપ્ત કરવા અને રીમાઇન્ડર્સને સક્રિય રીતે ટ્રિગર કરવા માટે વપરાય છે.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">છેલ્લી નોંધણી</string>
     <string name="push_server_last_sync">છેલ્લું સમન્વયન</string>
     <string name="push_server_latest_error">તાજેતરની ભૂલ</string>

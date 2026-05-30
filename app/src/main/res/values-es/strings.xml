@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Permisos relacionados con notificaciones desactivados</string>
     <string name="push_server_enable_toggle">Habilitar envío de servidor</string>
     <string name="push_server_footer">Se utiliza para recibir notificaciones de boletines escolares en tiempo real y para activar recordatorios de forma activa.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Última inscripción</string>
     <string name="push_server_last_sync">Última sincronización</string>
     <string name="push_server_latest_error">Error reciente</string>

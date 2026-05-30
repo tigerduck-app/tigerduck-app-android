@@ -491,6 +491,7 @@
     <string name="permission_warning_title">اطلاع سے متعلق اجازتیں بند کر دی گئی ہیں</string>
     <string name="push_server_enable_toggle">سرور پش فعال کریں</string>
     <string name="push_server_footer">ریئل ٹائم اسکول بلیٹن اطلاعات وصول کرنے اور یاد دہانیاں فعال طور پر متحرک کرنے کے لیے استعمال ہوتا ہے۔</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">آخری رجسٹریشن</string>
     <string name="push_server_last_sync">آخری مطابقت</string>
     <string name="push_server_latest_error">حالیہ خرابی</string>

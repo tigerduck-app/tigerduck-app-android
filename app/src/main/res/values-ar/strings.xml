@@ -491,6 +491,7 @@
     <string name="permission_warning_title">أُغلقت أذونات متعلقة بالإشعارات</string>
     <string name="push_server_enable_toggle">تمكين دفع الخادم</string>
     <string name="push_server_footer">يُستخدم لتلقي إشعارات النشرات المدرسية في الوقت الفعلي ولتنشيط التذكيرات.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">التسجيل الأخير</string>
     <string name="push_server_last_sync">آخر مزامنة</string>
     <string name="push_server_latest_error">خطأ حديث</string>

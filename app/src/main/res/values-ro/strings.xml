@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Permisiunile legate de notificări sunt dezactivate</string>
     <string name="push_server_enable_toggle">Server-Push aktivieren</string>
     <string name="push_server_footer">Wird verwendet, um Schulbulletin-Benachrichtigungen in Echtzeit zu erhalten und Erinnerungen aktiv auszulösen.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Ultima înregistrare</string>
     <string name="push_server_last_sync">Ultima sincronizare</string>
     <string name="push_server_latest_error">Eroare recentă</string>

@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Ilmoituksiin liittyvät luvat poistettu käytöstä</string>
     <string name="push_server_enable_toggle">Ota palvelimen push käyttöön</string>
     <string name="push_server_footer">Käytetään vastaanottamaan reaaliaikaisia ​​koulutiedotteita ja käynnistämään aktiivisesti muistutuksia.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Viimeinen rekisteröinti</string>
     <string name="push_server_last_sync">Viimeisin synkronointi</string>
     <string name="push_server_latest_error">Viimeaikainen virhe</string>

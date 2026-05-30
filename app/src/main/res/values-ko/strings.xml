@@ -491,6 +491,7 @@
     <string name="permission_warning_title">알림 관련 권한이 꺼져 있습니다</string>
     <string name="push_server_enable_toggle">서버 푸시 활성화</string>
     <string name="push_server_footer">실시간 학교 공지 알림 수신 및 알림 능동적 트리거에 사용됩니다.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">마지막 등록</string>
     <string name="push_server_last_sync">마지막 동기화</string>
     <string name="push_server_latest_error">최근 오류</string>

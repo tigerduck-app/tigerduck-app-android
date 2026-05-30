@@ -491,6 +491,7 @@
     <string name="permission_warning_title">నోటిఫికేషన్ అనుమతులు నిష్క్రియమయ్యాయి</string>
     <string name="push_server_enable_toggle">సర్వర్ పుష్ ప్రారంభించు</string>
     <string name="push_server_footer">రియల్-టైమ్ స్కూల్ బులెటిన్ నోటిఫికేషన్లు అందుకోవడానికి మరియు రిమైండర్లను సక్రియంగా ట్రిగ్గర్ చేయడానికి ఉపయోగించబడుతుంది.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">చివరి నమోదు</string>
     <string name="push_server_last_sync">చివరి సమకాలీకరణ</string>
     <string name="push_server_latest_error">ఇటీవలి లోపం</string>

@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Хабарландыруға қатысты рұқсаттар өшірілді</string>
     <string name="push_server_enable_toggle">Сервер push-хабарламасын қосу</string>
     <string name="push_server_footer">Мектептің жедел хабарландыруларын алу және еске салғыштарды белсенді іске қосу үшін пайдаланылады.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Соңғы тіркеу</string>
     <string name="push_server_last_sync">Соңғы синхрондау</string>
     <string name="push_server_latest_error">Соңғы қате</string>

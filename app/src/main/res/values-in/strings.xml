@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Izin terkait notifikasi telah dinonaktifkan</string>
     <string name="push_server_enable_toggle">Aktifkan push server</string>
     <string name="push_server_footer">Digunakan untuk menerima notifikasi buletin sekolah secara real-time dan memicu pengingat secara aktif.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Pendaftaran terakhir</string>
     <string name="push_server_last_sync">Sinkronisasi terakhir</string>
     <string name="push_server_latest_error">Kesalahan terbaru</string>

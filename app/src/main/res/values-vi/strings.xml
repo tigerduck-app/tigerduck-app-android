@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Quyền liên quan đến thông báo đã tắt</string>
     <string name="push_server_enable_toggle">Bật đẩy thông báo từ máy chủ</string>
     <string name="push_server_footer">Dùng để nhận thông báo bảng tin trường theo thời gian thực và chủ động kích hoạt nhắc nhở.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Lần đăng ký cuối</string>
     <string name="push_server_last_sync">Lần đồng bộ cuối</string>
     <string name="push_server_latest_error">Lỗi gần đây</string>

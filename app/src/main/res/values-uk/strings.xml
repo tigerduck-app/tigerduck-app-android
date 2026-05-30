@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Дозволи, пов\'язані зі сповіщеннями, вимкнено</string>
     <string name="push_server_enable_toggle">Увімкнути серверні push-сповіщення</string>
     <string name="push_server_footer">Використовується для отримання сповіщень шкільних оголошень у реальному часі та активного запуску нагадувань.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Остання реєстрація</string>
     <string name="push_server_last_sync">Остання синхронізація</string>
     <string name="push_server_latest_error">Остання помилка</string>

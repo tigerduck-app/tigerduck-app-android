@@ -491,6 +491,7 @@
     <string name="permission_warning_title">ಅಧಿಸೂಚನೆ ಸಂಬಂಧಿ ಅನುಮತಿಗಳು ಆಫ್ ಆಗಿವೆ</string>
     <string name="push_server_enable_toggle">ಸರ್ವರ್ ಪುಶ್ ಸಕ್ರಿಯಗೊಳಿಸಿ</string>
     <string name="push_server_footer">ನೈಜ-ಸಮಯದ ಶಾಲಾ ಬುಲೆಟಿನ್ ಅಧಿಸೂಚನೆಗಳನ್ನು ಸ್ವೀಕರಿಸಲು ಮತ್ತು ಜ್ಞಾಪನೆಗಳನ್ನು ಸಕ್ರಿಯವಾಗಿ ಪ್ರಚೋದಿಸಲು ಬಳಸಲಾಗುತ್ತದೆ.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">ಕೊನೆಯ ನೋಂದಣಿ</string>
     <string name="push_server_last_sync">ಕೊನೆಯ ಸಿಂಕ್</string>
     <string name="push_server_latest_error">ಇತ್ತೀಚಿನ ದೋಷ</string>

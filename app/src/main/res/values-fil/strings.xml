@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Naka-off ang mga pahintulot na may kaugnayan sa notification</string>
     <string name="push_server_enable_toggle">Paganahin ang server push</string>
     <string name="push_server_footer">Ginagamit upang makatanggap ng real-time na mga abiso sa bulletin ng paaralan at upang aktibong mag-trigger ng mga paalala.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Huling pagpaparehistro</string>
     <string name="push_server_last_sync">Huling pag-sync</string>
     <string name="push_server_latest_error">Kamakailang error</string>

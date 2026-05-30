@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Meldingsgerelateerde machtigingen uitgeschakeld</string>
     <string name="push_server_enable_toggle">Serverpush inschakelen</string>
     <string name="push_server_footer">Gebruikt om realtime schoolbulletinmeldingen te ontvangen en herinneringen actief te activeren.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Laatste registratie</string>
     <string name="push_server_last_sync">Laatste synchronisatie</string>
     <string name="push_server_latest_error">Recente fout</string>

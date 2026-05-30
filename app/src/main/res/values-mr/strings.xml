@@ -491,6 +491,7 @@
     <string name="permission_warning_title">अधिसूचना-संबंधित परवानग्या बंद केल्या आहेत</string>
     <string name="push_server_enable_toggle">सर्व्हर पुश सक्षम करा</string>
     <string name="push_server_footer">रिअल-टाइम शाळा बुलेटिन सूचना प्राप्त करण्यासाठी आणि स्मरणपत्रे सक्रियपणे ट्रिगर करण्यासाठी वापरले जाते.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">शेवटची नोंदणी</string>
     <string name="push_server_last_sync">शेवटची समक्रमण</string>
     <string name="push_server_latest_error">अलीकडील त्रुटी</string>

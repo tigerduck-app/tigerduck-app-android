@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Aviseringsrelaterade behörigheter är inaktiverade</string>
     <string name="push_server_enable_toggle">Aktivera server-push</string>
     <string name="push_server_footer">Används för att ta emot realtidsaviseringar från skolans anslagstavla och för att aktivt utlösa påminnelser.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Senaste registrering</string>
     <string name="push_server_last_sync">Senaste synkronisering</string>
     <string name="push_server_latest_error">Senaste fel</string>

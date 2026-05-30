@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Tilkynningatengd leyfi eru slökkt á</string>
     <string name="push_server_enable_toggle">Server-Push aktivieren</string>
     <string name="push_server_footer">Wird verwendet, um Schulbulletin-Benachrichtigungen in Echtzeit zu erhalten und Erinnerungen aktiv auszulösen.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Síðasta skráning</string>
     <string name="push_server_last_sync">Síðasta samstilling</string>
     <string name="push_server_latest_error">Nýleg villa</string>

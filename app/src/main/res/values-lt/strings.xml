@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Su pranešimais susiję leidimai išjungti</string>
     <string name="push_server_enable_toggle">Server-Push aktivieren</string>
     <string name="push_server_footer">Wird verwendet, um Schulbulletin-Benachrichtigungen in Echtzeit zu erhalten und Erinnerungen aktiv auszulösen.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Paskutinė registracija</string>
     <string name="push_server_last_sync">Paskutinis sinchronizavimas</string>
     <string name="push_server_latest_error">Naujausias klaidos pranešimas</string>

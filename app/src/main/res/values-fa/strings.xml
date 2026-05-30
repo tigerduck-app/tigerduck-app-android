@@ -491,6 +491,7 @@
     <string name="permission_warning_title">مجوزهای مرتبط با اعلان‌ها خاموش شده‌اند</string>
     <string name="push_server_enable_toggle">فعال کردن فشار سرور</string>
     <string name="push_server_footer">برای دریافت بی‌درنگ اعلان‌های بولتن مدرسه و فعال کردن یادآورها استفاده می‌شود.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">آخرین ثبت نام</string>
     <string name="push_server_last_sync">آخرین همگام سازی</string>
     <string name="push_server_latest_error">خطای اخیر</string>

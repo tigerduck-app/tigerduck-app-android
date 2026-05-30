@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Teavitusega seotud load on välja lülitatud</string>
     <string name="push_server_enable_toggle">Luba serveri tõuge</string>
     <string name="push_server_footer">Kasutatakse reaalajas koolibülletäänide teavituste saamiseks ja meeldetuletuste aktiivseks käivitamiseks.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Viimane registreerimine</string>
     <string name="push_server_last_sync">Viimane sünkroonimine</string>
     <string name="push_server_latest_error">Hiljutine viga</string>

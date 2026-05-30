@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Dovoljenja za obvestila so izklopljena</string>
     <string name="push_server_enable_toggle">Omogoči strežniški potisk</string>
     <string name="push_server_footer">Uporablja se za prejemanje obvestil šolskih oglasnih desk v realnem času in za aktivno sprožanje opomnikov.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Zadnja registracija</string>
     <string name="push_server_last_sync">Zadnja sinhronizacija</string>
     <string name="push_server_latest_error">Nedavna napaka</string>

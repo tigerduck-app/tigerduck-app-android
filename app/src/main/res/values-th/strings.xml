@@ -491,6 +491,7 @@
     <string name="permission_warning_title">สิทธิ์ที่เกี่ยวข้องกับการแจ้งเตือนถูกปิดอยู่</string>
     <string name="push_server_enable_toggle">Server-Push aktivieren</string>
     <string name="push_server_footer">Wird verwendet, um Schulbulletin-Benachrichtigungen in Echtzeit zu erhalten und Erinnerungen aktiv auszulösen.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">การลงทะเบียนครั้งล่าสุด</string>
     <string name="push_server_last_sync">ซิงค์ล่าสุด</string>
     <string name="push_server_latest_error">ข้อผิดพลาดล่าสุด</string>

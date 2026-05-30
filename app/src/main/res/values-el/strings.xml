@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Οι σχετικές με ειδοποιήσεις άδειες απενεργοποιήθηκαν</string>
     <string name="push_server_enable_toggle">Ενεργοποίηση προώθησης διακομιστή</string>
     <string name="push_server_footer">Χρησιμοποιείται για τη λήψη ειδοποιήσεων σχολικού δελτίου σε πραγματικό χρόνο και για την ενεργή ενεργοποίηση υπενθυμίσεων.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Τελευταία εγγραφή</string>
     <string name="push_server_last_sync">Τελευταίος συγχρονισμός</string>
     <string name="push_server_latest_error">Πρόσφατο σφάλμα</string>

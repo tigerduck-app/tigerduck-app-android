@@ -491,6 +491,7 @@
     <string name="permission_warning_title">അറിയിപ്പ് അനുമതികൾ ഓഫ് ചെയ്തിരിക്കുന്നു</string>
     <string name="push_server_enable_toggle">സെർവർ പുഷ് പ്രവർത്തനക്ഷമമാക്കുക</string>
     <string name="push_server_footer">റിയൽ-ടൈം സ്കൂൾ ബുള്ളറ്റിൻ അറിയിപ്പുകൾ സ്വീകരിക്കാനും റിമൈൻഡറുകൾ സജീവമായി ട്രിഗർ ചെയ്യാനും ഉപയോഗിക്കുന്നു.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">അവസാന രജിസ്ട്രേഷൻ</string>
     <string name="push_server_last_sync">അവസാന സമന്വയം</string>
     <string name="push_server_latest_error">സമീപകാല പിശക്</string>

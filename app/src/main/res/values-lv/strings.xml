@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Ar paziņojumiem saistītās atļaujas ir izslēgtas</string>
     <string name="push_server_enable_toggle">Iespējot servera push</string>
     <string name="push_server_footer">Tiek izmantots, lai saņemtu skolas paziņojumus reāllaikā un aktīvi aktivizētu atgādinājumus.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Pēdējā reģistrācija</string>
     <string name="push_server_last_sync">Pēdējā sinhronizācija</string>
     <string name="push_server_latest_error">Nesena kļūda</string>

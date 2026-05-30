@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Benachrichtigungsbezogene Berechtigungen deaktiviert</string>
     <string name="push_server_enable_toggle">Server-Push aktivieren</string>
     <string name="push_server_footer">Wird verwendet, um Schulbulletin-Benachrichtigungen in Echtzeit zu erhalten und Erinnerungen aktiv auszulösen.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Letzte Anmeldung</string>
     <string name="push_server_last_sync">Letzte Synchronisierung</string>
     <string name="push_server_latest_error">Aktueller Fehler</string>

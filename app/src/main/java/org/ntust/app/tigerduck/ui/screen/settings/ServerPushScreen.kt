@@ -392,12 +392,7 @@ private fun IdsCard(userId: String, deviceId: String) {
     ContentCard {
         Column(modifier = Modifier.padding(vertical = 4.dp)) {
             Text(
-                // Raw label — labels in the IDs card are deliberately kept
-                // out of the localization submodule. These strings carry
-                // no translatable meaning (they're for support handoff)
-                // and adding them via the i18n pipeline would block this
-                // change on a separate submodule bump.
-                text = "IDs",
+                text = stringResource(R.string.push_server_ids_section),
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )

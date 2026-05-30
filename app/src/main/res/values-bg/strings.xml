@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Разрешенията за известия са изключени</string>
     <string name="push_server_enable_toggle">Активирайте натискане на сървъра</string>
     <string name="push_server_footer">Използва се за получаване на известия за училищен бюлетин в реално време и за активно задействане на напомняния.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Последна регистрация</string>
     <string name="push_server_last_sync">Последна синхронизация</string>
     <string name="push_server_latest_error">Скорошна грешка</string>

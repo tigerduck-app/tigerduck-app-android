@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Разрешения для уведомлений отключены</string>
     <string name="push_server_enable_toggle">Включить серверный push</string>
     <string name="push_server_footer">Используется для получения push-уведомлений школьных объявлений в реальном времени и активного запуска напоминаний.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Последняя регистрация</string>
     <string name="push_server_last_sync">Последняя синхронизация</string>
     <string name="push_server_latest_error">Последняя ошибка</string>

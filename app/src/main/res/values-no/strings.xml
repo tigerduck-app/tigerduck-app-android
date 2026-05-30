@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Varslingsrelaterte tillatelser er slått av</string>
     <string name="push_server_enable_toggle">Aktiver server-push</string>
     <string name="push_server_footer">Brukes til å motta sanntidsvarsler fra skolens oppslagstavle og aktivt utløse påminnelser.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Siste registrering</string>
     <string name="push_server_last_sync">Siste synkronisering</string>
     <string name="push_server_latest_error">Nylig feil</string>

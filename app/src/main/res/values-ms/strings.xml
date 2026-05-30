@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Kebenaran berkaitan pemberitahuan dimatikan</string>
     <string name="push_server_enable_toggle">Aktifkan tolakan pelayan</string>
     <string name="push_server_footer">Digunakan untuk menerima pemberitahuan buletin sekolah secara masa nyata dan mencetuskan peringatan secara aktif.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Pendaftaran terakhir</string>
     <string name="push_server_last_sync">Sinkronisasi terakhir</string>
     <string name="push_server_latest_error">Ralat terkini</string>

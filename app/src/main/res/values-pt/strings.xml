@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Permissões relacionadas com notificações desativadas</string>
     <string name="push_server_enable_toggle">Ativar push do servidor</string>
     <string name="push_server_footer">Usado para receber notificações de avisos escolares em tempo real e para acionar lembretes ativamente.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Último registo</string>
     <string name="push_server_last_sync">Última sincronização</string>
     <string name="push_server_latest_error">Erro recente</string>

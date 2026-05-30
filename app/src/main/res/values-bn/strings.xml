@@ -491,6 +491,7 @@
     <string name="permission_warning_title">বিজ্ঞপ্তি সংক্রান্ত অনুমতি বন্ধ করা হয়েছে</string>
     <string name="push_server_enable_toggle">সার্ভার পুশ সক্ষম করুন</string>
     <string name="push_server_footer">রিয়েল-টাইম স্কুল বুলেটিন বিজ্ঞপ্তি পেতে এবং সক্রিয়ভাবে অনুস্মারক ট্রিগার করতে ব্যবহৃত হয়।</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">সর্বশেষ নিবন্ধন</string>
     <string name="push_server_last_sync">শেষ সিঙ্ক</string>
     <string name="push_server_latest_error">সাম্প্রতিক ত্রুটি</string>

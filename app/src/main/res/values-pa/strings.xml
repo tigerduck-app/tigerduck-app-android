@@ -491,6 +491,7 @@
     <string name="permission_warning_title">ਸੂਚਨਾ ਸੰਬੰਧੀ ਅਨੁਮਤੀਆਂ ਬੰਦ ਕੀਤੀਆਂ ਗਈਆਂ</string>
     <string name="push_server_enable_toggle">ਸਰਵਰ ਪੁਸ਼ ਚਾਲੂ ਕਰੋ</string>
     <string name="push_server_footer">ਰੀਅਲ-ਟਾਈਮ ਸਕੂਲ ਬੁਲੇਟਿਨ ਸੂਚਨਾਵਾਂ ਪ੍ਰਾਪਤ ਕਰਨ ਅਤੇ ਯਾਦ-ਦਹਾਨੀਆਂ ਸਰਗਰਮੀ ਨਾਲ ਚਾਲੂ ਕਰਨ ਲਈ ਵਰਤਿਆ ਜਾਂਦਾ ਹੈ।</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">ਆਖਰੀ ਰਜਿਸਟ੍ਰੇਸ਼ਨ</string>
     <string name="push_server_last_sync">ਆਖਰੀ ਸਿੰਕ</string>
     <string name="push_server_latest_error">ਤਾਜ਼ਾ ਗਲਤੀ</string>

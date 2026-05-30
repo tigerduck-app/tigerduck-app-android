@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Permisos de notificació desactivats</string>
     <string name="push_server_enable_toggle">Habiliteu el servidor push</string>
     <string name="push_server_footer">S\'utilitza per rebre notificacions de butlletins escolars en temps real i activar recordatoris de manera activa.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Última inscripció</string>
     <string name="push_server_last_sync">Última sincronització</string>
     <string name="push_server_latest_error">Error recent</string>

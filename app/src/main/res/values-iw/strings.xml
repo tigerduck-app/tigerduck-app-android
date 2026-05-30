@@ -491,6 +491,7 @@
     <string name="permission_warning_title">הרשאות התראות מושבתות</string>
     <string name="push_server_enable_toggle">אפשר דחיפת שרת</string>
     <string name="push_server_footer">משמש לקבלת הודעות עלון בזמן אמת בבית הספר ולהפעלת תזכורות באופן פעיל.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">רישום אחרון</string>
     <string name="push_server_last_sync">סנכרון אחרון</string>
     <string name="push_server_latest_error">שגיאה אחרונה</string>

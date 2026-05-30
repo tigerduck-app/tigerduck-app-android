@@ -491,6 +491,7 @@
     <string name="permission_warning_title">通知関連の権限がオフになっています</string>
     <string name="push_server_enable_toggle">サーバープッシュを有効にする</string>
     <string name="push_server_footer">リアルタイムの学校からのお知らせ通知の受信やリマインダーのトリガーに使用されます。</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">最終登録</string>
     <string name="push_server_last_sync">最終同期</string>
     <string name="push_server_latest_error">最近のエラー</string>

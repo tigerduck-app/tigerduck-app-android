@@ -491,6 +491,7 @@
     <string name="permission_warning_title">Bildirimle ilgili izinler kapalı</string>
     <string name="push_server_enable_toggle">Sunucu push bildirimlerini etkinleştir</string>
     <string name="push_server_footer">Gerçek zamanlı okul duyurusu bildirimleri almak ve hatırlatıcıları aktif olarak tetiklemek için kullanılır.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Son kayıt</string>
     <string name="push_server_last_sync">Son senkronizasyon</string>
     <string name="push_server_latest_error">Son hata</string>
