@@ -101,8 +101,6 @@ import org.ntust.app.tigerduck.update.ManualCheckResult
 import org.ntust.app.tigerduck.update.UpdateChecker
 import org.ntust.app.tigerduck.update.WhatsNewContent
 import org.ntust.app.tigerduck.update.WhatsNewRepository
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 @Composable
@@ -239,21 +237,10 @@ fun SettingsScreen(
 
                         if (libraryEnabled) {
                             HorizontalDivider()
-                            val expiryMs = viewModel.libraryTokenExpiry
-                            val expirySubtitle = if (isLibraryLoggedIn && expiryMs > 0) {
-                                val fmt = SimpleDateFormat("yyyy/MM/dd", Locale.TAIWAN).apply {
-                                    timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
-                                }
-                                stringResource(
-                                    R.string.settings_token_valid_until,
-                                    fmt.format(Date(expiryMs))
-                                )
-                            } else null
                             AccountRow(
                                 title = stringResource(R.string.settings_account_library_system),
                                 isLoggedIn = isLibraryLoggedIn,
                                 subtitle = if (isLibraryLoggedIn) viewModel.libraryUsername else null,
-                                extraSubtitle = expirySubtitle,
                                 isLoggingIn = libIsLoggingIn,
                                 onLogin = { showLibraryLoginSheet = true },
                                 onLogout = { viewModel.logoutLibrary() },
@@ -717,7 +704,6 @@ private fun AccountRow(
     title: String,
     isLoggedIn: Boolean,
     subtitle: String?,
-    extraSubtitle: String? = null,
     isLoggingIn: Boolean,
     onLogin: () -> Unit,
     onLogout: () -> Unit,
@@ -771,13 +757,6 @@ private fun AccountRow(
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                )
-            }
-            if (!extraSubtitle.isNullOrBlank()) {
-                Text(
-                    extraSubtitle,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                 )
