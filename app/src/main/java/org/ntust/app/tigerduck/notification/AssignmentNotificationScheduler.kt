@@ -95,13 +95,16 @@ class AssignmentNotificationScheduler @Inject constructor(
         // (10 assignments × 6 default offsets = 60 slots, so the 11th gets
         // nothing even if it's due soon). Instead, hand out reminders in
         // rounds: every assignment gets its closest-to-deadline reminder
-        // before any assignment gets a second one. Assignments are ordered
-        // by their soonest reminder so the due-soonest wins the last slot
-        // when the budget runs out mid-round.
+        // before any assignment gets a second one. triggerTime is
+        // dueDate - offset, so the closest-to-deadline reminder has the
+        // latest triggerTime; sort each assignment's reminders descending so
+        // round 0 keeps it. Assignments are then ordered by that closest
+        // reminder's fire time so the due-soonest wins the last slot when the
+        // budget runs out mid-round.
         val byAssignment = pending
             .groupBy { it.assignmentId }
             .values
-            .map { it.sortedBy { p -> p.triggerTime } }
+            .map { it.sortedByDescending { p -> p.triggerTime } }
             .sortedBy { it.first().triggerTime }
         val capped = mutableListOf<Pending>()
         var round = 0
