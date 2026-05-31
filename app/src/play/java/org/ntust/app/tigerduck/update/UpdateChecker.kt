@@ -194,12 +194,13 @@ class UpdateChecker @Inject constructor(
 
     /**
      * User tapped "Update Now". Deep-links to Play Store; clears the pending
-     * prompt without stamping the Later cooldown (the next cold start will
+     * prompt (without stamping the Later cooldown — the next cold start will
      * re-evaluate, and once the install completes Play will report
-     * `UPDATE_NOT_AVAILABLE` and the prompt stays quiet).
+     * `UPDATE_NOT_AVAILABLE` and the prompt stays quiet) only once an intent
+     * actually launches. If both the market and web links fail to resolve, the
+     * prompt stays armed so the user can retry rather than losing the action.
      */
     fun onUpdateNow(activity: Activity) {
-        _pendingUpdate.value = null
         // applicationId — not packageName — is the Play store id and the
         // only correct value for the deep link. Strip any debug suffix that
         // the build flavor may have appended (e.g. ".debug") so the link
@@ -213,8 +214,9 @@ class UpdateChecker @Inject constructor(
             // OEM launchers.
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        try {
+        val launched = try {
             activity.startActivity(intent)
+            true
         } catch (e: ActivityNotFoundException) {
             // Play Store app missing (sideloaded play APK / stripped image):
             // fall back to the web product page. Same applicationId scheme.
@@ -224,6 +226,13 @@ class UpdateChecker @Inject constructor(
             ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
             runCatching { activity.startActivity(webIntent) }
                 .onFailure { Log.w(TAG, "Play Store deep link failed", it) }
+                .isSuccess
+        }
+        // Only retire the prompt once an intent actually launched. If both the
+        // market deep link and the web fallback have no handler, keep it armed
+        // so the user can retry instead of silently losing the update action.
+        if (launched) {
+            _pendingUpdate.value = null
         }
     }
 

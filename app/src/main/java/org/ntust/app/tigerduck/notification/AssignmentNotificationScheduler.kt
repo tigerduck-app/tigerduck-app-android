@@ -30,10 +30,12 @@ class AssignmentNotificationScheduler @Inject constructor(
      * user with many enabled offsets doesn't get spammed with five "you
      * still haven't submitted" alerts for the same dismissed item.
      *
-     * Soft cap of 60 pending alarms (closest-to-fire wins) matches the iOS
-     * scheduler so power-users with many courses don't drift toward Android's
-     * 500-alarm budget. Far-future reminders that get dropped will be
-     * rescheduled on the next sync once the nearest ones fire.
+     * Soft cap of 60 pending alarms matches the iOS scheduler so power-users
+     * with many courses don't drift toward Android's 500-alarm budget. The
+     * budget is distributed across assignments (each gets its closest reminder
+     * before any gets a second) so a few early assignments can't crowd out
+     * later ones. Far-future reminders that get dropped will be rescheduled on
+     * the next sync once the nearest ones fire.
      */
     fun scheduleAll(
         assignments: List<Assignment>,
@@ -87,8 +89,33 @@ class AssignmentNotificationScheduler @Inject constructor(
             }
         }
 
-        // Closest-to-fire wins under the soft cap.
-        val capped = pending.sortedBy { it.triggerTime }.take(MAX_PENDING)
+        // Soft cap, distributed across assignments. Selecting globally by
+        // fire time lets a few early assignments expand into all their
+        // offsets and consume the whole budget, starving later assignments
+        // (10 assignments × 6 default offsets = 60 slots, so the 11th gets
+        // nothing even if it's due soon). Instead, hand out reminders in
+        // rounds: every assignment gets its closest-to-deadline reminder
+        // before any assignment gets a second one. Assignments are ordered
+        // by their soonest reminder so the due-soonest wins the last slot
+        // when the budget runs out mid-round.
+        val byAssignment = pending
+            .groupBy { it.assignmentId }
+            .values
+            .map { it.sortedBy { p -> p.triggerTime } }
+            .sortedBy { it.first().triggerTime }
+        val capped = mutableListOf<Pending>()
+        var round = 0
+        outer@ while (capped.size < MAX_PENDING) {
+            var addedThisRound = false
+            for (reminders in byAssignment) {
+                if (round >= reminders.size) continue
+                capped.add(reminders[round])
+                addedThisRound = true
+                if (capped.size == MAX_PENDING) break@outer
+            }
+            if (!addedThisRound) break
+            round++
+        }
         val scheduledKeys = mutableSetOf<String>()
 
         for (item in capped) {

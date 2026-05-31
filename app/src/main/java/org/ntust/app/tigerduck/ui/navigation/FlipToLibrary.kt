@@ -88,17 +88,22 @@ fun FlipToLibraryEffect(
             // before DisposableEffect restarts and unregisters the detector.
             if (!appState.libraryFeatureEnabled) return@FlipDetector
             if (!appState.flipToLibraryEnabled) return@FlipDetector
+            // Gate the prompt behind the library session. The first-trigger
+            // prompt explains the gesture in lieu of navigating, so it must
+            // only be consumed on a flip that could actually navigate —
+            // otherwise a signed-out user who flips by accident taps Keep,
+            // burns the one-time prompt, and their first *working* flip after
+            // signing in jumps straight to Library with no explanation.
+            if (!appState.isLibraryLoggedIn) return@FlipDetector
             // First-trigger UX: the first successful flip surfaces a root-level
             // keep/turn-off prompt instead of jumping tabs, so the user isn't
             // dropped into an unfamiliar screen before agreeing to the gesture.
-            // Independent of the library session — the prompt is about the
-            // gesture, and the root dialog needs no back stack, so this runs
-            // before the login / cold-start guards below.
+            // The root dialog needs no back stack, so this runs before the
+            // cold-start guard below.
             if (!firstTriggerController.hasSeen(FirstTriggerPromptKey.FLIP_TO_LIBRARY)) {
                 FlipToLibraryFirstTrigger.request(firstTriggerController, appState)
                 return@FlipDetector
             }
-            if (!appState.isLibraryLoggedIn) return@FlipDetector
             if (navController.currentBackStackEntry == null) {
                 pendingFlip = true
                 return@FlipDetector
