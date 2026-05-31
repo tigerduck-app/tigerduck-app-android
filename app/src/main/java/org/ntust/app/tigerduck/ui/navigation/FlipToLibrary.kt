@@ -82,8 +82,12 @@ fun FlipToLibraryEffect(
     val detector = remember(navController, appState) {
         FlipDetector(context) {
             // Fire-time guards. All checks are synchronous and main-thread —
-            // sensor callbacks deliver on the main thread by default.
+            // sensor callbacks deliver on the main thread by default. Re-checking
+            // both gates (not just libraryFeatureEnabled) closes the brief window
+            // where the user toggles flipToLibrary off and a sensor event lands
+            // before DisposableEffect restarts and unregisters the detector.
             if (!appState.libraryFeatureEnabled) return@FlipDetector
+            if (!appState.flipToLibraryEnabled) return@FlipDetector
             // First-trigger UX: the first successful flip surfaces a root-level
             // keep/turn-off prompt instead of jumping tabs, so the user isn't
             // dropped into an unfamiliar screen before agreeing to the gesture.

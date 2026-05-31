@@ -61,8 +61,12 @@ fun AddSectionDialog(
     TigerDuckDialog(
         onDismissRequest = onDismiss,
         title = stringResource(R.string.home_add_section_title),
-        confirmText = stringResource(R.string.action_cancel),
-        onConfirm = onDismiss,
+        // No primary button: commits happen via the row taps below
+        // (onAddBuiltin / onAddCustom). Cancel is the only explicit action
+        // and lives in the secondary slot so it doesn't visually dominate
+        // the dialog with a destructive label.
+        dismissText = stringResource(R.string.action_cancel),
+        onDismiss = onDismiss,
         content = {
             Column(
                 modifier = Modifier.fillMaxWidth(),

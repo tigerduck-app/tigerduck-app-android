@@ -75,13 +75,10 @@ fun UpdatePromptDialog(
                 )
 
                 Text(
-                    // The auto-generated string carries the iOS-style
-                    // `%1$@` placeholder (Android's String.format won't
-                    // substitute it). Hand-replace so the existing
-                    // localized copy keeps working without a submodule
-                    // bump just for this one placeholder shape.
+                    // Auto-generated copy carries iOS's `%1$@` placeholder;
+                    // see IosPlaceholder.kt for the centralized shim.
                     text = stringResource(R.string.update_available_message)
-                        .replace("%1\$@", pending.displayVersion),
+                        .replaceIosArg(1, pending.displayVersion),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

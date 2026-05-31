@@ -48,6 +48,16 @@ class UpdateChecker @Inject constructor(
     /** Set when an eligible update has been discovered and is awaiting the user's choice. */
     val pendingUpdate: StateFlow<PendingUpdate?> = _pendingUpdate.asStateFlow()
 
+    // Per-process dismissal flag. Android's onResume fires on every brief task
+    // switch, so without this a back-press / outside-tap dismissal would re-arm
+    // the dialog the next time the user returns from any other app. iOS swipe-
+    // to-dismiss is per-session; matching that semantic on Android means
+    // suppressing for the remainder of the process lifetime. A cold start
+    // clears this naturally; a fresh "Later" or "Skip" tap stamps the
+    // persisted gate, so durability is unaffected.
+    @Volatile
+    private var dismissedThisSession = false
+
     private val _isCheckingForUpdate = MutableStateFlow(false)
 
     /** True while a manual [checkManually] call is in flight, for the Settings row spinner. */
@@ -70,6 +80,7 @@ class UpdateChecker @Inject constructor(
      * Safe to call on every cold start / foreground; the gate eats dupes.
      */
     fun maybePromptForUpdate() {
+        if (dismissedThisSession) return
         manager.appUpdateInfo
             .addOnSuccessListener { info ->
                 runCatching {
@@ -114,9 +125,24 @@ class UpdateChecker @Inject constructor(
      */
     fun checkManually() {
         if (_isCheckingForUpdate.value) return
+        // A manual check is an explicit re-ask — undo the per-session
+        // suppression so the prompt arms again if Play offers an update.
+        dismissedThisSession = false
         _isCheckingForUpdate.value = true
         _lastManualCheckResult.value = null
-        manager.appUpdateInfo
+        // `manager.appUpdateInfo` can throw synchronously (GMS in a faulted
+        // state, manager constructed against a broken Play install). Without
+        // this guard the listeners never fire, _isCheckingForUpdate stays
+        // true, and the Settings spinner is stuck for the rest of the process.
+        val task = try {
+            manager.appUpdateInfo
+        } catch (t: Throwable) {
+            Log.w(TAG, "appUpdateInfo manual query threw synchronously", t)
+            _isCheckingForUpdate.value = false
+            _lastManualCheckResult.value = ManualCheckResult.Failed
+            return
+        }
+        task
             .addOnSuccessListener { info ->
                 _isCheckingForUpdate.value = false
                 runCatching {
@@ -226,11 +252,16 @@ class UpdateChecker @Inject constructor(
 
     /**
      * Back-press / outside-tap dismissal. Mirrors iOS swipe-to-dismiss:
-     * clear without stamping the cooldown so the next foreground is free to
-     * re-arm — tapping a button on the prompt is the path that stamps.
+     * clear without stamping the persisted cooldown so a fresh cold start can
+     * re-evaluate — tapping Later / Skip on the prompt is the path that
+     * stamps the durable suppression. On Android we also suppress for the
+     * remainder of the process via [dismissedThisSession]; without it
+     * onResume would re-arm on every brief task switch since onResume fires
+     * far more often than an iOS session-restart.
      */
     fun dismissPrompt() {
         _pendingUpdate.value = null
+        dismissedThisSession = true
     }
 
     /**
@@ -241,6 +272,9 @@ class UpdateChecker @Inject constructor(
      * as "obviously a debug fire".
      */
     fun armForDebug() {
+        // Debug-arm is an explicit re-test — drop the per-session suppression
+        // so the dialog actually surfaces even after the dev just dismissed it.
+        dismissedThisSession = false
         _pendingUpdate.value = PendingUpdate(
             availableVersionCode = Int.MAX_VALUE,
             availableVersionName = "99.0.0",

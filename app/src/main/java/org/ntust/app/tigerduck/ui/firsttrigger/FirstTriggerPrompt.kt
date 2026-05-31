@@ -51,7 +51,12 @@ class FirstTriggerPromptController @Inject constructor(
      * Queue [key]'s prompt iff it has not been seen and nothing else is pending.
      * Cheap to call from a hot path (e.g. a sensor callback): the [onAccept] /
      * [onDecline] actions are captured but only invoked once the user chooses.
+     *
+     * Today every caller dispatches on the main thread, but we still take a
+     * monitor lock around the check-then-set so a future caller from an IO
+     * coroutine can't silently overwrite an in-flight prompt's closures.
      */
+    @Synchronized
     fun requestIfFirstTime(
         key: FirstTriggerPromptKey,
         onAccept: () -> Unit,

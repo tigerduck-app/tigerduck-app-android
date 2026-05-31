@@ -58,12 +58,14 @@ class AssignmentNotificationScheduler @Inject constructor(
             if (assignment.isCompleted) continue
             val isSafetyNet = assignment.assignmentId in safetyNetIds
             val applicable = if (isSafetyNet) {
-                // Surface a safety-net only at the nearest still-future offset,
-                // not all of them — see KDoc rationale.
+                // Surface a safety-net only at the closest-to-deadline still-
+                // future offset (largest triggerTime), not all of them — see
+                // KDoc rationale. `maxByOrNull` picks the latest fire time =
+                // smallest remaining gap to the deadline.
                 offsets
                     .map { it to assignment.dueDate.time - it.milliseconds }
                     .filter { it.second > now }
-                    .minByOrNull { it.second }
+                    .maxByOrNull { it.second }
                     ?.let { listOf(it) }
                     ?: emptyList()
             } else {

@@ -46,6 +46,12 @@ enum class AssignmentReminderOffset(
     MIN15("min15", 15 * 60 * 1000L,
         R.string.assignment_reminder_offset_15m,
         R.string.notification_assignment_reminder_body_15m),
+    // MIN10 intentionally shares MIN15's body (`body_15m`): the strings are
+    // abstract urgency wording ("Please just do it..."), not literal time
+    // values, so 10- and 15-minute reminders sit in the same "do it now"
+    // band. body_5m ("Too late...") would over-state urgency at 10min.
+    // Promote to its own `body_10m` only if the localization submodule grows
+    // a 10-minute-specific phrase.
     MIN10("min10", 10 * 60 * 1000L,
         R.string.assignment_reminder_offset_10m,
         R.string.notification_assignment_reminder_body_15m),

@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -98,7 +99,11 @@ private fun FirstTriggerPromptDialog(
 
 @Composable
 private fun PhoneFlipIcon(context: Context, contentDescription: String) {
-    val reduceMotion = animatorDurationScale(context) == 0f
+    // Cache the Settings.Global read: it's a Binder/ContentProvider call, and
+    // the infinite-transition below drives a recomposition every frame while
+    // the dialog is visible. Without `remember`, every recomposition re-issues
+    // the IPC.
+    val reduceMotion = remember(context) { animatorDurationScale(context) == 0f }
     val transition = rememberInfiniteTransition(label = "phoneFlip")
     val angle by transition.animateFloat(
         initialValue = 0f,

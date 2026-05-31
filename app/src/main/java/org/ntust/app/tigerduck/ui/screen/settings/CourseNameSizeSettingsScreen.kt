@@ -28,6 +28,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,7 +57,14 @@ fun CourseNameSizeSettingsScreen(
     onBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
-    val scale = viewModel.appState.courseNameScale
+    val persistedScale = viewModel.appState.courseNameScale
+    // Drag-local mirror so onValueChange can drive the preview at 60fps
+    // without firing a SharedPreferences write + widget rebuild on every
+    // frame. The persisted value is only updated on onValueChangeFinished
+    // (release) and on the reset row. Reset persistedScale when the source
+    // of truth changes from elsewhere (e.g. reset row, full-reset flow).
+    var dragScale by remember(persistedScale) { mutableFloatStateOf(persistedScale) }
+    val scale = dragScale
     // Compose Slider's `steps` is the count of discrete values *between*
     // the two endpoints. For 0.8…1.6 at 0.05 we have 17 stops total →
     // 15 in between.
@@ -119,7 +129,14 @@ fun CourseNameSizeSettingsScreen(
                             Spacer(Modifier.width(8.dp))
                             Slider(
                                 value = scale,
-                                onValueChange = { viewModel.appState.courseNameScale = it },
+                                onValueChange = { dragScale = it },
+                                onValueChangeFinished = {
+                                    // Commit once on release — avoids ~17
+                                    // prefs writes + widget rebuilds per
+                                    // slider sweep. The AppState setter
+                                    // re-normalises and dedups internally.
+                                    viewModel.appState.courseNameScale = dragScale
+                                },
                                 valueRange = CourseNameScale.MIN..CourseNameScale.MAX,
                                 steps = stepCount,
                                 modifier = Modifier.weight(1f),
@@ -150,6 +167,7 @@ fun CourseNameSizeSettingsScreen(
                                 .clickable(
                                     enabled = scale != CourseNameScale.DEFAULT,
                                 ) {
+                                    dragScale = CourseNameScale.DEFAULT
                                     viewModel.appState.courseNameScale = CourseNameScale.DEFAULT
                                 },
                             verticalAlignment = Alignment.CenterVertically,

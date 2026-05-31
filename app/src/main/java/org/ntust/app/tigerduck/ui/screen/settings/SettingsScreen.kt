@@ -101,6 +101,7 @@ import org.ntust.app.tigerduck.update.ManualCheckResult
 import org.ntust.app.tigerduck.update.UpdateChecker
 import org.ntust.app.tigerduck.update.WhatsNewContent
 import org.ntust.app.tigerduck.update.WhatsNewRepository
+import org.ntust.app.tigerduck.update.replaceIosArg
 import java.util.Locale
 
 @Composable
@@ -167,10 +168,11 @@ fun SettingsScreen(
     val isCheckingForUpdate by updateChecker.isCheckingForUpdate.collectAsStateWithLifecycle()
     val manualCheckResult by updateChecker.lastManualCheckResult.collectAsStateWithLifecycle()
     // Resolve the user's locale once per Settings render — the asset isn't
-    // huge, but re-parsing it for every recomposition would be wasteful.
-    val languageTag = remember(context.resources.configuration) {
-        context.resources.configuration.locales[0].toLanguageTag()
-    }
+    // huge, but re-parsing it for every recomposition would be wasteful. Key
+    // on the resolved tag string (not the live Configuration object) so
+    // unrelated config changes — font scale, screen size, dark-mode flip —
+    // don't pointlessly re-parse the asset.
+    val languageTag = context.resources.configuration.locales[0].toLanguageTag()
     val latestWhatsNew: WhatsNewContent? = remember(whatsNewRepo, languageTag) {
         whatsNewRepo.latestEntry(languageTag)
     }
@@ -610,12 +612,11 @@ fun SettingsScreen(
                     ManualCheckResult.Failed -> R.string.update_check_failed_title
                 },
             ),
-            // update_up_to_date_message carries the iOS-style `%1$@`
-            // placeholder; hand-replace so the existing localized string
-            // works without a submodule bump just for this placeholder shape.
+            // update_up_to_date_message carries iOS's `%1$@` placeholder;
+            // see IosPlaceholder.kt for the centralized shim.
             message = when (result) {
                 ManualCheckResult.UpToDate ->
-                    stringResource(R.string.update_up_to_date_message).replace("%1\$@", appName)
+                    stringResource(R.string.update_up_to_date_message).replaceIosArg(1, appName)
                 ManualCheckResult.Failed ->
                     stringResource(R.string.update_check_failed_message)
             },
