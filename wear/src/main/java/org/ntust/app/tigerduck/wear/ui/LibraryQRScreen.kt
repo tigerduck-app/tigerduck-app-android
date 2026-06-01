@@ -117,7 +117,7 @@ private fun NotLoggedInState() {
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(
-            text = stringResource(R.string.library_login_qr_prompt),
+            text = stringResource(R.string.library_sign_in_qr_prompt),
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,

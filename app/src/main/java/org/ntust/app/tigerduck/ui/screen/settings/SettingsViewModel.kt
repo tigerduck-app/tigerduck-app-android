@@ -85,7 +85,7 @@ class SettingsViewModel @Inject constructor(
                 wearBridge.publishLibraryCredentials()
             } catch (e: Exception) {
                 _libLoginError.value = e.message?.takeUnless { it.isBlank() }
-                    ?: context.getString(R.string.error_login_failed)
+                    ?: context.getString(R.string.error_sign_in_failed)
             } finally {
                 _libIsLoggingIn.value = false
             }

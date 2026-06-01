@@ -315,8 +315,8 @@ fun OnboardingScreen(
                     val focusManager = LocalFocusManager.current
                     OnboardingPageScaffold(
                         iconContent = { PersonKeyBadgeIcon(tint = onboardingGreen()) },
-                        title = stringResource(R.string.onboarding_login_title),
-                        subtitle = stringResource(R.string.onboarding_login_subtitle),
+                        title = stringResource(R.string.onboarding_sign_in_title),
+                        subtitle = stringResource(R.string.onboarding_sign_in_subtitle),
                         actions = {
                             // Order matches iOS: Skip sits above the prominent
                             // sign-in button so the affirmative action is the
@@ -342,7 +342,7 @@ fun OnboardingScreen(
                                         color = MaterialTheme.colorScheme.onPrimary,
                                     )
                                 } else {
-                                    Text(stringResource(R.string.onboarding_login_button))
+                                    Text(stringResource(R.string.onboarding_sign_in_button))
                                 }
                             }
                         },
@@ -357,7 +357,7 @@ fun OnboardingScreen(
                                 onValueChange = { raw ->
                                     studentId = raw.filter { ch -> !ch.isWhitespace() }.uppercase()
                                 },
-                                label = stringResource(R.string.login_student_id),
+                                label = stringResource(R.string.sign_in_student_id),
                                 capitalization = KeyboardCapitalization.Sentences,
                                 imeAction = ImeAction.Next,
                                 onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
@@ -368,7 +368,7 @@ fun OnboardingScreen(
                             OutlinedTextField(
                                 value = password,
                                 onValueChange = { password = it },
-                                label = { Text(stringResource(R.string.login_password)) },
+                                label = { Text(stringResource(R.string.sign_in_password)) },
                                 singleLine = true,
                                 visualTransformation = if (passwordVisible) VisualTransformation.None
                                 else PasswordVisualTransformation(),

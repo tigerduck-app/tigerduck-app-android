@@ -81,7 +81,7 @@ class AuthService @Inject constructor(
             _loginError.value = if (e is SsoLoginError.NetworkError) {
                 context.getString(R.string.error_network_unavailable)
             } else {
-                e.message ?: context.getString(R.string.error_login_failed)
+                e.message ?: context.getString(R.string.error_sign_in_failed)
             }
             _isLoggingIn.value = false
             false

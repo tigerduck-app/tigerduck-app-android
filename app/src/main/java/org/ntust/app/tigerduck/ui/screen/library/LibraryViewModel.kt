@@ -83,7 +83,7 @@ class LibraryViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 _errorMessage.value = e.message?.takeUnless { it.isBlank() }
-                    ?: context.getString(R.string.error_login_failed)
+                    ?: context.getString(R.string.error_sign_in_failed)
             } finally {
                 _isLoggingIn.value = false
             }

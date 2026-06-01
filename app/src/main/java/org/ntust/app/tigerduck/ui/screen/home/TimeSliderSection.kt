@@ -179,7 +179,7 @@ fun TimeSliderSection(
                     if (isLoggedIn) {
                         stringResource(R.string.home_time_slider_no_courses)
                     } else {
-                        stringResource(R.string.common_login_required_feature)
+                        stringResource(R.string.common_sign_in_required_feature)
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
