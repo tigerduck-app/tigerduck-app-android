@@ -1,0 +1,40 @@
+name: What's New has version
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Check whatsnew.json has an entry for versionCode
+        run: |
+          set -e
+
+          gradle_file="app/build.gradle.kts"
+          whatsnew="app/src/main/assets/whatsnew.json"
+
+          # Same extraction as version-bumped.yaml: first versionCode in the
+          # app module's gradle file is the release version code.
+          version=$(grep -E '^[[:space:]]*versionCode[[:space:]]*=' "$gradle_file" \
+            | head -n1 \
+            | sed -E 's/.*=[[:space:]]*([0-9]+).*/\1/')
+
+          echo "versionCode: $version"
+
+          if ! jq empty "$whatsnew" 2>/dev/null; then
+            echo "::error file=$whatsnew::whatsnew.json is not valid JSON."
+            exit 1
+          fi
+
+          if ! jq -e --arg v "$version" 'has($v)' "$whatsnew" > /dev/null; then
+            echo "::error file=$whatsnew::whatsnew.json must have a top-level \"$version\" key matching versionCode. Existing keys: $(jq -c 'keys' "$whatsnew")."
+            exit 1
+          fi
+
+          echo "OK: whatsnew.json contains an entry for $version."
