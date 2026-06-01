@@ -1,15 +1,14 @@
 package org.ntust.app.tigerduck.update
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.IntentSenderRequest
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
-import com.google.android.play.core.appupdate.AppUpdateOptions
-import com.google.android.play.core.install.InstallStateUpdatedListener
-import com.google.android.play.core.install.model.AppUpdateType
-import com.google.android.play.core.install.model.InstallStatus
+import com.google.android.play.core.install.InstallException
+import com.google.android.play.core.install.model.InstallErrorCode
 import com.google.android.play.core.install.model.UpdateAvailability
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,122 +19,275 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Play-flavor in-app update checker (issue #89). Wraps Play's
- * `AppUpdateManager`, runs the FLEXIBLE flow (background download, prompt to
- * restart), and gates re-prompting via [UpdatePromptGate].
+ * Play-flavor update checker. Uses Play's `AppUpdateManager` solely to
+ * discover an available versionCode, then surfaces a custom in-app prompt
+ * (Update now / Later / Skip this version) instead of running Play's
+ * FLEXIBLE/IMMEDIATE flow. "Update Now" deep-links into the Play Store
+ * product page so the user upgrades through Play's normal install UI —
+ * matching the iOS coordinator's three-button sheet pattern.
  *
  * The fdroid flavor ships a no-op stub at the same FQN so `MainActivity` in
  * `main/` can inject and call this regardless of flavor — same pattern as
  * `FcmBootstrap`.
  *
- * Every Play call is wrapped: a failed update check is a silent no-op and
- * never surfaces UI (issue #89 requirement).
+ * Every Play call is wrapped: a failed update check is a silent no-op for
+ * background paths and never surfaces UI (issue #89 requirement). Manual
+ * "Check for updates" taps from Settings explicitly want the failure
+ * feedback, so they route through [checkManually] which records the
+ * outcome in [lastManualCheckResult] for the Settings row to render.
  */
 @Singleton
 class UpdateChecker @Inject constructor(
-    @ApplicationContext context: Context,
+    @param:ApplicationContext private val context: Context,
     private val appPreferences: AppPreferences,
 ) {
     private val manager = AppUpdateManagerFactory.create(context)
 
-    private val _installReady = MutableStateFlow(false)
+    private val _pendingUpdate = MutableStateFlow<PendingUpdate?>(null)
 
-    /** True once a FLEXIBLE update has finished downloading and can be installed. */
-    val installReady: StateFlow<Boolean> = _installReady.asStateFlow()
+    /** Set when an eligible update has been discovered and is awaiting the user's choice. */
+    val pendingUpdate: StateFlow<PendingUpdate?> = _pendingUpdate.asStateFlow()
 
-    // Explicit type: the lambda references installListener itself (to
-    // self-unregister), which would otherwise make type inference recursive.
-    private val installListener: InstallStateUpdatedListener =
-        InstallStateUpdatedListener { state ->
-            when (state.installStatus()) {
-                InstallStatus.DOWNLOADED -> _installReady.value = true
-                // Terminal states: the flexible flow is over. Drop the listener so
-                // a cancelled or failed download can't leave this singleton holding
-                // a stale registration (and live callback) until process death.
-                InstallStatus.INSTALLED,
-                InstallStatus.FAILED,
-                InstallStatus.CANCELED ->
-                    runCatching { manager.unregisterListener(installListener) }
+    // Per-process dismissal flag. Android's onResume fires on every brief task
+    // switch, so without this a back-press / outside-tap dismissal would re-arm
+    // the dialog the next time the user returns from any other app. iOS swipe-
+    // to-dismiss is per-session; matching that semantic on Android means
+    // suppressing for the remainder of the process lifetime. A cold start
+    // clears this naturally; a fresh "Later" or "Skip" tap stamps the
+    // persisted gate, so durability is unaffected.
+    @Volatile
+    private var dismissedThisSession = false
 
-                else -> Unit
-            }
-        }
+    private val _isCheckingForUpdate = MutableStateFlow(false)
+
+    /** True while a manual [checkManually] call is in flight, for the Settings row spinner. */
+    val isCheckingForUpdate: StateFlow<Boolean> = _isCheckingForUpdate.asStateFlow()
+
+    private val _lastManualCheckResult = MutableStateFlow<ManualCheckResult?>(null)
 
     /**
-     * Query Play and start the FLEXIBLE flow if eligible and not rate-limited.
-     * [launcher] receives the confirmation-UI result; the caller must route it
-     * back through [onUpdateFlowResult] so the install listener is attached
-     * only for a flow the user actually accepted.
+     * Outcome of the most recent [checkManually] call. The Settings row
+     * observes this to drive the "You're up to date" / "Couldn't reach the
+     * store" alert. `Offered` is *not* a value here — when Play reports an
+     * available update the existing [pendingUpdate] flow surfaces the regular
+     * three-button dialog and stacking an alert on top of it would double
+     * up. Cleared by [acknowledgeManualCheckResult].
      */
-    fun maybePromptForUpdate(launcher: ActivityResultLauncher<IntentSenderRequest>) {
+    val lastManualCheckResult: StateFlow<ManualCheckResult?> = _lastManualCheckResult.asStateFlow()
+
+    /**
+     * Query Play and arm [pendingUpdate] if eligible and not rate-limited.
+     * Safe to call on every cold start / foreground; the gate eats dupes.
+     */
+    fun maybePromptForUpdate() {
+        if (dismissedThisSession) return
         manager.appUpdateInfo
             .addOnSuccessListener { info ->
                 runCatching {
                     if (info.updateAvailability() != UpdateAvailability.UPDATE_AVAILABLE) return@runCatching
-                    if (!info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)) return@runCatching
+                    val available = info.availableVersionCode()
                     val allowed = UpdatePromptGate.shouldStartFlow(
                         stalenessDays = info.clientVersionStalenessDays(),
-                        availableVersionCode = info.availableVersionCode(),
+                        availableVersionCode = available,
                         lastPromptVersionCode = appPreferences.lastUpdatePromptVersionCode,
                         lastPromptEpoch = appPreferences.lastUpdatePromptEpoch,
+                        skippedVersionCode = appPreferences.skippedUpdateVersionCode,
                         now = System.currentTimeMillis(),
                     )
                     if (!allowed) return@runCatching
 
-                    // No listener is registered here: registration is deferred
-                    // to onUpdateFlowResult so a throw on this line, a launch
-                    // that returns false, or a user cancellation can never
-                    // leave this singleton holding a stale registration.
-                    val launched = manager.startUpdateFlowForResult(
-                        info,
-                        launcher,
-                        AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build(),
-                    )
-                    if (launched) {
-                        // Record the prompt only once the flow actually
-                        // launched — the cooldown must not suppress a prompt
-                        // the user never saw.
-                        appPreferences.lastUpdatePromptVersionCode = info.availableVersionCode()
-                        appPreferences.lastUpdatePromptEpoch = System.currentTimeMillis()
-                    }
-                }.onFailure { Log.w(TAG, "update prompt failed", it) }
+                    // Don't stamp the cooldown here — only Later does. A
+                    // sheet-armed-but-dismissed-by-the-OS state (process
+                    // death, etc.) must not be treated as if the user
+                    // tapped Later.
+                    _pendingUpdate.value = PendingUpdate(availableVersionCode = available)
+                }.onFailure { Log.w(TAG, "update prompt evaluation failed", it) }
             }
             .addOnFailureListener { Log.w(TAG, "appUpdateInfo query failed", it) }
     }
 
-    /**
-     * Handle the result of Play's update confirmation UI. The install listener
-     * is registered here, and only on acceptance: a cancelled or failed flow
-     * starts no download, so there is nothing for the listener to observe and
-     * it must not be attached to this singleton.
-     */
-    fun onUpdateFlowResult(resultCode: Int) {
-        if (resultCode != Activity.RESULT_OK) return
-        runCatching {
-            // Re-register defensively: an earlier accepted flow's listener may
-            // still be attached, and registerListener alone could stack it.
-            manager.unregisterListener(installListener)
-            manager.registerListener(installListener)
-        }.onFailure { Log.w(TAG, "update flow result handling failed", it) }
+    /** Re-check on return to foreground so a freshly-published build can arm. */
+    fun resume(activity: Activity) {
+        // Already showing — don't double-trigger.
+        if (_pendingUpdate.value != null) return
+        maybePromptForUpdate()
     }
 
-    /** Re-check on return to foreground: surface an update that finished downloading while away. */
-    fun resume(activity: Activity) {
-        manager.appUpdateInfo
+    /**
+     * User-initiated check from Settings → About. Bypasses the
+     * [UpdatePromptGate] entirely (a user explicitly re-asking has already
+     * waved off the "don't nag" policy) so a previously-skipped version
+     * and a same-version cooldown both surface again. Records the outcome
+     * in [lastManualCheckResult] for the Settings row to render the
+     * "up to date" / "couldn't reach" alert. When Play reports an update,
+     * the regular [pendingUpdate] flow drives the three-button dialog and
+     * the manual-result alert stays quiet.
+     */
+    fun checkManually() {
+        if (_isCheckingForUpdate.value) return
+        // A manual check is an explicit re-ask — undo the per-session
+        // suppression so the prompt arms again if Play offers an update.
+        dismissedThisSession = false
+        _isCheckingForUpdate.value = true
+        _lastManualCheckResult.value = null
+        // `manager.appUpdateInfo` can throw synchronously (GMS in a faulted
+        // state, manager constructed against a broken Play install). Without
+        // this guard the listeners never fire, _isCheckingForUpdate stays
+        // true, and the Settings spinner is stuck for the rest of the process.
+        val task = try {
+            manager.appUpdateInfo
+        } catch (t: Throwable) {
+            Log.w(TAG, "appUpdateInfo manual query threw synchronously", t)
+            _isCheckingForUpdate.value = false
+            _lastManualCheckResult.value = ManualCheckResult.Failed
+            return
+        }
+        task
             .addOnSuccessListener { info ->
-                if (info.installStatus() == InstallStatus.DOWNLOADED) {
-                    _installReady.value = true
+                _isCheckingForUpdate.value = false
+                runCatching {
+                    if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE) {
+                        val available = info.availableVersionCode()
+                        // Force-arm: a manual check explicitly bypasses the
+                        // skip + cooldown the background path enforces. The
+                        // result alert intentionally stays null in this
+                        // branch — the dialog is the right surface.
+                        _pendingUpdate.value = PendingUpdate(availableVersionCode = available)
+                    } else {
+                        // UPDATE_NOT_AVAILABLE, UNKNOWN, or a flexible/
+                        // immediate update already in progress — all read
+                        // as "nothing for the user to do here" from the
+                        // Settings entry point.
+                        _lastManualCheckResult.value = ManualCheckResult.UpToDate
+                    }
+                }.onFailure {
+                    Log.w(TAG, "manual update check evaluation failed", it)
+                    _lastManualCheckResult.value = ManualCheckResult.Failed
                 }
             }
-            .addOnFailureListener { Log.w(TAG, "appUpdateInfo resume query failed", it) }
+            .addOnFailureListener { error ->
+                _isCheckingForUpdate.value = false
+                Log.w(TAG, "appUpdateInfo manual query failed", error)
+                // ERROR_APP_NOT_OWNED (-10) fires whenever the install
+                // didn't come through Play — sideloaded APKs always hit
+                // it, even ones signed with the release key. Treat it as
+                // UpToDate rather than Failed: we genuinely don't know
+                // whether an update is available, but surfacing
+                // "Couldn't reach the App Store" would imply a network
+                // failure when the real issue is the install source. A
+                // sideloaded user gets the gentler "You have the latest
+                // version" message; real Play users never see -10.
+                val isNotOwned = error is InstallException &&
+                    error.errorCode == InstallErrorCode.ERROR_APP_NOT_OWNED
+                _lastManualCheckResult.value = if (isNotOwned) {
+                    ManualCheckResult.UpToDate
+                } else {
+                    ManualCheckResult.Failed
+                }
+            }
     }
 
-    /** Install a downloaded update (triggered by the snackbar "Restart" action). */
-    fun completeUpdate() {
-        runCatching {
-            manager.completeUpdate()
-            manager.unregisterListener(installListener)
-        }.onFailure { Log.w(TAG, "completeUpdate failed", it) }
+    /** Clear [lastManualCheckResult] after the user dismisses the alert. */
+    fun acknowledgeManualCheckResult() {
+        _lastManualCheckResult.value = null
+    }
+
+    /**
+     * User tapped "Update Now". Deep-links to Play Store; clears the pending
+     * prompt (without stamping the Later cooldown — the next cold start will
+     * re-evaluate, and once the install completes Play will report
+     * `UPDATE_NOT_AVAILABLE` and the prompt stays quiet) only once an intent
+     * actually launches. If both the market and web links fail to resolve, the
+     * prompt stays armed so the user can retry rather than losing the action.
+     */
+    fun onUpdateNow(activity: Activity) {
+        // applicationId — not packageName — is the Play store id and the
+        // only correct value for the deep link. Strip any debug suffix that
+        // the build flavor may have appended (e.g. ".debug") so the link
+        // resolves on test installs too.
+        val storeId = context.packageName.removeSuffix(".debug")
+        val marketUri = Uri.parse("market://details?id=$storeId")
+        val intent = Intent(Intent.ACTION_VIEW, marketUri).apply {
+            // The Play Store app refuses ACTION_VIEW into its own task
+            // unless we hand it a fresh one; this matches Google's own
+            // sample. Without it, the deep link silently no-ops on some
+            // OEM launchers.
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        val launched = try {
+            activity.startActivity(intent)
+            true
+        } catch (e: ActivityNotFoundException) {
+            // Play Store app missing (sideloaded play APK / stripped image):
+            // fall back to the web product page. Same applicationId scheme.
+            val webIntent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://play.google.com/store/apps/details?id=$storeId"),
+            ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+            runCatching { activity.startActivity(webIntent) }
+                .onFailure { Log.w(TAG, "Play Store deep link failed", it) }
+                .isSuccess
+        }
+        // Only retire the prompt once an intent actually launched. If both the
+        // market deep link and the web fallback have no handler, keep it armed
+        // so the user can retry instead of silently losing the update action.
+        if (launched) {
+            _pendingUpdate.value = null
+        }
+    }
+
+    /**
+     * User tapped "Later". Stamps the cooldown so the same versionCode is
+     * suppressed for [UpdatePromptGate.COOLDOWN_MS]. A newer versionCode
+     * landing later re-arms the prompt immediately.
+     */
+    fun onLater() {
+        val pending = _pendingUpdate.value ?: return
+        appPreferences.lastUpdatePromptVersionCode = pending.availableVersionCode
+        appPreferences.lastUpdatePromptEpoch = System.currentTimeMillis()
+        _pendingUpdate.value = null
+    }
+
+    /**
+     * User tapped "Skip this version". Suppresses this exact versionCode
+     * indefinitely; a newer build always re-arms because the gate's equality
+     * check fails for it.
+     */
+    fun onSkipThisVersion() {
+        val pending = _pendingUpdate.value ?: return
+        appPreferences.skippedUpdateVersionCode = pending.availableVersionCode
+        _pendingUpdate.value = null
+    }
+
+    /**
+     * Back-press / outside-tap dismissal. Mirrors iOS swipe-to-dismiss:
+     * clear without stamping the persisted cooldown so a fresh cold start can
+     * re-evaluate — tapping Later / Skip on the prompt is the path that
+     * stamps the durable suppression. On Android we also suppress for the
+     * remainder of the process via [dismissedThisSession]; without it
+     * onResume would re-arm on every brief task switch since onResume fires
+     * far more often than an iOS session-restart.
+     */
+    fun dismissPrompt() {
+        _pendingUpdate.value = null
+        dismissedThisSession = true
+    }
+
+    /**
+     * Debug-only: arm a synthetic pending prompt so the Triggers screen can
+     * retest the dialog without a real Play update available. Uses
+     * [Int.MAX_VALUE] as the versionCode so it can never collide with a
+     * skipped real version, and a synthetic name so the dialog body reads
+     * as "obviously a debug fire".
+     */
+    fun armForDebug() {
+        // Debug-arm is an explicit re-test — drop the per-session suppression
+        // so the dialog actually surfaces even after the dev just dismissed it.
+        dismissedThisSession = false
+        _pendingUpdate.value = PendingUpdate(
+            availableVersionCode = Int.MAX_VALUE,
+            availableVersionName = "99.0.0",
+        )
     }
 
     companion object {

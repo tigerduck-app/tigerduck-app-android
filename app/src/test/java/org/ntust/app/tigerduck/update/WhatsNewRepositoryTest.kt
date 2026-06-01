@@ -9,7 +9,7 @@ class WhatsNewRepositoryTest {
     private val json = """
         {
           "21": {
-            "zh-TW": { "title": "1.5.0 新功能", "highlights": ["一", "二"] },
+            "zh-Hant": { "title": "1.5.0 新功能", "highlights": ["一", "二"] },
             "en":    { "title": "What's new in 1.5.0", "highlights": ["One", "Two"] }
           }
         }
@@ -23,7 +23,7 @@ class WhatsNewRepositoryTest {
     }
 
     @Test
-    fun `returns the zh-TW entry for a chinese language tag`() {
+    fun `returns the zh-Hant entry for a chinese language tag`() {
         val content = WhatsNewRepository.parse(json, versionCode = 21, languageTag = "zh-Hant-TW")
         assertEquals(listOf("一", "二"), content?.highlights)
     }

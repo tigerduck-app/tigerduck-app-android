@@ -12,14 +12,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -37,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -59,6 +58,7 @@ import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
+import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarScreen
@@ -72,6 +72,8 @@ import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
 import org.ntust.app.tigerduck.ui.screen.score.ScoreScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
+import org.ntust.app.tigerduck.ui.screen.settings.AssignmentReminderSettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.CourseNameSizeSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
@@ -99,14 +101,17 @@ sealed class Screen(val route: String) {
     object TabEditor : Screen("tabEditor")
     object LanguagePicker : Screen("languagePicker")
     object LiveActivitySettings : Screen("liveActivitySettings")
+    object AssignmentReminderSettings : Screen("assignmentReminderSettings")
     object NotificationSetup : Screen("notificationSetup")
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
+    object CourseNameSizeSettings : Screen("courseNameSizeSettings")
     object ServerPush : Screen("serverPush")
     object VibrationSettings : Screen("vibrationSettings")
     object Debug : Screen("debug")
     object NotificationDebug : Screen("notificationDebug")
     object ApiEndpointDebug : Screen("apiEndpointDebug")
+    object TriggersDebug : Screen("triggersDebug")
 }
 
 @Composable
@@ -130,21 +135,13 @@ fun AppNavigation(
     if (needsReset) {
         // Non-dismissable: the app is in an unrecoverable data state, so the
         // only way forward is to reset and walk through onboarding again.
-        AlertDialog(
+        TigerDuckDialog(
             onDismissRequest = {},
-            title = { Text(stringResource(R.string.app_reset_required_title)) },
-            text = {
-                Text(stringResource(R.string.app_reset_required_message))
-            },
-            confirmButton = {
-                TextButton(onClick = { appState.performFullReset() }) {
-                    Text(stringResource(R.string.app_reset_required_action))
-                }
-            },
-            properties = DialogProperties(
-                dismissOnBackPress = false,
-                dismissOnClickOutside = false,
-            ),
+            dismissable = false,
+            title = stringResource(R.string.app_reset_required_title),
+            message = stringResource(R.string.app_reset_required_message),
+            confirmText = stringResource(R.string.app_reset_required_action),
+            onConfirm = { appState.performFullReset() },
         )
     }
 }
@@ -297,6 +294,8 @@ fun MainNavigation(
                                     maxLines = 1,
                                     softWrap = false,
                                     overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.labelSmall
+                                        .copy(fontSize = 11.sp),
                                 )
                             },
                             alwaysShowLabel = true,
@@ -386,6 +385,7 @@ fun MainNavigation(
                     onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
+                    onNavigateToAssignmentReminders = { navController.navigate(Screen.AssignmentReminderSettings.route) },
                     onNavigateToServerPush = { navController.navigate(Screen.ServerPush.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
                     // Debug-route navigation is no-op in release builds:
@@ -402,6 +402,9 @@ fun MainNavigation(
                     },
                     onNavigateToApiEndpointDebug = {
                         if (BuildConfig.DEBUG) navController.navigate(Screen.ApiEndpointDebug.route)
+                    },
+                    onNavigateToTriggersDebug = {
+                        if (BuildConfig.DEBUG) navController.navigate(Screen.TriggersDebug.route)
                     },
                 )
             }
@@ -421,6 +424,12 @@ fun MainNavigation(
                         onBack = { navController.popBackStack() },
                     )
                 }
+                composable(Screen.TriggersDebug.route) {
+                    org.ntust.app.tigerduck.ui.screen.debug.TriggersDebugScreen(
+                        appState = appState,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
             }
             composable(Screen.OtherSettings.route) {
                 OtherSettingsScreen(
@@ -428,10 +437,14 @@ fun MainNavigation(
                     onNavigateToNotificationSetup = { navController.navigate(Screen.NotificationSetup.route) },
                     onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
                     onNavigateToVibration = { navController.navigate(Screen.VibrationSettings.route) },
+                    onNavigateToCourseNameSize = { navController.navigate(Screen.CourseNameSizeSettings.route) },
                 )
             }
             composable(Screen.VibrationSettings.route) {
                 VibrationSettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.CourseNameSizeSettings.route) {
+                CourseNameSizeSettingsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.LanguagePicker.route) {
                 LanguagePickerScreen(onBack = { navController.popBackStack() })
@@ -447,6 +460,9 @@ fun MainNavigation(
             }
             composable(Screen.LiveActivitySettings.route) {
                 LiveActivitySettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.AssignmentReminderSettings.route) {
+                AssignmentReminderSettingsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.ServerPush.route) {
                 ServerPushScreen(onBack = { navController.popBackStack() })

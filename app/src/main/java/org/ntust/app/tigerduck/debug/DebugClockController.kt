@@ -70,7 +70,11 @@ class DebugClockController @Inject constructor(
             if (assignments.isNotEmpty()) {
                 val ignored = dataCache.loadIgnoredAssignments()
                 val marked = dataCache.loadMarkedCompletedAssignments()
-                assignmentScheduler.scheduleAll(assignments, ignored + marked)
+                assignmentScheduler.scheduleAll(
+                    assignments,
+                    ignored + marked,
+                    appPreferences.notifyAssignmentOffsets,
+                )
             }
         }
         val courses = dataCache.loadCourses()

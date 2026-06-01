@@ -13,12 +13,14 @@ import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.data.preferences.AppPreferences.Companion.themeColorsDark
+import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
+class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
+    FirstTriggerSeenStore {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences("tigerduck_prefs", Context.MODE_PRIVATE)
@@ -55,6 +57,16 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     val classroomMandarinDisplayChanged: SharedFlow<Unit> =
         _classroomMandarinDisplayChanged.asSharedFlow()
 
+    // Toggle flips emit so `TigerDuckApp` can mirror the new value to the
+    // paired watch via `WearScheduleBridge.publish()`. Phone-side SecureScreen
+    // reads the AppState mutable state directly and doesn't need this signal.
+    private val _disableScreenCaptureProtectionChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val disableScreenCaptureProtectionChanged: SharedFlow<Unit> =
+        _disableScreenCaptureProtectionChanged.asSharedFlow()
+
     var hasCompletedOnboarding: Boolean
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
         set(value) = prefs.edit().putBoolean("hasCompletedOnboarding", value).apply()
@@ -68,6 +80,14 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     var lastUpdatePromptEpoch: Long
         get() = prefs.getLong("lastUpdatePromptEpoch", 0L)
         set(value) = prefs.edit().putLong("lastUpdatePromptEpoch", value).apply()
+
+    // -1 sentinel = no version skipped. Tapping "Skip this version" on the
+    // update prompt writes the offered versionCode here; any future check that
+    // resolves to the same versionCode is suppressed indefinitely. A newer
+    // versionCode re-arms the prompt because the equality check fails.
+    var skippedUpdateVersionCode: Int
+        get() = prefs.getInt("skippedUpdateVersionCode", -1)
+        set(value) = prefs.edit().putInt("skippedUpdateVersionCode", value).apply()
 
     // --- "What's new" dialog ---
     // WHATS_NEW_UNSET (-1) means no versionCode has been recorded yet — either
@@ -211,6 +231,23 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean("invertSliderDirection", false)
         set(value) = prefs.edit().putBoolean("invertSliderDirection", value).apply()
 
+    /**
+     * Multiplier (0.8…1.6, step 0.05) applied to the course-name text in
+     * class-table cards. Always normalized on read so a manually-edited
+     * pref or a value persisted by a future range tweak can't escape the
+     * current bounds.
+     */
+    var courseNameScale: Float
+        get() {
+            if (!prefs.contains("courseNameScale")) return CourseNameScale.DEFAULT
+            return CourseNameScale.normalize(
+                prefs.getFloat("courseNameScale", CourseNameScale.DEFAULT)
+            )
+        }
+        set(value) = prefs.edit()
+            .putFloat("courseNameScale", CourseNameScale.normalize(value))
+            .apply()
+
     /** One of "auto", "enabled", "disabled". */
     var rotationMode: String
         get() = prefs.getString("rotationMode", null)
@@ -225,13 +262,52 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean("libraryFeatureEnabled", false)
         set(value) = prefs.edit().putBoolean("libraryFeatureEnabled", value).apply()
 
+    // Defaults ON (matching iOS): the user discovers the gesture on their first
+    // accidental flip, where the first-trigger prompt explains it and offers to
+    // turn it off. The sensor still only runs while the parent Library feature
+    // is enabled, so a user with Library off pays no battery cost.
     var flipToLibraryEnabled: Boolean
-        get() = prefs.getBoolean("flipToLibraryEnabled", false)
+        get() = prefs.getBoolean("flipToLibraryEnabled", true)
         set(value) = prefs.edit().putBoolean("flipToLibraryEnabled", value).apply()
+
+    // --- First-trigger prompts ---
+    // One-shot "you just did X for the first time — keep it?" prompts, keyed by
+    // a stable storage slug (see FirstTriggerPromptKey). The flag is written
+    // only when the user makes a Keep / Turn-off choice, never on mere display,
+    // so a prompt dismissed by any other path re-arms on the next trigger.
+    override fun hasSeenFirstTriggerPrompt(storageKey: String): Boolean =
+        prefs.getBoolean("firstTriggerPromptSeen.$storageKey", false)
+
+    override fun setFirstTriggerPromptSeen(storageKey: String, seen: Boolean) {
+        prefs.edit().apply {
+            if (seen) putBoolean("firstTriggerPromptSeen.$storageKey", true)
+            else remove("firstTriggerPromptSeen.$storageKey")
+        }.apply()
+    }
 
     var notifyAssignments: Boolean
         get() = prefs.getBoolean("notifyAssignments", true)
         set(value) = prefs.edit().putBoolean("notifyAssignments", value).apply()
+
+    /**
+     * Per-offset opt-in for assignment due reminders. Persisted as raw-value
+     * strings so a freshly-added [AssignmentReminderOffset] entry deserialises
+     * cleanly (unknown rawValues are simply dropped on read).
+     *
+     * Absent key (fresh install or upgrade from <= v1.4.x where only a single
+     * 1h-before reminder existed) → seed with [AssignmentReminderOffset.DEFAULTS].
+     */
+    var notifyAssignmentOffsets: Set<AssignmentReminderOffset>
+        get() {
+            val stored = prefs.getStringSet("notifyAssignmentOffsets", null)
+                ?: return AssignmentReminderOffset.DEFAULTS
+            return stored.mapNotNullTo(mutableSetOf()) { AssignmentReminderOffset.fromRawValue(it) }
+        }
+        set(value) {
+            prefs.edit()
+                .putStringSet("notifyAssignmentOffsets", value.map { it.rawValue }.toSet())
+                .apply()
+        }
 
     var homeSections: List<HomeSection>
         get() {
@@ -258,6 +334,24 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     fun clearSsoTimestamp() {
         prefs.edit().remove("ssoLoginTimestamp").apply()
     }
+
+    /**
+     * Debug-only escape hatch from the Developer section: when true,
+     * [org.ntust.app.tigerduck.ui.component.SecureScreen] skips applying
+     * `WindowManager.LayoutParams.FLAG_SECURE`, allowing screenshots and
+     * screen recordings of normally-protected surfaces (login sheets,
+     * library account screen, onboarding password page). The Developer
+     * row that writes this is gated on `BuildConfig.DEBUG`, and the
+     * SecureScreen reader is gated the same way so a release build can
+     * never honor a stale-from-debug value.
+     */
+    var disableScreenCaptureProtection: Boolean
+        get() = prefs.getBoolean("disableScreenCaptureProtection", false)
+        set(value) {
+            val previous = disableScreenCaptureProtection
+            prefs.edit().putBoolean("disableScreenCaptureProtection", value).apply()
+            if (value != previous) _disableScreenCaptureProtectionChanged.tryEmit(Unit)
+        }
 
     /**
      * Debug-only override for the Announcement (bulletin) base URL.

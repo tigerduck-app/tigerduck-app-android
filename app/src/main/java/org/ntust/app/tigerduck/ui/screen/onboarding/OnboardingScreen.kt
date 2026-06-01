@@ -407,6 +407,7 @@ fun OnboardingScreen(
                                     text = loginError!!,
                                     color = MaterialTheme.colorScheme.error,
                                     style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.fillMaxWidth(),
                                 )
                             }
                             if (isSignedIn) {

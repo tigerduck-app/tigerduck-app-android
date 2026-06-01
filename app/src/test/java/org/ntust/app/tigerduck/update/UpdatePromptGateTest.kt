@@ -17,6 +17,7 @@ class UpdatePromptGateTest {
                 availableVersionCode = 21,
                 lastPromptVersionCode = -1,
                 lastPromptEpoch = 0L,
+                skippedVersionCode = -1,
                 now = now,
             )
         )
@@ -32,6 +33,7 @@ class UpdatePromptGateTest {
                 availableVersionCode = 21,
                 lastPromptVersionCode = -1,
                 lastPromptEpoch = 0L,
+                skippedVersionCode = -1,
                 now = now,
             )
         )
@@ -45,6 +47,7 @@ class UpdatePromptGateTest {
                 availableVersionCode = 21,
                 lastPromptVersionCode = -1,
                 lastPromptEpoch = 0L,
+                skippedVersionCode = -1,
                 now = now,
             )
         )
@@ -58,6 +61,7 @@ class UpdatePromptGateTest {
                 availableVersionCode = 21,
                 lastPromptVersionCode = 21,
                 lastPromptEpoch = now - TimeUnit.DAYS.toMillis(6),
+                skippedVersionCode = -1,
                 now = now,
             )
         )
@@ -71,6 +75,7 @@ class UpdatePromptGateTest {
                 availableVersionCode = 21,
                 lastPromptVersionCode = 21,
                 lastPromptEpoch = now - TimeUnit.DAYS.toMillis(8),
+                skippedVersionCode = -1,
                 now = now,
             )
         )
@@ -84,6 +89,35 @@ class UpdatePromptGateTest {
                 availableVersionCode = 22,
                 lastPromptVersionCode = 21,
                 lastPromptEpoch = now - TimeUnit.DAYS.toMillis(1),
+                skippedVersionCode = -1,
+                now = now,
+            )
+        )
+    }
+
+    @Test
+    fun `does not prompt for the explicitly skipped version`() {
+        assertFalse(
+            UpdatePromptGate.shouldStartFlow(
+                stalenessDays = 30,
+                availableVersionCode = 21,
+                lastPromptVersionCode = -1,
+                lastPromptEpoch = 0L,
+                skippedVersionCode = 21,
+                now = now,
+            )
+        )
+    }
+
+    @Test
+    fun `prompts for a newer version even when an older one was skipped`() {
+        assertTrue(
+            UpdatePromptGate.shouldStartFlow(
+                stalenessDays = 30,
+                availableVersionCode = 22,
+                lastPromptVersionCode = -1,
+                lastPromptEpoch = 0L,
+                skippedVersionCode = 21,
                 now = now,
             )
         )

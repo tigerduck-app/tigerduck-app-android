@@ -142,6 +142,7 @@ fun WeekGridContent(state: WidgetState, colors: WidgetColors, tapAction: Action)
                             ongoingCourseNos = state.ongoingCourseNos,
                             blockHeight = cellHeight * cell.length,
                             blockWidth = dayColWidth,
+                            courseNameScale = state.courseNameScale,
                         )
                     }
                 }
@@ -186,6 +187,7 @@ private fun ScheduleCellBox(
     ongoingCourseNos: List<String>,
     blockHeight: Dp,
     blockWidth: Dp,
+    courseNameScale: Float,
 ) {
     when (cell) {
         is ScheduleCell.Empty -> EmptyCell(blockHeight, colors)
@@ -196,6 +198,7 @@ private fun ScheduleCellBox(
             colors = colors,
             courseColors = courseColors,
             blockHeight = blockHeight,
+            courseNameScale = courseNameScale,
         )
 
         is ScheduleCell.Conflict -> ConflictCell(
@@ -205,6 +208,7 @@ private fun ScheduleCellBox(
             ongoingCourseNos = ongoingCourseNos,
             blockHeight = blockHeight,
             blockWidth = blockWidth,
+            courseNameScale = courseNameScale,
         )
 
         is ScheduleCell.MultiConflict -> MultiConflictCell(
@@ -213,6 +217,7 @@ private fun ScheduleCellBox(
             courseColors = courseColors,
             ongoingCourseNos = ongoingCourseNos,
             blockHeight = blockHeight,
+            courseNameScale = courseNameScale,
         )
     }
 }
@@ -242,6 +247,7 @@ private fun SoloCell(
     colors: WidgetColors,
     courseColors: Map<String, Color>,
     blockHeight: Dp,
+    courseNameScale: Float,
 ) {
     val baseColor = widgetCourseColor(course, courseColors, colors.isDark)
     val cellBg: Color = when {
@@ -272,7 +278,7 @@ private fun SoloCell(
                 text = course.displayName,
                 style = TextStyle(
                     color = ColorProvider(textColor),
-                    fontSize = 10.sp,
+                    fontSize = 10.sp * courseNameScale,
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
                 ),
@@ -290,6 +296,7 @@ private fun ConflictCell(
     ongoingCourseNos: List<String>,
     blockHeight: Dp,
     blockWidth: Dp,
+    courseNameScale: Float,
 ) {
     val context = LocalContext.current
     val density = context.resources.displayMetrics.density
@@ -371,6 +378,7 @@ private fun ConflictCell(
                 boxTopPadding = rowHeight * cell.offsetA,
                 boxBottomPadding = rowHeight * (cell.combinedSpan - cell.offsetA - cell.spanA),
                 barWidth = barWidth,
+                courseNameScale = courseNameScale,
             )
             // Course B label — pinned inside B's own Box at bottom-left (mirror-L's bottom bar).
             ConflictLabel(
@@ -380,6 +388,7 @@ private fun ConflictCell(
                 boxTopPadding = rowHeight * cell.offsetB,
                 boxBottomPadding = rowHeight * (cell.combinedSpan - cell.offsetB - cell.spanB),
                 barWidth = barWidth,
+                courseNameScale = courseNameScale,
             )
         }
     }
@@ -398,6 +407,7 @@ private fun MultiConflictCell(
     courseColors: Map<String, Color>,
     ongoingCourseNos: List<String>,
     blockHeight: Dp,
+    courseNameScale: Float,
 ) {
     val rowHeight = blockHeight / cell.combinedSpan.coerceAtLeast(1)
     val textColor: Color = if (colors.isDark) Color.White else Color(0xFF1C1C1E)
@@ -453,7 +463,7 @@ private fun MultiConflictCell(
                                     text = member.course.displayName,
                                     style = TextStyle(
                                         color = ColorProvider(tileTextColor),
-                                        fontSize = 9.sp,
+                                        fontSize = 9.sp * courseNameScale,
                                         fontWeight = FontWeight.Medium,
                                         textAlign = TextAlign.Center,
                                     ),
@@ -480,6 +490,7 @@ private fun ConflictLabel(
     boxTopPadding: Dp,
     boxBottomPadding: Dp,
     barWidth: Dp,
+    courseNameScale: Float,
 ) {
     Box(
         modifier = GlanceModifier
@@ -497,7 +508,7 @@ private fun ConflictLabel(
                 text = courseName,
                 style = TextStyle(
                     color = ColorProvider(textColor),
-                    fontSize = 9.sp,
+                    fontSize = 9.sp * courseNameScale,
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
                 ),

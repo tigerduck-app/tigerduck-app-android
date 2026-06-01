@@ -72,9 +72,13 @@ fun CourseCard(
                     .fillMaxSize()
                     .padding(12.dp)
             ) {
+                val nameStyle = MaterialTheme.typography.bodyMedium
+                    .copy(fontWeight = FontWeight.SemiBold)
                 Text(
                     text = courseNameForDisplay(course.displayName, maxChars = 28),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = nameStyle.copy(
+                        fontSize = nameStyle.fontSize * TigerDuckTheme.courseNameScale
+                    ),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = textAlpha),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis

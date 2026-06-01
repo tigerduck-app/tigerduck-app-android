@@ -410,7 +410,14 @@ private fun KeepScreenBright(active: Boolean) {
 private fun SecureScreen() {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
-    DisposableEffect(activity) {
+    // Mirror of the phone's Settings → Developer → Disable screen-capture
+    // protection toggle, delivered via the Wear Data Layer (see
+    // WearProtocol.Schedule.KEY_DISABLE_SCREEN_CAPTURE_PROTECTION). The phone
+    // only ever publishes `true` from a DEBUG build, so a release-paired
+    // watch reads false here under normal operation.
+    val repo = remember(context) { ScheduleRepository.get(context) }
+    val disabled by repo.disableScreenCaptureProtectionFlow.collectAsState(initial = false)
+    DisposableEffect(activity, disabled) {
         val window = activity?.window
         // Snapshot whether the window was already secure (set by another owner
         // or earlier). Only clear FLAG_SECURE on dispose if this composable is
@@ -418,11 +425,12 @@ private fun SecureScreen() {
         // strip protection this helper never owned.
         val alreadySecure = window != null && (window.attributes.flags and
                 WindowManager.LayoutParams.FLAG_SECURE) != 0
-        if (window != null && !alreadySecure) {
+        val shouldAdd = window != null && !alreadySecure && !disabled
+        if (shouldAdd) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
         onDispose {
-            if (window != null && !alreadySecure) {
+            if (shouldAdd) {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             }
         }

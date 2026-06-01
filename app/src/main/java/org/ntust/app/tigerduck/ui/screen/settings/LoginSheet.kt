@@ -189,7 +189,10 @@ fun LoginSheet(
                     )
 
                     if (subtitle != null) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.Top,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
                             Icon(
                                 Icons.Filled.Info,
                                 contentDescription = null,
@@ -201,16 +204,19 @@ fun LoginSheet(
                                 subtitle,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
                             )
                         }
                     }
 
                     if (loginError != null) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.semantics(mergeDescendants = true) {
-                                liveRegion = LiveRegionMode.Assertive
-                            },
+                            verticalAlignment = Alignment.Top,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .semantics(mergeDescendants = true) {
+                                    liveRegion = LiveRegionMode.Assertive
+                                },
                         ) {
                             Icon(
                                 Icons.Filled.ErrorOutline,
@@ -223,6 +229,7 @@ fun LoginSheet(
                                 loginError,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.weight(1f),
                             )
                         }
                     }

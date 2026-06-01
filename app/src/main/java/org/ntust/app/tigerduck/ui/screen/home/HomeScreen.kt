@@ -40,7 +40,6 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -105,6 +104,7 @@ import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.AssignmentItem
 import org.ntust.app.tigerduck.ui.component.ComingSoonDialog
+import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
@@ -631,11 +631,16 @@ private fun CourseDetailDialog(
     assignments: List<Assignment>,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    TigerDuckDialog(
         onDismissRequest = onDismiss,
-        title = { Text(course.displayName) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        title = course.displayName,
+        confirmText = stringResource(R.string.action_close),
+        onConfirm = onDismiss,
+        content = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Text(
                     stringResource(R.string.course_instructor_value, course.instructor),
                     style = MaterialTheme.typography.bodyMedium
@@ -660,9 +665,6 @@ private fun CourseDetailDialog(
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
-        }
     )
 }
 

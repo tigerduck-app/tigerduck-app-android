@@ -381,7 +381,7 @@
     <string name="library_status_not_logged_in">Not signed in</string>
     <string name="library_virtual_pass_title">Virtual pass</string>
     <string name="live_activity_channel_description">Shows current class, upcoming class, and assignment countdowns. You can adjust scenario sounds in app settings.</string>
-    <string name="live_activity_channel_name">Live activity</string>
+    <string name="live_activity_channel_name">Live Updates</string>
     <string name="live_activity_settings_assignment_notification_footer">You\'ll be notified before an assignment is due.</string>
     <string name="live_activity_settings_assignment_notification_header">Assignment notifications</string>
     <string name="live_activity_settings_assignment_warning">Assignment warning</string>
@@ -390,8 +390,8 @@
     <string name="live_activity_settings_custom_class_description">The app starts reminding this long before class starts.</string>
     <string name="live_activity_settings_custom_class_title">Custom class lead time</string>
     <string name="live_activity_settings_custom_class_unit_hint">Minutes (up to %1$d minutes)</string>
-    <string name="live_activity_settings_description">Live activity shows the current class and countdown in notifications. \"In class\" and \"Class starting soon\" update in real time only while the app is open; \"Assignment warning\" can still alert on time when the app is closed.</string>
-    <string name="live_activity_settings_enable">Enable live activity</string>
+    <string name="live_activity_settings_description">Live Updates shows the current class and countdown in notifications. \"In class\" and \"Class starting soon\" update in real time only while the app is open; \"Assignment warning\" can still alert on time when the app is closed.</string>
+    <string name="live_activity_settings_enable">Enable Live Updates</string>
     <string name="live_activity_settings_hours_label">%1$d hr</string>
     <string name="live_activity_settings_hours_minutes_label">%1$d hr %2$d min</string>
     <string name="live_activity_settings_hours_unit">Hours</string>
@@ -404,7 +404,7 @@
     <string name="live_activity_settings_range_minutes">Range: %1$d – %2$d minutes</string>
     <string name="live_activity_settings_reset">Reset</string>
     <string name="live_activity_settings_reset_confirm_message">All scenarios, reminder timings, and display timings will be restored to defaults.</string>
-    <string name="live_activity_settings_reset_confirm_title">Reset all live activity settings?</string>
+    <string name="live_activity_settings_reset_confirm_title">Reset all Live Updates settings?</string>
     <string name="live_activity_settings_reset_defaults">Reset to defaults</string>
     <string name="live_activity_settings_section_display_scenarios">Display scenarios</string>
     <string name="live_activity_settings_section_lock_screen">Lock screen</string>
@@ -414,7 +414,7 @@
     <string name="live_activity_settings_show_on_lock_screen">Show detailed content on lock screen</string>
     <string name="live_activity_settings_sound_assignment">Play sound for Assignment warning</string>
     <string name="live_activity_settings_sound_class_preparing">Play sound for Class starting soon</string>
-    <string name="live_activity_settings_sound_hint">A sound plays only when entering a scenario for the first time; later countdown updates stay silent. To adjust volume or Do Not Disturb behavior, change the \"Live activity\" notification channel in system settings.</string>
+    <string name="live_activity_settings_sound_hint">A sound plays only when entering a scenario for the first time; later countdown updates stay silent. To adjust volume or Do Not Disturb behavior, change the \"Live Updates\" notification channel in system settings.</string>
     <string name="live_activity_settings_sound_in_class">Play sound for In class</string>
     <string name="live_activity_settings_timing_hint">The slider covers common ranges. To set values outside that range (for example, 1 day before assignment due), tap \"Custom\".</string>
     <string name="live_activity_status_assignment_urgent">Assignment due soon</string>
@@ -448,7 +448,7 @@
     <string name="notification_class_preparing_channel_name">Class preparing reminders</string>
     <string name="notification_class_preparing_content_fallback">Class is about to start</string>
     <string name="notification_class_preparing_title">Class starting soon: %1$s</string>
-    <string name="notification_setup_description">Enable the permissions below to ensure assignment reminders, class-preparing alerts, and live activity arrive on time even when the app is closed.</string>
+    <string name="notification_setup_description">Enable the permissions below to ensure assignment reminders, class-preparing alerts, and Live Updates arrive on time even when the app is closed.</string>
     <string name="notification_setup_title">Reconfigure notifications</string>
     <string name="onboarding_flavor_fdroid_description">You\'re using the F-Droid build. Because F-Droid policy forbids depending on Google\'s services (Firebase FCM, GMS, etc.), the following two features are unavailable in this build:\n\n1. Wear OS companion app\n2. Real-time push announcements</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid build notice</string>
@@ -483,14 +483,15 @@
     <string name="permission_granted">Allowed</string>
     <string name="permission_not_applicable">Not available on this system version</string>
     <string name="permission_not_granted_tap_settings">Not allowed · Tap to open settings</string>
-    <string name="permission_notifications_description">Allow the app to show notifications; otherwise notifications and live activity will not appear.</string>
+    <string name="permission_notifications_description">Allow the app to show notifications; otherwise notifications and Live Updates will not appear.</string>
     <string name="permission_notifications_name">Notification permission</string>
     <string name="permission_warning_action_later">Maybe later</string>
-    <string name="permission_warning_description">The following permissions were previously enabled but are now disabled. Related notifications and live activity may not display correctly.</string>
+    <string name="permission_warning_description">The following permissions were previously enabled but are now disabled. Related notifications and Live Updates may not display correctly.</string>
     <string name="permission_warning_mute_item">Don\'t remind me about this again</string>
     <string name="permission_warning_title">Notification-related permissions turned off</string>
     <string name="push_server_enable_toggle">Enable server push</string>
     <string name="push_server_footer">Used to receive real-time school bulletin notifications and to actively trigger reminders.</string>
+    <string name="push_server_ids_section">IDs</string>
     <string name="push_server_last_registration">Last registration</string>
     <string name="push_server_last_sync">Last sync</string>
     <string name="push_server_latest_error">Recent error</string>

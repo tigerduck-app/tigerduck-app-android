@@ -34,7 +34,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,7 +49,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -58,8 +56,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,12 +71,16 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
@@ -88,13 +90,18 @@ import org.ntust.app.tigerduck.sensor.FlipDetector
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewDialog
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.tigerDuckSwitchColors
-import java.text.SimpleDateFormat
-import java.util.Date
+import org.ntust.app.tigerduck.update.ManualCheckResult
+import org.ntust.app.tigerduck.update.UpdateChecker
+import org.ntust.app.tigerduck.update.WhatsNewContent
+import org.ntust.app.tigerduck.update.WhatsNewRepository
+import org.ntust.app.tigerduck.update.replaceIosArg
 import java.util.Locale
 
 @Composable
@@ -103,11 +110,13 @@ fun SettingsScreen(
     onNavigateToTabEditor: () -> Unit = {},
     onNavigateToLanguagePicker: () -> Unit = {},
     onNavigateToLiveActivity: () -> Unit = {},
+    onNavigateToAssignmentReminders: () -> Unit = {},
     onNavigateToServerPush: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToNotificationDebug: () -> Unit = {},
     onNavigateToApiEndpointDebug: () -> Unit = {},
+    onNavigateToTriggersDebug: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsState()
@@ -136,15 +145,38 @@ fun SettingsScreen(
     val useEnglishCourseAbbreviation = viewModel.appState.useEnglishCourseAbbreviation
     val useEnglishClassroomAbbreviation = viewModel.appState.useEnglishClassroomAbbreviation
     val classroomMandarinDisplay = viewModel.appState.classroomMandarinDisplay
-    val notifyAssignments = viewModel.appState.notifyAssignments
     val libraryEnabled = viewModel.appState.libraryFeatureEnabled
     val appLanguage = viewModel.appState.appLanguage
     val shouldShowEnglishAbbreviationToggle = AppLanguageManager.isCourseApiEnglish(appLanguage)
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
     val appVersion = remember { BuildConfig.VERSION_NAME }
+
+    // About section dependencies: UpdateChecker for "Check for updates" and
+    // WhatsNewRepository for the manual What's New entry point. Pulled via
+    // a Hilt entry point so this purely-Compose screen doesn't have to thread
+    // them through the existing SettingsViewModel just to render two rows.
+    val settingsEntryPoint = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            SettingsEntryPoint::class.java,
+        )
+    }
+    val updateChecker = remember(settingsEntryPoint) { settingsEntryPoint.updateChecker() }
+    val whatsNewRepo = remember(settingsEntryPoint) { settingsEntryPoint.whatsNewRepository() }
+    val isCheckingForUpdate by updateChecker.isCheckingForUpdate.collectAsStateWithLifecycle()
+    val manualCheckResult by updateChecker.lastManualCheckResult.collectAsStateWithLifecycle()
+    // Resolve the user's locale once per Settings render — the asset isn't
+    // huge, but re-parsing it for every recomposition would be wasteful. Key
+    // on the resolved tag string (not the live Configuration object) so
+    // unrelated config changes — font scale, screen size, dark-mode flip —
+    // don't pointlessly re-parse the asset.
+    val languageTag = context.resources.configuration.locales[0].toLanguageTag()
+    val latestWhatsNew: WhatsNewContent? = remember(whatsNewRepo, languageTag) {
+        whatsNewRepo.latestEntry(languageTag)
+    }
+    var manualWhatsNewVisible by remember { mutableStateOf(false) }
 
     // Show network error as snackbar; clear after display so navigating
     // away and back doesn't re-surface a stale error.
@@ -207,21 +239,10 @@ fun SettingsScreen(
 
                         if (libraryEnabled) {
                             HorizontalDivider()
-                            val expiryMs = viewModel.libraryTokenExpiry
-                            val expirySubtitle = if (isLibraryLoggedIn && expiryMs > 0) {
-                                val fmt = SimpleDateFormat("yyyy/MM/dd", Locale.TAIWAN).apply {
-                                    timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
-                                }
-                                stringResource(
-                                    R.string.settings_token_valid_until,
-                                    fmt.format(Date(expiryMs))
-                                )
-                            } else null
                             AccountRow(
                                 title = stringResource(R.string.settings_account_library_system),
                                 isLoggedIn = isLibraryLoggedIn,
                                 subtitle = if (isLibraryLoggedIn) viewModel.libraryUsername else null,
-                                extraSubtitle = expirySubtitle,
                                 isLoggingIn = libIsLoggingIn,
                                 onLogin = { showLibraryLoginSheet = true },
                                 onLogout = { viewModel.logoutLibrary() },
@@ -379,13 +400,9 @@ fun SettingsScreen(
             item {
                 ContentCard {
                     Column {
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_assignment_due_reminder),
-                            notifyAssignments
-                        ) {
-                            viewModel.appState.notifyAssignments = it
-                            if (!it) viewModel.cancelAllAssignmentNotifications()
-                        }
+                        SettingsLinkRow(
+                            stringResource(R.string.settings_assignment_due_reminder)
+                        ) { onNavigateToAssignmentReminders() }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) { onNavigateToLiveActivity() }
                         // Hide on F-Droid flavor since the Server Push pipeline
@@ -465,6 +482,29 @@ fun SettingsScreen(
                 ContentCard {
                     Column {
                         SettingsRow(stringResource(R.string.settings_version), appVersion)
+                        // Check for updates — Play flavor only. fdroid leaves
+                        // update notifications to the F-Droid client app (the
+                        // UpdateChecker stub is a no-op there), so a row that
+                        // could only ever report "up to date" would just
+                        // confuse users. Mirrors iOS hiding this row on Mac.
+                        if (!BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                            HorizontalDivider()
+                            CheckForUpdatesRow(
+                                isChecking = isCheckingForUpdate,
+                                onClick = { updateChecker.checkManually() },
+                            )
+                        }
+                        // What's New — only when an entry is registered for
+                        // the resolved locale. During early bring-up of a
+                        // release the asset may not yet have an entry; in
+                        // that case we hide the row instead of routing the
+                        // user to an empty sheet.
+                        if (latestWhatsNew != null) {
+                            HorizontalDivider()
+                            SettingsLinkRow(stringResource(R.string.settings_whats_new)) {
+                                manualWhatsNewVisible = true
+                            }
+                        }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_official_website)) {
                             openUrl(context, "https://tigerduck.app/", browserPreference)
@@ -483,20 +523,21 @@ fun SettingsScreen(
                             HorizontalDivider()
                             SettingsLinkRow("Notification") { onNavigateToNotificationDebug() }
                             HorizontalDivider()
-                            // Set the replay sentinel so resolveWhatsNew() shows
-                            // the newest whatsnew.json entry on the next process
-                            // start, regardless of this build's versionCode.
-                            SettingsLinkRow("Replay \"What's new\" on next launch") {
-                                viewModel.prefs.lastSeenWhatsNewVersionCode =
-                                    AppPreferences.WHATS_NEW_REPLAY
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        "\"What's new\" will show on next app launch.",
-                                    )
-                                }
-                            }
-                            HorizontalDivider()
                             SettingsLinkRow("API endpoint") { onNavigateToApiEndpointDebug() }
+                            HorizontalDivider()
+                            // One-shot UI surfaces (What's new, update prompt,
+                            // flip-to-library first trigger) live behind here so
+                            // they can be re-fired after a single dismissal.
+                            SettingsLinkRow("Triggers") { onNavigateToTriggersDebug() }
+                            HorizontalDivider()
+                            SettingsToggleRow(
+                                label = "Disable screen-capture protection",
+                                checked = viewModel.appState.disableScreenCaptureProtection,
+                                subtitle = "Allows screenshots/recordings of normally-protected surfaces (login sheet, library, onboarding password).",
+                                onCheckedChange = {
+                                    viewModel.appState.disableScreenCaptureProtection = it
+                                },
+                            )
                         }
                     }
                 }
@@ -548,16 +589,96 @@ fun SettingsScreen(
     }
 
     if (viewModel.appState.pendingLibraryEnablePrompt) {
-        AlertDialog(
+        TigerDuckDialog(
             onDismissRequest = { viewModel.appState.pendingLibraryEnablePrompt = false },
-            title = { Text(stringResource(R.string.settings_library_feature_disabled_title)) },
-            text = { Text(stringResource(R.string.settings_library_feature_disabled_message)) },
-            confirmButton = {
-                TextButton(onClick = { viewModel.appState.pendingLibraryEnablePrompt = false }) {
-                    Text(stringResource(R.string.settings_acknowledged))
-                }
-            },
+            title = stringResource(R.string.settings_library_feature_disabled_title),
+            message = stringResource(R.string.settings_library_feature_disabled_message),
+            confirmText = stringResource(R.string.settings_acknowledged),
+            onConfirm = { viewModel.appState.pendingLibraryEnablePrompt = false },
         )
+    }
+
+    // Manual "Check for updates" result alert. Only mounts for UpToDate /
+    // Failed — when Play reports an available update the regular
+    // UpdatePromptHost surfaces the three-button dialog instead, and the
+    // ManualCheckResult stays null in that branch by design.
+    manualCheckResult?.let { result ->
+        val appName = stringResource(R.string.app_name)
+        TigerDuckDialog(
+            onDismissRequest = { updateChecker.acknowledgeManualCheckResult() },
+            title = stringResource(
+                when (result) {
+                    ManualCheckResult.UpToDate -> R.string.update_up_to_date_title
+                    ManualCheckResult.Failed -> R.string.update_check_failed_title
+                },
+            ),
+            // update_up_to_date_message carries iOS's `%1$@` placeholder;
+            // see IosPlaceholder.kt for the centralized shim.
+            message = when (result) {
+                ManualCheckResult.UpToDate ->
+                    stringResource(R.string.update_up_to_date_message).replaceIosArg(1, appName)
+                ManualCheckResult.Failed ->
+                    stringResource(R.string.update_check_failed_message)
+            },
+            confirmText = stringResource(R.string.action_got_it),
+            onConfirm = { updateChecker.acknowledgeManualCheckResult() },
+        )
+    }
+
+    // Manual "What's New" — always opens the latest authored entry, even
+    // if the auto-launch path already showed it. Does NOT stamp
+    // lastSeenWhatsNewVersionCode: this is a re-visit surface, and stamping
+    // here would silently suppress the next auto-prompt after the user
+    // browsed release notes from Settings.
+    if (manualWhatsNewVisible && latestWhatsNew != null) {
+        WhatsNewDialog(
+            content = latestWhatsNew,
+            onDismiss = { manualWhatsNewVisible = false },
+        )
+    }
+}
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+internal interface SettingsEntryPoint {
+    fun updateChecker(): UpdateChecker
+    fun whatsNewRepository(): WhatsNewRepository
+}
+
+/**
+ * About section row that swaps a chevron for a spinner while a manual
+ * "Check for updates" call is in flight. Disabled while checking so a
+ * stuck-finger user can't fire a second concurrent query.
+ */
+@Composable
+private fun CheckForUpdatesRow(isChecking: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(SettingRowHeight)
+            .semantics(mergeDescendants = true) { role = Role.Button }
+            .clickable(enabled = !isChecking) { onClick() }
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            stringResource(R.string.settings_check_for_updates),
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        if (isChecking) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+            )
+        } else {
+            Icon(
+                Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
 
@@ -589,7 +710,6 @@ private fun AccountRow(
     title: String,
     isLoggedIn: Boolean,
     subtitle: String?,
-    extraSubtitle: String? = null,
     isLoggingIn: Boolean,
     onLogin: () -> Unit,
     onLogout: () -> Unit,
@@ -643,13 +763,6 @@ private fun AccountRow(
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                )
-            }
-            if (!extraSubtitle.isNullOrBlank()) {
-                Text(
-                    extraSubtitle,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                 )
@@ -820,7 +933,7 @@ internal fun SettingsLinkRow(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun SettingsLinkRowWithValue(label: String, value: String, onClick: () -> Unit) {
+internal fun SettingsLinkRowWithValue(label: String, value: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -880,50 +993,42 @@ internal fun LibraryWarningDialog(
         label = "flash_alpha"
     )
 
-    AlertDialog(
+    TigerDuckDialog(
         onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        icon = {
+            // Flashing red warning icon + title to signal the destructive
+            // weight of enabling the library feature. Kept in the icon slot
+            // (rather than the plain `title`) so both can pulse together.
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Icon(
                     Icons.Filled.Warning,
                     contentDescription = null,
                     tint = Color.Red.copy(alpha = flashAlpha),
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(32.dp)
                 )
-                Spacer(Modifier.width(8.dp))
                 Text(
                     stringResource(R.string.settings_library_warning_title),
                     color = Color.Red.copy(alpha = flashAlpha),
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
                 )
             }
         },
-        text = {
-            Text(stringResource(R.string.settings_library_warning_message))
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                enabled = confirmEnabled,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Red,
-                    disabledContainerColor = Color.Red.copy(alpha = 0.35f)
-                )
-            ) {
-                Text(
-                    if (confirmEnabled) stringResource(R.string.settings_library_warning_confirm)
-                    else stringResource(
-                        R.string.settings_library_warning_confirm_countdown,
-                        countdown
-                    )
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.settings_library_warning_dismiss))
-            }
-        }
+        message = stringResource(R.string.settings_library_warning_message),
+        confirmText = if (confirmEnabled) stringResource(R.string.settings_library_warning_confirm)
+        else stringResource(R.string.settings_library_warning_confirm_countdown, countdown),
+        onConfirm = onConfirm,
+        confirmEnabled = confirmEnabled,
+        confirmColors = ButtonDefaults.buttonColors(
+            containerColor = Color.Red,
+            disabledContainerColor = Color.Red.copy(alpha = 0.35f),
+        ),
+        dismissText = stringResource(R.string.settings_library_warning_dismiss),
+        onDismiss = onDismiss,
     )
 }
 

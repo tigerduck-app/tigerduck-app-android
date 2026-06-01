@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
@@ -14,23 +15,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,12 +37,15 @@ import org.ntust.app.tigerduck.serverpush.ServerPopupRequest
 import org.ntust.app.tigerduck.serverpush.ServerPushIntentToken
 import org.ntust.app.tigerduck.serverpush.ServerPushPopupCoordinator
 import org.ntust.app.tigerduck.ui.AppState
+import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
+import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptController
+import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptHost
 import org.ntust.app.tigerduck.ui.navigation.AppNavigation
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewDialog
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.update.UpdateChecker
-import org.ntust.app.tigerduck.update.UpdateInstallSnackbar
+import org.ntust.app.tigerduck.update.UpdatePromptDialog
 import org.ntust.app.tigerduck.update.WhatsNewContent
 import org.ntust.app.tigerduck.update.WhatsNewGate
 import org.ntust.app.tigerduck.update.WhatsNewRepository
@@ -83,20 +78,15 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var serverPushIntentToken: ServerPushIntentToken
 
+    @Inject
+    lateinit var firstTriggerPromptController: FirstTriggerPromptController
+
     private val widgetStartRoute = mutableStateOf<String?>(null)
     private val whatsNewContent = mutableStateOf<WhatsNewContent?>(null)
 
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) liveActivityManager.refresh()
-        }
-
-    // Receives the result of Play's in-app update confirmation UI. Routing it
-    // back lets UpdateChecker attach its install listener only when the user
-    // accepted, so a cancelled flow leaves nothing registered (issue #89).
-    private val updateFlowLauncher =
-        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-            updateChecker.onUpdateFlowResult(result.resultCode)
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -119,7 +109,7 @@ class MainActivity : AppCompatActivity() {
         // Re-prompt for app updates only on a genuine fresh start, never on a
         // rotation/config-change recreation (issue #89).
         if (savedInstanceState == null) {
-            updateChecker.maybePromptForUpdate(updateFlowLauncher)
+            updateChecker.maybePromptForUpdate()
         }
         // Resolve "What's new" on every onCreate, including config-change
         // recreations: the dialog's versionCode is recorded only once the user
@@ -162,21 +152,12 @@ class MainActivity : AppCompatActivity() {
                             },
                         )
 
-                        // App-global snackbar host for the in-app update
-                        // "ready to install" prompt (issue #89). The app's
-                        // other snackbar hosts are per-screen; this one
-                        // outlives navigation.
-                        val updateSnackbarHostState = remember { SnackbarHostState() }
-                        SnackbarHost(
-                            updateSnackbarHostState,
-                            // Bare SnackbarHost (unlike Scaffold) applies no
-                            // insets; pad it so the snackbar clears the system
-                            // navigation bar and the IME under enableEdgeToEdge.
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .windowInsetsPadding(WindowInsets.safeDrawing),
-                        )
-                        UpdateInstallSnackbar(updateChecker, updateSnackbarHostState)
+                        // "An update is available" prompt — three actions:
+                        // Update now (Play Store deep link), Later (7-day
+                        // same-version cooldown), Skip this version
+                        // (indefinite per-version suppression). Mounted at
+                        // app root so a tab swap can't strand it.
+                        UpdatePromptHost(updateChecker)
 
                         whatsNewContent.value?.let { content ->
                             WhatsNewDialog(
@@ -192,6 +173,11 @@ class MainActivity : AppCompatActivity() {
                                 },
                             )
                         }
+
+                        // First-trigger opt-in prompts (e.g. flip-to-library):
+                        // root-level so the prompt can surface over any tab the
+                        // gesture fires from, independent of the nav back stack.
+                        FirstTriggerPromptHost(firstTriggerPromptController)
 
                         // Operator-issued popup: rendered over whatever screen
                         // the user lands on after tapping the notification.
@@ -386,15 +372,37 @@ class MainActivity : AppCompatActivity() {
 private fun ServerPushPopupHost(coordinator: ServerPushPopupCoordinator) {
     val popup by coordinator.pending.collectAsStateWithLifecycle()
     popup?.let { req ->
-        AlertDialog(
+        TigerDuckDialog(
             onDismissRequest = { coordinator.acknowledge() },
-            title = { Text(req.title) },
-            text = { Text(req.body) },
-            confirmButton = {
-                TextButton(onClick = { coordinator.acknowledge() }) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            },
+            title = req.title,
+            message = req.body,
+            confirmText = stringResource(android.R.string.ok),
+            onConfirm = { coordinator.acknowledge() },
+        )
+    }
+}
+
+/**
+ * Observes [UpdateChecker.pendingUpdate] and renders [UpdatePromptDialog]
+ * when an update is awaiting the user's choice. Flavor-safe: on fdroid the
+ * flow is permanently null, so the dialog never mounts.
+ *
+ * Pulls the hosting Activity from `LocalContext` because the "Update Now"
+ * deep link needs an Activity context (FLAG_ACTIVITY_NEW_TASK is required
+ * for the Play Store intent, and using the application context for that
+ * silently no-ops on some OEM launchers).
+ */
+@Composable
+private fun UpdatePromptHost(updateChecker: UpdateChecker) {
+    val pending by updateChecker.pendingUpdate.collectAsStateWithLifecycle()
+    val activity = LocalContext.current as? Activity ?: return
+    pending?.let { p ->
+        UpdatePromptDialog(
+            pending = p,
+            onUpdateNow = { updateChecker.onUpdateNow(activity) },
+            onLater = { updateChecker.onLater() },
+            onSkipThisVersion = { updateChecker.onSkipThisVersion() },
+            onDismissRequest = { updateChecker.dismissPrompt() },
         )
     }
 }

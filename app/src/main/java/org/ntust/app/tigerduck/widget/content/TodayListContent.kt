@@ -164,7 +164,7 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
                                 text = course.displayName,
                                 style = TextStyle(
                                     color = ColorProvider(primaryText),
-                                    fontSize = 14.sp,
+                                    fontSize = 14.sp * state.courseNameScale,
                                     fontWeight = FontWeight.Medium,
                                 ),
                                 maxLines = 1,

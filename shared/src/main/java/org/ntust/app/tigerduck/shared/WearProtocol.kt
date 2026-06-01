@@ -15,6 +15,13 @@ object WearProtocol {
         const val KEY_SYNCED_AT = "syncedAtMs"
         const val KEY_LOGGED_IN = "loggedIn"
         const val KEY_LANGUAGE = "languageTag"
+
+        // Mirrors the phone's `Settings → Developer → Disable screen-capture
+        // protection` toggle. Only ever set to true by a DEBUG-build phone;
+        // release phones publish false unconditionally. The watch's
+        // LibraryQR SecureScreen reads the persisted value to decide whether
+        // to apply FLAG_SECURE to the QR window.
+        const val KEY_DISABLE_SCREEN_CAPTURE_PROTECTION = "disableScreenCaptureProtection"
     }
 
     /** One-shot message watch → phone asking for a fresh [Schedule] publish. */
