@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Nežinoma</string>
     <string name="bulletin_rule_add_action">Regel hinzufügen</string>
     <string name="bulletin_rule_add_title">Regel hinzufügen</string>
-    <string name="bulletin_rule_all_orgs">Alle Abteilungen</string>
+    <string name="bulletin_rule_all_depts">Alle Abteilungen</string>
     <string name="bulletin_rule_all_tags">Alle Kategorien</string>
     <string name="bulletin_rule_all_title">Alle Bulletins</string>
     <string name="bulletin_rule_delete_action">Regel löschen</string>
     <string name="bulletin_rule_dept_and_tag_title">Abteilung + Kategorie (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Spezifische Abteilung</string>
+    <string name="bulletin_rule_dept_prefix">Abteilung: </string>
     <string name="bulletin_rule_disabled_badge">Deaktiviert</string>
     <string name="bulletin_rule_edit_title">Regel bearbeiten</string>
     <string name="bulletin_rule_editor_dept_section">Abteilung</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> Und </string>
     <string name="bulletin_rule_join_or"> oder </string>
-    <string name="bulletin_rule_orgs_prefix">Abteilung: </string>
     <string name="bulletin_rule_tag_only_title">Spezifische Kategorie</string>
     <string name="bulletin_rule_tags_prefix">Kategorie: </string>
     <string name="bulletin_rules_footer">Jede Regel kann nach Abteilung, Kategorie und einem Kombinationsmodus filtern. Lassen Sie das Feld leer, um alles in dieser Dimension abzugleichen. Maximal 32 Regeln.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Ungelesen</string>
     <string name="bulletin_withdrawn_badge">Zurückgezogen</string>
     <string name="calendar_date_today_suffix"> (šiandien)</string>
-    <string name="calendar_event_source_exam">Egzaminas</string>
-    <string name="calendar_event_source_school">Mokykla</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Kitas mėnuo</string>
     <string name="calendar_no_events_on_day">Šią dieną renginių nėra</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Mokykla</string>
     <string name="calendar_today">Šiandien</string>
-    <string name="class_table_add_course">Pridėti kursą</string>
     <string name="class_table_conflict_add_failed_message">%1$s šiame laike jau yra dvi paskaitos (savaitės diena %2$s, periodas %3$s): %4$s ir %5$s. Sistema nepalaiko trijų sutampančių paskaitų.</string>
     <string name="class_table_conflict_add_failed_title">Nepavyksta pridėti</string>
     <string name="class_table_course_name">Kurso pavadinimas</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Laukiančios užduotys</string>
     <string name="home_section_add_quick_features">Fügen Sie Schnellaktionen hinzu</string>
     <string name="home_section_all_widgets_added">Alle Schnellaktionen wurden hinzugefügt</string>
-    <string name="home_section_custom">Pasirinktinis skyrius</string>
     <string name="home_section_drag_hint">Zum Ziehen und Neuanordnen lange drücken</string>
     <string name="home_section_name">Skyriaus pavadinimas</string>
     <string name="home_section_quick_widgets">Greiti valdikliai</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Registracija</string>
     <string name="score_course_detail_schedule_label">Pamokų tvarkaraštis</string>
     <string name="score_credit_earned">Gauta</string>
-    <string name="score_credit_earned_label">Gauta</string>
     <string name="score_credit_enrolled">Studijuojama</string>
-    <string name="score_credit_enrolled_label">Užregistruota</string>
     <string name="score_credit_summary_title">Kreditų suvestinė</string>
     <string name="score_credit_total">Iš viso</string>
     <string name="score_credit_type_education_program">Pedagogikos programa</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Prisijunkite, kad įkeltumėte pažymių duomenis.</string>
     <string name="score_rank_class">Klasės vieta</string>
     <string name="score_rank_department">Katedros vieta</string>
-    <string name="score_ranking_class_label">Klasės reitingas</string>
     <string name="score_ranking_dept_label">Skyriaus reitingas</string>
     <string name="score_scope_cumulative">Kaupiamasis</string>
     <string name="score_scope_semester">Semestras</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Rytoj · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Pn</string>
-    <string name="watch_weekday_mon_short">Pr</string>
-    <string name="watch_weekday_sat_short">Št</string>
-    <string name="watch_weekday_sun_short">Sk</string>
-    <string name="watch_weekday_thu_short">Kt</string>
-    <string name="watch_weekday_tue_short">An</string>
-    <string name="watch_weekday_wed_short">Tr</string>
     <string name="watch_widget_next_class">Kita pamoka</string>
     <string name="watch_widget_next_class_description">Rodo jūsų kitą artėjančią pamoką.</string>
     <string name="weekday_fri_short">Pn</string>

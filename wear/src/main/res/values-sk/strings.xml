@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Neznáme</string>
     <string name="bulletin_rule_add_action">Pridať pravidlo</string>
     <string name="bulletin_rule_add_title">Pridať pravidlo</string>
-    <string name="bulletin_rule_all_orgs">Všetky oddelenia</string>
+    <string name="bulletin_rule_all_depts">Všetky oddelenia</string>
     <string name="bulletin_rule_all_tags">Všetky kategórie</string>
     <string name="bulletin_rule_all_title">Všetky oznamy</string>
     <string name="bulletin_rule_delete_action">Odstrániť pravidlo</string>
     <string name="bulletin_rule_dept_and_tag_title">Odd. + Kategória (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Konkrétne oddelenie</string>
+    <string name="bulletin_rule_dept_prefix">Odd.: </string>
     <string name="bulletin_rule_disabled_badge">Vypnuté</string>
     <string name="bulletin_rule_edit_title">Upraviť pravidlo</string>
     <string name="bulletin_rule_editor_dept_section">Oddelenie</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> a </string>
     <string name="bulletin_rule_join_or"> alebo </string>
-    <string name="bulletin_rule_orgs_prefix">Odd.: </string>
     <string name="bulletin_rule_tag_only_title">Spezifische Kategorie</string>
     <string name="bulletin_rule_tags_prefix">Kategorie: </string>
     <string name="bulletin_rules_footer">Jede Regel kann nach Abteilung, Kategorie und einem Kombinationsmodus filtern. Lassen Sie das Feld leer, um alles in dieser Dimension abzugleichen. Maximal 32 Regeln.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Ungelesen</string>
     <string name="bulletin_withdrawn_badge">Zurückgezogen</string>
     <string name="calendar_date_today_suffix"> (Dnes)</string>
-    <string name="calendar_event_source_exam">Skúška</string>
-    <string name="calendar_event_source_school">Škola</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Nasledujúci mesiac</string>
     <string name="calendar_no_events_on_day">Tento deň nemá žiadne udalosti</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Škola</string>
     <string name="calendar_today">Dnes</string>
-    <string name="class_table_add_course">Pridať kurz</string>
     <string name="class_table_conflict_add_failed_message">%1$s má v tomto časovom slote už dve hodiny (deň %2$s, hodina %3$s): %4$s a %5$s. Systém nepodporuje trojitý konflikt.</string>
     <string name="class_table_conflict_add_failed_title">Nedá sa pridať</string>
     <string name="class_table_course_name">Názov kurzu</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Čakajúce úlohy</string>
     <string name="home_section_add_quick_features">Fügen Sie Schnellaktionen hinzu</string>
     <string name="home_section_all_widgets_added">Alle Schnellaktionen wurden hinzugefügt</string>
-    <string name="home_section_custom">Vlastná sekcia</string>
     <string name="home_section_drag_hint">Zum Ziehen und Neuanordnen lange drücken</string>
     <string name="home_section_name">Názov sekcie</string>
     <string name="home_section_quick_widgets">Rýchle widgety</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Zápis</string>
     <string name="score_course_detail_schedule_label">Rozvrh hodín</string>
     <string name="score_credit_earned">Získané</string>
-    <string name="score_credit_earned_label">Získané</string>
     <string name="score_credit_enrolled">Zapísané</string>
-    <string name="score_credit_enrolled_label">Zapísané</string>
     <string name="score_credit_summary_title">Prehľad kreditov</string>
     <string name="score_credit_total">Celkom</string>
     <string name="score_credit_type_education_program">Pedagogický program</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Prihláste sa prosím na načítanie údajov o známkach.</string>
     <string name="score_rank_class">Poradie v triede</string>
     <string name="score_rank_department">Poradie na katedre</string>
-    <string name="score_ranking_class_label">Poradie v triede</string>
     <string name="score_ranking_dept_label">Poradie v katedre</string>
     <string name="score_scope_cumulative">Kumulatívne</string>
     <string name="score_scope_semester">Semester</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Zajtra · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Pi</string>
-    <string name="watch_weekday_mon_short">Po</string>
-    <string name="watch_weekday_sat_short">So</string>
-    <string name="watch_weekday_sun_short">Ne</string>
-    <string name="watch_weekday_thu_short">Št</string>
-    <string name="watch_weekday_tue_short">Ut</string>
-    <string name="watch_weekday_wed_short">St</string>
     <string name="watch_widget_next_class">Ďalšia hodina</string>
     <string name="watch_widget_next_class_description">Zobrazuje vašu nasledujúcu hodinu.</string>
     <string name="weekday_fri_short">Pi</string>

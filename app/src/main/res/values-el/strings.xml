@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Άγνωστο</string>
     <string name="bulletin_rule_add_action">Προσθήκη κανόνα</string>
     <string name="bulletin_rule_add_title">Προσθήκη κανόνα</string>
-    <string name="bulletin_rule_all_orgs">Όλα τα τμήματα</string>
+    <string name="bulletin_rule_all_depts">Όλα τα τμήματα</string>
     <string name="bulletin_rule_all_tags">Όλες οι κατηγορίες</string>
     <string name="bulletin_rule_all_title">Όλα τα δελτία</string>
     <string name="bulletin_rule_delete_action">Διαγραφή κανόνα</string>
     <string name="bulletin_rule_dept_and_tag_title">Τμήμα + Κατηγορία (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Συγκεκριμένο τμήμα</string>
+    <string name="bulletin_rule_dept_prefix">Τμήμα: </string>
     <string name="bulletin_rule_disabled_badge">Ανάπηρος</string>
     <string name="bulletin_rule_edit_title">Επεξεργασία κανόνα</string>
     <string name="bulletin_rule_editor_dept_section">Τμήμα</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> και </string>
     <string name="bulletin_rule_join_or"> ή </string>
-    <string name="bulletin_rule_orgs_prefix">Τμήμα: </string>
     <string name="bulletin_rule_tag_only_title">Συγκεκριμένη κατηγορία</string>
     <string name="bulletin_rule_tags_prefix">Κατηγορία: </string>
     <string name="bulletin_rules_footer">Κάθε κανόνας μπορεί να φιλτράρει ανά τμήμα, κατηγορία και λειτουργία συνδυασμού. Αφήστε το κενό για να ταιριάζει με τα πάντα σε αυτή τη διάσταση. Το πολύ 32 κανόνες.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Αδιάβαστος</string>
     <string name="bulletin_withdrawn_badge">Αποτραβηγμένος</string>
     <string name="calendar_date_today_suffix"> (Σήμερα)</string>
-    <string name="calendar_event_source_exam">Εξέταση</string>
-    <string name="calendar_event_source_school">Σχολή</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Επόμενος μήνας</string>
     <string name="calendar_no_events_on_day">Δεν υπάρχουν εκδηλώσεις αυτή την ημέρα</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Σχολή</string>
     <string name="calendar_today">Σήμερα</string>
-    <string name="class_table_add_course">Προσθήκη μαθήματος</string>
     <string name="class_table_conflict_add_failed_message">Το %1$s έχει ήδη δύο μαθήματα σε αυτή τη θέση (Εβδομάδα %2$s, Περίοδος %3$s): %4$s και %5$s. Το σύστημα δεν υποστηρίζει τριπλές συγκρούσεις.</string>
     <string name="class_table_conflict_add_failed_title">Αδύνατη η προσθήκη</string>
     <string name="class_table_course_name">Όνομα μαθήματος</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Εκκρεμείς εργασίες</string>
     <string name="home_section_add_quick_features">Προσθέστε γρήγορες ενέργειες</string>
     <string name="home_section_all_widgets_added">Όλες οι γρήγορες ενέργειες έχουν προστεθεί</string>
-    <string name="home_section_custom">Προσαρμοσμένη ενότητα</string>
     <string name="home_section_drag_hint">Πατήστε παρατεταμένα για μεταφορά και αναδιάταξη</string>
     <string name="home_section_name">Όνομα ενότητας</string>
     <string name="home_section_quick_widgets">Γρήγορες λειτουργίες</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Εγγραφή</string>
     <string name="score_course_detail_schedule_label">Πρόγραμμα μαθημάτων</string>
     <string name="score_credit_earned">Αποκτήθηκαν</string>
-    <string name="score_credit_earned_label">Κερδηθείς</string>
     <string name="score_credit_enrolled">Εγγεγραμμένος</string>
-    <string name="score_credit_enrolled_label">Εγγεγραμμένος</string>
     <string name="score_credit_summary_title">Σύνοψη πιστωτικών μονάδων</string>
     <string name="score_credit_total">Σύνολο</string>
     <string name="score_credit_type_education_program">Εκπαιδευτικό πρόγραμμα</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Παρακαλώ συνδεθείτε για να φορτώσετε τα δεδομένα βαθμών.</string>
     <string name="score_rank_class">Κατάταξη τάξης</string>
     <string name="score_rank_department">Κατάταξη τμήματος</string>
-    <string name="score_ranking_class_label">Βαθμός τάξης</string>
     <string name="score_ranking_dept_label">Κατάταξη τμήματος</string>
     <string name="score_scope_cumulative">Αθροιστικά</string>
     <string name="score_scope_semester">Εξάμηνο</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Αύριο · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Παρ</string>
-    <string name="watch_weekday_mon_short">Δευ</string>
-    <string name="watch_weekday_sat_short">Σάβ</string>
-    <string name="watch_weekday_sun_short">Κυρ</string>
-    <string name="watch_weekday_thu_short">Πεμ</string>
-    <string name="watch_weekday_tue_short">Τρι</string>
-    <string name="watch_weekday_wed_short">Τετ</string>
     <string name="watch_widget_next_class">Επόμενο μάθημα</string>
     <string name="watch_widget_next_class_description">Εμφανίζει το επόμενο προσεχές μάθημά σας.</string>
     <string name="weekday_fri_short">Παρ</string>

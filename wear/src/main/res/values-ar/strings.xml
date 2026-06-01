@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">غير معروف</string>
     <string name="bulletin_rule_add_action">أضف القاعدة</string>
     <string name="bulletin_rule_add_title">أضف القاعدة</string>
-    <string name="bulletin_rule_all_orgs">جميع الأقسام</string>
+    <string name="bulletin_rule_all_depts">جميع الأقسام</string>
     <string name="bulletin_rule_all_tags">جميع الفئات</string>
     <string name="bulletin_rule_all_title">جميع النشرات</string>
     <string name="bulletin_rule_delete_action">حذف القاعدة</string>
     <string name="bulletin_rule_dept_and_tag_title">القسم + الفئة (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">قسم محدد</string>
+    <string name="bulletin_rule_dept_prefix">قسم: </string>
     <string name="bulletin_rule_disabled_badge">عاجز</string>
     <string name="bulletin_rule_edit_title">تحرير القاعدة</string>
     <string name="bulletin_rule_editor_dept_section">قسم</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">، </string>
     <string name="bulletin_rule_join_and"> و </string>
     <string name="bulletin_rule_join_or"> أو </string>
-    <string name="bulletin_rule_orgs_prefix">قسم: </string>
     <string name="bulletin_rule_tag_only_title">فئة محددة</string>
     <string name="bulletin_rule_tags_prefix">فئة: </string>
     <string name="bulletin_rules_footer">يمكن تصفية كل قاعدة حسب القسم والفئة ووضع المجموعة. اتركه فارغًا لمطابقة كل شيء في هذا البعد. الحد الأقصى 32 قواعد.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">غير مقروءة</string>
     <string name="bulletin_withdrawn_badge">انسحبت</string>
     <string name="calendar_date_today_suffix"> (اليوم)</string>
-    <string name="calendar_event_source_exam">اختبار</string>
-    <string name="calendar_event_source_school">الجامعة</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">الشهر التالي</string>
     <string name="calendar_no_events_on_day">لا توجد أحداث في هذا اليوم</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">الجامعة</string>
     <string name="calendar_today">اليوم</string>
-    <string name="class_table_add_course">إضافة مقرر</string>
     <string name="class_table_conflict_add_failed_message">%1$s لديه بالفعل محاضرتان في هذا الموعد (يوم الأسبوع %2$s، الحصة %3$s): %4$s و %5$s. النظام لا يدعم تعارض ثلاث محاضرات.</string>
     <string name="class_table_conflict_add_failed_title">تعذّرت الإضافة</string>
     <string name="class_table_course_name">اسم المقرر</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">واجبات معلّقة</string>
     <string name="home_section_add_quick_features">أضف إجراءات سريعة</string>
     <string name="home_section_all_widgets_added">تمت إضافة كافة الإجراءات السريعة</string>
-    <string name="home_section_custom">قسم مخصص</string>
     <string name="home_section_drag_hint">اضغط لفترة طويلة للسحب وإعادة الترتيب</string>
     <string name="home_section_name">اسم القسم</string>
     <string name="home_section_quick_widgets">ودجات سريعة</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">التسجيل</string>
     <string name="score_course_detail_schedule_label">الجدول الدراسي</string>
     <string name="score_credit_earned">المكتسبة</string>
-    <string name="score_credit_earned_label">حصل</string>
     <string name="score_credit_enrolled">المسجَّلة</string>
-    <string name="score_credit_enrolled_label">مسجل</string>
     <string name="score_credit_summary_title">ملخص الساعات المعتمدة</string>
     <string name="score_credit_total">الإجمالي</string>
     <string name="score_credit_type_education_program">برنامج التعليم</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">يرجى تسجيل الدخول لتحميل بيانات الدرجات.</string>
     <string name="score_rank_class">الترتيب في الصف</string>
     <string name="score_rank_department">الترتيب في القسم</string>
-    <string name="score_ranking_class_label">رتبة الطبقة</string>
     <string name="score_ranking_dept_label">رتبة القسم</string>
     <string name="score_scope_cumulative">تراكمي</string>
     <string name="score_scope_semester">الفصل الدراسي</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">غدًا · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">جمع</string>
-    <string name="watch_weekday_mon_short">اثن</string>
-    <string name="watch_weekday_sat_short">سبت</string>
-    <string name="watch_weekday_sun_short">أحد</string>
-    <string name="watch_weekday_thu_short">خمي</string>
-    <string name="watch_weekday_tue_short">ثلا</string>
-    <string name="watch_weekday_wed_short">أرب</string>
     <string name="watch_widget_next_class">المحاضرة التالية</string>
     <string name="watch_widget_next_class_description">يعرض محاضرتك التالية القادمة.</string>
     <string name="weekday_fri_short">الجمعة</string>

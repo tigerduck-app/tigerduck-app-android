@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">نامعلوم</string>
     <string name="bulletin_rule_add_action">قانون شامل کریں</string>
     <string name="bulletin_rule_add_title">قانون شامل کریں</string>
-    <string name="bulletin_rule_all_orgs">تمام محکمے</string>
+    <string name="bulletin_rule_all_depts">تمام محکمے</string>
     <string name="bulletin_rule_all_tags">تمام زمرے</string>
     <string name="bulletin_rule_all_title">تمام بلیٹن</string>
     <string name="bulletin_rule_delete_action">قانون حذف کریں</string>
     <string name="bulletin_rule_dept_and_tag_title">محکمہ + زمرہ (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">مخصوص محکمہ</string>
+    <string name="bulletin_rule_dept_prefix">محکمہ: </string>
     <string name="bulletin_rule_disabled_badge">غیر فعال</string>
     <string name="bulletin_rule_edit_title">قانون ترمیم کریں</string>
     <string name="bulletin_rule_editor_dept_section">محکمہ</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> اور </string>
     <string name="bulletin_rule_join_or"> یا </string>
-    <string name="bulletin_rule_orgs_prefix">محکمہ: </string>
     <string name="bulletin_rule_tag_only_title">مخصوص زمرہ</string>
     <string name="bulletin_rule_tags_prefix">زمرہ: </string>
     <string name="bulletin_rules_footer">ہر اصول شعبہ، زمرہ، اور امتزاج موڈ کے ذریعے فلٹر کر سکتا ہے۔ اس جہت میں سب کچھ ملانے کے لیے خالی چھوڑیں۔ زیادہ سے زیادہ 32 اصول۔</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">غیر پڑھا</string>
     <string name="bulletin_withdrawn_badge">واپس لیا گیا</string>
     <string name="calendar_date_today_suffix"> (آج)</string>
-    <string name="calendar_event_source_exam">امتحان</string>
-    <string name="calendar_event_source_school">اسکول</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">اگلا مہینہ</string>
     <string name="calendar_no_events_on_day">اس دن کوئی واقعہ نہیں</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">اسکول</string>
     <string name="calendar_today">آج</string>
-    <string name="class_table_add_course">کورس شامل کریں</string>
     <string name="class_table_conflict_add_failed_message">%1$s کے اس سلاٹ (ویک ڈے %2$s، پیریڈ %3$s) میں پہلے سے دو کلاسیں ہیں: %4$s اور %5$s۔ سسٹم تین گنا تنازعہ کی حمایت نہیں کرتا۔</string>
     <string name="class_table_conflict_add_failed_title">شامل نہیں کیا جا سکتا</string>
     <string name="class_table_course_name">کورس کا نام</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">زیر التواء اسائنمنٹس</string>
     <string name="home_section_add_quick_features">فوری اقدامات شامل کریں</string>
     <string name="home_section_all_widgets_added">تمام فوری اقدامات شامل کر دیے گئے ہیں</string>
-    <string name="home_section_custom">کسٹم سیکشن</string>
     <string name="home_section_drag_hint">گھسیٹنے اور ترتیب بدلنے کے لیے دیر تک دبائیں</string>
     <string name="home_section_name">سیکشن کا نام</string>
     <string name="home_section_quick_widgets">فوری ویجٹس</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">اندراج</string>
     <string name="score_course_detail_schedule_label">کلاس شیڈول</string>
     <string name="score_credit_earned">حاصل کیے</string>
-    <string name="score_credit_earned_label">حاصل کردہ</string>
     <string name="score_credit_enrolled">داخل</string>
-    <string name="score_credit_enrolled_label">داخل شدہ</string>
     <string name="score_credit_summary_title">کریڈٹ خلاصہ</string>
     <string name="score_credit_total">کل</string>
     <string name="score_credit_type_education_program">تعلیمی پروگرام</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">گریڈ کا ڈیٹا لوڈ کرنے کے لیے سائن ان کریں۔</string>
     <string name="score_rank_class">کلاس درجہ</string>
     <string name="score_rank_department">شعبہ درجہ</string>
-    <string name="score_ranking_class_label">کلاس رینک</string>
     <string name="score_ranking_dept_label">ڈیپارٹمنٹ رینک</string>
     <string name="score_scope_cumulative">مجموعی</string>
     <string name="score_scope_semester">سمیسٹر</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">کل · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">جمعہ</string>
-    <string name="watch_weekday_mon_short">پیر</string>
-    <string name="watch_weekday_sat_short">ہفتہ</string>
-    <string name="watch_weekday_sun_short">اتوار</string>
-    <string name="watch_weekday_thu_short">جمع</string>
-    <string name="watch_weekday_tue_short">منگل</string>
-    <string name="watch_weekday_wed_short">بدھ</string>
     <string name="watch_widget_next_class">اگلی کلاس</string>
     <string name="watch_widget_next_class_description">آپ کی اگلی آنے والی کلاس دکھاتا ہے۔</string>
     <string name="weekday_fri_short">جمعہ</string>

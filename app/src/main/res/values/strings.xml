@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Unknown</string>
     <string name="bulletin_rule_add_action">Add rule</string>
     <string name="bulletin_rule_add_title">Add rule</string>
-    <string name="bulletin_rule_all_orgs">All departments</string>
+    <string name="bulletin_rule_all_depts">All departments</string>
     <string name="bulletin_rule_all_tags">All categories</string>
     <string name="bulletin_rule_all_title">All bulletins</string>
     <string name="bulletin_rule_delete_action">Delete rule</string>
     <string name="bulletin_rule_dept_and_tag_title">Dept + Category (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Specific department</string>
+    <string name="bulletin_rule_dept_prefix">Dept: </string>
     <string name="bulletin_rule_disabled_badge">Disabled</string>
     <string name="bulletin_rule_edit_title">Edit rule</string>
     <string name="bulletin_rule_editor_dept_section">Department</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> and </string>
     <string name="bulletin_rule_join_or"> or </string>
-    <string name="bulletin_rule_orgs_prefix">Dept: </string>
     <string name="bulletin_rule_tag_only_title">Specific category</string>
     <string name="bulletin_rule_tags_prefix">Category: </string>
     <string name="bulletin_rules_footer">Each rule can filter by department, category, and a combination mode. Leave blank to match everything in that dimension. Maximum 32 rules.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Unread</string>
     <string name="bulletin_withdrawn_badge">Withdrawn</string>
     <string name="calendar_date_today_suffix"> (Today)</string>
-    <string name="calendar_event_source_exam">Exam</string>
-    <string name="calendar_event_source_school">School</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Next month</string>
     <string name="calendar_no_events_on_day">No events on this day</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">School</string>
     <string name="calendar_today">Today</string>
-    <string name="class_table_add_course">Add course</string>
     <string name="class_table_conflict_add_failed_message">%1$s already has two classes at this slot (Weekday %2$s, Period %3$s): %4$s and %5$s. The system does not support triple conflicts.</string>
     <string name="class_table_conflict_add_failed_title">Unable to add</string>
     <string name="class_table_course_name">Course name</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Pending assignments</string>
     <string name="home_section_add_quick_features">Add quick actions</string>
     <string name="home_section_all_widgets_added">All quick actions have been added</string>
-    <string name="home_section_custom">Custom section</string>
     <string name="home_section_drag_hint">Long press to drag and reorder</string>
     <string name="home_section_name">Section name</string>
     <string name="home_section_quick_widgets">Quick widgets</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Enrollment</string>
     <string name="score_course_detail_schedule_label">Class schedule</string>
     <string name="score_credit_earned">Earned</string>
-    <string name="score_credit_earned_label">Earned</string>
     <string name="score_credit_enrolled">Enrolled</string>
-    <string name="score_credit_enrolled_label">Enrolled</string>
     <string name="score_credit_summary_title">Credit summary</string>
     <string name="score_credit_total">Total</string>
     <string name="score_credit_type_education_program">Education program</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Please sign in to load score data.</string>
     <string name="score_rank_class">Class rank</string>
     <string name="score_rank_department">Department rank</string>
-    <string name="score_ranking_class_label">Class rank</string>
     <string name="score_ranking_dept_label">Dept rank</string>
     <string name="score_scope_cumulative">Cumulative</string>
     <string name="score_scope_semester">Semester</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Tomorrow · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Fri</string>
-    <string name="watch_weekday_mon_short">Mon</string>
-    <string name="watch_weekday_sat_short">Sat</string>
-    <string name="watch_weekday_sun_short">Sun</string>
-    <string name="watch_weekday_thu_short">Thu</string>
-    <string name="watch_weekday_tue_short">Tue</string>
-    <string name="watch_weekday_wed_short">Wed</string>
     <string name="watch_widget_next_class">Next class</string>
     <string name="watch_widget_next_class_description">Shows your next upcoming class.</string>
     <string name="weekday_fri_short">Fri</string>

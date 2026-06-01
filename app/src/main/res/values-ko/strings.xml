@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">알 수 없음</string>
     <string name="bulletin_rule_add_action">규칙 추가</string>
     <string name="bulletin_rule_add_title">규칙 추가</string>
-    <string name="bulletin_rule_all_orgs">모든 학과</string>
+    <string name="bulletin_rule_all_depts">모든 학과</string>
     <string name="bulletin_rule_all_tags">모든 카테고리</string>
     <string name="bulletin_rule_all_title">모든 공지</string>
     <string name="bulletin_rule_delete_action">규칙 삭제</string>
     <string name="bulletin_rule_dept_and_tag_title">학과 + 카테고리 (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">특정 학과</string>
+    <string name="bulletin_rule_dept_prefix">학과: </string>
     <string name="bulletin_rule_disabled_badge">비활성화됨</string>
     <string name="bulletin_rule_edit_title">규칙 편집</string>
     <string name="bulletin_rule_editor_dept_section">학과</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> 및 </string>
     <string name="bulletin_rule_join_or"> 또는 </string>
-    <string name="bulletin_rule_orgs_prefix">학과: </string>
     <string name="bulletin_rule_tag_only_title">특정 카테고리</string>
     <string name="bulletin_rule_tags_prefix">카테고리: </string>
     <string name="bulletin_rules_footer">각 규칙은 부서, 카테고리 및 조합 모드로 필터링할 수 있습니다. 해당 항목의 모든 내용을 매칭하려면 비워 두세요. 최대 32개 규칙.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">읽지 않음</string>
     <string name="bulletin_withdrawn_badge">철회됨</string>
     <string name="calendar_date_today_suffix"> (오늘)</string>
-    <string name="calendar_event_source_exam">시험</string>
-    <string name="calendar_event_source_school">학교</string>
     <string name="calendar_month_year">%1$d년 %2$d월</string>
     <string name="calendar_next_month">다음 달</string>
     <string name="calendar_no_events_on_day">이 날에는 일정이 없습니다</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">학교</string>
     <string name="calendar_today">오늘</string>
-    <string name="class_table_add_course">수업 추가</string>
     <string name="class_table_conflict_add_failed_message">%1$s의 이 시간대(%2$s요일, %3$s교시)에 이미 두 개의 수업이 있습니다: %4$s와(과) %5$s. 시스템은 세 개 이상의 시간 충돌을 지원하지 않습니다.</string>
     <string name="class_table_conflict_add_failed_title">추가할 수 없습니다</string>
     <string name="class_table_course_name">수업 이름</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">할 일 과제</string>
     <string name="home_section_add_quick_features">빠른 실행 추가</string>
     <string name="home_section_all_widgets_added">모든 빠른 실행이 추가되었습니다</string>
-    <string name="home_section_custom">사용자 지정 섹션</string>
     <string name="home_section_drag_hint">길게 눌러 드래그하여 순서 변경</string>
     <string name="home_section_name">섹션 이름</string>
     <string name="home_section_quick_widgets">빠른 위젯</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">수강 신청</string>
     <string name="score_course_detail_schedule_label">수업 일정</string>
     <string name="score_credit_earned">취득</string>
-    <string name="score_credit_earned_label">취득</string>
     <string name="score_credit_enrolled">수강 중</string>
-    <string name="score_credit_enrolled_label">수강</string>
     <string name="score_credit_summary_title">학점 요약</string>
     <string name="score_credit_total">합계</string>
     <string name="score_credit_type_education_program">교직 과정</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">성적 데이터를 불러오려면 로그인해 주세요.</string>
     <string name="score_rank_class">반 등수</string>
     <string name="score_rank_department">학과 등수</string>
-    <string name="score_ranking_class_label">반 석차</string>
     <string name="score_ranking_dept_label">학과 석차</string>
     <string name="score_scope_cumulative">누적</string>
     <string name="score_scope_semester">학기</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">내일 · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">금</string>
-    <string name="watch_weekday_mon_short">월</string>
-    <string name="watch_weekday_sat_short">토</string>
-    <string name="watch_weekday_sun_short">일</string>
-    <string name="watch_weekday_thu_short">목</string>
-    <string name="watch_weekday_tue_short">화</string>
-    <string name="watch_weekday_wed_short">수</string>
     <string name="watch_widget_next_class">다음 수업</string>
     <string name="watch_widget_next_class_description">다음 예정 수업을 표시합니다.</string>
     <string name="weekday_fri_short">금</string>

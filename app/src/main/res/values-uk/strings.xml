@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Невідомо</string>
     <string name="bulletin_rule_add_action">Додати правило</string>
     <string name="bulletin_rule_add_title">Додати правило</string>
-    <string name="bulletin_rule_all_orgs">Всі відділи</string>
+    <string name="bulletin_rule_all_depts">Всі відділи</string>
     <string name="bulletin_rule_all_tags">Всі категорії</string>
     <string name="bulletin_rule_all_title">Всі оголошення</string>
     <string name="bulletin_rule_delete_action">Видалити правило</string>
     <string name="bulletin_rule_dept_and_tag_title">Відділ + Категорія (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Конкретний відділ</string>
+    <string name="bulletin_rule_dept_prefix">Відділ: </string>
     <string name="bulletin_rule_disabled_badge">Вимкнено</string>
     <string name="bulletin_rule_edit_title">Редагувати правило</string>
     <string name="bulletin_rule_editor_dept_section">Відділ</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> і </string>
     <string name="bulletin_rule_join_or"> або </string>
-    <string name="bulletin_rule_orgs_prefix">Відділ: </string>
     <string name="bulletin_rule_tag_only_title">Конкретна категорія</string>
     <string name="bulletin_rule_tags_prefix">Категорія: </string>
     <string name="bulletin_rules_footer">Кожне правило може фільтрувати за відділом, категорією та режимом комбінування. Залиште порожнім, щоб збігатися з усім у цьому вимірі. Максимум 32 правила.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Непрочитане</string>
     <string name="bulletin_withdrawn_badge">Відкликано</string>
     <string name="calendar_date_today_suffix"> (Сьогодні)</string>
-    <string name="calendar_event_source_exam">Іспит</string>
-    <string name="calendar_event_source_school">Школа</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Наступний місяць</string>
     <string name="calendar_no_events_on_day">Цього дня немає подій</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Школа</string>
     <string name="calendar_today">Сьогодні</string>
-    <string name="class_table_add_course">Додати курс</string>
     <string name="class_table_conflict_add_failed_message">%1$s вже має два заняття у цьому слоті (день тижня %2$s, пара %3$s): %4$s та %5$s. Система не підтримує потрійних накладок.</string>
     <string name="class_table_conflict_add_failed_title">Не вдалося додати</string>
     <string name="class_table_course_name">Назва курсу</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Завдання, що очікують</string>
     <string name="home_section_add_quick_features">Додати швидкі дії</string>
     <string name="home_section_all_widgets_added">Усі швидкі дії додано</string>
-    <string name="home_section_custom">Власний розділ</string>
     <string name="home_section_drag_hint">Утримуйте, щоб перетягнути та змінити порядок</string>
     <string name="home_section_name">Назва розділу</string>
     <string name="home_section_quick_widgets">Швидкі віджети</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Зарахування</string>
     <string name="score_course_detail_schedule_label">Розклад занять</string>
     <string name="score_credit_earned">Здобуто</string>
-    <string name="score_credit_earned_label">Отримано</string>
     <string name="score_credit_enrolled">Зараховано</string>
-    <string name="score_credit_enrolled_label">Зараховано</string>
     <string name="score_credit_summary_title">Підсумок кредитів</string>
     <string name="score_credit_total">Загалом</string>
     <string name="score_credit_type_education_program">Освітня програма</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Увійдіть, щоб завантажити дані про оцінки.</string>
     <string name="score_rank_class">Місце в класі</string>
     <string name="score_rank_department">Місце на факультеті</string>
-    <string name="score_ranking_class_label">Рейтинг у групі</string>
     <string name="score_ranking_dept_label">Рейтинг на кафедрі</string>
     <string name="score_scope_cumulative">Накопичено</string>
     <string name="score_scope_semester">Семестр</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Завтра · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Пт</string>
-    <string name="watch_weekday_mon_short">Пн</string>
-    <string name="watch_weekday_sat_short">Сб</string>
-    <string name="watch_weekday_sun_short">Нд</string>
-    <string name="watch_weekday_thu_short">Чт</string>
-    <string name="watch_weekday_tue_short">Вт</string>
-    <string name="watch_weekday_wed_short">Ср</string>
     <string name="watch_widget_next_class">Наступне заняття</string>
     <string name="watch_widget_next_class_description">Показує ваше наступне заняття.</string>
     <string name="weekday_fri_short">Пт</string>

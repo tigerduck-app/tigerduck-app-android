@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Ismeretlen</string>
     <string name="bulletin_rule_add_action">Szabály hozzáadása</string>
     <string name="bulletin_rule_add_title">Szabály hozzáadása</string>
-    <string name="bulletin_rule_all_orgs">Összes tanszék</string>
+    <string name="bulletin_rule_all_depts">Összes tanszék</string>
     <string name="bulletin_rule_all_tags">Összes kategória</string>
     <string name="bulletin_rule_all_title">Összes hirdetmény</string>
     <string name="bulletin_rule_delete_action">Szabály törlése</string>
     <string name="bulletin_rule_dept_and_tag_title">Tanszék + Kategória (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Adott tanszék</string>
+    <string name="bulletin_rule_dept_prefix">Tanszék: </string>
     <string name="bulletin_rule_disabled_badge">Letiltva</string>
     <string name="bulletin_rule_edit_title">Szabály szerkesztése</string>
     <string name="bulletin_rule_editor_dept_section">Tanszék</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> és </string>
     <string name="bulletin_rule_join_or"> vagy </string>
-    <string name="bulletin_rule_orgs_prefix">Tanszék: </string>
     <string name="bulletin_rule_tag_only_title">Spezifische Kategorie</string>
     <string name="bulletin_rule_tags_prefix">Kategorie: </string>
     <string name="bulletin_rules_footer">Jede Regel kann nach Abteilung, Kategorie und einem Kombinationsmodus filtern. Lassen Sie das Feld leer, um alles in dieser Dimension abzugleichen. Maximal 32 Regeln.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Ungelesen</string>
     <string name="bulletin_withdrawn_badge">Zurückgezogen</string>
     <string name="calendar_date_today_suffix"> (Ma)</string>
-    <string name="calendar_event_source_exam">Vizsga</string>
-    <string name="calendar_event_source_school">Iskola</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Következő hónap</string>
     <string name="calendar_no_events_on_day">Ezen a napon nincsenek események</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Iskola</string>
     <string name="calendar_today">Ma</string>
-    <string name="class_table_add_course">Kurzus hozzáadása</string>
     <string name="class_table_conflict_add_failed_message">%1$s-nél már két óra van ennél az időpontnál (%2$s nap, %3$s. óra): %4$s és %5$s. A rendszer nem támogat hármas ütközést.</string>
     <string name="class_table_conflict_add_failed_title">Nem adható hozzá</string>
     <string name="class_table_course_name">Kurzus neve</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Függőben lévő házi feladatok</string>
     <string name="home_section_add_quick_features">Fügen Sie Schnellaktionen hinzu</string>
     <string name="home_section_all_widgets_added">Alle Schnellaktionen wurden hinzugefügt</string>
-    <string name="home_section_custom">Egyéni szekció</string>
     <string name="home_section_drag_hint">Zum Ziehen und Neuanordnen lange drücken</string>
     <string name="home_section_name">Szekció neve</string>
     <string name="home_section_quick_widgets">Gyors widgetek</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Beiratkozás</string>
     <string name="score_course_detail_schedule_label">Órarend</string>
     <string name="score_credit_earned">Megszerzett</string>
-    <string name="score_credit_earned_label">Megszerzett</string>
     <string name="score_credit_enrolled">Folyamatban</string>
-    <string name="score_credit_enrolled_label">Beiratkozott</string>
     <string name="score_credit_summary_title">Kredit összefoglaló</string>
     <string name="score_credit_total">Összesen</string>
     <string name="score_credit_type_education_program">Oktatási program</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Kérjük, jelentkezzen be az osztályzatok betöltéséhez.</string>
     <string name="score_rank_class">Osztályrangsor</string>
     <string name="score_rank_department">Tanszéki rangsor</string>
-    <string name="score_ranking_class_label">Osztályrangsor</string>
     <string name="score_ranking_dept_label">Tanszéki rangsor</string>
     <string name="score_scope_cumulative">Kumulatív</string>
     <string name="score_scope_semester">Félév</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Holnap · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">P</string>
-    <string name="watch_weekday_mon_short">H</string>
-    <string name="watch_weekday_sat_short">Szo</string>
-    <string name="watch_weekday_sun_short">V</string>
-    <string name="watch_weekday_thu_short">Cs</string>
-    <string name="watch_weekday_tue_short">K</string>
-    <string name="watch_weekday_wed_short">Sze</string>
     <string name="watch_widget_next_class">Következő óra</string>
     <string name="watch_widget_next_class_description">Megmutatja a következő közelgő óráját.</string>
     <string name="weekday_fri_short">P</string>

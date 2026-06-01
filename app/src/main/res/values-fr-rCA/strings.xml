@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Inconnu</string>
     <string name="bulletin_rule_add_action">Ajouter une règle</string>
     <string name="bulletin_rule_add_title">Ajouter une règle</string>
-    <string name="bulletin_rule_all_orgs">Tous les départements</string>
+    <string name="bulletin_rule_all_depts">Tous les départements</string>
     <string name="bulletin_rule_all_tags">Toutes les catégories</string>
     <string name="bulletin_rule_all_title">Toute les bulletins</string>
     <string name="bulletin_rule_delete_action">Supprimer la règle</string>
     <string name="bulletin_rule_dept_and_tag_title">Dépt + Catégorie (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Service spécifique</string>
+    <string name="bulletin_rule_dept_prefix">Dpt :</string>
     <string name="bulletin_rule_disabled_badge">Désactivé</string>
     <string name="bulletin_rule_edit_title">Modifier la règle</string>
     <string name="bulletin_rule_editor_dept_section">Département</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> et </string>
     <string name="bulletin_rule_join_or"> ou </string>
-    <string name="bulletin_rule_orgs_prefix">Dpt :</string>
     <string name="bulletin_rule_tag_only_title">Catégorie spécifique</string>
     <string name="bulletin_rule_tags_prefix">Catégorie&amp;#160;: </string>
     <string name="bulletin_rules_footer">Chaque règle peut filtrer par département, catégorie et mode de combinaison. Laissez vide pour faire correspondre tout dans cette dimension. Maximum 32 règles.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Non lu</string>
     <string name="bulletin_withdrawn_badge">En retrait</string>
     <string name="calendar_date_today_suffix"> (Aujourd\'hui)</string>
-    <string name="calendar_event_source_exam">Examen</string>
-    <string name="calendar_event_source_school">École</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Mois suivant</string>
     <string name="calendar_no_events_on_day">Aucun événement ce jour</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">École</string>
     <string name="calendar_today">Aujourd\'hui</string>
-    <string name="class_table_add_course">Ajouter un cours</string>
     <string name="class_table_conflict_add_failed_message">%1$s a déjà deux cours sur ce créneau (jour %2$s, période %3$s) : %4$s et %5$s. Le système ne prend pas en charge les triples conflits.</string>
     <string name="class_table_conflict_add_failed_title">Impossible d\'ajouter</string>
     <string name="class_table_course_name">Nom du cours</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Devoirs en attente</string>
     <string name="home_section_add_quick_features">ACTIONS RAPIDES</string>
     <string name="home_section_all_widgets_added">Toutes les actions rapides ont été ajoutées</string>
-    <string name="home_section_custom">Section personnalisée</string>
     <string name="home_section_drag_hint">Appuyez longuement pour faire glisser et réorganiser</string>
     <string name="home_section_name">Nom de la section</string>
     <string name="home_section_quick_widgets">Widgets rapides</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Les taux de scolarisation</string>
     <string name="score_course_detail_schedule_label">Horaire Ouverture</string>
     <string name="score_credit_earned">Obtenus</string>
-    <string name="score_credit_earned_label">Validé</string>
     <string name="score_credit_enrolled">Inscrits</string>
-    <string name="score_credit_enrolled_label">Inscrit(s)</string>
     <string name="score_credit_summary_title">Récapitulatif des crédits</string>
     <string name="score_credit_total">Total</string>
     <string name="score_credit_type_education_program">Programme pédagogique</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Veuillez vous connecter pour charger les notes.</string>
     <string name="score_rank_class">Rang dans la classe</string>
     <string name="score_rank_department">Rang dans le département</string>
-    <string name="score_ranking_class_label">Rang de la classe</string>
     <string name="score_ranking_dept_label">Grade du département</string>
     <string name="score_scope_cumulative">Cumulé</string>
     <string name="score_scope_semester">Semestre</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Demain · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Ven</string>
-    <string name="watch_weekday_mon_short">Lun</string>
-    <string name="watch_weekday_sat_short">Sam</string>
-    <string name="watch_weekday_sun_short">Dim</string>
-    <string name="watch_weekday_thu_short">Jeu</string>
-    <string name="watch_weekday_tue_short">Mar</string>
-    <string name="watch_weekday_wed_short">Mer</string>
     <string name="watch_widget_next_class">Prochain cours</string>
     <string name="watch_widget_next_class_description">Affiche votre prochain cours à venir.</string>
     <string name="weekday_fri_short">Ven</string>

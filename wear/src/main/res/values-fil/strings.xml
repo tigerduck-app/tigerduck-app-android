@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Hindi alam</string>
     <string name="bulletin_rule_add_action">Magdagdag ng panuntunan</string>
     <string name="bulletin_rule_add_title">Magdagdag ng panuntunan</string>
-    <string name="bulletin_rule_all_orgs">Lahat ng departamento</string>
+    <string name="bulletin_rule_all_depts">Lahat ng departamento</string>
     <string name="bulletin_rule_all_tags">Lahat ng kategorya</string>
     <string name="bulletin_rule_all_title">Lahat ng bulletin</string>
     <string name="bulletin_rule_delete_action">Tanggalin ang panuntunan</string>
     <string name="bulletin_rule_dept_and_tag_title">Dept + Kategorya (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Tiyak na departamento</string>
+    <string name="bulletin_rule_dept_prefix">Dept: </string>
     <string name="bulletin_rule_disabled_badge">Hindi pinagana</string>
     <string name="bulletin_rule_edit_title">I-edit ang panuntunan</string>
     <string name="bulletin_rule_editor_dept_section">Kagawaran</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> at </string>
     <string name="bulletin_rule_join_or"> o </string>
-    <string name="bulletin_rule_orgs_prefix">Dept: </string>
     <string name="bulletin_rule_tag_only_title">Tukoy na kategorya</string>
     <string name="bulletin_rule_tags_prefix">Kategorya: </string>
     <string name="bulletin_rules_footer">Maaaring mag-filter ang bawat panuntunan ayon sa departamento, kategorya, at mode ng kumbinasyon. Iwanang blangko upang tumugma sa lahat ng nasa dimensyong iyon. Pinakamataas na 32 panuntunan.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Hindi pa nababasa</string>
     <string name="bulletin_withdrawn_badge">Binawi</string>
     <string name="calendar_date_today_suffix"> (Ngayon)</string>
-    <string name="calendar_event_source_exam">Eksamen</string>
-    <string name="calendar_event_source_school">Paaralan</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Susunod na buwan</string>
     <string name="calendar_no_events_on_day">Walang event sa araw na ito</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Paaralan</string>
     <string name="calendar_today">Ngayon</string>
-    <string name="class_table_add_course">Magdagdag ng kurso</string>
     <string name="class_table_conflict_add_failed_message">Mayroon nang dalawang klase ang %1$s sa slot na ito (Araw %2$s, Panahon %3$s): %4$s at %5$s. Hindi sinusuportahan ng sistema ang tatlong magkakaagaw na klase.</string>
     <string name="class_table_conflict_add_failed_title">Hindi maidagdag</string>
     <string name="class_table_course_name">Pangalan ng kurso</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Mga nakabinbing takdang-aralin</string>
     <string name="home_section_add_quick_features">Magdagdag ng mabilis na pagkilos</string>
     <string name="home_section_all_widgets_added">Naidagdag ang lahat ng mabilisang pagkilos</string>
-    <string name="home_section_custom">Custom na seksyon</string>
     <string name="home_section_drag_hint">Pindutin nang matagal upang i-drag at muling ayusin</string>
     <string name="home_section_name">Pangalan ng seksyon</string>
     <string name="home_section_quick_widgets">Mga mabilis na widget</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Pagpapatala</string>
     <string name="score_course_detail_schedule_label">Iskedyul ng klase</string>
     <string name="score_credit_earned">Nakuha</string>
-    <string name="score_credit_earned_label">Nakuha</string>
     <string name="score_credit_enrolled">Naka-enrol</string>
-    <string name="score_credit_enrolled_label">Naka-enroll</string>
     <string name="score_credit_summary_title">Buod ng credits</string>
     <string name="score_credit_total">Kabuuan</string>
     <string name="score_credit_type_education_program">Programang pang-edukasyon</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Mag-sign in muna para ma-load ang datos ng marka.</string>
     <string name="score_rank_class">Ranggo sa klase</string>
     <string name="score_rank_department">Ranggo sa departamento</string>
-    <string name="score_ranking_class_label">Ranggo ng klase</string>
     <string name="score_ranking_dept_label">Dept rank</string>
     <string name="score_scope_cumulative">Kabuuan</string>
     <string name="score_scope_semester">Semester</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Bukas · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Biy</string>
-    <string name="watch_weekday_mon_short">Lun</string>
-    <string name="watch_weekday_sat_short">Sab</string>
-    <string name="watch_weekday_sun_short">Lin</string>
-    <string name="watch_weekday_thu_short">Huw</string>
-    <string name="watch_weekday_tue_short">Mar</string>
-    <string name="watch_weekday_wed_short">Miy</string>
     <string name="watch_widget_next_class">Susunod na klase</string>
     <string name="watch_widget_next_class_description">Ipinapakita ang iyong susunod na klase.</string>
     <string name="weekday_fri_short">Biy</string>

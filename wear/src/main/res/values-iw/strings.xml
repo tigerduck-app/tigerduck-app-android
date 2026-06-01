@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">לא ידוע</string>
     <string name="bulletin_rule_add_action">הוספת כלל</string>
     <string name="bulletin_rule_add_title">הוספת כלל</string>
-    <string name="bulletin_rule_all_orgs">כל הקטגוריות</string>
+    <string name="bulletin_rule_all_depts">כל הקטגוריות</string>
     <string name="bulletin_rule_all_tags">כל הקטגוריות</string>
     <string name="bulletin_rule_all_title">כל המבזקים</string>
     <string name="bulletin_rule_delete_action">מחק כלל</string>
     <string name="bulletin_rule_dept_and_tag_title">מחלקה + קטגוריה (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">מחלקה ספציפית</string>
+    <string name="bulletin_rule_dept_prefix">Dept.</string>
     <string name="bulletin_rule_disabled_badge">כבוי</string>
     <string name="bulletin_rule_edit_title">ערוך כלל</string>
     <string name="bulletin_rule_editor_dept_section">מחלקה</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and">גם</string>
     <string name="bulletin_rule_join_or"> או </string>
-    <string name="bulletin_rule_orgs_prefix">Dept.</string>
     <string name="bulletin_rule_tag_only_title">הצג קטגוריה מסוימת</string>
     <string name="bulletin_rule_tags_prefix">קטגוריה: </string>
     <string name="bulletin_rules_footer">כל כלל יכול לסנן לפי מחלקה, קטגוריה ומצב שילוב. השאר ריק כדי להתאים לכל דבר בממד הזה. מקסימום 32 כללים.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">לא נקרא</string>
     <string name="bulletin_withdrawn_badge">נסיגה</string>
     <string name="calendar_date_today_suffix"> (היום)</string>
-    <string name="calendar_event_source_exam">מבחן</string>
-    <string name="calendar_event_source_school">בית ספר</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">חודש הבא</string>
     <string name="calendar_no_events_on_day">אין אירועים ביום זה</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">בית ספר</string>
     <string name="calendar_today">היום</string>
-    <string name="class_table_add_course">הוסף קורס</string>
     <string name="class_table_conflict_add_failed_message">ל-%1$s כבר יש שני שיעורים בחריץ זה (יום %2$s, שיעור %3$s): %4$s ו-%5$s. המערכת אינה תומכת בשלושה קורסים חופפים.</string>
     <string name="class_table_conflict_add_failed_title">לא ניתן להוסיף</string>
     <string name="class_table_course_name">שם קורס</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">מטלות ממתינות</string>
     <string name="home_section_add_quick_features">הוספת פעולות מהירות</string>
     <string name="home_section_all_widgets_added">כל הפעולות המהירות נוספו</string>
-    <string name="home_section_custom">קטע מותאם אישית</string>
     <string name="home_section_drag_hint">לחיצה ארוכה כדי לגרור ולסדר מחדש</string>
     <string name="home_section_name">שם קטע</string>
     <string name="home_section_quick_widgets">ווידג\'טים מהירים</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">הצטרפות</string>
     <string name="score_course_detail_schedule_label">לוח זמנים של כיתה</string>
     <string name="score_credit_earned">נצברו</string>
-    <string name="score_credit_earned_label">רווח</string>
     <string name="score_credit_enrolled">בלמידה</string>
-    <string name="score_credit_enrolled_label">יש להירשם לקורס</string>
     <string name="score_credit_summary_title">סיכום נקודות זכות</string>
     <string name="score_credit_total">סה\"כ</string>
     <string name="score_credit_type_education_program">תוכנית חינוך</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">אנא התחבר כדי לטעון נתוני ציונים.</string>
     <string name="score_rank_class">דירוג כיתה</string>
     <string name="score_rank_department">דירוג מחלקה</string>
-    <string name="score_ranking_class_label">דרגה בכיתה</string>
     <string name="score_ranking_dept_label">דרגת מחלקה</string>
     <string name="score_scope_cumulative">מצטבר</string>
     <string name="score_scope_semester">סמסטר</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">מחר · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">ו\'</string>
-    <string name="watch_weekday_mon_short">ב\'</string>
-    <string name="watch_weekday_sat_short">ש\'</string>
-    <string name="watch_weekday_sun_short">א\'</string>
-    <string name="watch_weekday_thu_short">ה\'</string>
-    <string name="watch_weekday_tue_short">ג\'</string>
-    <string name="watch_weekday_wed_short">ד\'</string>
     <string name="watch_widget_next_class">שיעור הבא</string>
     <string name="watch_widget_next_class_description">מציג את השיעור הבא הקרוב שלך.</string>
     <string name="weekday_fri_short">שישי</string>

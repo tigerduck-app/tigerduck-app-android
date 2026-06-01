@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Ukjent</string>
     <string name="bulletin_rule_add_action">Legg til regel</string>
     <string name="bulletin_rule_add_title">Legg til regel</string>
-    <string name="bulletin_rule_all_orgs">Alle avdelinger</string>
+    <string name="bulletin_rule_all_depts">Alle avdelinger</string>
     <string name="bulletin_rule_all_tags">Alle kategorier</string>
     <string name="bulletin_rule_all_title">Alle kunngjøringer</string>
     <string name="bulletin_rule_delete_action">Slett regel</string>
     <string name="bulletin_rule_dept_and_tag_title">Avd. + kategori (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Spesifikk avdeling</string>
+    <string name="bulletin_rule_dept_prefix">Avd.: </string>
     <string name="bulletin_rule_disabled_badge">Deaktivert</string>
     <string name="bulletin_rule_edit_title">Rediger regel</string>
     <string name="bulletin_rule_editor_dept_section">Avdeling</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> og </string>
     <string name="bulletin_rule_join_or"> eller </string>
-    <string name="bulletin_rule_orgs_prefix">Avd.: </string>
     <string name="bulletin_rule_tag_only_title">Spesifikk kategori</string>
     <string name="bulletin_rule_tags_prefix">Kategori: </string>
     <string name="bulletin_rules_footer">Hver regel kan filtrere etter avdeling, kategori og en kombinasjonsmodus. La feltet stå tomt for å matche alt i den dimensjonen. Maks 32 regler.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Ulest</string>
     <string name="bulletin_withdrawn_badge">Trukket tilbake</string>
     <string name="calendar_date_today_suffix"> (I dag)</string>
-    <string name="calendar_event_source_exam">Eksamen</string>
-    <string name="calendar_event_source_school">Skole</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Neste måned</string>
     <string name="calendar_no_events_on_day">Ingen hendelser denne dagen</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Skole</string>
     <string name="calendar_today">I dag</string>
-    <string name="class_table_add_course">Legg til kurs</string>
     <string name="class_table_conflict_add_failed_message">%1$s har allerede to timer i denne perioden (ukedag %2$s, periode %3$s): %4$s og %5$s. Systemet støtter ikke tre kollisjoner.</string>
     <string name="class_table_conflict_add_failed_title">Kan ikke legge til</string>
     <string name="class_table_course_name">Fagnavn</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Ventende oppgaver</string>
     <string name="home_section_add_quick_features">Legg til hurtighandlinger</string>
     <string name="home_section_all_widgets_added">Alle hurtighandlinger er lagt til</string>
-    <string name="home_section_custom">Egendefinert seksjon</string>
     <string name="home_section_drag_hint">Hold inne for å dra og endre rekkefølge</string>
     <string name="home_section_name">Seksjonsnavn</string>
     <string name="home_section_quick_widgets">Hurtigwidgeter</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Påmelding</string>
     <string name="score_course_detail_schedule_label">Timeplan</string>
     <string name="score_credit_earned">Oppnådd</string>
-    <string name="score_credit_earned_label">Opptjent</string>
     <string name="score_credit_enrolled">Påmeldt</string>
-    <string name="score_credit_enrolled_label">Påmeldt</string>
     <string name="score_credit_summary_title">Studiepoengsoversikt</string>
     <string name="score_credit_total">Totalt</string>
     <string name="score_credit_type_education_program">Utdanningsprogram</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Logg inn for å laste karakterdata.</string>
     <string name="score_rank_class">Klasseplassering</string>
     <string name="score_rank_department">Instituttplass</string>
-    <string name="score_ranking_class_label">Klasseplassering</string>
     <string name="score_ranking_dept_label">Avdelingsplassering</string>
     <string name="score_scope_cumulative">Kumulativt</string>
     <string name="score_scope_semester">Semester</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">I morgen · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Fre</string>
-    <string name="watch_weekday_mon_short">Man</string>
-    <string name="watch_weekday_sat_short">Lør</string>
-    <string name="watch_weekday_sun_short">Søn</string>
-    <string name="watch_weekday_thu_short">Tor</string>
-    <string name="watch_weekday_tue_short">Tir</string>
-    <string name="watch_weekday_wed_short">Ons</string>
     <string name="watch_widget_next_class">Neste klasse</string>
     <string name="watch_widget_next_class_description">Viser din neste kommende klasse.</string>
     <string name="weekday_fri_short">Fre</string>

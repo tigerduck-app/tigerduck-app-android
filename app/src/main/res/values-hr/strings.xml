@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Nepoznato</string>
     <string name="bulletin_rule_add_action">Dodaj pravilo</string>
     <string name="bulletin_rule_add_title">Dodaj pravilo</string>
-    <string name="bulletin_rule_all_orgs">Svi odjeli</string>
+    <string name="bulletin_rule_all_depts">Svi odjeli</string>
     <string name="bulletin_rule_all_tags">Sve kategorije</string>
     <string name="bulletin_rule_all_title">Sve obavijesti</string>
     <string name="bulletin_rule_delete_action">Izbriši pravilo</string>
     <string name="bulletin_rule_dept_and_tag_title">Odjel + Kategorija (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Određeni odjel</string>
+    <string name="bulletin_rule_dept_prefix">Odjel: </string>
     <string name="bulletin_rule_disabled_badge">Onemogućeno</string>
     <string name="bulletin_rule_edit_title">Uredi pravilo</string>
     <string name="bulletin_rule_editor_dept_section">Odjel</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> i </string>
     <string name="bulletin_rule_join_or"> ili </string>
-    <string name="bulletin_rule_orgs_prefix">Odjel: </string>
     <string name="bulletin_rule_tag_only_title">Spezifische Kategorie</string>
     <string name="bulletin_rule_tags_prefix">Kategorie: </string>
     <string name="bulletin_rules_footer">Jede Regel kann nach Abteilung, Kategorie und einem Kombinationsmodus filtern. Lassen Sie das Feld leer, um alles in dieser Dimension abzugleichen. Maximal 32 Regeln.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Ungelesen</string>
     <string name="bulletin_withdrawn_badge">Zurückgezogen</string>
     <string name="calendar_date_today_suffix"> (Danas)</string>
-    <string name="calendar_event_source_exam">Ispit</string>
-    <string name="calendar_event_source_school">Škola</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Sljedeći mjesec</string>
     <string name="calendar_no_events_on_day">Nema događaja ovog dana</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Škola</string>
     <string name="calendar_today">Danas</string>
-    <string name="class_table_add_course">Dodaj kolegij</string>
     <string name="class_table_conflict_add_failed_message">%1$s već ima dva predavanja u ovom terminu (radni dan %2$s, sat %3$s): %4$s i %5$s. Sustav ne podržava trostruke konflikte.</string>
     <string name="class_table_conflict_add_failed_title">Nije moguće dodati</string>
     <string name="class_table_course_name">Naziv kolegija</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Zadaci na čekanju</string>
     <string name="home_section_add_quick_features">Fügen Sie Schnellaktionen hinzu</string>
     <string name="home_section_all_widgets_added">Alle Schnellaktionen wurden hinzugefügt</string>
-    <string name="home_section_custom">Prilagođeni odjeljak</string>
     <string name="home_section_drag_hint">Zum Ziehen und Neuanordnen lange drücken</string>
     <string name="home_section_name">Naziv odjeljka</string>
     <string name="home_section_quick_widgets">Brzi widgeti</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Upis</string>
     <string name="score_course_detail_schedule_label">Raspored nastave</string>
     <string name="score_credit_earned">Stečeni</string>
-    <string name="score_credit_earned_label">Zarađeno</string>
     <string name="score_credit_enrolled">Upisani</string>
-    <string name="score_credit_enrolled_label">Upisano</string>
     <string name="score_credit_summary_title">Pregled ECTS bodova</string>
     <string name="score_credit_total">Ukupno</string>
     <string name="score_credit_type_education_program">Program obrazovanja</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Molimo prijavite se za učitavanje podataka o ocjenama.</string>
     <string name="score_rank_class">Rang u razredu</string>
     <string name="score_rank_department">Rang na odjelu</string>
-    <string name="score_ranking_class_label">Rang u razredu</string>
     <string name="score_ranking_dept_label">Rang u odjelu</string>
     <string name="score_scope_cumulative">Kumulativno</string>
     <string name="score_scope_semester">Semestar</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Sutra · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Pet</string>
-    <string name="watch_weekday_mon_short">Pon</string>
-    <string name="watch_weekday_sat_short">Sub</string>
-    <string name="watch_weekday_sun_short">Ned</string>
-    <string name="watch_weekday_thu_short">Čet</string>
-    <string name="watch_weekday_tue_short">Uto</string>
-    <string name="watch_weekday_wed_short">Sri</string>
     <string name="watch_widget_next_class">Sljedeći sat</string>
     <string name="watch_widget_next_class_description">Prikazuje vaš sljedeći nadolazeći sat.</string>
     <string name="weekday_fri_short">Pet</string>

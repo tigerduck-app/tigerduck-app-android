@@ -21,7 +21,7 @@ data class HomeSection(
 
         @Deprecated("Feature temporarily disabled")
         QUICK_WIDGETS("quick-widgets", R.string.home_section_quick_widgets),
-        CUSTOM("custom", R.string.home_section_custom);
+        CUSTOM("custom", R.string.home_custom_section);
     }
 
     companion object {

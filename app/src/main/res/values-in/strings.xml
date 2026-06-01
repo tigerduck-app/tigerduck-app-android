@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Tidak diketahui</string>
     <string name="bulletin_rule_add_action">Tambah aturan</string>
     <string name="bulletin_rule_add_title">Tambah aturan</string>
-    <string name="bulletin_rule_all_orgs">Semua departemen</string>
+    <string name="bulletin_rule_all_depts">Semua departemen</string>
     <string name="bulletin_rule_all_tags">Semua kategori</string>
     <string name="bulletin_rule_all_title">Semua buletin</string>
     <string name="bulletin_rule_delete_action">Hapus aturan</string>
     <string name="bulletin_rule_dept_and_tag_title">Dept + Kategori (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Departemen tertentu</string>
+    <string name="bulletin_rule_dept_prefix">Dept: </string>
     <string name="bulletin_rule_disabled_badge">Dinonaktifkan</string>
     <string name="bulletin_rule_edit_title">Edit aturan</string>
     <string name="bulletin_rule_editor_dept_section">Departemen</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> dan </string>
     <string name="bulletin_rule_join_or"> atau </string>
-    <string name="bulletin_rule_orgs_prefix">Dept: </string>
     <string name="bulletin_rule_tag_only_title">Kategori tertentu</string>
     <string name="bulletin_rule_tags_prefix">Kategori: </string>
     <string name="bulletin_rules_footer">Setiap aturan dapat memfilter berdasarkan departemen, kategori, dan mode kombinasi. Biarkan kosong untuk mencocokkan semua dalam dimensi tersebut. Maksimal 32 aturan.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Belum dibaca</string>
     <string name="bulletin_withdrawn_badge">Ditarik</string>
     <string name="calendar_date_today_suffix"> (Hari ini)</string>
-    <string name="calendar_event_source_exam">Ujian</string>
-    <string name="calendar_event_source_school">Sekolah</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Bulan berikutnya</string>
     <string name="calendar_no_events_on_day">Tidak ada acara pada hari ini</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Sekolah</string>
     <string name="calendar_today">Hari ini</string>
-    <string name="class_table_add_course">Tambah mata kuliah</string>
     <string name="class_table_conflict_add_failed_message">%1$s sudah memiliki dua kelas pada slot ini (Hari %2$s, Periode %3$s): %4$s dan %5$s. Sistem tidak mendukung tiga konflik bersamaan.</string>
     <string name="class_table_conflict_add_failed_title">Tidak dapat ditambahkan</string>
     <string name="class_table_course_name">Nama mata kuliah</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Tugas tertunda</string>
     <string name="home_section_add_quick_features">Tambah tindakan cepat</string>
     <string name="home_section_all_widgets_added">Semua tindakan cepat telah ditambahkan</string>
-    <string name="home_section_custom">Bagian kustom</string>
     <string name="home_section_drag_hint">Tekan lama untuk menyeret dan mengurutkan ulang</string>
     <string name="home_section_name">Nama bagian</string>
     <string name="home_section_quick_widgets">Widget cepat</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Pendaftaran</string>
     <string name="score_course_detail_schedule_label">Jadwal kelas</string>
     <string name="score_credit_earned">Diperoleh</string>
-    <string name="score_credit_earned_label">Diperoleh</string>
     <string name="score_credit_enrolled">Sedang diambil</string>
-    <string name="score_credit_enrolled_label">Terdaftar</string>
     <string name="score_credit_summary_title">Ringkasan SKS</string>
     <string name="score_credit_total">Total</string>
     <string name="score_credit_type_education_program">Program pendidikan</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Silakan masuk untuk memuat data nilai.</string>
     <string name="score_rank_class">Peringkat kelas</string>
     <string name="score_rank_department">Peringkat jurusan</string>
-    <string name="score_ranking_class_label">Peringkat kelas</string>
     <string name="score_ranking_dept_label">Peringkat jurusan</string>
     <string name="score_scope_cumulative">Kumulatif</string>
     <string name="score_scope_semester">Semester</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Besok · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Jum</string>
-    <string name="watch_weekday_mon_short">Sen</string>
-    <string name="watch_weekday_sat_short">Sab</string>
-    <string name="watch_weekday_sun_short">Min</string>
-    <string name="watch_weekday_thu_short">Kam</string>
-    <string name="watch_weekday_tue_short">Sel</string>
-    <string name="watch_weekday_wed_short">Rab</string>
     <string name="watch_widget_next_class">Kelas berikutnya</string>
     <string name="watch_widget_next_class_description">Menampilkan kelas berikutnya yang akan datang.</string>
     <string name="weekday_fri_short">Jum</string>

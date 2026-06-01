@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Nezināms</string>
     <string name="bulletin_rule_add_action">Pievienot kārtulu</string>
     <string name="bulletin_rule_add_title">Pievienot kārtulu</string>
-    <string name="bulletin_rule_all_orgs">Visas nodaļas</string>
+    <string name="bulletin_rule_all_depts">Visas nodaļas</string>
     <string name="bulletin_rule_all_tags">Visas kategorijas</string>
     <string name="bulletin_rule_all_title">Visi biļeteni</string>
     <string name="bulletin_rule_delete_action">Dzēst kārtulu</string>
     <string name="bulletin_rule_dept_and_tag_title">Nodaļa + Kategorija (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Konkrēta nodaļa</string>
+    <string name="bulletin_rule_dept_prefix">Nod.: </string>
     <string name="bulletin_rule_disabled_badge">Atspējots</string>
     <string name="bulletin_rule_edit_title">Rediģēt kārtulu</string>
     <string name="bulletin_rule_editor_dept_section">Nodaļa</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> un </string>
     <string name="bulletin_rule_join_or"> vai </string>
-    <string name="bulletin_rule_orgs_prefix">Nod.: </string>
     <string name="bulletin_rule_tag_only_title">Konkrēta kategorija</string>
     <string name="bulletin_rule_tags_prefix">Kategorija: </string>
     <string name="bulletin_rules_footer">Katra kārtula var filtrēt pēc nodaļas, kategorijas un kombinācijas režīma. Atstājiet tukšu, lai atbilstu visam šajā dimensijā. Maksimums 32 kārtulas.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Nelasīts</string>
     <string name="bulletin_withdrawn_badge">Atsaukts</string>
     <string name="calendar_date_today_suffix"> (Šodien)</string>
-    <string name="calendar_event_source_exam">Eksāmens</string>
-    <string name="calendar_event_source_school">Skola</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Nākamais mēnesis</string>
     <string name="calendar_no_events_on_day">Šajā dienā nav notikumu</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Skola</string>
     <string name="calendar_today">Šodien</string>
-    <string name="class_table_add_course">Pievienot kursu</string>
     <string name="class_table_conflict_add_failed_message">%1$s šajā laikā (nedēļas diena %2$s, periods %3$s) jau ir divas nodarbības: %4$s un %5$s. Sistēma neatbalsta trīskārtīgus konfliktus.</string>
     <string name="class_table_conflict_add_failed_title">Nevar pievienot</string>
     <string name="class_table_course_name">Kursa nosaukums</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Gaidošie uzdevumi</string>
     <string name="home_section_add_quick_features">Pievienot ātrās darbības</string>
     <string name="home_section_all_widgets_added">Visas ātrās darbības ir pievienotas</string>
-    <string name="home_section_custom">Pielāgotā sadaļa</string>
     <string name="home_section_drag_hint">Turiet nospiestu, lai vilktu un pārkārtotu</string>
     <string name="home_section_name">Sadaļas nosaukums</string>
     <string name="home_section_quick_widgets">Ātrās darbības</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Reģistrācija</string>
     <string name="score_course_detail_schedule_label">Stundu saraksts</string>
     <string name="score_credit_earned">Iegūti</string>
-    <string name="score_credit_earned_label">Nopelnīts</string>
     <string name="score_credit_enrolled">Reģistrēti</string>
-    <string name="score_credit_enrolled_label">Reģistrēts</string>
     <string name="score_credit_summary_title">Kredītpunktu kopsavilkums</string>
     <string name="score_credit_total">Kopā</string>
     <string name="score_credit_type_education_program">Izglītības programma</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Lūdzu, piesakieties, lai ielādētu atzīmju datus.</string>
     <string name="score_rank_class">Klases vieta</string>
     <string name="score_rank_department">Katedras vieta</string>
-    <string name="score_ranking_class_label">Klases rangs</string>
     <string name="score_ranking_dept_label">Nodaļas rangs</string>
     <string name="score_scope_cumulative">Kumulatīvs</string>
     <string name="score_scope_semester">Semestris</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Rīt · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Pk</string>
-    <string name="watch_weekday_mon_short">Pr</string>
-    <string name="watch_weekday_sat_short">Se</string>
-    <string name="watch_weekday_sun_short">Sv</string>
-    <string name="watch_weekday_thu_short">Ce</string>
-    <string name="watch_weekday_tue_short">Ot</string>
-    <string name="watch_weekday_wed_short">Tr</string>
     <string name="watch_widget_next_class">Nākamā nodarbība</string>
     <string name="watch_widget_next_class_description">Rāda jūsu nākamo gaidāmo nodarbību.</string>
     <string name="weekday_fri_short">Pk</string>

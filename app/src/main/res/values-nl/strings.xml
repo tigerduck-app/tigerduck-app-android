@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Onbekend</string>
     <string name="bulletin_rule_add_action">Regel toevoegen</string>
     <string name="bulletin_rule_add_title">Regel toevoegen</string>
-    <string name="bulletin_rule_all_orgs">Alle afdelingen</string>
+    <string name="bulletin_rule_all_depts">Alle afdelingen</string>
     <string name="bulletin_rule_all_tags">Alle categorieën</string>
     <string name="bulletin_rule_all_title">Alle mededelingen</string>
     <string name="bulletin_rule_delete_action">Regel verwijderen</string>
     <string name="bulletin_rule_dept_and_tag_title">Afdeling + Categorie (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Specifieke afdeling</string>
+    <string name="bulletin_rule_dept_prefix">Afd.: </string>
     <string name="bulletin_rule_disabled_badge">Uitgeschakeld</string>
     <string name="bulletin_rule_edit_title">Regel bewerken</string>
     <string name="bulletin_rule_editor_dept_section">Afdeling</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> en </string>
     <string name="bulletin_rule_join_or"> of </string>
-    <string name="bulletin_rule_orgs_prefix">Afd.: </string>
     <string name="bulletin_rule_tag_only_title">Specifieke categorie</string>
     <string name="bulletin_rule_tags_prefix">Categorie: </string>
     <string name="bulletin_rules_footer">Elke regel kan filteren op afdeling, categorie en een combinatiemodus. Laat leeg om alles in die dimensie te matchen. Maximaal 32 regels.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Ongelezen</string>
     <string name="bulletin_withdrawn_badge">Ingetrokken</string>
     <string name="calendar_date_today_suffix"> (Vandaag)</string>
-    <string name="calendar_event_source_exam">Tentamen</string>
-    <string name="calendar_event_source_school">School</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Volgende maand</string>
     <string name="calendar_no_events_on_day">Geen activiteiten op deze dag</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">School</string>
     <string name="calendar_today">Vandaag</string>
-    <string name="class_table_add_course">Cursus toevoegen</string>
     <string name="class_table_conflict_add_failed_message">%1$s heeft al twee lessen op dit moment (weekdag %2$s, lesuur %3$s): %4$s en %5$s. Het systeem ondersteunt geen drievoudige conflicten.</string>
     <string name="class_table_conflict_add_failed_title">Kan niet toevoegen</string>
     <string name="class_table_course_name">Vaknaam</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Openstaande opdrachten</string>
     <string name="home_section_add_quick_features">Snelle acties toevoegen</string>
     <string name="home_section_all_widgets_added">Alle snelle acties zijn toegevoegd</string>
-    <string name="home_section_custom">Eigen sectie</string>
     <string name="home_section_drag_hint">Lang indrukken om te slepen en te herschikken</string>
     <string name="home_section_name">Sectienaam</string>
     <string name="home_section_quick_widgets">Snelle widgets</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Inschrijving</string>
     <string name="score_course_detail_schedule_label">Lesrooster</string>
     <string name="score_credit_earned">Behaald</string>
-    <string name="score_credit_earned_label">Behaald</string>
     <string name="score_credit_enrolled">Ingeschreven</string>
-    <string name="score_credit_enrolled_label">Ingeschreven</string>
     <string name="score_credit_summary_title">Overzicht studiepunten</string>
     <string name="score_credit_total">Totaal</string>
     <string name="score_credit_type_education_program">Lerarenopleiding</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Log in om cijfergegevens te laden.</string>
     <string name="score_rank_class">Klasrangschikking</string>
     <string name="score_rank_department">Faculteitsrangschikking</string>
-    <string name="score_ranking_class_label">Klassement</string>
     <string name="score_ranking_dept_label">Afdelingsrangschikking</string>
     <string name="score_scope_cumulative">Cumulatief</string>
     <string name="score_scope_semester">Semester</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Morgen · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Vr</string>
-    <string name="watch_weekday_mon_short">Ma</string>
-    <string name="watch_weekday_sat_short">Za</string>
-    <string name="watch_weekday_sun_short">Zo</string>
-    <string name="watch_weekday_thu_short">Do</string>
-    <string name="watch_weekday_tue_short">Di</string>
-    <string name="watch_weekday_wed_short">Wo</string>
     <string name="watch_widget_next_class">Volgende les</string>
     <string name="watch_widget_next_class_description">Toont uw volgende aankomende les.</string>
     <string name="weekday_fri_short">Vr</string>

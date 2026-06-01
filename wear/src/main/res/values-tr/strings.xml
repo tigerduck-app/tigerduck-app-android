@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Bilinmiyor</string>
     <string name="bulletin_rule_add_action">Kural ekle</string>
     <string name="bulletin_rule_add_title">Kural ekle</string>
-    <string name="bulletin_rule_all_orgs">Tüm bölümler</string>
+    <string name="bulletin_rule_all_depts">Tüm bölümler</string>
     <string name="bulletin_rule_all_tags">Tüm kategoriler</string>
     <string name="bulletin_rule_all_title">Tüm bültenler</string>
     <string name="bulletin_rule_delete_action">Kuralı sil</string>
     <string name="bulletin_rule_dept_and_tag_title">Bölüm + Kategori (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Belirli bölüm</string>
+    <string name="bulletin_rule_dept_prefix">Bölüm: </string>
     <string name="bulletin_rule_disabled_badge">Devre dışı</string>
     <string name="bulletin_rule_edit_title">Kuralı düzenle</string>
     <string name="bulletin_rule_editor_dept_section">Bölüm</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> ve </string>
     <string name="bulletin_rule_join_or"> veya </string>
-    <string name="bulletin_rule_orgs_prefix">Bölüm: </string>
     <string name="bulletin_rule_tag_only_title">Belirli kategori</string>
     <string name="bulletin_rule_tags_prefix">Kategori: </string>
     <string name="bulletin_rules_footer">Her kural bölüm, kategori ve kombinasyon moduna göre filtre uygulayabilir. Her boyut için her şeyi eşleştirmek istiyorsanız boş bırakın. Maksimum 32 kural.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Okunmamış</string>
     <string name="bulletin_withdrawn_badge">Geri çekildi</string>
     <string name="calendar_date_today_suffix"> (Bugün)</string>
-    <string name="calendar_event_source_exam">Sınav</string>
-    <string name="calendar_event_source_school">Okul</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Sonraki ay</string>
     <string name="calendar_no_events_on_day">Bu gün için etkinlik yok</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Okul</string>
     <string name="calendar_today">Bugün</string>
-    <string name="class_table_add_course">Ders ekle</string>
     <string name="class_table_conflict_add_failed_message">%1$s bu zaman diliminde zaten iki derse sahip (Hafta günü %2$s, Ders saati %3$s): %4$s ve %5$s. Sistem üçlü çakışmaları desteklemez.</string>
     <string name="class_table_conflict_add_failed_title">Eklenemiyor</string>
     <string name="class_table_course_name">Ders adı</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Bekleyen ödevler</string>
     <string name="home_section_add_quick_features">Hızlı eylem ekle</string>
     <string name="home_section_all_widgets_added">Tüm hızlı eylemler eklendi</string>
-    <string name="home_section_custom">Özel bölüm</string>
     <string name="home_section_drag_hint">Sürükleyip yeniden sıralamak için uzun basın</string>
     <string name="home_section_name">Bölüm adı</string>
     <string name="home_section_quick_widgets">Hızlı widget\'lar</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Kayıt</string>
     <string name="score_course_detail_schedule_label">Ders programı</string>
     <string name="score_credit_earned">Kazanılan</string>
-    <string name="score_credit_earned_label">Kazanılan</string>
     <string name="score_credit_enrolled">Kayıtlı</string>
-    <string name="score_credit_enrolled_label">Kayıtlı</string>
     <string name="score_credit_summary_title">Kredi özeti</string>
     <string name="score_credit_total">Toplam</string>
     <string name="score_credit_type_education_program">Eğitim programı</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Not verilerini yüklemek için lütfen giriş yapın.</string>
     <string name="score_rank_class">Sınıf sıralaması</string>
     <string name="score_rank_department">Bölüm sıralaması</string>
-    <string name="score_ranking_class_label">Sınıf sıralaması</string>
     <string name="score_ranking_dept_label">Bölüm sıralaması</string>
     <string name="score_scope_cumulative">Kümülatif</string>
     <string name="score_scope_semester">Dönem</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Yarın · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Cum</string>
-    <string name="watch_weekday_mon_short">Pzt</string>
-    <string name="watch_weekday_sat_short">Cmt</string>
-    <string name="watch_weekday_sun_short">Paz</string>
-    <string name="watch_weekday_thu_short">Per</string>
-    <string name="watch_weekday_tue_short">Sal</string>
-    <string name="watch_weekday_wed_short">Çar</string>
     <string name="watch_widget_next_class">Sonraki ders</string>
     <string name="watch_widget_next_class_description">Bir sonraki yaklaşan dersinizi gösterir.</string>
     <string name="weekday_fri_short">Cum</string>

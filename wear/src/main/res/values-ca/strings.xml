@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Desconegut</string>
     <string name="bulletin_rule_add_action">Afegeix una regla</string>
     <string name="bulletin_rule_add_title">Afegeix una regla</string>
-    <string name="bulletin_rule_all_orgs">Tots els departaments</string>
+    <string name="bulletin_rule_all_depts">Tots els departaments</string>
     <string name="bulletin_rule_all_tags">Totes les categories</string>
     <string name="bulletin_rule_all_title">Tots els butlletins</string>
     <string name="bulletin_rule_delete_action">Suprimeix la regla</string>
     <string name="bulletin_rule_dept_and_tag_title">Departament + Categoria (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Departament específic</string>
+    <string name="bulletin_rule_dept_prefix">Departament: </string>
     <string name="bulletin_rule_disabled_badge">Inhabilitat</string>
     <string name="bulletin_rule_edit_title">Edita la regla</string>
     <string name="bulletin_rule_editor_dept_section">Departament</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> i </string>
     <string name="bulletin_rule_join_or"> o </string>
-    <string name="bulletin_rule_orgs_prefix">Departament: </string>
     <string name="bulletin_rule_tag_only_title">Categoria específica</string>
     <string name="bulletin_rule_tags_prefix">Categoria: </string>
     <string name="bulletin_rules_footer">Cada regla pot filtrar per departament, categoria i un mode de combinació. Deixa en blanc perquè coincideixi amb tot en aquesta dimensió. Màxim 32 regles.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Sense llegir</string>
     <string name="bulletin_withdrawn_badge">Retirada</string>
     <string name="calendar_date_today_suffix"> (Avui)</string>
-    <string name="calendar_event_source_exam">Examen</string>
-    <string name="calendar_event_source_school">Universitat</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Mes següent</string>
     <string name="calendar_no_events_on_day">Cap esdeveniment aquest dia</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Escola</string>
     <string name="calendar_today">Avui</string>
-    <string name="class_table_add_course">Afegeix curs</string>
     <string name="class_table_conflict_add_failed_message">%1$s ja té dues classes en aquest horari (dia %2$s, període %3$s): %4$s i %5$s. El sistema no suporta conflictes triples.</string>
     <string name="class_table_conflict_add_failed_title">No s\'ha pogut afegir</string>
     <string name="class_table_course_name">Nom del curs</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Tasques pendents</string>
     <string name="home_section_add_quick_features">Afegeix accions ràpides</string>
     <string name="home_section_all_widgets_added">S\'han afegit totes les accions ràpides</string>
-    <string name="home_section_custom">Secció personalitzada</string>
     <string name="home_section_drag_hint">Premeu llargament per arrossegar i reordenar</string>
     <string name="home_section_name">Nom de la secció</string>
     <string name="home_section_quick_widgets">Ginys ràpids</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Inscripció</string>
     <string name="score_course_detail_schedule_label">Horari de classe</string>
     <string name="score_credit_earned">Obtinguts</string>
-    <string name="score_credit_earned_label">Guanyat</string>
     <string name="score_credit_enrolled">Matriculats</string>
-    <string name="score_credit_enrolled_label">Inscrits</string>
     <string name="score_credit_summary_title">Resum de crèdits</string>
     <string name="score_credit_total">Total</string>
     <string name="score_credit_type_education_program">Programa educatiu</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Inicieu la sessió per carregar les dades de notes.</string>
     <string name="score_rank_class">Rànquing de classe</string>
     <string name="score_rank_department">Rànquing de departament</string>
-    <string name="score_ranking_class_label">Grau de classe</string>
     <string name="score_ranking_dept_label">Grau del departament</string>
     <string name="score_scope_cumulative">Acumulat</string>
     <string name="score_scope_semester">Semestre</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Demà · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Dv</string>
-    <string name="watch_weekday_mon_short">Dl</string>
-    <string name="watch_weekday_sat_short">Ds</string>
-    <string name="watch_weekday_sun_short">Dg</string>
-    <string name="watch_weekday_thu_short">Dj</string>
-    <string name="watch_weekday_tue_short">Dt</string>
-    <string name="watch_weekday_wed_short">Dc</string>
     <string name="watch_widget_next_class">Classe següent</string>
     <string name="watch_widget_next_class_description">Mostra la vostra propera classe.</string>
     <string name="weekday_fri_short">Dv</string>

@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">അജ്ഞാതം</string>
     <string name="bulletin_rule_add_action">നിയമം ചേർക്കുക</string>
     <string name="bulletin_rule_add_title">നിയമം ചേർക്കുക</string>
-    <string name="bulletin_rule_all_orgs">എല്ലാ വകുപ്പുകളും</string>
+    <string name="bulletin_rule_all_depts">എല്ലാ വകുപ്പുകളും</string>
     <string name="bulletin_rule_all_tags">എല്ലാ വിഭാഗങ്ങളും</string>
     <string name="bulletin_rule_all_title">എല്ലാ ബുള്ളറ്റിനുകളും</string>
     <string name="bulletin_rule_delete_action">നിയമം ഇല്ലാതാക്കുക</string>
     <string name="bulletin_rule_dept_and_tag_title">വകുപ്പ് + വിഭാഗം (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">നിർദ്ദിഷ്ട വകുപ്പ്</string>
+    <string name="bulletin_rule_dept_prefix">വകുപ്പ്: </string>
     <string name="bulletin_rule_disabled_badge">പ്രവർത്തനരഹിതം</string>
     <string name="bulletin_rule_edit_title">നിയമം തിരുത്തുക</string>
     <string name="bulletin_rule_editor_dept_section">വകുപ്പ്</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> കൂടാതെ </string>
     <string name="bulletin_rule_join_or"> അല്ലെങ്കിൽ </string>
-    <string name="bulletin_rule_orgs_prefix">വകുപ്പ്: </string>
     <string name="bulletin_rule_tag_only_title">നির്ദിഷ്ട വിഭാഗം</string>
     <string name="bulletin_rule_tags_prefix">വിഭാഗം: </string>
     <string name="bulletin_rules_footer">ഓരോ നിയമത്തിനും വകുപ്പ്, വിഭാഗം, കൂടാതെ ഒരു സംയോജന മോഡ് അനുസരിച്ച് ഫിൽട്ടർ ചെയ്യാം. ആ മാനത്തിലെ എല്ലാം പൊരുത്തപ്പെടാൻ ശൂന്യമായി വിടുക. പരമാവധി 32 നിയമങ്ങൾ.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">വായിക്കാത്തത്</string>
     <string name="bulletin_withdrawn_badge">പിൻവലിച്ചത്</string>
     <string name="calendar_date_today_suffix"> (ഇന്ന്)</string>
-    <string name="calendar_event_source_exam">പരീക്ഷ</string>
-    <string name="calendar_event_source_school">സ്കൂൾ</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">അടുത്ത മാസം</string>
     <string name="calendar_no_events_on_day">ഈ ദിവസം ഇവൻ്റുകൾ ഇല്ല</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">സ്കൂൾ</string>
     <string name="calendar_today">ഇന്ന്</string>
-    <string name="class_table_add_course">കോഴ്‌സ് ചേർക്കുക</string>
     <string name="class_table_conflict_add_failed_message">%1$s-ന് ഈ സ്ലോട്ടിൽ (ആഴ്ചദിനം %2$s, പിരീഡ് %3$s) ഇതിനകം രണ്ട് ക്ലാസ്സുകൾ ഉണ്ട്: %4$s, %5$s. സിസ്റ്റം ട്രിപ്പിൾ കോൺഫ്ലിക്ടുകളെ പിന്തുണയ്ക്കുന്നില്ല.</string>
     <string name="class_table_conflict_add_failed_title">ചേർക്കാൻ കഴിയില്ല</string>
     <string name="class_table_course_name">കോഴ്‌സ് നാമം</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">കാത്തിരിക്കുന്ന അസൈൻമെന്റുകൾ</string>
     <string name="home_section_add_quick_features">ദ്രുത പ്രവർത്തനങ്ങൾ ചേർക്കുക</string>
     <string name="home_section_all_widgets_added">എല്ലാ ദ്രുത പ്രവർത്തനങ്ങളും ചേർത്തിട്ടുണ്ട്</string>
-    <string name="home_section_custom">ഇഷ്ടാനുസൃത വിഭാഗം</string>
     <string name="home_section_drag_hint">വലിച്ചിടാനും പുനഃക്രമീകരിക്കാനും നീണ്ടമർത്തുക</string>
     <string name="home_section_name">വിഭാഗ നാമം</string>
     <string name="home_section_quick_widgets">ദ്രുത വിജറ്റുകൾ</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">എൻറോൾമെന്റ്</string>
     <string name="score_course_detail_schedule_label">ക്ലാസ് ഷെഡ്യൂൾ</string>
     <string name="score_credit_earned">നേടിയത്</string>
-    <string name="score_credit_earned_label">നേടിയത്</string>
     <string name="score_credit_enrolled">നാമദർജ ചെയ്തത്</string>
-    <string name="score_credit_enrolled_label">എൻറോൾ ചെയ്തത്</string>
     <string name="score_credit_summary_title">ക്രെഡിറ്റ് സംഗ്രഹം</string>
     <string name="score_credit_total">മൊത്തം</string>
     <string name="score_credit_type_education_program">വിദ്യാഭ്യാസ പ്രോഗ്രാം</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">ഗ്രേഡ് ഡേറ്റ ലോഡ് ചെയ്യാൻ ദയവായി സൈൻ ഇൻ ചെയ്യുക.</string>
     <string name="score_rank_class">ക്ലാസ് റാങ്ക്</string>
     <string name="score_rank_department">ഡിപ്പാർട്ട്‌മെന്റ് റാങ്ക്</string>
-    <string name="score_ranking_class_label">ക്ലാസ് റാങ്ക്</string>
     <string name="score_ranking_dept_label">വകുപ്പ് റാങ്ക്</string>
     <string name="score_scope_cumulative">ക്യുമുലേറ്റീവ്</string>
     <string name="score_scope_semester">സെമസ്റ്റർ</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">നാളെ · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">വെള്</string>
-    <string name="watch_weekday_mon_short">തിങ്</string>
-    <string name="watch_weekday_sat_short">ശനി</string>
-    <string name="watch_weekday_sun_short">ഞായ</string>
-    <string name="watch_weekday_thu_short">വ്യാ</string>
-    <string name="watch_weekday_tue_short">ചൊവ്</string>
-    <string name="watch_weekday_wed_short">ബുധ</string>
     <string name="watch_widget_next_class">അടുത്ത ക്ലാസ്</string>
     <string name="watch_widget_next_class_description">അടുത്തുവരുന്ന ക്ലാസ് കാണിക്കുന്നു.</string>
     <string name="weekday_fri_short">വെ</string>

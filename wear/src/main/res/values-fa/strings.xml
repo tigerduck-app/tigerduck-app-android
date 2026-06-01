@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">ناشناخته</string>
     <string name="bulletin_rule_add_action">قانون اضافه کنید</string>
     <string name="bulletin_rule_add_title">قانون اضافه کنید</string>
-    <string name="bulletin_rule_all_orgs">همه بخش ها</string>
+    <string name="bulletin_rule_all_depts">همه بخش ها</string>
     <string name="bulletin_rule_all_tags">همه دسته ها</string>
     <string name="bulletin_rule_all_title">همه بولتن ها</string>
     <string name="bulletin_rule_delete_action">حذف قانون</string>
     <string name="bulletin_rule_dept_and_tag_title">گروه + دسته (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">بخش خاص</string>
+    <string name="bulletin_rule_dept_prefix">بخش: </string>
     <string name="bulletin_rule_disabled_badge">از کار افتاده است</string>
     <string name="bulletin_rule_edit_title">ویرایش قانون</string>
     <string name="bulletin_rule_editor_dept_section">بخش</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> و </string>
     <string name="bulletin_rule_join_or"> یا </string>
-    <string name="bulletin_rule_orgs_prefix">بخش: </string>
     <string name="bulletin_rule_tag_only_title">دسته بندی خاص</string>
     <string name="bulletin_rule_tags_prefix">دسته: </string>
     <string name="bulletin_rules_footer">هر قانون می تواند بر اساس بخش، دسته و حالت ترکیبی فیلتر شود. برای مطابقت با همه چیز در آن بعد، خالی بگذارید. حداکثر 32 قانون</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">خوانده نشده</string>
     <string name="bulletin_withdrawn_badge">برداشته شد</string>
     <string name="calendar_date_today_suffix"> (امروز)</string>
-    <string name="calendar_event_source_exam">امتحان</string>
-    <string name="calendar_event_source_school">دانشگاه</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">ماه بعد</string>
     <string name="calendar_no_events_on_day">در این روز رویدادی وجود ندارد</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">دانشگاه</string>
     <string name="calendar_today">امروز</string>
-    <string name="class_table_add_course">افزودن درس</string>
     <string name="class_table_conflict_add_failed_message">%1$s در این بازه زمانی (روز %2$s، زنگ %3$s) دو کلاس دارد: %4$s و %5$s. سیستم از تداخل سه‌تایی پشتیبانی نمی‌کند.</string>
     <string name="class_table_conflict_add_failed_title">امکان افزودن نیست</string>
     <string name="class_table_course_name">نام درس</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">تکالیف در انتظار</string>
     <string name="home_section_add_quick_features">افزودن اقدامات سریع</string>
     <string name="home_section_all_widgets_added">تمام اقدامات سریع اضافه شده است</string>
-    <string name="home_section_custom">بخش سفارشی</string>
     <string name="home_section_drag_hint">برای کشیدن و مرتب کردن مجدد، طولانی فشار دهید</string>
     <string name="home_section_name">نام بخش</string>
     <string name="home_section_quick_widgets">ویجت‌های سریع</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">ثبت نام</string>
     <string name="score_course_detail_schedule_label">برنامه کلاس</string>
     <string name="score_credit_earned">کسب‌شده</string>
-    <string name="score_credit_earned_label">به دست آورده است</string>
     <string name="score_credit_enrolled">در حال گذراندن</string>
-    <string name="score_credit_enrolled_label">ثبت نام کرد</string>
     <string name="score_credit_summary_title">خلاصه واحدها</string>
     <string name="score_credit_total">مجموع</string>
     <string name="score_credit_type_education_program">برنامه آموزشی</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">برای بارگذاری داده‌های نمره لطفاً ابتدا وارد شوید.</string>
     <string name="score_rank_class">رتبه کلاس</string>
     <string name="score_rank_department">رتبه دانشکده/گروه</string>
-    <string name="score_ranking_class_label">رتبه کلاس</string>
     <string name="score_ranking_dept_label">رتبه گروه</string>
     <string name="score_scope_cumulative">تجمیعی</string>
     <string name="score_scope_semester">ترم</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">فردا · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">جم</string>
-    <string name="watch_weekday_mon_short">دو</string>
-    <string name="watch_weekday_sat_short">شن</string>
-    <string name="watch_weekday_sun_short">یک</string>
-    <string name="watch_weekday_thu_short">پن</string>
-    <string name="watch_weekday_tue_short">سه</string>
-    <string name="watch_weekday_wed_short">چه</string>
     <string name="watch_widget_next_class">کلاس بعدی</string>
     <string name="watch_widget_next_class_description">کلاس بعدی پیش‌رو شما را نشان می‌دهد.</string>
     <string name="weekday_fri_short">جمعه</string>

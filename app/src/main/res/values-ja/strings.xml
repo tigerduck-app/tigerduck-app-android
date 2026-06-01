@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">不明</string>
     <string name="bulletin_rule_add_action">ルールを追加</string>
     <string name="bulletin_rule_add_title">ルールを追加</string>
-    <string name="bulletin_rule_all_orgs">すべての部署</string>
+    <string name="bulletin_rule_all_depts">すべての部署</string>
     <string name="bulletin_rule_all_tags">すべてのカテゴリ</string>
     <string name="bulletin_rule_all_title">すべてのお知らせ</string>
     <string name="bulletin_rule_delete_action">ルールを削除</string>
     <string name="bulletin_rule_dept_and_tag_title">部署 + カテゴリ（%1$s）</string>
     <string name="bulletin_rule_dept_only_title">特定の部署</string>
+    <string name="bulletin_rule_dept_prefix">部署：</string>
     <string name="bulletin_rule_disabled_badge">無効</string>
     <string name="bulletin_rule_edit_title">ルールを編集</string>
     <string name="bulletin_rule_editor_dept_section">部署</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">、</string>
     <string name="bulletin_rule_join_and"> および </string>
     <string name="bulletin_rule_join_or"> または </string>
-    <string name="bulletin_rule_orgs_prefix">部署：</string>
     <string name="bulletin_rule_tag_only_title">特定のカテゴリ</string>
     <string name="bulletin_rule_tags_prefix">カテゴリ：</string>
     <string name="bulletin_rules_footer">各ルールは部門、カテゴリ、および組み合わせモードでフィルタリングできます。その条件をすべて一致させるには空白のままにしてください。最大32ルール。</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">未読</string>
     <string name="bulletin_withdrawn_badge">取り下げ済み</string>
     <string name="calendar_date_today_suffix">（今日）</string>
-    <string name="calendar_event_source_exam">試験</string>
-    <string name="calendar_event_source_school">学校</string>
     <string name="calendar_month_year">%1$d年%2$d月</string>
     <string name="calendar_next_month">次の月</string>
     <string name="calendar_no_events_on_day">この日には予定がありません</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">学校</string>
     <string name="calendar_today">今日</string>
-    <string name="class_table_add_course">授業を追加</string>
     <string name="class_table_conflict_add_failed_message">%1$s の時間帯（%2$s曜日 第%3$s時限）にはすでに2つの授業があります：%4$s と %5$s。3つ以上の重複には対応していません。</string>
     <string name="class_table_conflict_add_failed_title">追加できません</string>
     <string name="class_table_course_name">授業名</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">未提出の課題</string>
     <string name="home_section_add_quick_features">クイックアクションを追加</string>
     <string name="home_section_all_widgets_added">すべてのクイックアクションが追加されました</string>
-    <string name="home_section_custom">カスタムセクション</string>
     <string name="home_section_drag_hint">長押しでドラッグして並び替え</string>
     <string name="home_section_name">セクション名</string>
     <string name="home_section_quick_widgets">クイックウィジェット</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">履修登録</string>
     <string name="score_course_detail_schedule_label">授業スケジュール</string>
     <string name="score_credit_earned">取得済み</string>
-    <string name="score_credit_earned_label">取得済み</string>
     <string name="score_credit_enrolled">履修中</string>
-    <string name="score_credit_enrolled_label">登録済み</string>
     <string name="score_credit_summary_title">単位概要</string>
     <string name="score_credit_total">合計</string>
     <string name="score_credit_type_education_program">教職課程</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">成績データを読み込むにはサインインしてください。</string>
     <string name="score_rank_class">クラス順位</string>
     <string name="score_rank_department">学科順位</string>
-    <string name="score_ranking_class_label">クラス順位</string>
     <string name="score_ranking_dept_label">学科順位</string>
     <string name="score_scope_cumulative">累計</string>
     <string name="score_scope_semester">学期</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">明日 · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">金</string>
-    <string name="watch_weekday_mon_short">月</string>
-    <string name="watch_weekday_sat_short">土</string>
-    <string name="watch_weekday_sun_short">日</string>
-    <string name="watch_weekday_thu_short">木</string>
-    <string name="watch_weekday_tue_short">火</string>
-    <string name="watch_weekday_wed_short">水</string>
     <string name="watch_widget_next_class">次の授業</string>
     <string name="watch_widget_next_class_description">次の授業を表示します。</string>
     <string name="weekday_fri_short">金</string>

@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Белгісіз</string>
     <string name="bulletin_rule_add_action">Ереже қосу</string>
     <string name="bulletin_rule_add_title">Ереже қосу</string>
-    <string name="bulletin_rule_all_orgs">Барлық бөлімдер</string>
+    <string name="bulletin_rule_all_depts">Барлық бөлімдер</string>
     <string name="bulletin_rule_all_tags">Барлық санаттар</string>
     <string name="bulletin_rule_all_title">Барлық хабарландырулар</string>
     <string name="bulletin_rule_delete_action">Ережені жою</string>
     <string name="bulletin_rule_dept_and_tag_title">Бөлім + Санат (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Нақты бөлім</string>
+    <string name="bulletin_rule_dept_prefix">Бөлім: </string>
     <string name="bulletin_rule_disabled_badge">Өшірілген</string>
     <string name="bulletin_rule_edit_title">Ережені өңдеу</string>
     <string name="bulletin_rule_editor_dept_section">Бөлім</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> және </string>
     <string name="bulletin_rule_join_or"> немесе </string>
-    <string name="bulletin_rule_orgs_prefix">Бөлім: </string>
     <string name="bulletin_rule_tag_only_title">Нақты санат</string>
     <string name="bulletin_rule_tags_prefix">Санат: </string>
     <string name="bulletin_rules_footer">Әр ереже бөлім, санат және комбинациялау режимі бойынша сүзе алады. Барлығына сәйкестендіру үшін бос қалдырыңыз. Ең көбі 32 ереже.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Оқылмаған</string>
     <string name="bulletin_withdrawn_badge">Жойылған</string>
     <string name="calendar_date_today_suffix"> (Бүгін)</string>
-    <string name="calendar_event_source_exam">Емтихан</string>
-    <string name="calendar_event_source_school">Мектеп</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Келесі ай</string>
     <string name="calendar_no_events_on_day">Бұл күні оқиғалар жоқ</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Мектеп</string>
     <string name="calendar_today">Бүгін</string>
-    <string name="class_table_add_course">Курс қосу</string>
     <string name="class_table_conflict_add_failed_message">%1$s осы уячейкада (Апта күні %2$s, %3$s сабақ) екі сабақ бар: %4$s және %5$s. Жүйе үш сабақ қабаттасуын қолдамайды.</string>
     <string name="class_table_conflict_add_failed_title">Қосу мүмкін емес</string>
     <string name="class_table_course_name">Курс атауы</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Күтілетін тапсырмалар</string>
     <string name="home_section_add_quick_features">Жылдам әрекеттер қосу</string>
     <string name="home_section_all_widgets_added">Барлық жылдам әрекеттер қосылды</string>
-    <string name="home_section_custom">Өзгертілетін бөлім</string>
     <string name="home_section_drag_hint">Сүйреу және қайта реттеу үшін ұзақ басыңыз</string>
     <string name="home_section_name">Бөлім атауы</string>
     <string name="home_section_quick_widgets">Жылдам виджеттер</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Тіркелу</string>
     <string name="score_course_detail_schedule_label">Сабақ кестесі</string>
     <string name="score_credit_earned">Алынған</string>
-    <string name="score_credit_earned_label">Алынған</string>
     <string name="score_credit_enrolled">Тіркелген</string>
-    <string name="score_credit_enrolled_label">Тіркелген</string>
     <string name="score_credit_summary_title">Кредит жиынтығы</string>
     <string name="score_credit_total">Барлығы</string>
     <string name="score_credit_type_education_program">Педагогикалық бағдарлама</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Баға деректерін жүктеу үшін алдымен кіріңіз.</string>
     <string name="score_rank_class">Топтағы орын</string>
     <string name="score_rank_department">Кафедрадағы орын</string>
-    <string name="score_ranking_class_label">Сыныптағы орын</string>
     <string name="score_ranking_dept_label">Бөлімдегі орын</string>
     <string name="score_scope_cumulative">Жинақталған</string>
     <string name="score_scope_semester">Семестр</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Ертең · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Жм</string>
-    <string name="watch_weekday_mon_short">Дс</string>
-    <string name="watch_weekday_sat_short">Сн</string>
-    <string name="watch_weekday_sun_short">Жс</string>
-    <string name="watch_weekday_thu_short">Бс</string>
-    <string name="watch_weekday_tue_short">Сс</string>
-    <string name="watch_weekday_wed_short">Ср</string>
     <string name="watch_widget_next_class">Келесі сабақ</string>
     <string name="watch_widget_next_class_description">Келесі жақындаған сабағыңызды көрсетеді.</string>
     <string name="weekday_fri_short">Жм</string>

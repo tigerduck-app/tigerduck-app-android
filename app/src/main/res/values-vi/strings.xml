@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Không xác định</string>
     <string name="bulletin_rule_add_action">Thêm quy tắc</string>
     <string name="bulletin_rule_add_title">Thêm quy tắc</string>
-    <string name="bulletin_rule_all_orgs">Tất cả phòng ban</string>
+    <string name="bulletin_rule_all_depts">Tất cả phòng ban</string>
     <string name="bulletin_rule_all_tags">Tất cả danh mục</string>
     <string name="bulletin_rule_all_title">Tất cả bản tin</string>
     <string name="bulletin_rule_delete_action">Xóa quy tắc</string>
     <string name="bulletin_rule_dept_and_tag_title">Phòng ban + Danh mục (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Phòng ban cụ thể</string>
+    <string name="bulletin_rule_dept_prefix">Phòng ban: </string>
     <string name="bulletin_rule_disabled_badge">Đã tắt</string>
     <string name="bulletin_rule_edit_title">Chỉnh sửa quy tắc</string>
     <string name="bulletin_rule_editor_dept_section">Phòng ban</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> và </string>
     <string name="bulletin_rule_join_or"> hoặc </string>
-    <string name="bulletin_rule_orgs_prefix">Phòng ban: </string>
     <string name="bulletin_rule_tag_only_title">Danh mục cụ thể</string>
     <string name="bulletin_rule_tags_prefix">Danh mục: </string>
     <string name="bulletin_rules_footer">Mỗi quy tắc có thể lọc theo khoa, danh mục và chế độ kết hợp. Để trống để khớp với tất cả trong chiều đó. Tối đa 32 quy tắc.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Chưa đọc</string>
     <string name="bulletin_withdrawn_badge">Đã thu hồi</string>
     <string name="calendar_date_today_suffix"> (Hôm nay)</string>
-    <string name="calendar_event_source_exam">Kỳ thi</string>
-    <string name="calendar_event_source_school">Trường</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Tháng sau</string>
     <string name="calendar_no_events_on_day">Không có sự kiện vào ngày này</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Trường</string>
     <string name="calendar_today">Hôm nay</string>
-    <string name="class_table_add_course">Thêm môn học</string>
     <string name="class_table_conflict_add_failed_message">%1$s đã có hai lớp ở khung này (Thứ %2$s, Tiết %3$s): %4$s và %5$s. Hệ thống không hỗ trợ trùng ba lớp.</string>
     <string name="class_table_conflict_add_failed_title">Không thể thêm</string>
     <string name="class_table_course_name">Tên môn học</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Bài tập đang chờ</string>
     <string name="home_section_add_quick_features">Thêm thao tác nhanh</string>
     <string name="home_section_all_widgets_added">Tất cả thao tác nhanh đã được thêm</string>
-    <string name="home_section_custom">Mục tùy chỉnh</string>
     <string name="home_section_drag_hint">Nhấn giữ để kéo và sắp xếp lại</string>
     <string name="home_section_name">Tên mục</string>
     <string name="home_section_quick_widgets">Tiện ích nhanh</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Ghi danh</string>
     <string name="score_course_detail_schedule_label">Lịch học</string>
     <string name="score_credit_earned">Đã đạt</string>
-    <string name="score_credit_earned_label">Đã đạt</string>
     <string name="score_credit_enrolled">Đang học</string>
-    <string name="score_credit_enrolled_label">Đã đăng ký</string>
     <string name="score_credit_summary_title">Tổng quan tín chỉ</string>
     <string name="score_credit_total">Tổng cộng</string>
     <string name="score_credit_type_education_program">Chương trình giáo dục</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Vui lòng đăng nhập để tải dữ liệu điểm.</string>
     <string name="score_rank_class">Xếp hạng lớp</string>
     <string name="score_rank_department">Xếp hạng khoa</string>
-    <string name="score_ranking_class_label">Xếp hạng lớp</string>
     <string name="score_ranking_dept_label">Xếp hạng khoa</string>
     <string name="score_scope_cumulative">Tích lũy</string>
     <string name="score_scope_semester">Học kỳ</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Ngày mai · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">T6</string>
-    <string name="watch_weekday_mon_short">T2</string>
-    <string name="watch_weekday_sat_short">T7</string>
-    <string name="watch_weekday_sun_short">CN</string>
-    <string name="watch_weekday_thu_short">T5</string>
-    <string name="watch_weekday_tue_short">T3</string>
-    <string name="watch_weekday_wed_short">T4</string>
     <string name="watch_widget_next_class">Lớp tiếp theo</string>
     <string name="watch_widget_next_class_description">Hiển thị lớp học tiếp theo sắp tới của bạn.</string>
     <string name="weekday_fri_short">T6</string>

@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Tuntematon</string>
     <string name="bulletin_rule_add_action">Lisää sääntö</string>
     <string name="bulletin_rule_add_title">Lisää sääntö</string>
-    <string name="bulletin_rule_all_orgs">Kaikki osastot</string>
+    <string name="bulletin_rule_all_depts">Kaikki osastot</string>
     <string name="bulletin_rule_all_tags">Kaikki luokat</string>
     <string name="bulletin_rule_all_title">Kaikki tiedotteet</string>
     <string name="bulletin_rule_delete_action">Poista sääntö</string>
     <string name="bulletin_rule_dept_and_tag_title">Osasto + luokka (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Tietty osasto</string>
+    <string name="bulletin_rule_dept_prefix">Osasto: </string>
     <string name="bulletin_rule_disabled_badge">Pois käytöstä</string>
     <string name="bulletin_rule_edit_title">Muokkaa sääntöä</string>
     <string name="bulletin_rule_editor_dept_section">osasto</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> ja </string>
     <string name="bulletin_rule_join_or"> tai </string>
-    <string name="bulletin_rule_orgs_prefix">Osasto: </string>
     <string name="bulletin_rule_tag_only_title">Tietty luokka</string>
     <string name="bulletin_rule_tags_prefix">Luokka: </string>
     <string name="bulletin_rules_footer">Jokainen sääntö voi suodattaa osaston, luokan ja yhdistelmätilan mukaan. Jätä tyhjäksi, jotta kaikki vastaavat kyseisessä ulottuvuudessa. Enintään 32 sääntöä.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Lukematon</string>
     <string name="bulletin_withdrawn_badge">Peruutettu</string>
     <string name="calendar_date_today_suffix"> (Tänään)</string>
-    <string name="calendar_event_source_exam">Koe</string>
-    <string name="calendar_event_source_school">Koulu</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Seuraava kuukausi</string>
     <string name="calendar_no_events_on_day">Ei tapahtumia tänä päivänä</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Koulu</string>
     <string name="calendar_today">Tänään</string>
-    <string name="class_table_add_course">Lisää kurssi</string>
     <string name="class_table_conflict_add_failed_message">%1$s:llä on jo kaksi tuntia tässä ajassa (viikonpäivä %2$s, jakso %3$s): %4$s ja %5$s. Järjestelmä ei tue kolminkertaisia päällekkäisyyksiä.</string>
     <string name="class_table_conflict_add_failed_title">Ei voi lisätä</string>
     <string name="class_table_course_name">Kurssin nimi</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Odottavat tehtävät</string>
     <string name="home_section_add_quick_features">Lisää nopeita toimintoja</string>
     <string name="home_section_all_widgets_added">Kaikki nopeat toiminnot on lisätty</string>
-    <string name="home_section_custom">Mukautettu osio</string>
     <string name="home_section_drag_hint">Vedä ja järjestele uudelleen painamalla pitkään</string>
     <string name="home_section_name">Osion nimi</string>
     <string name="home_section_quick_widgets">Pikavimpaimet</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Ilmoittautuminen</string>
     <string name="score_course_detail_schedule_label">Tuntien aikataulu</string>
     <string name="score_credit_earned">Suoritettu</string>
-    <string name="score_credit_earned_label">Ansaittu</string>
     <string name="score_credit_enrolled">Ilmoittautunut</string>
-    <string name="score_credit_enrolled_label">Ilmoittautunut</string>
     <string name="score_credit_summary_title">Opintopisteiden yhteenveto</string>
     <string name="score_credit_total">Yhteensä</string>
     <string name="score_credit_type_education_program">Kasvatustieteellinen ohjelma</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Kirjaudu sisään ladataksesi arvosanatiedot.</string>
     <string name="score_rank_class">Luokkasijoitus</string>
     <string name="score_rank_department">Laitossijoitus</string>
-    <string name="score_ranking_class_label">Luokka-arvo</string>
     <string name="score_ranking_dept_label">Osaston arvo</string>
     <string name="score_scope_cumulative">Kumulatiivinen</string>
     <string name="score_scope_semester">Lukukausi</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Huomenna · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Pe</string>
-    <string name="watch_weekday_mon_short">Ma</string>
-    <string name="watch_weekday_sat_short">La</string>
-    <string name="watch_weekday_sun_short">Su</string>
-    <string name="watch_weekday_thu_short">To</string>
-    <string name="watch_weekday_tue_short">Ti</string>
-    <string name="watch_weekday_wed_short">Ke</string>
     <string name="watch_widget_next_class">Seuraava tunti</string>
     <string name="watch_widget_next_class_description">Näyttää seuraavan tulevan tuntisi.</string>
     <string name="weekday_fri_short">Pe</string>

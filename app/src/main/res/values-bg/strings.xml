@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Неизвестно</string>
     <string name="bulletin_rule_add_action">Добавете правило</string>
     <string name="bulletin_rule_add_title">Добавете правило</string>
-    <string name="bulletin_rule_all_orgs">Всички отдели</string>
+    <string name="bulletin_rule_all_depts">Всички отдели</string>
     <string name="bulletin_rule_all_tags">Всички категории</string>
     <string name="bulletin_rule_all_title">Всички бюлетини</string>
     <string name="bulletin_rule_delete_action">Изтриване на правило</string>
     <string name="bulletin_rule_dept_and_tag_title">Отдел + категория (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Конкретен отдел</string>
+    <string name="bulletin_rule_dept_prefix">Отдел: </string>
     <string name="bulletin_rule_disabled_badge">Забранено</string>
     <string name="bulletin_rule_edit_title">Редактиране на правило</string>
     <string name="bulletin_rule_editor_dept_section">Отдел</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> и </string>
     <string name="bulletin_rule_join_or"> или </string>
-    <string name="bulletin_rule_orgs_prefix">Отдел: </string>
     <string name="bulletin_rule_tag_only_title">Конкретна категория</string>
     <string name="bulletin_rule_tags_prefix">категория: </string>
     <string name="bulletin_rules_footer">Всяко правило може да филтрира по отдел, категория и комбиниран режим. Оставете празно, за да съответства на всичко в това измерение. Максимум 32 правила.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Непрочетено</string>
     <string name="bulletin_withdrawn_badge">Оттеглено</string>
     <string name="calendar_date_today_suffix"> (Днес)</string>
-    <string name="calendar_event_source_exam">Изпит</string>
-    <string name="calendar_event_source_school">Университет</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Следващ месец</string>
     <string name="calendar_no_events_on_day">Няма събития на този ден</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Училище</string>
     <string name="calendar_today">Днес</string>
-    <string name="class_table_add_course">Добави курс</string>
     <string name="class_table_conflict_add_failed_message">%1$s вече има два часа в този слот (Делничен ден %2$s, Период %3$s): %4$s и %5$s. Системата не поддържа тройни конфликти.</string>
     <string name="class_table_conflict_add_failed_title">Не може да се добави</string>
     <string name="class_table_course_name">Наименование на курса</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Чакащи задания</string>
     <string name="home_section_add_quick_features">Добавете бързи действия</string>
     <string name="home_section_all_widgets_added">Всички бързи действия са добавени</string>
-    <string name="home_section_custom">Персонализирана секция</string>
     <string name="home_section_drag_hint">Натиснете продължително, за да плъзнете и пренаредите</string>
     <string name="home_section_name">Наименование на секцията</string>
     <string name="home_section_quick_widgets">Бързи приспособления</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Записване</string>
     <string name="score_course_detail_schedule_label">Разписание на часовете</string>
     <string name="score_credit_earned">Получени</string>
-    <string name="score_credit_earned_label">Спечелени</string>
     <string name="score_credit_enrolled">Записани</string>
-    <string name="score_credit_enrolled_label">Записан</string>
     <string name="score_credit_summary_title">Обобщение на кредити</string>
     <string name="score_credit_total">Общо</string>
     <string name="score_credit_type_education_program">Образователна програма</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Моля, влезте, за да заредите данните за оценките.</string>
     <string name="score_rank_class">Класово класиране</string>
     <string name="score_rank_department">Факултетно класиране</string>
-    <string name="score_ranking_class_label">Класен ранг</string>
     <string name="score_ranking_dept_label">Департамент ранг</string>
     <string name="score_scope_cumulative">Кумулативен</string>
     <string name="score_scope_semester">Семестър</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Утре · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Пт</string>
-    <string name="watch_weekday_mon_short">Пн</string>
-    <string name="watch_weekday_sat_short">Сб</string>
-    <string name="watch_weekday_sun_short">Нд</string>
-    <string name="watch_weekday_thu_short">Чт</string>
-    <string name="watch_weekday_tue_short">Вт</string>
-    <string name="watch_weekday_wed_short">Ср</string>
     <string name="watch_widget_next_class">Следващ час</string>
     <string name="watch_widget_next_class_description">Показва следващия ви предстоящ час.</string>
     <string name="weekday_fri_short">Пет</string>

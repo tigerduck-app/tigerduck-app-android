@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Неизвестно</string>
     <string name="bulletin_rule_add_action">Добавить правило</string>
     <string name="bulletin_rule_add_title">Добавить правило</string>
-    <string name="bulletin_rule_all_orgs">Все отделы</string>
+    <string name="bulletin_rule_all_depts">Все отделы</string>
     <string name="bulletin_rule_all_tags">Все категории</string>
     <string name="bulletin_rule_all_title">Все объявления</string>
     <string name="bulletin_rule_delete_action">Удалить правило</string>
     <string name="bulletin_rule_dept_and_tag_title">Отдел + категория (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Конкретный отдел</string>
+    <string name="bulletin_rule_dept_prefix">Отдел: </string>
     <string name="bulletin_rule_disabled_badge">Отключено</string>
     <string name="bulletin_rule_edit_title">Редактировать правило</string>
     <string name="bulletin_rule_editor_dept_section">Отдел</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> и </string>
     <string name="bulletin_rule_join_or"> или </string>
-    <string name="bulletin_rule_orgs_prefix">Отдел: </string>
     <string name="bulletin_rule_tag_only_title">Определённая категория</string>
     <string name="bulletin_rule_tags_prefix">Категория: </string>
     <string name="bulletin_rules_footer">Каждое правило может фильтровать по отделу, категории и режиму комбинации. Оставьте пустым, чтобы охватить всё в этом измерении. Максимум 32 правила.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Непрочитанное</string>
     <string name="bulletin_withdrawn_badge">Отозвано</string>
     <string name="calendar_date_today_suffix"> (Сегодня)</string>
-    <string name="calendar_event_source_exam">Экзамен</string>
-    <string name="calendar_event_source_school">Университет</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Следующий месяц</string>
     <string name="calendar_no_events_on_day">В этот день событий нет</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Школа</string>
     <string name="calendar_today">Сегодня</string>
-    <string name="class_table_add_course">Добавить курс</string>
     <string name="class_table_conflict_add_failed_message">В слоте %1$s уже есть два занятия (день недели %2$s, пара %3$s): %4$s и %5$s. Система не поддерживает тройные конфликты.</string>
     <string name="class_table_conflict_add_failed_title">Не удалось добавить</string>
     <string name="class_table_course_name">Название курса</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Ожидающие задания</string>
     <string name="home_section_add_quick_features">Добавить быстрые действия</string>
     <string name="home_section_all_widgets_added">Все быстрые действия добавлены</string>
-    <string name="home_section_custom">Пользовательский раздел</string>
     <string name="home_section_drag_hint">Удерживайте для перетаскивания и сортировки</string>
     <string name="home_section_name">Название раздела</string>
     <string name="home_section_quick_widgets">Быстрые виджеты</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Зачисление</string>
     <string name="score_course_detail_schedule_label">Расписание занятий</string>
     <string name="score_credit_earned">Получено</string>
-    <string name="score_credit_earned_label">Получено</string>
     <string name="score_credit_enrolled">Записан</string>
-    <string name="score_credit_enrolled_label">Зачислено</string>
     <string name="score_credit_summary_title">Сводка по кредитам</string>
     <string name="score_credit_total">Всего</string>
     <string name="score_credit_type_education_program">Педагогическая программа</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Войдите, чтобы загрузить данные об оценках.</string>
     <string name="score_rank_class">Место в группе</string>
     <string name="score_rank_department">Место на факультете</string>
-    <string name="score_ranking_class_label">Место в классе</string>
     <string name="score_ranking_dept_label">Место на кафедре</string>
     <string name="score_scope_cumulative">Совокупно</string>
     <string name="score_scope_semester">Семестр</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Завтра · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Пт</string>
-    <string name="watch_weekday_mon_short">Пн</string>
-    <string name="watch_weekday_sat_short">Сб</string>
-    <string name="watch_weekday_sun_short">Вс</string>
-    <string name="watch_weekday_thu_short">Чт</string>
-    <string name="watch_weekday_tue_short">Вт</string>
-    <string name="watch_weekday_wed_short">Ср</string>
     <string name="watch_widget_next_class">Следующее занятие</string>
     <string name="watch_widget_next_class_description">Показывает следующее предстоящее занятие.</string>
     <string name="weekday_fri_short">Пт</string>

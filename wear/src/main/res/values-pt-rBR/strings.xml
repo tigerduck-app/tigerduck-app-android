@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Desconhecido</string>
     <string name="bulletin_rule_add_action">Adicionar regra</string>
     <string name="bulletin_rule_add_title">Adicionar regra</string>
-    <string name="bulletin_rule_all_orgs">Todos os departamentos</string>
+    <string name="bulletin_rule_all_depts">Todos os departamentos</string>
     <string name="bulletin_rule_all_tags">Todas as categorias</string>
     <string name="bulletin_rule_all_title">Todos os avisos</string>
     <string name="bulletin_rule_delete_action">Excluir regra</string>
     <string name="bulletin_rule_dept_and_tag_title">Depto + Categoria (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Departamento específico</string>
+    <string name="bulletin_rule_dept_prefix">Depto: </string>
     <string name="bulletin_rule_disabled_badge">Desativado</string>
     <string name="bulletin_rule_edit_title">Editar regra</string>
     <string name="bulletin_rule_editor_dept_section">Departamento</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> e </string>
     <string name="bulletin_rule_join_or"> ou </string>
-    <string name="bulletin_rule_orgs_prefix">Depto: </string>
     <string name="bulletin_rule_tag_only_title">Categoria específica</string>
     <string name="bulletin_rule_tags_prefix">Categoria: </string>
     <string name="bulletin_rules_footer">Cada regra pode filtrar por departamento, categoria e modo de combinação. Deixe em branco para corresponder a tudo nessa dimensão. Máximo de 32 regras.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Não lido</string>
     <string name="bulletin_withdrawn_badge">Retirado</string>
     <string name="calendar_date_today_suffix"> (Hoje)</string>
-    <string name="calendar_event_source_exam">Prova</string>
-    <string name="calendar_event_source_school">Escola</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Próximo mês</string>
     <string name="calendar_no_events_on_day">Nenhum evento neste dia</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Escola</string>
     <string name="calendar_today">Hoje</string>
-    <string name="class_table_add_course">Adicionar disciplina</string>
     <string name="class_table_conflict_add_failed_message">%1$s já tem duas aulas neste horário (Dia da semana %2$s, Período %3$s): %4$s e %5$s. O sistema não suporta conflitos triplos.</string>
     <string name="class_table_conflict_add_failed_title">Não foi possível adicionar</string>
     <string name="class_table_course_name">Nome da disciplina</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Atividades pendentes</string>
     <string name="home_section_add_quick_features">Adicionar ações rápidas</string>
     <string name="home_section_all_widgets_added">Todas as ações rápidas foram adicionadas</string>
-    <string name="home_section_custom">Seção personalizada</string>
     <string name="home_section_drag_hint">Pressione e segure para arrastar e reordenar</string>
     <string name="home_section_name">Nome da seção</string>
     <string name="home_section_quick_widgets">Widgets rápidos</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Matrícula</string>
     <string name="score_course_detail_schedule_label">Grade de aulas</string>
     <string name="score_credit_earned">Obtidos</string>
-    <string name="score_credit_earned_label">Obtidos</string>
     <string name="score_credit_enrolled">Matriculado</string>
-    <string name="score_credit_enrolled_label">Matriculado</string>
     <string name="score_credit_summary_title">Resumo de créditos</string>
     <string name="score_credit_total">Total</string>
     <string name="score_credit_type_education_program">Programa de formação</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Por favor, entre para carregar os dados de notas.</string>
     <string name="score_rank_class">Classificação na turma</string>
     <string name="score_rank_department">Classificação no departamento</string>
-    <string name="score_ranking_class_label">Classificação na turma</string>
     <string name="score_ranking_dept_label">Classificação no depto.</string>
     <string name="score_scope_cumulative">Acumulado</string>
     <string name="score_scope_semester">Semestre</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Amanhã · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Sex</string>
-    <string name="watch_weekday_mon_short">Seg</string>
-    <string name="watch_weekday_sat_short">Sáb</string>
-    <string name="watch_weekday_sun_short">Dom</string>
-    <string name="watch_weekday_thu_short">Qui</string>
-    <string name="watch_weekday_tue_short">Ter</string>
-    <string name="watch_weekday_wed_short">Qua</string>
     <string name="watch_widget_next_class">Próxima aula</string>
     <string name="watch_widget_next_class_description">Mostra sua próxima aula.</string>
     <string name="weekday_fri_short">Sex</string>

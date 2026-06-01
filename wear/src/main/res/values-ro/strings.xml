@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Necunoscut</string>
     <string name="bulletin_rule_add_action">Adaugă regulă</string>
     <string name="bulletin_rule_add_title">Adaugă regulă</string>
-    <string name="bulletin_rule_all_orgs">Toate departamentele</string>
+    <string name="bulletin_rule_all_depts">Toate departamentele</string>
     <string name="bulletin_rule_all_tags">Toate categoriile</string>
     <string name="bulletin_rule_all_title">Toate buletinele</string>
     <string name="bulletin_rule_delete_action">Șterge regula</string>
     <string name="bulletin_rule_dept_and_tag_title">Dept + Categorie (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Departament specific</string>
+    <string name="bulletin_rule_dept_prefix">Dept: </string>
     <string name="bulletin_rule_disabled_badge">Dezactivat</string>
     <string name="bulletin_rule_edit_title">Editează regula</string>
     <string name="bulletin_rule_editor_dept_section">Departament</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> și </string>
     <string name="bulletin_rule_join_or"> sau </string>
-    <string name="bulletin_rule_orgs_prefix">Dept: </string>
     <string name="bulletin_rule_tag_only_title">Spezifische Kategorie</string>
     <string name="bulletin_rule_tags_prefix">Kategorie: </string>
     <string name="bulletin_rules_footer">Jede Regel kann nach Abteilung, Kategorie und einem Kombinationsmodus filtern. Lassen Sie das Feld leer, um alles in dieser Dimension abzugleichen. Maximal 32 Regeln.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Ungelesen</string>
     <string name="bulletin_withdrawn_badge">Zurückgezogen</string>
     <string name="calendar_date_today_suffix"> (Azi)</string>
-    <string name="calendar_event_source_exam">Examen</string>
-    <string name="calendar_event_source_school">Școală</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Luna următoare</string>
     <string name="calendar_no_events_on_day">Niciun eveniment în această zi</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Școală</string>
     <string name="calendar_today">Azi</string>
-    <string name="class_table_add_course">Adaugă curs</string>
     <string name="class_table_conflict_add_failed_message">%1$s are deja două cursuri în acest interval (Ziua %2$s, Perioada %3$s): %4$s și %5$s. Sistemul nu suportă conflicte triple.</string>
     <string name="class_table_conflict_add_failed_title">Nu se poate adăuga</string>
     <string name="class_table_course_name">Denumire curs</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Teme în așteptare</string>
     <string name="home_section_add_quick_features">Fügen Sie Schnellaktionen hinzu</string>
     <string name="home_section_all_widgets_added">Alle Schnellaktionen wurden hinzugefügt</string>
-    <string name="home_section_custom">Secțiune personalizată</string>
     <string name="home_section_drag_hint">Zum Ziehen und Neuanordnen lange drücken</string>
     <string name="home_section_name">Denumire secțiune</string>
     <string name="home_section_quick_widgets">Widget-uri rapide</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Înscriere</string>
     <string name="score_course_detail_schedule_label">Orar cursuri</string>
     <string name="score_credit_earned">Obținute</string>
-    <string name="score_credit_earned_label">Obținut</string>
     <string name="score_credit_enrolled">Înmatriculat</string>
-    <string name="score_credit_enrolled_label">Înscris</string>
     <string name="score_credit_summary_title">Rezumat credite</string>
     <string name="score_credit_total">Total</string>
     <string name="score_credit_type_education_program">Program educațional</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Autentifică-te pentru a încărca datele despre note.</string>
     <string name="score_rank_class">Clasament clasă</string>
     <string name="score_rank_department">Clasament departament</string>
-    <string name="score_ranking_class_label">Rang în clasă</string>
     <string name="score_ranking_dept_label">Rang în departament</string>
     <string name="score_scope_cumulative">Cumulativ</string>
     <string name="score_scope_semester">Semestru</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Mâine · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Vin</string>
-    <string name="watch_weekday_mon_short">Lun</string>
-    <string name="watch_weekday_sat_short">Sâm</string>
-    <string name="watch_weekday_sun_short">Dum</string>
-    <string name="watch_weekday_thu_short">Joi</string>
-    <string name="watch_weekday_tue_short">Mar</string>
-    <string name="watch_weekday_wed_short">Mie</string>
     <string name="watch_widget_next_class">Următorul curs</string>
     <string name="watch_widget_next_class_description">Afișează următorul curs programat.</string>
     <string name="weekday_fri_short">Vin</string>

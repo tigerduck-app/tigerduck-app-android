@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">ಅಜ್ಞಾತ</string>
     <string name="bulletin_rule_add_action">ನಿಯಮ ಸೇರಿಸಿ</string>
     <string name="bulletin_rule_add_title">ನಿಯಮ ಸೇರಿಸಿ</string>
-    <string name="bulletin_rule_all_orgs">ಎಲ್ಲಾ ವಿಭಾಗಗಳು</string>
+    <string name="bulletin_rule_all_depts">ಎಲ್ಲಾ ವಿಭಾಗಗಳು</string>
     <string name="bulletin_rule_all_tags">ಎಲ್ಲಾ ವರ್ಗಗಳು</string>
     <string name="bulletin_rule_all_title">ಎಲ್ಲಾ ಬುಲೆಟಿನ್‌ಗಳು</string>
     <string name="bulletin_rule_delete_action">ನಿಯಮ ಅಳಿಸಿ</string>
     <string name="bulletin_rule_dept_and_tag_title">ವಿಭಾಗ + ವರ್ಗ (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">ನಿರ್ದಿಷ್ಟ ವಿಭಾಗ</string>
+    <string name="bulletin_rule_dept_prefix">ವಿಭಾಗ: </string>
     <string name="bulletin_rule_disabled_badge">ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಲಾಗಿದೆ</string>
     <string name="bulletin_rule_edit_title">ನಿಯಮ ಸಂಪಾದಿಸಿ</string>
     <string name="bulletin_rule_editor_dept_section">ವಿಭಾಗ</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> ಮತ್ತು </string>
     <string name="bulletin_rule_join_or"> ಅಥವಾ </string>
-    <string name="bulletin_rule_orgs_prefix">ವಿಭಾಗ: </string>
     <string name="bulletin_rule_tag_only_title">ನಿರ್ದಿಷ್ಟ ವರ್ಗ</string>
     <string name="bulletin_rule_tags_prefix">ವರ್ಗ: </string>
     <string name="bulletin_rules_footer">ಪ್ರತಿ ನಿಯಮವು ವಿಭಾಗ, ವರ್ಗ ಮತ್ತು ಸಂಯೋಜನ ಮೋಡ್ ಮೂಲಕ ಫಿಲ್ಟರ್ ಮಾಡಬಹುದು. ಆ ಆಯಾಮದಲ್ಲಿ ಎಲ್ಲವನ್ನೂ ಹೊಂದಿಸಲು ಖಾಲಿ ಬಿಡಿ. ಗರಿಷ್ಠ 32 ನಿಯಮಗಳು.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">ಓದಿಲ್ಲ</string>
     <string name="bulletin_withdrawn_badge">ಹಿಂತೆಗೆದುಕೊಳ್ಳಲಾಗಿದೆ</string>
     <string name="calendar_date_today_suffix"> (ಇಂದು)</string>
-    <string name="calendar_event_source_exam">ಪರೀಕ್ಷೆ</string>
-    <string name="calendar_event_source_school">ಶಾಲೆ</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">ಮುಂದಿನ ತಿಂಗಳು</string>
     <string name="calendar_no_events_on_day">ಈ ದಿನ ಯಾವ ಘಟನೆಗಳೂ ಇಲ್ಲ</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">ಶಾಲೆ</string>
     <string name="calendar_today">ಇಂದು</string>
-    <string name="class_table_add_course">ಕೋರ್ಸ್ ಸೇರಿಸಿ</string>
     <string name="class_table_conflict_add_failed_message">%1$s ಈ ಸ್ಲಾಟ್‌ನಲ್ಲಿ ಈಗಾಗಲೇ ಎರಡು ತರಗತಿಗಳಿವೆ (ವಾರದ ದಿನ %2$s, ಅವಧಿ %3$s): %4$s ಮತ್ತು %5$s. ಮೂರು ತರಗತಿ ಸಂಘರ್ಷವನ್ನು ಸಿಸ್ಟಂ ಬೆಂಬಲಿಸುವುದಿಲ್ಲ.</string>
     <string name="class_table_conflict_add_failed_title">ಸೇರಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ</string>
     <string name="class_table_course_name">ಕೋರ್ಸ್ ಹೆಸರು</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">ಬಾಕಿ ಕಾರ್ಯಗಳು</string>
     <string name="home_section_add_quick_features">ತ್ವರಿತ ಕ್ರಿಯೆಗಳನ್ನು ಸೇರಿಸಿ</string>
     <string name="home_section_all_widgets_added">ಎಲ್ಲಾ ತ್ವರಿತ ಕ್ರಿಯೆಗಳನ್ನು ಸೇರಿಸಲಾಗಿದೆ</string>
-    <string name="home_section_custom">ಕಸ್ಟಮ್ ವಿಭಾಗ</string>
     <string name="home_section_drag_hint">ಎಳೆದು ಮರುಜೋಡಿಸಲು ದೀರ್ಘ ಒತ್ತಿ</string>
     <string name="home_section_name">ವಿಭಾಗದ ಹೆಸರು</string>
     <string name="home_section_quick_widgets">ತ್ವರಿತ ವಿಜೆಟ್‌ಗಳು</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">ನೋಂದಣಿ</string>
     <string name="score_course_detail_schedule_label">ತರಗತಿ ವೇಳಾಪಟ್ಟಿ</string>
     <string name="score_credit_earned">ಗಳಿಸಿದ್ದು</string>
-    <string name="score_credit_earned_label">ಗಳಿಸಲಾಗಿದೆ</string>
     <string name="score_credit_enrolled">ನೋಂದಾಯಿಸಿದ್ದು</string>
-    <string name="score_credit_enrolled_label">ನೋಂದಾಯಿಸಲಾಗಿದೆ</string>
     <string name="score_credit_summary_title">ಕ್ರೆಡಿಟ್ ಸಾರಾಂಶ</string>
     <string name="score_credit_total">ಒಟ್ಟು</string>
     <string name="score_credit_type_education_program">ಶಿಕ್ಷಣ ಕಾರ್ಯಕ್ರಮ</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">ಅಂಕ ಡೇಟಾ ಲೋಡ್ ಮಾಡಲು ದಯವಿಟ್ಟು ಸೈನ್ ಇನ್ ಮಾಡಿ.</string>
     <string name="score_rank_class">ತರಗತಿ ಶ್ರೇಣಿ</string>
     <string name="score_rank_department">ವಿಭಾಗ ಶ್ರೇಣಿ</string>
-    <string name="score_ranking_class_label">ತರಗತಿ ಶ್ರೇಣಿ</string>
     <string name="score_ranking_dept_label">ವಿಭಾಗ ಶ್ರೇಣಿ</string>
     <string name="score_scope_cumulative">ಸಂಚಿತ</string>
     <string name="score_scope_semester">ಸೆಮಿಸ್ಟರ್</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">ನಾಳೆ · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">ಶುಕ್ರ</string>
-    <string name="watch_weekday_mon_short">ಸೋಮ</string>
-    <string name="watch_weekday_sat_short">ಶನಿ</string>
-    <string name="watch_weekday_sun_short">ಭಾನು</string>
-    <string name="watch_weekday_thu_short">ಗುರು</string>
-    <string name="watch_weekday_tue_short">ಮಂಗಳ</string>
-    <string name="watch_weekday_wed_short">ಬುಧ</string>
     <string name="watch_widget_next_class">ಮುಂದಿನ ತರಗತಿ</string>
     <string name="watch_widget_next_class_description">ನಿಮ್ಮ ಮುಂದಿನ ಆಗಮಿಸಲಿರುವ ತರಗತಿಯನ್ನು ತೋರಿಸುತ್ತದೆ.</string>
     <string name="weekday_fri_short">ಶುಕ್ರ</string>

@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">ਅਣਜਾਣ</string>
     <string name="bulletin_rule_add_action">ਨਿਯਮ ਜੋੜੋ</string>
     <string name="bulletin_rule_add_title">ਨਿਯਮ ਜੋੜੋ</string>
-    <string name="bulletin_rule_all_orgs">ਸਾਰੇ ਵਿਭਾਗ</string>
+    <string name="bulletin_rule_all_depts">ਸਾਰੇ ਵਿਭਾਗ</string>
     <string name="bulletin_rule_all_tags">ਸਾਰੀਆਂ ਸ਼੍ਰੇਣੀਆਂ</string>
     <string name="bulletin_rule_all_title">ਸਾਰੇ ਬੁਲੇਟਿਨ</string>
     <string name="bulletin_rule_delete_action">ਨਿਯਮ ਮਿਟਾਓ</string>
     <string name="bulletin_rule_dept_and_tag_title">ਵਿਭਾਗ + ਸ਼੍ਰੇਣੀ (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">ਖਾਸ ਵਿਭਾਗ</string>
+    <string name="bulletin_rule_dept_prefix">ਵਿਭਾਗ: </string>
     <string name="bulletin_rule_disabled_badge">ਅਯੋਗ</string>
     <string name="bulletin_rule_edit_title">ਨਿਯਮ ਸੰਪਾਦਿਤ ਕਰੋ</string>
     <string name="bulletin_rule_editor_dept_section">ਵਿਭਾਗ</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> ਅਤੇ </string>
     <string name="bulletin_rule_join_or"> ਜਾਂ </string>
-    <string name="bulletin_rule_orgs_prefix">ਵਿਭਾਗ: </string>
     <string name="bulletin_rule_tag_only_title">ਖਾਸ ਸ਼੍ਰੇਣੀ</string>
     <string name="bulletin_rule_tags_prefix">ਸ਼੍ਰੇਣੀ: </string>
     <string name="bulletin_rules_footer">ਹਰ ਨਿਯਮ ਵਿਭਾਗ, ਸ਼੍ਰੇਣੀ ਅਤੇ ਸੁਮੇਲ ਮੋਡ ਅਨੁਸਾਰ ਫਿਲਟਰ ਕਰ ਸਕਦਾ ਹੈ। ਉਸ ਮਾਪ ਵਿੱਚ ਸਭ ਕੁਝ ਮੇਲ ਕਰਨ ਲਈ ਖਾਲੀ ਛੱਡੋ। ਵੱਧ ਤੋਂ ਵੱਧ 32 ਨਿਯਮ।</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">ਅਣਪੜ੍ਹਿਆ</string>
     <string name="bulletin_withdrawn_badge">ਵਾਪਸ ਲਿਆ ਗਿਆ</string>
     <string name="calendar_date_today_suffix"> (ਅੱਜ)</string>
-    <string name="calendar_event_source_exam">ਪ੍ਰੀਖਿਆ</string>
-    <string name="calendar_event_source_school">ਸਕੂਲ</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">ਅਗਲਾ ਮਹੀਨਾ</string>
     <string name="calendar_no_events_on_day">ਇਸ ਦਿਨ ਕੋਈ ਸਮਾਗਮ ਨਹੀਂ</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">ਸਕੂਲ</string>
     <string name="calendar_today">ਅੱਜ</string>
-    <string name="class_table_add_course">ਕੋਰਸ ਜੋੜੋ</string>
     <string name="class_table_conflict_add_failed_message">%1$s ਦੇ ਇਸ ਸਲੌਟ (ਵੀਕਡੇ %2$s, ਪੀਰੀਅਡ %3$s) ਵਿੱਚ ਪਹਿਲਾਂ ਹੀ ਦੋ ਕਲਾਸਾਂ ਹਨ: %4$s ਅਤੇ %5$s। ਸਿਸਟਮ ਤਿੰਨ ਟਕਰਾਵਾਂ ਦਾ ਸਮਰਥਨ ਨਹੀਂ ਕਰਦਾ।</string>
     <string name="class_table_conflict_add_failed_title">ਜੋੜਨ ਵਿੱਚ ਅਸਮਰੱਥ</string>
     <string name="class_table_course_name">ਕੋਰਸ ਦਾ ਨਾਂ</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">ਲੰਬਿਤ ਅਸਾਈਨਮੈਂਟਾਂ</string>
     <string name="home_section_add_quick_features">ਤੁਰੰਤ ਕਿਰਿਆਵਾਂ ਜੋੜੋ</string>
     <string name="home_section_all_widgets_added">ਸਾਰੀਆਂ ਤੁਰੰਤ ਕਿਰਿਆਵਾਂ ਜੋੜੀਆਂ ਜਾ ਚੁੱਕੀਆਂ ਹਨ</string>
-    <string name="home_section_custom">ਕਸਟਮ ਭਾਗ</string>
     <string name="home_section_drag_hint">ਖਿੱਚਣ ਅਤੇ ਕ੍ਰਮ ਬਦਲਣ ਲਈ ਲੰਬੇ ਸਮੇਂ ਲਈ ਦਬਾਓ</string>
     <string name="home_section_name">ਭਾਗ ਦਾ ਨਾਮ</string>
     <string name="home_section_quick_widgets">ਤੇਜ਼ ਵਿਜੇਟ</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">ਦਾਖਲਾ</string>
     <string name="score_course_detail_schedule_label">ਕਲਾਸ ਸਮਾਂ-ਸੂਚੀ</string>
     <string name="score_credit_earned">ਪ੍ਰਾਪਤ</string>
-    <string name="score_credit_earned_label">ਪ੍ਰਾਪਤ ਕੀਤੇ</string>
     <string name="score_credit_enrolled">ਦਾਖ਼ਲ</string>
-    <string name="score_credit_enrolled_label">ਦਾਖਲ ਕੀਤੇ</string>
     <string name="score_credit_summary_title">ਕ੍ਰੈਡਿਟ ਸਾਰਾਂਸ਼</string>
     <string name="score_credit_total">ਕੁੱਲ</string>
     <string name="score_credit_type_education_program">ਸਿੱਖਿਆ ਪ੍ਰੋਗਰਾਮ</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">ਅੰਕ ਡੇਟਾ ਲੋਡ ਕਰਨ ਲਈ ਕਿਰਪਾ ਕਰਕੇ ਸਾਈਨ ਇਨ ਕਰੋ।</string>
     <string name="score_rank_class">ਕਲਾਸ ਰੈਂਕ</string>
     <string name="score_rank_department">ਵਿਭਾਗ ਰੈਂਕ</string>
-    <string name="score_ranking_class_label">ਕਲਾਸ ਰੈਂਕ</string>
     <string name="score_ranking_dept_label">ਵਿਭਾਗ ਰੈਂਕ</string>
     <string name="score_scope_cumulative">ਇਕੱਠਾ</string>
     <string name="score_scope_semester">ਸਮੈਸਟਰ</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">ਕੱਲ੍ਹ · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">ਸ਼ੁੱਕਰ</string>
-    <string name="watch_weekday_mon_short">ਸੋਮ</string>
-    <string name="watch_weekday_sat_short">ਸ਼ਨੀ</string>
-    <string name="watch_weekday_sun_short">ਐਤ</string>
-    <string name="watch_weekday_thu_short">ਵੀਰ</string>
-    <string name="watch_weekday_tue_short">ਮੰਗਲ</string>
-    <string name="watch_weekday_wed_short">ਬੁੱਧ</string>
     <string name="watch_widget_next_class">ਅਗਲੀ ਕਲਾਸ</string>
     <string name="watch_widget_next_class_description">ਤੁਹਾਡੀ ਅਗਲੀ ਆਉਣ ਵਾਲੀ ਕਲਾਸ ਦਿਖਾਉਂਦਾ ਹੈ।</string>
     <string name="weekday_fri_short">ਸ਼ੁੱਕ</string>

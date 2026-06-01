@@ -109,12 +109,13 @@
     <string name="bulletin_push_status_unknown">Óþekkt</string>
     <string name="bulletin_rule_add_action">Bæta við reglu</string>
     <string name="bulletin_rule_add_title">Bæta við reglu</string>
-    <string name="bulletin_rule_all_orgs">Allar deildir</string>
+    <string name="bulletin_rule_all_depts">Allar deildir</string>
     <string name="bulletin_rule_all_tags">Allir flokkar</string>
     <string name="bulletin_rule_all_title">Allar tilkynningar</string>
     <string name="bulletin_rule_delete_action">Eyða reglu</string>
     <string name="bulletin_rule_dept_and_tag_title">Deild + Flokkur (%1$s)</string>
     <string name="bulletin_rule_dept_only_title">Tiltekin deild</string>
+    <string name="bulletin_rule_dept_prefix">Deild: </string>
     <string name="bulletin_rule_disabled_badge">Óvirkt</string>
     <string name="bulletin_rule_edit_title">Breyta reglu</string>
     <string name="bulletin_rule_editor_dept_section">Deild</string>
@@ -129,7 +130,6 @@
     <string name="bulletin_rule_filter_separator">, </string>
     <string name="bulletin_rule_join_and"> og </string>
     <string name="bulletin_rule_join_or"> eða </string>
-    <string name="bulletin_rule_orgs_prefix">Deild: </string>
     <string name="bulletin_rule_tag_only_title">Spezifische Kategorie</string>
     <string name="bulletin_rule_tags_prefix">Kategorie: </string>
     <string name="bulletin_rules_footer">Jede Regel kann nach Abteilung, Kategorie und einem Kombinationsmodus filtern. Lassen Sie das Feld leer, um alles in dieser Dimension abzugleichen. Maximal 32 Regeln.</string>
@@ -150,8 +150,6 @@
     <string name="bulletin_unread_dot_label">Ungelesen</string>
     <string name="bulletin_withdrawn_badge">Zurückgezogen</string>
     <string name="calendar_date_today_suffix"> (Í dag)</string>
-    <string name="calendar_event_source_exam">Próf</string>
-    <string name="calendar_event_source_school">Skóli</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Næsti mánuður</string>
     <string name="calendar_no_events_on_day">Engin atvik þennan dag</string>
@@ -161,7 +159,6 @@
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">Skóli</string>
     <string name="calendar_today">Í dag</string>
-    <string name="class_table_add_course">Bæta við námskeið</string>
     <string name="class_table_conflict_add_failed_message">%1$s hefur þegar tvo tíma í þessum rauf (Vikudagur %2$s, Tímabil %3$s): %4$s og %5$s. Kerfið styður ekki þrjár samhliða.</string>
     <string name="class_table_conflict_add_failed_title">Ekki hægt að bæta við</string>
     <string name="class_table_course_name">Nafn námskeiðs</string>
@@ -378,7 +375,6 @@
     <string name="home_pending_assignments">Óafgreidd verkefni</string>
     <string name="home_section_add_quick_features">Fügen Sie Schnellaktionen hinzu</string>
     <string name="home_section_all_widgets_added">Alle Schnellaktionen wurden hinzugefügt</string>
-    <string name="home_section_custom">Sérsniðinn hluti</string>
     <string name="home_section_drag_hint">Zum Ziehen und Neuanordnen lange drücken</string>
     <string name="home_section_name">Nafn hlutar</string>
     <string name="home_section_quick_widgets">Skjótar brúður</string>
@@ -550,9 +546,7 @@
     <string name="score_course_detail_enrollment_label">Skráning</string>
     <string name="score_course_detail_schedule_label">Stundaskrá</string>
     <string name="score_credit_earned">Aflað</string>
-    <string name="score_credit_earned_label">Unnið</string>
     <string name="score_credit_enrolled">Í skráningu</string>
-    <string name="score_credit_enrolled_label">Skráð</string>
     <string name="score_credit_summary_title">Einingaryfirlit</string>
     <string name="score_credit_total">Samtals</string>
     <string name="score_credit_type_education_program">Menntaáætlun</string>
@@ -593,7 +587,6 @@
     <string name="score_not_logged_in_message">Skráðu þig inn til að hlaða einkunnagögn.</string>
     <string name="score_rank_class">Röðun í bekk</string>
     <string name="score_rank_department">Röðun í deild</string>
-    <string name="score_ranking_class_label">Röðun í bekk</string>
     <string name="score_ranking_dept_label">Röðun í deild</string>
     <string name="score_scope_cumulative">Uppsafnað</string>
     <string name="score_scope_semester">Misseri</string>
@@ -743,13 +736,6 @@
     <string name="watch_today">Today</string>
     <string name="watch_tomorrow_at">Á morgun · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
-    <string name="watch_weekday_fri_short">Fös</string>
-    <string name="watch_weekday_mon_short">Mán</string>
-    <string name="watch_weekday_sat_short">Lau</string>
-    <string name="watch_weekday_sun_short">Sun</string>
-    <string name="watch_weekday_thu_short">Fim</string>
-    <string name="watch_weekday_tue_short">Þri</string>
-    <string name="watch_weekday_wed_short">Mið</string>
     <string name="watch_widget_next_class">Næsti tími</string>
     <string name="watch_widget_next_class_description">Sýnir næsta komandi tíma þinn.</string>
     <string name="weekday_fri_short">Fös</string>
