@@ -38,7 +38,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class UpdateChecker @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val appPreferences: AppPreferences,
 ) {
     private val manager = AppUpdateManagerFactory.create(context)
