@@ -84,7 +84,7 @@
         <receiver
             android:name="org.ntust.app.tigerduck.widget.receivers.WeekDarkWidgetReceiver"
             android:exported="true"
-            android:label="@string/widget_week_dark_label">
+            android:label="@string/widget_week_light_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -108,7 +108,7 @@
         <receiver
             android:name="org.ntust.app.tigerduck.widget.receivers.TodayDarkWidgetReceiver"
             android:exported="true"
-            android:label="@string/widget_today_dark_label">
+            android:label="@string/widget_today_light_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -132,7 +132,7 @@
         <receiver
             android:name="org.ntust.app.tigerduck.widget.receivers.NextClassDarkWidgetReceiver"
             android:exported="true"
-            android:label="@string/widget_next_class_dark_label">
+            android:label="@string/widget_next_class_light_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

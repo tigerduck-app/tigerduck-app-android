@@ -131,8 +131,8 @@ fun ScoreScreen(
                 when {
                     !isLoggedIn -> EmptyStateView(
                         icon = Icons.Filled.Lock,
-                        title = stringResource(R.string.common_not_logged_in),
-                        message = stringResource(R.string.score_not_logged_in_message),
+                        title = stringResource(R.string.common_not_signed_in),
+                        message = stringResource(R.string.score_not_signed_in_message),
                         modifier = Modifier.padding(top = 32.dp),
                         onIconClick = onOpenSignInSettings,
                     )

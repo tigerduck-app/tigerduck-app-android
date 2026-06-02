@@ -548,8 +548,8 @@ fun SettingsScreen(
     if (showNtustLoginSheet) {
         LoginSheet(
             title = stringResource(R.string.settings_account_ntust_system),
-            usernamePlaceholder = stringResource(R.string.login_student_id),
-            passwordPlaceholder = stringResource(R.string.login_password),
+            usernamePlaceholder = stringResource(R.string.sign_in_student_id),
+            passwordPlaceholder = stringResource(R.string.sign_in_password),
             uppercaseInput = true,
             isLoggingIn = isNtustLoggingIn,
             loginError = ntustLoginError,
@@ -562,8 +562,8 @@ fun SettingsScreen(
         LoginSheet(
             title = stringResource(R.string.settings_account_library_system),
             subtitle = stringResource(R.string.settings_library_account_subtitle),
-            usernamePlaceholder = stringResource(R.string.library_login_username),
-            passwordPlaceholder = stringResource(R.string.library_login_password),
+            usernamePlaceholder = stringResource(R.string.library_sign_in_username),
+            passwordPlaceholder = stringResource(R.string.library_sign_in_password),
             initialUsername = viewModel.ntustStudentId.orEmpty(),
             isLoggingIn = libIsLoggingIn,
             loginError = libLoginError,
@@ -691,8 +691,8 @@ internal val SettingRowHeight = 56.dp
  */
 @Composable
 private fun rememberAccountButtonMinWidth(): Dp {
-    val loginText = stringResource(R.string.action_login)
-    val logoutText = stringResource(R.string.action_logout)
+    val loginText = stringResource(R.string.action_sign_in)
+    val logoutText = stringResource(R.string.action_sign_out)
     val style = MaterialTheme.typography.labelLarge
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -788,12 +788,12 @@ private fun AccountRow(
                 ),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                 modifier = Modifier.widthIn(min = actionMinWidth),
-            ) { Text(stringResource(R.string.action_logout)) }
+            ) { Text(stringResource(R.string.action_sign_out)) }
         } else {
             Button(
                 onClick = onLogin,
                 modifier = Modifier.widthIn(min = actionMinWidth),
-            ) { Text(stringResource(R.string.action_login)) }
+            ) { Text(stringResource(R.string.action_sign_in)) }
         }
     }
 }

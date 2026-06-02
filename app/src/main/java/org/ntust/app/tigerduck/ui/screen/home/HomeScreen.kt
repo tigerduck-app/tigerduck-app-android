@@ -753,8 +753,8 @@ private fun AssignmentsEmptyState(
     if (!isLoggedIn) {
         EmptyStateView(
             icon = Icons.Filled.Lock,
-            title = stringResource(R.string.common_not_logged_in),
-            message = stringResource(R.string.common_login_required_feature),
+            title = stringResource(R.string.common_not_signed_in),
+            message = stringResource(R.string.common_sign_in_required_feature),
             onIconClick = onOpenSignInSettings,
         )
         return

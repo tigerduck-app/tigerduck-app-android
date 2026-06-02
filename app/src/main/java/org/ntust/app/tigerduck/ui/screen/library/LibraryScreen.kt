@@ -173,8 +173,8 @@ fun LibraryScreen(
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = if (isLoggedIn) stringResource(R.string.library_status_logged_in)
-                    else stringResource(R.string.library_status_not_logged_in),
+                    text = if (isLoggedIn) stringResource(R.string.library_status_signed_in)
+                    else stringResource(R.string.library_status_not_signed_in),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
@@ -391,18 +391,18 @@ private fun LoginPromptCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                stringResource(R.string.library_login_prompt_title),
+                stringResource(R.string.library_sign_in_prompt_title),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
             Text(
-                stringResource(R.string.library_login_prompt_hint),
+                stringResource(R.string.library_sign_in_prompt_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
             )
             OutlinedAccountIdField(
                 value = username,
                 onValueChange = onUsernameChange,
-                label = stringResource(R.string.library_login_username),
+                label = stringResource(R.string.library_sign_in_username),
                 capitalization = KeyboardCapitalization.Sentences,
                 imeAction = ImeAction.Next,
                 onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
@@ -413,7 +413,7 @@ private fun LoginPromptCard(
             OutlinedTextField(
                 value = password,
                 onValueChange = onPasswordChange,
-                label = { Text(stringResource(R.string.library_login_password)) },
+                label = { Text(stringResource(R.string.library_sign_in_password)) },
                 singleLine = true,
                 visualTransformation = if (passwordVisible) VisualTransformation.None
                 else PasswordVisualTransformation(),
@@ -457,7 +457,7 @@ private fun LoginPromptCard(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text(stringResource(R.string.library_login_button))
+                    Text(stringResource(R.string.library_sign_in_button))
                 }
             }
         }

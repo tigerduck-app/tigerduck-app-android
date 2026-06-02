@@ -291,7 +291,7 @@ fun LoginSheet(
                             )
                             Spacer(Modifier.width(6.dp))
                         }
-                        Text(stringResource(R.string.action_login))
+                        Text(stringResource(R.string.action_sign_in))
                     }
                 }
             }

@@ -102,7 +102,7 @@ class ScoreViewModel @Inject constructor(
         val studentId = authService.storedStudentId
         val password = authService.storedPassword
         if (studentId == null || password == null) {
-            _errorMessage.value = context.getString(R.string.common_not_logged_in)
+            _errorMessage.value = context.getString(R.string.common_not_signed_in)
             return
         }
         if (!networkChecker.isAvailable()) return
@@ -115,8 +115,8 @@ class ScoreViewModel @Inject constructor(
             applyDefaultCollapseRule()
         } catch (e: NtustScoreError) {
             _errorMessage.value = when (e) {
-                is NtustScoreError.NotAuthenticated -> context.getString(R.string.common_not_logged_in)
-                is NtustScoreError.RedirectedToSSO -> context.getString(R.string.score_error_login_expired)
+                is NtustScoreError.NotAuthenticated -> context.getString(R.string.common_not_signed_in)
+                is NtustScoreError.RedirectedToSSO -> context.getString(R.string.score_error_sign_in_expired)
                 is NtustScoreError.InvalidResponse -> context.getString(R.string.score_error_invalid_response)
                 is NtustScoreError.ParseFailed -> context.getString(R.string.score_error_parse_failed)
             }

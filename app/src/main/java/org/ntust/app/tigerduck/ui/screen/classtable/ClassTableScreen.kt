@@ -210,8 +210,8 @@ fun ClassTableScreen(
                 if (!isLoggedIn) {
                     org.ntust.app.tigerduck.ui.component.EmptyStateView(
                         icon = Icons.Filled.Lock,
-                        title = stringResource(R.string.common_not_logged_in),
-                        message = stringResource(R.string.common_login_required_feature),
+                        title = stringResource(R.string.common_not_signed_in),
+                        message = stringResource(R.string.common_sign_in_required_feature),
                         onIconClick = onOpenSignInSettings,
                     )
                     Spacer(Modifier.height(32.dp))
