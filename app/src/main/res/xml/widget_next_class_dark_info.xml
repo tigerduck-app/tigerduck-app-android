@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:description="@string/widget_next_class_dark_desc"
-    android:label="@string/widget_next_class_dark_label"
+    android:description="@string/widget_next_class_light_desc"
+    android:label="@string/widget_next_class_light_label"
     android:maxResizeHeight="250dp"
     android:minWidth="110dp"
     android:minHeight="50dp"
