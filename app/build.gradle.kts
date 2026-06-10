@@ -122,6 +122,15 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        unitTests {
+            // Let android.util.Log calls in code under test (e.g.
+            // DataMigration.sweepCourseFiles) return defaults instead of
+            // throwing "not mocked" on the JVM.
+            isReturnDefaultValues = true
+        }
+    }
+
     // Two distribution channels:
     //   * play   — Google Play Store + sideload. Uses FCM for real-time push.
     //   * fdroid — F-Droid. 100% FOSS, no Google Play Services. The
@@ -192,6 +201,9 @@ dependencies {
     implementation(project(":shared"))
     "playImplementation"(libs.play.services.wearable)
     "playImplementation"(libs.play.app.update.ktx)
+    // WearScheduleBridge / WearDebugClockBridge use kotlinx.coroutines.tasks.await();
+    // declare it directly instead of leaning on firebase-messaging's transitive edge.
+    "playImplementation"(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

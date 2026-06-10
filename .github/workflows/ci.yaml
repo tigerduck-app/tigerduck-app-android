@@ -1,0 +1,46 @@
+name: CI
+
+# Compile + unit-test gate for PRs. Before this existed, the first automated
+# Gradle invocation in the repo's lifecycle was the release workflow itself,
+# so a compile error or failing test could ride a merged PR all the way to
+# release day. Keep this lean: compile both phone flavors + wear, run every
+# JVM unit test. No emulator, no lint baseline churn.
+
+on:
+  pull_request:
+    branches: [ dev, main ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        with:
+          # name-abbr is required by verifyNameAbbrSubmodule; localization is
+          # required by the generated-resources contract. Do not drop this.
+          submodules: true
+
+      - name: Set up JDK
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@ac638b010cf58a27ee6c972d7336334ccaf61c96 # v4
+
+      - name: Compile (play + fdroid + wear)
+        run: >
+          ./gradlew --no-daemon
+          :app:compilePlayDebugKotlin
+          :app:compileFdroidDebugKotlin
+          :wear:compileDebugKotlin
+
+      - name: Unit tests
+        run: >
+          ./gradlew --no-daemon
+          :shared:test
+          :app:testPlayDebugUnitTest

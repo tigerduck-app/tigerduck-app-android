@@ -96,4 +96,67 @@ class NextClassResolverTest {
         val today = NextClassResolver.todaysClasses(courses, weekday = 1, minuteOfDay = 8 * 60 + 30)
         assertEquals(TodayClassStatus.Ongoing, today.single().status)
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Mid-block test
+    //
+    // mondayMorningCourse has periods ["1","2"] on Monday:
+    //   period "1": 08:10–09:00  (490–540)
+    //   period "2": 09:10–10:00  (550–600)
+    //
+    // At 09:30 (= 570), the query falls inside period "2".
+    // currentPeriodBoundsMinutes finds that 570 ∈ 550..600 → returns (550, 600).
+    // The Ongoing result must carry those tighter per-period bounds, not the
+    // full block bounds (490–600).
+    //
+    // PeriodTimes.mapping:
+    //   "2" → ("09:10" to "10:00")  →  startMinute = 9*60+10 = 550, endMinute = 10*60 = 600
+    // ──────────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `Ongoing mid-block uses current period bounds not full block bounds`() {
+        val courses = listOf(mondayMorningCourse)
+        // 09:30 on Monday — inside period "2" (09:10–10:00).
+        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 9 * 60 + 30)
+        assertTrue(r is NextClassResult.Ongoing)
+        r as NextClassResult.Ongoing
+        assertEquals("CN", r.course.courseNo)
+        // Must reflect period "2" bounds, not the full block start (08:10).
+        assertEquals(9 * 60 + 10, r.startMinute)   // 09:10 = 550
+        assertEquals(10 * 60, r.endMinute)          // 10:00 = 600
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Inter-period break test
+    //
+    // At 09:05 (= 545), we are in the 10-minute gap between period "1" (ends
+    // 09:00 = 540) and period "2" (starts 09:10 = 550).
+    //
+    // computeOngoingCourses uses the BLOCK span (490..600), so 545 ∈ 490..600 →
+    // the course is still considered Ongoing.
+    //
+    // currentPeriodBoundsMinutes inspects individual periods: 545 ∉ 490..540
+    // and 545 ∉ 550..600 → returns null → the resolver falls back to
+    // (ongoing.startMinute, ongoing.endMinute) = (490, 600).
+    //
+    // This test documents EXISTING semantics.  The intra-block gap is intentionally
+    // treated as Ongoing because both periods form one logical teaching block.
+    // If the semantics are ever changed (e.g. to NextToday during the break),
+    // update this test and note the deliberate behavioral change.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `Ongoing during intra-block break uses full block bounds (documents existing semantics)`() {
+        val courses = listOf(mondayMorningCourse)
+        // 09:05 on Monday — 5 min AFTER period "1" ends (09:00), BEFORE period "2" starts (09:10).
+        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 9 * 60 + 5)
+        // Current behavior: still Ongoing (block span 490..600 contains 545).
+        assertTrue(r is NextClassResult.Ongoing)
+        r as NextClassResult.Ongoing
+        assertEquals("CN", r.course.courseNo)
+        // currentPeriodBoundsMinutes returns null for this minute (not in any single
+        // period's range), so the resolver falls back to the full block bounds.
+        assertEquals(8 * 60 + 10, r.startMinute)   // block start = 08:10 = 490
+        assertEquals(10 * 60, r.endMinute)          // block end   = 10:00 = 600
+    }
 }

@@ -106,23 +106,26 @@ class DataMigration(
         }
     }
 
-    private fun sweepCourseFiles(dir: File, accept: (String) -> Boolean) {
-        if (!dir.isDirectory) return
-        dir.listFiles()
-            ?.filter { it.isFile && accept(it.name) }
-            ?.forEach { file ->
-                runCatching {
-                    if (!file.readText().contains(COURSE_NO_TOKEN)) {
-                        if (file.delete()) {
-                            Log.i(TAG, "Wiped obfuscated v1.4.0 cache: ${file.name}")
-                        }
-                    }
-                }.onFailure { Log.w(TAG, "Failed to inspect ${file.name}", it) }
-            }
-    }
-
     companion object {
         private const val TAG = "DataMigration"
+
+        // In the companion (not an instance method) so the sentinel sweep —
+        // the recovery path for the v1.4.0 upgrade crash — is unit-testable
+        // against a temp directory without constructing a Context.
+        internal fun sweepCourseFiles(dir: File, accept: (String) -> Boolean) {
+            if (!dir.isDirectory) return
+            dir.listFiles()
+                ?.filter { it.isFile && accept(it.name) }
+                ?.forEach { file ->
+                    runCatching {
+                        if (!file.readText().contains(COURSE_NO_TOKEN)) {
+                            if (file.delete()) {
+                                Log.i(TAG, "Wiped obfuscated v1.4.0 cache: ${file.name}")
+                            }
+                        }
+                    }.onFailure { Log.w(TAG, "Failed to inspect ${file.name}", it) }
+                }
+        }
 
         // Mirrors DataCache. Kept in sync deliberately — DataMigration must
         // run before any DataCache access, so we don't import the cache

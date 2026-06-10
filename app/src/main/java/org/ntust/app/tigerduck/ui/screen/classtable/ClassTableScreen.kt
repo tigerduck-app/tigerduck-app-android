@@ -121,6 +121,14 @@ fun ClassTableScreen(
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val currentMinute by viewModel.currentMinute.collectAsStateWithLifecycle()
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
+    // Collected as snapshot state (rather than reading the ViewModel's raw
+    // StateFlow.value) so the badge icons recompose when the assignments
+    // fetch completes after the courses fetch — a raw read registers no
+    // Compose dependency, leaving badges stale until the next courses update.
+    val allAssignments by viewModel.assignments.collectAsStateWithLifecycle()
+    val courseNosWithAssignments = remember(allAssignments) {
+        allAssignments.filterNot { it.isCompleted }.mapTo(mutableSetOf()) { it.courseNo }
+    }
     // Hoisted alongside the other top-level subscriptions: a second
     // collectAsStateWithLifecycle for the same flow inside a conditional
     // body invites readers from the wrong scope and is fragile if the
@@ -246,7 +254,7 @@ fun ClassTableScreen(
                                 blockStartMinute = info.startMinute,
                                 blockEndMinute = info.endMinute,
                                 currentMinute = currentMinute,
-                                hasAssignment = viewModel.hasAssignment(info.course.courseNo),
+                                hasAssignment = info.course.courseNo in courseNosWithAssignments,
                                 weekday = info.weekday,
                                 onClick = {
                                     viewModel.selectCourse(
@@ -277,7 +285,7 @@ fun ClassTableScreen(
                             CourseCard(
                                 course = course,
                                 timeRange = timeRange,
-                                hasAssignment = viewModel.hasAssignment(course.courseNo),
+                                hasAssignment = course.courseNo in courseNosWithAssignments,
                                 isFinished = viewModel.isCourseFinishedToday(course),
                                 weekday = dayIndex,
                                 onClick = {
@@ -328,6 +336,7 @@ fun ClassTableScreen(
                         viewModel = viewModel,
                         weekdays = activeWeekdays,
                         periods = activePeriods,
+                        courseNosWithAssignments = courseNosWithAssignments,
                         onRename = { course ->
                             renameText = course.customCourseName ?: viewModel.defaultNameFor(course)
                             courseToRename = course
@@ -358,7 +367,7 @@ fun ClassTableScreen(
             title = viewModel.selectedCourseFullName ?: course.displayName,
             classroom = viewModel.selectedCourseClassroom,
             timeRange = viewModel.selectedCourseTimeRange,
-            assignments = viewModel.assignmentsFor(course.courseNo),
+            assignments = allAssignments.filter { it.courseNo == course.courseNo && !it.isCompleted },
             moodleCourseId = viewModel.moodleCourseIdFor(course),
             onRename = {
                 renameText = course.customCourseName ?: viewModel.defaultNameFor(course)
@@ -532,6 +541,7 @@ private fun TimetableGrid(
     viewModel: ClassTableViewModel,
     weekdays: List<Int>,
     periods: List<org.ntust.app.tigerduck.data.model.TimetablePeriod>,
+    courseNosWithAssignments: Set<String>,
     onRename: (Course) -> Unit = {},
     onDelete: (Course) -> Unit = {},
     onPickColor: (Course) -> Unit = {},
@@ -640,7 +650,7 @@ private fun TimetableGrid(
                                     x = x,
                                     y = y,
                                     weekday = weekday,
-                                    hasAssignment = viewModel.hasAssignment(role.course.courseNo),
+                                    hasAssignment = role.course.courseNo in courseNosWithAssignments,
                                     onTap = {
                                         viewModel.selectCourse(
                                             role.course,
@@ -669,8 +679,8 @@ private fun TimetableGrid(
                                     y = y,
                                     weekday = weekday,
                                     periodId = period.id,
-                                    hasAssignmentA = viewModel.hasAssignment(role.courseA.courseNo),
-                                    hasAssignmentB = viewModel.hasAssignment(role.courseB.courseNo),
+                                    hasAssignmentA = role.courseA.courseNo in courseNosWithAssignments,
+                                    hasAssignmentB = role.courseB.courseNo in courseNosWithAssignments,
                                     onPickConflict = onPickConflict,
                                     onLongPress = {
                                         Haptics.perform(
@@ -692,7 +702,7 @@ private fun TimetableGrid(
                                     x = x,
                                     y = y,
                                     weekday = weekday,
-                                    hasAssignment = { courseNo -> viewModel.hasAssignment(courseNo) },
+                                    hasAssignment = { courseNo -> courseNo in courseNosWithAssignments },
                                     onSelect = { course, firstPeriodId ->
                                         viewModel.selectCourse(course, weekday, firstPeriodId)
                                     },

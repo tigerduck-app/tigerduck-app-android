@@ -37,9 +37,13 @@ class NtustScoreService @Inject constructor(
     ): ScoreReport = withContext(Dispatchers.IO) {
         if (!forceRefresh) {
             val cached = dataCache.loadScoreReport(studentId)
-            if (cached != null &&
-                System.currentTimeMillis() - cached.cachedAt.time < CACHE_TTL_MS
-            ) return@withContext cached.report
+            // Both fields nullable (Gson Unsafe defense) — treat a snapshot
+            // with either field missing as a cache miss and re-fetch.
+            val cachedReport = cached?.report
+            val cachedAt = cached?.cachedAt
+            if (cachedReport != null && cachedAt != null &&
+                System.currentTimeMillis() - cachedAt.time < CACHE_TTL_MS
+            ) return@withContext cachedReport
         }
 
         if (!sessionManager.cookiesValid) {

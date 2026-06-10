@@ -12,12 +12,20 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import java.time.Instant
 import java.time.ZoneId
 
 class ClassPreparingNotificationReceiver : BroadcastReceiver() {
 
-    override fun onReceive(context: Context, intent: Intent) {
+    override fun onReceive(rawContext: Context, intent: Intent) {
+        // Receiver contexts carry the SYSTEM locale, not the user's in-app
+        // language choice (AppCompat per-app locales don't reach broadcast
+        // contexts when the alarm wakes a dead process). Resolve the chosen
+        // language explicitly so the channel name and notification text match
+        // the rest of the app — same pattern as TigerDuckApp.localizedContext.
+        val context = localizedContext(rawContext)
         val courseName = intent.getStringExtra(EXTRA_COURSE_NAME) ?: return
         val classroom = intent.getStringExtra(EXTRA_CLASSROOM).orEmpty()
         val instructor = intent.getStringExtra(EXTRA_INSTRUCTOR).orEmpty()
@@ -82,8 +90,18 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         nm.notify(notificationId, notification)
     }
 
+    private fun localizedContext(context: Context): Context {
+        val language = AppPreferences(context).appLanguage
+        val locale = AppLanguageManager.resolveExplicitLocale(language) ?: return context
+        val config = android.content.res.Configuration(context.resources.configuration)
+        config.setLocale(locale)
+        return context.createConfigurationContext(config)
+    }
+
     private fun ensureChannel(context: Context, nm: NotificationManager) {
-        if (nm.getNotificationChannel(CHANNEL_ID) != null) return
+        // No existence early-return: re-creating with the same id is cheap and
+        // legally updates name/description, so a language change propagates to
+        // the channel instead of freezing it in the locale of first creation.
         val channel = NotificationChannel(
             CHANNEL_ID,
             context.getString(R.string.notification_class_preparing_channel_name),

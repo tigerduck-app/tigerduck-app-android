@@ -114,13 +114,14 @@ class LiveActivityManager @Inject constructor(
             classPreparingScheduler.cancelAllTracked()
         }
 
-        scheduleBoundaryRefresh(snapshot, courses, assignments, now)
+        scheduleBoundaryRefresh(snapshot, courses, assignments, skipped, now)
     }
 
     private fun scheduleBoundaryRefresh(
         snapshot: LiveActivitySnapshot?,
         courses: List<org.ntust.app.tigerduck.data.model.Course>,
         assignments: List<org.ntust.app.tigerduck.data.model.Assignment>,
+        skippedDates: Map<String, List<String>>,
         now: Date,
     ) {
         val candidates = mutableListOf<Long>()
@@ -132,7 +133,7 @@ class LiveActivityManager @Inject constructor(
         // Cover the CLASS_PREPARING → IN_CLASS → (idle) progression for the
         // upcoming class even if it isn't currently the snapshot scenario,
         // so the boundary fires once a class enters the lead-time window.
-        nextClassBoundaries(courses, now, classPrepLead).forEach { candidates += it }
+        nextClassBoundaries(courses, skippedDates, now, classPrepLead).forEach { candidates += it }
 
         assignments.asSequence()
             .filter { !it.isCompleted && it.dueDate.after(now) }
@@ -155,10 +156,11 @@ class LiveActivityManager @Inject constructor(
 
     private fun nextClassBoundaries(
         courses: List<org.ntust.app.tigerduck.data.model.Course>,
+        skippedDates: Map<String, List<String>>,
         now: Date,
         classPrepLeadMs: Long,
     ): List<Long> {
-        val slots = resolver.todaySlotsAfter(courses, now)
+        val slots = resolver.todaySlotsAfter(courses, now, skippedDates)
         val first = slots.firstOrNull() ?: return emptyList()
         return listOfNotNull(
             (first.start.time - classPrepLeadMs).takeIf { it > now.time },

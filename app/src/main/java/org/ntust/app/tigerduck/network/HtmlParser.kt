@@ -17,8 +17,11 @@ object HtmlParser {
 
     fun findFormById(html: String, id: String): FormData? {
         val escapedId = Regex.escape(id)
+        // Accept either quote style around the id, like extractAttribute /
+        // extractTagAttribute — a single-quoted id would otherwise make the
+        // login form invisible and stall the SSO flow.
         val formRegex = Regex(
-            "<form[^>]*id=\"$escapedId\"[^>]*>(.*?)</form>",
+            "<form[^>]*id=[\"']$escapedId[\"'][^>]*>(.*?)</form>",
             setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
         )
         val match = formRegex.find(html) ?: return null
@@ -70,11 +73,14 @@ object HtmlParser {
     }
 
     private fun extractAttribute(html: String, tag: String, attribute: String): String? {
-        val regex = Regex(
-            "<$tag[^>]*$attribute=\"([^\"]*)\"[^>]*>",
-            RegexOption.IGNORE_CASE
-        )
-        return regex.find(html)?.groupValues?.getOrNull(1)?.let { decodeHtmlEntities(it) }
+        // Accept both quote styles, like extractTagAttribute below. A
+        // single-quoted form action would otherwise return null here, which
+        // findOIDCBridgeForm treats as action="" and skips the form — silently
+        // stalling the SSO bridge traversal.
+        val dq = Regex("<$tag[^>]*$attribute=\"([^\"]*)\"[^>]*>", RegexOption.IGNORE_CASE)
+        dq.find(html)?.let { return decodeHtmlEntities(it.groupValues[1]) }
+        val sq = Regex("<$tag[^>]*$attribute='([^']*)'[^>]*>", RegexOption.IGNORE_CASE)
+        return sq.find(html)?.groupValues?.getOrNull(1)?.let { decodeHtmlEntities(it) }
     }
 
     private fun extractTagAttribute(tag: String, attribute: String): String? {

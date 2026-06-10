@@ -8,14 +8,13 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.debug.DebugClockController
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.push.FcmBootstrap
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
@@ -46,7 +45,14 @@ class TigerDuckApp : Application(), Configuration.Provider {
     @Inject
     lateinit var debugClockController: DebugClockController
 
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // The DI singleton, not a private scope: it carries a logging
+    // CoroutineExceptionHandler (see CoroutineModule) so a failure in the
+    // safety-net publishes below can't crash the process pre-first-frame.
+    // DataCache does its own withContext(Dispatchers.IO) for file I/O, so
+    // the scope's Default dispatcher is fine here.
+    @Inject
+    @ApplicationScope
+    lateinit var appScope: CoroutineScope
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()

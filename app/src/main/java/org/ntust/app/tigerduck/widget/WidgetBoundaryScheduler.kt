@@ -43,14 +43,27 @@ class WidgetBoundaryScheduler @Inject constructor(
             firstBoundaryOnOrAfterTomorrow(courses, weekday) ?: return
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+        // canScheduleExactAlarms() can race a permission revocation: the user
+        // (or the system, via Doze policy) may revoke SCHEDULE_EXACT_ALARM
+        // between the check and the call, in which case setExactAndAllowWhileIdle
+        // throws SecurityException. Fall back to an inexact alarm — same
+        // pattern as AssignmentNotificationScheduler.
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+                alarmManager.set(
+                    AlarmManager.RTC_WAKEUP,
+                    AppClock.realTimeFor(triggerCal.timeInMillis),
+                    pi
+                )
+            } else {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    AppClock.realTimeFor(triggerCal.timeInMillis),
+                    pi
+                )
+            }
+        } catch (_: SecurityException) {
             alarmManager.set(
-                AlarmManager.RTC_WAKEUP,
-                AppClock.realTimeFor(triggerCal.timeInMillis),
-                pi
-            )
-        } else {
-            alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 AppClock.realTimeFor(triggerCal.timeInMillis),
                 pi

@@ -8,7 +8,7 @@ import com.google.gson.annotations.SerializedName
 data class DeviceRegisterRequest(
     @SerializedName("user_id") val userId: String,
     @SerializedName("device_id") val deviceId: String,
-    val platform: String = "android",
+    @SerializedName("platform") val platform: String = "android",
     @SerializedName("pts_token_hex") val ptsTokenHex: String,
     @SerializedName("bundle_id") val bundleId: String = "org.ntust.app.tigerduck",
     @SerializedName("device_class") val deviceClass: String = "android",
@@ -18,7 +18,10 @@ data class DeviceRegisterRequest(
 data class DeviceRegisterResponse(
     @SerializedName("device_id") val deviceId: String,
     @SerializedName("user_id") val userId: String,
-    val platform: String,
+    // @SerializedName is load-bearing on every field here: these classes
+    // have no R8 keep rule, so an unannotated field gets renamed in release
+    // builds and Gson silently leaves it null after deserialization.
+    @SerializedName("platform") val platform: String?,
     @SerializedName("registered_at") val registeredAt: String?,
 )
 

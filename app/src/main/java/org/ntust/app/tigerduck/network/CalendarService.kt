@@ -82,6 +82,9 @@ class CalendarService @Inject constructor(
             }
             result
         } catch (e: Exception) {
+            // Degrading to "no calendar" is the right UX, but log it —
+            // otherwise a format drift on the calendar page is invisible.
+            android.util.Log.w("CalendarService", "Failed to fetch calendar URLs", e)
             emptyMap()
         }
     }
@@ -105,6 +108,7 @@ class CalendarService @Inject constructor(
             }
             parseICS(icsString)
         } catch (e: Exception) {
+            android.util.Log.w("CalendarService", "Failed to fetch/parse ICS", e)
             emptyList()
         }
     }

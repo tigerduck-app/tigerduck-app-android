@@ -330,11 +330,10 @@ class ClassTableViewModel @Inject constructor(
     fun coursesAt(weekday: Int, period: String): List<Course> =
         _courses.value.filter { it.schedule[weekday]?.contains(period) == true }
 
-    fun hasAssignment(courseNo: String): Boolean =
-        _assignments.value.any { it.courseNo == courseNo && !it.isCompleted }
-
-    fun assignmentsFor(courseNo: String): List<Assignment> =
-        _assignments.value.filter { it.courseNo == courseNo && !it.isCompleted }
+    // hasAssignment / assignmentsFor were removed: they read _assignments.value
+    // outside the snapshot system, so composables calling them never recomposed
+    // when the assignments fetch landed. The screen now collects [assignments]
+    // and derives badge state itself.
 
     fun selectCourse(course: Course, weekday: Int, periodId: String) {
         _selectedWeekday.value = weekday

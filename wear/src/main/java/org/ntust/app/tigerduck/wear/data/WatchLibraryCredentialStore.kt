@@ -200,7 +200,16 @@ class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
             } catch (e: Exception) {
                 Log.w(TAG, "EncryptedSharedPreferences unusable; resetting", e)
                 runCatching { appContext.deleteSharedPreferences(PREFS_NAME) }
-                attempt()
+                try {
+                    attempt()
+                } catch (retry: Exception) {
+                    // Mirror the phone-side CredentialManager: a second failure
+                    // means the keystore itself is unusable — surface a typed,
+                    // logged error instead of whatever raw exception attempt()
+                    // happened to throw.
+                    Log.e(TAG, "EncryptedSharedPreferences retry failed", retry)
+                    throw SecurityException("Cannot create encrypted credential storage", retry)
+                }
             }
         }
 
