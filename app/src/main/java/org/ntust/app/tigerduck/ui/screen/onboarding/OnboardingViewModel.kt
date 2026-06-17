@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.AppState
 import javax.inject.Inject
 
@@ -12,6 +14,8 @@ import javax.inject.Inject
 class OnboardingViewModel @Inject constructor(
     private val appState: AppState,
     private val authService: AuthService,
+    private val analyticsLogger: AnalyticsLogger,
+    val prefs: AppPreferences,
 ) : ViewModel() {
 
     val isLoggingIn = authService.isLoggingIn
@@ -24,6 +28,11 @@ class OnboardingViewModel @Inject constructor(
             val success = authService.login(studentId, password)
             if (success) onSuccess()
         }
+    }
+
+    fun setAnalyticsEnabled(enabled: Boolean) {
+        prefs.analyticsEnabled = enabled
+        analyticsLogger.setEnabled(enabled)
     }
 
     fun completeOnboarding() {

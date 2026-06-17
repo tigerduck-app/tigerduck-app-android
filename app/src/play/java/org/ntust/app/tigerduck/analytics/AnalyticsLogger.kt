@@ -23,10 +23,6 @@ import javax.inject.Singleton
  * The fdroid variant ships a stub at the same FQN so callers in `main/` need
  * no conditional code.
  *
- * TODO: no caller wires `setEnabled(true)` yet. Until a consent UI flips it on,
- * the play flavor remains in the off-by-default state from the manifest. Add a
- * preference + Settings toggle (or onboarding consent step) to actually enable
- * collection.
  */
 @Singleton
 class AnalyticsLogger @Inject constructor(
@@ -36,6 +32,7 @@ class AnalyticsLogger @Inject constructor(
         if (FirebaseApp.getApps(context).isEmpty()) null
         else FirebaseAnalytics.getInstance(context)
     }
+    private var previouslyEnabled: Boolean? = null
 
     fun log(event: String, params: Map<String, Any?> = emptyMap()) {
         val fa = analytics ?: return
@@ -78,17 +75,18 @@ class AnalyticsLogger @Inject constructor(
     }
 
     /**
-     * Toggles Firebase Analytics collection. When disabling, also resets local
-     * analytics state (clears on-device cached data and generates a new App
-     * Instance ID) so future events cannot be linked to the prior identifier.
-     * Note: events already transmitted to Firebase servers are not deleted by
-     * this call — server-side erasure requires a separate User Data Deletion
-     * request.
+     * Toggles Firebase Analytics collection. On a true→false transition, also
+     * resets local analytics state (clears on-device cached data and generates
+     * a new App Instance ID) so future events cannot be linked to the prior
+     * identifier. The reset is skipped on cold-start confirmation of a
+     * pre-existing opt-out to avoid unnecessary I/O and App Instance ID churn.
      */
     fun setEnabled(enabled: Boolean) {
         val fa = analytics ?: return
+        val wasEnabled = previouslyEnabled
+        previouslyEnabled = enabled
         fa.setAnalyticsCollectionEnabled(enabled)
-        if (!enabled) fa.resetAnalyticsData()
+        if (!enabled && wasEnabled == true) fa.resetAnalyticsData()
     }
 
     private fun truncateValue(event: String, key: String, value: String): String {

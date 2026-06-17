@@ -62,6 +62,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -133,6 +134,7 @@ fun OnboardingScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var privacyPolicyAccepted by remember { mutableStateOf(false) }
     var deleteAccountAccepted by remember { mutableStateOf(false) }
+    var analyticsEnabled by remember { mutableStateOf(viewModel.prefs.analyticsEnabled) }
 
     // Track the furthest page the user has reached. The bottom-left forward
     // arrow is enabled only for pages already visited, so per-page gating
@@ -279,6 +281,14 @@ fun OnboardingScreen(
                             onCheckedChange = { deleteAccountAccepted = it },
                         )
                     }
+                    Spacer(Modifier.height(12.dp))
+                    AnalyticsOptInCard(
+                        checked = analyticsEnabled,
+                        onCheckedChange = {
+                            analyticsEnabled = it
+                            viewModel.setAnalyticsEnabled(it)
+                        },
+                    )
                 }
 
                 2 -> OnboardingPageScaffold(
@@ -589,6 +599,38 @@ private fun PrivacyCheckRow(
                     modifier = Modifier.size(16.dp),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun AnalyticsOptInCard(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier.fillMaxWidth(0.9f),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.onboarding_analytics_label),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = stringResource(R.string.onboarding_analytics_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+                )
+            }
+            Switch(checked = checked, onCheckedChange = onCheckedChange)
         }
     }
 }

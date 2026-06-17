@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.debug.DebugClockController
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.notification.NotificationChannels
+import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.push.FcmBootstrap
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
@@ -47,6 +48,9 @@ class TigerDuckApp : Application(), Configuration.Provider {
     lateinit var dataMigration: DataMigration
 
     @Inject
+    lateinit var analyticsLogger: AnalyticsLogger
+
+    @Inject
     lateinit var debugClockController: DebugClockController
 
     // The DI singleton, not a private scope: it carries a logging
@@ -66,6 +70,8 @@ class TigerDuckApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         dataMigration.run()
+        analyticsLogger.setEnabled(appPreferences.analyticsEnabled)
+        analyticsLogger.setUserProperty("app_version", BuildConfig.VERSION_NAME)
         debugClockController.bootstrap()
         AppLanguageManager.apply(appPreferences.appLanguage)
         createNotificationChannels()

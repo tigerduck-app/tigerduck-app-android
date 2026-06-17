@@ -51,6 +51,7 @@ fun OtherSettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    var analyticsEnabled by remember { mutableStateOf(viewModel.prefs.analyticsEnabled) }
     val invertSlider = viewModel.appState.invertSliderDirection
     val themeMode = viewModel.appState.themeMode
     val browserPreference = viewModel.appState.browserPreference
@@ -195,6 +196,29 @@ fun OtherSettingsScreen(
             }
 
             item { Spacer(Modifier.height(24.dp)) }
+
+            item {
+                ContentCard {
+                    SettingsToggleRow(
+                        stringResource(R.string.settings_analytics_enabled),
+                        analyticsEnabled,
+                    ) {
+                        analyticsEnabled = it
+                        viewModel.setAnalyticsEnabled(it)
+                    }
+                }
+            }
+            item {
+                Text(
+                    stringResource(R.string.settings_analytics_description),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                        .copy(alpha = ContentAlpha.SECONDARY),
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                )
+            }
+
+            item { Spacer(Modifier.height(8.dp)) }
 
             item {
                 ContentCard {

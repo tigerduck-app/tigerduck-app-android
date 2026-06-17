@@ -30,6 +30,7 @@ import org.ntust.app.tigerduck.widget.receivers.WeekDarkWidget
 import org.ntust.app.tigerduck.widget.receivers.WeekDarkWidgetReceiver
 import org.ntust.app.tigerduck.widget.receivers.WeekLightWidget
 import org.ntust.app.tigerduck.widget.receivers.WeekLightWidgetReceiver
+import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.di.ApplicationScope
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -39,11 +40,13 @@ class WidgetUpdater @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val dataCache: DataCache,
     private val boundaryScheduler: WidgetBoundaryScheduler,
+    private val analyticsLogger: AnalyticsLogger,
     @param:ApplicationScope private val scope: CoroutineScope,
 ) {
     private val boundaryLock = Mutex()
     private var boundaryInFlight = false
     private val boundaryFinishers = mutableListOf<() -> Unit>()
+    private var hasLoggedWidgetAnalytics = false
 
     suspend fun updateAll() {
         // Bump the per-widget tick BEFORE asking Glance to recompose. The
@@ -73,6 +76,18 @@ class WidgetUpdater @Inject constructor(
                             widget.update(context, id)
                         }
                     }
+                }
+            }
+        }
+        if (!hasLoggedWidgetAnalytics) {
+            hasLoggedWidgetAnalytics = true
+            val awm = AppWidgetManager.getInstance(context)
+            WIDGET_ANALYTICS.forEach { (clazz, label) ->
+                val count = runCatching {
+                    awm.getAppWidgetIds(ComponentName(context, clazz))?.size ?: 0
+                }.getOrDefault(0)
+                if (count > 0) {
+                    analyticsLogger.log("widget_active", mapOf("widget_type" to label, "count" to count))
                 }
             }
         }
@@ -150,6 +165,15 @@ class WidgetUpdater @Inject constructor(
             NextClassLightWidgetReceiver::class.java,
             NextClassDarkWidgetReceiver::class.java,
             LibraryShortcutWidgetReceiver::class.java,
+        )
+        private val WIDGET_ANALYTICS = listOf(
+            WeekLightWidgetReceiver::class.java to "week_light",
+            WeekDarkWidgetReceiver::class.java to "week_dark",
+            TodayLightWidgetReceiver::class.java to "today_light",
+            TodayDarkWidgetReceiver::class.java to "today_dark",
+            NextClassLightWidgetReceiver::class.java to "next_class_light",
+            NextClassDarkWidgetReceiver::class.java to "next_class_dark",
+            LibraryShortcutWidgetReceiver::class.java to "library_shortcut",
         )
         private val GLANCE_WIDGET_FACTORIES: List<() -> GlanceAppWidget> = listOf(
             { WeekLightWidget() },

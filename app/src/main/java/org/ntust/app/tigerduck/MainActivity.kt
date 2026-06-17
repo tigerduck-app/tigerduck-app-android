@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
@@ -53,6 +54,9 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var analyticsLogger: AnalyticsLogger
 
     @Inject
     lateinit var appState: AppState
@@ -138,6 +142,7 @@ class MainActivity : AppCompatActivity() {
                     Box(modifier = Modifier.fillMaxSize()) {
                         AppNavigation(
                             appState = appState,
+                            analyticsLogger = analyticsLogger,
                             widgetStartRoute = widgetStartRoute.value,
                             onStartRouteConsumed = {
                                 widgetStartRoute.value = null

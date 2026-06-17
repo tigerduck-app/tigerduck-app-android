@@ -48,6 +48,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
@@ -117,6 +118,7 @@ sealed class Screen(val route: String) {
 @Composable
 fun AppNavigation(
     appState: AppState,
+    analyticsLogger: AnalyticsLogger,
     widgetStartRoute: String? = null,
     onStartRouteConsumed: () -> Unit = {},
 ) {
@@ -125,6 +127,7 @@ fun AppNavigation(
     } else {
         MainNavigation(
             appState = appState,
+            analyticsLogger = analyticsLogger,
             widgetStartRoute = widgetStartRoute,
             onStartRouteConsumed = onStartRouteConsumed,
         )
@@ -149,6 +152,7 @@ fun AppNavigation(
 @Composable
 fun MainNavigation(
     appState: AppState,
+    analyticsLogger: AnalyticsLogger,
     widgetStartRoute: String? = null,
     onStartRouteConsumed: () -> Unit = {},
 ) {
@@ -207,6 +211,11 @@ fun MainNavigation(
     }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    LaunchedEffect(currentRoute) {
+        val route = currentRoute ?: return@LaunchedEffect
+        val screenName = route.replace(Regex("/\\{[^}]+}"), "")
+        analyticsLogger.log("screen_view", mapOf("screen_name" to screenName))
+    }
     val selectedTabRoute = when (currentRoute) {
         Screen.Settings.route, Screen.TabEditor.route -> Screen.More.route
         else -> currentRoute
