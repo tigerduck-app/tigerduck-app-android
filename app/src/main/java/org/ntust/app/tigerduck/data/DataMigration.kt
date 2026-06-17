@@ -2,9 +2,12 @@ package org.ntust.app.tigerduck.data
 
 import android.content.Context
 import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * One-shot runner for on-device data migrations.
@@ -22,9 +25,15 @@ import java.io.File
  *      credential store, user downgraded the app, old-and-unsupported
  *      layout) — [run] returns [Outcome.NeedsUserReset] and the UI is
  *      expected to show a "please re-login and reconfigure" prompt.
+ *
+ * [run] is called from [org.ntust.app.tigerduck.TigerDuckApp.onCreate] so
+ * migrations complete before any component (BootReceiver, WearScheduleBridge,
+ * AppState) reads [org.ntust.app.tigerduck.data.cache.DataCache]. The result
+ * is cached; subsequent calls return the same outcome without re-running.
  */
-class DataMigration(
-    private val context: Context,
+@Singleton
+class DataMigration @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val prefs: AppPreferences,
     private val credentials: CredentialManager,
 ) {
@@ -36,7 +45,11 @@ class DataMigration(
         NeedsUserReset,
     }
 
-    fun run(): Outcome {
+    private val outcome: Outcome by lazy(LazyThreadSafetyMode.SYNCHRONIZED) { doRun() }
+
+    fun run(): Outcome = outcome
+
+    private fun doRun(): Outcome {
         // If Keystore corruption forced CredentialManager to rebuild the
         // credential store from scratch, the user's logins are gone and
         // the app is effectively logged out. Surface it so the dialog
@@ -127,9 +140,8 @@ class DataMigration(
                 }
         }
 
-        // Mirrors DataCache. Kept in sync deliberately — DataMigration must
-        // run before any DataCache access, so we don't import the cache
-        // class here to avoid pulling DI into the migration boot path.
+        // Mirrors DataCache constants. Kept in sync deliberately so
+        // DataMigration doesn't depend on the DataCache class.
         private const val CACHE_SUBDIR = "TigerDuckCache"
         private const val USER_DATA_SUBDIR = "TigerDuckData"
         private const val LEGACY_COURSES_FILENAME = "courses.json"

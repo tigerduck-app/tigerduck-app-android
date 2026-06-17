@@ -10,6 +10,7 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -43,6 +44,9 @@ class TigerDuckApp : Application(), Configuration.Provider {
     lateinit var wearBridge: WearScheduleBridge
 
     @Inject
+    lateinit var dataMigration: DataMigration
+
+    @Inject
     lateinit var debugClockController: DebugClockController
 
     // The DI singleton, not a private scope: it carries a logging
@@ -61,6 +65,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        dataMigration.run()
         debugClockController.bootstrap()
         AppLanguageManager.apply(appPreferences.appLanguage)
         createNotificationChannels()

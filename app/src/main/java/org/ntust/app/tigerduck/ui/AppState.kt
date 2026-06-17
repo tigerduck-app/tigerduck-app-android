@@ -1,6 +1,5 @@
 package org.ntust.app.tigerduck.ui
 
-import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -9,7 +8,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.graphics.Color
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -47,7 +45,7 @@ class AppState @Inject constructor(
     val calendarService: CalendarService,
     val systemPermissions: SystemPermissions,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
-    @param:ApplicationContext private val appContext: Context,
+    private val dataMigration: DataMigration,
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var syncJob: Job? = null
@@ -67,7 +65,7 @@ class AppState @Inject constructor(
     val needsUserReset: StateFlow<Boolean> = _needsUserReset
 
     init {
-        when (DataMigration(appContext, prefs, credentials).run()) {
+        when (dataMigration.run()) {
             DataMigration.Outcome.NeedsUserReset -> _needsUserReset.value = true
             DataMigration.Outcome.Ok -> Unit
         }
