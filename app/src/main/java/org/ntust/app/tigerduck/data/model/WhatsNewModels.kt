@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.update
+package org.ntust.app.tigerduck.data.model
 
 /**
  * One localized "What's new" block, deserialized by Gson from

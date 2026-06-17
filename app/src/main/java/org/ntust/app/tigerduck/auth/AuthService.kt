@@ -9,8 +9,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.announcements.BulletinCache
-import org.ntust.app.tigerduck.announcements.BulletinReadStateStore
+import org.ntust.app.tigerduck.data.cache.BulletinCache
+import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.di.ApplicationScope

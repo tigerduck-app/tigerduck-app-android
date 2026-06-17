@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.update
+package org.ntust.app.tigerduck.data.model
 
 /**
  * Outcome of a manual "Check for updates" tap from Settings → About.

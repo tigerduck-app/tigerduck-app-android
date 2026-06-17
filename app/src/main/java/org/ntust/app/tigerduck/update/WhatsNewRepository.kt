@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.data.model.WhatsNewContent
 import org.ntust.app.tigerduck.update.WhatsNewRepository.Companion.parse
 import org.ntust.app.tigerduck.update.WhatsNewRepository.Companion.select
 import javax.inject.Inject

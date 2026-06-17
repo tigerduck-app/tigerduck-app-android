@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.update
+package org.ntust.app.tigerduck.util
 
 /**
  * Substitute the iOS-style positional placeholder `%1$@` (or `%2$@`, etc.) with

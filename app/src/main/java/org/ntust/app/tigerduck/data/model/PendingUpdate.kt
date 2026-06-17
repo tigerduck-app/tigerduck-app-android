@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.update
+package org.ntust.app.tigerduck.data.model
 
 /**
  * One pending "an update is available" prompt waiting to be surfaced. Lives in

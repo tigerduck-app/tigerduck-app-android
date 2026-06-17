@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.announcements
+package org.ntust.app.tigerduck.ui.screen.announcements
 
 import android.Manifest
 import android.os.Build
@@ -62,6 +62,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.network.model.SubscriptionRule
+import org.ntust.app.tigerduck.network.model.TaxonomyResponse
+import org.ntust.app.tigerduck.network.model.localizedTagLabel
+import org.ntust.app.tigerduck.network.model.orgLabel
 import org.ntust.app.tigerduck.notification.AppPermission
 import org.ntust.app.tigerduck.notification.SystemPermissions
 

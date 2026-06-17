@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.announcements
+package org.ntust.app.tigerduck.network.model
 
 import com.google.gson.annotations.SerializedName
 

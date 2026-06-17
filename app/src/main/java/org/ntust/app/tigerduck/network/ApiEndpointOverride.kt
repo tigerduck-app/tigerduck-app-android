@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.announcements
+package org.ntust.app.tigerduck.network
 
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.ntust.app.tigerduck.BuildConfig

@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.announcements
+package org.ntust.app.tigerduck.ui.screen.announcements
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,7 +14,13 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.data.BulletinReadStateStore
+import org.ntust.app.tigerduck.data.BulletinRepository
+import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.BulletinApiClient
+import org.ntust.app.tigerduck.network.model.BulletinSummary
+import org.ntust.app.tigerduck.network.model.TaxonomyResponse
 import java.time.Instant
 import javax.inject.Inject
 

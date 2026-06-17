@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.announcements
+package org.ntust.app.tigerduck.data
 
 import android.content.Context
 import android.content.SharedPreferences

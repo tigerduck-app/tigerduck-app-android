@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.announcements
+package org.ntust.app.tigerduck.network
 
 import android.util.Log
 import com.google.gson.Gson
@@ -12,6 +12,12 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.model.BulletinDetail
+import org.ntust.app.tigerduck.network.model.BulletinListResponse
+import org.ntust.app.tigerduck.network.model.SubscriptionRule
+import org.ntust.app.tigerduck.network.model.SubscriptionsPutRequest
+import org.ntust.app.tigerduck.network.model.SubscriptionsResponse
+import org.ntust.app.tigerduck.network.model.TaxonomyResponse
 import javax.inject.Inject
 import javax.inject.Singleton
 

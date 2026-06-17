@@ -96,11 +96,11 @@ import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewDialog
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.tigerDuckSwitchColors
-import org.ntust.app.tigerduck.update.ManualCheckResult
+import org.ntust.app.tigerduck.data.model.ManualCheckResult
 import org.ntust.app.tigerduck.update.UpdateChecker
-import org.ntust.app.tigerduck.update.WhatsNewContent
+import org.ntust.app.tigerduck.data.model.WhatsNewContent
 import org.ntust.app.tigerduck.update.WhatsNewRepository
-import org.ntust.app.tigerduck.update.replaceIosArg
+import org.ntust.app.tigerduck.util.replaceIosArg
 import java.util.Locale
 
 @Composable
