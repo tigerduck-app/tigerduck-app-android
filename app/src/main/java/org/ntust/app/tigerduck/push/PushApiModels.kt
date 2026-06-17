@@ -29,10 +29,6 @@ data class DeviceRegisterResponse(
     @SerializedName("push_token_id") val pushTokenId: Int?,
 )
 
-data class DeviceUnregisterRequest(
-    @SerializedName("device_id") val deviceId: String,
-)
-
 data class UpdateDevicePreferencesRequest(
     @SerializedName("server_push_enabled") val serverPushEnabled: Boolean,
 )

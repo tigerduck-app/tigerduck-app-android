@@ -85,10 +85,11 @@ class PushApiClient @Inject constructor(
         }
 
     suspend fun unregister(deviceId: String) = withContext(Dispatchers.IO) {
-        val body = gson.toJson(DeviceUnregisterRequest(deviceId)).toRequestBody(jsonType)
+        // v3: DELETE /devices/{client_device_id}, scoped to the authed user
+        // (matches iOS + the server). `deviceId` is PushIdentity.uuid().
         val request = Request.Builder()
-            .url("$baseUrl/devices/unregister")
-            .post(body)
+            .url("$baseUrl/devices/$deviceId")
+            .delete()
             .addAuthHeader()
             .build()
         client.newCall(request).execute().use { response ->
