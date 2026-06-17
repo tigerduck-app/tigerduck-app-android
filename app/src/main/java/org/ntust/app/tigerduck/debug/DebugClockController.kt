@@ -49,6 +49,10 @@ class DebugClockController @Inject constructor(
         scope.launch {
             withContext(Dispatchers.IO) {
                 wearBridge.push(override)
+                // Set the override immediately before rescheduleAll() so every
+                // scheduler reads the updated clock when computing realTimeFor()
+                // trigger values — eliminating the window where AlarmManager
+                // entries computed against the old override are still live.
                 AppClock.setOverride(override)
                 rescheduleAll()
             }
