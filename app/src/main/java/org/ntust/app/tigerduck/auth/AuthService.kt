@@ -147,10 +147,12 @@ class AuthService @Inject constructor(
         // into the next account on the same device.
         appScope.launch {
             runCatching { dataCache.clearAllUserData() }
+                .onFailure { android.util.Log.w("AuthService", "clearAllUserData failed on logout", it) }
             // Bulletins are school-wide rather than private, but the read-state
             // store is already cleared above — clear the content snapshot too
             // so the next session starts coherent instead of half-stale.
             runCatching { bulletinCache.clear() }
+                .onFailure { android.util.Log.w("AuthService", "bulletinCache.clear failed on logout", it) }
         }
     }
 
