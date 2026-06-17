@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">वर्ग लवकरच सुरू होणार: %1$s</string>
     <string name="notification_setup_description">असाइनमेंट स्मरणपत्रे, वर्ग सुरू होण्याच्या सूचना आणि Live Updates ॲप बंद असतानाही वेळेवर येण्यासाठी खालील परवानग्या सक्षम करा.</string>
     <string name="notification_setup_title">अधिसूचना पुन्हा सेट करा</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">अनामिक पृष्ठ भेटी आणि विजेट वापर शेअर करून TigerDuck सुधारण्यास मदत करा. तुम्ही हे कधीही सेटिंग्जमध्ये बदलू शकता.</string>
+    <string name="onboarding_analytics_label">वापर विश्लेषण (पर्यायी)</string>
     <string name="onboarding_flavor_fdroid_description">तुम्ही F-Droid बिल्ड वापरत आहात. F-Droidच्या धोरणामुळे Google सेवांवर (Firebase FCM, GMS इत्यादी) अवलंबून राहता येत नाही, त्यामुळे या बिल्डमध्ये पुढील दोन वैशिष्ट्ये उपलब्ध नाहीत:\n\n1. Wear OS सोबती ॲप\n2. रिअल-टाइम पुश सूचना</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid बिल्ड सूचना</string>
     <string name="onboarding_flavor_play_description">TigerDuckमध्ये Wear OS सोबती आहे. तुमच्या घड्याळावर वर्ग संदेश पाहा — Wear TigerDuck तुमच्या फोनवरील माहिती सिंक करते.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">ग्रंथालय प्रणाली</string>
     <string name="settings_account_ntust_system">शैक्षणिक प्रणाली</string>
     <string name="settings_acknowledged">समजले</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">TigerDuck सुधारण्यास मदत करण्यासाठी अनामिक वापर डेटा (भेट दिलेली पृष्ठे, विजेट वापर) शेअर करा</string>
+    <string name="settings_analytics_enabled">वापर विश्लेषण</string>
     <string name="settings_assignment_due_reminder">असाइनमेंट मुदत स्मरणपत्रे</string>
     <string name="settings_browser_in_app">ॲप-अंतर्गत ब्राउझर</string>
     <string name="settings_browser_system_default">सिस्टम डीफॉल्ट ब्राउझर</string>

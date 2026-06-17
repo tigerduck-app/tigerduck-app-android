@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">Сабақ жақын басталады: %1$s</string>
     <string name="notification_setup_description">Қолданба жабық болса да тапсырма еске салулары, сабақ басталу ескертулері және Live Updates уақытында жетуі үшін төмендегі рұқсаттарды қосыңыз.</string>
     <string name="notification_setup_title">Хабарландыруларды қайта орнату</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">Қаралған беттер мен виджет пайдалануы туралы анонимді деректерді бөлісу арқылы TigerDuck-ты жақсартуға көмектесіңіз. Мұны Параметрлерде кез келген уақытта өзгертуге болады.</string>
+    <string name="onboarding_analytics_label">Пайдалану аналитикасы (міндетті емес)</string>
     <string name="onboarding_flavor_fdroid_description">Сіз F-Droid нұсқасын қолданып отырсыз. F-Droid саясаты Google қызметтеріне (Firebase FCM, GMS және т.б.) тәуелді болуға тыйым салатындықтан, осы нұсқада келесі екі мүмкіндік қолжетімсіз:\n\n1. Wear OS серіктес қосымшасы\n2. Нақты уақыттағы push хабарландырулары</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid нұсқасы туралы хабар</string>
     <string name="onboarding_flavor_play_description">TigerDuck құрамында Wear OS серіктес қосымшасы бар. Сабақ хабарламаларын сағатыңыздан көріңіз — Wear TigerDuck телефоныңыздан ақпаратты синхрондайды.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">Кітапхана жүйесі</string>
     <string name="settings_account_ntust_system">Оқу жүйесі</string>
     <string name="settings_acknowledged">Түсінікті</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">TigerDuck-ты жақсартуға көмектесу үшін анонимді пайдалану деректерін (қаралған беттер, виджет пайдалануы) бөлісіңіз</string>
+    <string name="settings_analytics_enabled">Пайдалану аналитикасы</string>
     <string name="settings_assignment_due_reminder">Тапсырма мерзімі туралы еске салулар</string>
     <string name="settings_browser_in_app">Қолданба ішіндегі браузер</string>
     <string name="settings_browser_system_default">Жүйенің әдепкі браузері</string>

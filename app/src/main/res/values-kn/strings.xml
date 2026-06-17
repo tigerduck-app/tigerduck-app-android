@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">ತರಗತಿ ಶೀಘ್ರದಲ್ಲಿ ಆರಂಭವಾಗುತ್ತದೆ: %1$s</string>
     <string name="notification_setup_description">ಕಾರ್ಯ ಜ್ಞಾಪನೆಗಳು, ತರಗತಿ ಸಿದ್ಧತೆ ಎಚ್ಚರಿಕೆಗಳು ಮತ್ತು Live Updates ಅಪ್ಲಿಕೇಶನ್ ಮುಚ್ಚಿದ್ದರೂ ಸಮಯಕ್ಕೆ ತಲುಪುವಂತೆ ಕೆಳಗಿನ ಅನುಮತಿಗಳನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ.</string>
     <string name="notification_setup_title">ಅಧಿಸೂಚನೆಗಳನ್ನು ಮರುಸಂರಚಿಸಿ</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">ಅನಾಮಧೇಯ ಪುಟ ಭೇಟಿಗಳು ಮತ್ತು ವಿಜೆಟ್ ಬಳಕೆ ಹಂಚಿಕೊಂಡು TigerDuck ಸುಧಾರಿಸಲು ಸಹಾಯ ಮಾಡಿ. ನೀವು ಇದನ್ನು ಯಾವಾಗ ಬೇಕಾದರೂ ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಬದಲಾಯಿಸಬಹುದು.</string>
+    <string name="onboarding_analytics_label">ಬಳಕೆ ವಿಶ್ಲೇಷಣೆ (ಐಚ್ಛಿಕ)</string>
     <string name="onboarding_flavor_fdroid_description">ನೀವು F-Droid ಬಿಲ್ಡ್ ಬಳಸುತ್ತಿದ್ದೀರಿ. F-Droid ನೀತಿಯು Google ಸೇವೆಗಳನ್ನು (Firebase FCM, GMS ಇತ್ಯಾದಿ) ಅವಲಂಬಿಸುವುದನ್ನು ನಿಷೇಧಿಸುವುದರಿಂದ, ಈ ಕೆಳಗಿನ ಎರಡು ವೈಶಿಷ್ಟ್ಯಗಳು ಈ ಬಿಲ್ಡ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ:\n\n1. Wear OS ಜೊತೆಗಿನ ಆ್ಯಪ್\n2. ರಿಯಲ್-ಟೈಮ್ ಪುಷ್ ಪ್ರಕಟಣೆಗಳು</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid ಬಿಲ್ಡ್ ಸೂಚನೆ</string>
     <string name="onboarding_flavor_play_description">TigerDuck ಒಳಗೊಂಡಿರುವ Wear OS ಜೊತೆಗಿನ ಆ್ಯಪ್. ನಿಮ್ಮ ವಾಚ್‌ನಲ್ಲಿ ಕ್ಲಾಸ್ ಸಂದೇಶಗಳನ್ನು ನೋಡಿ — Wear TigerDuck ನಿಮ್ಮ ಫೋನ್‌ನಿಂದ ಮಾಹಿತಿಯನ್ನು ಸಿಂಕ್ ಮಾಡುತ್ತದೆ.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">ಗ್ರಂಥಾಲಯ ವ್ಯವಸ್ಥೆ</string>
     <string name="settings_account_ntust_system">ಶಾಲಾ ವ್ಯವಸ್ಥೆ</string>
     <string name="settings_acknowledged">ತಿಳಿಯಿತು</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">TigerDuck ಸುಧಾರಿಸಲು ಸಹಾಯ ಮಾಡಲು ಅನಾಮಧೇಯ ಬಳಕೆ ಡೇಟಾ (ಭೇಟಿ ನೀಡಿದ ಪುಟಗಳು, ವಿಜೆಟ್ ಬಳಕೆ) ಹಂಚಿಕೊಳ್ಳಿ</string>
+    <string name="settings_analytics_enabled">ಬಳಕೆ ವಿಶ್ಲೇಷಣೆ</string>
     <string name="settings_assignment_due_reminder">ಕಾರ್ಯ ಗಡುವು ಜ್ಞಾಪನೆಗಳು</string>
     <string name="settings_browser_in_app">ಅಪ್ಲಿಕೇಶನ್ ಒಳಗಿನ ಬ್ರೌಸರ್</string>
     <string name="settings_browser_system_default">ಸಿಸ್ಟಂ ಡೀಫಾಲ್ಟ್ ಬ್ರೌಸರ್</string>

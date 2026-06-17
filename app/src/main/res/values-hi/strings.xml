@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">कक्षा जल्द शुरू होगी: %1$s</string>
     <string name="notification_setup_description">नीचे दी गई अनुमतियाँ सक्षम करें ताकि असाइनमेंट अनुस्मारक, कक्षा तैयारी अलर्ट और लाइव अपडेट ऐप बंद होने पर भी समय पर आ सकें।</string>
     <string name="notification_setup_title">नोटिफिकेशन पुनः कॉन्फ़िगर करें</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">गुमनाम पेज विज़िट और विजेट उपयोग साझा करके TigerDuck को बेहतर बनाने में मदद करें। आप इसे कभी भी सेटिंग में बदल सकते हैं।</string>
+    <string name="onboarding_analytics_label">उपयोग विश्लेषण (वैकल्पिक)</string>
     <string name="onboarding_flavor_fdroid_description">आप F-Droid बिल्ड का उपयोग कर रहे हैं। चूँकि F-Droid नीति Google की सेवाओं (Firebase FCM, GMS आदि) पर निर्भरता निषिद्ध करती है, इसलिए निम्नलिखित दो सुविधाएँ इस बिल्ड में उपलब्ध नहीं हैं:\n\n1. Wear OS साथी ऐप\n2. रीयल-टाइम पुश सूचनाएँ</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid बिल्ड सूचना</string>
     <string name="onboarding_flavor_play_description">TigerDuck में Wear OS साथी ऐप शामिल है। अपनी घड़ी पर कक्षा संदेश देखें — Wear TigerDuck आपके फ़ोन से जानकारी सिंक करता है।</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">पुस्तकालय प्रणाली</string>
     <string name="settings_account_ntust_system">शैक्षणिक प्रणाली</string>
     <string name="settings_acknowledged">समझ गया</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">TigerDuck को बेहतर बनाने में मदद के लिए गुमनाम उपयोग डेटा (देखे गए पेज, विजेट उपयोग) साझा करें</string>
+    <string name="settings_analytics_enabled">उपयोग विश्लेषण</string>
     <string name="settings_assignment_due_reminder">असाइनमेंट देय अनुस्मारक</string>
     <string name="settings_browser_in_app">इन-ऐप ब्राउज़र</string>
     <string name="settings_browser_system_default">सिस्टम डिफ़ॉल्ट ब्राउज़र</string>

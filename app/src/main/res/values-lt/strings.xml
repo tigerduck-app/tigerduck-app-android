@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">Paskaita prasideda: %1$s</string>
     <string name="notification_setup_description">Įjunkite toliau nurodytus leidimus, kad užduočių priminimai, paskaitų įspėjimai ir tiesioginiai atnaujinimai būtų pristatomi laiku net uždarius programą.</string>
     <string name="notification_setup_title">Iš naujo konfigūruoti pranešimus</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">Padėk tobulinti TigerDuck dalindamasis anoniminiais duomenimis apie lankytus puslapius ir valdiklių naudojimą. Tai galite keisti bet kada Nustatymuose.</string>
+    <string name="onboarding_analytics_label">Naudojimo analizė (neprivaloma)</string>
     <string name="onboarding_flavor_fdroid_description">Naudojate F-Droid versiją. Kadangi F-Droid politika draudžia priklausomybę nuo Google paslaugų (Firebase FCM, GMS ir kt.), šios dvi funkcijos nepasiekiamos šioje versijoje:\n\n1. Wear OS palydovinė programėlė\n2. Tiesioginiai pranešimai realiu laiku</string>
     <string name="onboarding_flavor_fdroid_title">Pranešimas apie F-Droid versiją</string>
     <string name="onboarding_flavor_play_description">TigerDuck turi Wear OS palydovinę programėlę. Žiūrėkite paskaitų pranešimus laikrodyje — Wear TigerDuck sinchronizuoja informaciją iš jūsų telefono.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">Bibliotekos sistema</string>
     <string name="settings_account_ntust_system">Mokyklos sistema</string>
     <string name="settings_acknowledged">Supratau</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">Dalinkis anonimais naudojimo duomenimis (lankyti puslapiai, valdiklių naudojimas), kad padėtum tobulinti TigerDuck</string>
+    <string name="settings_analytics_enabled">Naudojimo analizė</string>
     <string name="settings_assignment_due_reminder">Užduočių terminų priminimai</string>
     <string name="settings_browser_in_app">Programos vidaus naršyklė</string>
     <string name="settings_browser_system_default">Numatytoji sistemos naršyklė</string>

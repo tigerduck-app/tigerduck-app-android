@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">Час ускоро почиње: %1$s</string>
     <string name="notification_setup_description">Омогућите следеће дозволе да бисте осигурали да подсетници за задатке, упозорења о почетку часа и новости уживо стижу на вријеме чак и кад је апликација затворена.</string>
     <string name="notification_setup_title">Поново подеси обавештења</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">Помози у побољшању TigerDuck-а дељењем анонимних података о посећеним страницама и коришћењу виџета. Ово можеш променити у било ком тренутку у Подешавањима.</string>
+    <string name="onboarding_analytics_label">Аналитика коришћења (опционално)</string>
     <string name="onboarding_flavor_fdroid_description">Користите F-Droid верзију. Пошто F-Droid политика забрањује ослањање на Google услуге (Firebase FCM, GMS итд.), следеће две функције нису доступне у овој верзији:\n\n1. Пратећа Wear OS апликација\n2. Push обавештења у реалном времену</string>
     <string name="onboarding_flavor_fdroid_title">Обавештење о F-Droid верзији</string>
     <string name="onboarding_flavor_play_description">TigerDuck укључује пратећу Wear OS апликацију. Прегледајте поруке са наставе на сату — Wear TigerDuck синхронизује информације са вашег телефона.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">Библиотечки систем</string>
     <string name="settings_account_ntust_system">Академски систем</string>
     <string name="settings_acknowledged">Разумем</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">Дели анонимне податке о коришћењу (посећене странице, коришћење виџета) да би помогао у побољшању TigerDuck-а</string>
+    <string name="settings_analytics_enabled">Аналитика коришћења</string>
     <string name="settings_assignment_due_reminder">Подсетници за рок задатка</string>
     <string name="settings_browser_in_app">Уграђени претраживач</string>
     <string name="settings_browser_system_default">Подразумевани системски претраживач</string>

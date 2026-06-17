@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">తరగతి త్వరలో మొదలవుతుంది: %1$s</string>
     <string name="notification_setup_description">అసైన్‌మెంట్ రిమైండర్లు, తరగతి హెచ్చరికలు మరియు Live Updates యాప్ మూసివేసినా సమయానికి వచ్చేలా కింది అనుమతులు ఆన్ చేయండి.</string>
     <string name="notification_setup_title">నోటిఫికేషన్లు తిరిగి సెట్ చేయండి</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">అనామక పేజీ సందర్శనలు మరియు విజెట్ వినియోగాన్ని పంచుకుని TigerDuck మెరుగుపరచడంలో సహాయపడండి. మీరు ఇది ఎప్పుడైనా సెట్టింగ్‌లలో మార్చవచ్చు.</string>
+    <string name="onboarding_analytics_label">వినియోగ విశ్లేషణ (ఐచ్ఛికం)</string>
     <string name="onboarding_flavor_fdroid_description">మీరు F-Droid బిల్డ్ ఉపయోగిస్తున్నారు. F-Droid విధానం Google సేవలపై (Firebase FCM, GMS మొదలైనవి) ఆధారపడడాన్ని అనుమతించదు కాబట్టి, ఈ బిల్డ్‌లో ఈ రెండు ఫీచర్లు అందుబాటులో లేవు:\n\n1. Wear OS సహచర యాప్\n2. రియల్-టైమ్ పుష్ ప్రకటనలు</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid బిల్డ్ సూచన</string>
     <string name="onboarding_flavor_play_description">TigerDuckలో Wear OS సహచర యాప్ ఉంది. మీ గడియారంలో తరగతి సందేశాలను చూడండి — Wear TigerDuck మీ ఫోన్ నుండి సమాచారాన్ని సింక్ చేస్తుంది.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">లైబ్రరీ సిస్టమ్</string>
     <string name="settings_account_ntust_system">అకాడెమిక్ సిస్టమ్</string>
     <string name="settings_acknowledged">అర్థమైంది</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">TigerDuck మెరుగుపరచడానికి అనామక వినియోగ డేటా (సందర్శించిన పేజీలు, విజెట్ వినియోగం) పంచుకోండి</string>
+    <string name="settings_analytics_enabled">వినియోగ విశ్లేషణ</string>
     <string name="settings_assignment_due_reminder">అసైన్‌మెంట్ గడువు రిమైండర్లు</string>
     <string name="settings_browser_in_app">యాప్ లోపల బ్రౌజర్</string>
     <string name="settings_browser_system_default">సిస్టమ్ డిఫాల్ట్ బ్రౌజర్</string>

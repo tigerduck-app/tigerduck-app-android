@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">กำลังจะเข้าเรียน: %1$s</string>
     <string name="notification_setup_description">เปิดใช้งานสิทธิ์ด้านล่างเพื่อให้แน่ใจว่าการแจ้งเตือนการบ้าน การแจ้งเตือนก่อนเข้าเรียน และข้อมูลอัปเดตแบบเรียลไทม์จะมาถึงตรงเวลาแม้ในขณะที่ปิดแอปอยู่</string>
     <string name="notification_setup_title">ตั้งค่าการแจ้งเตือนใหม่</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">ช่วยพัฒนา TigerDuck ด้วยการแชร์ข้อมูลการเข้าชมหน้าและการใช้วิดเจ็ตแบบไม่ระบุตัวตน คุณสามารถเปลี่ยนได้ทุกเมื่อในการตั้งค่า</string>
+    <string name="onboarding_analytics_label">การวิเคราะห์การใช้งาน (ไม่บังคับ)</string>
     <string name="onboarding_flavor_fdroid_description">คุณกำลังใช้บิลด์ F-Droid เนื่องจากนโยบายของ F-Droid ห้ามการพึ่งพาบริการของ Google (Firebase FCM, GMS ฯลฯ) ฟีเจอร์สองอย่างต่อไปนี้จึงไม่มีในบิลด์นี้:\n\n1. แอปคู่กับ Wear OS\n2. การแจ้งเตือนแบบพุชเรียลไทม์</string>
     <string name="onboarding_flavor_fdroid_title">ประกาศเกี่ยวกับบิลด์ F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck มาพร้อมแอปคู่กับ Wear OS ดูข้อความในชั้นเรียนบนนาฬิกาของคุณ — Wear TigerDuck จะซิงค์ข้อมูลจากโทรศัพท์ของคุณ</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">ระบบห้องสมุด</string>
     <string name="settings_account_ntust_system">ระบบสารสนเทศนักศึกษา</string>
     <string name="settings_acknowledged">เข้าใจแล้ว</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">แชร์ข้อมูลการใช้งานแบบไม่ระบุตัวตน (หน้าที่เข้าชม, การใช้วิดเจ็ต) เพื่อช่วยพัฒนา TigerDuck</string>
+    <string name="settings_analytics_enabled">การวิเคราะห์การใช้งาน</string>
     <string name="settings_assignment_due_reminder">การแจ้งเตือนการบ้านใกล้ครบกำหนด</string>
     <string name="settings_browser_in_app">เบราว์เซอร์ในแอป</string>
     <string name="settings_browser_system_default">เบราว์เซอร์เริ่มต้นของระบบ</string>

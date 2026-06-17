@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">就快上堂：%1$s</string>
     <string name="notification_setup_description">設定以下權限可確保功課提醒、就快上堂、最新即時資訊喺 App 關閉時都可以準時送達。</string>
     <string name="notification_setup_title">重新設定通知</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">分享匿名嘅頁面瀏覽同小工具使用資料，協助改善 TigerDuck。你可以隨時喺設定度更改。</string>
+    <string name="onboarding_analytics_label">使用分析（可選）</string>
     <string name="onboarding_flavor_fdroid_description">你裝嗰個係 F-Droid 版本。由於 F-Droid 商店規範唔可以用 Google 嘅各項服務（Firebase FCM、GMS 等等），所以以下兩項功能喺 F-Droid 版本（你而家用緊嘅）入面冇：\n\n1. Wear OS 應用程式\n2. 主動公告通知推送</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid 版本說明</string>
     <string name="onboarding_flavor_play_description">本應用程式提供 Wear OS 應用程式，你可以喺手錶睇課堂訊息。手錶 TigerDuck 會同步手機資料。</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">圖書館系統</string>
     <string name="settings_account_ntust_system">校務系統</string>
     <string name="settings_acknowledged">知道了</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">分享匿名使用資料（瀏覽頁面、小工具使用情形）以協助改善 TigerDuck</string>
+    <string name="settings_analytics_enabled">使用分析</string>
     <string name="settings_assignment_due_reminder">作業到期提醒</string>
     <string name="settings_browser_in_app">App 內瀏覽器</string>
     <string name="settings_browser_system_default">系統預設瀏覽器</string>

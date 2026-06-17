@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">Sắp vào lớp: %1$s</string>
     <string name="notification_setup_description">Bật các quyền dưới đây để đảm bảo nhắc bài tập, cảnh báo sắp vào lớp và thông tin cập nhật trực tiếp đến đúng giờ ngay cả khi ứng dụng đã đóng.</string>
     <string name="notification_setup_title">Cài đặt lại thông báo</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">Giúp cải thiện TigerDuck bằng cách chia sẻ lượt truy cập trang và sử dụng widget ẩn danh. Bạn có thể thay đổi điều này bất cứ lúc nào trong Cài đặt.</string>
+    <string name="onboarding_analytics_label">Phân tích sử dụng (tùy chọn)</string>
     <string name="onboarding_flavor_fdroid_description">Bạn đang sử dụng bản F-Droid. Vì chính sách F-Droid không cho phép phụ thuộc vào các dịch vụ của Google (Firebase FCM, GMS, v.v.), nên hai tính năng sau không có sẵn trong bản này:\n\n1. Ứng dụng đồng hành Wear OS\n2. Thông báo đẩy theo thời gian thực</string>
     <string name="onboarding_flavor_fdroid_title">Lưu ý về bản F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck đi kèm ứng dụng đồng hành Wear OS. Xem tin nhắn lớp học trên đồng hồ của bạn — Wear TigerDuck đồng bộ thông tin từ điện thoại.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">Hệ thống thư viện</string>
     <string name="settings_account_ntust_system">Hệ thống học vụ</string>
     <string name="settings_acknowledged">Đã hiểu</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">Chia sẻ dữ liệu sử dụng ẩn danh (trang đã truy cập, sử dụng widget) để giúp cải thiện TigerDuck</string>
+    <string name="settings_analytics_enabled">Phân tích sử dụng</string>
     <string name="settings_assignment_due_reminder">Nhắc bài tập sắp đến hạn</string>
     <string name="settings_browser_in_app">Trình duyệt trong ứng dụng</string>
     <string name="settings_browser_system_default">Trình duyệt mặc định của hệ thống</string>

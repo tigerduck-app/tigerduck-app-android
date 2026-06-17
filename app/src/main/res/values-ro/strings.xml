@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">Curs începe în curând: %1$s</string>
     <string name="notification_setup_description">Activează permisiunile de mai jos pentru a asigura că reminderele pentru teme, alertele de pregătire curs și actualizările live ajung la timp chiar și când aplicația este închisă.</string>
     <string name="notification_setup_title">Reconfigurează notificările</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">Ajută la îmbunătățirea TigerDuck prin partajarea datelor anonime despre paginile vizitate și utilizarea widget-urilor. Poți schimba asta oricând din Setări.</string>
+    <string name="onboarding_analytics_label">Analiză utilizare (opțional)</string>
     <string name="onboarding_flavor_fdroid_description">Folosești versiunea F-Droid. Deoarece politica F-Droid interzice dependența de serviciile Google (Firebase FCM, GMS etc.), următoarele două funcții nu sunt disponibile în această versiune:\n\n1. Aplicație complementară Wear OS\n2. Notificări push în timp real</string>
     <string name="onboarding_flavor_fdroid_title">Notă privind versiunea F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck include un însoțitor Wear OS. Vizualizează mesajele de la cursuri pe ceasul tău — Wear TigerDuck sincronizează informațiile de pe telefon.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">Sistem bibliotecă</string>
     <string name="settings_account_ntust_system">Sistem academic</string>
     <string name="settings_acknowledged">Înțeles</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">Împărtășește date anonime despre utilizare (pagini vizitate, utilizarea widget-urilor) pentru a ajuta la îmbunătățirea TigerDuck</string>
+    <string name="settings_analytics_enabled">Analiză utilizare</string>
     <string name="settings_assignment_due_reminder">Remindere teme scadente</string>
     <string name="settings_browser_in_app">Browser în aplicație</string>
     <string name="settings_browser_system_default">Browser implicit de sistem</string>

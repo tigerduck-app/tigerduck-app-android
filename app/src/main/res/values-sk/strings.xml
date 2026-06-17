@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">Čoskoro začína hodina: %1$s</string>
     <string name="notification_setup_description">Povoľte nižšie uvedené oprávnenia, aby pripomienky úloh, upozornenia pred hodinou a aktuality naživo prichádzali včas aj keď je aplikácia zatvorená.</string>
     <string name="notification_setup_title">Znovu nastaviť notifikácie</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">Pomôž nám vylepšiť TigerDuck zdieľaním anonymných údajov o navštívených stránkach a používaní widgetov. Kedykoľvek to môžeš zmeniť v Nastaveniach.</string>
+    <string name="onboarding_analytics_label">Analytika používania (voliteľné)</string>
     <string name="onboarding_flavor_fdroid_description">Používate verziu F-Droid. Keďže politika F-Droid zakazuje závislosť od služieb Google (Firebase FCM, GMS atď.), nasledujúce dve funkcie nie sú v tejto verzii dostupné:\n\n1. Sprievodná aplikácia Wear OS\n2. Push oznámenia v reálnom čase</string>
     <string name="onboarding_flavor_fdroid_title">Upozornenie k verzii F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck obsahuje sprievodnú aplikáciu Wear OS. Sledujte správy z hodín na hodinkách — Wear TigerDuck synchronizuje informácie z vášho telefónu.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">Systém knižnice</string>
     <string name="settings_account_ntust_system">Školský systém</string>
     <string name="settings_acknowledged">Rozumiem</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">Zdieľaj anonymné údaje o používaní (navštívené stránky, používanie widgetov) a pomôž nám vylepšiť TigerDuck</string>
+    <string name="settings_analytics_enabled">Analytika používania</string>
     <string name="settings_assignment_due_reminder">Pripomienky termínov úloh</string>
     <string name="settings_browser_in_app">Prehliadač v aplikácii</string>
     <string name="settings_browser_system_default">Predvolený systémový prehliadač</string>

@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">Magsisimula na ang klase: %1$s</string>
     <string name="notification_setup_description">I-enable ang mga pahintulot sa ibaba para matiyak na darating sa tamang oras ang mga paalala sa takdang-aralin, bago mag-klase, at mga live na update kahit naka-close ang app.</string>
     <string name="notification_setup_title">I-reconfigure ang mga notification</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">Tulungan kaming mapabuti ang TigerDuck sa pamamagitan ng pagbabahagi ng iyong anonymous na mga page visit at paggamit ng widget. Maaari mong baguhin ito anumang oras sa Mga Setting.</string>
+    <string name="onboarding_analytics_label">Analytics ng paggamit (opsyonal)</string>
     <string name="onboarding_flavor_fdroid_description">Gumagamit ka ng F-Droid build. Dahil ipinagbabawal ng patakaran ng F-Droid ang pagdepende sa mga serbisyo ng Google (Firebase FCM, GMS, atbp.), hindi available ang sumusunod na dalawang feature sa build na ito:\n\n1. Wear OS companion app\n2. Real-time na push na anunsyo</string>
     <string name="onboarding_flavor_fdroid_title">Paalala sa F-Droid build</string>
     <string name="onboarding_flavor_play_description">May kasamang Wear OS companion ang TigerDuck. Tingnan ang mga mensahe ng klase sa iyong relo — sina-sync ng Wear TigerDuck ang impormasyon mula sa iyong telepono.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">Sistema ng aklatan</string>
     <string name="settings_account_ntust_system">Sistemang akademiko</string>
     <string name="settings_acknowledged">Naintindihan ko</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">Ibahagi ang anonymous na datos ng paggamit (mga page na binisita, paggamit ng widget) para mapabuti ang TigerDuck</string>
+    <string name="settings_analytics_enabled">Analytics ng paggamit</string>
     <string name="settings_assignment_due_reminder">Mga paalala sa takdang-aralin</string>
     <string name="settings_browser_in_app">Browser sa loob ng app</string>
     <string name="settings_browser_system_default">Default na browser ng sistema</string>

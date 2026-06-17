@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">ക്ലാസ് ആരംഭിക്കാൻ പോകുന്നു: %1$s</string>
     <string name="notification_setup_description">ആപ്പ് അടച്ചിരിക്കുമ്പോഴും അസൈൻമെന്റ് ഓർമ്മപ്പെടുത്തലുകൾ, ക്ലാസ് ഒരുക്കം അലേർട്ടുകൾ, Live Updates സമയത്ത് ലഭിക്കുന്നതിന് ചുവടെ ഉള്ള അനുമതികൾ പ്രവർത്തനക്ഷമമാക്കുക.</string>
     <string name="notification_setup_title">അറിയിപ്പുകൾ പുനഃക്രമീകരിക്കുക</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">അജ്ഞാത പേജ് സന്ദർശനങ്ങളും വിജറ്റ് ഉപയോഗവും പങ്കിട്ട് TigerDuck മെച്ചപ്പെടുത്താൻ സഹായിക്കൂ. ഇത് എപ്പോൾ വേണമെങ്കിലും ക്രമീകരണങ്ങളിൽ മാറ്റാം.</string>
+    <string name="onboarding_analytics_label">ഉപയോഗ വിശകലനം (ഐച്ഛികം)</string>
     <string name="onboarding_flavor_fdroid_description">നിങ്ങൾ F-Droid ബിൽഡ് ഉപയോഗിക്കുകയാണ്. F-Droid നയം Google സേവനങ്ങളെ (Firebase FCM, GMS തുടങ്ങിയവ) ആശ്രയിക്കുന്നത് വിലക്കുന്നതിനാൽ, ഈ ബിൽഡിൽ ചുവടെയുള്ള രണ്ട് സവിശേഷതകൾ ലഭ്യമല്ല:\n\n1. Wear OS കമ്പാനിയൻ ആപ്പ്\n2. തത്സമയ പുഷ് അറിയിപ്പുകൾ</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid ബിൽഡ് അറിയിപ്പ്</string>
     <string name="onboarding_flavor_play_description">TigerDuck-ൽ Wear OS കമ്പാനിയൻ ഉൾപ്പെടുന്നു. നിങ്ങളുടെ വാച്ചിൽ ക്ലാസ് സന്ദേശങ്ങൾ കാണുക — Wear TigerDuck നിങ്ങളുടെ ഫോണിൽ നിന്നുള്ള വിവരങ്ങൾ സമന്വയിപ്പിക്കുന്നു.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">ഗ്രന്ഥശാല സിസ്റ്റം</string>
     <string name="settings_account_ntust_system">അക്കാദമിക് സിസ്റ്റം</string>
     <string name="settings_acknowledged">മനസ്സിലായി</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">TigerDuck മെച്ചപ്പെടുത്താൻ സഹായിക്കാൻ അജ്ഞാത ഉപയോഗ ഡേറ്റ (സന്ദർശിച്ച പേജുകൾ, വിജറ്റ് ഉപയോഗം) പങ്കിടുക</string>
+    <string name="settings_analytics_enabled">ഉപയോഗ വിശകലനം</string>
     <string name="settings_assignment_due_reminder">അസൈൻമെന്റ് സമയ ഓർമ്മപ്പെടുത്തലുകൾ</string>
     <string name="settings_browser_in_app">ആപ്പ് ഇൻ-ബ്രൗസർ</string>
     <string name="settings_browser_system_default">സിസ്റ്റം ഡിഫോൾട്ട് ബ്രൗസർ</string>

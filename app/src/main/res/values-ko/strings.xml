@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">곧 수업 시작: %1$s</string>
     <string name="notification_setup_description">아래 권한을 허용하면 앱이 닫혀 있어도 과제 알림, 수업 시작 알림, 실시간 업데이트가 제때 도착합니다.</string>
     <string name="notification_setup_title">알림 다시 설정</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">방문한 페이지와 위젯 사용에 관한 익명 데이터를 공유하여 TigerDuck 개선에 도움을 주세요. 설정에서 언제든지 변경할 수 있어요.</string>
+    <string name="onboarding_analytics_label">사용 분석 (선택 사항)</string>
     <string name="onboarding_flavor_fdroid_description">F-Droid 빌드를 사용 중입니다. F-Droid 정책은 Google 서비스(Firebase FCM, GMS 등)에 대한 의존을 금지하므로, 이 빌드에서는 다음 두 기능을 사용할 수 없습니다:\n\n1. Wear OS 컴패니언 앱\n2. 실시간 푸시 공지</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid 빌드 안내</string>
     <string name="onboarding_flavor_play_description">TigerDuck에는 Wear OS 컴패니언이 포함되어 있습니다. 시계에서 수업 메시지를 확인하세요 — Wear TigerDuck이 휴대폰의 정보를 동기화합니다.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">도서관 시스템</string>
     <string name="settings_account_ntust_system">학사 시스템</string>
     <string name="settings_acknowledged">확인</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">익명 사용 데이터(방문한 페이지, 위젯 사용)를 공유하여 TigerDuck 개선에 도움을 주세요</string>
+    <string name="settings_analytics_enabled">사용 분석</string>
     <string name="settings_assignment_due_reminder">과제 마감 알림</string>
     <string name="settings_browser_in_app">앱 내 브라우저</string>
     <string name="settings_browser_system_default">시스템 기본 브라우저</string>

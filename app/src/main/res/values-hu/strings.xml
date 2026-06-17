@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">Hamarosan kezdődik az óra: %1$s</string>
     <string name="notification_setup_description">Az alábbi engedélyek engedélyezésével biztosítható, hogy a házi feladat emlékeztetők, az órakezdés figyelmeztetések és az élő frissítések akkor is időben megérkezzenek, amikor az alkalmazás be van zárva.</string>
     <string name="notification_setup_title">Értesítések újrakonfigurálása</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">Segíts fejleszteni a TigerDuck-ot névtelen adatok megosztásával a meglátogatott oldalakról és a widget-használatról. Ezt bármikor megváltoztathatod a Beállításokban.</string>
+    <string name="onboarding_analytics_label">Használati analitika (nem kötelező)</string>
     <string name="onboarding_flavor_fdroid_description">A F-Droid verziót használod. Mivel a F-Droid szabályzata tiltja a Google szolgáltatásaitól (Firebase FCM, GMS stb.) való függést, az alábbi két funkció nem érhető el ebben a verzióban:\n\n1. Wear OS kísérőalkalmazás\n2. Valós idejű push értesítések</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid verzió tájékoztató</string>
     <string name="onboarding_flavor_play_description">A TigerDuck tartalmaz egy Wear OS kísérőalkalmazást. Nézd meg az órádon az órák üzeneteit — a Wear TigerDuck szinkronizálja az adatokat a telefonodról.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">Könyvtári rendszer</string>
     <string name="settings_account_ntust_system">Tanulmányi rendszer</string>
     <string name="settings_acknowledged">Értem</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">Ossz meg névtelen használati adatokat (meglátogatott oldalak, widget-használat), hogy segíts fejleszteni a TigerDuck-ot</string>
+    <string name="settings_analytics_enabled">Használati analitika</string>
     <string name="settings_assignment_due_reminder">Házi feladat határidő emlékeztetők</string>
     <string name="settings_browser_in_app">Alkalmazáson belüli böngésző</string>
     <string name="settings_browser_system_default">Rendszer alapértelmezett böngésző</string>

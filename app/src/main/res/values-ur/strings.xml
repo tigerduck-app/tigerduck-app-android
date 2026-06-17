@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">کلاس جلد شروع ہو رہی ہے: %1$s</string>
     <string name="notification_setup_description">درج ذیل اجازتیں فعال کریں تاکہ اسائنمنٹ کی یاددہانی، کلاس کی تیاری کے الرٹ، اور Live Updates وقت پر پہنچیں چاہے ایپ بند ہو۔</string>
     <string name="notification_setup_title">اطلاعات دوبارہ ترتیب دیں</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">گمنام صفحہ وزٹ اور ویجٹ استعمال شیئر کر کے TigerDuck کو بہتر بنانے میں مدد کریں۔ آپ اسے کسی بھی وقت ترتیبات میں تبدیل کر سکتے ہیں۔</string>
+    <string name="onboarding_analytics_label">استعمال کا تجزیہ (اختیاری)</string>
     <string name="onboarding_flavor_fdroid_description">آپ F-Droid بلڈ استعمال کر رہے ہیں۔ چونکہ F-Droid کی پالیسی Google کی سروسز (Firebase FCM، GMS وغیرہ) پر انحصار کرنے سے منع کرتی ہے، اس بلڈ میں درج ذیل دو فیچر دستیاب نہیں ہیں:\n\n1. Wear OS ساتھی ایپ\n2. حقیقی وقت کی پش اطلاعات</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid بلڈ نوٹس</string>
     <string name="onboarding_flavor_play_description">TigerDuck میں Wear OS ساتھی شامل ہے۔ اپنی گھڑی پر کلاس پیغامات دیکھیں — Wear TigerDuck آپ کے فون سے معلومات کو ہم آہنگ کرتا ہے۔</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">لائبریری سسٹم</string>
     <string name="settings_account_ntust_system">اکیڈمک سسٹم</string>
     <string name="settings_acknowledged">سمجھ گیا</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">TigerDuck کو بہتر بنانے میں مدد کے لیے گمنام استعمال کا ڈیٹا (دیکھے گئے صفحات، ویجٹ استعمال) شیئر کریں</string>
+    <string name="settings_analytics_enabled">استعمال کا تجزیہ</string>
     <string name="settings_assignment_due_reminder">اسائنمنٹ کی آخری تاریخ کی یاددہانی</string>
     <string name="settings_browser_in_app">ایپ کے اندر براؤزر</string>
     <string name="settings_browser_system_default">سسٹم کا ڈیفالٹ براؤزر</string>

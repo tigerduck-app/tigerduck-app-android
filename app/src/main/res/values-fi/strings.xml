@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">Tunti alkaa pian: %1$s</string>
     <string name="notification_setup_description">Ota alla olevat luvat käyttöön varmistaaksesi, että tehtävämuistutukset, tunnin alkamisvaroitukset ja livepäivitykset saapuvat ajoissa myös sovelluksen ollessa suljettuna.</string>
     <string name="notification_setup_title">Määritä ilmoitukset uudelleen</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">Auta kehittämään TigerDuckia jakamalla anonyymejä sivuvierailuja ja widgetien käyttötietoja. Voit muuttaa tätä milloin tahansa Asetuksista.</string>
+    <string name="onboarding_analytics_label">Käyttöanalytiikka (valinnainen)</string>
     <string name="onboarding_flavor_fdroid_description">Käytät F-Droid-versiota. Koska F-Droidin käytäntö kieltää riippuvuuden Googlen palveluista (Firebase FCM, GMS jne.), seuraavat kaksi ominaisuutta eivät ole käytettävissä tässä versiossa:\n\n1. Wear OS -kumppanisovellus\n2. Reaaliaikaiset push-ilmoitukset</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid-version huomautus</string>
     <string name="onboarding_flavor_play_description">TigerDuck sisältää Wear OS -kumppanisovelluksen. Katso oppituntien viestit kellostasi — Wear TigerDuck synkronoi tiedot puhelimestasi.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">Kirjastojärjestelmä</string>
     <string name="settings_account_ntust_system">Opiskelijaportaali</string>
     <string name="settings_acknowledged">Selvä</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">Jaa anonyymiä käyttödataa (vieraillut sivut, widgetien käyttö) TigerDuckin kehittämiseksi</string>
+    <string name="settings_analytics_enabled">Käyttöanalytiikka</string>
     <string name="settings_assignment_due_reminder">Tehtävän palautusmuistutukset</string>
     <string name="settings_browser_in_app">Sovelluksen sisäinen selain</string>
     <string name="settings_browser_system_default">Järjestelmän oletusselain</string>

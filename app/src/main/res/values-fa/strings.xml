@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">کلاس به‌زودی شروع می‌شود: %1$s</string>
     <string name="notification_setup_description">برای اینکه یادآورهای تکلیف، هشدارهای شروع کلاس و به‌روزرسانی‌های زنده حتی وقتی برنامه بسته است به‌موقع برسند، مجوزهای زیر را فعال کنید.</string>
     <string name="notification_setup_title">پیکربندی مجدد اعلان‌ها</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">با به اشتراک گذاشتن بازدید ناشناس صفحات و استفاده از ویجت، به بهبود TigerDuck کمک کنید. هر زمان می‌توانید این را در تنظیمات تغییر دهید.</string>
+    <string name="onboarding_analytics_label">آمار استفاده (اختیاری)</string>
     <string name="onboarding_flavor_fdroid_description">شما در حال استفاده از نسخه F-Droid هستید. از آنجا که سیاست F-Droid وابستگی به سرویس‌های Google (Firebase FCM، GMS و غیره) را ممنوع می‌کند، دو ویژگی زیر در این نسخه در دسترس نیستند:\n\n1. برنامه همراه Wear OS\n2. اعلان‌های لحظه‌ای</string>
     <string name="onboarding_flavor_fdroid_title">اطلاعیه نسخه F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck شامل یک برنامه همراه Wear OS است. پیام‌های کلاس را روی ساعت خود ببینید — Wear TigerDuck اطلاعات را از تلفن شما همگام‌سازی می‌کند.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">سیستم کتابخانه</string>
     <string name="settings_account_ntust_system">سیستم دانشگاه</string>
     <string name="settings_acknowledged">متوجه شدم</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">داده‌های ناشناس استفاده (صفحات بازدیدشده، استفاده از ویجت) را برای بهبود TigerDuck به اشتراک بگذارید</string>
+    <string name="settings_analytics_enabled">آمار استفاده</string>
     <string name="settings_assignment_due_reminder">یادآورهای موعد تکلیف</string>
     <string name="settings_browser_in_app">مرورگر داخل برنامه</string>
     <string name="settings_browser_system_default">مرورگر پیش‌فرض سیستم</string>

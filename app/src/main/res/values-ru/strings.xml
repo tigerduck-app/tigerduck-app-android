@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">Скоро начнётся занятие: %1$s</string>
     <string name="notification_setup_description">Включите указанные ниже разрешения, чтобы напоминания о заданиях, оповещения о начале занятий и уведомления в реальном времени приходили вовремя, даже когда приложение закрыто.</string>
     <string name="notification_setup_title">Настроить уведомления заново</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">Помоги улучшить TigerDuck, делясь анонимными данными о посещённых страницах и использовании виджетов. Изменить это можно в любой момент в Настройках.</string>
+    <string name="onboarding_analytics_label">Аналитика использования (необязательно)</string>
     <string name="onboarding_flavor_fdroid_description">Вы используете сборку F-Droid. Поскольку политика F-Droid запрещает зависимость от сервисов Google (Firebase FCM, GMS и т.д.), в этой сборке недоступны следующие две функции:\n\n1. Сопутствующее приложение Wear OS\n2. Push-уведомления в реальном времени</string>
     <string name="onboarding_flavor_fdroid_title">Уведомление о сборке F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck включает приложение для Wear OS. Просматривайте сообщения о занятиях на часах — Wear TigerDuck синхронизирует информацию с вашего телефона.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">Система библиотеки</string>
     <string name="settings_account_ntust_system">Школьная система</string>
     <string name="settings_acknowledged">Понятно</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">Делись анонимными данными об использовании (посещённые страницы, использование виджетов), чтобы помочь улучшить TigerDuck</string>
+    <string name="settings_analytics_enabled">Аналитика использования</string>
     <string name="settings_assignment_due_reminder">Напоминания о сроках сдачи заданий</string>
     <string name="settings_browser_in_app">Встроенный браузер</string>
     <string name="settings_browser_system_default">Системный браузер по умолчанию</string>

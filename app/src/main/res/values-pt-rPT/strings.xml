@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">Aula a começar em breve: %1$s</string>
     <string name="notification_setup_description">Ativa as permissões abaixo para garantir que os lembretes de trabalhos, os alertas de aulas a começar e as atualizações em tempo real chegam a tempo, mesmo com a aplicação fechada.</string>
     <string name="notification_setup_title">Reconfigurar notificações</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">Ajuda a melhorar o TigerDuck partilhando visitas a páginas e utilização de widgets de forma anónima. Podes alterar isto a qualquer momento nas Definições.</string>
+    <string name="onboarding_analytics_label">Análise de utilização (opcional)</string>
     <string name="onboarding_flavor_fdroid_description">Está a utilizar a versão F-Droid. Como a política da F-Droid proíbe a dependência dos serviços da Google (Firebase FCM, GMS, etc.), as duas funcionalidades seguintes não estão disponíveis nesta versão:\n\n1. Aplicação complementar para Wear OS\n2. Notificações push em tempo real</string>
     <string name="onboarding_flavor_fdroid_title">Aviso da versão F-Droid</string>
     <string name="onboarding_flavor_play_description">O TigerDuck inclui uma aplicação complementar para Wear OS. Veja mensagens das aulas no seu relógio — o Wear TigerDuck sincroniza as informações do seu telemóvel.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">Sistema da biblioteca</string>
     <string name="settings_account_ntust_system">Sistema académico</string>
     <string name="settings_acknowledged">Entendido</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">Partilha dados de utilização anónimos (páginas visitadas, utilização de widgets) para ajudar a melhorar o TigerDuck</string>
+    <string name="settings_analytics_enabled">Análise de utilização</string>
     <string name="settings_assignment_due_reminder">Lembretes de prazo de trabalhos</string>
     <string name="settings_browser_in_app">Navegador integrado</string>
     <string name="settings_browser_system_default">Navegador predefinido do sistema</string>

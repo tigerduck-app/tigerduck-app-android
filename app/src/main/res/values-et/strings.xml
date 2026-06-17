@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">Tund algab varsti: %1$s</string>
     <string name="notification_setup_description">Lubage allpool olevad load, et ülesande meeldetuletused, tunni alguse teavitused ja reaalajas teavitused jõuaksid õigel ajal kohale isegi siis, kui rakendus on suletud.</string>
     <string name="notification_setup_title">Seadista teavitused uuesti</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">Aita TigerDucki paremaks muuta, jagades anonüümseid andmeid külastatud lehtede ja vidinate kasutamise kohta. Saad seda igal ajal Seadetes muuta.</string>
+    <string name="onboarding_analytics_label">Kasutusanalüütika (valikuline)</string>
     <string name="onboarding_flavor_fdroid_description">Kasutate F-Droidi versiooni. Kuna F-Droidi reeglid keelavad sõltumise Google\'i teenustest (Firebase FCM, GMS jne), pole järgmised kaks funktsiooni selles versioonis saadaval:\n\n1. Wear OS-i kaasrakendus\n2. Reaalajas tõuketeated</string>
     <string name="onboarding_flavor_fdroid_title">F-Droidi versiooni teade</string>
     <string name="onboarding_flavor_play_description">TigerDuck sisaldab Wear OS-i kaasrakendust. Vaadake tunnisõnumeid oma kellal — Wear TigerDuck sünkroonib teavet teie telefonist.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">Raamatukogu süsteem</string>
     <string name="settings_account_ntust_system">Akadeemiline süsteem</string>
     <string name="settings_acknowledged">Selge</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">Jaga anonüümseid kasutusandmeid (külastatud lehed, vidinate kasutamine), et aidata TigerDucki paremaks muuta</string>
+    <string name="settings_analytics_enabled">Kasutusanalüütika</string>
     <string name="settings_assignment_due_reminder">Ülesande tähtaja meeldetuletused</string>
     <string name="settings_browser_in_app">Rakendusesisene brauser</string>
     <string name="settings_browser_system_default">Süsteemi vaikebrauser</string>

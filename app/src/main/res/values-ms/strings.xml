@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">Kelas akan bermula: %1$s</string>
     <string name="notification_setup_description">Aktifkan kebenaran di bawah untuk memastikan peringatan tugasan, amaran kelas akan bermula, dan Kemaskinian Langsung tiba tepat pada masanya walaupun aplikasi ditutup.</string>
     <string name="notification_setup_title">Konfigurasi semula pemberitahuan</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">Bantu tingkatkan TigerDuck dengan berkongsi lawatan halaman dan penggunaan widget secara tanpa nama. Anda boleh ubah ini bila-bila masa dalam Tetapan.</string>
+    <string name="onboarding_analytics_label">Analitik penggunaan (pilihan)</string>
     <string name="onboarding_flavor_fdroid_description">Anda menggunakan binaan F-Droid. Oleh sebab dasar F-Droid melarang pergantungan pada perkhidmatan Google (Firebase FCM, GMS, dll.), dua ciri berikut tidak tersedia dalam binaan ini:\n\n1. Aplikasi pendamping Wear OS\n2. Pemberitahuan tolak masa nyata</string>
     <string name="onboarding_flavor_fdroid_title">Notis binaan F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck merangkumi pendamping Wear OS. Lihat mesej kelas pada jam tangan anda — Wear TigerDuck menyegerakkan maklumat dari telefon anda.</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">Sistem perpustakaan</string>
     <string name="settings_account_ntust_system">Sistem akademik</string>
     <string name="settings_acknowledged">Faham</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">Kongsi data penggunaan tanpa nama (halaman dilawati, penggunaan widget) untuk membantu meningkatkan TigerDuck</string>
+    <string name="settings_analytics_enabled">Analitik penggunaan</string>
     <string name="settings_assignment_due_reminder">Peringatan tugasan hampir tamat</string>
     <string name="settings_browser_in_app">Pelayar dalam aplikasi</string>
     <string name="settings_browser_system_default">Pelayar lalai sistem</string>

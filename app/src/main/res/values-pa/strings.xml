@@ -498,8 +498,8 @@
     <string name="notification_class_preparing_title">ਕਲਾਸ ਜਲਦੀ ਸ਼ੁਰੂ ਹੋਵੇਗੀ: %1$s</string>
     <string name="notification_setup_description">ਹੇਠ ਲਿਖੀਆਂ ਅਨੁਮਤੀਆਂ ਚਾਲੂ ਕਰੋ ਤਾਂ ਜੋ ਅਸਾਈਨਮੈਂਟ ਰੀਮਾਈਂਡਰ, ਕਲਾਸ-ਸ਼ੁਰੂ ਹੋਣ ਦੀਆਂ ਸੂਚਨਾਵਾਂ, ਅਤੇ Live Updates ਐਪ ਬੰਦ ਹੋਣ \'ਤੇ ਵੀ ਸਮੇਂ \'ਤੇ ਪਹੁੰਚ ਸਕਣ।</string>
     <string name="notification_setup_title">ਸੂਚਨਾਵਾਂ ਦੁਬਾਰਾ ਸੈੱਟ ਕਰੋ</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
-    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_analytics_description">ਅਗਿਆਤ ਪੰਨਾ ਵਿਜ਼ਿਟ ਅਤੇ ਵਿਜੇਟ ਵਰਤੋਂ ਸਾਂਝੀ ਕਰਕੇ TigerDuck ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਵਿੱਚ ਮਦਦ ਕਰੋ। ਤੁਸੀਂ ਇਹ ਕਿਸੇ ਵੀ ਸਮੇਂ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਬਦਲ ਸਕਦੇ ਹੋ।</string>
+    <string name="onboarding_analytics_label">ਵਰਤੋਂ ਵਿਸ਼ਲੇਸ਼ਣ (ਵਿਕਲਪਿਕ)</string>
     <string name="onboarding_flavor_fdroid_description">ਤੁਸੀਂ F-Droid ਬਿਲਡ ਵਰਤ ਰਹੇ ਹੋ। ਕਿਉਂਕਿ F-Droid ਨੀਤੀ Google ਦੀਆਂ ਸੇਵਾਵਾਂ (Firebase FCM, GMS ਆਦਿ) \'ਤੇ ਨਿਰਭਰਤਾ ਦੀ ਆਗਿਆ ਨਹੀਂ ਦਿੰਦੀ, ਇਸ ਲਈ ਇਸ ਬਿਲਡ ਵਿੱਚ ਹੇਠਲੀਆਂ ਦੋ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ ਉਪਲਬਧ ਨਹੀਂ ਹਨ:\n\n1. Wear OS ਸਹਿਯੋਗੀ ਐਪ\n2. ਤੁਰੰਤ ਪੁਸ਼ ਨੋਟੀਫਿਕੇਸ਼ਨ</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid ਬਿਲਡ ਸੂਚਨਾ</string>
     <string name="onboarding_flavor_play_description">TigerDuck ਵਿੱਚ Wear OS ਸਹਿਯੋਗੀ ਐਪ ਸ਼ਾਮਲ ਹੈ। ਆਪਣੀ ਘੜੀ \'ਤੇ ਕਲਾਸ ਸੁਨੇਹੇ ਵੇਖੋ — Wear TigerDuck ਤੁਹਾਡੇ ਫ਼ੋਨ ਤੋਂ ਜਾਣਕਾਰੀ ਸਿੰਕ ਕਰਦੀ ਹੈ।</string>
@@ -623,8 +623,8 @@
     <string name="settings_account_library_system">ਲਾਇਬ੍ਰੇਰੀ ਸਿਸਟਮ</string>
     <string name="settings_account_ntust_system">ਅਕਾਦਮਿਕ ਸਿਸਟਮ</string>
     <string name="settings_acknowledged">ਸਮਝ ਗਿਆ</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
-    <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_analytics_description">TigerDuck ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਵਿੱਚ ਮਦਦ ਕਰਨ ਲਈ ਅਗਿਆਤ ਵਰਤੋਂ ਡੇਟਾ (ਵੇਖੇ ਗਏ ਪੰਨੇ, ਵਿਜੇਟ ਵਰਤੋਂ) ਸਾਂਝਾ ਕਰੋ</string>
+    <string name="settings_analytics_enabled">ਵਰਤੋਂ ਵਿਸ਼ਲੇਸ਼ਣ</string>
     <string name="settings_assignment_due_reminder">ਅਸਾਈਨਮੈਂਟ ਦੀ ਮਿਆਦ ਦੇ ਰੀਮਾਈਂਡਰ</string>
     <string name="settings_browser_in_app">ਐਪ ਦੇ ਅੰਦਰ ਬ੍ਰਾਊਜ਼ਰ</string>
     <string name="settings_browser_system_default">ਸਿਸਟਮ ਡਿਫੌਲਟ ਬ੍ਰਾਊਜ਼ਰ</string>

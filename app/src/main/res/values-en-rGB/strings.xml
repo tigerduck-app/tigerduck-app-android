@@ -498,7 +498,7 @@
     <string name="notification_class_preparing_title">Class starting soon: %1$s</string>
     <string name="notification_setup_description">Enable the permissions below to ensure assignment reminders, class-preparing alerts, and Live Updates arrive on time even when the app is closed.</string>
     <string name="notification_setup_title">Reconfigure notifications</string>
-    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymised page visits and widget usage. You can change this anytime in Settings.</string>
     <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">You\'re using the F-Droid build. Because F-Droid policy forbids depending on Google\'s services (Firebase FCM, GMS, etc.), the following two features are unavailable in this build:\n\n1. Wear OS companion app\n2. Real-time push announcements</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid build notice</string>
@@ -623,7 +623,7 @@
     <string name="settings_account_library_system">Library system</string>
     <string name="settings_account_ntust_system">School system</string>
     <string name="settings_acknowledged">Got it</string>
-    <string name="settings_analytics_description">Share anonymous usage data (pages visited, widget usage) to help improve TigerDuck</string>
+    <string name="settings_analytics_description">Share anonymised usage data (pages visited, widget usage) to help improve TigerDuck</string>
     <string name="settings_analytics_enabled">Usage analytics</string>
     <string name="settings_assignment_due_reminder">Assignment due reminders</string>
     <string name="settings_browser_in_app">In-app browser</string>
