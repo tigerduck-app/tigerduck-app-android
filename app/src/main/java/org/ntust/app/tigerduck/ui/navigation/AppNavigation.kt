@@ -213,7 +213,7 @@ fun MainNavigation(
     val currentRoute = navBackStackEntry?.destination?.route
     LaunchedEffect(currentRoute) {
         val route = currentRoute ?: return@LaunchedEffect
-        val screenName = route.replace(Regex("/\\{[^}]+}"), "")
+        val screenName = route.replace(Regex("/[{][^}]+[}]"), "")
         analyticsLogger.log("screen_view", mapOf("screen_name" to screenName))
     }
     val selectedTabRoute = when (currentRoute) {
