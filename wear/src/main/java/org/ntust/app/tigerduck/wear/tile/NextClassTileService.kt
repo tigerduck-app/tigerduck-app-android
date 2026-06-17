@@ -18,6 +18,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.NextClassResult
 import org.ntust.app.tigerduck.shared.clock.AppClock
@@ -44,6 +45,8 @@ class NextClassTileService : TileService() {
             try {
                 val snapshot = SchedulePersistenceHolder.get(this@NextClassTileService).flow.first()
                 future.set(buildTile(snapshot))
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 future.setException(e)
             }
@@ -109,6 +112,7 @@ class NextClassTileService : TileService() {
         for (i in transitions.indices) {
             val from = transitions[i]
             val to = transitions.getOrElse(i + 1) { END_OF_DAY_MINUTE }
+            if (from >= to) continue
 
             timeline.addTimelineEntry(
                 TimelineBuilders.TimelineEntry.Builder()
