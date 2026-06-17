@@ -45,13 +45,9 @@ class DataMigration @Inject constructor(
         NeedsUserReset,
     }
 
-    @Volatile
-    private var cachedOutcome: Outcome? = null
+    private val outcome: Outcome by lazy(LazyThreadSafetyMode.SYNCHRONIZED) { doRun() }
 
-    fun run(): Outcome {
-        cachedOutcome?.let { return it }
-        return doRun().also { cachedOutcome = it }
-    }
+    fun run(): Outcome = outcome
 
     private fun doRun(): Outcome {
         // If Keystore corruption forced CredentialManager to rebuild the
