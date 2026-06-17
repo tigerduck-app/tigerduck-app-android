@@ -127,22 +127,18 @@ class PushRegistrationService @Inject constructor(
     }
 
     private suspend fun performRegister(): Boolean {
-        // Snapshot token and opt-out under the same mutex so a concurrent
-        // updateServerPushOptOut can't flip the pref between read and POST
-        // and race the PATCH on the wire.
-        val (token, serverPushOptOut) = mutex.withLock {
-            if (isUnregistering) null to false
-            else fcmToken to prefs.getBoolean(KEY_SERVER_PUSH_OPT_OUT, false)
+        // Snapshot token under the mutex so a concurrent token rotation or
+        // updateServerPushOptOut can't flip state between read and POST.
+        val token = mutex.withLock {
+            if (isUnregistering) null else fcmToken
         }
         if (token == null) return false
-        val deviceId = identity.uuid()
+        val clientDeviceId = identity.uuid()
         return runCatching {
             api.register(
                 DeviceRegisterRequest(
-                    userId = deviceId,
-                    deviceId = deviceId,
-                    ptsTokenHex = token,
-                    serverPushEnabled = !serverPushOptOut,
+                    clientDeviceId = clientDeviceId,
+                    pushToken = PushTokenIn(tokenValue = token),
                 )
             )
         }.fold(

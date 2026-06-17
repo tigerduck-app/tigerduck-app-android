@@ -74,7 +74,7 @@ android {
             buildConfigField(
                 "String",
                 "PUSH_BASE_URL",
-                "\"${localProp("pushBaseUrl", "https://api.tigerduck.app/v2")}\"",
+                "\"${localProp("pushBaseUrl", "https://api.tigerduck.app/v3")}\"",
             )
             buildConfigField(
                 "String",
@@ -101,7 +101,7 @@ android {
                 "PUSH_BASE_URL",
                 "\"${
                     System.getenv("PUSH_BASE_URL")
-                        ?: localProp("pushBaseUrlRelease", "https://api.tigerduck.app/v2")
+                        ?: localProp("pushBaseUrlRelease", "https://api.tigerduck.app/v3")
                 }\"",
             )
             buildConfigField(

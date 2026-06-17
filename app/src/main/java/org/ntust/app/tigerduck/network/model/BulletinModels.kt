@@ -112,11 +112,16 @@ data class SubscriptionRule(
     val enabled: Boolean = true,
 )
 
-data class SubscriptionsResponse(
-    @SerializedName("device_id") val deviceId: String,
-    val rules: List<SubscriptionRule>,
+// v3: GET /bulletin-subscriptions returns a flat list of rules.
+data class SubscriptionsListResponse(
+    val items: List<SubscriptionRule>,
 )
 
-internal data class SubscriptionsPutRequest(
-    val rules: List<SubscriptionRule>,
+// v3: POST/PATCH /bulletin-subscriptions — request body for a single rule.
+internal data class SubscriptionRuleRequest(
+    val name: String? = null,
+    val orgs: List<String> = emptyList(),
+    val tags: List<String> = emptyList(),
+    val mode: String = "AND",
+    val enabled: Boolean = true,
 )
