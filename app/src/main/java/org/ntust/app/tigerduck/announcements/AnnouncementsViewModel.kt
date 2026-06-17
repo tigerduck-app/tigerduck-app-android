@@ -104,8 +104,11 @@ class AnnouncementsViewModel @Inject constructor(
             }
             refresh()
             launch {
-                runCatching { fetchTaxonomyOnce() }.onFailure { e ->
-                    if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+                try {
+                    fetchTaxonomyOnce()
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
                     // Taxonomy is decorative (org/tag labels); the list works
                     // without it. Still log — a permanently failing taxonomy
                     // endpoint would otherwise be invisible.
