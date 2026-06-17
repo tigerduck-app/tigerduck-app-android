@@ -72,8 +72,7 @@ class PushRegistrationService @Inject constructor(
         }
     }
 
-    suspend fun onSignedIn(userId: String) {
-        identity.setUserId(userId)
+    suspend fun onSignedIn() {
         scheduleRegister()
     }
 
@@ -100,7 +99,7 @@ class PushRegistrationService @Inject constructor(
                 fcmToken = null
                 isUnregistering = true
             }
-            val deviceId = identity.deviceId()
+            val deviceId = identity.uuid()
             try {
                 runCatching { api.unregister(deviceId) }
                     .onFailure { e ->
@@ -111,7 +110,6 @@ class PushRegistrationService @Inject constructor(
                 // Always reset state so a cancelled coroutine (e.g. test scope
                 // cancellation) can't leave isUnregistering latched true and
                 // block all future scheduleRegister() calls.
-                identity.clearUserId()
                 withContext(NonCancellable) {
                     mutex.withLock { isUnregistering = false }
                 }
@@ -137,15 +135,11 @@ class PushRegistrationService @Inject constructor(
             else fcmToken to prefs.getBoolean(KEY_SERVER_PUSH_OPT_OUT, false)
         }
         if (token == null) return false
-        val deviceId = identity.deviceId()
-        // Bulletin push is opt-in via subscriptions, not gated on sign-in.
-        // Without a signed-in user we register under an anonymous user_id
-        // so the device row exists and subscriptions PUT doesn't 404.
-        val userId = identity.userId() ?: "anon-$deviceId"
+        val deviceId = identity.uuid()
         return runCatching {
             api.register(
                 DeviceRegisterRequest(
-                    userId = userId,
+                    userId = deviceId,
                     deviceId = deviceId,
                     ptsTokenHex = token,
                     serverPushEnabled = !serverPushOptOut,
@@ -244,7 +238,7 @@ class PushRegistrationService @Inject constructor(
      *  pref is still flipped so the next `performRegister` reconciles, and
      *  `lastError` is surfaced via the diagnostic for the status card. */
     suspend fun updateServerPushOptOut(optOut: Boolean): Boolean {
-        val deviceId = identity.deviceId()
+        val deviceId = identity.uuid()
         // Hold the mutex across the pref write AND the PATCH so a concurrent
         // performRegister (which snapshots under the same mutex) can't read
         // an in-flight value, and so rapid toggle taps serialize their

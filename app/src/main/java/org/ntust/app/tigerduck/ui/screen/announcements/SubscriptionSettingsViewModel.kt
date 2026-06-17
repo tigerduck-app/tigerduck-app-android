@@ -84,7 +84,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
         loadJob = viewModelScope.launch {
             _state.update { it.copy(loadState = LoadState.Loading) }
             try {
-                val response = api.fetchSubscriptions(identity.deviceId())
+                val response = api.fetchSubscriptions(identity.uuid())
                 // Bump the save generation so any in-flight save()'s PUT echo
                 // is treated as superseded — otherwise the echo lands after
                 // this fresh server snapshot and reverts rules to whatever the
@@ -185,7 +185,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
                 .updateAndGet { it.copy(saveState = SaveState.Saving) }
                 .rules
             try {
-                val response = api.putSubscriptions(identity.deviceId(), rulesToSave)
+                val response = api.putSubscriptions(identity.uuid(), rulesToSave)
                 if (generation == saveGeneration) {
                     _state.update {
                         it.copy(rules = response.rules, saveState = SaveState.Saved)

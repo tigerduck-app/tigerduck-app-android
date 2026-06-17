@@ -97,7 +97,6 @@ class ServerPushViewModel @Inject constructor(
     data class State(
         val serverPushOn: Boolean = true,
         val diagnostic: PushDiagnostic = PushDiagnostic(false, false, null, null, null),
-        val userId: String = "",
         val deviceId: String = "",
         val isSyncing: Boolean = false,
         val isToggling: Boolean = false,
@@ -106,12 +105,7 @@ class ServerPushViewModel @Inject constructor(
     private val _state = MutableStateFlow(
         State(
             serverPushOn = !pushRegistration.isServerPushOptedOut(),
-            // Mirror what the backend has registered for this device:
-            // signed-in user_id when available, otherwise the same
-            // `anon-<device_id>` fallback PushRegistrationService sends.
-            // Support staff can match either back to a device record.
-            userId = identity.userId() ?: "anon-${identity.deviceId()}",
-            deviceId = identity.deviceId(),
+            deviceId = identity.uuid(),
         )
     )
     val state: StateFlow<State> = _state.asStateFlow()
@@ -125,11 +119,9 @@ class ServerPushViewModel @Inject constructor(
     /** Re-read identity from PushIdentity. Called on screen ON_RESUME so a
      *  sign-in / sign-out that happened while the screen was backgrounded
      *  reflects in the IDs card instead of stranding the constructor-time
-     *  `anon-<deviceId>` snapshot. */
+     *  snapshot. */
     fun refreshIdentity() {
-        val deviceId = identity.deviceId()
-        val userId = identity.userId() ?: "anon-$deviceId"
-        _state.update { it.copy(userId = userId, deviceId = deviceId) }
+        _state.update { it.copy(deviceId = identity.uuid()) }
     }
 
     fun setServerPushOn(isOn: Boolean) {
@@ -172,9 +164,8 @@ fun ServerPushScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    // Re-read userId/deviceId on every ON_RESUME so a sign-in / sign-out that
-    // happened while the screen was backgrounded reflects in the IDs card
-    // instead of stranding the constructor-time anon snapshot.
+    // Re-read deviceId on every ON_RESUME so a reinstall or factory-reset that
+    // regenerates the UUID reflects in the IDs card.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -224,7 +215,7 @@ fun ServerPushScreen(
                     )
                 }
                 item {
-                    IdsCard(userId = state.userId, deviceId = state.deviceId)
+                    IdsCard(deviceId = state.deviceId)
                 }
             }
         }
@@ -387,7 +378,7 @@ private fun PushStatusCard(
 }
 
 @Composable
-private fun IdsCard(userId: String, deviceId: String) {
+private fun IdsCard(deviceId: String) {
     ContentCard(applyOuterPadding = false) {
         Column(modifier = Modifier.padding(vertical = 4.dp)) {
             Text(
@@ -395,7 +386,6 @@ private fun IdsCard(userId: String, deviceId: String) {
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
-            IdRow(label = "User ID", value = userId, clipLabel = "user_id")
             IdRow(label = "Device ID", value = deviceId, clipLabel = "device_id")
         }
     }
