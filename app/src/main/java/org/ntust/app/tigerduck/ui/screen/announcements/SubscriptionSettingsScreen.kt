@@ -68,6 +68,7 @@ import org.ntust.app.tigerduck.network.model.localizedTagLabel
 import org.ntust.app.tigerduck.network.model.orgLabel
 import org.ntust.app.tigerduck.notification.AppPermission
 import org.ntust.app.tigerduck.notification.SystemPermissions
+import org.ntust.app.tigerduck.ui.component.ContentCard
 
 private data class EditingTarget(
     val rule: SubscriptionRule,
@@ -257,7 +258,7 @@ fun SubscriptionSettingsScreen(
 
 @Composable
 private fun FdroidNoticeCard() {
-    ContentCard {
+    ContentCard(applyOuterPadding = false) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -291,7 +292,7 @@ private fun DefaultRulesBanner(
     onApply: () -> Unit,
 ) {
     val canApply = (taxonomy?.defaultTags?.isNotEmpty() == true)
-    ContentCard {
+    ContentCard(applyOuterPadding = false) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 text = stringResource(R.string.bulletin_default_rules_footer),
@@ -428,7 +429,7 @@ private fun NotificationPermissionCard(systemPermissions: SystemPermissions) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    ContentCard {
+    ContentCard(applyOuterPadding = false) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -516,16 +517,4 @@ private fun AddRuleRow(onClick: () -> Unit) {
     }
 }
 
-// Local variant of ui/component/ContentCard (different shape/padding contract,
-// so not a drop-in swap), but the container color must match it — every other
-// settings card in the app renders on `surface`, and `surfaceVariant` here made
-// these cards visibly two-tier.
-@Composable
-private fun ContentCard(content: @Composable () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth(),
-    ) { content() }
-}
 

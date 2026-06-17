@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
@@ -38,7 +37,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -73,6 +71,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.push.PushDiagnostic
+import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.push.PushRegistrationService
 import java.text.DateFormat
@@ -238,7 +237,7 @@ private fun ServerPushToggleCard(
     enabled: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    ContentCard {
+    ContentCard(applyOuterPadding = false) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -302,7 +301,7 @@ private fun PushStatusCard(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    ContentCard {
+    ContentCard(applyOuterPadding = false) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 text = stringResource(R.string.push_server_status_section),
@@ -389,7 +388,7 @@ private fun PushStatusCard(
 
 @Composable
 private fun IdsCard(userId: String, deviceId: String) {
-    ContentCard {
+    ContentCard(applyOuterPadding = false) {
         Column(modifier = Modifier.padding(vertical = 4.dp)) {
             Text(
                 text = stringResource(R.string.push_server_ids_section),
@@ -489,17 +488,6 @@ private fun LabeledText(
     }
 }
 
-// Local variant of ui/component/ContentCard (different shape/padding contract,
-// so not a drop-in swap), but the container color must match it — see the
-// matching note in SubscriptionSettingsScreen.
-@Composable
-private fun ContentCard(content: @Composable () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth(),
-    ) { content() }
-}
 
 private fun openAppSettings(context: Context) {
     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {

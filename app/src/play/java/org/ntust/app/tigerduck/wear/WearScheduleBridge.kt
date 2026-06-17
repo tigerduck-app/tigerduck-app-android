@@ -152,25 +152,7 @@ class WearScheduleBridge @Inject constructor(
         }
     }
 
-    private fun Course.toDto(): CourseDto = CourseDto(
-        courseNo = courseNo,
-        // Send the resolved label so any user-set customCourseName survives the
-        // round-trip. The watch-side wire schema has no customCourseName field,
-        // so baking the override into courseName is the lightest fix.
-        courseName = displayName,
-        instructor = instructor,
-        credits = credits,
-        classroom = classroom,
-        scheduleJson = scheduleJson,
-        // Coalesce so v1.3.x / v1.4.1 cached Courses (deserialized via
-        // Gson Unsafe with this field absent from JSON) don't pass null
-        // into CourseDto's non-null parameter and NPE the safety-net
-        // publish() launched from TigerDuckApp.onCreate.
-        classroomMapJson = classroomMapJson ?: "{}",
-        moodleIdNumber = moodleIdNumber,
-        customColorHex = customColorHex,
-        isManual = isManual,
-    )
+    private fun Course.toDto(): CourseDto = toWearDto()
 
     /** On-the-wire shape; explicit so we can evolve [Course] without breaking watch JSON. */
     data class CourseDto(
@@ -191,3 +173,16 @@ class WearScheduleBridge @Inject constructor(
         const val KEY_CRED_EPOCH = "libraryCredentialEpoch"
     }
 }
+
+internal fun Course.toWearDto(): WearScheduleBridge.CourseDto = WearScheduleBridge.CourseDto(
+    courseNo = courseNo,
+    courseName = displayName,
+    instructor = instructor,
+    credits = credits,
+    classroom = classroom,
+    scheduleJson = scheduleJson,
+    classroomMapJson = classroomMapJson ?: "{}",
+    moodleIdNumber = moodleIdNumber,
+    customColorHex = customColorHex,
+    isManual = isManual,
+)
