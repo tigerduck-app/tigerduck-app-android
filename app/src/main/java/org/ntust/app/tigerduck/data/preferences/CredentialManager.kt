@@ -121,11 +121,42 @@ class CredentialManager @Inject constructor(@ApplicationContext context: Context
         else
             prefs.edit().remove("moodle_token").apply()
 
+    // ── v3 JWT tokens ────────────────────────────────────────────────────────
+
+    var v3AccessToken: String?
+        get() = prefs.getString("v3_access_token", null)
+        set(value) = if (value != null)
+            prefs.edit().putString("v3_access_token", value).apply()
+        else
+            prefs.edit().remove("v3_access_token").apply()
+
+    var v3RefreshToken: String?
+        get() = prefs.getString("v3_refresh_token", null)
+        set(value) = if (value != null)
+            prefs.edit().putString("v3_refresh_token", value).apply()
+        else
+            prefs.edit().remove("v3_refresh_token").apply()
+
+    var v3TokenExpiresAt: Long
+        get() = prefs.getLong("v3_token_expires_at", 0L)
+        set(value) = prefs.edit().putLong("v3_token_expires_at", value).apply()
+
+    fun clearV3Credentials() {
+        prefs.edit()
+            .remove("v3_access_token")
+            .remove("v3_refresh_token")
+            .remove("v3_token_expires_at")
+            .apply()
+    }
+
     fun clearNtustCredentials() {
         prefs.edit()
             .remove("ntust_student_id")
             .remove("ntust_password")
             .remove("moodle_token")
+            .remove("v3_access_token")
+            .remove("v3_refresh_token")
+            .remove("v3_token_expires_at")
             .apply()
     }
 

@@ -10,6 +10,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import javax.inject.Inject
@@ -21,6 +22,7 @@ class PushApiException(message: String) : Exception(message)
 class PushApiClient @Inject constructor(
     baseClient: OkHttpClient,
     private val prefs: AppPreferences,
+    private val authTokenManager: AuthTokenManager,
 ) {
 
     // Resolved per call so the debug API-endpoint override applies to push
@@ -52,13 +54,26 @@ class PushApiClient @Inject constructor(
         .addInterceptor { chain ->
             val builder = chain.request().newBuilder()
                 .header("Accept", "application/json")
-            if (sharedSecret.isNotEmpty()) {
-                builder.header("X-Push-Token", sharedSecret)
-            }
             chain.proceed(builder.build())
         }
         .addInterceptor(logging)
         .build()
+
+    /**
+     * Builds a Request with Bearer auth if a v3 token is available, otherwise
+     * falls back to the shared secret so push registration keeps working while
+     * the backend migration is in progress.
+     */
+    private suspend fun Request.Builder.addAuthHeader(): Request.Builder {
+        val authHeader = authTokenManager.authHeader()
+        return if (authHeader != null) {
+            header("Authorization", authHeader)
+        } else if (sharedSecret.isNotEmpty()) {
+            header("X-Push-Token", sharedSecret)
+        } else {
+            this
+        }
+    }
 
     suspend fun register(req: DeviceRegisterRequest): DeviceRegisterResponse =
         withContext(Dispatchers.IO) {
@@ -66,6 +81,7 @@ class PushApiClient @Inject constructor(
             val request = Request.Builder()
                 .url("$baseUrl/devices/register")
                 .post(body)
+                .addAuthHeader()
                 .build()
             client.newCall(request).execute().use { response ->
                 val text = response.body.string()
@@ -85,6 +101,7 @@ class PushApiClient @Inject constructor(
         val request = Request.Builder()
             .url("$baseUrl/devices/unregister")
             .post(body)
+            .addAuthHeader()
             .build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
@@ -103,6 +120,7 @@ class PushApiClient @Inject constructor(
         val request = Request.Builder()
             .url("$baseUrl/devices/$deviceId/preferences")
             .patch(body)
+            .addAuthHeader()
             .build()
         client.newCall(request).execute().use { response ->
             val text = response.body.string()

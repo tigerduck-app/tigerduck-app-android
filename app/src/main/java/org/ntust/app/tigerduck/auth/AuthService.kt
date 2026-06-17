@@ -22,6 +22,7 @@ import org.ntust.app.tigerduck.shared.LibraryService
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
+import org.ntust.app.tigerduck.auth.AuthTokenManager
 
 @Singleton
 class AuthService @Inject constructor(
@@ -31,6 +32,7 @@ class AuthService @Inject constructor(
     private val libraryService: LibraryService,
     private val credentials: CredentialManager,
     private val pushRegistration: PushRegistrationService,
+    private val authTokenManager: AuthTokenManager,
     private val dataCache: DataCache,
     private val bulletinCache: BulletinCache,
     private val bulletinReadStateStore: BulletinReadStateStore,
@@ -70,6 +72,21 @@ class AuthService @Inject constructor(
                 credentials.ntustStudentId = normalizedId
                 credentials.ntustPassword = password
                 _authState.value = true
+                // Best-effort: v3 JWT login failures must not block the SSO
+                // session — the push system falls back to the shared secret if
+                // no Bearer token is available.
+                runCatching {
+                    authTokenManager.login(
+                        studentId = normalizedId,
+                        password = password,
+                        moodleToken = credentials.moodleToken,
+                        moodlePrivateToken = null,
+                        deviceName = android.os.Build.MODEL,
+                    )
+                }.onFailure { e ->
+                    if (e is CancellationException) throw e
+                    android.util.Log.w("AuthService", "v3 login failed (best-effort)", e)
+                }
                 runCatching { pushRegistration.onSignedIn() }
                     .onFailure { e -> if (e is CancellationException) throw e }
             }
@@ -135,6 +152,7 @@ class AuthService @Inject constructor(
     fun logout() {
         credentials.clearNtustCredentials()
         credentials.clearLibraryCredentials()
+        authTokenManager.logout()
         sessionManager.invalidateSession()
         bulletinReadStateStore.clear()
         _loginError.value = null
