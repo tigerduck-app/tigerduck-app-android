@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import org.ntust.app.tigerduck.ui.component.ContentCard
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
@@ -72,6 +71,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.push.PushDiagnostic
+import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.push.PushRegistrationService
 import java.text.DateFormat

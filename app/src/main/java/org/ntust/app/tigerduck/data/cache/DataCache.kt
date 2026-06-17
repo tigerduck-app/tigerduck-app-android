@@ -369,10 +369,14 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     ): T? =
         cacheMutex.withLock {
             withContext(Dispatchers.IO) {
-                val file = File(cacheDir, filename)
-                if (!file.exists()) return@withContext null
-                val text = file.readText()
-                parseJsonIfContains(text, requireContent, gson, type)
+                try {
+                    val file = File(cacheDir, filename)
+                    if (!file.exists()) return@withContext null
+                    val text = file.readText()
+                    parseJsonIfContains(text, requireContent, gson, type)
+                } catch (_: Exception) {
+                    null
+                }
             }
         }
 
@@ -420,10 +424,14 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     ): T? =
         userDataMutex.withLock {
             withContext(Dispatchers.IO) {
-                val file = File(userDataDir, filename)
-                if (!file.exists()) return@withContext null
-                val text = file.readText()
-                parseJsonIfContains(text, requireContent, gson, type)
+                try {
+                    val file = File(userDataDir, filename)
+                    if (!file.exists()) return@withContext null
+                    val text = file.readText()
+                    parseJsonIfContains(text, requireContent, gson, type)
+                } catch (_: Exception) {
+                    null
+                }
             }
         }
 
