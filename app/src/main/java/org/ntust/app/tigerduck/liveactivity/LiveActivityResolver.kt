@@ -1,9 +1,9 @@
 package org.ntust.app.tigerduck.liveactivity
 
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.data.collapseContiguousPeriods
+import org.ntust.app.tigerduck.shared.collapseContiguousPeriods
 import org.ntust.app.tigerduck.data.model.Assignment
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
 import java.time.LocalTime
 import java.time.ZonedDateTime
 import java.util.Calendar

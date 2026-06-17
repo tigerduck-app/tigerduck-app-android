@@ -11,8 +11,6 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -32,6 +30,7 @@ import org.ntust.app.tigerduck.widget.receivers.WeekDarkWidget
 import org.ntust.app.tigerduck.widget.receivers.WeekDarkWidgetReceiver
 import org.ntust.app.tigerduck.widget.receivers.WeekLightWidget
 import org.ntust.app.tigerduck.widget.receivers.WeekLightWidgetReceiver
+import org.ntust.app.tigerduck.di.ApplicationScope
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -40,12 +39,8 @@ class WidgetUpdater @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val dataCache: DataCache,
     private val boundaryScheduler: WidgetBoundaryScheduler,
+    @param:ApplicationScope private val scope: CoroutineScope,
 ) {
-    // Singleton-scoped supervisor so fire-and-forget refreshes survive when
-    // the caller's viewModelScope is cancelled (e.g. user adds a course and
-    // navigates away before Glance has finished re-rendering). Default
-    // dispatcher keeps the widget IPC off the main thread.
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val boundaryLock = Mutex()
     private var boundaryInFlight = false
     private val boundaryFinishers = mutableListOf<() -> Unit>()

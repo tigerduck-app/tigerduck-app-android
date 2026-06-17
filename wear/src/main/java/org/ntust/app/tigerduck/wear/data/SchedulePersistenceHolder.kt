@@ -3,7 +3,7 @@ package org.ntust.app.tigerduck.wear.data
 import android.content.Context
 
 /** Process-wide singleton; one instance per Wear app process. */
-object ScheduleRepository {
+object SchedulePersistenceHolder {
 
     @Volatile
     private var persistence: SchedulePersistence? = null

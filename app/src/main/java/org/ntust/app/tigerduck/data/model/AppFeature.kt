@@ -1,25 +1,6 @@
 package org.ntust.app.tigerduck.data.model
 
 import androidx.annotation.StringRes
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Business
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.CalendarViewDay
-import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LunchDining
-import androidx.compose.material.icons.filled.MeetingRoom
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Translate
-import androidx.compose.ui.graphics.vector.ImageVector
 import org.ntust.app.tigerduck.R
 
 enum class AppFeature(val id: String) {
@@ -83,28 +64,6 @@ enum class AppFeature(val id: String) {
             ENGLISH_VOCAB -> R.string.feature_english_vocab_short
             MORE -> R.string.feature_more_short
             SETTINGS -> R.string.feature_settings_short
-        }
-
-    @Suppress("DEPRECATION")
-    val icon: ImageVector
-        get() = when (this) {
-            HOME -> Icons.Filled.Home
-            CLASS_TABLE -> Icons.Filled.CalendarViewDay
-            CALENDAR -> Icons.Filled.CalendarMonth
-            ANNOUNCEMENTS -> Icons.Filled.Campaign
-            LIBRARY -> Icons.Filled.MenuBook
-            SCORE -> Icons.Filled.BarChart
-            COURSE_SELECTION -> Icons.Filled.EditNote
-            GRADUATION_REQUIREMENTS -> Icons.Filled.School
-            DISCUSSION_ROOM -> Icons.Filled.MeetingRoom
-            LIBRARY_LECTURE -> Icons.Filled.Mic
-            FREE_LUNCH -> Icons.Filled.LunchDining
-            CLUBS -> Icons.Filled.Groups
-            EMPTY_CLASSROOM -> Icons.Filled.Business
-            SCHOLARSHIP -> Icons.Filled.Payments
-            ENGLISH_VOCAB -> Icons.Filled.Translate
-            MORE -> Icons.Filled.MoreHoriz
-            SETTINGS -> Icons.Filled.Settings
         }
 
     val category: FeatureCategory?

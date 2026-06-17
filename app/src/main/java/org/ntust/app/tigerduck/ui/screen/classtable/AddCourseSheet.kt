@@ -56,7 +56,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha

@@ -1,7 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.periodOrder
 import java.time.format.DateTimeFormatter
 import java.util.Calendar

@@ -46,7 +46,7 @@ class DataLayerListener : WearableListenerService() {
         val disableScreenCaptureProtection =
             map.getBoolean(WearProtocol.Schedule.KEY_DISABLE_SCREEN_CAPTURE_PROTECTION)
         try {
-            ScheduleRepository.get(this@DataLayerListener)
+            SchedulePersistenceHolder.get(this@DataLayerListener)
                 .write(courses, accent, syncedAt, loggedIn, language, disableScreenCaptureProtection)
         } catch (e: Exception) {
             // Most likely a malformed/truncated gzip payload from the Data Layer

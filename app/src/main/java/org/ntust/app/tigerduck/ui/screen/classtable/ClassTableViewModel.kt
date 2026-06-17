@@ -20,11 +20,11 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
-import org.ntust.app.tigerduck.data.OngoingCourseInfo
+import org.ntust.app.tigerduck.shared.OngoingCourseInfo
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.computeOngoingCourses
+import org.ntust.app.tigerduck.shared.computeOngoingCourses
 import org.ntust.app.tigerduck.data.model.Assignment
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.model.TimetablePeriod
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.CourseService

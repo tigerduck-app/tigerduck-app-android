@@ -3,7 +3,7 @@ package org.ntust.app.tigerduck.widget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
 
 class WidgetBoundarySchedulerTest {
 

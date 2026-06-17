@@ -3,7 +3,7 @@ package org.ntust.app.tigerduck.widget
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.ui.graphics.Color
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
 import org.ntust.app.tigerduck.ui.theme.courseColorPaletteDark

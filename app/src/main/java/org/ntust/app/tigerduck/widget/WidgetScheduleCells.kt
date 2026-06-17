@@ -1,6 +1,6 @@
 package org.ntust.app.tigerduck.widget
 
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
 
 sealed class ScheduleCell {
     abstract val length: Int

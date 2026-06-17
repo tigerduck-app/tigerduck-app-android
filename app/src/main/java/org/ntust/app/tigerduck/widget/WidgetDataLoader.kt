@@ -8,9 +8,9 @@ import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.computeOngoingCourses
-import org.ntust.app.tigerduck.data.model.Course
-import org.ntust.app.tigerduck.data.parseHm
+import org.ntust.app.tigerduck.shared.computeOngoingCourses
+import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.parseHm
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.buildCourseColorAssignments

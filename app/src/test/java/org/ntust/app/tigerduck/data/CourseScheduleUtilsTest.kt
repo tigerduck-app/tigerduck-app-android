@@ -4,7 +4,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.collapseContiguousPeriods
+import org.ntust.app.tigerduck.shared.computeOngoingCourses
+import org.ntust.app.tigerduck.shared.parseHm
 
 class CourseScheduleUtilsTest {
 
