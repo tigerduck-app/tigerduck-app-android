@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,6 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material3.LinearProgressIndicator
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
@@ -34,7 +35,8 @@ import java.util.concurrent.TimeUnit
 @Composable
 fun NowNextScreen(snapshot: WatchSnapshot) {
     val pad = LocalScreenPadding.current
-    ScreenScaffold {
+    val listState = rememberScalingLazyListState()
+    ScreenScaffold(scrollState = listState) {
         if (snapshot.syncedAtMs == null) {
             EmptyStateMessage(
                 text = stringResource(R.string.watch_open_phone_to_sync),
@@ -53,47 +55,53 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
         val (weekday, minuteOfDay) = currentTaipeiTick()
         val result = NextClassResolver.resolve(snapshot.courses, weekday, minuteOfDay)
 
-        Column(
+        ScalingLazyColumn(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(horizontal = pad),
-            verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            ListHeader { Text(stringResource(R.string.watch_now_next_title)) }
+            item { ListHeader { Text(stringResource(R.string.watch_now_next_title)) } }
             when (result) {
                 is NextClassResult.Ongoing -> {
-                    // iOS NowNextView stacks Now + Next as two separate cards
-                    // when both exist, instead of folding the next-today
-                    // preview into the ongoing card as a single line.
-                    OngoingCard(result, minuteOfDay)
+                    item { OngoingCard(result, minuteOfDay) }
                     result.nextToday?.let { next ->
-                        NextCard(
-                            course = next.course,
-                            weekday = next.weekday,
-                            statusText = nextStatusText(next.startMinute, minuteOfDay),
-                            titleResId = R.string.watch_next,
-                        )
+                        item {
+                            NextCard(
+                                course = next.course,
+                                weekday = next.weekday,
+                                statusText = nextStatusText(next.startMinute, minuteOfDay),
+                                titleResId = R.string.watch_next,
+                            )
+                        }
                     }
                 }
 
-                is NextClassResult.NextToday -> NextCard(
-                    course = result.course,
-                    weekday = result.weekday,
-                    statusText = nextStatusText(result.startMinute, minuteOfDay),
-                    titleResId = null,
-                )
+                is NextClassResult.NextToday -> item {
+                    NextCard(
+                        course = result.course,
+                        weekday = result.weekday,
+                        statusText = nextStatusText(result.startMinute, minuteOfDay),
+                        titleResId = null,
+                    )
+                }
 
-                is NextClassResult.NextFuture -> NextCard(
-                    course = result.course,
-                    weekday = result.weekday,
-                    statusText = futureStatusText(result.daysAhead, result.startMinute, weekday),
-                    titleResId = null,
-                )
+                is NextClassResult.NextFuture -> item {
+                    NextCard(
+                        course = result.course,
+                        weekday = result.weekday,
+                        statusText = futureStatusText(result.daysAhead, result.startMinute, weekday),
+                        titleResId = null,
+                    )
+                }
 
-                NextClassResult.Empty -> Text(stringResource(R.string.watch_no_upcoming_classes))
+                NextClassResult.Empty -> item {
+                    Text(stringResource(R.string.watch_no_upcoming_classes))
+                }
             }
-            StaleBanner(snapshot.syncedAtMs)
+            item { StaleBanner(snapshot.syncedAtMs) }
         }
     }
 }
