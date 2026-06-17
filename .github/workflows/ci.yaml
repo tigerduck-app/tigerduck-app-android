@@ -44,3 +44,4 @@ jobs:
           ./gradlew --no-daemon
           :shared:test
           :app:testPlayDebugUnitTest
+          :app:testFdroidDebugUnitTest
