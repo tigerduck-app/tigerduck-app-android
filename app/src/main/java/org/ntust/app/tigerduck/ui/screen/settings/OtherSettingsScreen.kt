@@ -51,7 +51,7 @@ fun OtherSettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val analyticsEnabled = viewModel.prefs.analyticsEnabled
+    var analyticsEnabled by remember { mutableStateOf(viewModel.prefs.analyticsEnabled) }
     val invertSlider = viewModel.appState.invertSliderDirection
     val themeMode = viewModel.appState.themeMode
     val browserPreference = viewModel.appState.browserPreference
@@ -202,7 +202,10 @@ fun OtherSettingsScreen(
                     SettingsToggleRow(
                         stringResource(R.string.settings_analytics_enabled),
                         analyticsEnabled,
-                    ) { viewModel.setAnalyticsEnabled(it) }
+                    ) {
+                        analyticsEnabled = it
+                        viewModel.setAnalyticsEnabled(it)
+                    }
                 }
             }
             item {

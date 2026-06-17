@@ -17,8 +17,8 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.debug.DebugClockController
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.notification.NotificationChannels
-import org.ntust.app.tigerduck.push.FcmBootstrap
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
+import org.ntust.app.tigerduck.push.FcmBootstrap
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
 import android.content.res.Configuration as ResConfiguration

@@ -46,6 +46,7 @@ class WidgetUpdater @Inject constructor(
     private val boundaryLock = Mutex()
     private var boundaryInFlight = false
     private val boundaryFinishers = mutableListOf<() -> Unit>()
+    private var hasLoggedWidgetAnalytics = false
 
     suspend fun updateAll() {
         // Bump the per-widget tick BEFORE asking Glance to recompose. The
@@ -78,14 +79,16 @@ class WidgetUpdater @Inject constructor(
                 }
             }
         }
-        // Log which widget types are actively placed.
-        val awm = AppWidgetManager.getInstance(context)
-        WIDGET_ANALYTICS.forEach { (clazz, label) ->
-            val count = runCatching {
-                awm.getAppWidgetIds(ComponentName(context, clazz))?.size ?: 0
-            }.getOrDefault(0)
-            if (count > 0) {
-                analyticsLogger.log("widget_active", mapOf("widget_type" to label, "count" to count))
+        if (!hasLoggedWidgetAnalytics) {
+            hasLoggedWidgetAnalytics = true
+            val awm = AppWidgetManager.getInstance(context)
+            WIDGET_ANALYTICS.forEach { (clazz, label) ->
+                val count = runCatching {
+                    awm.getAppWidgetIds(ComponentName(context, clazz))?.size ?: 0
+                }.getOrDefault(0)
+                if (count > 0) {
+                    analyticsLogger.log("widget_active", mapOf("widget_type" to label, "count" to count))
+                }
             }
         }
         // Belt-and-suspenders: poke each provider via the system's
