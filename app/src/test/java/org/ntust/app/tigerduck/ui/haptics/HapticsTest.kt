@@ -1,6 +1,8 @@
 package org.ntust.app.tigerduck.ui.haptics
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HapticsTest {
@@ -9,18 +11,20 @@ class HapticsTest {
     fun `tunable filter excludes library warning`() {
         val tunable = HapticScenario.tunable
         assertEquals(6, tunable.size)
-        assert(HapticScenario.LibraryWarning !in tunable)
+        assertFalse(HapticScenario.LibraryWarning in tunable)
     }
 
     @Test
     fun `every scenario has positive defaults`() {
         HapticScenario.entries.forEach { scenario ->
-            assert(scenario.defaultStrengthPct in 1..100) {
-                "${scenario.name} has invalid default strength ${scenario.defaultStrengthPct}"
-            }
-            assert(scenario.defaultDurationMs in 1..2000) {
-                "${scenario.name} has invalid default duration ${scenario.defaultDurationMs}"
-            }
+            assertTrue(
+                "${scenario.name} has invalid default strength ${scenario.defaultStrengthPct}",
+                scenario.defaultStrengthPct in 1..100,
+            )
+            assertTrue(
+                "${scenario.name} has invalid default duration ${scenario.defaultDurationMs}",
+                scenario.defaultDurationMs in 1..2000,
+            )
         }
     }
 

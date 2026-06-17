@@ -108,6 +108,23 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
+    /** Wipe the whole bulletins store (summary snapshot + every cached detail).
+     *  Called on logout so the next session's first paint can't seed from the
+     *  previous session's snapshot — mirrors DataCache.clearAllUserData(). */
+    suspend fun clear() = withContext(Dispatchers.IO) {
+        mutex.withLock { runCatching { file.delete() } }
+        val files = detailDir.listFiles() ?: return@withContext
+        for (f in files) {
+            val id = f.nameWithoutExtension.toIntOrNull()
+            if (id == null) {
+                // Stray non-detail file (e.g. an orphaned .tmp) — best effort.
+                runCatching { f.delete() }
+                continue
+            }
+            withDetailLock(id) { if (f.exists()) f.delete() }
+        }
+    }
+
     /** Truncating writeText leaves a partial file if the process dies mid-write,
      *  which fails JSON parse on next launch and discards the whole cache. */
     private fun writeAtomically(target: File, content: String) {

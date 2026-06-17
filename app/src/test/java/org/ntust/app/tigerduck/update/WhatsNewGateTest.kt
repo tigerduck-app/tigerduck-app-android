@@ -31,4 +31,14 @@ class WhatsNewGateTest {
     fun `does not show when last seen is somehow newer`() {
         assertFalse(WhatsNewGate.shouldShow(lastSeenVersionCode = 22, currentVersionCode = 21))
     }
+
+    @Test
+    fun `does not show when last seen is the replay sentinel`() {
+        assertFalse(
+            WhatsNewGate.shouldShow(
+                lastSeenVersionCode = AppPreferences.WHATS_NEW_REPLAY,
+                currentVersionCode = 21,
+            )
+        )
+    }
 }

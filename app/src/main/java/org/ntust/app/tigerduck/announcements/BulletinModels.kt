@@ -7,6 +7,17 @@ import com.google.gson.annotations.SerializedName
  * carried as raw strings rather than Kotlin enums because the server adds
  * tags faster than this app ships; treating unknowns as "unclassified"
  * client-side keeps the list working through taxonomy churn.
+ *
+ * UPGRADE-SAFETY (see CLAUDE.md / upgrade-safe-persistence skill):
+ * [BulletinSummary] and [BulletinDetail] are persisted to disk by
+ * [BulletinCache] and re-read after app upgrades. Gson instantiates them via
+ * Unsafe.allocateInstance, which BYPASSES the constructor — a Kotlin default
+ * like `= emptyList()` is NOT applied when the key is missing from an
+ * old cache file; the field is silently null. The existing non-null fields
+ * (id, externalId, title, contentTags) predate the cache, so every cached
+ * file contains them — but any NEW field added here must be nullable, a
+ * primitive, or accompanied by a cache migration. Do not add a non-null
+ * reference-type field with a default value.
  */
 data class BulletinSummary(
     val id: Int,

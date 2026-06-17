@@ -7,6 +7,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.debug.DebugClockController
 import org.ntust.app.tigerduck.shared.clock.AppClock
@@ -37,7 +38,7 @@ class DebugViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            while (true) {
+            while (isActive) {
                 delay(1000)
                 _uiState.value = _uiState.value.copy(effectiveNow = AppClock.localDateTime(zone))
             }

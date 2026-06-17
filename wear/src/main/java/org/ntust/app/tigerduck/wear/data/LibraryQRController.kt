@@ -85,6 +85,10 @@ class LibraryQRController(
             _qrBitmap.value = rendered.first
             _qrPatternBounds.value = rendered.second
             startCountdown(qrSidePx)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            // Never swallow cancellation: doing so breaks structured
+            // concurrency (the scope thinks the job completed normally).
+            throw e
         } catch (e: Exception) {
             // Surface the real reason (network failure, server message, etc.)
             // rather than a generic string — diagnosing a watch-only failure

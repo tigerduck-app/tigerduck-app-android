@@ -242,6 +242,7 @@ class MoodleTokenService @Inject constructor(
         // values that ride hidden form fields between hops.
         val safePreview = html.take(300)
             .replace(Regex("value=\"[^\"]{8,}\""), "value=\"***\"")
+            .replace(Regex("value='[^']{8,}'"), "value=\"***\"")
             .replace("\n", " ")
         throw MoodleWebserviceError.MalformedResponse(
             "Unexpected OIDC page: ${responseUrl.redactForLog()} — body preview=$safePreview"

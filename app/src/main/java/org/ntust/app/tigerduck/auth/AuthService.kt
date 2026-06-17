@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.announcements.BulletinCache
 import org.ntust.app.tigerduck.announcements.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
@@ -31,6 +32,7 @@ class AuthService @Inject constructor(
     private val credentials: CredentialManager,
     private val pushRegistration: PushRegistrationService,
     private val dataCache: DataCache,
+    private val bulletinCache: BulletinCache,
     private val bulletinReadStateStore: BulletinReadStateStore,
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) {
@@ -116,10 +118,15 @@ class AuthService @Inject constructor(
         val serviceUrl = "https://courseselection.ntust.edu.tw/"
         val success = ssoLoginService.ensureServiceLogin(serviceUrl, normalizedId, password)
         if (success && !credentials.isLibraryTokenValid) {
-            // Best-effort: library credentials may differ from NTUST SSO.
+            // Best-effort: library credentials may differ from NTUST SSO, so a
+            // failure here must not fail the SSO login — but log it, otherwise
+            // "library QR never works" is undiagnosable in the field.
             try {
                 libraryService.login(normalizedId, password)
-            } catch (_: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("AuthService", "Library login failed (best-effort)", e)
             }
         }
         return success
@@ -138,7 +145,15 @@ class AuthService @Inject constructor(
         // delete when the user backs out of Settings or the activity dies.
         // Without this guarantee, the JSON cache survives logout and bleeds
         // into the next account on the same device.
-        appScope.launch { runCatching { dataCache.clearAllUserData() } }
+        appScope.launch {
+            runCatching { dataCache.clearAllUserData() }
+                .onFailure { android.util.Log.w("AuthService", "clearAllUserData failed on logout", it) }
+            // Bulletins are school-wide rather than private, but the read-state
+            // store is already cleared above — clear the content snapshot too
+            // so the next session starts coherent instead of half-stale.
+            runCatching { bulletinCache.clear() }
+                .onFailure { android.util.Log.w("AuthService", "bulletinCache.clear failed on logout", it) }
+        }
     }
 
     fun clearLoginError() {

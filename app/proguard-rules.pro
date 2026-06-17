@@ -28,7 +28,6 @@
 # not rename them — otherwise the phone sends obfuscated JSON keys the
 # watch-side CourseWire can't recognize.
 -keep class org.ntust.app.tigerduck.wear.WearScheduleBridge$* { *; }
--dontrepackage
 
 # Gson — TypeToken<List<Course>>() {} anonymous subclasses lose their generic
 # signature under R8 full mode (default since AGP 8.x), which makes

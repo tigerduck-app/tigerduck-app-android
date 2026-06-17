@@ -103,7 +103,18 @@ class AnnouncementsViewModel @Inject constructor(
                 _state.update { applyFilters(it.copy(items = sortedUnique(cached))) }
             }
             refresh()
-            launch { runCatching { fetchTaxonomyOnce() } }
+            launch {
+                try {
+                    fetchTaxonomyOnce()
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Taxonomy is decorative (org/tag labels); the list works
+                    // without it. Still log — a permanently failing taxonomy
+                    // endpoint would otherwise be invisible.
+                    android.util.Log.w("AnnouncementsVM", "Taxonomy fetch failed", e)
+                }
+            }
         }
     }
 

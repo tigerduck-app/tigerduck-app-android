@@ -66,7 +66,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -124,9 +124,9 @@ fun OnboardingScreen(
     val pageCount = 6
     val pagerState = rememberPagerState(pageCount = { pageCount })
     val scope = rememberCoroutineScope()
-    val isLoggingIn by viewModel.isLoggingIn.collectAsState()
-    val loginError by viewModel.loginError.collectAsState()
-    val isSignedIn by viewModel.isSignedIn.collectAsState()
+    val isLoggingIn by viewModel.isLoggingIn.collectAsStateWithLifecycle()
+    val loginError by viewModel.loginError.collectAsStateWithLifecycle()
+    val isSignedIn by viewModel.isSignedIn.collectAsStateWithLifecycle()
 
     var studentId by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }

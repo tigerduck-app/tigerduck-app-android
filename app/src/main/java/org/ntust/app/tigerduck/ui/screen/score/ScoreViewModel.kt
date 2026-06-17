@@ -73,8 +73,10 @@ class ScoreViewModel @Inject constructor(
 
         viewModelScope.launch {
             val cached = scoreService.cachedScoreReport(studentId)
-            if (cached != null) {
-                _report.value = cached.report
+            // report is nullable (Gson Unsafe defense) — skip the instant
+            // paint on a degraded snapshot and let refresh() repopulate.
+            cached?.report?.let {
+                _report.value = it
                 applyDefaultCollapseRule()
             }
             refresh(force = false)

@@ -69,9 +69,18 @@ class LiveActivityResolver {
      * Today's class slots whose end is still after [now], sorted by start.
      * Used by the boundary scheduler so it can wake the manager at the
      * preparing-window crossing / class-start / class-end of the next slot.
+     * Skipped slots are excluded (mirroring [resolve]) so no alarm is armed
+     * for a class the user marked as skipped — the wakeup would resolve to
+     * nothing and just burn battery.
      */
-    fun todaySlotsAfter(courses: List<Course>, now: Date): List<Slot> =
-        buildTodaySlots(courses, now).filter { it.end.after(now) }
+    fun todaySlotsAfter(
+        courses: List<Course>,
+        now: Date,
+        skippedDates: Map<String, List<String>> = emptyMap(),
+    ): List<Slot> =
+        buildTodaySlots(courses, now)
+            .filter { !it.isSkipped(skippedDates) }
+            .filter { it.end.after(now) }
 
     data class Slot(
         val course: Course,

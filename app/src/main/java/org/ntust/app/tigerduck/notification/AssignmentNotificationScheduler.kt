@@ -19,6 +19,13 @@ class AssignmentNotificationScheduler @Inject constructor(
     private val trackerPrefs =
         context.getSharedPreferences("notification_tracker", Context.MODE_PRIVATE)
 
+    // BootReceiver (goAsync) and BackgroundSyncWorker can both call
+    // scheduleAll() concurrently right after boot. Without a lock the two
+    // read-cancel-rewrite passes over `scheduled_ids` interleave: the second
+    // write overwrites the first, orphaning PendingIntents that are then
+    // never cancelled. Same pattern as ClassPreparingNotificationScheduler.
+    private val schedulerLock = Any()
+
     /**
      * Schedule a reminder for each (upcoming assignment × enabled offset).
      *
@@ -41,7 +48,7 @@ class AssignmentNotificationScheduler @Inject constructor(
         assignments: List<Assignment>,
         safetyNetIds: Set<String> = emptySet(),
         offsets: Set<AssignmentReminderOffset> = AssignmentReminderOffset.DEFAULTS,
-    ) {
+    ): Unit = synchronized(schedulerLock) {
         cancelAllTracked()
         if (offsets.isEmpty()) return
 
@@ -171,7 +178,7 @@ class AssignmentNotificationScheduler @Inject constructor(
         trackerPrefs.edit().putStringSet("scheduled_ids", scheduledKeys).apply()
     }
 
-    fun cancelAllTracked() {
+    fun cancelAllTracked(): Unit = synchronized(schedulerLock) {
         // Copy the returned set: SharedPreferences docs forbid mutating it,
         // and concurrent BackgroundSyncWorker / BootReceiver callers iterating
         // the same backing instance risk ConcurrentModificationException.

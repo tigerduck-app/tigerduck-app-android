@@ -229,7 +229,14 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     // MARK: - Score Report (per studentId)
 
-    data class ScoreReportSnapshot(val report: ScoreReport, val cachedAt: Date)
+    /**
+     * Fields are nullable as Gson-Unsafe defense (see CLAUDE.md): this class
+     * is deserialized from score_<id>.json across upgrades, and Gson bypasses
+     * the constructor, so a cache file written before a future field/shape
+     * change would leave non-null fields silently null. Readers must
+     * null-check both fields.
+     */
+    data class ScoreReportSnapshot(val report: ScoreReport?, val cachedAt: Date?)
 
     suspend fun saveScoreReport(report: ScoreReport, studentId: String) =
         save(ScoreReportSnapshot(report, Date()), scoreReportFilename(studentId))
@@ -351,11 +358,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     private suspend fun <T> save(value: T, filename: String) = cacheMutex.withLock {
         withContext(Dispatchers.IO) {
-            try {
-                File(cacheDir, filename).writeText(gson.toJson(value))
-            } catch (e: Exception) {
-                // Ignore write errors
-            }
+            atomicWrite(File(cacheDir, filename), gson.toJson(value))
         }
     }
 
@@ -382,10 +385,38 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     private suspend fun <T> saveToUserData(value: T, filename: String) = userDataMutex.withLock {
         withContext(Dispatchers.IO) {
-            try {
-                File(userDataDir, filename).writeText(gson.toJson(value))
-            } catch (e: Exception) {
+            atomicWrite(File(userDataDir, filename), gson.toJson(value))
+        }
+    }
+
+    /**
+     * Write-to-temp + rename so a crash or full disk mid-write can't leave a
+     * truncated JSON file behind. This matters most for userDataDir: a
+     * truncated `manual_courses_*.json` loses data that has no remote source
+     * to re-fetch from. rename() within the same directory is atomic on the
+     * filesystems Android uses. Failures are swallowed (callers can't do
+     * anything useful with them) but logged — durable user data silently
+     * failing to persist is otherwise undiagnosable in the field.
+     */
+    private fun atomicWrite(target: File, content: String) {
+        val tmp = File(target.parentFile, target.name + ".tmp")
+        try {
+            tmp.writeText(content)
+            if (!tmp.renameTo(target)) {
+                // Rename-over-existing can fail on some filesystems; retry
+                // after deleting the target.
+                target.delete()
+                if (!tmp.renameTo(target)) {
+                    // Both renames failed and target is already deleted —
+                    // fall back to direct write so data isn't lost entirely.
+                    target.writeText(content)
+                    runCatching { tmp.delete() }
+                    return
+                }
             }
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to write ${target.name}", e)
+            runCatching { tmp.delete() }
         }
     }
 
@@ -411,6 +442,8 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         }
 
     private companion object {
+        private const val TAG = "DataCache"
+
         // Sentinel literal present in any course JSON written by a build
         // with un-obfuscated field names. Used by loadCourses to reject
         // R8-obfuscated v1.4.0 cache files before they reach Gson.

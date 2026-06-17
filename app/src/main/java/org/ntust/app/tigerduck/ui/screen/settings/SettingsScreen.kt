@@ -51,7 +51,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -119,12 +118,12 @@ fun SettingsScreen(
     onNavigateToTriggersDebug: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsState()
-    val ntustLoginError by viewModel.ntustLoginError.collectAsState()
-    val libIsLoggingIn by viewModel.libIsLoggingIn.collectAsState()
-    val libLoginError by viewModel.libLoginError.collectAsState()
-    val isNtustLoggedIn by viewModel.isNtustLoggedIn.collectAsState()
-    val isLibraryLoggedIn by viewModel.isLibraryLoggedIn.collectAsState()
+    val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsStateWithLifecycle()
+    val ntustLoginError by viewModel.ntustLoginError.collectAsStateWithLifecycle()
+    val libIsLoggingIn by viewModel.libIsLoggingIn.collectAsStateWithLifecycle()
+    val libLoginError by viewModel.libLoginError.collectAsStateWithLifecycle()
+    val isNtustLoggedIn by viewModel.isNtustLoggedIn.collectAsStateWithLifecycle()
+    val isLibraryLoggedIn by viewModel.isLibraryLoggedIn.collectAsStateWithLifecycle()
 
     var showNtustLoginSheet by remember { mutableStateOf(false) }
     var showLibraryLoginSheet by remember { mutableStateOf(false) }

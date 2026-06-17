@@ -442,6 +442,19 @@ class AppState @Inject constructor(
             val assignmentsResult = assignmentsJob.await()
             val schoolEventsResult = calendarJob.await()
 
+            // Sync degrades gracefully on partial failure, but the reasons
+            // must reach logcat — "sync silently does nothing" was previously
+            // undiagnosable in the field.
+            coursesResult.exceptionOrNull()?.let {
+                android.util.Log.w("AppState", "backgroundSync: courses fetch failed", it)
+            }
+            assignmentsResult.exceptionOrNull()?.let {
+                android.util.Log.w("AppState", "backgroundSync: assignments fetch failed", it)
+            }
+            schoolEventsResult.exceptionOrNull()?.let {
+                android.util.Log.w("AppState", "backgroundSync: calendar fetch failed", it)
+            }
+
             val anySucceeded =
                 coursesResult.isSuccess || assignmentsResult.isSuccess || schoolEventsResult.isSuccess
 

@@ -512,11 +512,15 @@ private fun AddRuleRow(onClick: () -> Unit) {
     }
 }
 
+// Local variant of ui/component/ContentCard (different shape/padding contract,
+// so not a drop-in swap), but the container color must match it — every other
+// settings card in the app renders on `surface`, and `surfaceVariant` here made
+// these cards visibly two-tier.
 @Composable
 private fun ContentCard(content: @Composable () -> Unit) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = MaterialTheme.colorScheme.surface,
         modifier = Modifier.fillMaxWidth(),
     ) { content() }
 }

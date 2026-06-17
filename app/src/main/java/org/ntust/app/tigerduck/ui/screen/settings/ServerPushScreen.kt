@@ -489,11 +489,14 @@ private fun LabeledText(
     }
 }
 
+// Local variant of ui/component/ContentCard (different shape/padding contract,
+// so not a drop-in swap), but the container color must match it — see the
+// matching note in SubscriptionSettingsScreen.
 @Composable
 private fun ContentCard(content: @Composable () -> Unit) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = MaterialTheme.colorScheme.surface,
         modifier = Modifier.fillMaxWidth(),
     ) { content() }
 }
