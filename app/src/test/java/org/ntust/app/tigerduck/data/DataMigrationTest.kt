@@ -12,9 +12,8 @@ class DataMigrationTest {
     @get:Rule
     val tempFolder = TemporaryFolder()
 
-    // Accept predicate that matches the "courses_" prefix pattern used in migrate1to2.
     private val acceptCourses: (String) -> Boolean = { name ->
-        name.startsWith("courses_") && name.endsWith(".json")
+        name == "courses.json" || (name.startsWith("courses_") && name.endsWith(".json"))
     }
 
     @Test
@@ -56,6 +55,28 @@ class DataMigrationTest {
         val nonExistent = File(tempFolder.root, "does_not_exist")
         // Should return without throwing
         DataMigration.sweepCourseFiles(nonExistent, acceptCourses)
+    }
+
+    @Test
+    fun `legacy courses json without sentinel is deleted`() {
+        val dir = tempFolder.newFolder("cache_legacy")
+        val file = File(dir, "courses.json")
+        file.writeText("""{"a":"x","b":"y"}""")
+
+        DataMigration.sweepCourseFiles(dir, acceptCourses)
+
+        assertFalse("Legacy courses.json with obfuscated keys should be deleted", file.exists())
+    }
+
+    @Test
+    fun `legacy courses json with sentinel is kept`() {
+        val dir = tempFolder.newFolder("cache_legacy_valid")
+        val file = File(dir, "courses.json")
+        file.writeText("""{"courseNo":"CS101","courseName":"Algorithms"}""")
+
+        DataMigration.sweepCourseFiles(dir, acceptCourses)
+
+        assertTrue("Legacy courses.json with sentinel should be kept", file.exists())
     }
 
     @Test
