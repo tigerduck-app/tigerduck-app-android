@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Sắp vào lớp: %1$s</string>
     <string name="notification_setup_description">Bật các quyền dưới đây để đảm bảo nhắc bài tập, cảnh báo sắp vào lớp và thông tin cập nhật trực tiếp đến đúng giờ ngay cả khi ứng dụng đã đóng.</string>
     <string name="notification_setup_title">Cài đặt lại thông báo</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Bạn đang sử dụng bản F-Droid. Vì chính sách F-Droid không cho phép phụ thuộc vào các dịch vụ của Google (Firebase FCM, GMS, v.v.), nên hai tính năng sau không có sẵn trong bản này:\n\n1. Ứng dụng đồng hành Wear OS\n2. Thông báo đẩy theo thời gian thực</string>
     <string name="onboarding_flavor_fdroid_title">Lưu ý về bản F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck đi kèm ứng dụng đồng hành Wear OS. Xem tin nhắn lớp học trên đồng hồ của bạn — Wear TigerDuck đồng bộ thông tin từ điện thoại.</string>

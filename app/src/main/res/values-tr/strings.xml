@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Ders birazdan başlıyor: %1$s</string>
     <string name="notification_setup_description">Aşağıdaki izinleri etkinleştirerek ödev hatırlatıcılarının, ders başlangıç uyarılarının ve canlı güncellemelerin uygulama kapalıyken bile zamanında ulaşmasını sağlayın.</string>
     <string name="notification_setup_title">Bildirimleri yeniden yapılandır</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">F-Droid sürümünü kullanıyorsunuz. F-Droid politikası Google hizmetlerine (Firebase FCM, GMS vb.) bağımlılığa izin vermediği için bu sürümde aşağıdaki iki özellik kullanılamaz:\n\n1. Wear OS eşlik uygulaması\n2. Gerçek zamanlı push duyuruları</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid sürümü hakkında bilgi</string>
     <string name="onboarding_flavor_play_description">TigerDuck bir Wear OS eşlik uygulaması içerir. Ders mesajlarını saatinizden görüntüleyin — Wear TigerDuck telefonunuzdaki bilgileri eşitler.</string>

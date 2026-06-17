@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Drīz sāksies: %1$s</string>
     <string name="notification_setup_description">Iespējojiet tālāk minētās atļaujas, lai uzdevumu atgādinājumi, nodarbību brīdinājumi un reāllaika atjauninājumi tiktu piegādāti laikā arī tad, kad lietotne ir aizvērta.</string>
     <string name="notification_setup_title">Pārkonfigurēt paziņojumus</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Jūs izmantojat F-Droid versiju. Tā kā F-Droid politika aizliedz atkarību no Google pakalpojumiem (Firebase FCM, GMS u.c.), šajā versijā nav pieejamas šādas divas funkcijas:\n\n1. Wear OS pavadošā lietotne\n2. Reāllaika tiešie paziņojumi</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid versijas paziņojums</string>
     <string name="onboarding_flavor_play_description">TigerDuck ietver Wear OS pavadošo lietotni. Skatiet nodarbību ziņojumus savā pulkstenī — Wear TigerDuck sinhronizē informāciju no jūsu tālruņa.</string>

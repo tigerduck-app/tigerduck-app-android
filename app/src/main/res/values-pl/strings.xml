@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Wkrótce zajęcia: %1$s</string>
     <string name="notification_setup_description">Włączyć poniższe uprawnienia, aby przypomnienia o zadaniach, alerty o nadchodzących zajęciach oraz aktualizacje na żywo docierały na czas, nawet gdy aplikacja jest zamknięta.</string>
     <string name="notification_setup_title">Skonfiguruj powiadomienia ponownie</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Korzystasz z wersji F-Droid. Ponieważ polityka F-Droid zabrania zależności od usług Google (Firebase FCM, GMS itp.), w tej wersji nie są dostępne następujące dwie funkcje:\n\n1. Aplikacja towarzysząca Wear OS\n2. Powiadomienia push w czasie rzeczywistym</string>
     <string name="onboarding_flavor_fdroid_title">Informacja o wersji F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck zawiera aplikację towarzyszącą Wear OS. Przeglądaj wiadomości z zajęć na zegarku — Wear TigerDuck synchronizuje informacje z Twojego telefonu.</string>

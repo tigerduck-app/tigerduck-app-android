@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Ura se kmalu začne: %1$s</string>
     <string name="notification_setup_description">Omogočite spodnja dovoljenja, da zagotovite pravočasno dostavo opomnikov za naloge, opozoril pred poukom in sprotnih obvestil, tudi ko je aplikacija zaprta.</string>
     <string name="notification_setup_title">Ponovna nastavitev obvestil</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Uporabljate različico F-Droid. Ker pravila F-Droid prepovedujejo odvisnost od Googlovih storitev (Firebase FCM, GMS itd.), naslednji dve funkciji v tej različici nista na voljo:\n\n1. Spremljevalna aplikacija Wear OS\n2. Sprotna potisna obvestila</string>
     <string name="onboarding_flavor_fdroid_title">Obvestilo o različici F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck vključuje spremljevalca za Wear OS. Sporočila o predavanjih si oglejte na uri — Wear TigerDuck sinhronizira podatke iz vašega telefona.</string>

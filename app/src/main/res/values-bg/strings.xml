@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Час започва скоро: %1$s</string>
     <string name="notification_setup_description">Активирайте разрешенията по-долу, за да се гарантира, че напомнянията за задания, предупрежденията за предстоящ час и актуализациите на живо пристигат навреме дори когато приложението е затворено.</string>
     <string name="notification_setup_title">Преконфигуриране на известия</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Използвате версията F-Droid. Тъй като политиката на F-Droid забранява зависимост от услугите на Google (Firebase FCM, GMS и др.), следните две функции не са налични в тази версия:\n\n1. Придружаващо приложение Wear OS\n2. Известия в реално време</string>
     <string name="onboarding_flavor_fdroid_title">Бележка за версията F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck включва придружаващо приложение Wear OS. Преглеждайте съобщенията от часовете на часовника си — Wear TigerDuck синхронизира информация от телефона ви.</string>

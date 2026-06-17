@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Cours imminent : %1$s</string>
     <string name="notification_setup_description">Activez les autorisations ci-dessous pour vous assurer que les rappels de devoirs, les alertes avant les cours et les mises à jour en temps réel arrivent à temps, même lorsque l\'application est fermée.</string>
     <string name="notification_setup_title">Reconfigurer les notifications</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Vous utilisez la version F-Droid. La politique de F-Droid interdisant la dépendance aux services Google (Firebase FCM, GMS, etc.), les deux fonctionnalités suivantes ne sont pas disponibles dans cette version :\n\n1. Application compagnon Wear OS\n2. Notifications push en temps réel</string>
     <string name="onboarding_flavor_fdroid_title">Avis concernant la version F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck inclut une application compagnon Wear OS. Consultez les messages de cours sur votre montre — Wear TigerDuck synchronise les informations depuis votre téléphone.</string>

@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">곧 수업 시작: %1$s</string>
     <string name="notification_setup_description">아래 권한을 허용하면 앱이 닫혀 있어도 과제 알림, 수업 시작 알림, 실시간 업데이트가 제때 도착합니다.</string>
     <string name="notification_setup_title">알림 다시 설정</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">F-Droid 빌드를 사용 중입니다. F-Droid 정책은 Google 서비스(Firebase FCM, GMS 등)에 대한 의존을 금지하므로, 이 빌드에서는 다음 두 기능을 사용할 수 없습니다:\n\n1. Wear OS 컴패니언 앱\n2. 실시간 푸시 공지</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid 빌드 안내</string>
     <string name="onboarding_flavor_play_description">TigerDuck에는 Wear OS 컴패니언이 포함되어 있습니다. 시계에서 수업 메시지를 확인하세요 — Wear TigerDuck이 휴대폰의 정보를 동기화합니다.</string>

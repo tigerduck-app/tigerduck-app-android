@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">ক্লাস শুরু হতে চলেছে: %1$s</string>
     <string name="notification_setup_description">নিচের অনুমতিগুলি চালু করুন যাতে অ্যাপ বন্ধ থাকলেও অ্যাসাইনমেন্টের স্মরণিকা, ক্লাসের প্রস্তুতি সতর্কতা এবং লাইভ আপডেট সময়মতো আসে।</string>
     <string name="notification_setup_title">বিজ্ঞপ্তি পুনরায় কনফিগার করুন</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">আপনি F-Droid বিল্ড ব্যবহার করছেন। যেহেতু F-Droid নীতি Google-এর পরিষেবার (Firebase FCM, GMS ইত্যাদি) উপর নির্ভরতা নিষিদ্ধ করে, এই বিল্ডে নিম্নলিখিত দুটি বৈশিষ্ট্য উপলব্ধ নয়:\n\n1. Wear OS সঙ্গী অ্যাপ\n2. রিয়েল-টাইম পুশ ঘোষণা</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid বিল্ড নোটিশ</string>
     <string name="onboarding_flavor_play_description">TigerDuck একটি Wear OS সঙ্গী অন্তর্ভুক্ত করে। আপনার ঘড়িতে ক্লাস বার্তা দেখুন — Wear TigerDuck আপনার ফোন থেকে তথ্য সিঙ্ক করে।</string>

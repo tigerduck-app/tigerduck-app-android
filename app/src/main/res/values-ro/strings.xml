@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Curs începe în curând: %1$s</string>
     <string name="notification_setup_description">Activează permisiunile de mai jos pentru a asigura că reminderele pentru teme, alertele de pregătire curs și actualizările live ajung la timp chiar și când aplicația este închisă.</string>
     <string name="notification_setup_title">Reconfigurează notificările</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Folosești versiunea F-Droid. Deoarece politica F-Droid interzice dependența de serviciile Google (Firebase FCM, GMS etc.), următoarele două funcții nu sunt disponibile în această versiune:\n\n1. Aplicație complementară Wear OS\n2. Notificări push în timp real</string>
     <string name="onboarding_flavor_fdroid_title">Notă privind versiunea F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck include un însoțitor Wear OS. Vizualizează mesajele de la cursuri pe ceasul tău — Wear TigerDuck sincronizează informațiile de pe telefon.</string>

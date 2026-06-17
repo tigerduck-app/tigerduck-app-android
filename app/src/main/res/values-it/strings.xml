@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">La lezione sta per iniziare: %1$s</string>
     <string name="notification_setup_description">Abilita le autorizzazioni qui sotto per assicurarti che i promemoria dei compiti, gli avvisi di preparazione lezione e gli aggiornamenti in tempo reale arrivino in tempo anche quando l\'app è chiusa.</string>
     <string name="notification_setup_title">Riconfigura le notifiche</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Stai usando la versione F-Droid. Poiché la policy di F-Droid vieta dipendenze dai servizi Google (Firebase FCM, GMS, ecc.), le seguenti due funzionalità non sono disponibili in questa versione:\n\n1. App companion per Wear OS\n2. Notifiche push in tempo reale</string>
     <string name="onboarding_flavor_fdroid_title">Avviso versione F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck include un\'app companion per Wear OS. Visualizza i messaggi delle lezioni sul tuo orologio — Wear TigerDuck sincronizza le informazioni dal tuo telefono.</string>

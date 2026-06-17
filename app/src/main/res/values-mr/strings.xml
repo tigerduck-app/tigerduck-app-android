@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">वर्ग लवकरच सुरू होणार: %1$s</string>
     <string name="notification_setup_description">असाइनमेंट स्मरणपत्रे, वर्ग सुरू होण्याच्या सूचना आणि Live Updates ॲप बंद असतानाही वेळेवर येण्यासाठी खालील परवानग्या सक्षम करा.</string>
     <string name="notification_setup_title">अधिसूचना पुन्हा सेट करा</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">तुम्ही F-Droid बिल्ड वापरत आहात. F-Droidच्या धोरणामुळे Google सेवांवर (Firebase FCM, GMS इत्यादी) अवलंबून राहता येत नाही, त्यामुळे या बिल्डमध्ये पुढील दोन वैशिष्ट्ये उपलब्ध नाहीत:\n\n1. Wear OS सोबती ॲप\n2. रिअल-टाइम पुश सूचना</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid बिल्ड सूचना</string>
     <string name="onboarding_flavor_play_description">TigerDuckमध्ये Wear OS सोबती आहे. तुमच्या घड्याळावर वर्ग संदेश पाहा — Wear TigerDuck तुमच्या फोनवरील माहिती सिंक करते.</string>

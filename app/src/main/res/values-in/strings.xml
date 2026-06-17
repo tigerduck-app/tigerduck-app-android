@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Kelas akan segera dimulai: %1$s</string>
     <string name="notification_setup_description">Aktifkan izin di bawah ini untuk memastikan pengingat tugas, peringatan sebelum kelas, dan live update tiba tepat waktu meskipun aplikasi ditutup.</string>
     <string name="notification_setup_title">Konfigurasi ulang notifikasi</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Anda menggunakan build F-Droid. Karena kebijakan F-Droid melarang ketergantungan pada layanan Google (Firebase FCM, GMS, dll.), dua fitur berikut tidak tersedia di build ini:\n\n1. Aplikasi pendamping Wear OS\n2. Pemberitahuan push waktu nyata</string>
     <string name="onboarding_flavor_fdroid_title">Pemberitahuan build F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck menyertakan pendamping Wear OS. Lihat pesan kelas di jam tangan Anda — Wear TigerDuck menyinkronkan informasi dari ponsel Anda.</string>

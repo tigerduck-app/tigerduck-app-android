@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">ستبدأ المحاضرة قريبًا: %1$s</string>
     <string name="notification_setup_description">فعّل الأذونات أدناه لضمان وصول تذكيرات الواجبات وتنبيهات بدء المحاضرات والتحديثات الفورية في وقتها حتى عند إغلاق التطبيق.</string>
     <string name="notification_setup_title">إعادة ضبط الإشعارات</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">أنت تستخدم نسخة F-Droid. بما أن سياسة F-Droid تحظر الاعتماد على خدمات Google (Firebase FCM وGMS وغيرها)، فإن الميزتين التاليتين غير متاحتين في هذه النسخة:\n\n1. تطبيق Wear OS المرافق\n2. إشعارات الإعلانات الفورية</string>
     <string name="onboarding_flavor_fdroid_title">إشعار نسخة F-Droid</string>
     <string name="onboarding_flavor_play_description">يتضمن TigerDuck تطبيقًا مرافقًا لـ Wear OS. اعرض رسائل الدروس على ساعتك — يقوم Wear TigerDuck بمزامنة المعلومات من هاتفك.</string>

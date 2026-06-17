@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">השיעור מתחיל בקרוב: %1$s</string>
     <string name="notification_setup_description">הפעל את ההרשאות שלהלן כדי להבטיח שתזכורות מטלות, התראות לפני שיעור ועדכונים בזמן אמת יגיעו בזמן גם כשהאפליקציה סגורה.</string>
     <string name="notification_setup_title">הגדר מחדש התראות</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">אתה משתמש בגרסת F-Droid. מכיוון שמדיניות F-Droid אוסרת על תלות בשירותי Google (Firebase FCM, GMS וכו\'), שתי התכונות הבאות אינן זמינות בגרסה זו:\n\n1. אפליקציית Wear OS נלווית\n2. התראות פוש בזמן אמת</string>
     <string name="onboarding_flavor_fdroid_title">הודעה על גרסת F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck כולל אפליקציה נלווית ל-Wear OS. צפה בהודעות שיעור על השעון שלך — Wear TigerDuck מסנכרן מידע מהטלפון שלך.</string>

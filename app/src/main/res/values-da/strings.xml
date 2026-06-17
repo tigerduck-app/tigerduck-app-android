@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Undervisning begynder snart: %1$s</string>
     <string name="notification_setup_description">Aktivér nedenstående tilladelser for at sikre, at opgavepåmindelser, advarsler om kommende undervisning og liveopdateringer ankommer til tiden, selv når appen er lukket.</string>
     <string name="notification_setup_title">Rekonfigurer notifikationer</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Du bruger F-Droid-versionen. Da F-Droids politik forbyder afhængighed af Googles tjenester (Firebase FCM, GMS osv.), er følgende to funktioner ikke tilgængelige i denne version:\n\n1. Wear OS-følgeapp\n2. Push-notifikationer i realtid</string>
     <string name="onboarding_flavor_fdroid_title">Bemærkning om F-Droid-versionen</string>
     <string name="onboarding_flavor_play_description">TigerDuck inkluderer en Wear OS-følgeapp. Se klassebeskeder på dit ur — Wear TigerDuck synkroniserer oplysninger fra din telefon.</string>

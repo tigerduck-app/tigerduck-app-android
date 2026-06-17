@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">まもなく授業開始：%1$s</string>
     <string name="notification_setup_description">以下の権限を有効にすると、アプリを閉じていても課題リマインダー、授業開始前の通知、ライブ情報を時間どおりに受け取れます。</string>
     <string name="notification_setup_title">通知を再設定</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">F-Droid版を使用しています。F-Droidのポリシーにより Google のサービス（Firebase FCM、GMSなど）への依存が禁じられているため、本ビルドでは以下の2つの機能が利用できません：\n\n1. Wear OS コンパニオンアプリ\n2. リアルタイムのプッシュ通知</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid版についてのお知らせ</string>
     <string name="onboarding_flavor_play_description">TigerDuck は Wear OS コンパニオンを搭載しています。授業の通知を時計で確認できます — Wear TigerDuck はスマートフォンの情報を同期します。</string>

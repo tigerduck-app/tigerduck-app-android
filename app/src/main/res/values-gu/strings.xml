@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">વર્ગ ટૂંક સમયમાં શરૂ: %1$s</string>
     <string name="notification_setup_description">નીચેની પરમિશન ચાલુ કરો જેથી App બંધ હોય ત્યારે પણ અસાઇનમેન્ટ રિમાઇન્ડર, ક્લાસ-તૈયારી એલર્ટ અને Live Updates સમયસર આવે.</string>
     <string name="notification_setup_title">નોટિફિકેશન ફરીથી ગોઠવો</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">તમે F-Droid બિલ્ડ વાપરી રહ્યાં છો. F-Droidની નીતિ Googleની સેવાઓ (Firebase FCM, GMS વગેરે) પર નિર્ભર રહેવાની મંજૂરી આપતી નથી, તેથી નીચેની બે સુવિધાઓ આ બિલ્ડમાં ઉપલબ્ધ નથી:\n\n1. Wear OS સાથી એપ\n2. રિયલ-ટાઇમ પુશ સૂચનાઓ</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid બિલ્ડ સૂચના</string>
     <string name="onboarding_flavor_play_description">TigerDuckમાં Wear OS સાથી શામેલ છે. તમારી ઘડી પર વર્ગના સંદેશા જુઓ — Wear TigerDuck તમારા ફોનની માહિતી સિંક કરે છે.</string>

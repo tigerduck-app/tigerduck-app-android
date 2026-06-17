@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">即将上课：%1$s</string>
     <string name="notification_setup_description">设置以下权限可确保作业提醒、即将上课、实时动态在 App 关闭时也能准时送达。</string>
     <string name="notification_setup_title">重新设置通知</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">您安装的是 F-Droid 版本，由于 F-Droid 商店规范不能使用 Google 提供的各项服务（Firebase FCM、GMS 等等），所以以下两项功能在 F-Droid 版本（你正在使用）中缺失：\n\n1. Wear OS 应用程序\n2. 主动公告通知推送</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid 版本说明</string>
     <string name="onboarding_flavor_play_description">本应用程序提供 Wear OS 应用程序，您可以在手表查看课堂消息。手表 TigerDuck 会同步手机信息。</string>

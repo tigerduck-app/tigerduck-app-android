@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Сабақ жақын басталады: %1$s</string>
     <string name="notification_setup_description">Қолданба жабық болса да тапсырма еске салулары, сабақ басталу ескертулері және Live Updates уақытында жетуі үшін төмендегі рұқсаттарды қосыңыз.</string>
     <string name="notification_setup_title">Хабарландыруларды қайта орнату</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Сіз F-Droid нұсқасын қолданып отырсыз. F-Droid саясаты Google қызметтеріне (Firebase FCM, GMS және т.б.) тәуелді болуға тыйым салатындықтан, осы нұсқада келесі екі мүмкіндік қолжетімсіз:\n\n1. Wear OS серіктес қосымшасы\n2. Нақты уақыттағы push хабарландырулары</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid нұсқасы туралы хабар</string>
     <string name="onboarding_flavor_play_description">TigerDuck құрамында Wear OS серіктес қосымшасы бар. Сабақ хабарламаларын сағатыңыздан көріңіз — Wear TigerDuck телефоныңыздан ақпаратты синхрондайды.</string>

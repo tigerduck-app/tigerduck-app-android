@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Paskaita prasideda: %1$s</string>
     <string name="notification_setup_description">Įjunkite toliau nurodytus leidimus, kad užduočių priminimai, paskaitų įspėjimai ir tiesioginiai atnaujinimai būtų pristatomi laiku net uždarius programą.</string>
     <string name="notification_setup_title">Iš naujo konfigūruoti pranešimus</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Naudojate F-Droid versiją. Kadangi F-Droid politika draudžia priklausomybę nuo Google paslaugų (Firebase FCM, GMS ir kt.), šios dvi funkcijos nepasiekiamos šioje versijoje:\n\n1. Wear OS palydovinė programėlė\n2. Tiesioginiai pranešimai realiu laiku</string>
     <string name="onboarding_flavor_fdroid_title">Pranešimas apie F-Droid versiją</string>
     <string name="onboarding_flavor_play_description">TigerDuck turi Wear OS palydovinę programėlę. Žiūrėkite paskaitų pranešimus laikrodyje — Wear TigerDuck sinchronizuoja informaciją iš jūsų telefono.</string>

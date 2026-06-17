@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Скоро початок заняття: %1$s</string>
     <string name="notification_setup_description">Увімкніть наведені нижче дозволи, щоб нагадування про завдання, сповіщення про початок заняття та новини в реальному часі надходили вчасно навіть тоді, коли застосунок закрито.</string>
     <string name="notification_setup_title">Переналаштувати сповіщення</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Ви використовуєте збірку F-Droid. Оскільки правила F-Droid забороняють залежність від сервісів Google (Firebase FCM, GMS тощо), у цій збірці недоступні дві наведені нижче функції:\n\n1. Супутній застосунок Wear OS\n2. Push-сповіщення в реальному часі</string>
     <string name="onboarding_flavor_fdroid_title">Сповіщення про збірку F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck містить супутній застосунок Wear OS. Переглядайте повідомлення занять на годиннику — Wear TigerDuck синхронізує дані з вашого телефона.</string>

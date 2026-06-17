@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Les begint zo: %1$s</string>
     <string name="notification_setup_description">Schakel de onderstaande machtigingen in zodat opdrachtherinneringen, meldingen voor lessen die zo beginnen en live updates op tijd binnenkomen, ook als de app gesloten is.</string>
     <string name="notification_setup_title">Meldingen opnieuw configureren</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Je gebruikt de F-Droid-versie. Omdat het F-Droid-beleid afhankelijkheid van Google-services (Firebase FCM, GMS enz.) verbiedt, zijn de volgende twee functies niet beschikbaar in deze versie:\n\n1. Wear OS-begeleidingsapp\n2. Realtime push-meldingen</string>
     <string name="onboarding_flavor_fdroid_title">Mededeling over F-Droid-versie</string>
     <string name="onboarding_flavor_play_description">TigerDuck bevat een Wear OS-begeleider. Bekijk lesberichten op je horloge — Wear TigerDuck synchroniseert informatie vanaf je telefoon.</string>

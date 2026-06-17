@@ -498,6 +498,8 @@
     <string name="notification_class_preparing_title">Tími byrjar bráðum: %1$s</string>
     <string name="notification_setup_description">Virkjaðu leyfi hér að neðan til að tryggja að verkefnaáminningar, tímaviðvaranir og Live Updates berist á réttum tíma jafnvel þegar forritið er lokað.</string>
     <string name="notification_setup_title">Endursetja tilkynningar</string>
+    <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
+    <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_flavor_fdroid_description">Þú ert að nota F-Droid útgáfuna. Þar sem stefna F-Droid bannar að reiða sig á þjónustu Google (Firebase FCM, GMS o.s.frv.) eru eftirfarandi tveir eiginleikar ekki í boði í þessari útgáfu:\n\n1. Wear OS fylgiapp\n2. Tilkynningar í rauntíma</string>
     <string name="onboarding_flavor_fdroid_title">Tilkynning um F-Droid útgáfu</string>
     <string name="onboarding_flavor_play_description">TigerDuck inniheldur Wear OS fylgiapp. Sjáðu skilaboð úr tímum á úrinu þínu — Wear TigerDuck samstillir upplýsingar úr símanum þínum.</string>
