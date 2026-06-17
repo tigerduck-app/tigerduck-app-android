@@ -10,11 +10,10 @@ import androidx.wear.watchface.complications.data.LongTextComplicationData
 import androidx.wear.watchface.complications.data.NoDataComplicationData
 import androidx.wear.watchface.complications.data.PlainComplicationText
 import androidx.wear.watchface.complications.data.ShortTextComplicationData
-import androidx.wear.watchface.complications.datasource.ComplicationDataSourceService
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
+import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.NextClassResult
 import org.ntust.app.tigerduck.shared.clock.AppClock
@@ -22,17 +21,13 @@ import org.ntust.app.tigerduck.wear.MainActivity
 import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 
-class NextClassComplicationService : ComplicationDataSourceService() {
+class NextClassComplicationService : SuspendingComplicationDataSourceService() {
 
-    override fun onComplicationRequest(
+    override suspend fun onComplicationRequest(
         request: ComplicationRequest,
-        listener: ComplicationRequestListener,
-    ) {
-        val data = runBlocking {
-            val snapshot = SchedulePersistenceHolder.get(this@NextClassComplicationService).flow.first()
-            renderComplication(snapshot, request.complicationType)
-        }
-        listener.onComplicationData(data)
+    ): ComplicationData {
+        val snapshot = SchedulePersistenceHolder.get(this).flow.first()
+        return renderComplication(snapshot, request.complicationType)
     }
 
     override fun getPreviewData(type: ComplicationType): ComplicationData? = when (type) {

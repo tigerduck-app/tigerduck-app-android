@@ -53,16 +53,10 @@ object NextClassResolver {
                 minuteOfDay,
                 excluding = ongoing.course.courseNo
             )
-            val (currentStart, currentEnd) = currentPeriodBoundsMinutes(
-                ongoing.course,
-                weekday,
-                minuteOfDay
-            )
-                ?: (ongoing.startMinute to ongoing.endMinute)
             return NextClassResult.Ongoing(
                 course = ongoing.course,
-                startMinute = currentStart,
-                endMinute = currentEnd,
+                startMinute = ongoing.startMinute,
+                endMinute = ongoing.endMinute,
                 nextToday = nextToday?.let {
                     NextClassResult.NextToday(
                         it.first,
@@ -146,19 +140,5 @@ object NextClassResolver {
                 firstMinute?.let { course to it }
             }
             .minByOrNull { it.second }
-    }
-
-    /** Returns (start, end) minutes of the specific period that contains [minuteOfDay]. */
-    private fun currentPeriodBoundsMinutes(
-        course: Course,
-        weekday: Int,
-        minuteOfDay: Int
-    ): Pair<Int, Int>? {
-        val periods = course.schedule[weekday] ?: return null
-        return periods.mapNotNull { pid ->
-            val start = parseHm(PeriodTimes.mapping[pid]?.first) ?: return@mapNotNull null
-            val end = parseHm(PeriodTimes.mapping[pid]?.second) ?: return@mapNotNull null
-            if (minuteOfDay in start..end) (start to end) else null
-        }.minByOrNull { it.first }
     }
 }
