@@ -369,17 +369,10 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     ): T? =
         cacheMutex.withLock {
             withContext(Dispatchers.IO) {
-                try {
-                    val file = File(cacheDir, filename)
-                    if (!file.exists()) return@withContext null
-                    val text = file.readText()
-                    if (requireContent != null && !text.contains(requireContent)) {
-                        return@withContext null
-                    }
-                    gson.fromJson(text, type)
-                } catch (e: Exception) {
-                    null
-                }
+                val file = File(cacheDir, filename)
+                if (!file.exists()) return@withContext null
+                val text = file.readText()
+                parseJsonIfContains(text, requireContent, gson, type)
             }
         }
 
@@ -427,21 +420,14 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     ): T? =
         userDataMutex.withLock {
             withContext(Dispatchers.IO) {
-                try {
-                    val file = File(userDataDir, filename)
-                    if (!file.exists()) return@withContext null
-                    val text = file.readText()
-                    if (requireContent != null && !text.contains(requireContent)) {
-                        return@withContext null
-                    }
-                    gson.fromJson(text, type)
-                } catch (e: Exception) {
-                    null
-                }
+                val file = File(userDataDir, filename)
+                if (!file.exists()) return@withContext null
+                val text = file.readText()
+                parseJsonIfContains(text, requireContent, gson, type)
             }
         }
 
-    private companion object {
+    internal companion object {
         private const val TAG = "DataCache"
 
         // Sentinel literal present in any course JSON written by a build
@@ -451,6 +437,20 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         // string value that contains the substring `courseNo` would not
         // include an unescaped quote+colon pair, so it can't satisfy the
         // check and slip past as if the keys were un-obfuscated.
-        const val COURSE_NO_TOKEN = "\"courseNo\":"
+        internal const val COURSE_NO_TOKEN = "\"courseNo\":"
+
+        internal fun <T> parseJsonIfContains(
+            text: String,
+            requiredToken: String?,
+            gson: Gson,
+            type: java.lang.reflect.Type,
+        ): T? {
+            if (requiredToken != null && !text.contains(requiredToken)) return null
+            return try {
+                gson.fromJson(text, type)
+            } catch (_: Exception) {
+                null
+            }
+        }
     }
 }
