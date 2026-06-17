@@ -38,6 +38,6 @@ data class UpdateDevicePreferencesRequest(
 )
 
 data class DevicePreferencesResponse(
-    @SerializedName("device_id") val deviceId: String,
+    @SerializedName("device_id") val deviceId: String? = null,
     @SerializedName("server_push_enabled") val serverPushEnabled: Boolean,
 )
