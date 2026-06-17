@@ -41,14 +41,14 @@ import androidx.wear.compose.material3.Text
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.SchedulePersistence
-import org.ntust.app.tigerduck.wear.data.ScheduleRepository
+import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
 
 @Composable
 fun PaddingSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val repo = remember(context) { ScheduleRepository.get(context) }
+    val repo = remember(context) { SchedulePersistenceHolder.get(context) }
     val pad = LocalScreenPadding.current
     val scope = rememberCoroutineScope()
 

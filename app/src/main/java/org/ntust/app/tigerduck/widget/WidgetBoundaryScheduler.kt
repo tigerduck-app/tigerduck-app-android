@@ -7,8 +7,8 @@ import android.content.Intent
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.data.model.Course
-import org.ntust.app.tigerduck.data.parseHm
+import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.parseHm
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Calendar
 import javax.inject.Inject

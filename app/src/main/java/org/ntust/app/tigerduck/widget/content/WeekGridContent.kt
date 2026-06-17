@@ -33,7 +33,7 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.widget.LayerCourse
 import org.ntust.app.tigerduck.widget.ScheduleCell
 import org.ntust.app.tigerduck.widget.WidgetColors

@@ -19,7 +19,7 @@ import org.ntust.app.tigerduck.shared.NextClassResult
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.MainActivity
 import org.ntust.app.tigerduck.wear.R
-import org.ntust.app.tigerduck.wear.data.ScheduleRepository
+import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 
 class NextClassTileService : TileService() {
@@ -28,7 +28,7 @@ class NextClassTileService : TileService() {
         request: RequestBuilders.TileRequest,
     ): ListenableFuture<TileBuilders.Tile> {
         val tile = runBlocking {
-            val snapshot = ScheduleRepository.get(this@NextClassTileService).flow.first()
+            val snapshot = SchedulePersistenceHolder.get(this@NextClassTileService).flow.first()
             buildTile(snapshot)
         }
         return ResolvableFuture.create<TileBuilders.Tile>().also { it.set(tile) }

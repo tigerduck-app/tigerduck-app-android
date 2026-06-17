@@ -7,8 +7,8 @@ import android.content.Intent
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.data.collapseContiguousPeriods
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.collapseContiguousPeriods
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.time.LocalTime
 import java.time.ZonedDateTime

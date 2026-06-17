@@ -65,7 +65,7 @@ import org.ntust.app.tigerduck.wear.BuildConfig
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.LibraryQRController
 import org.ntust.app.tigerduck.wear.data.SchedulePersistence
-import org.ntust.app.tigerduck.wear.data.ScheduleRepository
+import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
 import org.ntust.app.tigerduck.wear.data.WatchLibraryCredentialStore
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
@@ -140,7 +140,7 @@ private fun LoggedInState(username: String?) {
 
     var isFullscreen by remember { mutableStateOf(false) }
 
-    val qrPaddingRepo = remember(context) { ScheduleRepository.get(context) }
+    val qrPaddingRepo = remember(context) { SchedulePersistenceHolder.get(context) }
     val qrPaddingDp by qrPaddingRepo.qrPaddingDpFlow.collectAsState(
         initial = SchedulePersistence.DEFAULT_QR_PADDING_DP
     )
@@ -415,7 +415,7 @@ private fun SecureScreen() {
     // WearProtocol.Schedule.KEY_DISABLE_SCREEN_CAPTURE_PROTECTION). The phone
     // only ever publishes `true` from a DEBUG build, so a release-paired
     // watch reads false here under normal operation.
-    val repo = remember(context) { ScheduleRepository.get(context) }
+    val repo = remember(context) { SchedulePersistenceHolder.get(context) }
     val disabled by repo.disableScreenCaptureProtectionFlow.collectAsState(initial = false)
     DisposableEffect(activity, disabled) {
         val window = activity?.window

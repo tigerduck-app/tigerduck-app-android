@@ -2,7 +2,7 @@ package org.ntust.app.tigerduck.widget
 
 import androidx.compose.ui.graphics.Color
 import androidx.datastore.preferences.core.longPreferencesKey
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
 
 data class WidgetState(
     val courses: List<Course>,

@@ -3,12 +3,12 @@ package org.ntust.app.tigerduck.ui.screen.debug
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptController
 import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptKey
@@ -28,8 +28,8 @@ import javax.inject.Singleton
 @Singleton
 class TriggersDebugArming @Inject constructor(
     private val controller: FirstTriggerPromptController,
+    @param:ApplicationScope private val scope: CoroutineScope,
 ) {
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var job: Job? = null
 
     private val _isFlipArmed = MutableStateFlow(false)
@@ -43,7 +43,7 @@ class TriggersDebugArming @Inject constructor(
         if (job != null) return
         controller.reset(FirstTriggerPromptKey.FLIP_TO_LIBRARY)
         _isFlipArmed.value = true
-        job = scope.launch {
+        job = scope.launch(Dispatchers.Main) {
             delay(ARM_DELAY_MS)
             FlipToLibraryFirstTrigger.request(controller, appState)
             _isFlipArmed.value = false

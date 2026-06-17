@@ -15,8 +15,6 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-enum class LoadingState { IDLE, LOADING, LOADED, ERROR }
-
 @Singleton
 class NtustSessionManager @Inject constructor(
     private val prefs: AppPreferences

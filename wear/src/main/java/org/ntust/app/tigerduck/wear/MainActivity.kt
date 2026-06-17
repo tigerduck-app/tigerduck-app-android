@@ -9,7 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import org.ntust.app.tigerduck.wear.complication.ComplicationUpdateWorker
-import org.ntust.app.tigerduck.wear.data.ScheduleRepository
+import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
 
 class MainActivity : ComponentActivity() {
 
@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
         // LocaleManager also get notified for system-side state (per-app
         // locale persistence, settings UI surface).
         val tag =
-            runCatching { ScheduleRepository.get(newBase).readLanguageTagBlocking() }.getOrNull()
+            runCatching { SchedulePersistenceHolder.get(newBase).readLanguageTagBlocking() }.getOrNull()
         if (tag.isNullOrBlank()) {
             super.attachBaseContext(newBase)
             return

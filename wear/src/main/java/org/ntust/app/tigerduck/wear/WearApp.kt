@@ -28,7 +28,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import org.ntust.app.tigerduck.wear.data.SchedulePersistence
-import org.ntust.app.tigerduck.wear.data.ScheduleRepository
+import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
 import org.ntust.app.tigerduck.wear.data.SyncRequester
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 import org.ntust.app.tigerduck.wear.ui.CourseDetailScreen
@@ -45,7 +45,7 @@ import org.ntust.app.tigerduck.wear.ui.theme.parseAccent
 @Composable
 fun WearApp() {
     val context = LocalContext.current
-    val repo = ScheduleRepository.get(context)
+    val repo = SchedulePersistenceHolder.get(context)
     val snapshot by repo.flow.collectAsState(
         initial = WatchSnapshot(emptyList(), SchedulePersistence.DEFAULT_ACCENT, null, false, null)
     )

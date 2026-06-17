@@ -1,14 +1,13 @@
 package org.ntust.app.tigerduck.liveactivity
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationScheduler
@@ -32,9 +31,11 @@ class LiveActivityManager @Inject constructor(
     private val appPrefs: AppPreferences,
     private val classPreparingScheduler: ClassPreparingNotificationScheduler,
     private val boundaryScheduler: LiveActivityBoundaryScheduler,
+    @param:ApplicationScope private val appScope: CoroutineScope,
 ) {
     private val resolver = LiveActivityResolver()
-    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val managerJob = SupervisorJob(appScope.coroutineContext[Job])
+    private val scope = appScope + managerJob
     private var refreshJob: Job? = null
 
     // Hold a reference so `stop()` can halt preference-driven refreshes too;
@@ -50,7 +51,7 @@ class LiveActivityManager @Inject constructor(
 
     /** Recompute the scenario and push the result to the notifier. */
     fun refresh() {
-        if (!scope.isActive) return
+        if (!managerJob.isActive) return
         refreshJob?.cancel()
         refreshJob = scope.launch {
             refreshInternal()
@@ -73,10 +74,7 @@ class LiveActivityManager @Inject constructor(
         refreshJob?.cancel()
         notifier.cancel()
         classPreparingScheduler.cancelAllTracked()
-        // Cancel the scope itself so future launch() calls are no-ops; the
-        // SupervisorJob would otherwise outlive any DI/test teardown and
-        // resurrect work via prefs-driven refresh.
-        scope.cancel()
+        managerJob.cancel()
     }
 
     private suspend fun refreshInternal() {
@@ -119,7 +117,7 @@ class LiveActivityManager @Inject constructor(
 
     private fun scheduleBoundaryRefresh(
         snapshot: LiveActivitySnapshot?,
-        courses: List<org.ntust.app.tigerduck.data.model.Course>,
+        courses: List<org.ntust.app.tigerduck.shared.Course>,
         assignments: List<org.ntust.app.tigerduck.data.model.Assignment>,
         skippedDates: Map<String, List<String>>,
         now: Date,
@@ -155,7 +153,7 @@ class LiveActivityManager @Inject constructor(
     }
 
     private fun nextClassBoundaries(
-        courses: List<org.ntust.app.tigerduck.data.model.Course>,
+        courses: List<org.ntust.app.tigerduck.shared.Course>,
         skippedDates: Map<String, List<String>>,
         now: Date,
         classPrepLeadMs: Long,

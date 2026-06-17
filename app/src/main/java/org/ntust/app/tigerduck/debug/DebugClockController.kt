@@ -2,8 +2,8 @@ package org.ntust.app.tigerduck.debug
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.notification.ClassPreparingNotificationScheduler
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
 import org.ntust.app.tigerduck.widget.WidgetBoundaryScheduler
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.widget.WidgetUpdater
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,9 +31,8 @@ class DebugClockController @Inject constructor(
     private val classPreparingScheduler: ClassPreparingNotificationScheduler,
     private val widgetBoundaryScheduler: WidgetBoundaryScheduler,
     private val widgetUpdater: WidgetUpdater,
+    @param:ApplicationScope private val scope: CoroutineScope,
 ) {
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun bootstrap() {
         // Guard so a stale override persisted by a prior debug install can't
@@ -47,14 +47,11 @@ class DebugClockController @Inject constructor(
     fun setOverride(override: ClockOverride?) {
         store.save(override)
         scope.launch {
-            wearBridge.push(override)
-            // Set the override inside the coroutine, immediately before
-            // rescheduleAll(), so all schedulers read the new clock when they
-            // compute realTimeFor() trigger values. This eliminates the window
-            // where listeners (and any code reading AppClock) see the new
-            // override while old AlarmManager entries are still live.
-            AppClock.setOverride(override)
-            rescheduleAll()
+            withContext(Dispatchers.IO) {
+                wearBridge.push(override)
+                AppClock.setOverride(override)
+                rescheduleAll()
+            }
         }
     }
 

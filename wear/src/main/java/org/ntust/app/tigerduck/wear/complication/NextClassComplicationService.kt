@@ -19,7 +19,7 @@ import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.NextClassResult
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.MainActivity
-import org.ntust.app.tigerduck.wear.data.ScheduleRepository
+import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 
 class NextClassComplicationService : ComplicationDataSourceService() {
@@ -29,7 +29,7 @@ class NextClassComplicationService : ComplicationDataSourceService() {
         listener: ComplicationRequestListener,
     ) {
         val data = runBlocking {
-            val snapshot = ScheduleRepository.get(this@NextClassComplicationService).flow.first()
+            val snapshot = SchedulePersistenceHolder.get(this@NextClassComplicationService).flow.first()
             renderComplication(snapshot, request.complicationType)
         }
         listener.onComplicationData(data)
