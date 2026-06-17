@@ -32,7 +32,6 @@ class PushApiClient @Inject constructor(
     // default endpoint there.
     private val baseUrl: String
         get() = resolveAnnouncementEndpoint(prefs).url.trimEnd('/')
-    private val sharedSecret = BuildConfig.PUSH_SHARED_SECRET
     private val gson = Gson()
     private val jsonType = "application/json".toMediaType()
 
@@ -43,7 +42,6 @@ class PushApiClient @Inject constructor(
         else HttpLoggingInterceptor.Level.NONE
         // Redact every credential the base client or this interceptor may add;
         // HEADERS level otherwise dumps them into logcat verbatim on debug.
-        redactHeader("X-Push-Token")
         redactHeader("Authorization")
         redactHeader("Cookie")
         redactHeader("Set-Cookie")
@@ -59,20 +57,10 @@ class PushApiClient @Inject constructor(
         .addInterceptor(logging)
         .build()
 
-    /**
-     * Builds a Request with Bearer auth if a v3 token is available, otherwise
-     * falls back to the shared secret so push registration keeps working while
-     * the backend migration is in progress.
-     */
+    /** Adds a Bearer Authorization header if a v3 token is available. */
     private suspend fun Request.Builder.addAuthHeader(): Request.Builder {
         val authHeader = authTokenManager.authHeader()
-        return if (authHeader != null) {
-            header("Authorization", authHeader)
-        } else if (sharedSecret.isNotEmpty()) {
-            header("X-Push-Token", sharedSecret)
-        } else {
-            this
-        }
+        return if (authHeader != null) header("Authorization", authHeader) else this
     }
 
     suspend fun register(req: DeviceRegisterRequest): DeviceRegisterResponse =

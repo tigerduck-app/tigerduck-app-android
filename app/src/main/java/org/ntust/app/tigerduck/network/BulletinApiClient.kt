@@ -52,7 +52,6 @@ class BulletinApiClient @Inject constructor(
         // Redact every credential the base client or this interceptor may add,
         // so a future cookie jar / auth interceptor can't silently leak session
         // material to logcat at HEADERS level.
-        redactHeader("X-Push-Token")
         redactHeader("Authorization")
         redactHeader("Cookie")
         redactHeader("Set-Cookie")

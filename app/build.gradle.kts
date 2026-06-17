@@ -28,9 +28,9 @@ if (hasGoogleServices) {
     }
 }
 
-// Pull dev push-server config out of root-level local.properties so the URL
-// + shared secret never end up in VCS. project.findProperty() only reads
-// gradle.properties, so do it manually here.
+// Pull dev push-server URL out of root-level local.properties so it never
+// ends up in VCS. project.findProperty() only reads gradle.properties,
+// so do it manually here.
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
@@ -76,11 +76,6 @@ android {
                 "PUSH_BASE_URL",
                 "\"${localProp("pushBaseUrl", "https://api.tigerduck.app/v3")}\"",
             )
-            buildConfigField(
-                "String",
-                "PUSH_SHARED_SECRET",
-                "\"${localProp("pushSharedSecret")}\"",
-            )
         }
         release {
             isMinifyEnabled = true
@@ -103,11 +98,6 @@ android {
                     System.getenv("PUSH_BASE_URL")
                         ?: localProp("pushBaseUrlRelease", "https://api.tigerduck.app/v3")
                 }\"",
-            )
-            buildConfigField(
-                "String",
-                "PUSH_SHARED_SECRET",
-                "\"${System.getenv("PUSH_SHARED_SECRET") ?: ""}\"",
             )
         }
     }
