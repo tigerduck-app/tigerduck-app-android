@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
-import org.ntust.app.tigerduck.update.WhatsNewContent
+import org.ntust.app.tigerduck.data.model.WhatsNewContent
 
 /**
  * Shown on the first launch after an upgrade. Content comes from

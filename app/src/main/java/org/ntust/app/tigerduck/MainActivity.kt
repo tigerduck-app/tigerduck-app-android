@@ -45,8 +45,8 @@ import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewDialog
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.update.UpdateChecker
-import org.ntust.app.tigerduck.update.UpdatePromptDialog
-import org.ntust.app.tigerduck.update.WhatsNewContent
+import org.ntust.app.tigerduck.ui.screen.update.UpdatePromptDialog
+import org.ntust.app.tigerduck.data.model.WhatsNewContent
 import org.ntust.app.tigerduck.update.WhatsNewGate
 import org.ntust.app.tigerduck.update.WhatsNewRepository
 import javax.inject.Inject

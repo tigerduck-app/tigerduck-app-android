@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.announcements
+package org.ntust.app.tigerduck.ui.screen.announcements
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,6 +12,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.data.BulletinRepository
+import org.ntust.app.tigerduck.network.BulletinApiClient
+import org.ntust.app.tigerduck.network.model.SubscriptionRule
+import org.ntust.app.tigerduck.network.model.TaxonomyResponse
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.push.PushIdentity
 import javax.inject.Inject

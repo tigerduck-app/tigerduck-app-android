@@ -13,6 +13,8 @@ import com.google.android.play.core.install.model.UpdateAvailability
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import org.ntust.app.tigerduck.data.model.ManualCheckResult
+import org.ntust.app.tigerduck.data.model.PendingUpdate
 import kotlinx.coroutines.flow.asStateFlow
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import javax.inject.Inject

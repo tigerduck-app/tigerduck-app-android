@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.announcements
+package org.ntust.app.tigerduck.data.cache
 
 import android.content.Context
 import android.util.Log
@@ -9,6 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.network.model.BulletinDetail
+import org.ntust.app.tigerduck.network.model.BulletinSummary
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton

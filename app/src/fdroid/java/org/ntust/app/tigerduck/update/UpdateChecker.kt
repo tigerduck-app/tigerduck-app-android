@@ -4,6 +4,8 @@ import android.app.Activity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.ntust.app.tigerduck.data.model.ManualCheckResult
+import org.ntust.app.tigerduck.data.model.PendingUpdate
 import javax.inject.Inject
 import javax.inject.Singleton
 

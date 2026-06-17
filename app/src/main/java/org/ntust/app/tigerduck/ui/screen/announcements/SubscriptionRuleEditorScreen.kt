@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.announcements
+package org.ntust.app.tigerduck.ui.screen.announcements
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -44,6 +44,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.network.model.SubscriptionRule
+import org.ntust.app.tigerduck.network.model.TaxonomyResponse
 
 /**
  * Full-screen rule editor. Replaces the prior `AlertDialog`-based editor

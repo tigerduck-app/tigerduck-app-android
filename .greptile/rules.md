@@ -24,11 +24,10 @@ launch after upgrade:
 
 - `shared/src/main/java/org/ntust/app/tigerduck/shared/Course.kt`
 - Any class kept by `app/proguard-rules.pro`:
-  `org.ntust.app.tigerduck.shared.**`, `network.model.**`,
-  `data.model.**`, `data.cache.DataCache$*`, `wear.WearScheduleBridge$*`,
-  `announcements.{BulletinSummary, BulletinDetail, BulletinListResponse,
-  OrgLabel, TagLabel, TaxonomyResponse, SubscriptionRule,
-  SubscriptionsResponse, SubscriptionsPutRequest}`
+  `org.ntust.app.tigerduck.shared.**`, `network.model.**` (includes
+  Bulletin DTOs moved from announcements/), `data.model.**` (includes
+  WhatsNewContent moved from update/), `data.cache.DataCache$*`,
+  `wear.WearScheduleBridge$*`
 - `app/src/play/java/org/ntust/app/tigerduck/wear/WearScheduleBridge.kt`
   (`CourseDto` wire format)
 - `wear/src/main/java/org/ntust/app/tigerduck/wear/data/SchedulePersistence.kt`

@@ -42,7 +42,6 @@ You're about to edit ANY of:
     - `data.model.**`
     - `data.cache.DataCache$*`
     - `wear.WearScheduleBridge$*`
-    - `announcements.{BulletinSummary, BulletinDetail, BulletinListResponse, OrgLabel, TagLabel, TaxonomyResponse, SubscriptionRule, SubscriptionsResponse, SubscriptionsPutRequest}`
     - `org.ntust.app.tigerduck.shared.**`
 - `app/proguard-rules.pro` itself
 

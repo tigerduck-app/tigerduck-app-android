@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.update
+package org.ntust.app.tigerduck.ui.screen.update
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.data.model.PendingUpdate
+import org.ntust.app.tigerduck.util.replaceIosArg
 
 /**
  * Three-action "an update is ready" prompt, mounted at the app root by

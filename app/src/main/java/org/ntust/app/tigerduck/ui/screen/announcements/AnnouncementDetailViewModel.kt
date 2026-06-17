@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.announcements
+package org.ntust.app.tigerduck.ui.screen.announcements
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -11,6 +11,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.data.BulletinReadStateStore
+import org.ntust.app.tigerduck.data.BulletinRepository
+import org.ntust.app.tigerduck.data.cache.BulletinCache
+import org.ntust.app.tigerduck.network.BulletinApiClient
+import org.ntust.app.tigerduck.network.model.BulletinDetail
+import org.ntust.app.tigerduck.network.model.BulletinSummary
+import org.ntust.app.tigerduck.network.model.TaxonomyResponse
 import javax.inject.Inject
 
 @HiltViewModel

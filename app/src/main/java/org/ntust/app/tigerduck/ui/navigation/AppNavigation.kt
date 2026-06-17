@@ -51,9 +51,9 @@ import kotlinx.coroutines.flow.first
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.announcements.AnnouncementDetailScreen
-import org.ntust.app.tigerduck.announcements.AnnouncementsScreen
-import org.ntust.app.tigerduck.announcements.SubscriptionSettingsScreen
+import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementDetailScreen
+import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementsScreen
+import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsScreen
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.AppState

@@ -41,8 +41,8 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.ntust.app.tigerduck.announcements.OverrideValidator
-import org.ntust.app.tigerduck.announcements.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.network.OverrideValidator
+import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.PushRegistrationService
 

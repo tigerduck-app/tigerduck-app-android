@@ -1,7 +1,10 @@
-package org.ntust.app.tigerduck.announcements
+package org.ntust.app.tigerduck.data
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.ntust.app.tigerduck.network.model.BulletinDetail
+import org.ntust.app.tigerduck.network.model.BulletinSummary
+import org.ntust.app.tigerduck.network.model.TaxonomyResponse
 import javax.inject.Inject
 import javax.inject.Singleton
 
