@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.shared.LibraryService
+import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
@@ -24,6 +25,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     val appState: AppState,
+    private val analyticsLogger: AnalyticsLogger,
     private val authService: AuthService,
     private val libraryService: LibraryService,
     private val credentials: CredentialManager,
@@ -108,6 +110,11 @@ class SettingsViewModel @Inject constructor(
 
     fun resetCourseColors() {
         viewModelScope.launch { courseColorStore.resetAllColors() }
+    }
+
+    fun setAnalyticsEnabled(enabled: Boolean) {
+        prefs.analyticsEnabled = enabled
+        analyticsLogger.setEnabled(enabled)
     }
 
     fun setAppLanguage(language: String) {

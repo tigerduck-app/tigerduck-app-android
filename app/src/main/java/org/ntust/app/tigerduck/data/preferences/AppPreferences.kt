@@ -258,6 +258,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             prefs.edit().putString("rotationMode", normalized).apply()
         }
 
+    var analyticsEnabled: Boolean
+        get() = prefs.getBoolean("analyticsEnabled", false)
+        set(value) = prefs.edit().putBoolean("analyticsEnabled", value).apply()
+
     var libraryFeatureEnabled: Boolean
         get() = prefs.getBoolean("libraryFeatureEnabled", false)
         set(value) = prefs.edit().putBoolean("libraryFeatureEnabled", value).apply()

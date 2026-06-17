@@ -23,10 +23,6 @@ import javax.inject.Singleton
  * The fdroid variant ships a stub at the same FQN so callers in `main/` need
  * no conditional code.
  *
- * TODO: no caller wires `setEnabled(true)` yet. Until a consent UI flips it on,
- * the play flavor remains in the off-by-default state from the manifest. Add a
- * preference + Settings toggle (or onboarding consent step) to actually enable
- * collection.
  */
 @Singleton
 class AnalyticsLogger @Inject constructor(
