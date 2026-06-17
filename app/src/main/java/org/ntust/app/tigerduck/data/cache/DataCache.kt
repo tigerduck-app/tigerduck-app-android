@@ -407,7 +407,11 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
                 // after deleting the target.
                 target.delete()
                 if (!tmp.renameTo(target)) {
-                    throw java.io.IOException("rename ${tmp.name} -> ${target.name} failed")
+                    // Both renames failed and target is already deleted —
+                    // fall back to direct write so data isn't lost entirely.
+                    target.writeText(content)
+                    runCatching { tmp.delete() }
+                    return
                 }
             }
         } catch (e: Exception) {

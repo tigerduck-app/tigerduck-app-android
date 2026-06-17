@@ -62,7 +62,8 @@ class WidgetBoundaryScheduler @Inject constructor(
                     pi
                 )
             }
-        } catch (_: SecurityException) {
+        } catch (e: SecurityException) {
+            android.util.Log.w("WidgetBoundaryScheduler", "Exact alarm denied, falling back to inexact", e)
             alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
                 AppClock.realTimeFor(triggerCal.timeInMillis),
