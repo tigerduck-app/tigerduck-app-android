@@ -117,6 +117,7 @@ class MainActivity : AppCompatActivity() {
         // wasted work (and thrashes WorkManager's internal bookkeeping DB).
         if (savedInstanceState == null && authService.storedStudentId != null) {
             BackgroundSyncWorker.schedule(applicationContext)
+            lifecycleScope.launch { authService.migrateToV3IfNeeded() }
         }
 
         widgetStartRoute.value = resolveStartRoute(intent)

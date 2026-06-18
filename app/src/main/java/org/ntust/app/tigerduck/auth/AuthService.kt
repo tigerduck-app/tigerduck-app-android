@@ -62,6 +62,43 @@ class AuthService @Inject constructor(
     val storedStudentId: String? get() = credentials.ntustStudentId
     internal val storedPassword: String? get() = credentials.ntustPassword
 
+    /**
+     * Upgrade migration: users upgrading from v2 have stored NTUST credentials
+     * but no v3 JWT. Detect this and silently perform the v3 login so push
+     * registration works without requiring a manual log-out/log-in cycle.
+     * Safe to call on every launch — no-ops if already signed in or no creds.
+     */
+    suspend fun migrateToV3IfNeeded() {
+        if (authTokenManager.isLoggedIn) return
+        val studentId = credentials.ntustStudentId ?: return
+        val password = credentials.ntustPassword ?: return
+        android.util.Log.i("AuthService", "v3 migration: has creds but no JWT, attempting silent login")
+        val moodleToken = try {
+            moodleTokenService.obtainToken(studentId, password)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w("AuthService", "v3 migration: Moodle token harvest failed", e)
+            credentials.moodleToken ?: return
+        }
+        runCatching {
+            authTokenManager.login(
+                studentId = studentId,
+                password = password,
+                moodleToken = moodleToken,
+                moodlePrivateToken = null,
+                deviceName = android.os.Build.MODEL,
+            )
+        }.onSuccess {
+            android.util.Log.i("AuthService", "v3 migration: JWT obtained")
+            runCatching { pushRegistration.onSignedIn() }
+                .onFailure { e -> if (e is CancellationException) throw e }
+        }.onFailure { e ->
+            if (e is CancellationException) throw e
+            android.util.Log.w("AuthService", "v3 migration: login failed", e)
+        }
+    }
+
     suspend fun login(studentId: String, password: String): Boolean = loginMutex.withLock {
         _isLoggingIn.value = true
         _loginError.value = null
