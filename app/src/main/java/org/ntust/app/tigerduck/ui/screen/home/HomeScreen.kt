@@ -935,6 +935,7 @@ private fun SwipeableAssignmentRow(
                 course = course,
                 showAbsoluteTime = showAbsoluteTime,
                 markedCompleted = isMarkedCompleted,
+                isIgnored = isIgnored,
                 onClick = onClick,
             )
         }
