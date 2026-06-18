@@ -596,16 +596,17 @@ class HomeViewModel @Inject constructor(
     }
 
     fun toggleIgnore(assignment: Assignment) {
-        val wasIgnored = assignment.assignmentId in _ignoredAssignmentIds.value
-        _ignoredAssignmentIds.update { current ->
-            if (wasIgnored) current - assignment.assignmentId
-            else current + assignment.assignmentId
+        val id = assignment.assignmentId
+        val wasIgnored = id in _ignoredAssignmentIds.value
+        _ignoredAssignmentIds.update { if (wasIgnored) it - id else it + id }
+        if (!wasIgnored) {
+            _markedCompletedIds.update { it - id }
+            saveMarkedCompletedChannel.trySend(_markedCompletedIds.value)
         }
         saveIgnoredChannel.trySend(_ignoredAssignmentIds.value)
         if (prefs.notifyAssignments) {
             rescheduleAssignmentNotifications(_allAssignments.value)
         }
-        val id = assignment.assignmentId
         val status = if (wasIgnored) "none" else "ignored"
         pendingOverrides.add(id)
         viewModelScope.launch {
@@ -622,16 +623,17 @@ class HomeViewModel @Inject constructor(
     }
 
     fun toggleMarkCompleted(assignment: Assignment) {
-        val wasCompleted = assignment.assignmentId in _markedCompletedIds.value
-        _markedCompletedIds.update { current ->
-            if (wasCompleted) current - assignment.assignmentId
-            else current + assignment.assignmentId
+        val id = assignment.assignmentId
+        val wasCompleted = id in _markedCompletedIds.value
+        _markedCompletedIds.update { if (wasCompleted) it - id else it + id }
+        if (!wasCompleted) {
+            _ignoredAssignmentIds.update { it - id }
+            saveIgnoredChannel.trySend(_ignoredAssignmentIds.value)
         }
         saveMarkedCompletedChannel.trySend(_markedCompletedIds.value)
         if (prefs.notifyAssignments) {
             rescheduleAssignmentNotifications(_allAssignments.value)
         }
-        val id = assignment.assignmentId
         val status = if (wasCompleted) "none" else "locally_completed"
         pendingOverrides.add(id)
         viewModelScope.launch {
