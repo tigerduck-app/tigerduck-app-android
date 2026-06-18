@@ -172,24 +172,13 @@ class HomeViewModel @Inject constructor(
                     .sortedBy { it.dueDate }
 
             AssignmentFilter.ALL -> {
-                // 全部 ordering, top → bottom:
-                //   1. Unhandled overdue (past due, not done, not marked) —
-                //      pinned. A 逾期/逾期拒收 item the user has *also*
-                //      marked complete is NOT pinned; it falls into the
-                //      regular past bucket.
-                //   2. Future items, soonest first (most recent future →
-                //      least recent future).
-                //   3. Past items, most recently passed first → oldest.
-                // Within bucket 1, sort by dueDate desc so the most
-                // recently overdue is on top.
+                // 全部: future (soonest first) + past (most recently due first).
+                // Matches iOS partitionedByDueDate ordering — no special
+                // pinning of overdue items.
                 val now = Date(AppClock.nowMillis())
                 val visible = all.filter { it.assignmentId !in ignored }
-                val (overdueUnhandled, rest) = visible.partition { a ->
-                    !done(a) && a.dueDate.before(now)
-                }
-                val (future, past) = rest.partition { !it.dueDate.before(now) }
-                overdueUnhandled.sortedByDescending { it.dueDate } +
-                        future.sortedBy { it.dueDate } +
+                val (future, past) = visible.partition { !it.dueDate.before(now) }
+                future.sortedBy { it.dueDate } +
                         past.sortedByDescending { it.dueDate }
             }
 

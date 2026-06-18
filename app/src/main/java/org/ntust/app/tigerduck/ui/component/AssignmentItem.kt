@@ -130,7 +130,7 @@ private fun AssignmentTrailing(
     Column(horizontalAlignment = Alignment.End) {
         val badges = listOfNotNull(moodleBadge, markedBadge)
         if (badges.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(horizontalAlignment = Alignment.End) {
                 badges.forEach { (label, color) ->
                     Text(
                         text = label,
