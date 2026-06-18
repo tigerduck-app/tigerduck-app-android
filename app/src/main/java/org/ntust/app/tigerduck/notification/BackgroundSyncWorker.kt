@@ -73,16 +73,15 @@ class BackgroundSyncWorker @AssistedInject constructor(
         return try {
             val result = syncApiClient.fetchFullSync()
 
-            // Server state is authoritative. Save assignments directly.
             dataCache.saveAssignments(result.assignments)
-
-            // Server overrides are authoritative — apply them.
-            dataCache.replaceIgnoredAssignments(emptySet())
-            dataCache.replaceMarkedCompletedAssignments(emptySet())
+            dataCache.replaceIgnoredAssignments(result.ignoredIds)
+            dataCache.replaceMarkedCompletedAssignments(result.completedIds)
             if (prefs.notifyAssignments) {
                 notificationScheduler.scheduleAll(
-                    result.assignments.filter { !it.isCompleted },
-                    emptySet(),
+                    result.assignments.filter {
+                        !it.isCompleted && it.assignmentId !in result.completedIds
+                    },
+                    result.ignoredIds + result.completedIds,
                     prefs.notifyAssignmentOffsets,
                 )
             }

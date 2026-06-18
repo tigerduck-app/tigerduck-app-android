@@ -318,9 +318,13 @@ class HomeViewModel @Inject constructor(
                         val result = syncApiClient.fetchFullSync()
                         if (result.assignments.isNotEmpty()) {
                             dataCache.saveAssignments(result.assignments)
+                            dataCache.replaceIgnoredAssignments(result.ignoredIds)
+                            dataCache.replaceMarkedCompletedAssignments(result.completedIds)
+                            _ignoredAssignmentIds.value = result.ignoredIds
+                            _markedCompletedIds.value = result.completedIds
                             assignments = dataCache.loadAssignments()
                             backendOk = true
-                            Log.d("HomeViewModel", "backend sync: ${result.assignments.size} assignments")
+                            Log.d("HomeViewModel", "backend sync: ${result.assignments.size} assignments, ${result.ignoredIds.size} ignored, ${result.completedIds.size} completed")
                         }
                     } catch (e: Exception) {
                         Log.w("HomeViewModel", "backend sync failed, falling back to Moodle", e)

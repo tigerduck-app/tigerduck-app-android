@@ -13,7 +13,8 @@ import javax.inject.Singleton
 
 data class BackendSyncResult(
     val assignments: List<Assignment>,
-    val assignmentOverrides: Map<Int, String>,
+    val ignoredIds: Set<String>,
+    val completedIds: Set<String>,
     val currentRevision: Long,
 )
 
@@ -47,7 +48,7 @@ class SyncApiClient @Inject constructor(
     private fun parseFullSync(json: JSONObject): BackendSyncResult {
         val assignments = mutableListOf<Assignment>()
         val arr = json.optJSONArray("assignments") ?: return BackendSyncResult(
-            emptyList(), emptyMap(), json.optLong("current_revision", 0)
+            emptyList(), emptySet(), emptySet(), json.optLong("current_revision", 0)
         )
         for (i in 0 until arr.length()) {
             val a = arr.getJSONObject(i)
@@ -69,21 +70,35 @@ class SyncApiClient @Inject constructor(
             )
         }
 
-        val overrides = mutableMapOf<Int, String>()
+        // Build PK → moodleAssignmentId map for override resolution
+        val pkToMoodleId = mutableMapOf<Int, String>()
+        for (i in 0 until arr.length()) {
+            val a = arr.getJSONObject(i)
+            val pk = a.optInt("id", -1)
+            val mid = a.optInt("moodle_assignment_id", -1)
+            if (pk > 0 && mid > 0) pkToMoodleId[pk] = mid.toString()
+        }
+
+        val ignoredIds = mutableSetOf<String>()
+        val completedIds = mutableSetOf<String>()
         val overArr = json.optJSONArray("assignment_overrides")
         if (overArr != null) {
             for (i in 0 until overArr.length()) {
                 val o = overArr.getJSONObject(i)
                 val status = o.optString("local_status", "none")
-                if (status != "none") {
-                    overrides[o.getInt("user_assignment_id")] = status
+                val assignmentPk = o.optInt("user_assignment_id", -1)
+                val moodleId = pkToMoodleId[assignmentPk] ?: continue
+                when (status) {
+                    "ignored", "archived" -> ignoredIds.add(moodleId)
+                    "locally_completed" -> completedIds.add(moodleId)
                 }
             }
         }
 
         return BackendSyncResult(
             assignments = assignments,
-            assignmentOverrides = overrides,
+            ignoredIds = ignoredIds,
+            completedIds = completedIds,
             currentRevision = json.optLong("current_revision", 0),
         )
     }
