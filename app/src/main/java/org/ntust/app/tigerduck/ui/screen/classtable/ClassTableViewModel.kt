@@ -26,6 +26,7 @@ import org.ntust.app.tigerduck.shared.computeOngoingCourses
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.model.TimetablePeriod
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
@@ -73,6 +74,30 @@ class ClassTableViewModel @Inject constructor(
     // it on logout so a stale map can't survive an account switch.
     private val _moodleCourseIdByIdnumber = MutableStateFlow<Map<String, Int>>(emptyMap())
 
+    // Per-locale custom course names: courseNo → locale ("zh"/"en") → display name.
+    // Loaded from DataCache.courseCustomNames on init; written on every rename.
+    // The resolved value for the current locale is stamped onto
+    // Course.customCourseName when building the in-memory course list.
+    private var courseCustomNames: MutableMap<String, MutableMap<String, String>> = mutableMapOf()
+
+    /** Current course-API locale ("zh" or "en"), derived from the user's app language. */
+    private val currentCourseLocale: String
+        get() = AppLanguageManager.resolvedCourseApiLanguage(appPreferences.appLanguage)
+
+    /**
+     * Stamp [Course.customCourseName] from [courseCustomNames] for the current
+     * locale. Courses without a per-locale entry keep their existing override
+     * (may be null).
+     */
+    private fun resolveCustomNames(courses: List<Course>): List<Course> {
+        if (courseCustomNames.isEmpty()) return courses
+        val locale = currentCourseLocale
+        return courses.map { course ->
+            val name = courseCustomNames[course.courseNo]?.get(locale)
+            if (name != null) course.copy(customCourseName = name) else course
+        }
+    }
+
     private val _selectedWeekday = MutableStateFlow<Int?>(null)
     private val _selectedPeriodId = MutableStateFlow<String?>(null)
 
@@ -114,7 +139,7 @@ class ClassTableViewModel @Inject constructor(
             // so picking a past term doesn't get snapped back to the
             // current semester on a color reset.
             courseColorStore.changeEvent.collect {
-                val fresh = dataCache.loadCourses(_currentSemester.value)
+                val fresh = resolveCustomNames(dataCache.loadCourses(_currentSemester.value))
                 if (fresh.isNotEmpty()) {
                     _courses.value = fresh
                     TigerDuckTheme.buildCourseColorMap(fresh)
@@ -131,6 +156,7 @@ class ClassTableViewModel @Inject constructor(
                     _assignments.value = emptyList()
                     _selectedCourse.value = null
                     _moodleCourseIdByIdnumber.value = emptyMap()
+                    courseCustomNames.clear()
                     hasLoaded = false
                     TigerDuckTheme.buildCourseColorMap(emptyList())
                 } else {
@@ -217,7 +243,7 @@ class ClassTableViewModel @Inject constructor(
         appPreferences.classTableSelectedSemester = code
         _currentSemester.value = code
         viewModelScope.launch {
-            val cached = dataCache.loadCourses(code)
+            val cached = resolveCustomNames(dataCache.loadCourses(code))
             _courses.value = cached
             TigerDuckTheme.buildCourseColorMap(cached)
             fetchData()
@@ -389,31 +415,46 @@ class ClassTableViewModel @Inject constructor(
      */
     fun setCustomCourseName(courseNo: String, newName: String) {
         val trimmed = newName.trim()
+        val locale = currentCourseLocale
         val updated = _courses.value.map { course ->
             if (course.courseNo != courseNo) return@map course
             val defaultName = defaultNameFor(course)
             val override = trimmed.takeIf {
                 it.isNotEmpty() && it != course.courseName && it != defaultName
             }
+            // Update per-locale map
+            if (override != null) {
+                courseCustomNames.getOrPut(courseNo) { mutableMapOf() }[locale] = override
+            } else {
+                courseCustomNames[courseNo]?.remove(locale)
+                if (courseCustomNames[courseNo].isNullOrEmpty()) courseCustomNames.remove(courseNo)
+            }
             course.copy(customCourseName = override)
         }
         _courses.value = updated
         viewModelScope.launch {
+            dataCache.saveCourseCustomNames(courseCustomNames)
             dataCache.saveCourses(updated, _currentSemester.value)
             widgetUpdater.requestUpdate()
         }
+        syncCourseOverride(courseNo, customName = trimmed.ifEmpty { "" }, locale = locale)
     }
 
     /** Clears any user override for [courseNo], restoring the default name. */
     fun revertCourseName(courseNo: String) {
+        val locale = currentCourseLocale
+        courseCustomNames[courseNo]?.remove(locale)
+        if (courseCustomNames[courseNo].isNullOrEmpty()) courseCustomNames.remove(courseNo)
         val updated = _courses.value.map { course ->
             if (course.courseNo == courseNo) course.copy(customCourseName = null) else course
         }
         _courses.value = updated
         viewModelScope.launch {
+            dataCache.saveCourseCustomNames(courseCustomNames)
             dataCache.saveCourses(updated, _currentSemester.value)
             widgetUpdater.requestUpdate()
         }
+        syncCourseOverride(courseNo, customName = "", locale = locale)
     }
 
     fun deleteCourse(courseNo: String) {
@@ -459,13 +500,21 @@ class ClassTableViewModel @Inject constructor(
         courseNo: String,
         isHidden: Boolean? = null,
         colorHex: String? = null,
+        customName: String? = null,
+        locale: String? = null,
     ) {
         val course = _courses.value.find { it.courseNo == courseNo } ?: return
         val moodleId = course.moodleNumericCourseId ?: return
         viewModelScope.launch {
             try {
-                pushApiClient.patchCourseOverride(moodleId, isHidden = isHidden, colorHex = colorHex)
-                Log.d("ClassTableVM", "course override OK: $courseNo → color=$colorHex hidden=$isHidden")
+                pushApiClient.patchCourseOverride(
+                    moodleId,
+                    isHidden = isHidden,
+                    colorHex = colorHex,
+                    customName = customName,
+                    locale = locale,
+                )
+                Log.d("ClassTableVM", "course override OK: $courseNo → color=$colorHex hidden=$isHidden customName=$customName locale=$locale")
             } catch (e: Exception) {
                 Log.w("ClassTableVM", "course override FAILED: $courseNo", e)
             }
@@ -680,10 +729,13 @@ class ClassTableViewModel @Inject constructor(
             val cached = dataCache.loadCourses(_currentSemester.value)
             val cachedA = dataCache.loadAssignments()
             val cachedMoodleIds = dataCache.loadMoodleCourseIds()
+            courseCustomNames = dataCache.loadCourseCustomNames()
+                .mapValues { it.value.toMutableMap() }
+                .toMutableMap()
             if (cached.isNotEmpty()) {
-                _courses.value = cached
+                _courses.value = resolveCustomNames(cached)
                 _assignments.value = cachedA
-                TigerDuckTheme.buildCourseColorMap(cached)
+                TigerDuckTheme.buildCourseColorMap(_courses.value)
             }
             if (cachedMoodleIds.isNotEmpty()) {
                 _moodleCourseIdByIdnumber.value = cachedMoodleIds
@@ -886,23 +938,23 @@ class ClassTableViewModel @Inject constructor(
                             val cached = dataCache.loadCourses(semester)
                             val deletedNos = dataCache.loadDeletedCourseNos()
                             val cachedByNo = cached.associateBy { it.courseNo }
-                            // Carry forward both the user's color pick AND the
-                            // `isManual` flag. If the user manually added a
-                            // course that later appears in the remote feed,
-                            // keep it marked manual so subsequent refreshes
-                            // still rescue it when it drops off the feed.
+                            val locale = currentCourseLocale
+                            // Carry forward the user's color pick AND the
+                            // `isManual` flag. Resolve customCourseName from
+                            // the per-locale map so a language switch picks up
+                            // the right override.
                             val fetched = courses.map { c ->
                                 val prior = cachedByNo[c.courseNo]
                                 c.copy(
                                     customColorHex = prior?.customColorHex,
                                     isManual = prior?.isManual == true,
-                                    customCourseName = prior?.customCourseName,
+                                    customCourseName = courseCustomNames[c.courseNo]?.get(locale),
                                 )
                             }
                             val fetchedNos = fetched.map { it.courseNo }.toSet()
                             val manualLeftovers =
                                 cached.filter { it.isManual && it.courseNo !in fetchedNos }
-                            val merged = (fetched + manualLeftovers)
+                            val merged = resolveCustomNames(fetched + manualLeftovers)
                                 .filter { it.courseNo !in deletedNos }
                             // Only apply if the user hasn't flipped to a
                             // different semester mid-flight.

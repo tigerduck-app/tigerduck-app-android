@@ -216,6 +216,19 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return loadFromUserData(type, "skipped_dates.json") ?: emptyMap()
     }
 
+    // MARK: - Course Custom Names (per-locale overrides)
+    // courseNo → locale → name. Stored in filesDir so user renames survive
+    // cache eviction. The ClassTableViewModel resolves the current locale's
+    // entry into Course.customCourseName at load/display time.
+
+    suspend fun saveCourseCustomNames(names: Map<String, Map<String, String>>) =
+        saveToUserData(names, "course_custom_names.json")
+
+    suspend fun loadCourseCustomNames(): Map<String, Map<String, String>> {
+        val type = object : TypeToken<Map<String, Map<String, String>>>() {}.type
+        return loadFromUserData(type, "course_custom_names.json") ?: emptyMap()
+    }
+
     // MARK: - Deleted Course Nos (hidden by user or server)
     // Stored in filesDir so courses hidden via sync or the delete gesture
     // stay gone even when Moodle/NTUST re-fetches re-add them.
@@ -370,6 +383,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
                     "ignored_assignments.json",
                     "marked_completed_assignments.json",
                     "deleted_courses.json",
+                    "course_custom_names.json",
                 ).forEach { name ->
                     runCatching { File(userDataDir, name).delete() }
                 }
