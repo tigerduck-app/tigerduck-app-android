@@ -140,6 +140,7 @@ fun HomeScreen(
     // 翹課 feature disabled — kept for potential re-enable.
     // val skippedDates by viewModel.skippedDates.collectAsStateWithLifecycle()
     val syncConflicts by viewModel.syncConflicts.collectAsStateWithLifecycle()
+    val backendSessionExpired by viewModel.backendSessionExpired.collectAsStateWithLifecycle()
     var showComingSoon by remember { mutableStateOf(false) }
     var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -358,6 +359,16 @@ fun HomeScreen(
 
     if (showComingSoon) {
         ComingSoonDialog(onDismiss = { showComingSoon = false })
+    }
+
+    if (backendSessionExpired) {
+        TigerDuckDialog(
+            onDismissRequest = { viewModel.dismissBackendSessionExpired() },
+            title = stringResource(R.string.sync_backend_session_expired_title),
+            message = stringResource(R.string.sync_backend_session_expired_message),
+            confirmText = stringResource(R.string.action_confirm),
+            onConfirm = { viewModel.dismissBackendSessionExpired() },
+        )
     }
 
     if (syncConflicts.isNotEmpty()) {

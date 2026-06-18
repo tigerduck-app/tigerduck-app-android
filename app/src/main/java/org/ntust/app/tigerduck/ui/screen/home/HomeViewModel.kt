@@ -76,6 +76,10 @@ class HomeViewModel @Inject constructor(
     private val _syncConflicts = MutableStateFlow<List<SyncConflict>>(emptyList())
     val syncConflicts: StateFlow<List<SyncConflict>> = _syncConflicts
 
+    private val _backendSessionExpired = MutableStateFlow(false)
+    val backendSessionExpired: StateFlow<Boolean> = _backendSessionExpired
+    fun dismissBackendSessionExpired() { _backendSessionExpired.value = false }
+
     private var _pendingSyncResult: BackendSyncResult? = null
 
     fun resolveSyncConflicts(keepLocal: Boolean) {
@@ -209,6 +213,9 @@ class HomeViewModel @Inject constructor(
                 _syncConflicts.value = conflicts
             }
         } catch (e: Exception) {
+            if (e.message?.contains("401") == true || e.message?.contains("session_revoked") == true) {
+                _backendSessionExpired.value = true
+            }
             Log.w("HomeViewModel", "[Sync] override sync failed", e)
         }
     }
