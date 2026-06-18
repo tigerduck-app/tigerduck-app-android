@@ -411,8 +411,13 @@ class ClassTableViewModel @Inject constructor(
             val deleted = dataCache.loadDeletedCourseNos()
             if (course.courseNo in deleted) {
                 dataCache.saveDeletedCourseNos(deleted - course.courseNo)
+                val moodleId = resolveMoodleNumericId(course)
+                if (moodleId != null) {
+                    runCatching { pushApiClient.patchCourseOverride(moodleId, isHidden = false) }
+                }
             }
             dataCache.saveCourses(updated, _currentSemester.value)
+            runCatching { pushApiClient.uploadCourses(updated, _currentSemester.value) }
             widgetUpdater.requestUpdate()
         }
         TigerDuckTheme.buildCourseColorMap(updated)
