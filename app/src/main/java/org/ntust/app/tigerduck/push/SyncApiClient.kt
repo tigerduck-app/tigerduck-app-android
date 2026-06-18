@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.push
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -11,10 +12,17 @@ import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
 
+data class CourseOverrideResult(
+    val moodleCourseId: String,
+    val colorHex: String?,
+    val isHidden: Boolean,
+)
+
 data class BackendSyncResult(
     val assignments: List<Assignment>,
     val ignoredIds: Set<String>,
     val completedIds: Set<String>,
+    val courseOverrides: List<CourseOverrideResult>,
     val currentRevision: Long,
 )
 
@@ -48,7 +56,7 @@ class SyncApiClient @Inject constructor(
     private fun parseFullSync(json: JSONObject): BackendSyncResult {
         val assignments = mutableListOf<Assignment>()
         val arr = json.optJSONArray("assignments") ?: return BackendSyncResult(
-            emptyList(), emptySet(), emptySet(), json.optLong("current_revision", 0)
+            emptyList(), emptySet(), emptySet(), emptyList(), json.optLong("current_revision", 0)
         )
         for (i in 0 until arr.length()) {
             val a = arr.getJSONObject(i)
@@ -96,10 +104,26 @@ class SyncApiClient @Inject constructor(
             }
         }
 
+        val courseOverrides = mutableListOf<CourseOverrideResult>()
+        val courseOverArr = json.optJSONArray("course_overrides")
+        if (courseOverArr != null) {
+            for (i in 0 until courseOverArr.length()) {
+                val co = courseOverArr.getJSONObject(i)
+                val moodleId = nullStr(co, "moodle_id") ?: continue
+                courseOverrides.add(CourseOverrideResult(
+                    moodleCourseId = moodleId,
+                    colorHex = nullStr(co, "color_hex"),
+                    isHidden = co.optBoolean("is_hidden", false),
+                ))
+            }
+        }
+        Log.d("SyncApiClient", "[Sync] parsed: ${assignments.size} assignments, ${ignoredIds.size} ignored, ${completedIds.size} completed, ${courseOverrides.size} courseOverrides")
+
         return BackendSyncResult(
             assignments = assignments,
             ignoredIds = ignoredIds,
             completedIds = completedIds,
+            courseOverrides = courseOverrides,
             currentRevision = json.optLong("current_revision", 0),
         )
     }

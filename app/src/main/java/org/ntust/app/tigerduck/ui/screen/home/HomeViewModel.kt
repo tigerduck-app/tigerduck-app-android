@@ -39,6 +39,7 @@ import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
@@ -98,8 +99,35 @@ class HomeViewModel @Inject constructor(
             _ignoredAssignmentIds.value = safeIgnored
             _markedCompletedIds.value = safeCompleted
             Log.d("HomeViewModel", "[Sync] applied: ${safeIgnored.size} ignored, ${safeCompleted.size} completed (pending=${pendingOverrides.size})")
+
+            if (result.courseOverrides.isNotEmpty()) {
+                applyCourseOverrides(result.courseOverrides)
+            }
         } catch (e: Exception) {
             Log.w("HomeViewModel", "[Sync] override sync failed", e)
+        }
+    }
+
+    private fun applyCourseOverrides(overrides: List<CourseOverrideResult>) {
+        val courses = _allCourses.value.ifEmpty { return }
+        val byMoodleId = courses.associateBy { it.moodleNumericCourseId?.toString() }
+        var changed = false
+        val updated = courses.map { course ->
+            val mId = course.moodleNumericCourseId?.toString() ?: return@map course
+            val override = overrides.find { it.moodleCourseId == mId } ?: return@map course
+            val newHex = override.colorHex
+            if (newHex != course.customColorHex) {
+                changed = true
+                course.copy(customColorHex = newHex)
+            } else course
+        }
+        if (changed) {
+            _allCourses.value = updated
+            TigerDuckTheme.buildCourseColorMap(updated)
+            viewModelScope.launch { dataCache.saveCourses(updated) }
+            Log.d("HomeViewModel", "[Sync] applied ${overrides.size} course overrides (colors updated)")
+        } else {
+            Log.d("HomeViewModel", "[Sync] ${overrides.size} course overrides — no color changes")
         }
     }
 
