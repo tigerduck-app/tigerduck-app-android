@@ -172,12 +172,11 @@ class HomeViewModel @Inject constructor(
                     .sortedBy { it.dueDate }
 
             AssignmentFilter.ALL -> {
-                // 全部: future (soonest first) + past (most recently due first).
-                // Matches iOS partitionedByDueDate ordering — no special
-                // pinning of overdue items.
+                // 全部: show everything (including ignored and marked-done),
+                // matching iOS allCandidates(). Future first (soonest on top),
+                // then past (most recently due first).
                 val now = Date(AppClock.nowMillis())
-                val visible = all.filter { it.assignmentId !in ignored }
-                val (future, past) = visible.partition { !it.dueDate.before(now) }
+                val (future, past) = all.partition { !it.dueDate.before(now) }
                 future.sortedBy { it.dueDate } +
                         past.sortedByDescending { it.dueDate }
             }
