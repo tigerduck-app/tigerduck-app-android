@@ -73,8 +73,36 @@ class BackgroundSyncWorker @AssistedInject constructor(
             dataCache.replaceIgnoredAssignments(result.ignoredIds)
             dataCache.replaceMarkedCompletedAssignments(result.completedIds)
             Log.d(TAG, "override sync: ${result.ignoredIds.size} ignored, ${result.completedIds.size} completed")
+
+            if (result.courseOverrides.isNotEmpty()) {
+                applyCourseOverridesBackground(result.courseOverrides)
+            }
         } catch (e: Exception) {
             Log.w(TAG, "override sync failed", e)
+        }
+    }
+
+    private suspend fun applyCourseOverridesBackground(overrides: List<org.ntust.app.tigerduck.push.CourseOverrideResult>) {
+        val courses = dataCache.loadCourses()
+        var changed = false
+        val updated = courses.mapNotNull { course ->
+            val override = overrides.find { it.courseNo == course.courseNo }
+                ?: return@mapNotNull course
+            if (override.isHidden) {
+                changed = true
+                Log.d(TAG, "course ${course.courseNo}: hidden by server")
+                return@mapNotNull null
+            }
+            val newHex = override.colorHex
+            if (newHex != course.customColorHex) {
+                changed = true
+                Log.d(TAG, "course ${course.courseNo}: color → $newHex")
+                course.copy(customColorHex = newHex)
+            } else course
+        }
+        if (changed) {
+            dataCache.saveCourses(updated)
+            Log.d(TAG, "course overrides applied in background")
         }
     }
 
