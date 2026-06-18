@@ -137,9 +137,12 @@ private fun AssignmentTrailing(
     // Secondary overdue badge: when an item is locally completed or ignored
     // but past due, show the overdue badge stacked above (matches iOS
     // secondaryBadge). Also shown for submitted + locally completed.
+    val secondaryColor = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
     val secondaryBadge: Pair<String, Color>? = when {
         (status == AssignmentStatus.SUBMITTED || status == AssignmentStatus.SUBMITTED_LATE) && markedCompleted ->
             markCompleteLabel to BadgeGreen
+        (status == AssignmentStatus.SUBMITTED || status == AssignmentStatus.SUBMITTED_LATE) && isIgnored ->
+            ignoredLabel to secondaryColor
         (markedCompleted || isIgnored) && assignment.dueDate.before(now) -> {
             if (assignment.cutoffDate != null && now.after(assignment.cutoffDate))
                 overdueRejectedLabel to BadgeRed
