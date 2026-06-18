@@ -78,6 +78,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 applyCourseOverridesBackground(result.courseOverrides)
             }
             dataCache.notifyBackgroundSyncComplete()
+            Log.d(TAG, "backgroundSyncVersion incremented")
         } catch (e: Exception) {
             Log.w(TAG, "override sync failed", e)
         }

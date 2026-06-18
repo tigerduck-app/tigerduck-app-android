@@ -232,11 +232,28 @@ class HomeViewModel @Inject constructor(
         if (hiddenCourseNos.isNotEmpty() || unhiddenCourseNos.isNotEmpty()) {
             dataCache.saveDeletedCourseNos(deleted)
         }
+        // Sync custom names from server
+        var nameCount = 0
+        val customNames = dataCache.loadCourseCustomNames().toMutableMap()
+        for (o in overrides) {
+            val no = o.courseNo ?: continue
+            if (o.customNames.isNotEmpty()) {
+                val existing = customNames[no]?.toMutableMap() ?: mutableMapOf()
+                for ((locale, name) in o.customNames) {
+                    if (name.isEmpty()) existing.remove(locale) else existing[locale] = name
+                }
+                if (existing.isEmpty()) customNames.remove(no) else customNames[no] = existing.toMap()
+                nameCount++
+            }
+        }
+        if (nameCount > 0) {
+            dataCache.saveCourseCustomNames(customNames)
+        }
         if (changed || unhiddenCourseNos.isNotEmpty()) {
             _allCourses.value = updated
             TigerDuckTheme.buildCourseColorMap(updated)
             dataCache.saveCourses(updated)
-            Log.d("HomeViewModel", "[Sync] applied course overrides: ${hiddenCourseNos.size} hidden, ${unhiddenCourseNos.size} unhidden, colors updated")
+            Log.d("HomeViewModel", "[Sync] applied course overrides: ${hiddenCourseNos.size} hidden, ${unhiddenCourseNos.size} unhidden, ${nameCount} names, colors updated")
         } else {
             Log.d("HomeViewModel", "[Sync] ${overrides.size} course overrides — no changes (courseNos: ${overrides.map { it.courseNo }})")
         }

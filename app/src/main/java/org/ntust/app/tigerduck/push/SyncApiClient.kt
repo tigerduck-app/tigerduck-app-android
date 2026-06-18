@@ -17,6 +17,7 @@ data class CourseOverrideResult(
     val courseNo: String?,
     val colorHex: String?,
     val isHidden: Boolean,
+    val customNames: Map<String, String> = emptyMap(),
 )
 
 data class BackendSyncResult(
@@ -128,11 +129,20 @@ class SyncApiClient @Inject constructor(
             for (i in 0 until courseOverArr.length()) {
                 val co = courseOverArr.getJSONObject(i)
                 val moodleId = nullStr(co, "moodle_id") ?: continue
+                val namesObj = co.optJSONObject("custom_names")
+                val names = mutableMapOf<String, String>()
+                if (namesObj != null) {
+                    for (key in namesObj.keys()) {
+                        val v = namesObj.optString(key, "")
+                        if (v.isNotEmpty()) names[key] = v
+                    }
+                }
                 courseOverrides.add(CourseOverrideResult(
                     moodleCourseId = moodleId,
                     courseNo = courseMoodleIdToNo[moodleId],
                     colorHex = nullStr(co, "color_hex"),
                     isHidden = co.optBoolean("is_hidden", false),
+                    customNames = names,
                 ))
             }
         }
