@@ -160,15 +160,34 @@ class HomeViewModel @Inject constructor(
                 }
             }
 
+            // Always apply non-conflicting items + course overrides
+            val conflictIds = conflicts.map { it.id }.toSet()
+            val safeIgnored = result.ignoredIds.filter { it !in conflictIds } +
+                _ignoredAssignmentIds.value.filter { it in pendingOverrides }
+            val safeCompleted = result.completedIds.filter { it !in conflictIds } +
+                _markedCompletedIds.value.filter { it in pendingOverrides }
+            // Preserve local state for conflicting items until user resolves
+            val finalIgnored = safeIgnored.toMutableSet()
+            val finalCompleted = safeCompleted.toMutableSet()
+            for (c in conflicts) {
+                when (c.localStatus) {
+                    "ignored" -> finalIgnored.add(c.id)
+                    "locally_completed" -> finalCompleted.add(c.id)
+                }
+            }
+            dataCache.replaceIgnoredAssignments(finalIgnored)
+            dataCache.replaceMarkedCompletedAssignments(finalCompleted)
+            _ignoredAssignmentIds.value = finalIgnored
+            _markedCompletedIds.value = finalCompleted
+            if (result.courseOverrides.isNotEmpty()) {
+                applyCourseOverrides(result.courseOverrides)
+            }
+            Log.d("HomeViewModel", "[Sync] applied ${finalIgnored.size} ignored, ${finalCompleted.size} completed (${conflicts.size} conflicts pending)")
+
             if (conflicts.isNotEmpty()) {
-                Log.d("HomeViewModel", "[Sync] ${conflicts.size} conflicts found")
                 _pendingSyncResult = result
                 _syncConflicts.value = conflicts
-                return
             }
-
-            applyServerOverrides(result)
-            Log.d("HomeViewModel", "[Sync] applied (no conflicts)")
         } catch (e: Exception) {
             Log.w("HomeViewModel", "[Sync] override sync failed", e)
         }
