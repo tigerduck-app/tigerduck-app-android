@@ -541,7 +541,7 @@
     <string name="permission_warning_title">Notification-related permissions turned off</string>
     <string name="push_server_enable_toggle">Enable server push</string>
     <string name="push_server_footer">Used to receive real-time school bulletin notifications and to actively trigger reminders.</string>
-    <string name="push_server_ids_section">IDs</string>
+    <string name="push_server_ids_section">ID</string>
     <string name="push_server_last_registration">Last registration</string>
     <string name="push_server_last_sync">Last sync</string>
     <string name="push_server_latest_error">Recent error</string>

@@ -71,10 +71,16 @@ android {
 
     buildTypes {
         debug {
+            // Default to the local backend, NOT production — a debug build must
+            // never silently hit api.tigerduck.app (mirrors the iOS Debug
+            // resolver, which defaults to localhost). 10.0.2.2 is the Android
+            // emulator's host-loopback (the Mac running the backend); physical
+            // devices override `pushBaseUrl` in local.properties with the Mac's
+            // LAN IP. Cleartext to this host is permitted in network_security_config.
             buildConfigField(
                 "String",
                 "PUSH_BASE_URL",
-                "\"${localProp("pushBaseUrl", "https://api.tigerduck.app/v3")}\"",
+                "\"${localProp("pushBaseUrl", "http://10.0.2.2:40000/v3")}\"",
             )
         }
         release {

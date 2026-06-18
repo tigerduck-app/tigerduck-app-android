@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.di.ApplicationScope
+import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.network.SsoLoginError
 import org.ntust.app.tigerduck.network.SsoLoginService
@@ -33,6 +34,7 @@ class AuthService @Inject constructor(
     private val credentials: CredentialManager,
     private val pushRegistration: PushRegistrationService,
     private val authTokenManager: AuthTokenManager,
+    private val moodleTokenService: MoodleTokenService,
     private val dataCache: DataCache,
     private val bulletinCache: BulletinCache,
     private val bulletinReadStateStore: BulletinReadStateStore,
@@ -75,11 +77,26 @@ class AuthService @Inject constructor(
                 // Best-effort: v3 JWT login failures must not block the SSO
                 // session — the push system falls back to the shared secret if
                 // no Bearer token is available.
+                // Harvest a FRESH Moodle token before the v3 login. The backend
+                // verifies it against moodle2, and the stored token is stale or
+                // empty right after SSO (especially on a fresh install) — which
+                // makes the backend reject the login with 401 invalid_token.
+                // iOS does the same obtain-then-login. Best-effort: fall back to
+                // any stored token, and never let a harvest failure block the
+                // SSO session.
+                val moodleToken = try {
+                    moodleTokenService.obtainToken(normalizedId, password)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    android.util.Log.w("AuthService", "Moodle token harvest failed; using stored", e)
+                    credentials.moodleToken
+                }
                 runCatching {
                     authTokenManager.login(
                         studentId = normalizedId,
                         password = password,
-                        moodleToken = credentials.moodleToken,
+                        moodleToken = moodleToken,
                         moodlePrivateToken = null,
                         deviceName = android.os.Build.MODEL,
                     )

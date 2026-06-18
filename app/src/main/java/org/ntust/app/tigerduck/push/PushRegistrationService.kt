@@ -190,6 +190,7 @@ class PushRegistrationService @Inject constructor(
             val reason = mutex.withLock {
                 when {
                     isUnregistering -> "Unregister in progress"
+                    !authTokenManager.isLoggedIn -> "Not signed in"
                     fcmToken == null -> "Waiting for FCM token"
                     else -> null
                 }
