@@ -149,6 +149,17 @@ class ClassTableViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            dataCache.backgroundSyncComplete.collect {
+                val semester = _currentSemester.value
+                val fresh = resolveCustomNames(dataCache.loadCourses(semester))
+                if (fresh.isNotEmpty()) {
+                    _courses.value = fresh
+                    TigerDuckTheme.buildCourseColorMap(fresh)
+                }
+                _assignments.value = dataCache.loadAssignments()
+            }
+        }
+        viewModelScope.launch {
             // Clear on logout, refresh on login.
             authService.authState.collect { isAuthed ->
                 if (!isAuthed) {
