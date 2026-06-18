@@ -706,6 +706,18 @@ class ClassTableViewModel @Inject constructor(
 
     fun resetCourses() {
         viewModelScope.launch {
+            val deletedNos = dataCache.loadDeletedCourseNos()
+            if (deletedNos.isNotEmpty()) {
+                val semester = courseService.currentSemesterCode()
+                val moodleIdMap = dataCache.loadMoodleCourseIds()
+                for (courseNo in deletedNos) {
+                    val idnumber = "$semester$courseNo"
+                    val numericId = moodleIdMap[idnumber] ?: continue
+                    runCatching {
+                        pushApiClient.patchCourseOverride(numericId, isHidden = false)
+                    }
+                }
+            }
             dataCache.saveDeletedCourseNos(emptySet())
             fetchData()
         }
