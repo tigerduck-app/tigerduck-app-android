@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -54,6 +55,7 @@ class HomeViewModel @Inject constructor(
     private val courseColorStore: CourseColorStore,
     private val liveActivityManager: LiveActivityManager,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
+    private val pushApiClient: PushApiClient,
 ) : ViewModel() {
 
     private val _sections = MutableStateFlow(prefs.homeSections)
@@ -564,31 +566,42 @@ class HomeViewModel @Inject constructor(
     }
 
     fun toggleIgnore(assignment: Assignment) {
+        val wasIgnored = assignment.assignmentId in _ignoredAssignmentIds.value
         _ignoredAssignmentIds.update { current ->
-            if (assignment.assignmentId in current) current - assignment.assignmentId
+            if (wasIgnored) current - assignment.assignmentId
             else current + assignment.assignmentId
         }
         saveIgnoredChannel.trySend(_ignoredAssignmentIds.value)
-        // Flip the alarm body for this id between REGULAR and SAFETY_NET so
-        // the next reminder reflects the user's most recent intent.
         if (prefs.notifyAssignments) {
             rescheduleAssignmentNotifications(_allAssignments.value)
+        }
+        viewModelScope.launch {
+            runCatching {
+                pushApiClient.patchAssignmentOverride(
+                    assignment.assignmentId.toIntOrNull() ?: return@launch,
+                    if (wasIgnored) "none" else "ignored",
+                )
+            }
         }
     }
 
     fun toggleMarkCompleted(assignment: Assignment) {
-        // Two-way gesture: right-swipe in 未完成 marks an item complete and
-        // sends it to 全部; right-swipe a marked item in 全部 (revert-arrow
-        // affordance) un-marks it and it reappears in 未完成. Re-run
-        // notification scheduling so the alarm flips between REGULAR (still
-        // pending) and SAFETY_NET (marked done, but not actually submitted).
+        val wasCompleted = assignment.assignmentId in _markedCompletedIds.value
         _markedCompletedIds.update { current ->
-            if (assignment.assignmentId in current) current - assignment.assignmentId
+            if (wasCompleted) current - assignment.assignmentId
             else current + assignment.assignmentId
         }
         saveMarkedCompletedChannel.trySend(_markedCompletedIds.value)
         if (prefs.notifyAssignments) {
             rescheduleAssignmentNotifications(_allAssignments.value)
+        }
+        viewModelScope.launch {
+            runCatching {
+                pushApiClient.patchAssignmentOverride(
+                    assignment.assignmentId.toIntOrNull() ?: return@launch,
+                    if (wasCompleted) "none" else "locally_completed",
+                )
+            }
         }
     }
 
