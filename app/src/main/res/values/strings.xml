@@ -793,4 +793,9 @@
     <string name="widget_until_time">Until %1$s</string>
     <string name="widget_week_light_desc">Full schedule for this week. Theme follows app setting.</string>
     <string name="widget_week_light_label">Schedule (Week)</string>
+
+    <string name="sync_conflict_title">Sync conflict</string>
+    <string name="sync_conflict_message">Your homework status differs from the server. Which version do you want to keep?</string>
+    <string name="sync_conflict_use_local">Use this device</string>
+    <string name="sync_conflict_use_server">Use server</string>
 </resources>

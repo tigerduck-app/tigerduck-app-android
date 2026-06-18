@@ -9,8 +9,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
+import org.ntust.app.tigerduck.data.model.SyncConflict
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
@@ -32,6 +36,19 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     // User-generated state that has no remote source — stored in filesDir so the OS never evicts it.
     private val userDataDir: File = File(context.filesDir, "TigerDuckData").also { it.mkdirs() }
     private val cacheMutex = Mutex()
+
+    private val _syncConflict = MutableStateFlow<SyncConflict?>(null)
+    val syncConflict: StateFlow<SyncConflict?> = _syncConflict.asStateFlow()
+
+    fun setSyncConflict(conflict: SyncConflict?) { _syncConflict.value = conflict }
+
+    suspend fun replaceIgnoredAssignments(ids: Set<String>) {
+        saveToUserData(ids.toList(), "ignored_assignments.json")
+    }
+
+    suspend fun replaceMarkedCompletedAssignments(ids: Set<String>) {
+        saveToUserData(ids.toList(), "marked_completed_assignments.json")
+    }
     private val userDataMutex = Mutex()
     private val gson: Gson = GsonBuilder()
         .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")

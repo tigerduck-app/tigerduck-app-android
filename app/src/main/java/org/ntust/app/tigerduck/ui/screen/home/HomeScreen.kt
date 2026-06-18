@@ -52,6 +52,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonColors
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -141,6 +142,26 @@ fun HomeScreen(
     var showComingSoon by remember { mutableStateOf(false) }
     var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val syncConflictState by viewModel.syncConflict.collectAsStateWithLifecycle()
+
+    if (syncConflictState != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.resolveSyncConflict(useLocal = false) },
+            title = { Text(stringResource(R.string.sync_conflict_title)) },
+            text = { Text(stringResource(R.string.sync_conflict_message)) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.resolveSyncConflict(useLocal = true) }) {
+                    Text(stringResource(R.string.sync_conflict_use_local))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.resolveSyncConflict(useLocal = false) }) {
+                    Text(stringResource(R.string.sync_conflict_use_server))
+                }
+            },
+        )
+    }
 
     var isEditing by remember { mutableStateOf(false) }
     var showAddSectionDialog by remember { mutableStateOf(false) }

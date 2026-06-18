@@ -58,6 +58,47 @@ class HomeViewModel @Inject constructor(
     private val pushApiClient: PushApiClient,
 ) : ViewModel() {
 
+    val syncConflict = dataCache.syncConflict
+
+    fun resolveSyncConflict(useLocal: Boolean) {
+        val conflict = dataCache.syncConflict.value ?: return
+        dataCache.setSyncConflict(null)
+        if (useLocal) {
+            viewModelScope.launch {
+                for (id in conflict.localIgnored) {
+                    runCatching {
+                        pushApiClient.patchAssignmentOverride(
+                            id.toIntOrNull() ?: return@runCatching, "ignored"
+                        )
+                    }
+                }
+                for (id in conflict.localCompleted) {
+                    runCatching {
+                        pushApiClient.patchAssignmentOverride(
+                            id.toIntOrNull() ?: return@runCatching, "locally_completed"
+                        )
+                    }
+                }
+                val serverOnly = (conflict.serverIgnored - conflict.localIgnored) +
+                    (conflict.serverCompleted - conflict.localCompleted)
+                for (id in serverOnly) {
+                    runCatching {
+                        pushApiClient.patchAssignmentOverride(
+                            id.toIntOrNull() ?: return@runCatching, "none"
+                        )
+                    }
+                }
+            }
+        } else {
+            viewModelScope.launch {
+                dataCache.replaceIgnoredAssignments(conflict.serverIgnored)
+                dataCache.replaceMarkedCompletedAssignments(conflict.serverCompleted)
+                _ignoredAssignmentIds.value = conflict.serverIgnored
+                _markedCompletedIds.value = conflict.serverCompleted
+            }
+        }
+    }
+
     private val _sections = MutableStateFlow(prefs.homeSections)
     val sections: StateFlow<List<HomeSection>> = _sections
 

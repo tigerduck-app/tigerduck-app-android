@@ -72,16 +72,46 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private suspend fun tryBackendSync(): Boolean {
         return try {
             val result = syncApiClient.fetchFullSync()
-            val ignored = dataCache.loadIgnoredAssignments()
-            val marked = dataCache.loadMarkedCompletedAssignments()
+            val localIgnored = dataCache.loadIgnoredAssignments()
+            val localMarked = dataCache.loadMarkedCompletedAssignments()
+
+            // Derive server-side override sets from the parsed overrides
+            val serverIgnored = result.assignmentOverrides
+                .filter { it.value == "ignored" || it.value == "archived" }
+                .keys.map { id ->
+                    result.assignments.find { (it.assignmentId.toIntOrNull() ?: -1) == id }?.assignmentId
+                }.filterNotNull().toSet()
+            val serverCompleted = result.assignmentOverrides
+                .filter { it.value == "locally_completed" }
+                .keys.map { id ->
+                    result.assignments.find { (it.assignmentId.toIntOrNull() ?: -1) == id }?.assignmentId
+                }.filterNotNull().toSet()
+
+            val hasConflict = localIgnored != serverIgnored || localMarked != serverCompleted
+            if (hasConflict && (localIgnored.isNotEmpty() || localMarked.isNotEmpty())) {
+                dataCache.setSyncConflict(
+                    org.ntust.app.tigerduck.data.model.SyncConflict(
+                        localIgnored = localIgnored,
+                        localCompleted = localMarked,
+                        serverIgnored = serverIgnored,
+                        serverCompleted = serverCompleted,
+                    )
+                )
+                dataCache.saveAssignments(result.assignments)
+                lastSyncSource = SyncSource.BACKEND
+                return true
+            }
+
             val merged = result.assignments.map { a ->
-                a.copy(isCompleted = a.isCompleted || a.assignmentId in marked)
+                a.copy(isCompleted = a.isCompleted || a.assignmentId in serverCompleted)
             }
             dataCache.saveAssignments(merged)
+            dataCache.replaceIgnoredAssignments(serverIgnored)
+            dataCache.replaceMarkedCompletedAssignments(serverCompleted)
             if (prefs.notifyAssignments) {
                 notificationScheduler.scheduleAll(
                     merged.filter { !it.isCompleted },
-                    ignored + marked,
+                    serverIgnored + serverCompleted,
                     prefs.notifyAssignmentOffsets,
                 )
             }
