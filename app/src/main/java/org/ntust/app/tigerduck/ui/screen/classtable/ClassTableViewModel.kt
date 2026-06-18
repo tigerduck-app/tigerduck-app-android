@@ -469,8 +469,15 @@ class ClassTableViewModel @Inject constructor(
         syncCourseOverride(courseNo, customName = "", locale = locale)
     }
 
+    private fun resolveMoodleNumericId(course: Course): Int? {
+        course.moodleNumericCourseId?.let { return it }
+        val idnumber = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: return null
+        return _moodleCourseIdByIdnumber.value[idnumber]
+    }
+
     fun deleteCourse(courseNo: String) {
-        val moodleId = _courses.value.find { it.courseNo == courseNo }?.moodleNumericCourseId
+        val moodleId = _courses.value.find { it.courseNo == courseNo }
+            ?.let { resolveMoodleNumericId(it) }
         if (moodleId != null) {
             viewModelScope.launch {
                 runCatching { pushApiClient.patchCourseOverride(moodleId, isHidden = true) }
@@ -521,7 +528,7 @@ class ClassTableViewModel @Inject constructor(
         locale: String? = null,
     ) {
         val course = _courses.value.find { it.courseNo == courseNo } ?: return
-        val moodleId = course.moodleNumericCourseId ?: return
+        val moodleId = resolveMoodleNumericId(course) ?: return
         viewModelScope.launch {
             try {
                 pushApiClient.patchCourseOverride(
