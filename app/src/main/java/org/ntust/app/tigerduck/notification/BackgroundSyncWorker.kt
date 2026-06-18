@@ -86,6 +86,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         val courses = dataCache.loadCourses()
         var changed = false
         val hiddenNos = mutableSetOf<String>()
+        val unhiddenNos = mutableSetOf<String>()
         val updated = courses.mapNotNull { course ->
             val override = overrides.find { it.courseNo == course.courseNo }
                 ?: return@mapNotNull course
@@ -102,13 +103,22 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 course.copy(customColorHex = newHex)
             } else course
         }
-        if (hiddenNos.isNotEmpty()) {
-            val deleted = dataCache.loadDeletedCourseNos() + hiddenNos
+        val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
+        for (o in overrides) {
+            val no = o.courseNo ?: continue
+            if (!o.isHidden && no in deleted) {
+                deleted.remove(no)
+                unhiddenNos.add(no)
+                Log.d(TAG, "course $no: unhidden by server")
+            }
+        }
+        if (hiddenNos.isNotEmpty()) deleted.addAll(hiddenNos)
+        if (hiddenNos.isNotEmpty() || unhiddenNos.isNotEmpty()) {
             dataCache.saveDeletedCourseNos(deleted)
         }
-        if (changed) {
+        if (changed || unhiddenNos.isNotEmpty()) {
             dataCache.saveCourses(updated)
-            Log.d(TAG, "course overrides applied in background")
+            Log.d(TAG, "course overrides applied: ${hiddenNos.size} hidden, ${unhiddenNos.size} unhidden")
         }
     }
 

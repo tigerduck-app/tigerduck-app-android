@@ -197,6 +197,7 @@ class HomeViewModel @Inject constructor(
         val courses = _allCourses.value.ifEmpty { return }
         var changed = false
         val hiddenCourseNos = mutableSetOf<String>()
+        val unhiddenCourseNos = mutableSetOf<String>()
         val updated = courses.mapNotNull { course ->
             val override = overrides.find { it.courseNo == course.courseNo }
                 ?: overrides.find { it.moodleCourseId == course.moodleNumericCourseId?.toString() }
@@ -214,15 +215,27 @@ class HomeViewModel @Inject constructor(
                 course.copy(customColorHex = newHex)
             } else course
         }
+        // Un-hide: server says is_hidden=false for courses still in our deleted set
+        val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
+        for (o in overrides) {
+            val no = o.courseNo ?: continue
+            if (!o.isHidden && no in deleted) {
+                deleted.remove(no)
+                unhiddenCourseNos.add(no)
+                Log.d("HomeViewModel", "[Sync] course $no: unhidden by server")
+            }
+        }
         if (hiddenCourseNos.isNotEmpty()) {
-            val deleted = dataCache.loadDeletedCourseNos() + hiddenCourseNos
+            deleted.addAll(hiddenCourseNos)
+        }
+        if (hiddenCourseNos.isNotEmpty() || unhiddenCourseNos.isNotEmpty()) {
             dataCache.saveDeletedCourseNos(deleted)
         }
-        if (changed) {
+        if (changed || unhiddenCourseNos.isNotEmpty()) {
             _allCourses.value = updated
             TigerDuckTheme.buildCourseColorMap(updated)
             dataCache.saveCourses(updated)
-            Log.d("HomeViewModel", "[Sync] applied course overrides: ${hiddenCourseNos.size} hidden, colors updated")
+            Log.d("HomeViewModel", "[Sync] applied course overrides: ${hiddenCourseNos.size} hidden, ${unhiddenCourseNos.size} unhidden, colors updated")
         } else {
             Log.d("HomeViewModel", "[Sync] ${overrides.size} course overrides — no changes (courseNos: ${overrides.map { it.courseNo }})")
         }
