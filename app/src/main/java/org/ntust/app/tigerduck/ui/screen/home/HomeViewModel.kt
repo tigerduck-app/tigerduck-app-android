@@ -618,14 +618,17 @@ class HomeViewModel @Inject constructor(
             rescheduleAssignmentNotifications(_allAssignments.value)
         }
         val id = assignment.assignmentId
+        val status = if (wasIgnored) "none" else "ignored"
         pendingOverrides.add(id)
         viewModelScope.launch {
-            runCatching {
+            try {
                 pushApiClient.patchAssignmentOverride(
-                    id.toIntOrNull() ?: return@launch,
-                    if (wasIgnored) "none" else "ignored",
+                    id.toIntOrNull() ?: return@launch, status,
                 )
                 pendingOverrides.remove(id)
+                Log.d("HomeViewModel", "override PATCH OK: $id → $status")
+            } catch (e: Exception) {
+                Log.w("HomeViewModel", "override PATCH FAILED: $id → $status", e)
             }
         }
     }
@@ -641,14 +644,17 @@ class HomeViewModel @Inject constructor(
             rescheduleAssignmentNotifications(_allAssignments.value)
         }
         val id = assignment.assignmentId
+        val status = if (wasCompleted) "none" else "locally_completed"
         pendingOverrides.add(id)
         viewModelScope.launch {
-            runCatching {
+            try {
                 pushApiClient.patchAssignmentOverride(
-                    id.toIntOrNull() ?: return@launch,
-                    if (wasCompleted) "none" else "locally_completed",
+                    id.toIntOrNull() ?: return@launch, status,
                 )
                 pendingOverrides.remove(id)
+                Log.d("HomeViewModel", "override PATCH OK: $id → $status")
+            } catch (e: Exception) {
+                Log.w("HomeViewModel", "override PATCH FAILED: $id → $status", e)
             }
         }
     }
