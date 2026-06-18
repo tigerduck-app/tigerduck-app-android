@@ -13,6 +13,7 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.shared.Course
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -182,6 +183,44 @@ class PushApiClient @Inject constructor(
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("patchCourseOverride failed: HTTP ${response.code}")
+            }
+        }
+    }
+
+    /**
+     * Fire-and-forget upload of the user's enrolled course list so the backend
+     * can persist it for cross-device sync. Callers wrap this in `runCatching`
+     * — a failure here must never block the normal fetch/save flow.
+     */
+    suspend fun uploadCourses(
+        courses: List<Course>,
+        semester: String,
+    ) = withContext(Dispatchers.IO) {
+        val items = courses.map { c ->
+            mapOf(
+                "semester" to semester,
+                "course_no" to c.courseNo,
+                "course_name" to c.displayName,
+                "course_name_en" to null,
+                "moodle_id" to c.moodleIdNumber,
+                "credits" to c.credits.toDouble(),
+                "classroom" to c.classroom,
+                "instructors" to c.instructor
+                    .split(",", "，", "、")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() },
+            )
+        }
+        val payload = mapOf("courses" to items)
+        val body = gson.toJson(payload).toRequestBody(jsonType)
+        val request = Request.Builder()
+            .url("$baseUrl/sync/courses/upload")
+            .post(body)
+            .addAuthHeader()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw PushApiException("uploadCourses failed: HTTP ${response.code}")
             }
         }
     }

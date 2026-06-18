@@ -987,6 +987,8 @@ class ClassTableViewModel @Inject constructor(
                                 TigerDuckTheme.buildCourseColorMap(merged)
                             }
                             dataCache.saveCourses(merged, semester)
+                            runCatching { pushApiClient.uploadCourses(merged, semester) }
+                                .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal)", it) }
                             widgetUpdater.requestUpdate()
                         }
                     }

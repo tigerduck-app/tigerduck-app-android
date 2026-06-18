@@ -37,6 +37,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private val prefs: org.ntust.app.tigerduck.data.preferences.AppPreferences,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val syncApiClient: org.ntust.app.tigerduck.push.SyncApiClient,
+    private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
 ) : CoroutineWorker(context, params) {
 
     var lastSyncSource: SyncSource = SyncSource.NONE
@@ -228,6 +229,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 val merged = (fetchedWithState + manualLeftovers + cachedRemoteFallbacks)
                     .filter { it.courseNo !in deletedNos }
                 dataCache.saveCourses(merged)
+                runCatching { pushApiClient.uploadCourses(merged, semester) }
+                    .onFailure { Log.w(TAG, "uploadCourses failed (non-fatal)", it) }
             }
             true
         } catch (e: Exception) {
