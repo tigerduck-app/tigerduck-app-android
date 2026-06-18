@@ -78,6 +78,23 @@ class BackgroundSyncWorker @AssistedInject constructor(
             if (result.courseOverrides.isNotEmpty()) {
                 applyCourseOverridesBackground(result.courseOverrides)
             }
+            // Hard-delete model: courses removed on the server are absent from
+            // the courses array. Compare against local to update deletedCourseNos.
+            if (result.serverCourseNos.isNotEmpty()) {
+                val localCourseNos = dataCache.loadCourses().map { it.courseNo }.toSet()
+                val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
+                val sizeBefore = deleted.size
+                for (no in localCourseNos) {
+                    if (no !in result.serverCourseNos) {
+                        deleted.add(no)
+                    }
+                }
+                deleted.removeAll { it in result.serverCourseNos }
+                if (deleted.size != sizeBefore || deleted != dataCache.loadDeletedCourseNos()) {
+                    dataCache.saveDeletedCourseNos(deleted)
+                    Log.d(TAG, "deletedCourseNos updated: $deleted")
+                }
+            }
             dataCache.notifyBackgroundSyncComplete()
             Log.d(TAG, "backgroundSyncVersion incremented")
         } catch (e: Exception) {
@@ -88,17 +105,9 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private suspend fun applyCourseOverridesBackground(overrides: List<org.ntust.app.tigerduck.push.CourseOverrideResult>) {
         val courses = dataCache.loadCourses()
         var changed = false
-        val hiddenNos = mutableSetOf<String>()
-        val unhiddenNos = mutableSetOf<String>()
-        val updated = courses.mapNotNull { course ->
+        val updated = courses.map { course ->
             val override = overrides.find { it.courseNo == course.courseNo }
-                ?: return@mapNotNull course
-            if (override.isHidden) {
-                changed = true
-                hiddenNos.add(course.courseNo)
-                Log.d(TAG, "course ${course.courseNo}: hidden by server")
-                return@mapNotNull null
-            }
+                ?: return@map course
             val newHex = override.colorHex
             if (newHex != course.customColorHex) {
                 changed = true
@@ -106,22 +115,9 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 course.copy(customColorHex = newHex)
             } else course
         }
-        val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
-        for (o in overrides) {
-            val no = o.courseNo ?: continue
-            if (!o.isHidden && no in deleted) {
-                deleted.remove(no)
-                unhiddenNos.add(no)
-                Log.d(TAG, "course $no: unhidden by server")
-            }
-        }
-        if (hiddenNos.isNotEmpty()) deleted.addAll(hiddenNos)
-        if (hiddenNos.isNotEmpty() || unhiddenNos.isNotEmpty()) {
-            dataCache.saveDeletedCourseNos(deleted)
-        }
-        if (changed || unhiddenNos.isNotEmpty()) {
+        if (changed) {
             dataCache.saveCourses(updated)
-            Log.d(TAG, "course overrides applied: ${hiddenNos.size} hidden, ${unhiddenNos.size} unhidden")
+            Log.d(TAG, "course overrides applied: colors updated")
         }
     }
 

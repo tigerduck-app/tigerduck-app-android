@@ -16,7 +16,6 @@ data class CourseOverrideResult(
     val moodleCourseId: String,
     val courseNo: String?,
     val colorHex: String?,
-    val isHidden: Boolean,
     val customNames: Map<String, String> = emptyMap(),
 )
 
@@ -25,6 +24,7 @@ data class BackendSyncResult(
     val ignoredIds: Set<String>,
     val completedIds: Set<String>,
     val courseOverrides: List<CourseOverrideResult>,
+    val serverCourseNos: Set<String>,
     val currentRevision: Long,
 )
 
@@ -58,7 +58,7 @@ class SyncApiClient @Inject constructor(
     private fun parseFullSync(json: JSONObject): BackendSyncResult {
         val assignments = mutableListOf<Assignment>()
         val arr = json.optJSONArray("assignments") ?: return BackendSyncResult(
-            emptyList(), emptySet(), emptySet(), emptyList(), json.optLong("current_revision", 0)
+            emptyList(), emptySet(), emptySet(), emptyList(), emptySet(), json.optLong("current_revision", 0)
         )
         for (i in 0 until arr.length()) {
             val a = arr.getJSONObject(i)
@@ -106,12 +106,16 @@ class SyncApiClient @Inject constructor(
             }
         }
 
-        // Build moodleId → courseNo from courses array for override resolution
+        // Build moodleId → courseNo from courses array for override resolution,
+        // and collect the full set of server-side course_nos for deletion detection.
         val courseMoodleIdToNo = mutableMapOf<String, String>()
+        val serverCourseNos = mutableSetOf<String>()
         val coursesArr = json.optJSONArray("courses")
         if (coursesArr != null) {
             for (i in 0 until coursesArr.length()) {
                 val c = coursesArr.getJSONObject(i)
+                val courseNo = nullStr(c, "course_no")
+                if (courseNo != null) serverCourseNos.add(courseNo)
                 val mId = nullStr(c, "moodle_id") ?: continue
                 val cName = nullStr(c, "course_name") ?: continue
                 val bracketEnd = cName.indexOf("】")
@@ -141,7 +145,6 @@ class SyncApiClient @Inject constructor(
                     moodleCourseId = moodleId,
                     courseNo = courseMoodleIdToNo[moodleId],
                     colorHex = nullStr(co, "color_hex"),
-                    isHidden = co.optBoolean("is_hidden", false),
                     customNames = names,
                 ))
             }
@@ -153,6 +156,7 @@ class SyncApiClient @Inject constructor(
             ignoredIds = ignoredIds,
             completedIds = completedIds,
             courseOverrides = courseOverrides,
+            serverCourseNos = serverCourseNos,
             currentRevision = json.optLong("current_revision", 0),
         )
     }

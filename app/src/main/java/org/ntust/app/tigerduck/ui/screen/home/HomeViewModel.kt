@@ -183,6 +183,25 @@ class HomeViewModel @Inject constructor(
             if (result.courseOverrides.isNotEmpty()) {
                 applyCourseOverrides(result.courseOverrides)
             }
+            // Hard-delete model: courses removed on the server are absent from
+            // the courses array. Compare against local to update deletedCourseNos.
+            if (result.serverCourseNos.isNotEmpty()) {
+                val localCourseNos = dataCache.loadCourses().map { it.courseNo }.toSet()
+                val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
+                val sizeBefore = deleted.size
+                // Any local course not on the server → treat as deleted
+                for (no in localCourseNos) {
+                    if (no !in result.serverCourseNos) {
+                        deleted.add(no)
+                    }
+                }
+                // Any previously-deleted course that reappeared on the server → un-delete
+                deleted.removeAll { it in result.serverCourseNos }
+                if (deleted.size != sizeBefore || deleted != dataCache.loadDeletedCourseNos()) {
+                    dataCache.saveDeletedCourseNos(deleted)
+                    Log.d("HomeViewModel", "[Sync] deletedCourseNos updated: $deleted")
+                }
+            }
             Log.d("HomeViewModel", "[Sync] applied ${finalIgnored.size} ignored, ${finalCompleted.size} completed (${conflicts.size} conflicts pending)")
 
             if (conflicts.isNotEmpty()) {
@@ -197,40 +216,16 @@ class HomeViewModel @Inject constructor(
     private suspend fun applyCourseOverrides(overrides: List<CourseOverrideResult>) {
         val courses = _allCourses.value.ifEmpty { return }
         var changed = false
-        val hiddenCourseNos = mutableSetOf<String>()
-        val unhiddenCourseNos = mutableSetOf<String>()
-        val updated = courses.mapNotNull { course ->
+        val updated = courses.map { course ->
             val override = overrides.find { it.courseNo == course.courseNo }
                 ?: overrides.find { it.moodleCourseId == course.moodleNumericCourseId?.toString() }
-                ?: return@mapNotNull course
-            if (override.isHidden) {
-                changed = true
-                hiddenCourseNos.add(course.courseNo)
-                Log.d("HomeViewModel", "[Sync] course ${course.courseNo}: hidden by server")
-                return@mapNotNull null
-            }
+                ?: return@map course
             val newHex = override.colorHex
             if (newHex != course.customColorHex) {
                 changed = true
                 Log.d("HomeViewModel", "[Sync] course ${course.courseNo}: color ${course.customColorHex} → $newHex")
                 course.copy(customColorHex = newHex)
             } else course
-        }
-        // Un-hide: server says is_hidden=false for courses still in our deleted set
-        val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
-        for (o in overrides) {
-            val no = o.courseNo ?: continue
-            if (!o.isHidden && no in deleted) {
-                deleted.remove(no)
-                unhiddenCourseNos.add(no)
-                Log.d("HomeViewModel", "[Sync] course $no: unhidden by server")
-            }
-        }
-        if (hiddenCourseNos.isNotEmpty()) {
-            deleted.addAll(hiddenCourseNos)
-        }
-        if (hiddenCourseNos.isNotEmpty() || unhiddenCourseNos.isNotEmpty()) {
-            dataCache.saveDeletedCourseNos(deleted)
         }
         // Sync custom names from server
         var nameCount = 0
@@ -249,11 +244,11 @@ class HomeViewModel @Inject constructor(
         if (nameCount > 0) {
             dataCache.saveCourseCustomNames(customNames)
         }
-        if (changed || unhiddenCourseNos.isNotEmpty()) {
+        if (changed) {
             _allCourses.value = updated
             TigerDuckTheme.buildCourseColorMap(updated)
             dataCache.saveCourses(updated)
-            Log.d("HomeViewModel", "[Sync] applied course overrides: ${hiddenCourseNos.size} hidden, ${unhiddenCourseNos.size} unhidden, ${nameCount} names, colors updated")
+            Log.d("HomeViewModel", "[Sync] applied course overrides: ${nameCount} names, colors updated")
         } else {
             Log.d("HomeViewModel", "[Sync] ${overrides.size} course overrides — no changes (courseNos: ${overrides.map { it.courseNo }})")
         }
