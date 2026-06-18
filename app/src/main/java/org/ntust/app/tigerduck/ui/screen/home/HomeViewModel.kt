@@ -97,6 +97,7 @@ class HomeViewModel @Inject constructor(
                 _markedCompletedIds.value = conflict.serverCompleted
             }
         }
+        refresh()
     }
 
     private val _sections = MutableStateFlow(prefs.homeSections)
