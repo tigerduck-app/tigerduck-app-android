@@ -70,7 +70,7 @@ class SyncApiClient @Inject constructor(
             )
         }
 
-        // Build PK → moodleAssignmentId map for override resolution
+        // PK → moodleId fallback for servers that don't include moodle_assignment_id in overrides
         val pkToMoodleId = mutableMapOf<Int, String>()
         for (i in 0 until arr.length()) {
             val a = arr.getJSONObject(i)
@@ -86,8 +86,9 @@ class SyncApiClient @Inject constructor(
             for (i in 0 until overArr.length()) {
                 val o = overArr.getJSONObject(i)
                 val status = o.optString("local_status", "none")
-                val assignmentPk = o.optInt("user_assignment_id", -1)
-                val moodleId = pkToMoodleId[assignmentPk] ?: continue
+                val mid = o.optInt("moodle_assignment_id", -1)
+                val moodleId = if (mid > 0) mid.toString()
+                    else pkToMoodleId[o.optInt("user_assignment_id", -1)] ?: continue
                 when (status) {
                     "ignored", "archived" -> ignoredIds.add(moodleId)
                     "locally_completed" -> completedIds.add(moodleId)
