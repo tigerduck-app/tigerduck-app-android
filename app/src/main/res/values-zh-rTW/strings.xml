@@ -162,6 +162,8 @@
     <string name="class_table_conflict_add_failed_message">%1$s 的時段（週%2$s 第%3$s節）已有兩堂課程：%4$s 和 %5$s。系統不支援三堂以上衝堂。</string>
     <string name="class_table_conflict_add_failed_title">無法加入</string>
     <string name="class_table_course_name">課程名稱</string>
+    <string name="class_table_reset_title">重置課表</string>
+    <string name="class_table_reset_message">這會將你的課表重置為 Moodle 選課紀錄。被隱藏的課程會重新出現，手動新增的課程會被移除。</string>
     <string name="class_table_delete">刪除</string>
     <string name="class_table_delete_with_course">刪除 — %1$s</string>
     <string name="class_table_empty_message">下拉以重新整理，或使用右上角的 + 新增課程，或切換到其他學期</string>

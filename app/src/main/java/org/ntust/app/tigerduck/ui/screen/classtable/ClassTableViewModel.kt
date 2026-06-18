@@ -704,6 +704,13 @@ class ClassTableViewModel @Inject constructor(
     )
     val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
+    fun resetCourses() {
+        viewModelScope.launch {
+            dataCache.saveDeletedCourseNos(emptySet())
+            fetchData()
+        }
+    }
+
     fun refresh() {
         viewModelScope.launch {
             _isLoading.value = true

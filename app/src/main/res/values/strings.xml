@@ -162,6 +162,8 @@
     <string name="class_table_conflict_add_failed_message">%1$s already has two classes at this slot (Weekday %2$s, Period %3$s): %4$s and %5$s. The system does not support triple conflicts.</string>
     <string name="class_table_conflict_add_failed_title">Unable to add</string>
     <string name="class_table_course_name">Course name</string>
+    <string name="class_table_reset_title">Reset course table</string>
+    <string name="class_table_reset_message">This will reset your course table to match your Moodle enrollment. Hidden courses will reappear and manually added courses will be removed.</string>
     <string name="class_table_delete">Delete</string>
     <string name="class_table_delete_with_course">Delete — %1$s</string>
     <string name="class_table_empty_message">Pull to refresh, tap + to add a course, or switch to another semester</string>

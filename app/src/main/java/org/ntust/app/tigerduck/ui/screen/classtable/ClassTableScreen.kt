@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -139,6 +140,7 @@ fun ClassTableScreen(
     val activePeriods = remember(courses) { viewModel.activePeriods }
     val activeWeekdays = remember(courses) { viewModel.activeWeekdays }
     var showAddCourse by remember { mutableStateOf(false) }
+    var showResetConfirm by remember { mutableStateOf(false) }
     var courseToRename by remember { mutableStateOf<Course?>(null) }
     var renameText by remember { mutableStateOf("") }
     var courseToRecolor by remember { mutableStateOf<Course?>(null) }
@@ -201,6 +203,18 @@ fun ClassTableScreen(
                         showCheckmark = showCheckmark,
                         dragProgress = pullProgress,
                     )
+                    IconButton(
+                        onClick = { showResetConfirm = true },
+                        enabled = isLoggedIn
+                    ) {
+                        Icon(
+                            Icons.Filled.Refresh,
+                            contentDescription = stringResource(R.string.class_table_reset_title),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(
+                                alpha = if (isLoggedIn) ContentAlpha.SECONDARY else ContentAlpha.DISABLED
+                            )
+                        )
+                    }
                     IconButton(
                         onClick = { showAddCourse = true },
                         enabled = isLoggedIn
@@ -513,6 +527,20 @@ fun ClassTableScreen(
             ),
             confirmText = stringResource(R.string.action_confirm),
             onConfirm = { tripleConflictError = null },
+        )
+    }
+
+    if (showResetConfirm) {
+        TigerDuckDialog(
+            onDismissRequest = { showResetConfirm = false },
+            title = stringResource(R.string.class_table_reset_title),
+            message = stringResource(R.string.class_table_reset_message),
+            confirmText = stringResource(R.string.action_confirm),
+            onConfirm = {
+                showResetConfirm = false
+                viewModel.resetCourses()
+            },
+            dismissText = stringResource(R.string.action_cancel),
         )
     }
 
