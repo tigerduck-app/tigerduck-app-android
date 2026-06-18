@@ -14,6 +14,7 @@ import javax.inject.Singleton
 
 data class CourseOverrideResult(
     val moodleCourseId: String,
+    val courseNo: String?,
     val colorHex: String?,
     val isHidden: Boolean,
 )
@@ -104,6 +105,23 @@ class SyncApiClient @Inject constructor(
             }
         }
 
+        // Build moodleId → courseNo from courses array for override resolution
+        val courseMoodleIdToNo = mutableMapOf<String, String>()
+        val coursesArr = json.optJSONArray("courses")
+        if (coursesArr != null) {
+            for (i in 0 until coursesArr.length()) {
+                val c = coursesArr.getJSONObject(i)
+                val mId = nullStr(c, "moodle_id") ?: continue
+                val cName = nullStr(c, "course_name") ?: continue
+                val bracketEnd = cName.indexOf("】")
+                if (bracketEnd >= 0) {
+                    val rest = cName.substring(bracketEnd + 1).trim()
+                    val code = rest.split(" ", limit = 2).firstOrNull()?.takeIf { it.isNotEmpty() }
+                    if (code != null) courseMoodleIdToNo[mId] = code
+                }
+            }
+        }
+
         val courseOverrides = mutableListOf<CourseOverrideResult>()
         val courseOverArr = json.optJSONArray("course_overrides")
         if (courseOverArr != null) {
@@ -112,6 +130,7 @@ class SyncApiClient @Inject constructor(
                 val moodleId = nullStr(co, "moodle_id") ?: continue
                 courseOverrides.add(CourseOverrideResult(
                     moodleCourseId = moodleId,
+                    courseNo = courseMoodleIdToNo[moodleId],
                     colorHex = nullStr(co, "color_hex"),
                     isHidden = co.optBoolean("is_hidden", false),
                 ))

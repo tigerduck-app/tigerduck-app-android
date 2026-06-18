@@ -110,14 +110,15 @@ class HomeViewModel @Inject constructor(
 
     private fun applyCourseOverrides(overrides: List<CourseOverrideResult>) {
         val courses = _allCourses.value.ifEmpty { return }
-        val byMoodleId = courses.associateBy { it.moodleNumericCourseId?.toString() }
         var changed = false
         val updated = courses.map { course ->
-            val mId = course.moodleNumericCourseId?.toString() ?: return@map course
-            val override = overrides.find { it.moodleCourseId == mId } ?: return@map course
+            val override = overrides.find { it.courseNo == course.courseNo }
+                ?: overrides.find { it.moodleCourseId == course.moodleNumericCourseId?.toString() }
+                ?: return@map course
             val newHex = override.colorHex
             if (newHex != course.customColorHex) {
                 changed = true
+                Log.d("HomeViewModel", "[Sync] course ${course.courseNo}: color ${course.customColorHex} → $newHex")
                 course.copy(customColorHex = newHex)
             } else course
         }
@@ -127,7 +128,7 @@ class HomeViewModel @Inject constructor(
             viewModelScope.launch { dataCache.saveCourses(updated) }
             Log.d("HomeViewModel", "[Sync] applied ${overrides.size} course overrides (colors updated)")
         } else {
-            Log.d("HomeViewModel", "[Sync] ${overrides.size} course overrides — no color changes")
+            Log.d("HomeViewModel", "[Sync] ${overrides.size} course overrides — no color changes (courseNos: ${overrides.map { it.courseNo }})")
         }
     }
 
