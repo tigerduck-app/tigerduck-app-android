@@ -81,11 +81,16 @@ class HomeViewModel @Inject constructor(
                 return
             }
 
-            // Server overrides are authoritative.
-            dataCache.replaceIgnoredAssignments(result.ignoredIds)
-            dataCache.replaceMarkedCompletedAssignments(result.completedIds)
-            _ignoredAssignmentIds.value = result.ignoredIds
-            _markedCompletedIds.value = result.completedIds
+            // Server overrides are authoritative — but preserve local
+            // changes that haven't reached the server yet.
+            val safeIgnored = result.ignoredIds +
+                _ignoredAssignmentIds.value.filter { it in pendingOverrides }
+            val safeCompleted = result.completedIds +
+                _markedCompletedIds.value.filter { it in pendingOverrides }
+            dataCache.replaceIgnoredAssignments(safeIgnored)
+            dataCache.replaceMarkedCompletedAssignments(safeCompleted)
+            _ignoredAssignmentIds.value = safeIgnored
+            _markedCompletedIds.value = safeCompleted
             Log.d("HomeViewModel", "override sync: ${result.ignoredIds.size} ignored, ${result.completedIds.size} completed")
         } catch (e: Exception) {
             Log.w("HomeViewModel", "override sync failed", e)
@@ -104,6 +109,8 @@ class HomeViewModel @Inject constructor(
     // Full assignment list from the most recent load/fetch. The UI-visible
     // list is derived from this + the ignore set + the current tab filter.
     private val _allAssignments = MutableStateFlow<List<Assignment>>(emptyList())
+
+    private val pendingOverrides = mutableSetOf<String>()
 
     private val _ignoredAssignmentIds = MutableStateFlow<Set<String>>(emptySet())
     val ignoredAssignmentIds: StateFlow<Set<String>> = _ignoredAssignmentIds
@@ -610,12 +617,15 @@ class HomeViewModel @Inject constructor(
         if (prefs.notifyAssignments) {
             rescheduleAssignmentNotifications(_allAssignments.value)
         }
+        val id = assignment.assignmentId
+        pendingOverrides.add(id)
         viewModelScope.launch {
             runCatching {
                 pushApiClient.patchAssignmentOverride(
-                    assignment.assignmentId.toIntOrNull() ?: return@launch,
+                    id.toIntOrNull() ?: return@launch,
                     if (wasIgnored) "none" else "ignored",
                 )
+                pendingOverrides.remove(id)
             }
         }
     }
@@ -630,12 +640,15 @@ class HomeViewModel @Inject constructor(
         if (prefs.notifyAssignments) {
             rescheduleAssignmentNotifications(_allAssignments.value)
         }
+        val id = assignment.assignmentId
+        pendingOverrides.add(id)
         viewModelScope.launch {
             runCatching {
                 pushApiClient.patchAssignmentOverride(
-                    assignment.assignmentId.toIntOrNull() ?: return@launch,
+                    id.toIntOrNull() ?: return@launch,
                     if (wasCompleted) "none" else "locally_completed",
                 )
+                pendingOverrides.remove(id)
             }
         }
     }
