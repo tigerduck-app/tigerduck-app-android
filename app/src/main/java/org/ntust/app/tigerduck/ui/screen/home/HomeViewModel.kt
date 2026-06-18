@@ -402,6 +402,17 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private suspend fun migrateColorHashIfNeeded() {
+        if (prefs.colorHashV2Migrated) return
+        val courses = dataCache.loadCourses()
+        if (courses.isNotEmpty()) {
+            val cleared = courses.map { it.copy(customColorHex = null) }
+            dataCache.saveCourses(cleared)
+            Log.d("HomeViewModel", "[Migration] cleared ${courses.size} course colors for hash v2")
+        }
+        prefs.colorHashV2Migrated = true
+    }
+
     private var hasLoaded = false
 
     fun load() {
@@ -409,6 +420,7 @@ class HomeViewModel @Inject constructor(
         hasLoaded = true
 
         viewModelScope.launch {
+            migrateColorHashIfNeeded()
             _skippedDates.value = dataCache.loadSkippedDates()
             _ignoredAssignmentIds.value = dataCache.loadIgnoredAssignments()
             _markedCompletedIds.value = dataCache.loadMarkedCompletedAssignments()

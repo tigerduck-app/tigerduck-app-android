@@ -149,6 +149,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getBoolean("rememberAnnouncementFilter", false)
         set(value) = prefs.edit().putBoolean("rememberAnnouncementFilter", value).apply()
 
+    var colorHashV2Migrated: Boolean
+        get() = prefs.getBoolean("color_hash_v2_migrated", false)
+        set(value) = prefs.edit().putBoolean("color_hash_v2_migrated", value).apply()
+
     /**
      * Persisted department (org) filter for the announcements list. Always
      * written when the filter changes; restored on launch only when
