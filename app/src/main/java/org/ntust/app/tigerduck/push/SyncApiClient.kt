@@ -52,19 +52,19 @@ class SyncApiClient @Inject constructor(
         for (i in 0 until arr.length()) {
             val a = arr.getJSONObject(i)
             if (!a.isNull("deleted_at")) continue
-            val dueStr = a.optString("due_at", "")
-            if (dueStr.isBlank()) continue
+            val dueDate = nullStr(a, "due_at")?.let { parseIso(it) }
+                ?: Date(Long.MAX_VALUE)
             assignments.add(
                 Assignment(
                     assignmentId = a.getInt("moodle_assignment_id").toString(),
-                    courseNo = a.optString("course_no", ""),
-                    courseName = a.optString("course_name", ""),
-                    title = a.optString("title", ""),
-                    dueDate = parseIso(dueStr) ?: continue,
+                    courseNo = nullStr(a, "course_no") ?: "",
+                    courseName = nullStr(a, "course_name") ?: "",
+                    title = nullStr(a, "title") ?: "",
+                    dueDate = dueDate,
                     isCompleted = a.optBoolean("provider_is_submitted", false),
-                    moodleUrl = a.optString("moodle_url", null),
-                    cutoffDate = parseIso(a.optString("cutoff_at", "")),
-                    submittedAt = parseIso(a.optString("provider_submitted_at", "")),
+                    moodleUrl = nullStr(a, "moodle_url"),
+                    cutoffDate = nullStr(a, "cutoff_at")?.let { parseIso(it) },
+                    submittedAt = nullStr(a, "provider_submitted_at")?.let { parseIso(it) },
                 )
             )
         }
@@ -86,6 +86,12 @@ class SyncApiClient @Inject constructor(
             assignmentOverrides = overrides,
             currentRevision = json.optLong("current_revision", 0),
         )
+    }
+
+    private fun nullStr(obj: JSONObject, key: String): String? {
+        if (obj.isNull(key)) return null
+        val v = obj.optString(key, "")
+        return v.ifBlank { null }
     }
 
     private fun parseIso(s: String): Date? {
