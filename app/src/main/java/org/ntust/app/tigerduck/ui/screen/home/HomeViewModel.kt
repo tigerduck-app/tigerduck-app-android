@@ -182,7 +182,7 @@ class HomeViewModel @Inject constructor(
             }
 
             AssignmentFilter.IGNORED ->
-                all.filter { it.assignmentId in ignored }.sortedBy { it.dueDate }
+                all.filter { !done(it) && it.assignmentId in ignored }.sortedBy { it.dueDate }
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 

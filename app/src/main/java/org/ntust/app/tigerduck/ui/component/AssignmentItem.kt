@@ -122,6 +122,8 @@ private fun AssignmentTrailing(
     val moodleBadge = statusBadge(status)
     val markCompleteLabel = stringResource(R.string.assignment_mark_complete)
     val ignoredLabel = stringResource(R.string.assignment_filter_ignored)
+    val overdueLabel = stringResource(R.string.assignment_status_overdue)
+    val overdueRejectedLabel = stringResource(R.string.assignment_status_overdue_rejected)
     val markedBadge: Pair<String, Color>? =
         if (markedCompleted) markCompleteLabel to BadgeGreen else null
     val ignoredBadge: Pair<String, Color>? =
@@ -130,8 +132,24 @@ private fun AssignmentTrailing(
             status == AssignmentStatus.OVERDUE_REJECTED
     val emphasise = status == AssignmentStatus.OVERDUE_REJECTED
 
+    val now = remember(clockVersion) { Date(AppClock.nowMillis()) }
+
+    // Secondary overdue badge: when an item is locally completed or ignored
+    // but past due, show the overdue badge stacked above (matches iOS
+    // secondaryBadge). Also shown for submitted + locally completed.
+    val secondaryBadge: Pair<String, Color>? = when {
+        (status == AssignmentStatus.SUBMITTED || status == AssignmentStatus.SUBMITTED_LATE) && markedCompleted ->
+            markCompleteLabel to BadgeGreen
+        (markedCompleted || isIgnored) && assignment.dueDate.before(now) -> {
+            if (assignment.cutoffDate != null && now.after(assignment.cutoffDate))
+                overdueRejectedLabel to BadgeRed
+            else overdueLabel to BadgeRed
+        }
+        else -> null
+    }
+
     Column(horizontalAlignment = Alignment.End) {
-        val badges = listOfNotNull(moodleBadge, ignoredBadge, markedBadge)
+        val badges = listOfNotNull(secondaryBadge, moodleBadge, ignoredBadge, markedBadge)
         if (badges.isNotEmpty()) {
             Column(horizontalAlignment = Alignment.End) {
                 badges.forEach { (label, color) ->
@@ -147,13 +165,14 @@ private fun AssignmentTrailing(
             }
         }
 
-        val now = remember(clockVersion) { Date(AppClock.nowMillis()) }
-        val useAbsolute = showAbsoluteTime ||
-                ((assignment.isCompleted || markedCompleted || isIgnored) && assignment.dueDate.before(now))
+        val useAbsolute = showAbsoluteTime || assignment.dueDate.before(now)
         val timeText = if (useAbsolute) formatAbsolute(assignment.dueDate)
         else formatRelative(assignment.dueDate, now)
-        val timeColor = if (isOverdue) BadgeRed
-        else MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+        val timeColor = when {
+            isOverdue -> BadgeRed
+            (isIgnored || markedCompleted) && assignment.dueDate.before(now) -> BadgeRed
+            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+        }
         val timeWeight = if (emphasise) FontWeight.Bold else FontWeight.Normal
         Text(
             text = timeText,

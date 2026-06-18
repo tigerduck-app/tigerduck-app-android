@@ -826,7 +826,7 @@ private fun SwipeableAssignmentRow(
     // but pointer deltas are raw screen-space. Negate in RTL so swipeOffset
     // stays "logical" (positive = start) and the visual row tracks the finger.
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val ignoreColor = Color(0xFFFF9500)
+    val ignoreColor = Color(0xFF8E8E93)
     val completeColor = Color(0xFF34C759)
 
     Box(modifier = Modifier.fillMaxWidth()) {
