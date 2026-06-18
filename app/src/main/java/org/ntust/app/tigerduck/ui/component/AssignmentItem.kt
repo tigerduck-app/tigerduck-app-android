@@ -152,7 +152,12 @@ private fun AssignmentTrailing(
     }
 
     Column(horizontalAlignment = Alignment.End) {
-        val badges = listOfNotNull(secondaryBadge, moodleBadge, ignoredBadge, markedBadge)
+        val badges = listOfNotNull(
+            secondaryBadge,
+            moodleBadge,
+            if (secondaryBadge?.first == ignoredLabel) null else ignoredBadge,
+            if (secondaryBadge?.first == markCompleteLabel) null else markedBadge,
+        )
         if (badges.isNotEmpty()) {
             Column(horizontalAlignment = Alignment.End) {
                 badges.forEach { (label, color) ->
