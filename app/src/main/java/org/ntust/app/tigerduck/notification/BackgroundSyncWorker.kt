@@ -22,6 +22,8 @@ import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import java.util.concurrent.TimeUnit
 
+enum class SyncSource { NONE, BACKEND, LOCAL }
+
 @HiltWorker
 class BackgroundSyncWorker @AssistedInject constructor(
     @Assisted context: Context,
@@ -34,29 +36,62 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private val liveActivityManager: org.ntust.app.tigerduck.liveactivity.LiveActivityManager,
     private val prefs: org.ntust.app.tigerduck.data.preferences.AppPreferences,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
+    private val syncApiClient: org.ntust.app.tigerduck.push.SyncApiClient,
 ) : CoroutineWorker(context, params) {
+
+    var lastSyncSource: SyncSource = SyncSource.NONE
+        private set
 
     override suspend fun doWork(): Result {
         val studentId = authService.storedStudentId
         val password = authService.storedPassword
         if (studentId.isNullOrBlank() || password.isNullOrBlank()) return Result.success()
 
-        val coursesOk = syncCourses(studentId, password)
-        // The user may have logged out while the network call was in flight.
-        // Bail before touching the cache or scheduling anything.
+        val backendOk = tryBackendSync()
         if (authService.storedStudentId != studentId) return Result.success()
 
-        val assignmentsOk = syncAssignments()
-        if (authService.storedStudentId != studentId) return Result.success()
+        if (!backendOk) {
+            lastSyncSource = SyncSource.LOCAL
+            val coursesOk = syncCourses(studentId, password)
+            if (authService.storedStudentId != studentId) return Result.success()
+            val assignmentsOk = syncAssignments()
+            if (authService.storedStudentId != studentId) return Result.success()
+            if (!coursesOk || !assignmentsOk) {
+                liveActivityManager.refreshAndWait()
+                widgetUpdater.updateAll()
+                return Result.retry()
+            }
+        }
 
         liveActivityManager.refreshAndWait()
         widgetUpdater.updateAll()
 
-        // Retry whenever either half failed: treating a partial failure as
-        // success would silently drop the failing component until the next
-        // hourly tick. WorkManager's exponential backoff is the right
-        // recovery path for transient Moodle/NTUST outages.
-        return if (coursesOk && assignmentsOk) Result.success() else Result.retry()
+        return Result.success()
+    }
+
+    private suspend fun tryBackendSync(): Boolean {
+        return try {
+            val result = syncApiClient.fetchFullSync()
+            val ignored = dataCache.loadIgnoredAssignments()
+            val marked = dataCache.loadMarkedCompletedAssignments()
+            val merged = result.assignments.map { a ->
+                a.copy(isCompleted = a.isCompleted || a.assignmentId in marked)
+            }
+            dataCache.saveAssignments(merged)
+            if (prefs.notifyAssignments) {
+                notificationScheduler.scheduleAll(
+                    merged.filter { !it.isCompleted },
+                    ignored + marked,
+                    prefs.notifyAssignmentOffsets,
+                )
+            }
+            lastSyncSource = SyncSource.BACKEND
+            Log.d(TAG, "backend sync OK: ${merged.size} assignments, rev=${result.currentRevision}")
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "backend sync failed, falling back to Moodle", e)
+            false
+        }
     }
 
     private suspend fun syncCourses(studentId: String, password: String): Boolean {
