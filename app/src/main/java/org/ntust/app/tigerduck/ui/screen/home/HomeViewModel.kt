@@ -23,7 +23,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -56,6 +58,8 @@ class HomeViewModel @Inject constructor(
     private val liveActivityManager: LiveActivityManager,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val pushApiClient: PushApiClient,
+    private val syncApiClient: SyncApiClient,
+    private val authTokenManager: AuthTokenManager,
 ) : ViewModel() {
 
     val syncConflict = dataCache.syncConflict
@@ -348,13 +352,24 @@ class HomeViewModel @Inject constructor(
             var assignments = dataCache.loadAssignments()
 
             if (forceRemote) {
+                // Backend-first: try the server's synced copy. On failure,
+                // fall through to the existing direct-Moodle path.
+                if (authTokenManager.isLoggedIn) {
+                    try {
+                        val result = syncApiClient.fetchFullSync()
+                        if (result.assignments.isNotEmpty()) {
+                            dataCache.saveAssignments(result.assignments)
+                            assignments = dataCache.loadAssignments()
+                            Log.d("HomeViewModel", "backend sync: ${result.assignments.size} assignments")
+                        }
+                    } catch (e: Exception) {
+                        Log.w("HomeViewModel", "backend sync failed, falling back to Moodle", e)
+                    }
+                }
+
                 val studentId = authService.storedStudentId
                 val password = authService.storedPassword
                 if (!studentId.isNullOrBlank() && !password.isNullOrBlank()) {
-                    // ensureAuthenticated runs alongside the Moodle fetches now
-                    // (see fetchCoursesAndAssignments). Moodle uses a long-lived
-                    // wstoken so it doesn't need the NTUST SSO cookies the auth
-                    // check is renewing.
                     val (remoteCourses, remoteAssignments) =
                         fetchCoursesAndAssignments(studentId, password)
 
