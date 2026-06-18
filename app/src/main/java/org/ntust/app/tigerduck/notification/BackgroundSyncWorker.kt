@@ -77,6 +77,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
             if (result.courseOverrides.isNotEmpty()) {
                 applyCourseOverridesBackground(result.courseOverrides)
             }
+            dataCache.notifyBackgroundSyncComplete()
         } catch (e: Exception) {
             Log.w(TAG, "override sync failed", e)
         }

@@ -418,6 +418,16 @@ class HomeViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            dataCache.backgroundSyncComplete.collect {
+                val courses = dataCache.loadCourses()
+                val assignments = dataCache.loadAssignments()
+                _ignoredAssignmentIds.value = dataCache.loadIgnoredAssignments()
+                _markedCompletedIds.value = dataCache.loadMarkedCompletedAssignments()
+                TigerDuckTheme.buildCourseColorMap(courses)
+                updateCoursesAndAssignments(courses, assignments)
+            }
+        }
+        viewModelScope.launch {
             // Abbreviation toggles + Mandarin classroom display picker — pure
             // display transforms. Re-derive names from the lookup cache so the
             // time-slider card and today list update without a network call.
