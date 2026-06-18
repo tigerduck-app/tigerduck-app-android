@@ -177,10 +177,17 @@ class HomeViewModel @Inject constructor(
     private fun applyCourseOverrides(overrides: List<CourseOverrideResult>) {
         val courses = _allCourses.value.ifEmpty { return }
         var changed = false
-        val updated = courses.map { course ->
+        val hiddenCourseNos = mutableSetOf<String>()
+        val updated = courses.mapNotNull { course ->
             val override = overrides.find { it.courseNo == course.courseNo }
                 ?: overrides.find { it.moodleCourseId == course.moodleNumericCourseId?.toString() }
-                ?: return@map course
+                ?: return@mapNotNull course
+            if (override.isHidden) {
+                changed = true
+                hiddenCourseNos.add(course.courseNo)
+                Log.d("HomeViewModel", "[Sync] course ${course.courseNo}: hidden by server")
+                return@mapNotNull null
+            }
             val newHex = override.colorHex
             if (newHex != course.customColorHex) {
                 changed = true
@@ -192,9 +199,9 @@ class HomeViewModel @Inject constructor(
             _allCourses.value = updated
             TigerDuckTheme.buildCourseColorMap(updated)
             viewModelScope.launch { dataCache.saveCourses(updated) }
-            Log.d("HomeViewModel", "[Sync] applied ${overrides.size} course overrides (colors updated)")
+            Log.d("HomeViewModel", "[Sync] applied course overrides: ${hiddenCourseNos.size} hidden, colors updated")
         } else {
-            Log.d("HomeViewModel", "[Sync] ${overrides.size} course overrides — no color changes (courseNos: ${overrides.map { it.courseNo }})")
+            Log.d("HomeViewModel", "[Sync] ${overrides.size} course overrides — no changes (courseNos: ${overrides.map { it.courseNo }})")
         }
     }
 
