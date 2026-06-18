@@ -47,6 +47,7 @@ class ClassTableViewModel @Inject constructor(
     private val courseColorStore: CourseColorStore,
     private val appPreferences: AppPreferences,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
+    private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
 ) : ViewModel() {
 
     private val _courses = MutableStateFlow<List<Course>>(emptyList())
@@ -412,6 +413,7 @@ class ClassTableViewModel @Inject constructor(
     }
 
     fun deleteCourse(courseNo: String) {
+        syncCourseOverride(courseNo, isHidden = true)
         val updated = _courses.value.filter { it.courseNo != courseNo }
         _courses.value = updated
         viewModelScope.launch {
@@ -443,6 +445,24 @@ class ClassTableViewModel @Inject constructor(
         viewModelScope.launch {
             dataCache.saveCourses(updated, _currentSemester.value)
             widgetUpdater.requestUpdate()
+        }
+        syncCourseOverride(courseNo, colorHex = normalized)
+    }
+
+    private fun syncCourseOverride(
+        courseNo: String,
+        isHidden: Boolean? = null,
+        colorHex: String? = null,
+    ) {
+        val course = _courses.value.find { it.courseNo == courseNo } ?: return
+        val moodleId = course.moodleNumericCourseId ?: return
+        viewModelScope.launch {
+            try {
+                pushApiClient.patchCourseOverride(moodleId, isHidden = isHidden, colorHex = colorHex)
+                Log.d("ClassTableVM", "course override OK: $courseNo → color=$colorHex hidden=$isHidden")
+            } catch (e: Exception) {
+                Log.w("ClassTableVM", "course override FAILED: $courseNo", e)
+            }
         }
     }
 
@@ -817,7 +837,8 @@ class ClassTableViewModel @Inject constructor(
                                                 courseNo = courseNo,
                                                 courseName = (m.fullname
                                                     ?: courseNo).decodeHtmlEntities(),
-                                                moodleIdNumber = m.idnumber
+                                                moodleIdNumber = m.idnumber,
+                                                moodleNumericCourseId = m.id,
                                             )
                                         }
                                     }
@@ -828,7 +849,8 @@ class ClassTableViewModel @Inject constructor(
                                             courseNo = courseNo,
                                             courseName = (m.fullname
                                                 ?: courseNo).decodeHtmlEntities(),
-                                            moodleIdNumber = m.idnumber
+                                            moodleIdNumber = m.idnumber,
+                                            moodleNumericCourseId = m.id,
                                         )
                                     }
                                 }
