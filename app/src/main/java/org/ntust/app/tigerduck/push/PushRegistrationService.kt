@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.di.ApplicationScope
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -42,6 +43,7 @@ class PushRegistrationService @Inject constructor(
     @ApplicationContext context: Context,
     private val identity: PushIdentity,
     private val api: PushApiClient,
+    private val authTokenManager: AuthTokenManager,
     @param:ApplicationScope private val scope: CoroutineScope,
 ) {
     private val mutex = Mutex()
@@ -133,6 +135,14 @@ class PushRegistrationService @Inject constructor(
             if (isUnregistering) null else fcmToken
         }
         if (token == null) return false
+        // Registration requires a v3 JWT — the device row belongs to a
+        // signed-in user. The FCM token usually arrives before login on a
+        // cold start; defer until sign-in (onSignedIn() re-fires this) rather
+        // than POSTing with no Bearer and getting 401 missing_bearer_token.
+        if (!authTokenManager.isLoggedIn) {
+            Log.d(TAG, "register deferred: not signed in yet")
+            return false
+        }
         val clientDeviceId = identity.uuid()
         return runCatching {
             api.register(
