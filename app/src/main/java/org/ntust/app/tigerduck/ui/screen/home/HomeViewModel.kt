@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -63,6 +64,52 @@ class HomeViewModel @Inject constructor(
     private val authTokenManager: AuthTokenManager,
 ) : ViewModel() {
 
+    data class SyncConflict(
+        val id: String,
+        val kind: String,
+        val label: String,
+        val localStatus: String,
+        val serverStatus: String,
+    )
+
+    private val _syncConflicts = MutableStateFlow<List<SyncConflict>>(emptyList())
+    val syncConflicts: StateFlow<List<SyncConflict>> = _syncConflicts
+
+    private var _pendingSyncResult: BackendSyncResult? = null
+
+    fun resolveSyncConflicts(keepLocal: Boolean) {
+        val result = _pendingSyncResult ?: return
+        val conflicts = _syncConflicts.value.toList()
+        _pendingSyncResult = null
+        _syncConflicts.value = emptyList()
+        viewModelScope.launch {
+            if (keepLocal) {
+                for (c in conflicts) {
+                    val mid = c.id.toIntOrNull() ?: continue
+                    runCatching { pushApiClient.patchAssignmentOverride(mid, c.localStatus) }
+                }
+                Log.d("HomeViewModel", "[Sync] conflict resolved: keep local (uploaded ${conflicts.size} overrides)")
+            } else {
+                applyServerOverrides(result)
+                Log.d("HomeViewModel", "[Sync] conflict resolved: keep server")
+            }
+        }
+    }
+
+    private suspend fun applyServerOverrides(result: BackendSyncResult) {
+        val safeIgnored = result.ignoredIds +
+            _ignoredAssignmentIds.value.filter { it in pendingOverrides }
+        val safeCompleted = result.completedIds +
+            _markedCompletedIds.value.filter { it in pendingOverrides }
+        dataCache.replaceIgnoredAssignments(safeIgnored)
+        dataCache.replaceMarkedCompletedAssignments(safeCompleted)
+        _ignoredAssignmentIds.value = safeIgnored
+        _markedCompletedIds.value = safeCompleted
+        if (result.courseOverrides.isNotEmpty()) {
+            applyCourseOverrides(result.courseOverrides)
+        }
+    }
+
     private suspend fun syncOverridesFromBackend() {
         if (!authTokenManager.isLoggedIn) {
             Log.d("HomeViewModel", "[Sync] skipped: not logged in (v3)")
@@ -70,12 +117,10 @@ class HomeViewModel @Inject constructor(
         }
         try {
             val result = syncApiClient.fetchFullSync()
-            Log.d("HomeViewModel", "[Sync] server returned: ${result.ignoredIds.size} ignored=${result.ignoredIds}, ${result.completedIds.size} completed=${result.completedIds}")
+            Log.d("HomeViewModel", "[Sync] server returned: ${result.ignoredIds.size} ignored, ${result.completedIds.size} completed, ${result.courseOverrides.size} courseOverrides")
             val localIgnored = dataCache.loadIgnoredAssignments()
             val localMarked = dataCache.loadMarkedCompletedAssignments()
-            Log.d("HomeViewModel", "[Sync] local: ${localIgnored.size} ignored, ${localMarked.size} completed, ${pendingOverrides.size} pending")
 
-            // First-time migration: upload local overrides if server has none.
             if (result.ignoredIds.isEmpty() && result.completedIds.isEmpty()
                 && (localIgnored.isNotEmpty() || localMarked.isNotEmpty())) {
                 Log.d("HomeViewModel", "[Sync] first-time migration: uploading ${localIgnored.size} ignored + ${localMarked.size} completed")
@@ -88,21 +133,42 @@ class HomeViewModel @Inject constructor(
                 return
             }
 
-            // Server overrides are authoritative — but preserve local
-            // changes that haven't reached the server yet.
-            val safeIgnored = result.ignoredIds +
-                _ignoredAssignmentIds.value.filter { it in pendingOverrides }
-            val safeCompleted = result.completedIds +
-                _markedCompletedIds.value.filter { it in pendingOverrides }
-            dataCache.replaceIgnoredAssignments(safeIgnored)
-            dataCache.replaceMarkedCompletedAssignments(safeCompleted)
-            _ignoredAssignmentIds.value = safeIgnored
-            _markedCompletedIds.value = safeCompleted
-            Log.d("HomeViewModel", "[Sync] applied: ${safeIgnored.size} ignored, ${safeCompleted.size} completed (pending=${pendingOverrides.size})")
-
-            if (result.courseOverrides.isNotEmpty()) {
-                applyCourseOverrides(result.courseOverrides)
+            val conflicts = mutableListOf<SyncConflict>()
+            val allIds = (result.ignoredIds + result.completedIds + localIgnored + localMarked).toSet()
+            val assignmentsByMoodleId = _allAssignments.value.associateBy { it.assignmentId }
+            for (id in allIds) {
+                if (id in pendingOverrides) continue
+                val serverStatus = when {
+                    id in result.ignoredIds -> "ignored"
+                    id in result.completedIds -> "locally_completed"
+                    else -> "none"
+                }
+                val localStatus = when {
+                    id in localIgnored -> "ignored"
+                    id in localMarked -> "locally_completed"
+                    else -> "none"
+                }
+                if (serverStatus != localStatus) {
+                    val a = assignmentsByMoodleId[id]
+                    conflicts.add(SyncConflict(
+                        id = id,
+                        kind = "作業",
+                        label = a?.title ?: "ID $id",
+                        localStatus = localStatus,
+                        serverStatus = serverStatus,
+                    ))
+                }
             }
+
+            if (conflicts.isNotEmpty()) {
+                Log.d("HomeViewModel", "[Sync] ${conflicts.size} conflicts found")
+                _pendingSyncResult = result
+                _syncConflicts.value = conflicts
+                return
+            }
+
+            applyServerOverrides(result)
+            Log.d("HomeViewModel", "[Sync] applied (no conflicts)")
         } catch (e: Exception) {
             Log.w("HomeViewModel", "[Sync] override sync failed", e)
         }

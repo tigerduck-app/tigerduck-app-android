@@ -55,6 +55,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -138,6 +139,7 @@ fun HomeScreen(
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
     // 翹課 feature disabled — kept for potential re-enable.
     // val skippedDates by viewModel.skippedDates.collectAsStateWithLifecycle()
+    val syncConflicts by viewModel.syncConflicts.collectAsStateWithLifecycle()
     var showComingSoon by remember { mutableStateOf(false) }
     var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -356,6 +358,14 @@ fun HomeScreen(
 
     if (showComingSoon) {
         ComingSoonDialog(onDismiss = { showComingSoon = false })
+    }
+
+    if (syncConflicts.isNotEmpty()) {
+        SyncConflictDialog(
+            conflicts = syncConflicts,
+            onKeepLocal = { viewModel.resolveSyncConflicts(keepLocal = true) },
+            onKeepServer = { viewModel.resolveSyncConflicts(keepLocal = false) },
+        )
     }
 
     selectedCourse?.let { info ->
@@ -940,4 +950,51 @@ private fun SwipeableAssignmentRow(
             )
         }
     }
+}
+
+@Composable
+private fun SyncConflictDialog(
+    conflicts: List<HomeViewModel.SyncConflict>,
+    onKeepLocal: () -> Unit,
+    onKeepServer: () -> Unit,
+) {
+    fun statusLabel(s: String) = when (s) {
+        "ignored", "archived" -> "已忽略"
+        "locally_completed" -> "標示為完成"
+        "none" -> "原始狀態"
+        else -> s
+    }
+
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text("同步衝突") },
+        text = {
+            Column {
+                Text("以下是有衝突的項目：", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(8.dp))
+                conflicts.forEach { c ->
+                    Text(
+                        "• ${c.kind}: ${c.label}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        "  本機: ${statusLabel(c.localStatus)} → 伺服器: ${statusLabel(c.serverStatus)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onKeepServer) {
+                Text("使用伺服器")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onKeepLocal) {
+                Text("保留本機")
+            }
+        },
+    )
 }
