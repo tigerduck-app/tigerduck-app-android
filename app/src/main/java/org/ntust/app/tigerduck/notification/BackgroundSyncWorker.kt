@@ -72,51 +72,22 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private suspend fun tryBackendSync(): Boolean {
         return try {
             val result = syncApiClient.fetchFullSync()
-            val localIgnored = dataCache.loadIgnoredAssignments()
-            val localMarked = dataCache.loadMarkedCompletedAssignments()
 
-            // Derive server-side override sets from the parsed overrides
-            val serverIgnored = result.assignmentOverrides
-                .filter { it.value == "ignored" || it.value == "archived" }
-                .keys.map { id ->
-                    result.assignments.find { (it.assignmentId.toIntOrNull() ?: -1) == id }?.assignmentId
-                }.filterNotNull().toSet()
-            val serverCompleted = result.assignmentOverrides
-                .filter { it.value == "locally_completed" }
-                .keys.map { id ->
-                    result.assignments.find { (it.assignmentId.toIntOrNull() ?: -1) == id }?.assignmentId
-                }.filterNotNull().toSet()
+            // Server state is authoritative. Save assignments directly.
+            dataCache.saveAssignments(result.assignments)
 
-            val hasConflict = localIgnored != serverIgnored || localMarked != serverCompleted
-            if (hasConflict && (localIgnored.isNotEmpty() || localMarked.isNotEmpty())) {
-                dataCache.setSyncConflict(
-                    org.ntust.app.tigerduck.data.model.SyncConflict(
-                        localIgnored = localIgnored,
-                        localCompleted = localMarked,
-                        serverIgnored = serverIgnored,
-                        serverCompleted = serverCompleted,
-                    )
-                )
-                dataCache.saveAssignments(result.assignments)
-                lastSyncSource = SyncSource.BACKEND
-                return true
-            }
-
-            val merged = result.assignments.map { a ->
-                a.copy(isCompleted = a.isCompleted || a.assignmentId in serverCompleted)
-            }
-            dataCache.saveAssignments(merged)
-            dataCache.replaceIgnoredAssignments(serverIgnored)
-            dataCache.replaceMarkedCompletedAssignments(serverCompleted)
+            // Server overrides are authoritative — apply them.
+            dataCache.replaceIgnoredAssignments(emptySet())
+            dataCache.replaceMarkedCompletedAssignments(emptySet())
             if (prefs.notifyAssignments) {
                 notificationScheduler.scheduleAll(
-                    merged.filter { !it.isCompleted },
-                    serverIgnored + serverCompleted,
+                    result.assignments.filter { !it.isCompleted },
+                    emptySet(),
                     prefs.notifyAssignmentOffsets,
                 )
             }
             lastSyncSource = SyncSource.BACKEND
-            Log.d(TAG, "backend sync OK: ${merged.size} assignments, rev=${result.currentRevision}")
+            Log.d(TAG, "backend sync OK: ${result.assignments.size} assignments, rev=${result.currentRevision}")
             true
         } catch (e: Exception) {
             Log.w(TAG, "backend sync failed, falling back to Moodle", e)

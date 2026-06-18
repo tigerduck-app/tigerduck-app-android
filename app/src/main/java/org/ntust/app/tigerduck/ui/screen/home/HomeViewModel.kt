@@ -62,48 +62,6 @@ class HomeViewModel @Inject constructor(
     private val authTokenManager: AuthTokenManager,
 ) : ViewModel() {
 
-    val syncConflict = dataCache.syncConflict
-
-    fun resolveSyncConflict(useLocal: Boolean) {
-        val conflict = dataCache.syncConflict.value ?: return
-        dataCache.setSyncConflict(null)
-        if (useLocal) {
-            viewModelScope.launch {
-                for (id in conflict.localIgnored) {
-                    runCatching {
-                        pushApiClient.patchAssignmentOverride(
-                            id.toIntOrNull() ?: return@runCatching, "ignored"
-                        )
-                    }
-                }
-                for (id in conflict.localCompleted) {
-                    runCatching {
-                        pushApiClient.patchAssignmentOverride(
-                            id.toIntOrNull() ?: return@runCatching, "locally_completed"
-                        )
-                    }
-                }
-                val serverOnly = (conflict.serverIgnored - conflict.localIgnored) +
-                    (conflict.serverCompleted - conflict.localCompleted)
-                for (id in serverOnly) {
-                    runCatching {
-                        pushApiClient.patchAssignmentOverride(
-                            id.toIntOrNull() ?: return@runCatching, "none"
-                        )
-                    }
-                }
-            }
-        } else {
-            viewModelScope.launch {
-                dataCache.replaceIgnoredAssignments(conflict.serverIgnored)
-                dataCache.replaceMarkedCompletedAssignments(conflict.serverCompleted)
-                _ignoredAssignmentIds.value = conflict.serverIgnored
-                _markedCompletedIds.value = conflict.serverCompleted
-            }
-        }
-        refresh()
-    }
-
     private val _sections = MutableStateFlow(prefs.homeSections)
     val sections: StateFlow<List<HomeSection>> = _sections
 
@@ -354,12 +312,14 @@ class HomeViewModel @Inject constructor(
             if (forceRemote) {
                 // Backend-first: try the server's synced copy. On failure,
                 // fall through to the existing direct-Moodle path.
+                var backendOk = false
                 if (authTokenManager.isLoggedIn) {
                     try {
                         val result = syncApiClient.fetchFullSync()
                         if (result.assignments.isNotEmpty()) {
                             dataCache.saveAssignments(result.assignments)
                             assignments = dataCache.loadAssignments()
+                            backendOk = true
                             Log.d("HomeViewModel", "backend sync: ${result.assignments.size} assignments")
                         }
                     } catch (e: Exception) {
@@ -369,7 +329,7 @@ class HomeViewModel @Inject constructor(
 
                 val studentId = authService.storedStudentId
                 val password = authService.storedPassword
-                if (!studentId.isNullOrBlank() && !password.isNullOrBlank()) {
+                if (!backendOk && !studentId.isNullOrBlank() && !password.isNullOrBlank()) {
                     val (remoteCourses, remoteAssignments) =
                         fetchCoursesAndAssignments(studentId, password)
 
