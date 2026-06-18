@@ -50,6 +50,9 @@ import org.ntust.app.tigerduck.ui.screen.update.UpdatePromptDialog
 import org.ntust.app.tigerduck.data.model.WhatsNewContent
 import org.ntust.app.tigerduck.update.WhatsNewGate
 import org.ntust.app.tigerduck.update.WhatsNewRepository
+import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.network.MoodleTokenService
+import org.ntust.app.tigerduck.push.PushApiClient
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -84,6 +87,15 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var firstTriggerPromptController: FirstTriggerPromptController
+
+    @Inject
+    lateinit var moodleTokenService: MoodleTokenService
+
+    @Inject
+    lateinit var pushApiClient: PushApiClient
+
+    @Inject
+    lateinit var authTokenManager: AuthTokenManager
 
     private val widgetStartRoute = mutableStateOf<String?>(null)
     private val whatsNewContent = mutableStateOf<WhatsNewContent?>(null)
@@ -198,10 +210,16 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         liveActivityManager.refresh()
         updateChecker.resume(this)
-        // Pref may have changed in Settings (which itself can run while
-        // landscape-locked). Re-apply on every resume so the new choice
-        // takes effect without needing an Activity recreate.
         applyRotationPreference()
+        refreshMoodleCredentials()
+    }
+
+    private fun refreshMoodleCredentials() {
+        if (!authTokenManager.isLoggedIn) return
+        val token = moodleTokenService.currentToken() ?: return
+        lifecycleScope.launch {
+            runCatching { pushApiClient.updateCredentials(token) }
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

@@ -121,4 +121,68 @@ class PushApiClient @Inject constructor(
                 ?: throw PushApiException("updateDevicePreferences: empty body")
         }
     }
+
+    suspend fun updateCredentials(
+        moodleToken: String,
+        moodlePrivateToken: String? = null,
+    ) = withContext(Dispatchers.IO) {
+        val payload = mapOf(
+            "moodle_token" to moodleToken,
+            "moodle_private_token" to moodlePrivateToken,
+        )
+        val body = gson.toJson(payload).toRequestBody(jsonType)
+        val request = Request.Builder()
+            .url("$baseUrl/auth/credentials")
+            .patch(body)
+            .addAuthHeader()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw PushApiException("updateCredentials failed: HTTP ${response.code}")
+            }
+        }
+    }
+
+    suspend fun patchAssignmentOverride(
+        assignmentId: Int,
+        localStatus: String,
+    ) = withContext(Dispatchers.IO) {
+        val payload = mapOf("local_status" to localStatus)
+        val body = gson.toJson(payload).toRequestBody(jsonType)
+        val request = Request.Builder()
+            .url("$baseUrl/sync/assignments/$assignmentId/override")
+            .patch(body)
+            .addAuthHeader()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw PushApiException("patchAssignmentOverride failed: HTTP ${response.code}")
+            }
+        }
+    }
+
+    suspend fun patchCourseOverride(
+        courseId: Int,
+        isHidden: Boolean? = null,
+        colorHex: String? = null,
+        customName: String? = null,
+        locale: String? = null,
+    ) = withContext(Dispatchers.IO) {
+        val payload = mutableMapOf<String, Any?>()
+        if (isHidden != null) payload["is_hidden"] = isHidden
+        if (colorHex != null) payload["color_hex"] = colorHex
+        if (customName != null) payload["custom_name"] = customName
+        if (locale != null) payload["locale"] = locale
+        val body = gson.toJson(payload).toRequestBody(jsonType)
+        val request = Request.Builder()
+            .url("$baseUrl/sync/courses/$courseId/override")
+            .patch(body)
+            .addAuthHeader()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw PushApiException("patchCourseOverride failed: HTTP ${response.code}")
+            }
+        }
+    }
 }
