@@ -47,50 +47,34 @@ class BackgroundSyncWorker @AssistedInject constructor(
         val password = authService.storedPassword
         if (studentId.isNullOrBlank() || password.isNullOrBlank()) return Result.success()
 
-        val backendOk = tryBackendSync()
-        if (authService.storedStudentId != studentId) return Result.success()
+        // Moodle-direct for assignments/courses, backend for override sync.
+        syncOverridesFromBackend()
 
-        if (!backendOk) {
-            lastSyncSource = SyncSource.LOCAL
-            val coursesOk = syncCourses(studentId, password)
-            if (authService.storedStudentId != studentId) return Result.success()
-            val assignmentsOk = syncAssignments()
-            if (authService.storedStudentId != studentId) return Result.success()
-            if (!coursesOk || !assignmentsOk) {
-                liveActivityManager.refreshAndWait()
-                widgetUpdater.updateAll()
-                return Result.retry()
-            }
-        }
+        val coursesOk = syncCourses(studentId, password)
+        if (authService.storedStudentId != studentId) return Result.success()
+        val assignmentsOk = syncAssignments()
+        if (authService.storedStudentId != studentId) return Result.success()
 
         liveActivityManager.refreshAndWait()
         widgetUpdater.updateAll()
 
-        return Result.success()
+        return if (coursesOk && assignmentsOk) Result.success() else Result.retry()
     }
 
-    private suspend fun tryBackendSync(): Boolean {
-        return try {
+    private suspend fun syncOverridesFromBackend() {
+        try {
             val result = syncApiClient.fetchFullSync()
-
-            dataCache.saveAssignments(result.assignments)
+            val localIgnored = dataCache.loadIgnoredAssignments()
+            val localMarked = dataCache.loadMarkedCompletedAssignments()
+            if (result.ignoredIds.isEmpty() && result.completedIds.isEmpty()
+                && (localIgnored.isNotEmpty() || localMarked.isNotEmpty())) {
+                return
+            }
             dataCache.replaceIgnoredAssignments(result.ignoredIds)
             dataCache.replaceMarkedCompletedAssignments(result.completedIds)
-            if (prefs.notifyAssignments) {
-                notificationScheduler.scheduleAll(
-                    result.assignments.filter {
-                        !it.isCompleted && it.assignmentId !in result.completedIds
-                    },
-                    result.ignoredIds + result.completedIds,
-                    prefs.notifyAssignmentOffsets,
-                )
-            }
-            lastSyncSource = SyncSource.BACKEND
-            Log.d(TAG, "backend sync OK: ${result.assignments.size} assignments, rev=${result.currentRevision}")
-            true
+            Log.d(TAG, "override sync: ${result.ignoredIds.size} ignored, ${result.completedIds.size} completed")
         } catch (e: Exception) {
-            Log.w(TAG, "backend sync failed, falling back to Moodle", e)
-            false
+            Log.w(TAG, "override sync failed", e)
         }
     }
 

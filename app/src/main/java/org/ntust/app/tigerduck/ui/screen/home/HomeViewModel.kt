@@ -62,6 +62,36 @@ class HomeViewModel @Inject constructor(
     private val authTokenManager: AuthTokenManager,
 ) : ViewModel() {
 
+    private suspend fun syncOverridesFromBackend() {
+        if (!authTokenManager.isLoggedIn) return
+        try {
+            val result = syncApiClient.fetchFullSync()
+            val localIgnored = dataCache.loadIgnoredAssignments()
+            val localMarked = dataCache.loadMarkedCompletedAssignments()
+
+            // First-time migration: upload local overrides if server has none.
+            if (result.ignoredIds.isEmpty() && result.completedIds.isEmpty()
+                && (localIgnored.isNotEmpty() || localMarked.isNotEmpty())) {
+                for (id in localIgnored) {
+                    runCatching { pushApiClient.patchAssignmentOverride(id.toIntOrNull() ?: return@runCatching, "ignored") }
+                }
+                for (id in localMarked) {
+                    runCatching { pushApiClient.patchAssignmentOverride(id.toIntOrNull() ?: return@runCatching, "locally_completed") }
+                }
+                return
+            }
+
+            // Server overrides are authoritative.
+            dataCache.replaceIgnoredAssignments(result.ignoredIds)
+            dataCache.replaceMarkedCompletedAssignments(result.completedIds)
+            _ignoredAssignmentIds.value = result.ignoredIds
+            _markedCompletedIds.value = result.completedIds
+            Log.d("HomeViewModel", "override sync: ${result.ignoredIds.size} ignored, ${result.completedIds.size} completed")
+        } catch (e: Exception) {
+            Log.w("HomeViewModel", "override sync failed", e)
+        }
+    }
+
     private val _sections = MutableStateFlow(prefs.homeSections)
     val sections: StateFlow<List<HomeSection>> = _sections
 
@@ -310,30 +340,14 @@ class HomeViewModel @Inject constructor(
             var assignments = dataCache.loadAssignments()
 
             if (forceRemote) {
-                // Backend-first: try the server's synced copy. On failure,
-                // fall through to the existing direct-Moodle path.
-                var backendOk = false
-                if (authTokenManager.isLoggedIn) {
-                    try {
-                        val result = syncApiClient.fetchFullSync()
-                        if (result.assignments.isNotEmpty()) {
-                            dataCache.saveAssignments(result.assignments)
-                            dataCache.replaceIgnoredAssignments(result.ignoredIds)
-                            dataCache.replaceMarkedCompletedAssignments(result.completedIds)
-                            _ignoredAssignmentIds.value = result.ignoredIds
-                            _markedCompletedIds.value = result.completedIds
-                            assignments = dataCache.loadAssignments()
-                            backendOk = true
-                            Log.d("HomeViewModel", "backend sync: ${result.assignments.size} assignments, ${result.ignoredIds.size} ignored, ${result.completedIds.size} completed")
-                        }
-                    } catch (e: Exception) {
-                        Log.w("HomeViewModel", "backend sync failed, falling back to Moodle", e)
-                    }
-                }
+                // Moodle-direct for the assignment/course list (proven,
+                // correct semester filtering). Backend handles override
+                // sync only (done/ignored marks across devices).
+                syncOverridesFromBackend()
 
                 val studentId = authService.storedStudentId
                 val password = authService.storedPassword
-                if (!backendOk && !studentId.isNullOrBlank() && !password.isNullOrBlank()) {
+                if (!studentId.isNullOrBlank() && !password.isNullOrBlank()) {
                     val (remoteCourses, remoteAssignments) =
                         fetchCoursesAndAssignments(studentId, password)
 
