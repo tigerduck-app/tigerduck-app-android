@@ -470,7 +470,12 @@ class ClassTableViewModel @Inject constructor(
     }
 
     fun deleteCourse(courseNo: String) {
-        syncCourseOverride(courseNo, isHidden = true)
+        val moodleId = _courses.value.find { it.courseNo == courseNo }?.moodleNumericCourseId
+        if (moodleId != null) {
+            viewModelScope.launch {
+                runCatching { pushApiClient.patchCourseOverride(moodleId, isHidden = true) }
+            }
+        }
         val updated = _courses.value.filter { it.courseNo != courseNo }
         _courses.value = updated
         viewModelScope.launch {
