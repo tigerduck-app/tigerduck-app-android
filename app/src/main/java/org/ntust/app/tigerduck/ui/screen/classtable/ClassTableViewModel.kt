@@ -370,6 +370,10 @@ class ClassTableViewModel @Inject constructor(
         val updated = _courses.value + flagged
         _courses.value = updated
         viewModelScope.launch {
+            val deleted = dataCache.loadDeletedCourseNos()
+            if (course.courseNo in deleted) {
+                dataCache.saveDeletedCourseNos(deleted - course.courseNo)
+            }
             dataCache.saveCourses(updated, _currentSemester.value)
             widgetUpdater.requestUpdate()
         }
@@ -417,6 +421,8 @@ class ClassTableViewModel @Inject constructor(
         val updated = _courses.value.filter { it.courseNo != courseNo }
         _courses.value = updated
         viewModelScope.launch {
+            val deleted = dataCache.loadDeletedCourseNos() + courseNo
+            dataCache.saveDeletedCourseNos(deleted)
             dataCache.saveCourses(updated, _currentSemester.value)
             widgetUpdater.requestUpdate()
         }
@@ -859,6 +865,7 @@ class ClassTableViewModel @Inject constructor(
 
                         if (courses.isNotEmpty()) {
                             val cached = dataCache.loadCourses(semester)
+                            val deletedNos = dataCache.loadDeletedCourseNos()
                             val cachedByNo = cached.associateBy { it.courseNo }
                             // Carry forward both the user's color pick AND the
                             // `isManual` flag. If the user manually added a
@@ -876,7 +883,8 @@ class ClassTableViewModel @Inject constructor(
                             val fetchedNos = fetched.map { it.courseNo }.toSet()
                             val manualLeftovers =
                                 cached.filter { it.isManual && it.courseNo !in fetchedNos }
-                            val merged = fetched + manualLeftovers
+                            val merged = (fetched + manualLeftovers)
+                                .filter { it.courseNo !in deletedNos }
                             // Only apply if the user hasn't flipped to a
                             // different semester mid-flight.
                             if (_currentSemester.value == semester) {

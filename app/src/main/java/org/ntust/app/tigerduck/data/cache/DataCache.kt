@@ -216,6 +216,19 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return loadFromUserData(type, "skipped_dates.json") ?: emptyMap()
     }
 
+    // MARK: - Deleted Course Nos (hidden by user or server)
+    // Stored in filesDir so courses hidden via sync or the delete gesture
+    // stay gone even when Moodle/NTUST re-fetches re-add them.
+
+    suspend fun saveDeletedCourseNos(nos: Set<String>) =
+        saveToUserData(nos.toList(), "deleted_courses.json")
+
+    suspend fun loadDeletedCourseNos(): Set<String> {
+        val type = object : TypeToken<List<String>>() {}.type
+        return loadFromUserData<List<String>>(type, "deleted_courses.json")?.toSet()
+            ?: emptySet()
+    }
+
     // MARK: - Ignored Assignments (set of assignmentIds)
     // Stored in filesDir so the user's ignore decisions survive OS cache eviction
     // and remote re-fetches, mirroring skipped_dates.json handling.
@@ -356,6 +369,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
                     "skipped_dates.json",
                     "ignored_assignments.json",
                     "marked_completed_assignments.json",
+                    "deleted_courses.json",
                 ).forEach { name ->
                     runCatching { File(userDataDir, name).delete() }
                 }

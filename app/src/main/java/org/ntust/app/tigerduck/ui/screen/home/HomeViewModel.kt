@@ -193,7 +193,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun applyCourseOverrides(overrides: List<CourseOverrideResult>) {
+    private suspend fun applyCourseOverrides(overrides: List<CourseOverrideResult>) {
         val courses = _allCourses.value.ifEmpty { return }
         var changed = false
         val hiddenCourseNos = mutableSetOf<String>()
@@ -214,10 +214,14 @@ class HomeViewModel @Inject constructor(
                 course.copy(customColorHex = newHex)
             } else course
         }
+        if (hiddenCourseNos.isNotEmpty()) {
+            val deleted = dataCache.loadDeletedCourseNos() + hiddenCourseNos
+            dataCache.saveDeletedCourseNos(deleted)
+        }
         if (changed) {
             _allCourses.value = updated
             TigerDuckTheme.buildCourseColorMap(updated)
-            viewModelScope.launch { dataCache.saveCourses(updated) }
+            dataCache.saveCourses(updated)
             Log.d("HomeViewModel", "[Sync] applied course overrides: ${hiddenCourseNos.size} hidden, colors updated")
         } else {
             Log.d("HomeViewModel", "[Sync] ${overrides.size} course overrides — no changes (courseNos: ${overrides.map { it.courseNo }})")
@@ -489,6 +493,7 @@ class HomeViewModel @Inject constructor(
                         // Re-read cache so a concurrent color change isn't erased,
                         // and so manually-added courses survive the refresh.
                         val cached = dataCache.loadCourses()
+                        val deletedNos = dataCache.loadDeletedCourseNos()
                         val latestColors = cached.associate { it.courseNo to it.customColorHex }
                         val fetched = remoteCourses.map { c ->
                             c.copy(customColorHex = latestColors[c.courseNo])
@@ -496,7 +501,8 @@ class HomeViewModel @Inject constructor(
                         val fetchedNos = fetched.map { it.courseNo }.toSet()
                         val manualLeftovers =
                             cached.filter { it.isManual && it.courseNo !in fetchedNos }
-                        courses = fetched + manualLeftovers
+                        courses = (fetched + manualLeftovers)
+                            .filter { it.courseNo !in deletedNos }
                         dataCache.saveCourses(courses)
                         widgetUpdater.requestUpdate()
                     }

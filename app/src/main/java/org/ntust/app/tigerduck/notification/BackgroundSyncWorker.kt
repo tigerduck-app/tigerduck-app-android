@@ -85,11 +85,13 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private suspend fun applyCourseOverridesBackground(overrides: List<org.ntust.app.tigerduck.push.CourseOverrideResult>) {
         val courses = dataCache.loadCourses()
         var changed = false
+        val hiddenNos = mutableSetOf<String>()
         val updated = courses.mapNotNull { course ->
             val override = overrides.find { it.courseNo == course.courseNo }
                 ?: return@mapNotNull course
             if (override.isHidden) {
                 changed = true
+                hiddenNos.add(course.courseNo)
                 Log.d(TAG, "course ${course.courseNo}: hidden by server")
                 return@mapNotNull null
             }
@@ -99,6 +101,10 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 Log.d(TAG, "course ${course.courseNo}: color → $newHex")
                 course.copy(customColorHex = newHex)
             } else course
+        }
+        if (hiddenNos.isNotEmpty()) {
+            val deleted = dataCache.loadDeletedCourseNos() + hiddenNos
+            dataCache.saveDeletedCourseNos(deleted)
         }
         if (changed) {
             dataCache.saveCourses(updated)
@@ -190,6 +196,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 // Preserve user-picked tile colors and manually-added courses
                 // across the background refresh.
                 val cached = dataCache.loadCourses()
+                val deletedNos = dataCache.loadDeletedCourseNos()
                 val cachedByNo = cached.associateBy { it.courseNo }
                 val fetchedWithState = fetched.map { c ->
                     val prior = cachedByNo[c.courseNo]
@@ -206,7 +213,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 // this cycle's roster but unresolved due to transient lookup failures.
                 val cachedRemoteFallbacks =
                     cached.filter { !it.isManual && it.courseNo in unresolvedNos }
-                val merged = fetchedWithState + manualLeftovers + cachedRemoteFallbacks
+                val merged = (fetchedWithState + manualLeftovers + cachedRemoteFallbacks)
+                    .filter { it.courseNo !in deletedNos }
                 dataCache.saveCourses(merged)
             }
             true
