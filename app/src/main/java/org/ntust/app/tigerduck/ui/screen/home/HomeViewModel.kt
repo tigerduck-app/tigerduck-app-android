@@ -63,15 +63,21 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
 
     private suspend fun syncOverridesFromBackend() {
-        if (!authTokenManager.isLoggedIn) return
+        if (!authTokenManager.isLoggedIn) {
+            Log.d("HomeViewModel", "[Sync] skipped: not logged in (v3)")
+            return
+        }
         try {
             val result = syncApiClient.fetchFullSync()
+            Log.d("HomeViewModel", "[Sync] server returned: ${result.ignoredIds.size} ignored=${result.ignoredIds}, ${result.completedIds.size} completed=${result.completedIds}")
             val localIgnored = dataCache.loadIgnoredAssignments()
             val localMarked = dataCache.loadMarkedCompletedAssignments()
+            Log.d("HomeViewModel", "[Sync] local: ${localIgnored.size} ignored, ${localMarked.size} completed, ${pendingOverrides.size} pending")
 
             // First-time migration: upload local overrides if server has none.
             if (result.ignoredIds.isEmpty() && result.completedIds.isEmpty()
                 && (localIgnored.isNotEmpty() || localMarked.isNotEmpty())) {
+                Log.d("HomeViewModel", "[Sync] first-time migration: uploading ${localIgnored.size} ignored + ${localMarked.size} completed")
                 for (id in localIgnored) {
                     runCatching { pushApiClient.patchAssignmentOverride(id.toIntOrNull() ?: return@runCatching, "ignored") }
                 }
@@ -91,9 +97,9 @@ class HomeViewModel @Inject constructor(
             dataCache.replaceMarkedCompletedAssignments(safeCompleted)
             _ignoredAssignmentIds.value = safeIgnored
             _markedCompletedIds.value = safeCompleted
-            Log.d("HomeViewModel", "override sync: ${result.ignoredIds.size} ignored, ${result.completedIds.size} completed")
+            Log.d("HomeViewModel", "[Sync] applied: ${safeIgnored.size} ignored, ${safeCompleted.size} completed (pending=${pendingOverrides.size})")
         } catch (e: Exception) {
-            Log.w("HomeViewModel", "override sync failed", e)
+            Log.w("HomeViewModel", "[Sync] override sync failed", e)
         }
     }
 
