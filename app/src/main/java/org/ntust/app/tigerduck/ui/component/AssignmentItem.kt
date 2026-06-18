@@ -165,7 +165,8 @@ private fun AssignmentTrailing(
             }
         }
 
-        val useAbsolute = showAbsoluteTime || assignment.dueDate.before(now)
+        val useAbsolute = showAbsoluteTime ||
+                ((assignment.isCompleted || markedCompleted || isIgnored) && assignment.dueDate.before(now))
         val timeText = if (useAbsolute) formatAbsolute(assignment.dueDate)
         else formatRelative(assignment.dueDate, now)
         val timeColor = when {
