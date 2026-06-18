@@ -9,6 +9,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -418,7 +419,7 @@ class HomeViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            dataCache.backgroundSyncComplete.collect {
+            dataCache.backgroundSyncVersion.drop(1).collect {
                 val courses = dataCache.loadCourses()
                 val assignments = dataCache.loadAssignments()
                 _ignoredAssignmentIds.value = dataCache.loadIgnoredAssignments()

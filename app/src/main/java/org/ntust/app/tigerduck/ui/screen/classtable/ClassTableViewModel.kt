@@ -8,6 +8,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -149,7 +150,7 @@ class ClassTableViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            dataCache.backgroundSyncComplete.collect {
+            dataCache.backgroundSyncVersion.drop(1).collect {
                 val semester = _currentSemester.value
                 val fresh = resolveCustomNames(dataCache.loadCourses(semester))
                 if (fresh.isNotEmpty()) {

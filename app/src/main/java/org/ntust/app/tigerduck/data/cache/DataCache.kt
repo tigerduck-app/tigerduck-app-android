@@ -9,11 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
@@ -45,12 +42,9 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     fun setSyncConflict(conflict: SyncConflict?) { _syncConflict.value = conflict }
 
-    private val _backgroundSyncComplete = MutableSharedFlow<Unit>(
-        extraBufferCapacity = 1,
-        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
-    )
-    val backgroundSyncComplete: SharedFlow<Unit> = _backgroundSyncComplete.asSharedFlow()
-    fun notifyBackgroundSyncComplete() { _backgroundSyncComplete.tryEmit(Unit) }
+    private val _backgroundSyncVersion = MutableStateFlow(0)
+    val backgroundSyncVersion: StateFlow<Int> = _backgroundSyncVersion.asStateFlow()
+    fun notifyBackgroundSyncComplete() { _backgroundSyncVersion.value++ }
 
     suspend fun replaceIgnoredAssignments(ids: Set<String>) {
         saveToUserData(ids.toList(), "ignored_assignments.json")
