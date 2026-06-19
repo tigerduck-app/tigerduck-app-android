@@ -228,7 +228,6 @@ class HomeViewModel @Inject constructor(
                 password = "",
                 moodleToken = moodleToken,
                 moodlePrivateToken = null,
-                deviceName = android.os.Build.MODEL,
             )
             true
         } catch (e: Exception) {
