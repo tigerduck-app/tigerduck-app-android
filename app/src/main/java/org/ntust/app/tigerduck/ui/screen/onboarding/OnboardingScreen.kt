@@ -428,7 +428,6 @@ fun OnboardingScreen(
                             Button(
                                 onClick = {
                                     focusManager.clearFocus()
-<<<<<<< HEAD
                                     viewModel.login(studentId, password) {
                                         password = ""
                                         goToPage(permissionsPageIndex)
