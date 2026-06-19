@@ -486,15 +486,6 @@ class ClassTableViewModel @Inject constructor(
     }
 
     fun deleteCourse(courseNo: String) {
-        if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-            val moodleId = _courses.value.find { it.courseNo == courseNo }
-                ?.let { resolveMoodleNumericId(it) }
-            if (moodleId != null) {
-                viewModelScope.launch {
-                    runCatching { pushApiClient.patchCourseOverride(moodleId, isHidden = true) }
-                }
-            }
-        }
         val updated = _courses.value.filter { it.courseNo != courseNo }
         _courses.value = updated
         val semester = _currentSemester.value
