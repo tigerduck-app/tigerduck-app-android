@@ -529,6 +529,12 @@
     <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
     <string name="onboarding_sync_data_list">Data shared with the server:\n\n• Student ID\n• Moodle token (encrypted — your password is never uploaded)\n• Device ID\n• Course data\n• Assignment data</string>
     <string name="onboarding_sync_toggle_label">Enable cross-device sync</string>
+    <string name="onboarding_sync_shared_student_id">Student ID</string>
+    <string name="onboarding_sync_shared_moodle_token">Moodle token (encrypted)</string>
+    <string name="onboarding_sync_shared_device_id">Device ID</string>
+    <string name="onboarding_sync_shared_courses">Course data</string>
+    <string name="onboarding_sync_shared_assignments">Assignment data</string>
+    <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
     <string name="onboarding_sync_note">When sync is off, all data stays on this device only. On Android, push notifications and Live Updates still work locally — they don\'t require the sync server.</string>
     <string name="settings_cloud_sync_title">Cross-Device Sync</string>
     <string name="settings_cloud_sync_description">Sync timetable edits, assignment states, and settings across your devices via the TigerDuck server.\n\nData shared with the server:\n• Student ID\n• Moodle token (encrypted — your password is never uploaded)\n• Device ID\n• Course data\n• Assignment data\n\nWhen sync is off, all data stays on this device only. Push notifications and Live Updates still work locally on Android.</string>

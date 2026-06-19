@@ -529,6 +529,12 @@
     <string name="onboarding_sync_description">啟用後，TigerDuck 會透過 TigerDuck 伺服器在你的裝置間同步課表編輯和作業狀態。</string>
     <string name="onboarding_sync_data_list">與伺服器共用的資料：\n\n• 學號\n• Moodle token（加密上傳，不會上傳密碼）\n• 裝置 ID\n• 課程資料\n• 作業資料</string>
     <string name="onboarding_sync_toggle_label">啟用跨裝置同步</string>
+    <string name="onboarding_sync_shared_student_id">學號</string>
+    <string name="onboarding_sync_shared_moodle_token">Moodle token（加密上傳）</string>
+    <string name="onboarding_sync_shared_device_id">裝置 ID</string>
+    <string name="onboarding_sync_shared_courses">課程資料</string>
+    <string name="onboarding_sync_shared_assignments">作業資料</string>
+    <string name="onboarding_sync_not_shared_password">密碼不會被上傳</string>
     <string name="onboarding_sync_note">關閉同步後，所有資料僅儲存於本機。在 Android 上，推播通知與即時動態不需同步伺服器，仍可在本機正常運作。</string>
     <string name="settings_cloud_sync_title">跨裝置同步</string>
     <string name="settings_cloud_sync_description">透過 TigerDuck 伺服器在你的裝置間同步課表編輯、作業狀態與設定。\n\n與伺服器共用的資料：\n• 學號\n• Moodle token（加密上傳，不會上傳密碼）\n• 裝置 ID\n• 課程資料\n• 作業資料\n\n關閉同步後，所有資料僅儲存於本機。在 Android 上，推播通知與即時動態仍可正常運作。</string>
