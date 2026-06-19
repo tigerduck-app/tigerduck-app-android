@@ -537,8 +537,12 @@
     <string name="onboarding_sync_not_shared_password">密碼不會被上傳</string>
     <string name="onboarding_sync_note">關閉同步後，所有資料僅儲存於本機。在 Android 上，推播通知與即時動態不需同步伺服器，仍可在本機正常運作。</string>
     <string name="settings_cloud_sync_title">跨裝置同步</string>
-    <string name="settings_cloud_sync_description">透過 TigerDuck 伺服器在你的裝置間同步課表編輯、作業狀態與設定。\n\n與伺服器共用的資料：\n• 學號\n• Moodle token（加密上傳，不會上傳密碼）\n• 裝置 ID\n• 課程資料\n• 作業資料\n\n關閉同步後，所有資料僅儲存於本機。在 Android 上，推播通知與即時動態仍可正常運作。</string>
+    <string name="settings_sync_brief_description">在你的裝置間同步課表編輯與作業狀態。</string>
+    <string name="settings_sync_data_section">與伺服器共用的資料</string>
+    <string name="settings_sync_disabled_note">關閉同步後，所有資料僅儲存於本機。</string>
     <string name="settings_cloud_sync_toggle_label">啟用跨裝置同步</string>
+    <string name="settings_sync_status_on">開啟</string>
+    <string name="settings_sync_status_off">關閉</string>
     <string name="sync_fdroid_unavailable_title">不支援跨裝置同步</string>
     <string name="sync_fdroid_unavailable_body">F-Droid 版本不包含跨裝置同步功能。如需多裝置同步請安裝 Play 商店版本。</string>
     <string name="password_eye_unavailable_during_capture">為防止密碼外洩，螢幕錄製或鏡像期間顯示密碼功能已停用。</string>

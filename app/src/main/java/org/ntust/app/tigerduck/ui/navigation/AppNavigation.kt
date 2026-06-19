@@ -78,6 +78,7 @@ import org.ntust.app.tigerduck.ui.screen.settings.CourseNameSizeSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.CloudSyncSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.ServerPushScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SourceCodePickerScreen
@@ -107,6 +108,7 @@ sealed class Screen(val route: String) {
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
     object CourseNameSizeSettings : Screen("courseNameSizeSettings")
+    object CloudSync : Screen("cloudSync")
     object ServerPush : Screen("serverPush")
     object VibrationSettings : Screen("vibrationSettings")
     object Debug : Screen("debug")
@@ -396,6 +398,7 @@ fun MainNavigation(
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
                     onNavigateToAssignmentReminders = { navController.navigate(Screen.AssignmentReminderSettings.route) },
                     onNavigateToServerPush = { navController.navigate(Screen.ServerPush.route) },
+                    onNavigateToCloudSync = { navController.navigate(Screen.CloudSync.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
                     // Debug-route navigation is no-op in release builds:
                     // the composables themselves are registered only inside
@@ -472,6 +475,9 @@ fun MainNavigation(
             }
             composable(Screen.AssignmentReminderSettings.route) {
                 AssignmentReminderSettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.CloudSync.route) {
+                CloudSyncSettingsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.ServerPush.route) {
                 ServerPushScreen(onBack = { navController.popBackStack() })

@@ -537,8 +537,12 @@
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
     <string name="onboarding_sync_note">When sync is off, all data stays on this device only. On Android, push notifications and Live Updates still work locally — they don\'t require the sync server.</string>
     <string name="settings_cloud_sync_title">Cross-Device Sync</string>
-    <string name="settings_cloud_sync_description">Sync timetable edits, assignment states, and settings across your devices via the TigerDuck server.\n\nData shared with the server:\n• Student ID\n• Moodle token (encrypted — your password is never uploaded)\n• Device ID\n• Course data\n• Assignment data\n\nWhen sync is off, all data stays on this device only. Push notifications and Live Updates still work locally on Android.</string>
+    <string name="settings_sync_brief_description">Sync timetable edits and assignment states across your devices.</string>
+    <string name="settings_sync_data_section">Data shared with the server</string>
+    <string name="settings_sync_disabled_note">When sync is off, all data stays on this device only.</string>
     <string name="settings_cloud_sync_toggle_label">Enable cross-device sync</string>
+    <string name="settings_sync_status_on">On</string>
+    <string name="settings_sync_status_off">Off</string>
     <string name="sync_fdroid_unavailable_title">Cross-device sync not available</string>
     <string name="sync_fdroid_unavailable_body">The F-Droid build does not include cross-device sync. Install the Play Store build for multi-device sync.</string>
     <string name="password_eye_unavailable_during_capture">To keep your password from being captured, reveal is disabled while the screen is being recorded or mirrored.</string>

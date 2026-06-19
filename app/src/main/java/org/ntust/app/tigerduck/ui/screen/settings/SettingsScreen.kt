@@ -111,6 +111,7 @@ fun SettingsScreen(
     onNavigateToLiveActivity: () -> Unit = {},
     onNavigateToAssignmentReminders: () -> Unit = {},
     onNavigateToServerPush: () -> Unit = {},
+    onNavigateToCloudSync: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToNotificationDebug: () -> Unit = {},
@@ -399,7 +400,6 @@ fun SettingsScreen(
             item {
                 ContentCard {
                     if (BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                        // F-Droid: show unavailable notice
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -417,17 +417,13 @@ fun SettingsScreen(
                             )
                         }
                     } else {
-                        // Play: sync toggle + description
-                        Column {
-                            SettingsToggleRow(
-                                label = stringResource(R.string.settings_cloud_sync_toggle_label),
-                                checked = viewModel.appState.cloudSyncEnabled,
-                                subtitle = stringResource(R.string.settings_cloud_sync_description),
-                                onCheckedChange = { enabled ->
-                                    viewModel.appState.cloudSyncEnabled = enabled
-                                },
-                            )
-                        }
+                        SettingsLinkRowWithValue(
+                            label = stringResource(R.string.settings_cloud_sync_toggle_label),
+                            value = if (viewModel.appState.cloudSyncEnabled)
+                                stringResource(R.string.settings_sync_status_on)
+                            else stringResource(R.string.settings_sync_status_off),
+                            onClick = onNavigateToCloudSync,
+                        )
                     }
                 }
             }
