@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,6 +17,8 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -139,6 +142,44 @@ fun CloudSyncSettingsScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFFFF9500),
                             )
+                        }
+                    }
+                }
+            }
+
+            if (syncEnabled) {
+                item {
+                    ContentCard {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Button(
+                                onClick = {
+                                    androidx.work.OneTimeWorkRequestBuilder<org.ntust.app.tigerduck.notification.BackgroundSyncWorker>()
+                                        .setConstraints(
+                                            androidx.work.Constraints.Builder()
+                                                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                                                .build()
+                                        )
+                                        .build()
+                                        .let { req ->
+                                            androidx.work.WorkManager.getInstance(context)
+                                                .enqueue(req)
+                                        }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(
+                                    Icons.Filled.Refresh,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Spacer(Modifier.size(8.dp))
+                                Text(stringResource(R.string.cloud_sync_sync_now))
+                            }
                         }
                     }
                 }
