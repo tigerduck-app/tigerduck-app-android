@@ -497,11 +497,16 @@ class ClassTableViewModel @Inject constructor(
         }
         val updated = _courses.value.filter { it.courseNo != courseNo }
         _courses.value = updated
+        val semester = _currentSemester.value
         viewModelScope.launch {
             val deleted = dataCache.loadDeletedCourseNos() + courseNo
             dataCache.saveDeletedCourseNos(deleted)
-            dataCache.saveCourses(updated, _currentSemester.value)
+            dataCache.saveCourses(updated, semester)
             widgetUpdater.requestUpdate()
+            if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                runCatching { pushApiClient.uploadCourses(updated, semester) }
+                    .onFailure { e -> Log.w("ClassTable", "uploadCourses after delete failed", e) }
+            }
         }
         TigerDuckTheme.buildCourseColorMap(updated)
     }
