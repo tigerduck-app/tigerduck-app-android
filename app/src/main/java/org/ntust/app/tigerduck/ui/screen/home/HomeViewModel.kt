@@ -223,12 +223,16 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun attemptBackendRelogin(): Boolean {
         val studentId = authService.storedStudentId ?: return false
-        val password = authService.storedPassword ?: return false
+        val moodleToken = authService.storedMoodleToken
+        if (moodleToken.isNullOrEmpty()) {
+            Log.d("HomeViewModel", "[Sync] auto-relogin skipped: no Moodle token")
+            return false
+        }
         return try {
             authTokenManager.login(
                 studentId = studentId,
-                password = password,
-                moodleToken = null,
+                password = "",
+                moodleToken = moodleToken,
                 moodlePrivateToken = null,
                 deviceName = android.os.Build.MODEL,
             )

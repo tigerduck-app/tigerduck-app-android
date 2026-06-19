@@ -61,6 +61,7 @@ class AuthService @Inject constructor(
 
     val storedStudentId: String? get() = credentials.ntustStudentId
     internal val storedPassword: String? get() = credentials.ntustPassword
+    val storedMoodleToken: String? get() = credentials.moodleToken
 
     /**
      * Upgrade migration: users upgrading from v2 have stored NTUST credentials
