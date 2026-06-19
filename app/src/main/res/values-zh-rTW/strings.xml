@@ -177,8 +177,6 @@
     <string name="class_table_sign_in_required_message">尚未登入，無法查看課表</string>
     <string name="class_table_total_credits_value">%1$d 學分</string>
     <string name="cloud_sync_disable_button">停用雲端同步</string>
-    <string name="sync_backend_session_expired_title">連接至後端伺服器失敗</string>
-    <string name="sync_backend_session_expired_message">請登出並重新登入校務系統，已重新啟用多裝置同步。</string>
     <string name="cloud_sync_disable_confirm_action">停用</string>
     <string name="cloud_sync_disable_confirm_message">停用後會登出並撤銷此裝置在伺服器上的註冊（包含推播憑證）。本機資料不受影響。</string>
     <string name="cloud_sync_disable_confirm_title">停用雲端同步？</string>

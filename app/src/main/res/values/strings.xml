@@ -177,8 +177,6 @@
     <string name="class_table_sign_in_required_message">Sign in to view your class table</string>
     <string name="class_table_total_credits_value">%1$d credits</string>
     <string name="cloud_sync_disable_button">Disable Cloud Sync</string>
-    <string name="sync_backend_session_expired_title">Backend Connection Failed</string>
-    <string name="sync_backend_session_expired_message">Please sign out and sign back into the NTUST system to re-enable multi-device sync.</string>
     <string name="cloud_sync_disable_confirm_action">Disable</string>
     <string name="cloud_sync_disable_confirm_message">Disabling signs this device out and revokes its registration on the server. Local data is not affected.</string>
     <string name="cloud_sync_disable_confirm_title">Disable cloud sync?</string>
