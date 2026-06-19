@@ -248,6 +248,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 if (a.assignmentId in completed) a.copy(isCompleted = true) else a
             }
             dataCache.saveAssignments(merged)
+            runCatching { pushApiClient.uploadAssignments(merged) }
+                .onFailure { Log.w(TAG, "uploadAssignments failed (non-fatal)", it) }
 
             if (prefs.notifyAssignments) {
                 // Hand the scheduler both the full non-completed list and the

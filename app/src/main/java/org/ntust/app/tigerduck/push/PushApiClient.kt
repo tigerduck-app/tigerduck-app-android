@@ -13,7 +13,11 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -183,6 +187,43 @@ class PushApiClient @Inject constructor(
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("patchCourseOverride failed: HTTP ${response.code}")
+            }
+        }
+    }
+
+    /**
+     * Fire-and-forget upload of the user's assignment list so the backend can
+     * persist it for cross-device sync. Callers wrap this in `runCatching`
+     * — a failure here must never block the normal fetch/save flow.
+     */
+    suspend fun uploadAssignments(
+        assignments: List<Assignment>,
+    ) = withContext(Dispatchers.IO) {
+        val iso8601 = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        val items = assignments.map { a ->
+            mapOf(
+                "moodle_assignment_id" to (a.assignmentId.toIntOrNull() ?: 0),
+                "course_no" to a.courseNo,
+                "course_name" to a.courseName,
+                "title" to a.title,
+                "due_at" to iso8601.format(a.dueDate),
+                "moodle_url" to a.moodleUrl,
+                "is_submitted" to a.isCompleted,
+                "grade" to null,
+            )
+        }
+        val payload = mapOf("assignments" to items)
+        val body = gson.toJson(payload).toRequestBody(jsonType)
+        val request = Request.Builder()
+            .url("$baseUrl/sync/assignments/upload")
+            .post(body)
+            .addAuthHeader()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw PushApiException("uploadAssignments failed: HTTP ${response.code}")
             }
         }
     }

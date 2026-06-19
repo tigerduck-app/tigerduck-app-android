@@ -578,6 +578,8 @@ class HomeViewModel @Inject constructor(
                     if (!remoteAssignments.isNullOrEmpty()) {
                         assignments = remoteAssignments
                         dataCache.saveAssignments(remoteAssignments)
+                        runCatching { pushApiClient.uploadAssignments(remoteAssignments) }
+                            .onFailure { Log.w("HomeViewModel", "uploadAssignments failed (non-fatal)", it) }
                     }
                 }
             }
