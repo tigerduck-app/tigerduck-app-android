@@ -41,6 +41,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
 ) : CoroutineWorker(context, params) {
 
+    @Deprecated("Use prefs.lastSyncSource instead", level = DeprecationLevel.HIDDEN)
     var lastSyncSource: SyncSource = SyncSource.NONE
         private set
 
@@ -96,7 +97,9 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 }
             }
             dataCache.notifyBackgroundSyncComplete()
+            prefs.setLastSyncSource(SyncSource.BACKEND)
         } catch (e: Exception) {
+            prefs.setLastSyncSource(SyncSource.LOCAL)
             Log.w(TAG, "override sync failed", e)
         }
     }

@@ -100,6 +100,7 @@ fun AnnouncementsScreen(
 ) {
     LaunchedEffect(Unit) { viewModel.load() }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val isSyncLocalOnly by viewModel.isSyncLocalOnly.collectAsStateWithLifecycle()
     var pullProgress by remember { mutableFloatStateOf(0f) }
     val listState = rememberLazyListState()
     val isLoading = state.loadState is AnnouncementsViewModel.LoadState.Loading
@@ -195,6 +196,7 @@ fun AnnouncementsScreen(
                                 isLoading = isLoading,
                                 showCheckmark = showCheckmark,
                                 dragProgress = pullProgress,
+                                isLocalOnly = isSyncLocalOnly,
                             )
                             if (state.unreadOnly && state.hasUnread) {
                                 IconButton(onClick = viewModel::markAllRead) {

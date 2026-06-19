@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
@@ -30,6 +31,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.model.TimetablePeriod
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
@@ -52,6 +54,10 @@ class ClassTableViewModel @Inject constructor(
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
 ) : ViewModel() {
+
+    val isSyncLocalOnly = appPreferences.lastSyncSource
+        .map { appPreferences.cloudSyncEnabled && it == SyncSource.LOCAL }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _courses = MutableStateFlow<List<Course>>(emptyList())
     val courses: StateFlow<List<Course>> = _courses

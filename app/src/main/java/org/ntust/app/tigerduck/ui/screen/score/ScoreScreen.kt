@@ -96,6 +96,7 @@ fun ScoreScreen(
 ) {
     val report by viewModel.report.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val isSyncLocalOnly by viewModel.isSyncLocalOnly.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val rankingScope by viewModel.rankingScope.collectAsStateWithLifecycle()
@@ -125,6 +126,7 @@ fun ScoreScreen(
                         isLoading = isRefreshing,
                         showCheckmark = false,
                         dragProgress = pullProgress,
+                        isLocalOnly = isSyncLocalOnly,
                     )
                 }
 

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.callbackFlow
@@ -27,6 +28,7 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.data.CourseColorStore
@@ -73,6 +75,10 @@ class HomeViewModel @Inject constructor(
         val localStatus: String,
         val serverStatus: String,
     )
+
+    val isSyncLocalOnly = prefs.lastSyncSource
+        .map { prefs.cloudSyncEnabled && it == SyncSource.LOCAL }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _syncConflicts = MutableStateFlow<List<SyncConflict>>(emptyList())
     val syncConflicts: StateFlow<List<SyncConflict>> = _syncConflicts
@@ -205,7 +211,9 @@ class HomeViewModel @Inject constructor(
                     dataCache.saveDeletedCourseNos(deleted)
                 }
             }
+            prefs.setLastSyncSource(SyncSource.BACKEND)
         } catch (e: Exception) {
+            prefs.setLastSyncSource(SyncSource.LOCAL)
             if (!retried && (e.message?.contains("401") == true || e.message?.contains("session_revoked") == true)) {
                 val reloginOk = attemptBackendRelogin()
                 if (reloginOk) {

@@ -7,8 +7,12 @@ import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.data.model.HomeSection
@@ -66,6 +70,14 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     )
     val disableScreenCaptureProtectionChanged: SharedFlow<Unit> =
         _disableScreenCaptureProtectionChanged.asSharedFlow()
+
+    private val _lastSyncSource = MutableStateFlow(SyncSource.NONE)
+    val lastSyncSource: StateFlow<SyncSource> = _lastSyncSource.asStateFlow()
+
+    fun setLastSyncSource(source: SyncSource) { _lastSyncSource.value = source }
+
+    val isSyncLocalOnly: Boolean
+        get() = cloudSyncEnabled && _lastSyncSource.value == SyncSource.LOCAL
 
     var cloudSyncEnabled: Boolean
         get() = prefs.getBoolean("cloudSyncEnabled", true)

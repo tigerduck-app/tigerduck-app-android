@@ -9,15 +9,19 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.BulletinRepository
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.network.BulletinApiClient
 import org.ntust.app.tigerduck.network.model.BulletinSummary
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
@@ -38,6 +42,10 @@ class AnnouncementsViewModel @Inject constructor(
     private val readState: BulletinReadStateStore,
     private val prefs: AppPreferences,
 ) : ViewModel() {
+
+    val isSyncLocalOnly = prefs.lastSyncSource
+        .map { prefs.cloudSyncEnabled && it == SyncSource.LOCAL }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     sealed interface LoadState {
         data object Idle : LoadState

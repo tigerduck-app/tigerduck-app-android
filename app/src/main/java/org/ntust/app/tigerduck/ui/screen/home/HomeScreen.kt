@@ -140,6 +140,7 @@ fun HomeScreen(
     // 翹課 feature disabled — kept for potential re-enable.
     // val skippedDates by viewModel.skippedDates.collectAsStateWithLifecycle()
     val syncConflicts by viewModel.syncConflicts.collectAsStateWithLifecycle()
+    val isSyncLocalOnly by viewModel.isSyncLocalOnly.collectAsStateWithLifecycle()
     var showComingSoon by remember { mutableStateOf(false) }
     var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -245,6 +246,7 @@ fun HomeScreen(
                                 isLoading = isLoading,
                                 showCheckmark = showCheckmark,
                                 dragProgress = pullProgress,
+                                isLocalOnly = isSyncLocalOnly,
                             )
                         }
                     }

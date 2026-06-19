@@ -119,6 +119,7 @@ fun ClassTableScreen(
 ) {
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isSyncLocalOnly by viewModel.isSyncLocalOnly.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val currentMinute by viewModel.currentMinute.collectAsStateWithLifecycle()
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
@@ -206,6 +207,7 @@ fun ClassTableScreen(
                             isLoading = isLoading,
                             showCheckmark = showCheckmark,
                             dragProgress = pullProgress,
+                            isLocalOnly = isSyncLocalOnly,
                         )
                     }
                     IconButton(
