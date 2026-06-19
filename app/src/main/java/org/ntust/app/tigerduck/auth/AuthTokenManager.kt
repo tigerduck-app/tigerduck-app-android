@@ -24,6 +24,7 @@ class AuthTokenManager(
 ) {
     private val refreshMutex = Mutex()
     private val jsonType = "application/json".toMediaType()
+    var onRefreshFailed: (suspend () -> Boolean)? = null
 
     val isLoggedIn: Boolean get() = credentials.v3RefreshToken != null
 
@@ -38,7 +39,6 @@ class AuthTokenManager(
         moodleToken: String?,
         moodlePrivateToken: String?,
         platform: String = "android",
-        deviceName: String,
     ): LoginResult = withContext(Dispatchers.IO) {
         val json = JSONObject().apply {
             put("student_id", studentId)
@@ -48,7 +48,6 @@ class AuthTokenManager(
             put("device_info", JSONObject().apply {
                 put("client_device_id", deviceUuid)
                 put("platform", platform)
-                put("device_name", deviceName)
                 put("app_version", BuildConfig.VERSION_NAME)
                 put("os_version", "Android ${android.os.Build.VERSION.RELEASE}")
             })
@@ -106,6 +105,9 @@ class AuthTokenManager(
             withContext(Dispatchers.IO) {
                 httpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
+                        if (onRefreshFailed?.invoke() == true) {
+                            return@use credentials.v3AccessToken
+                        }
                         logout()
                         return@use null
                     }
@@ -120,6 +122,9 @@ class AuthTokenManager(
                 }
             }
         } catch (e: Exception) {
+            if (onRefreshFailed?.invoke() == true) {
+                return credentials.v3AccessToken
+            }
             logout()
             null
         }

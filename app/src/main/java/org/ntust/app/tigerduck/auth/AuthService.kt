@@ -56,6 +56,33 @@ class AuthService @Inject constructor(
 
     private val loginMutex = Mutex()
 
+    init {
+        authTokenManager.onRefreshFailed = {
+            attemptRelogin()
+        }
+    }
+
+    private suspend fun attemptRelogin(): Boolean {
+        val studentId = credentials.ntustStudentId ?: return false
+        val moodleToken = credentials.moodleToken
+        if (moodleToken.isNullOrEmpty()) return false
+        return try {
+            authTokenManager.login(
+                studentId = studentId,
+                password = "",
+                moodleToken = moodleToken,
+                moodlePrivateToken = null,
+            )
+            android.util.Log.i("AuthService", "auto-relogin: v3 JWT refreshed")
+            runCatching { pushRegistration.onSignedIn() }
+            true
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            android.util.Log.w("AuthService", "auto-relogin failed", e)
+            false
+        }
+    }
+
     val isNtustAuthenticated: Boolean
         get() = sessionManager.cookiesValid && credentials.ntustStudentId != null
 
@@ -88,7 +115,6 @@ class AuthService @Inject constructor(
                 password = password,
                 moodleToken = moodleToken,
                 moodlePrivateToken = null,
-                deviceName = android.os.Build.MODEL,
             )
         }.onSuccess {
             android.util.Log.i("AuthService", "v3 migration: JWT obtained")
@@ -136,8 +162,7 @@ class AuthService @Inject constructor(
                         password = password,
                         moodleToken = moodleToken,
                         moodlePrivateToken = null,
-                        deviceName = android.os.Build.MODEL,
-                    )
+                            )
                 }.onFailure { e ->
                     if (e is CancellationException) throw e
                     android.util.Log.w("AuthService", "v3 login failed (best-effort)", e)
