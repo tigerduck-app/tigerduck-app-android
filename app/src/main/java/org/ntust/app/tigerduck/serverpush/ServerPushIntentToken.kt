@@ -27,7 +27,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class ServerPushIntentToken @Inject constructor(
-    @param:ApplicationContext context: Context,
+    @ApplicationContext context: Context,
 ) {
     val value: String
 
