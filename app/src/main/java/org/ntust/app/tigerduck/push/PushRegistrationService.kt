@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.di.ApplicationScope
 import javax.inject.Inject
@@ -147,6 +148,8 @@ class PushRegistrationService @Inject constructor(
             api.register(
                 DeviceRegisterRequest(
                     clientDeviceId = clientDeviceId,
+                    appVersion = BuildConfig.VERSION_NAME,
+                    osVersion = "Android ${android.os.Build.VERSION.RELEASE}",
                     pushToken = PushTokenIn(tokenValue = token),
                 )
             )
