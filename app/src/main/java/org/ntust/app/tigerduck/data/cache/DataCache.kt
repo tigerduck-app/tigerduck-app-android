@@ -10,6 +10,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -44,7 +45,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     private val _backgroundSyncVersion = MutableStateFlow(0)
     val backgroundSyncVersion: StateFlow<Int> = _backgroundSyncVersion.asStateFlow()
-    fun notifyBackgroundSyncComplete() { _backgroundSyncVersion.value++ }
+    fun notifyBackgroundSyncComplete() { _backgroundSyncVersion.update { it + 1 } }
 
     suspend fun replaceIgnoredAssignments(ids: Set<String>) {
         saveToUserData(ids.toList(), "ignored_assignments.json")

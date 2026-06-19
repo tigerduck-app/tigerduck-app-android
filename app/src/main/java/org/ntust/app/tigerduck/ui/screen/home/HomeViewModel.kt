@@ -112,7 +112,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private suspend fun syncOverridesFromBackend() {
+    private suspend fun syncOverridesFromBackend(retried: Boolean = false) {
         if (!authTokenManager.isLoggedIn) {
             Log.d("HomeViewModel", "[Sync] skipped: not logged in (v3)")
             return
@@ -210,11 +210,11 @@ class HomeViewModel @Inject constructor(
                 _syncConflicts.value = conflicts
             }
         } catch (e: Exception) {
-            if (e.message?.contains("401") == true || e.message?.contains("session_revoked") == true) {
+            if (!retried && (e.message?.contains("401") == true || e.message?.contains("session_revoked") == true)) {
                 val reloginOk = attemptBackendRelogin()
                 if (reloginOk) {
                     Log.d("HomeViewModel", "[Sync] auto-relogin succeeded, retrying sync")
-                    syncOverridesFromBackend()
+                    syncOverridesFromBackend(retried = true)
                 }
             }
             Log.w("HomeViewModel", "[Sync] override sync failed", e)
