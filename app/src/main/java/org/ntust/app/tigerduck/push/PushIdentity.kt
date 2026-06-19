@@ -18,7 +18,7 @@ import javax.inject.Singleton
 @Singleton
 class PushIdentity @Inject constructor(
     private val prefs: AppPreferences,
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) {
     companion object {
         private const val KEY_UUID = "push.device_uuid"
