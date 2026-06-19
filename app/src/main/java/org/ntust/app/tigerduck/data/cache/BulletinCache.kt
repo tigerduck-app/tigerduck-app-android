@@ -112,9 +112,17 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
 
     /** Wipe the whole bulletins store (summary snapshot + every cached detail).
      *  Called on logout so the next session's first paint can't seed from the
-     *  previous session's snapshot — mirrors DataCache.clearAllUserData(). */
+     *  previous session's snapshot — mirrors DataCache.clearAllUserData().
+     *
+     *  The summary file deletion is mutex-guarded; detail file deletion happens
+     *  outside the mutex (using per-id detail locks) to avoid holding `mutex`
+     *  while iterating an unbounded number of files — the per-id `withDetailLock`
+     *  tries to acquire its own mutex, and holding the outer `mutex` across the
+     *  loop could deadlock if another coroutine holds a detail lock while
+     *  waiting on `mutex`. */
     suspend fun clear() = withContext(Dispatchers.IO) {
         mutex.withLock { runCatching { file.delete() } }
+        // Detail file deletion is intentionally outside the mutex lock.
         val files = detailDir.listFiles() ?: return@withContext
         for (f in files) {
             val id = f.nameWithoutExtension.toIntOrNull()

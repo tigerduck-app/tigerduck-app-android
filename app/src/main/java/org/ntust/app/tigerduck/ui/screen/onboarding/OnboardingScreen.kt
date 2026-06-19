@@ -77,6 +77,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -139,7 +140,7 @@ fun OnboardingScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var privacyPolicyAccepted by remember { mutableStateOf(false) }
     var deleteAccountAccepted by remember { mutableStateOf(false) }
-    var analyticsEnabled by remember { mutableStateOf(viewModel.prefs.analyticsEnabled) }
+    var analyticsEnabled by rememberSaveable { mutableStateOf(viewModel.prefs.analyticsEnabled) }
     var syncEnabled by remember { mutableStateOf(viewModel.prefs.cloudSyncEnabled) }
 
     // Track the furthest page the user has reached. The bottom-left forward
@@ -427,7 +428,11 @@ fun OnboardingScreen(
                             Button(
                                 onClick = {
                                     focusManager.clearFocus()
-                                    viewModel.login(studentId, password) { goToPage(permissionsPageIndex) }
+<<<<<<< HEAD
+                                    viewModel.login(studentId, password) {
+                                        password = ""
+                                        goToPage(permissionsPageIndex)
+                                    }
                                 },
                                 enabled = studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn,
                                 modifier = Modifier.fillMaxWidth(0.8f),
@@ -491,7 +496,10 @@ fun OnboardingScreen(
                                     onDone = {
                                         focusManager.clearFocus()
                                         if (studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn) {
-                                            viewModel.login(studentId, password) { goToPage(permissionsPageIndex) }
+                                            viewModel.login(studentId, password) {
+                                                password = ""
+                                                goToPage(permissionsPageIndex)
+                                            }
                                         }
                                     }
                                 ),

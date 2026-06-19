@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.analytics
 
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -11,7 +12,7 @@ import javax.inject.Singleton
  * and call `log(...)` regardless of which flavor is being built.
  */
 @Singleton
-class AnalyticsLogger @Inject constructor() {
+class AnalyticsLogger @Inject constructor(@Suppress("unused") prefs: AppPreferences) {
     fun log(event: String, params: Map<String, Any?> = emptyMap()) = Unit
     fun setUserProperty(name: String, value: String?) = Unit
     fun setEnabled(enabled: Boolean) = Unit

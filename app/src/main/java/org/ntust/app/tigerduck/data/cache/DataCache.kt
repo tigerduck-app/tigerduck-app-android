@@ -450,12 +450,14 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         try {
             tmp.writeText(content)
             if (!tmp.renameTo(target)) {
-                // Rename-over-existing can fail on some filesystems; retry
-                // after deleting the target.
+                // Rename-over-existing can fail on some filesystems; delete
+                // the target only after the temp file write has succeeded so
+                // we never lose existing data if the write itself fails.
                 target.delete()
                 if (!tmp.renameTo(target)) {
-                    // Both renames failed and target is already deleted —
-                    // fall back to direct write so data isn't lost entirely.
+                    // Both renames failed — fall back to direct write so
+                    // data isn't lost entirely. The temp file still holds
+                    // the content so the write is safe to attempt.
                     target.writeText(content)
                     runCatching { tmp.delete() }
                     return
