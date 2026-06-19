@@ -198,11 +198,16 @@ fun ClassTableScreen(
                     .verticalScroll(rememberScrollState())
             ) {
                 PageHeader(title = stringResource(R.string.feature_class_table)) {
-                    SyncIndicator(
-                        isLoading = isLoading,
-                        showCheckmark = showCheckmark,
-                        dragProgress = pullProgress,
-                    )
+                    Box(
+                        modifier = Modifier.size(48.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        SyncIndicator(
+                            isLoading = isLoading,
+                            showCheckmark = showCheckmark,
+                            dragProgress = pullProgress,
+                        )
+                    }
                     IconButton(
                         onClick = { showResetConfirm = true },
                         enabled = isLoggedIn
