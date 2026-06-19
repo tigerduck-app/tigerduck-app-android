@@ -797,7 +797,12 @@
     <string name="widget_week_light_label">Schedule (Week)</string>
 
     <string name="sync_conflict_title">Sync conflict</string>
-    <string name="sync_conflict_message">Your homework status differs from the server. Which version do you want to keep?</string>
-    <string name="sync_conflict_use_local">Use this device</string>
+    <string name="sync_conflict_message">The following items have conflicts:</string>
+    <string name="sync_conflict_use_local">Keep local</string>
     <string name="sync_conflict_use_server">Use server</string>
+    <string name="sync_conflict_item_header">• %1$s: %2$s</string>
+    <string name="sync_conflict_item_detail">  Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_status_ignored">Ignored</string>
+    <string name="sync_conflict_status_completed">Marked as complete</string>
+    <string name="sync_conflict_status_none">Original state</string>
 </resources>

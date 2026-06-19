@@ -795,4 +795,14 @@
     <string name="widget_until_time">至 %1$s</string>
     <string name="widget_week_light_desc">本週完整課表，主題跟隨 App 設定</string>
     <string name="widget_week_light_label">課表 週視圖</string>
+
+    <string name="sync_conflict_title">同步衝突</string>
+    <string name="sync_conflict_message">以下是有衝突的項目：</string>
+    <string name="sync_conflict_use_local">保留本機</string>
+    <string name="sync_conflict_use_server">使用伺服器</string>
+    <string name="sync_conflict_item_header">• %1$s: %2$s</string>
+    <string name="sync_conflict_item_detail">  本機: %1$s → 伺服器: %2$s</string>
+    <string name="sync_conflict_status_ignored">已忽略</string>
+    <string name="sync_conflict_status_completed">標示為完成</string>
+    <string name="sync_conflict_status_none">原始狀態</string>
 </resources>

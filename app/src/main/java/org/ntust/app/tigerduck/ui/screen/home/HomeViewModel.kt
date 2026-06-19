@@ -123,8 +123,9 @@ class HomeViewModel @Inject constructor(
             val localIgnored = dataCache.loadIgnoredAssignments()
             val localMarked = dataCache.loadMarkedCompletedAssignments()
 
-            if (result.ignoredIds.isEmpty() && result.completedIds.isEmpty()
-                && (localIgnored.isNotEmpty() || localMarked.isNotEmpty())) {
+            val isFirstTimeMigration = result.ignoredIds.isEmpty() && result.completedIds.isEmpty()
+                && (localIgnored.isNotEmpty() || localMarked.isNotEmpty())
+            if (isFirstTimeMigration) {
                 Log.d("HomeViewModel", "[Sync] first-time migration: uploading ${localIgnored.size} ignored + ${localMarked.size} completed")
                 for (id in localIgnored) {
                     runCatching { pushApiClient.patchAssignmentOverride(id.toIntOrNull() ?: return@runCatching, "ignored") }
@@ -132,60 +133,66 @@ class HomeViewModel @Inject constructor(
                 for (id in localMarked) {
                     runCatching { pushApiClient.patchAssignmentOverride(id.toIntOrNull() ?: return@runCatching, "locally_completed") }
                 }
-                return
+            } else {
+                val conflicts = mutableListOf<SyncConflict>()
+                val allIds = (result.ignoredIds + result.completedIds + localIgnored + localMarked).toSet()
+                val assignmentsByMoodleId = _allAssignments.value.associateBy { it.assignmentId }
+                for (id in allIds) {
+                    if (id in pendingOverrides) continue
+                    val serverStatus = when {
+                        id in result.ignoredIds -> "ignored"
+                        id in result.completedIds -> "locally_completed"
+                        else -> "none"
+                    }
+                    val localStatus = when {
+                        id in localIgnored -> "ignored"
+                        id in localMarked -> "locally_completed"
+                        else -> "none"
+                    }
+                    if (serverStatus != localStatus) {
+                        val a = assignmentsByMoodleId[id]
+                        conflicts.add(SyncConflict(
+                            id = id,
+                            kind = "作業",
+                            label = a?.title ?: "ID $id",
+                            localStatus = localStatus,
+                            serverStatus = serverStatus,
+                        ))
+                    }
+                }
+
+                // Always apply non-conflicting items
+                val conflictIds = conflicts.map { it.id }.toSet()
+                val safeIgnored = result.ignoredIds.filter { it !in conflictIds } +
+                    _ignoredAssignmentIds.value.filter { it in pendingOverrides }
+                val safeCompleted = result.completedIds.filter { it !in conflictIds } +
+                    _markedCompletedIds.value.filter { it in pendingOverrides }
+                // Preserve local state for conflicting items until user resolves
+                val finalIgnored = safeIgnored.toMutableSet()
+                val finalCompleted = safeCompleted.toMutableSet()
+                for (c in conflicts) {
+                    when (c.localStatus) {
+                        "ignored" -> finalIgnored.add(c.id)
+                        "locally_completed" -> finalCompleted.add(c.id)
+                    }
+                }
+                dataCache.replaceIgnoredAssignments(finalIgnored)
+                dataCache.replaceMarkedCompletedAssignments(finalCompleted)
+                _ignoredAssignmentIds.value = finalIgnored
+                _markedCompletedIds.value = finalCompleted
+                Log.d("HomeViewModel", "[Sync] applied ${finalIgnored.size} ignored, ${finalCompleted.size} completed (${conflicts.size} conflicts pending)")
+
+                if (conflicts.isNotEmpty()) {
+                    _pendingSyncResult = result
+                    _syncConflicts.value = conflicts
+                }
             }
 
-            val conflicts = mutableListOf<SyncConflict>()
-            val allIds = (result.ignoredIds + result.completedIds + localIgnored + localMarked).toSet()
-            val assignmentsByMoodleId = _allAssignments.value.associateBy { it.assignmentId }
-            for (id in allIds) {
-                if (id in pendingOverrides) continue
-                val serverStatus = when {
-                    id in result.ignoredIds -> "ignored"
-                    id in result.completedIds -> "locally_completed"
-                    else -> "none"
-                }
-                val localStatus = when {
-                    id in localIgnored -> "ignored"
-                    id in localMarked -> "locally_completed"
-                    else -> "none"
-                }
-                if (serverStatus != localStatus) {
-                    val a = assignmentsByMoodleId[id]
-                    conflicts.add(SyncConflict(
-                        id = id,
-                        kind = "作業",
-                        label = a?.title ?: "ID $id",
-                        localStatus = localStatus,
-                        serverStatus = serverStatus,
-                    ))
-                }
-            }
-
-            // Always apply non-conflicting items + course overrides
-            val conflictIds = conflicts.map { it.id }.toSet()
-            val safeIgnored = result.ignoredIds.filter { it !in conflictIds } +
-                _ignoredAssignmentIds.value.filter { it in pendingOverrides }
-            val safeCompleted = result.completedIds.filter { it !in conflictIds } +
-                _markedCompletedIds.value.filter { it in pendingOverrides }
-            // Preserve local state for conflicting items until user resolves
-            val finalIgnored = safeIgnored.toMutableSet()
-            val finalCompleted = safeCompleted.toMutableSet()
-            for (c in conflicts) {
-                when (c.localStatus) {
-                    "ignored" -> finalIgnored.add(c.id)
-                    "locally_completed" -> finalCompleted.add(c.id)
-                }
-            }
-            dataCache.replaceIgnoredAssignments(finalIgnored)
-            dataCache.replaceMarkedCompletedAssignments(finalCompleted)
-            _ignoredAssignmentIds.value = finalIgnored
-            _markedCompletedIds.value = finalCompleted
+            // Course overrides and deletion detection always run regardless
+            // of whether this was a first-time migration.
             if (result.courseOverrides.isNotEmpty()) {
                 applyCourseOverrides(result.courseOverrides)
             }
-            // Hard-delete model: courses removed on the server are absent from
-            // the courses array. Compare against local to update deletedCourseNos.
             if (result.serverCourseNos.isNotEmpty()) {
                 val localCourseNos = dataCache.loadCourses().map { it.courseNo }.toSet()
                 val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
@@ -202,12 +209,6 @@ class HomeViewModel @Inject constructor(
                     dataCache.saveDeletedCourseNos(deleted)
                     Log.d("HomeViewModel", "[Sync] deletedCourseNos updated: $deleted")
                 }
-            }
-            Log.d("HomeViewModel", "[Sync] applied ${finalIgnored.size} ignored, ${finalCompleted.size} completed (${conflicts.size} conflicts pending)")
-
-            if (conflicts.isNotEmpty()) {
-                _pendingSyncResult = result
-                _syncConflicts.value = conflicts
             }
         } catch (e: Exception) {
             if (!retried && (e.message?.contains("401") == true || e.message?.contains("session_revoked") == true)) {

@@ -958,28 +958,29 @@ private fun SyncConflictDialog(
     onKeepLocal: () -> Unit,
     onKeepServer: () -> Unit,
 ) {
+    @Composable
     fun statusLabel(s: String) = when (s) {
-        "ignored", "archived" -> "已忽略"
-        "locally_completed" -> "標示為完成"
-        "none" -> "原始狀態"
+        "ignored", "archived" -> stringResource(R.string.sync_conflict_status_ignored)
+        "locally_completed" -> stringResource(R.string.sync_conflict_status_completed)
+        "none" -> stringResource(R.string.sync_conflict_status_none)
         else -> s
     }
 
     AlertDialog(
         onDismissRequest = {},
-        title = { Text("同步衝突") },
+        title = { Text(stringResource(R.string.sync_conflict_title)) },
         text = {
             Column {
-                Text("以下是有衝突的項目：", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.sync_conflict_message), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
                 conflicts.forEach { c ->
                     Text(
-                        "• ${c.kind}: ${c.label}",
+                        stringResource(R.string.sync_conflict_item_header, c.kind, c.label),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        "  本機: ${statusLabel(c.localStatus)} → 伺服器: ${statusLabel(c.serverStatus)}",
+                        stringResource(R.string.sync_conflict_item_detail, statusLabel(c.localStatus), statusLabel(c.serverStatus)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -988,12 +989,12 @@ private fun SyncConflictDialog(
         },
         confirmButton = {
             TextButton(onClick = onKeepServer) {
-                Text("使用伺服器")
+                Text(stringResource(R.string.sync_conflict_use_server))
             }
         },
         dismissButton = {
             TextButton(onClick = onKeepLocal) {
-                Text("保留本機")
+                Text(stringResource(R.string.sync_conflict_use_local))
             }
         },
     )

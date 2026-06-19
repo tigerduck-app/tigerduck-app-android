@@ -31,12 +31,11 @@ data class BackendSyncResult(
 @Singleton
 class SyncApiClient @Inject constructor(
     private val authTokenManager: AuthTokenManager,
+    baseClient: OkHttpClient,
 ) {
-    private val baseUrl = authTokenManager.let {
-        org.ntust.app.tigerduck.BuildConfig.PUSH_BASE_URL.trimEnd('/')
-    }
+    private val baseUrl = org.ntust.app.tigerduck.BuildConfig.PUSH_BASE_URL.trimEnd('/')
 
-    private val client = OkHttpClient.Builder().build()
+    private val client = baseClient.newBuilder().build()
 
     suspend fun fetchFullSync(): BackendSyncResult = withContext(Dispatchers.IO) {
         val authHeader = authTokenManager.authHeader()
