@@ -18,7 +18,6 @@ data class PushTokenIn(
 data class DeviceRegisterRequest(
     @SerializedName("client_device_id") val clientDeviceId: String,
     @SerializedName("platform") val platform: String = "android",
-    @SerializedName("device_name") val deviceName: String? = null,
     @SerializedName("app_version") val appVersion: String? = null,
     @SerializedName("os_version") val osVersion: String? = null,
     @SerializedName("push_token") val pushToken: PushTokenIn? = null,
