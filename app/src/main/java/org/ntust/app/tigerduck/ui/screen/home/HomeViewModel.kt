@@ -214,9 +214,34 @@ class HomeViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             if (e.message?.contains("401") == true || e.message?.contains("session_revoked") == true) {
+                val reloginOk = attemptBackendRelogin()
+                if (reloginOk) {
+                    Log.d("HomeViewModel", "[Sync] auto-relogin succeeded, retrying sync")
+                    syncOverridesFromBackend()
+                    return
+                }
                 _backendSessionExpired.value = true
             }
             Log.w("HomeViewModel", "[Sync] override sync failed", e)
+        }
+    }
+
+    private suspend fun attemptBackendRelogin(): Boolean {
+        val studentId = authService.storedStudentId ?: return false
+        val password = authService.storedPassword ?: return false
+        return try {
+            authTokenManager.login(
+                studentId = studentId,
+                password = password,
+                moodleToken = null,
+                moodlePrivateToken = null,
+                deviceName = android.os.Build.MODEL,
+            )
+            Log.d("HomeViewModel", "[Sync] auto-relogin: v3 JWT refreshed")
+            true
+        } catch (e: Exception) {
+            Log.w("HomeViewModel", "[Sync] auto-relogin failed", e)
+            false
         }
     }
 
