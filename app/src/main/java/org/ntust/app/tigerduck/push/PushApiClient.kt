@@ -152,13 +152,11 @@ class PushApiClient @Inject constructor(
 
     suspend fun patchCourseOverride(
         courseId: Int,
-        isHidden: Boolean? = null,
         colorHex: String? = null,
         customName: String? = null,
         locale: String? = null,
     ) = withContext(Dispatchers.IO) {
         val payload = mutableMapOf<String, Any?>()
-        if (isHidden != null) payload["is_hidden"] = isHidden
         if (colorHex != null) payload["color_hex"] = colorHex
         if (customName != null) payload["custom_name"] = customName
         if (locale != null) payload["locale"] = locale

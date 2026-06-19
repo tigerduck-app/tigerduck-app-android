@@ -418,12 +418,6 @@ class ClassTableViewModel @Inject constructor(
             val deleted = dataCache.loadDeletedCourseNos()
             if (course.courseNo in deleted) {
                 dataCache.saveDeletedCourseNos(deleted - course.courseNo)
-                if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                    val moodleId = resolveMoodleNumericId(course)
-                    if (moodleId != null) {
-                        runCatching { pushApiClient.patchCourseOverride(moodleId, isHidden = false) }
-                    }
-                }
             }
             dataCache.saveCourses(updated, _currentSemester.value)
             if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
@@ -536,7 +530,6 @@ class ClassTableViewModel @Inject constructor(
 
     private fun syncCourseOverride(
         courseNo: String,
-        isHidden: Boolean? = null,
         colorHex: String? = null,
         customName: String? = null,
         locale: String? = null,
@@ -548,7 +541,6 @@ class ClassTableViewModel @Inject constructor(
             try {
                 pushApiClient.patchCourseOverride(
                     moodleId,
-                    isHidden = isHidden,
                     colorHex = colorHex,
                     customName = customName,
                     locale = locale,
@@ -796,20 +788,6 @@ class ClassTableViewModel @Inject constructor(
 
     fun resetCourses() {
         viewModelScope.launch {
-            val deletedNos = dataCache.loadDeletedCourseNos()
-            if (deletedNos.isNotEmpty()) {
-                if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                    val semester = courseService.currentSemesterCode()
-                    val moodleIdMap = dataCache.loadMoodleCourseIds()
-                    for (courseNo in deletedNos) {
-                        val idnumber = "$semester$courseNo"
-                        val numericId = moodleIdMap[idnumber] ?: continue
-                        runCatching {
-                            pushApiClient.patchCourseOverride(numericId, isHidden = false)
-                        }
-                    }
-                }
-            }
             dataCache.saveDeletedCourseNos(emptySet())
             fetchData()
         }
