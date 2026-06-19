@@ -65,7 +65,10 @@ class BackgroundSyncWorker @AssistedInject constructor(
     }
 
     private suspend fun syncOverridesFromBackend() {
-        if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return
+        if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+            prefs.setLastSyncSource(SyncSource.NONE)
+            return
+        }
         try {
             val result = syncApiClient.fetchFullSync()
             val localIgnored = dataCache.loadIgnoredAssignments()

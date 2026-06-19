@@ -118,8 +118,12 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun syncOverridesFromBackend(retried: Boolean = false) {
-        if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return
+        if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+            prefs.setLastSyncSource(SyncSource.NONE)
+            return
+        }
         if (!authTokenManager.isLoggedIn) {
+            prefs.setLastSyncSource(SyncSource.NONE)
             return
         }
         try {
