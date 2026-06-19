@@ -308,8 +308,6 @@ fun OnboardingScreen(
 
                 syncPageIndex -> {
                     // Cross-device sync opt-in — Play flavor only.
-                    val privacyText = stringResource(R.string.onboarding_sync_privacy_link)
-                    val deleteText = stringResource(R.string.onboarding_sync_delete_link)
                     OnboardingPageScaffold(
                         iconContent = {
                             PulsingIcon(
@@ -366,21 +364,14 @@ fun OnboardingScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
                             )
-                            // Privacy policy + account deletion links
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            ) {
-                                LinkRow(
-                                    icon = Icons.Filled.Shield,
-                                    label = privacyText,
-                                    url = URL_PRIVACY_POLICY,
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
+                            LinkRow(
+                                icon = Icons.Filled.Shield,
+                                label = stringResource(R.string.onboarding_privacy_policy_label),
+                                url = URL_PRIVACY_POLICY,
+                            )
                             LinkRow(
                                 icon = Icons.Filled.AccountCircle,
-                                label = deleteText,
+                                label = stringResource(R.string.onboarding_privacy_delete_account_label),
                                 url = URL_DELETE_ACCOUNT,
                             )
                         }

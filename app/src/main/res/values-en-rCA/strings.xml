@@ -507,8 +507,8 @@
     <string name="onboarding_permissions_subtitle">Grant these permissions so assignment and class reminders can arrive on time even when the app is closed. You can change them later in Settings.</string>
     <string name="onboarding_permissions_title">Notification &amp; reminder permissions</string>
     <string name="onboarding_privacy_continue_hint">Confirm both items to continue</string>
-    <string name="onboarding_privacy_delete_account_label">Account deletion</string>
-    <string name="onboarding_privacy_policy_label">Privacy policy</string>
+    <string name="onboarding_privacy_delete_account_label">Delete Account</string>
+    <string name="onboarding_privacy_policy_label">Privacy Policy</string>
     <string name="onboarding_privacy_subtitle">Before using TigerDuck, please make sure you fully understand its terms.</string>
     <string name="onboarding_privacy_title">Privacy &amp; terms</string>
     <string name="onboarding_ready_subtitle">Start exploring campus life</string>

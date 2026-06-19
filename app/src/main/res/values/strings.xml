@@ -509,8 +509,8 @@
     <string name="onboarding_permissions_subtitle">Grant these permissions so assignment and class reminders can arrive on time even when the app is closed. You can change them later in Settings.</string>
     <string name="onboarding_permissions_title">Notification &amp; reminder permissions</string>
     <string name="onboarding_privacy_continue_hint">Confirm both items to continue</string>
-    <string name="onboarding_privacy_delete_account_label">Account deletion</string>
-    <string name="onboarding_privacy_policy_label">Privacy policy</string>
+    <string name="onboarding_privacy_delete_account_label">Delete Account</string>
+    <string name="onboarding_privacy_policy_label">Privacy Policy</string>
     <string name="onboarding_privacy_subtitle">Before using TigerDuck, please make sure you fully understand its terms.</string>
     <string name="onboarding_privacy_title">Privacy &amp; terms</string>
     <string name="onboarding_ready_subtitle">Start exploring campus life</string>
@@ -530,9 +530,6 @@
     <string name="onboarding_sync_data_list">Data shared with the server:\n\n• Student ID\n• Moodle token (encrypted — your password is never uploaded)\n• Device ID\n• Course data\n• Assignment data</string>
     <string name="onboarding_sync_toggle_label">Enable cross-device sync</string>
     <string name="onboarding_sync_note">When sync is off, all data stays on this device only. On Android, push notifications and Live Updates still work locally — they don\'t require the sync server.</string>
-    <string name="onboarding_sync_privacy_note">Read our %1$s or learn how to %2$s.</string>
-    <string name="onboarding_sync_privacy_link">privacy policy</string>
-    <string name="onboarding_sync_delete_link">delete your account</string>
     <string name="settings_cloud_sync_title">Cross-Device Sync</string>
     <string name="settings_cloud_sync_description">Sync timetable edits, assignment states, and settings across your devices via the TigerDuck server.\n\nData shared with the server:\n• Student ID\n• Moodle token (encrypted — your password is never uploaded)\n• Device ID\n• Course data\n• Assignment data\n\nWhen sync is off, all data stays on this device only. Push notifications and Live Updates still work locally on Android.</string>
     <string name="settings_cloud_sync_toggle_label">Enable cross-device sync</string>
