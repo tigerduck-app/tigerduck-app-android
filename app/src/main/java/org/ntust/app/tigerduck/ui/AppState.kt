@@ -293,6 +293,16 @@ class AppState @Inject constructor(
             prefs.flipToLibraryEnabled = value
         }
 
+    private var cloudSyncEnabledState by mutableStateOf(prefs.cloudSyncEnabled)
+
+    var cloudSyncEnabled: Boolean
+        get() = cloudSyncEnabledState
+        set(value) {
+            if (cloudSyncEnabledState == value) return
+            cloudSyncEnabledState = value
+            prefs.cloudSyncEnabled = value
+        }
+
     private var disableScreenCaptureProtectionState by
             mutableStateOf(prefs.disableScreenCaptureProtection)
 
@@ -412,6 +422,7 @@ class AppState @Inject constructor(
             notifyAssignmentOffsetsState = prefs.notifyAssignmentOffsets
             libraryFeatureEnabledState = prefs.libraryFeatureEnabled
             flipToLibraryEnabledState = prefs.flipToLibraryEnabled
+            cloudSyncEnabledState = prefs.cloudSyncEnabled
             disableScreenCaptureProtectionState = prefs.disableScreenCaptureProtection
             configuredTabsState = prefs.configuredTabs
             HapticScenario.tunable.forEach { scenario ->

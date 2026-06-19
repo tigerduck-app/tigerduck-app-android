@@ -45,6 +45,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -120,9 +121,11 @@ private val isFdroidFlavor: Boolean
 fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
-    // Pages: 0 Welcome → 1 Privacy → 2 Flavor info → 3 Login → 4 Permissions → 5 Ready.
-    // The original "choose features" page is intentionally commented out below.
-    val pageCount = 6
+    // Pages (Play): 0 Welcome → 1 Privacy → 2 Sync → 3 Flavor info → 4 Login → 5 Permissions → 6 Ready.
+    // Pages (fdroid): 0 Welcome → 1 Privacy → 2 Flavor info → 3 Login → 4 Permissions → 5 Ready.
+    // The sync page is only shown on Play — fdroid doesn't have cloud sync.
+    val showSyncPage = !isFdroidFlavor
+    val pageCount = if (showSyncPage) 7 else 6
     val pagerState = rememberPagerState(pageCount = { pageCount })
     val scope = rememberCoroutineScope()
     val isLoggingIn by viewModel.isLoggingIn.collectAsStateWithLifecycle()
@@ -135,6 +138,7 @@ fun OnboardingScreen(
     var privacyPolicyAccepted by remember { mutableStateOf(false) }
     var deleteAccountAccepted by remember { mutableStateOf(false) }
     var analyticsEnabled by remember { mutableStateOf(viewModel.prefs.analyticsEnabled) }
+    var syncEnabled by remember { mutableStateOf(viewModel.prefs.cloudSyncEnabled) }
 
     // Track the furthest page the user has reached. The bottom-left forward
     // arrow is enabled only for pages already visited, so per-page gating
@@ -199,13 +203,21 @@ fun OnboardingScreen(
     // revealed as plaintext on the login page (issue #88). FLAG_SECURE is
     // window-wide, so it is only raised while the eye toggle is on AND the
     // login page is the one on screen.
-    SecureScreen(secure = passwordVisible && pagerState.currentPage == 3)
+    // Login page index shifts depending on whether the sync page is present.
+    val loginPageIndex = if (showSyncPage) 4 else 3
+    SecureScreen(secure = passwordVisible && pagerState.currentPage == loginPageIndex)
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        // Compute page indices that shift when the sync page is present (Play).
+        val syncPageIndex = if (showSyncPage) 2 else -1
+        val flavorPageIndex = if (showSyncPage) 3 else 2
+        val permissionsPageIndex = if (showSyncPage) 5 else 4
+        val readyPageIndex = if (showSyncPage) 6 else 5
+
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
@@ -281,17 +293,101 @@ fun OnboardingScreen(
                             onCheckedChange = { deleteAccountAccepted = it },
                         )
                     }
-                    Spacer(Modifier.height(12.dp))
-                    AnalyticsOptInCard(
-                        checked = analyticsEnabled,
-                        onCheckedChange = {
-                            analyticsEnabled = it
-                            viewModel.setAnalyticsEnabled(it)
-                        },
-                    )
+                    // Analytics opt-in: hide on fdroid where the logger is a no-op stub.
+                    if (!isFdroidFlavor) {
+                        Spacer(Modifier.height(12.dp))
+                        AnalyticsOptInCard(
+                            checked = analyticsEnabled,
+                            onCheckedChange = {
+                                analyticsEnabled = it
+                                viewModel.setAnalyticsEnabled(it)
+                            },
+                        )
+                    }
                 }
 
-                2 -> OnboardingPageScaffold(
+                syncPageIndex -> {
+                    // Cross-device sync opt-in — Play flavor only.
+                    val privacyText = stringResource(R.string.onboarding_sync_privacy_link)
+                    val deleteText = stringResource(R.string.onboarding_sync_delete_link)
+                    OnboardingPageScaffold(
+                        iconContent = {
+                            PulsingIcon(
+                                icon = Icons.Filled.Cloud,
+                                tint = onboardingBlue(),
+                            )
+                        },
+                        title = stringResource(R.string.onboarding_sync_title),
+                        subtitle = stringResource(R.string.onboarding_sync_description),
+                        actions = {
+                            Button(
+                                onClick = { goToPage(flavorPageIndex) },
+                                modifier = Modifier.fillMaxWidth(0.6f)
+                            ) { Text(stringResource(R.string.action_next)) }
+                        },
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth(0.9f),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.onboarding_sync_data_list),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.onboarding_sync_toggle_label),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
+                                    Switch(
+                                        checked = syncEnabled,
+                                        onCheckedChange = {
+                                            syncEnabled = it
+                                            viewModel.setSyncEnabled(it)
+                                        },
+                                    )
+                                }
+                            }
+                            Text(
+                                text = stringResource(R.string.onboarding_sync_note),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
+                            )
+                            // Privacy policy + account deletion links
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
+                                LinkRow(
+                                    icon = Icons.Filled.Shield,
+                                    label = privacyText,
+                                    url = URL_PRIVACY_POLICY,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            LinkRow(
+                                icon = Icons.Filled.AccountCircle,
+                                label = deleteText,
+                                url = URL_DELETE_ACCOUNT,
+                            )
+                        }
+                    }
+                }
+
+                flavorPageIndex -> OnboardingPageScaffold(
                     iconContent = {
                         if (isFdroidFlavor) {
                             PulsingIcon(
@@ -315,23 +411,20 @@ fun OnboardingScreen(
                     ),
                     actions = {
                         Button(
-                            onClick = { goToPage(3) },
+                            onClick = { goToPage(loginPageIndex) },
                             modifier = Modifier.fillMaxWidth(0.6f)
                         ) { Text(stringResource(R.string.action_next)) }
                     },
                 ) {}
 
-                3 -> {
+                loginPageIndex -> {
                     val focusManager = LocalFocusManager.current
                     OnboardingPageScaffold(
                         iconContent = { PersonKeyBadgeIcon(tint = onboardingGreen()) },
                         title = stringResource(R.string.onboarding_sign_in_title),
                         subtitle = stringResource(R.string.onboarding_sign_in_subtitle),
                         actions = {
-                            // Order matches iOS: Skip sits above the prominent
-                            // sign-in button so the affirmative action is the
-                            // last thing the eye lands on before tapping.
-                            TextButton(onClick = { goToPage(4) }) {
+                            TextButton(onClick = { goToPage(permissionsPageIndex) }) {
                                 Text(
                                     stringResource(R.string.onboarding_skip_for_now),
                                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY)
@@ -340,7 +433,7 @@ fun OnboardingScreen(
                             Button(
                                 onClick = {
                                     focusManager.clearFocus()
-                                    viewModel.login(studentId, password) { goToPage(4) }
+                                    viewModel.login(studentId, password) { goToPage(permissionsPageIndex) }
                                 },
                                 enabled = studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn,
                                 modifier = Modifier.fillMaxWidth(0.8f),
@@ -404,7 +497,7 @@ fun OnboardingScreen(
                                     onDone = {
                                         focusManager.clearFocus()
                                         if (studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn) {
-                                            viewModel.login(studentId, password) { goToPage(4) }
+                                            viewModel.login(studentId, password) { goToPage(permissionsPageIndex) }
                                         }
                                     }
                                 ),
@@ -442,12 +535,12 @@ fun OnboardingScreen(
                     }
                 }
 
-                4 -> PermissionsPage(
+                permissionsPageIndex -> PermissionsPage(
                     systemPermissions = viewModel.systemPermissions,
-                    onContinue = { goToPage(5) },
+                    onContinue = { goToPage(readyPageIndex) },
                 )
 
-                5 -> OnboardingPage(
+                readyPageIndex -> OnboardingPage(
                     icon = Icons.Filled.CheckCircle,
                     iconTint = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.onboarding_ready_title),

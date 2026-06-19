@@ -502,7 +502,7 @@
     <string name="notification_setup_title">Reconfigure notifications</string>
     <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymous page visits and widget usage. You can change this anytime in Settings.</string>
     <string name="onboarding_analytics_label">Usage analytics (optional)</string>
-    <string name="onboarding_flavor_fdroid_description">You\'re using the F-Droid build. Because F-Droid policy forbids depending on Google\'s services (Firebase FCM, GMS, etc.), the following two features are unavailable in this build:\n\n1. Wear OS companion app\n2. Real-time push announcements</string>
+    <string name="onboarding_flavor_fdroid_description">You\'re using the F-Droid build. Because F-Droid policy forbids depending on Google\'s services (Firebase FCM, GMS, etc.), the following features are unavailable in this build:\n\n1. Wear OS companion app\n2. Real-time push announcements\n3. Cross-device sync</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid build notice</string>
     <string name="onboarding_flavor_play_description">TigerDuck includes a Wear OS companion. View class messages on your watch — Wear TigerDuck syncs information from your phone.</string>
     <string name="onboarding_flavor_play_title">Wear OS support</string>
@@ -535,6 +535,9 @@
     <string name="onboarding_sync_delete_link">delete your account</string>
     <string name="settings_cloud_sync_title">Cross-Device Sync</string>
     <string name="settings_cloud_sync_description">Sync timetable edits, assignment states, and settings across your devices via the TigerDuck server.\n\nData shared with the server:\n• Student ID\n• Moodle token (encrypted — your password is never uploaded)\n• Device ID\n• Course data\n• Assignment data\n\nWhen sync is off, all data stays on this device only. Push notifications and Live Updates still work locally on Android.</string>
+    <string name="settings_cloud_sync_toggle_label">Enable cross-device sync</string>
+    <string name="sync_fdroid_unavailable_title">Cross-device sync not available</string>
+    <string name="sync_fdroid_unavailable_body">The F-Droid build does not include cross-device sync. Install the Play Store build for multi-device sync.</string>
     <string name="password_eye_unavailable_during_capture">To keep your password from being captured, reveal is disabled while the screen is being recorded or mirrored.</string>
     <string name="password_hide">Hide password</string>
     <string name="password_show">Show password</string>

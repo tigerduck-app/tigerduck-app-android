@@ -394,6 +394,44 @@ fun SettingsScreen(
                 }
             }
 
+            // MARK: Cross-Device Sync
+            item { SectionHeader(stringResource(R.string.settings_cloud_sync_title)) }
+            item {
+                ContentCard {
+                    if (BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                        // F-Droid: show unavailable notice
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                stringResource(R.string.sync_fdroid_unavailable_title),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            )
+                            Text(
+                                stringResource(R.string.sync_fdroid_unavailable_body),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+                            )
+                        }
+                    } else {
+                        // Play: sync toggle + description
+                        Column {
+                            SettingsToggleRow(
+                                label = stringResource(R.string.settings_cloud_sync_toggle_label),
+                                checked = viewModel.appState.cloudSyncEnabled,
+                                subtitle = stringResource(R.string.settings_cloud_sync_description),
+                                onCheckedChange = { enabled ->
+                                    viewModel.appState.cloudSyncEnabled = enabled
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+
             // MARK: Notifications
             item { SectionHeader(stringResource(R.string.settings_section_notifications)) }
             item {

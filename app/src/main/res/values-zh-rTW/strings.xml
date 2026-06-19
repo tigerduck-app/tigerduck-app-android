@@ -502,7 +502,7 @@
     <string name="notification_setup_title">重新設定通知</string>
     <string name="onboarding_analytics_description">分享匿名的頁面瀏覽和小工具使用資料，協助改善 TigerDuck。你可以隨時在設定中更改。</string>
     <string name="onboarding_analytics_label">使用分析（選填）</string>
-    <string name="onboarding_flavor_fdroid_description">您安裝的是 F-Droid 版本，由於 F-Droid 商店規範不能使用 Google 所提供的各項服務（Firebase FCM、GMS 等等），所以以下兩項功能將在 F-Droid 版本（你正在使用）中缺失：\n\n1. Wear OS 應用程式\n2. 主動公告通知推送</string>
+    <string name="onboarding_flavor_fdroid_description">您安裝的是 F-Droid 版本，由於 F-Droid 商店規範不能使用 Google 所提供的各項服務（Firebase FCM、GMS 等等），所以以下功能將在 F-Droid 版本中缺失：\n\n1. Wear OS 應用程式\n2. 主動公告通知推送\n3. 跨裝置同步</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid 版本說明</string>
     <string name="onboarding_flavor_play_description">本應用程式提供 Wear OS 應用程式，您可以在手錶查看課堂訊息。手錶 TigerDuck 將同步手機資訊。</string>
     <string name="onboarding_flavor_play_title">支援 Wear OS</string>
@@ -535,6 +535,9 @@
     <string name="onboarding_sync_delete_link">刪除帳號</string>
     <string name="settings_cloud_sync_title">跨裝置同步</string>
     <string name="settings_cloud_sync_description">透過 TigerDuck 伺服器在你的裝置間同步課表編輯、作業狀態與設定。\n\n與伺服器共用的資料：\n• 學號\n• Moodle token（加密上傳，不會上傳密碼）\n• 裝置 ID\n• 課程資料\n• 作業資料\n\n關閉同步後，所有資料僅儲存於本機。在 Android 上，推播通知與即時動態仍可正常運作。</string>
+    <string name="settings_cloud_sync_toggle_label">啟用跨裝置同步</string>
+    <string name="sync_fdroid_unavailable_title">不支援跨裝置同步</string>
+    <string name="sync_fdroid_unavailable_body">F-Droid 版本不包含跨裝置同步功能。如需多裝置同步請安裝 Play 商店版本。</string>
     <string name="password_eye_unavailable_during_capture">為防止密碼外洩，螢幕錄製或鏡像期間顯示密碼功能已停用。</string>
     <string name="password_hide">隱藏密碼</string>
     <string name="password_show">顯示密碼</string>
