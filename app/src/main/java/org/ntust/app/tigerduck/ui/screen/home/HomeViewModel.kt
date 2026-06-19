@@ -76,9 +76,6 @@ class HomeViewModel @Inject constructor(
     private val _syncConflicts = MutableStateFlow<List<SyncConflict>>(emptyList())
     val syncConflicts: StateFlow<List<SyncConflict>> = _syncConflicts
 
-    private val _backendSessionExpired = MutableStateFlow(false)
-    val backendSessionExpired: StateFlow<Boolean> = _backendSessionExpired
-    fun dismissBackendSessionExpired() { _backendSessionExpired.value = false }
 
     private var _pendingSyncResult: BackendSyncResult? = null
 
@@ -218,9 +215,7 @@ class HomeViewModel @Inject constructor(
                 if (reloginOk) {
                     Log.d("HomeViewModel", "[Sync] auto-relogin succeeded, retrying sync")
                     syncOverridesFromBackend()
-                    return
                 }
-                _backendSessionExpired.value = true
             }
             Log.w("HomeViewModel", "[Sync] override sync failed", e)
         }
