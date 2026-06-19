@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import android.util.Log
+import org.ntust.app.tigerduck.BuildConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -113,7 +114,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun syncOverridesFromBackend(retried: Boolean = false) {
-        if (BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return
+        if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return
         if (!authTokenManager.isLoggedIn) {
             Log.d("HomeViewModel", "[Sync] skipped: not logged in (v3)")
             return
@@ -584,7 +585,7 @@ class HomeViewModel @Inject constructor(
                     if (!remoteAssignments.isNullOrEmpty()) {
                         assignments = remoteAssignments
                         dataCache.saveAssignments(remoteAssignments)
-                        if (!BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                        if (prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
                             runCatching { pushApiClient.uploadAssignments(remoteAssignments) }
                                 .onFailure { Log.w("HomeViewModel", "uploadAssignments failed (non-fatal)", it) }
                         }
@@ -828,6 +829,7 @@ class HomeViewModel @Inject constructor(
         val status = if (wasIgnored) "none" else "ignored"
         pendingOverrides.add(id)
         viewModelScope.launch {
+            if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return@launch
             try {
                 pushApiClient.patchAssignmentOverride(
                     id.toIntOrNull() ?: return@launch, status,
@@ -855,6 +857,7 @@ class HomeViewModel @Inject constructor(
         val status = if (wasCompleted) "none" else "locally_completed"
         pendingOverrides.add(id)
         viewModelScope.launch {
+            if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return@launch
             try {
                 pushApiClient.patchAssignmentOverride(
                     id.toIntOrNull() ?: return@launch, status,

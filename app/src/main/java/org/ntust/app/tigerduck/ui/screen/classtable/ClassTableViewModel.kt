@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.shared.OngoingCourseInfo
@@ -411,13 +412,17 @@ class ClassTableViewModel @Inject constructor(
             val deleted = dataCache.loadDeletedCourseNos()
             if (course.courseNo in deleted) {
                 dataCache.saveDeletedCourseNos(deleted - course.courseNo)
-                val moodleId = resolveMoodleNumericId(course)
-                if (moodleId != null) {
-                    runCatching { pushApiClient.patchCourseOverride(moodleId, isHidden = false) }
+                if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                    val moodleId = resolveMoodleNumericId(course)
+                    if (moodleId != null) {
+                        runCatching { pushApiClient.patchCourseOverride(moodleId, isHidden = false) }
+                    }
                 }
             }
             dataCache.saveCourses(updated, _currentSemester.value)
-            runCatching { pushApiClient.uploadCourses(updated, _currentSemester.value) }
+            if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                runCatching { pushApiClient.uploadCourses(updated, _currentSemester.value) }
+            }
             widgetUpdater.requestUpdate()
         }
         TigerDuckTheme.buildCourseColorMap(updated)
@@ -481,11 +486,13 @@ class ClassTableViewModel @Inject constructor(
     }
 
     fun deleteCourse(courseNo: String) {
-        val moodleId = _courses.value.find { it.courseNo == courseNo }
-            ?.let { resolveMoodleNumericId(it) }
-        if (moodleId != null) {
-            viewModelScope.launch {
-                runCatching { pushApiClient.patchCourseOverride(moodleId, isHidden = true) }
+        if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+            val moodleId = _courses.value.find { it.courseNo == courseNo }
+                ?.let { resolveMoodleNumericId(it) }
+            if (moodleId != null) {
+                viewModelScope.launch {
+                    runCatching { pushApiClient.patchCourseOverride(moodleId, isHidden = true) }
+                }
             }
         }
         val updated = _courses.value.filter { it.courseNo != courseNo }
@@ -532,6 +539,7 @@ class ClassTableViewModel @Inject constructor(
         customName: String? = null,
         locale: String? = null,
     ) {
+        if (!appPreferences.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return
         val course = _courses.value.find { it.courseNo == courseNo } ?: return
         val moodleId = resolveMoodleNumericId(course) ?: return
         viewModelScope.launch {
@@ -789,13 +797,15 @@ class ClassTableViewModel @Inject constructor(
         viewModelScope.launch {
             val deletedNos = dataCache.loadDeletedCourseNos()
             if (deletedNos.isNotEmpty()) {
-                val semester = courseService.currentSemesterCode()
-                val moodleIdMap = dataCache.loadMoodleCourseIds()
-                for (courseNo in deletedNos) {
-                    val idnumber = "$semester$courseNo"
-                    val numericId = moodleIdMap[idnumber] ?: continue
-                    runCatching {
-                        pushApiClient.patchCourseOverride(numericId, isHidden = false)
+                if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                    val semester = courseService.currentSemesterCode()
+                    val moodleIdMap = dataCache.loadMoodleCourseIds()
+                    for (courseNo in deletedNos) {
+                        val idnumber = "$semester$courseNo"
+                        val numericId = moodleIdMap[idnumber] ?: continue
+                        runCatching {
+                            pushApiClient.patchCourseOverride(numericId, isHidden = false)
+                        }
                     }
                 }
             }
@@ -992,8 +1002,10 @@ class ClassTableViewModel @Inject constructor(
                                 TigerDuckTheme.buildCourseColorMap(merged)
                             }
                             dataCache.saveCourses(merged, semester)
-                            runCatching { pushApiClient.uploadCourses(merged, semester) }
-                                .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal)", it) }
+                            if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                                runCatching { pushApiClient.uploadCourses(merged, semester) }
+                                    .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal)", it) }
+                            }
                             widgetUpdater.requestUpdate()
                         }
                     }

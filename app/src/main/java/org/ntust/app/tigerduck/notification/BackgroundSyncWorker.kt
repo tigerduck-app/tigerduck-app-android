@@ -15,6 +15,7 @@ import dagger.assisted.AssistedInject
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.shared.Course
@@ -63,6 +64,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
     }
 
     private suspend fun syncOverridesFromBackend() {
+        if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return
         try {
             val result = syncApiClient.fetchFullSync()
             val localIgnored = dataCache.loadIgnoredAssignments()
@@ -225,8 +227,10 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 val merged = (fetchedWithState + manualLeftovers + cachedRemoteFallbacks)
                     .filter { it.courseNo !in deletedNos }
                 dataCache.saveCourses(merged)
-                runCatching { pushApiClient.uploadCourses(merged, semester) }
-                    .onFailure { Log.w(TAG, "uploadCourses failed (non-fatal)", it) }
+                if (prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                    runCatching { pushApiClient.uploadCourses(merged, semester) }
+                        .onFailure { Log.w(TAG, "uploadCourses failed (non-fatal)", it) }
+                }
             }
             true
         } catch (e: Exception) {
@@ -248,8 +252,10 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 if (a.assignmentId in completed) a.copy(isCompleted = true) else a
             }
             dataCache.saveAssignments(merged)
-            runCatching { pushApiClient.uploadAssignments(merged) }
-                .onFailure { Log.w(TAG, "uploadAssignments failed (non-fatal)", it) }
+            if (prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                runCatching { pushApiClient.uploadAssignments(merged) }
+                    .onFailure { Log.w(TAG, "uploadAssignments failed (non-fatal)", it) }
+            }
 
             if (prefs.notifyAssignments) {
                 // Hand the scheduler both the full non-completed list and the
