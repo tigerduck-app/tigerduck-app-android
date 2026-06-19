@@ -543,6 +543,7 @@
     <string name="settings_cloud_sync_toggle_label">啟用跨裝置同步</string>
     <string name="settings_sync_status_on">開啟</string>
     <string name="settings_sync_status_off">關閉</string>
+    <string name="settings_learn_more_backend">有關 TigerDuck 後端伺服器的更多內容</string>
     <string name="sync_fdroid_unavailable_title">不支援跨裝置同步</string>
     <string name="sync_fdroid_unavailable_body">F-Droid 版本不包含跨裝置同步功能。如需多裝置同步請安裝 Play 商店版本。</string>
     <string name="password_eye_unavailable_during_capture">為防止密碼外洩，螢幕錄製或鏡像期間顯示密碼功能已停用。</string>

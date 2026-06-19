@@ -148,6 +148,13 @@ fun CloudSyncSettingsScreen(
                 ContentCard {
                     Column {
                         LinkRow(
+                            label = stringResource(R.string.settings_learn_more_backend),
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, "https://tigerduck.app/learn-more-about-backend".toUri())
+                                context.startActivity(intent)
+                            },
+                        )
+                        LinkRow(
                             label = stringResource(R.string.onboarding_privacy_policy_label),
                             onClick = {
                                 val intent = Intent(Intent.ACTION_VIEW, "https://tigerduck.app/privacy-policy".toUri())

@@ -543,6 +543,7 @@
     <string name="settings_cloud_sync_toggle_label">Enable cross-device sync</string>
     <string name="settings_sync_status_on">On</string>
     <string name="settings_sync_status_off">Off</string>
+    <string name="settings_learn_more_backend">Learn more about the TigerDuck Backend</string>
     <string name="sync_fdroid_unavailable_title">Cross-device sync not available</string>
     <string name="sync_fdroid_unavailable_body">The F-Droid build does not include cross-device sync. Install the Play Store build for multi-device sync.</string>
     <string name="password_eye_unavailable_during_capture">To keep your password from being captured, reveal is disabled while the screen is being recorded or mirrored.</string>
