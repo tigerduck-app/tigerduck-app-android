@@ -227,7 +227,10 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 dataCache.saveCourses(merged)
                 if (prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
                     runCatching { pushApiClient.uploadCourses(merged, semester) }
-                        .onFailure { Log.w(TAG, "uploadCourses failed (non-fatal)", it) }
+                        .onFailure {
+                            prefs.setLastSyncSource(SyncSource.LOCAL)
+                            Log.w(TAG, "uploadCourses failed (non-fatal)", it)
+                        }
                 }
             }
             true
@@ -252,7 +255,10 @@ class BackgroundSyncWorker @AssistedInject constructor(
             dataCache.saveAssignments(merged)
             if (prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
                 runCatching { pushApiClient.uploadAssignments(merged) }
-                    .onFailure { Log.w(TAG, "uploadAssignments failed (non-fatal)", it) }
+                    .onFailure {
+                        prefs.setLastSyncSource(SyncSource.LOCAL)
+                        Log.w(TAG, "uploadAssignments failed (non-fatal)", it)
+                    }
             }
 
             if (prefs.notifyAssignments) {

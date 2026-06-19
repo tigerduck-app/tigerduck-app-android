@@ -580,7 +580,10 @@ class HomeViewModel @Inject constructor(
                         dataCache.saveAssignments(remoteAssignments)
                         if (prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
                             runCatching { pushApiClient.uploadAssignments(remoteAssignments) }
-                                .onFailure { Log.w("HomeViewModel", "uploadAssignments failed (non-fatal)", it) }
+                                .onFailure {
+                                    prefs.setLastSyncSource(SyncSource.LOCAL)
+                                    Log.w("HomeViewModel", "uploadAssignments failed (non-fatal)", it)
+                                }
                         }
                     }
                 }
