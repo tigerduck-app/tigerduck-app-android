@@ -44,6 +44,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Code
@@ -328,11 +329,7 @@ fun OnboardingScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth(0.9f),
                         ) {
-                            Text(
-                                text = stringResource(R.string.onboarding_sync_data_list),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
-                            )
+                            SyncDataInfoRows()
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -636,6 +633,41 @@ private fun LinkRow(
                 modifier = Modifier.size(16.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun SyncDataInfoRows(modifier: Modifier = Modifier) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        SyncDataInfoRow(icon = Icons.Filled.CheckCircle, color = onboardingGreen(), text = stringResource(R.string.onboarding_sync_shared_student_id))
+        SyncDataInfoRow(icon = Icons.Filled.CheckCircle, color = onboardingGreen(), text = stringResource(R.string.onboarding_sync_shared_moodle_token))
+        SyncDataInfoRow(icon = Icons.Filled.CheckCircle, color = onboardingGreen(), text = stringResource(R.string.onboarding_sync_shared_device_id))
+        SyncDataInfoRow(icon = Icons.Filled.CheckCircle, color = onboardingGreen(), text = stringResource(R.string.onboarding_sync_shared_courses))
+        SyncDataInfoRow(icon = Icons.Filled.CheckCircle, color = onboardingGreen(), text = stringResource(R.string.onboarding_sync_shared_assignments))
+        SyncDataInfoRow(icon = Icons.Filled.Cancel, color = onboardingRed(), text = stringResource(R.string.onboarding_sync_not_shared_password))
+    }
+}
+
+@Composable
+private fun SyncDataInfoRow(icon: ImageVector, color: Color, text: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(20.dp),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
     }
 }
 
