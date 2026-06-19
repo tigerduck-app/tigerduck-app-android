@@ -91,10 +91,8 @@ class HomeViewModel @Inject constructor(
                     val mid = c.id.toIntOrNull() ?: continue
                     runCatching { pushApiClient.patchAssignmentOverride(mid, c.localStatus) }
                 }
-                Log.d("HomeViewModel", "[Sync] conflict resolved: keep local (uploaded ${conflicts.size} overrides)")
             } else {
                 applyServerOverrides(result)
-                Log.d("HomeViewModel", "[Sync] conflict resolved: keep server")
             }
         }
     }
@@ -116,19 +114,16 @@ class HomeViewModel @Inject constructor(
     private suspend fun syncOverridesFromBackend(retried: Boolean = false) {
         if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return
         if (!authTokenManager.isLoggedIn) {
-            Log.d("HomeViewModel", "[Sync] skipped: not logged in (v3)")
             return
         }
         try {
             val result = syncApiClient.fetchFullSync()
-            Log.d("HomeViewModel", "[Sync] server returned: ${result.ignoredIds.size} ignored, ${result.completedIds.size} completed, ${result.courseOverrides.size} courseOverrides")
             val localIgnored = dataCache.loadIgnoredAssignments()
             val localMarked = dataCache.loadMarkedCompletedAssignments()
 
             val isFirstTimeMigration = result.ignoredIds.isEmpty() && result.completedIds.isEmpty()
                 && (localIgnored.isNotEmpty() || localMarked.isNotEmpty())
             if (isFirstTimeMigration) {
-                Log.d("HomeViewModel", "[Sync] first-time migration: uploading ${localIgnored.size} ignored + ${localMarked.size} completed")
                 for (id in localIgnored) {
                     runCatching { pushApiClient.patchAssignmentOverride(id.toIntOrNull() ?: return@runCatching, "ignored") }
                 }
@@ -182,7 +177,6 @@ class HomeViewModel @Inject constructor(
                 dataCache.replaceMarkedCompletedAssignments(finalCompleted)
                 _ignoredAssignmentIds.value = finalIgnored
                 _markedCompletedIds.value = finalCompleted
-                Log.d("HomeViewModel", "[Sync] applied ${finalIgnored.size} ignored, ${finalCompleted.size} completed (${conflicts.size} conflicts pending)")
 
                 if (conflicts.isNotEmpty()) {
                     _pendingSyncResult = result
@@ -209,14 +203,12 @@ class HomeViewModel @Inject constructor(
                 deleted.removeAll { it in result.serverCourseNos }
                 if (deleted.size != sizeBefore || deleted != dataCache.loadDeletedCourseNos()) {
                     dataCache.saveDeletedCourseNos(deleted)
-                    Log.d("HomeViewModel", "[Sync] deletedCourseNos updated: $deleted")
                 }
             }
         } catch (e: Exception) {
             if (!retried && (e.message?.contains("401") == true || e.message?.contains("session_revoked") == true)) {
                 val reloginOk = attemptBackendRelogin()
                 if (reloginOk) {
-                    Log.d("HomeViewModel", "[Sync] auto-relogin succeeded, retrying sync")
                     syncOverridesFromBackend(retried = true)
                 }
             }
@@ -228,7 +220,6 @@ class HomeViewModel @Inject constructor(
         val studentId = authService.storedStudentId ?: return false
         val moodleToken = authService.storedMoodleToken
         if (moodleToken.isNullOrEmpty()) {
-            Log.d("HomeViewModel", "[Sync] auto-relogin skipped: no Moodle token")
             return false
         }
         return try {
@@ -239,7 +230,6 @@ class HomeViewModel @Inject constructor(
                 moodlePrivateToken = null,
                 deviceName = android.os.Build.MODEL,
             )
-            Log.d("HomeViewModel", "[Sync] auto-relogin: v3 JWT refreshed")
             true
         } catch (e: Exception) {
             Log.w("HomeViewModel", "[Sync] auto-relogin failed", e)
@@ -257,7 +247,6 @@ class HomeViewModel @Inject constructor(
             val newHex = override.colorHex
             if (newHex != course.customColorHex) {
                 changed = true
-                Log.d("HomeViewModel", "[Sync] course ${course.courseNo}: color ${course.customColorHex} → $newHex")
                 course.copy(customColorHex = newHex)
             } else course
         }
@@ -282,9 +271,7 @@ class HomeViewModel @Inject constructor(
             _allCourses.value = updated
             TigerDuckTheme.buildCourseColorMap(updated)
             dataCache.saveCourses(updated)
-            Log.d("HomeViewModel", "[Sync] applied course overrides: ${nameCount} names, colors updated")
         } else {
-            Log.d("HomeViewModel", "[Sync] ${overrides.size} course overrides — no changes (courseNos: ${overrides.map { it.courseNo }})")
         }
     }
 
@@ -501,7 +488,6 @@ class HomeViewModel @Inject constructor(
         if (courses.isNotEmpty()) {
             val cleared = courses.map { it.copy(customColorHex = null) }
             dataCache.saveCourses(cleared)
-            Log.d("HomeViewModel", "[Migration] cleared ${courses.size} course colors for hash v2")
         }
         prefs.colorHashV2Migrated = true
     }
@@ -835,7 +821,6 @@ class HomeViewModel @Inject constructor(
                     id.toIntOrNull() ?: return@launch, status,
                 )
                 pendingOverrides.remove(id)
-                Log.d("HomeViewModel", "override PATCH OK: $id → $status")
             } catch (e: Exception) {
                 Log.w("HomeViewModel", "override PATCH FAILED: $id → $status", e)
             }
@@ -863,7 +848,6 @@ class HomeViewModel @Inject constructor(
                     id.toIntOrNull() ?: return@launch, status,
                 )
                 pendingOverrides.remove(id)
-                Log.d("HomeViewModel", "override PATCH OK: $id → $status")
             } catch (e: Exception) {
                 Log.w("HomeViewModel", "override PATCH FAILED: $id → $status", e)
             }

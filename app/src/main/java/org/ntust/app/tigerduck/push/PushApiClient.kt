@@ -1,6 +1,5 @@
 package org.ntust.app.tigerduck.push
 
-import android.util.Log
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -8,7 +7,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.logging.HttpLoggingInterceptor
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
@@ -40,26 +38,12 @@ class PushApiClient @Inject constructor(
     private val gson = Gson()
     private val jsonType = "application/json".toMediaType()
 
-    private val logging = HttpLoggingInterceptor { msg ->
-        Log.d("TigerDuck-Push", msg)
-    }.apply {
-        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
-        else HttpLoggingInterceptor.Level.NONE
-        // Redact every credential the base client or this interceptor may add;
-        // HEADERS level otherwise dumps them into logcat verbatim on debug.
-        redactHeader("Authorization")
-        redactHeader("Cookie")
-        redactHeader("Set-Cookie")
-        redactHeader("Proxy-Authorization")
-    }
-
     private val client = baseClient.newBuilder()
         .addInterceptor { chain ->
             val builder = chain.request().newBuilder()
                 .header("Accept", "application/json")
             chain.proceed(builder.build())
         }
-        .addInterceptor(logging)
         .build()
 
     /** Adds a Bearer Authorization header if a v3 token is available. */

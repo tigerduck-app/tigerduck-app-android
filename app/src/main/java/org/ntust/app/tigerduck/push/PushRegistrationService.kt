@@ -140,7 +140,6 @@ class PushRegistrationService @Inject constructor(
         // cold start; defer until sign-in (onSignedIn() re-fires this) rather
         // than POSTing with no Bearer and getting 401 missing_bearer_token.
         if (!authTokenManager.isLoggedIn) {
-            Log.d(TAG, "register deferred: not signed in yet")
             return false
         }
         val clientDeviceId = identity.uuid()

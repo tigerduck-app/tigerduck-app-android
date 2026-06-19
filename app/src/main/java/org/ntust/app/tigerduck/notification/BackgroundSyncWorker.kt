@@ -74,7 +74,6 @@ class BackgroundSyncWorker @AssistedInject constructor(
             if (!isFirstTimeMigration) {
                 dataCache.replaceIgnoredAssignments(result.ignoredIds)
                 dataCache.replaceMarkedCompletedAssignments(result.completedIds)
-                Log.d(TAG, "override sync: ${result.ignoredIds.size} ignored, ${result.completedIds.size} completed")
             }
 
             if (result.courseOverrides.isNotEmpty()) {
@@ -94,11 +93,9 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 deleted.removeAll { it in result.serverCourseNos }
                 if (deleted.size != sizeBefore || deleted != dataCache.loadDeletedCourseNos()) {
                     dataCache.saveDeletedCourseNos(deleted)
-                    Log.d(TAG, "deletedCourseNos updated: $deleted")
                 }
             }
             dataCache.notifyBackgroundSyncComplete()
-            Log.d(TAG, "backgroundSyncVersion incremented")
         } catch (e: Exception) {
             Log.w(TAG, "override sync failed", e)
         }
@@ -113,13 +110,11 @@ class BackgroundSyncWorker @AssistedInject constructor(
             val newHex = override.colorHex
             if (newHex != course.customColorHex) {
                 changed = true
-                Log.d(TAG, "course ${course.courseNo}: color → $newHex")
                 course.copy(customColorHex = newHex)
             } else course
         }
         if (changed) {
             dataCache.saveCourses(updated)
-            Log.d(TAG, "course overrides applied: colors updated")
         }
     }
 

@@ -1,6 +1,5 @@
 package org.ntust.app.tigerduck.push
 
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -148,7 +147,6 @@ class SyncApiClient @Inject constructor(
                 ))
             }
         }
-        Log.d("SyncApiClient", "[Sync] parsed: ${assignments.size} assignments, ${ignoredIds.size} ignored, ${completedIds.size} completed, ${courseOverrides.size} courseOverrides")
 
         return BackendSyncResult(
             assignments = assignments,

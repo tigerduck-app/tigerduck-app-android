@@ -1,6 +1,5 @@
 package org.ntust.app.tigerduck.network
 
-import android.util.Log
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -9,7 +8,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.logging.HttpLoggingInterceptor
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -44,20 +42,6 @@ class BulletinApiClient @Inject constructor(
     private val gson = Gson()
     private val jsonType = "application/json".toMediaType()
 
-    private val logging = HttpLoggingInterceptor { msg ->
-        Log.d("TigerDuck-Bulletin", msg)
-    }.apply {
-        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
-        else HttpLoggingInterceptor.Level.NONE
-        // Redact every credential the base client or this interceptor may add,
-        // so a future cookie jar / auth interceptor can't silently leak session
-        // material to logcat at HEADERS level.
-        redactHeader("Authorization")
-        redactHeader("Cookie")
-        redactHeader("Set-Cookie")
-        redactHeader("Proxy-Authorization")
-    }
-
     private val acceptInterceptor = okhttp3.Interceptor { chain ->
         chain.proceed(
             chain.request().newBuilder()
@@ -68,7 +52,6 @@ class BulletinApiClient @Inject constructor(
 
     private val client = baseClient.newBuilder()
         .addInterceptor(acceptInterceptor)
-        .addInterceptor(logging)
         .build()
 
     /**

@@ -551,7 +551,6 @@ class ClassTableViewModel @Inject constructor(
                     customName = customName,
                     locale = locale,
                 )
-                Log.d("ClassTableVM", "course override OK: $courseNo → color=$colorHex hidden=$isHidden customName=$customName locale=$locale")
             } catch (e: Exception) {
                 Log.w("ClassTableVM", "course override FAILED: $courseNo", e)
             }
