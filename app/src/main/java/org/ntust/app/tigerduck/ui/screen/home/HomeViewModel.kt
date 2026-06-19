@@ -113,6 +113,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun syncOverridesFromBackend(retried: Boolean = false) {
+        if (BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return
         if (!authTokenManager.isLoggedIn) {
             Log.d("HomeViewModel", "[Sync] skipped: not logged in (v3)")
             return
@@ -583,8 +584,10 @@ class HomeViewModel @Inject constructor(
                     if (!remoteAssignments.isNullOrEmpty()) {
                         assignments = remoteAssignments
                         dataCache.saveAssignments(remoteAssignments)
-                        runCatching { pushApiClient.uploadAssignments(remoteAssignments) }
-                            .onFailure { Log.w("HomeViewModel", "uploadAssignments failed (non-fatal)", it) }
+                        if (!BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                            runCatching { pushApiClient.uploadAssignments(remoteAssignments) }
+                                .onFailure { Log.w("HomeViewModel", "uploadAssignments failed (non-fatal)", it) }
+                        }
                     }
                 }
             }

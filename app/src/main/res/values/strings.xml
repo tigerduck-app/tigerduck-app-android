@@ -525,6 +525,16 @@
     <string name="onboarding_welcome_subtitle">Your NTUST campus assistant</string>
     <string name="onboarding_welcome_title">Welcome to TigerDuck</string>
     <string name="onboarding_welcome_website_label">TigerDuck official website</string>
+    <string name="onboarding_sync_title">Cross-Device Sync</string>
+    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_data_list">Data shared with the server:\n\n• Student ID\n• Moodle token (encrypted — your password is never uploaded)\n• Device ID\n• Course data\n• Assignment data</string>
+    <string name="onboarding_sync_toggle_label">Enable cross-device sync</string>
+    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. On Android, push notifications and Live Updates still work locally — they don\'t require the sync server.</string>
+    <string name="onboarding_sync_privacy_note">Read our %1$s or learn how to %2$s.</string>
+    <string name="onboarding_sync_privacy_link">privacy policy</string>
+    <string name="onboarding_sync_delete_link">delete your account</string>
+    <string name="settings_cloud_sync_title">Cross-Device Sync</string>
+    <string name="settings_cloud_sync_description">Sync timetable edits, assignment states, and settings across your devices via the TigerDuck server.\n\nData shared with the server:\n• Student ID\n• Moodle token (encrypted — your password is never uploaded)\n• Device ID\n• Course data\n• Assignment data\n\nWhen sync is off, all data stays on this device only. Push notifications and Live Updates still work locally on Android.</string>
     <string name="password_eye_unavailable_during_capture">To keep your password from being captured, reveal is disabled while the screen is being recorded or mirrored.</string>
     <string name="password_hide">Hide password</string>
     <string name="password_show">Show password</string>

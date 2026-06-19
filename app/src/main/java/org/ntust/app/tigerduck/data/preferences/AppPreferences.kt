@@ -67,6 +67,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     val disableScreenCaptureProtectionChanged: SharedFlow<Unit> =
         _disableScreenCaptureProtectionChanged.asSharedFlow()
 
+    var cloudSyncEnabled: Boolean
+        get() = prefs.getBoolean("cloudSyncEnabled", true)
+        set(value) = prefs.edit().putBoolean("cloudSyncEnabled", value).apply()
+
     var hasCompletedOnboarding: Boolean
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
         set(value) = prefs.edit().putBoolean("hasCompletedOnboarding", value).apply()
