@@ -194,9 +194,9 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         val month = cal.get(Calendar.MONTH) + 1
         val rocYear = year - 1911
         return when (month) {
-            in 2..8 -> "${rocYear - 1}2"
-            in 9..12 -> "${rocYear}1"
-            else -> "${rocYear - 1}1"
+            in 2..7 -> "${rocYear - 1}2"   // Feb 1 – Jul 31: spring
+            in 8..12 -> "${rocYear}1"       // Aug 1 – Dec 31: fall
+            else -> "${rocYear - 1}1"       // January: prior fall
         }
     }
 

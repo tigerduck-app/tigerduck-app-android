@@ -243,8 +243,8 @@ class CourseService @Inject constructor(
         val month = cal.get(Calendar.MONTH) + 1
         val rocYear = year - 1911
         return when (month) {
-            in 2..8 -> "${rocYear - 1}2"   // Spring semester
-            in 9..12 -> "${rocYear}1"       // Fall semester
+            in 2..7 -> "${rocYear - 1}2"   // Feb 1 – Jul 31: spring semester
+            in 8..12 -> "${rocYear}1"       // Aug 1 – Dec 31: fall semester
             else -> "${rocYear - 1}1"       // January: still in prior fall semester
         }
     }
