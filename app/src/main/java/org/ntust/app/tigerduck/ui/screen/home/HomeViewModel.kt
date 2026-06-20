@@ -7,11 +7,13 @@ import androidx.lifecycle.viewModelScope
 import android.content.Context
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -290,6 +292,7 @@ class HomeViewModel @Inject constructor(
             context.getSharedPreferences("tigerduck_sync", 0).edit()
                 .putLong("last_course_sync_at", System.currentTimeMillis())
                 .apply()
+            _lastKnownRevision = result.currentRevision
             prefs.setLastSyncSource(SyncSource.BACKEND)
         } catch (e: Exception) {
             prefs.setLastSyncSource(SyncSource.LOCAL)
@@ -631,6 +634,44 @@ class HomeViewModel @Inject constructor(
                 dataCache.notifyBackgroundSyncComplete()
             }
         }
+    }
+
+    // --- Foreground revision polling ---
+
+    private var _lastKnownRevision: Long = 0
+    private var revisionPollingJob: Job? = null
+
+    fun startRevisionPolling() {
+        if (revisionPollingJob?.isActive == true) return
+        revisionPollingJob = viewModelScope.launch {
+            while (true) {
+                delay(10_000)
+                if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) continue
+                if (!authTokenManager.isLoggedIn) continue
+                if (!networkChecker.isAvailable()) continue
+                try {
+                    val revision = syncApiClient.fetchRevision()
+                    if (revision > _lastKnownRevision) {
+                        syncOverridesFromBackend()
+                        val courses = dataCache.loadCourses()
+                            .filter { it.courseNo !in dataCache.loadDeletedCourseNos() }
+                        val assignments = dataCache.loadAssignments()
+                        TigerDuckTheme.buildCourseColorMap(courses)
+                        updateCoursesAndAssignments(courses, assignments)
+                        dataCache.notifyBackgroundSyncComplete()
+                        // Update from the full sync's current_revision if available
+                        _lastKnownRevision = revision
+                    }
+                } catch (e: Exception) {
+                    Log.w("HomeViewModel", "[RevisionPoll] check failed", e)
+                }
+            }
+        }
+    }
+
+    fun stopRevisionPolling() {
+        revisionPollingJob?.cancel()
+        revisionPollingJob = null
     }
 
     private suspend fun fetchData(forceRemote: Boolean) {

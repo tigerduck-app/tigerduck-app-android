@@ -63,6 +63,23 @@ class SyncApiClient @Inject constructor(
 
     private val client = baseClient.newBuilder().build()
 
+    suspend fun fetchRevision(): Long = withContext(Dispatchers.IO) {
+        val authHeader = authTokenManager.authHeader()
+            ?: throw PushApiException("not authenticated")
+        val request = Request.Builder()
+            .url("$baseUrl/sync/revision")
+            .get()
+            .header("Authorization", authHeader)
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw PushApiException("sync/revision failed: HTTP ${response.code}")
+            }
+            val json = JSONObject(response.body.string())
+            json.optLong("revision", 0)
+        }
+    }
+
     suspend fun fetchFullSync(): BackendSyncResult = withContext(Dispatchers.IO) {
         val authHeader = authTokenManager.authHeader()
             ?: throw PushApiException("not authenticated")
