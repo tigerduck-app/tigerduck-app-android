@@ -421,7 +421,8 @@ class ClassTableViewModel @Inject constructor(
             }
             dataCache.saveCourses(updated, _currentSemester.value)
             if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                runCatching { pushApiClient.uploadCourses(updated, _currentSemester.value) }
+                val forceKey = "client:${_currentSemester.value}:${course.courseNo}"
+                runCatching { pushApiClient.uploadCourses(updated, _currentSemester.value, forceKeys = listOf(forceKey)) }
             }
             widgetUpdater.requestUpdate()
         }

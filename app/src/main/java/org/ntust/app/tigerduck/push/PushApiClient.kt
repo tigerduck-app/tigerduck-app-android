@@ -220,6 +220,7 @@ class PushApiClient @Inject constructor(
     suspend fun uploadCourses(
         courses: List<Course>,
         semester: String,
+        forceKeys: List<String> = emptyList(),
     ) = withContext(Dispatchers.IO) {
         val items = courses.map { c ->
             mapOf(
@@ -247,7 +248,8 @@ class PushApiClient @Inject constructor(
                 "color_hex" to hex,
             )
         }
-        val payload = mapOf("courses" to items, "course_overrides" to overrides)
+        val payload = mutableMapOf<String, Any>("courses" to items, "course_overrides" to overrides)
+        if (forceKeys.isNotEmpty()) payload["force_keys"] = forceKeys
         val body = gson.toJson(payload).toRequestBody(jsonType)
         val request = Request.Builder()
             .url("$baseUrl/sync/courses/upload")
