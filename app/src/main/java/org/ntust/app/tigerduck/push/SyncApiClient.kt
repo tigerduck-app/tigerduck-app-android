@@ -70,7 +70,7 @@ class SyncApiClient @Inject constructor(
     private fun parseFullSync(json: JSONObject): BackendSyncResult {
         val assignments = mutableListOf<Assignment>()
         val arr = json.optJSONArray("assignments") ?: return BackendSyncResult(
-            emptyList(), emptySet(), emptySet(), emptyList(), emptySet(), json.optLong("current_revision", 0)
+            emptyList(), emptySet(), emptySet(), emptyList(), emptySet(), emptyList(), json.optLong("current_revision", 0)
         )
         for (i in 0 until arr.length()) {
             val a = arr.getJSONObject(i)
