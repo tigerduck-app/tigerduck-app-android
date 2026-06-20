@@ -232,6 +232,8 @@ class PushApiClient @Inject constructor(
                     .split(",", "，", "、")
                     .map { it.trim() }
                     .filter { it.isNotEmpty() },
+                "schedule_json" to c.schedule.mapKeys { it.key.toString() },
+                "classroom_map" to c.classroomMap,
             )
         }
         val payload = mapOf("courses" to items)

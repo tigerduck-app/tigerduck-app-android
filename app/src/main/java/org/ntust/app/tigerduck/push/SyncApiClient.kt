@@ -29,6 +29,8 @@ data class ServerCourse(
     val enrolledCount: Int = 0,
     val maxCount: Int = 0,
     val moodleId: String? = null,
+    val scheduleJson: String = "{}",
+    val classroomMapJson: String = "{}",
 )
 
 data class BackendSyncResult(
@@ -137,6 +139,10 @@ class SyncApiClient @Inject constructor(
                             instrArr.optString(j)?.takeIf { it.isNotEmpty() }?.let { instructors.add(it) }
                         }
                     }
+                    val schedObj = c.optJSONObject("schedule_json")
+                    val schedStr = schedObj?.toString() ?: "{}"
+                    val cmapObj = c.optJSONObject("classroom_map")
+                    val cmapStr = cmapObj?.toString() ?: "{}"
                     serverCourses.add(ServerCourse(
                         courseNo = courseNo,
                         courseName = nullStr(c, "course_name") ?: courseNo,
@@ -147,6 +153,8 @@ class SyncApiClient @Inject constructor(
                         enrolledCount = c.optInt("enrolled_count", 0),
                         maxCount = c.optInt("max_count", 0),
                         moodleId = nullStr(c, "moodle_id"),
+                        scheduleJson = schedStr,
+                        classroomMapJson = cmapStr,
                     ))
                 }
                 val mId = nullStr(c, "moodle_id") ?: continue
