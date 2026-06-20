@@ -237,6 +237,7 @@ class HomeViewModel @Inject constructor(
                                 enrolledCount = sc.enrolledCount,
                                 maxCount = sc.maxCount,
                                 moodleIdNumber = sc.moodleId,
+                                isManual = true,
                             ))
                             Log.i("HomeViewModel", "[Sync] merged course from server: ${sc.courseNo}")
                         }
