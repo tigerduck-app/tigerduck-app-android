@@ -4,7 +4,9 @@ import android.util.Log
 import org.ntust.app.tigerduck.BuildConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.content.Context
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
@@ -53,6 +55,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val networkChecker: NetworkChecker,
     private val authService: AuthService,
     private val dataCache: DataCache,
@@ -199,6 +202,19 @@ class HomeViewModel @Inject constructor(
             if (result.courseOverrides.isNotEmpty()) {
                 applyCourseOverrides(result.courseOverrides)
             }
+            // Conflict resolution: detect reset + process tombstones
+            val lastCourseSyncAt = context.getSharedPreferences("tigerduck_sync", 0)
+                .getLong("last_course_sync_at", 0L)
+            val resetAt = result.coursesResetAt?.let { parseIsoTimestamp(it) } ?: 0L
+            if (resetAt > lastCourseSyncAt && lastCourseSyncAt > 0L) {
+                val allCourses = dataCache.loadCourses().toMutableList()
+                allCourses.removeAll { it.isManual }
+                dataCache.saveCourses(allCourses)
+                dataCache.saveDeletedCourseNos(emptySet())
+                Log.i("HomeViewModel", "[sync] courses reset detected, wiped manual courses")
+            }
+            val tombstonedNos = result.tombstones.mapNotNull { it.courseNo }.toSet()
+
             if (result.serverCourseNos.isNotEmpty()) {
                 val localCourseNos = dataCache.loadCourses().map { it.courseNo }.toSet()
                 val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
@@ -210,6 +226,20 @@ class HomeViewModel @Inject constructor(
                         Log.i("HomeViewModel", "[sync-debug] marking $no as deleted (local-only, not in server)")
                         deleted.add(no)
                     }
+                }
+                // Apply tombstones
+                for (no in tombstonedNos) {
+                    if (no !in result.serverCourseNos && no !in deleted) {
+                        Log.i("HomeViewModel", "[sync-debug] marking $no as deleted (tombstone)")
+                        deleted.add(no)
+                    }
+                }
+                // Bug fix: also remove manual (server-merged) courses not on server
+                val allCoursesForClean = dataCache.loadCourses().toMutableList()
+                val manualRemoved = allCoursesForClean.removeAll { it.isManual && it.courseNo !in result.serverCourseNos }
+                if (manualRemoved) {
+                    dataCache.saveCourses(allCoursesForClean)
+                    Log.i("HomeViewModel", "[sync-debug] removed manual courses not on server")
                 }
                 // Any previously-deleted course that reappeared on the server → un-delete
                 val undeleted = deleted.filter { it in result.serverCourseNos }
@@ -249,6 +279,9 @@ class HomeViewModel @Inject constructor(
                     }
                 }
             }
+            context.getSharedPreferences("tigerduck_sync", 0).edit()
+                .putLong("last_course_sync_at", System.currentTimeMillis())
+                .apply()
             prefs.setLastSyncSource(SyncSource.BACKEND)
         } catch (e: Exception) {
             prefs.setLastSyncSource(SyncSource.LOCAL)
@@ -933,6 +966,15 @@ class HomeViewModel @Inject constructor(
         list.add(to, item)
         _sections.value = list.mapIndexed { i, s -> s.copy(sortOrder = i) }
         prefs.homeSections = _sections.value
+    }
+
+    private fun parseIsoTimestamp(s: String): Long {
+        if (s.isBlank()) return 0L
+        return try {
+            java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.parse(s.take(19))?.time ?: 0L
+        } catch (_: Exception) { 0L }
     }
 
     companion object {

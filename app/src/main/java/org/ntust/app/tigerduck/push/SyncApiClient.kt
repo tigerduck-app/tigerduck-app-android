@@ -31,6 +31,15 @@ data class ServerCourse(
     val moodleId: String? = null,
     val scheduleJson: String = "{}",
     val classroomMapJson: String = "{}",
+    val version: Int = 1,
+    val updatedAt: String? = null,
+)
+
+data class CourseTombstone(
+    val courseKey: String,
+    val courseNo: String?,
+    val semester: String,
+    val deletedAt: String,
 )
 
 data class BackendSyncResult(
@@ -41,6 +50,8 @@ data class BackendSyncResult(
     val serverCourseNos: Set<String>,
     val serverCourses: List<ServerCourse> = emptyList(),
     val currentRevision: Long,
+    val coursesResetAt: String? = null,
+    val tombstones: List<CourseTombstone> = emptyList(),
 )
 
 @Singleton
@@ -155,6 +166,8 @@ class SyncApiClient @Inject constructor(
                         moodleId = nullStr(c, "moodle_id"),
                         scheduleJson = schedStr,
                         classroomMapJson = cmapStr,
+                        version = c.optInt("version", 1),
+                        updatedAt = nullStr(c, "updated_at"),
                     ))
                 }
                 val mId = nullStr(c, "moodle_id") ?: continue
@@ -191,6 +204,21 @@ class SyncApiClient @Inject constructor(
             }
         }
 
+        val coursesResetAt = nullStr(json, "courses_reset_at")
+        val tombstones = mutableListOf<CourseTombstone>()
+        val tombArr = json.optJSONArray("course_tombstones")
+        if (tombArr != null) {
+            for (i in 0 until tombArr.length()) {
+                val t = tombArr.getJSONObject(i)
+                tombstones.add(CourseTombstone(
+                    courseKey = t.optString("course_key", ""),
+                    courseNo = nullStr(t, "course_no"),
+                    semester = t.optString("semester", ""),
+                    deletedAt = t.optString("deleted_at", ""),
+                ))
+            }
+        }
+
         return BackendSyncResult(
             assignments = assignments,
             ignoredIds = ignoredIds,
@@ -199,6 +227,8 @@ class SyncApiClient @Inject constructor(
             serverCourseNos = serverCourseNos,
             serverCourses = serverCourses,
             currentRevision = json.optLong("current_revision", 0),
+            coursesResetAt = coursesResetAt,
+            tombstones = tombstones,
         )
     }
 

@@ -7,8 +7,10 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import androidx.compose.ui.graphics.toArgb
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -236,7 +238,16 @@ class PushApiClient @Inject constructor(
                 "classroom_map" to c.classroomMap,
             )
         }
-        val payload = mapOf("courses" to items)
+        val overrides = courses.map { c ->
+            val hex = TigerDuckTheme.courseColorVibrant(c.courseNo).let {
+                String.format("#%06X", it.toArgb() and 0xFFFFFF)
+            }
+            mapOf(
+                "course_key" to "client:$semester:${c.courseNo}",
+                "color_hex" to hex,
+            )
+        }
+        val payload = mapOf("courses" to items, "course_overrides" to overrides)
         val body = gson.toJson(payload).toRequestBody(jsonType)
         val request = Request.Builder()
             .url("$baseUrl/sync/courses/upload")
