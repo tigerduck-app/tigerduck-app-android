@@ -605,6 +605,18 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private var lastForegroundSyncMs = 0L
+
+    fun syncOnForeground() {
+        val now = System.currentTimeMillis()
+        if (now - lastForegroundSyncMs < 30_000) return
+        lastForegroundSyncMs = now
+        viewModelScope.launch {
+            if (!networkChecker.isAvailable()) return@launch
+            runCatching { syncOverridesFromBackend() }
+        }
+    }
+
     private suspend fun fetchData(forceRemote: Boolean) {
         _isLoading.value = true
         try {

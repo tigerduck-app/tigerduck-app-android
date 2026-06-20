@@ -261,6 +261,19 @@ class PushApiClient @Inject constructor(
         }
     }
 
+    suspend fun deleteCourse(courseKey: String) = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("$baseUrl/sync/courses/$courseKey")
+            .delete()
+            .addAuthHeader()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw PushApiException("deleteCourse failed: HTTP ${response.code}")
+            }
+        }
+    }
+
     suspend fun deleteAllCourses() = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url("$baseUrl/sync/courses")

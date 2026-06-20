@@ -495,6 +495,9 @@ class ClassTableViewModel @Inject constructor(
             dataCache.saveCourses(updated, semester)
             widgetUpdater.requestUpdate()
             if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                val courseKey = "client:$semester:$courseNo"
+                runCatching { pushApiClient.deleteCourse(courseKey) }
+                    .onFailure { e -> Log.w("ClassTable", "deleteCourse backend failed", e) }
                 runCatching { pushApiClient.uploadCourses(updated, semester) }
                     .onFailure { e -> Log.w("ClassTable", "uploadCourses after delete failed", e) }
             }
