@@ -613,7 +613,14 @@ class HomeViewModel @Inject constructor(
         lastForegroundSyncMs = now
         viewModelScope.launch {
             if (!networkChecker.isAvailable()) return@launch
-            runCatching { syncOverridesFromBackend() }
+            runCatching {
+                syncOverridesFromBackend()
+                val courses = dataCache.loadCourses()
+                    .filter { it.courseNo !in dataCache.loadDeletedCourseNos() }
+                val assignments = dataCache.loadAssignments()
+                TigerDuckTheme.buildCourseColorMap(courses)
+                updateCoursesAndAssignments(courses, assignments)
+            }
         }
     }
 
@@ -628,6 +635,10 @@ class HomeViewModel @Inject constructor(
                 // correct semester filtering). Backend handles override
                 // sync only (done/ignored marks across devices).
                 syncOverridesFromBackend()
+                // Re-read after backend sync so server-merged courses and
+                // deletions are reflected even if the Moodle fetch below fails.
+                courses = dataCache.loadCourses()
+                    .filter { it.courseNo !in dataCache.loadDeletedCourseNos() }
 
                 val studentId = authService.storedStudentId
                 val password = authService.storedPassword
