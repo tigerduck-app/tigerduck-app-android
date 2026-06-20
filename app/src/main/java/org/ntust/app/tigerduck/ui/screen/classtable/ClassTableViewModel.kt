@@ -789,6 +789,10 @@ class ClassTableViewModel @Inject constructor(
     fun resetCourses() {
         viewModelScope.launch {
             dataCache.saveDeletedCourseNos(emptySet())
+            if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                runCatching { pushApiClient.deleteAllCourses() }
+                    .onFailure { Log.w("ClassTableVM", "deleteAllCourses failed (non-fatal)", it) }
+            }
             fetchData()
         }
     }
