@@ -7,6 +7,7 @@ import okhttp3.Request
 import org.json.JSONObject
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.shared.Course
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,12 +19,25 @@ data class CourseOverrideResult(
     val customNames: Map<String, String> = emptyMap(),
 )
 
+data class ServerCourse(
+    val courseNo: String,
+    val courseName: String,
+    val semester: String,
+    val instructors: List<String> = emptyList(),
+    val credits: Int = 0,
+    val classroom: String = "",
+    val enrolledCount: Int = 0,
+    val maxCount: Int = 0,
+    val moodleId: String? = null,
+)
+
 data class BackendSyncResult(
     val assignments: List<Assignment>,
     val ignoredIds: Set<String>,
     val completedIds: Set<String>,
     val courseOverrides: List<CourseOverrideResult>,
     val serverCourseNos: Set<String>,
+    val serverCourses: List<ServerCourse> = emptyList(),
     val currentRevision: Long,
 )
 
@@ -108,12 +122,33 @@ class SyncApiClient @Inject constructor(
         // and collect the full set of server-side course_nos for deletion detection.
         val courseMoodleIdToNo = mutableMapOf<String, String>()
         val serverCourseNos = mutableSetOf<String>()
+        val serverCourses = mutableListOf<ServerCourse>()
         val coursesArr = json.optJSONArray("courses")
         if (coursesArr != null) {
             for (i in 0 until coursesArr.length()) {
                 val c = coursesArr.getJSONObject(i)
                 val courseNo = nullStr(c, "course_no")
-                if (courseNo != null) serverCourseNos.add(courseNo)
+                if (courseNo != null) {
+                    serverCourseNos.add(courseNo)
+                    val instructors = mutableListOf<String>()
+                    val instrArr = c.optJSONArray("instructors")
+                    if (instrArr != null) {
+                        for (j in 0 until instrArr.length()) {
+                            instrArr.optString(j)?.takeIf { it.isNotEmpty() }?.let { instructors.add(it) }
+                        }
+                    }
+                    serverCourses.add(ServerCourse(
+                        courseNo = courseNo,
+                        courseName = nullStr(c, "course_name") ?: courseNo,
+                        semester = nullStr(c, "semester") ?: "",
+                        instructors = instructors,
+                        credits = c.optDouble("credits", 0.0).toInt(),
+                        classroom = nullStr(c, "classroom") ?: "",
+                        enrolledCount = c.optInt("enrolled_count", 0),
+                        maxCount = c.optInt("max_count", 0),
+                        moodleId = nullStr(c, "moodle_id"),
+                    ))
+                }
                 val mId = nullStr(c, "moodle_id") ?: continue
                 val cName = nullStr(c, "course_name") ?: continue
                 val bracketEnd = cName.indexOf("】")
@@ -154,6 +189,7 @@ class SyncApiClient @Inject constructor(
             completedIds = completedIds,
             courseOverrides = courseOverrides,
             serverCourseNos = serverCourseNos,
+            serverCourses = serverCourses,
             currentRevision = json.optLong("current_revision", 0),
         )
     }

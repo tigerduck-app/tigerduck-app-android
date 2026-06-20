@@ -214,6 +214,32 @@ class HomeViewModel @Inject constructor(
                 if (deleted.size != sizeBefore || deleted != dataCache.loadDeletedCourseNos()) {
                     dataCache.saveDeletedCourseNos(deleted)
                 }
+
+                // Merge courses from server that don't exist locally
+                val semester = courseService.currentSemesterCode()
+                val missingLocally = result.serverCourseNos - localCourseNos - deleted
+                if (missingLocally.isNotEmpty()) {
+                    val current = dataCache.loadCourses().toMutableList()
+                    val currentNos = current.map { it.courseNo }.toSet()
+                    for (sc in result.serverCourses) {
+                        if (sc.courseNo in missingLocally && sc.courseNo !in currentNos && sc.semester == semester) {
+                            current.add(Course(
+                                courseNo = sc.courseNo,
+                                courseName = sc.courseName,
+                                instructor = sc.instructors.joinToString(", "),
+                                credits = sc.credits,
+                                classroom = sc.classroom,
+                                enrolledCount = sc.enrolledCount,
+                                maxCount = sc.maxCount,
+                                moodleIdNumber = sc.moodleId,
+                            ))
+                            Log.i("HomeViewModel", "[Sync] merged course from server: ${sc.courseNo}")
+                        }
+                    }
+                    if (current.size > dataCache.loadCourses().size) {
+                        dataCache.saveCourses(current)
+                    }
+                }
             }
             prefs.setLastSyncSource(SyncSource.BACKEND)
         } catch (e: Exception) {
