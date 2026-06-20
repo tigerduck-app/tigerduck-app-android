@@ -83,6 +83,22 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getBoolean("cloudSyncEnabled", true)
         set(value) = prefs.edit().putBoolean("cloudSyncEnabled", value).apply()
 
+    var syncCourses: Boolean
+        get() = prefs.getBoolean("syncCourses", true)
+        set(value) = prefs.edit().putBoolean("syncCourses", value).apply()
+
+    var syncCourseColors: Boolean
+        get() = prefs.getBoolean("syncCourseColors", true)
+        set(value) = prefs.edit().putBoolean("syncCourseColors", value).apply()
+
+    var syncCourseNames: Boolean
+        get() = prefs.getBoolean("syncCourseNames", true)
+        set(value) = prefs.edit().putBoolean("syncCourseNames", value).apply()
+
+    var syncAssignments: Boolean
+        get() = prefs.getBoolean("syncAssignments", true)
+        set(value) = prefs.edit().putBoolean("syncAssignments", value).apply()
+
     var hasCompletedOnboarding: Boolean
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
         set(value) = prefs.edit().putBoolean("hasCompletedOnboarding", value).apply()

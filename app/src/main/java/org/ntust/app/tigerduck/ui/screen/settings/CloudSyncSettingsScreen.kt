@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -54,12 +55,16 @@ fun CloudSyncSettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     var syncEnabled by remember { mutableStateOf(viewModel.appState.cloudSyncEnabled) }
+    var syncAssignments by remember { mutableStateOf(viewModel.prefs.syncAssignments) }
+    var syncCourses by remember { mutableStateOf(viewModel.prefs.syncCourses) }
+    var syncCourseColors by remember { mutableStateOf(viewModel.prefs.syncCourseColors) }
+    var syncCourseNames by remember { mutableStateOf(viewModel.prefs.syncCourseNames) }
     val context = LocalContext.current
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_cloud_sync_title)) },
+                title = { Text("Cross-device sync") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
@@ -86,7 +91,7 @@ fun CloudSyncSettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                stringResource(R.string.settings_cloud_sync_toggle_label),
+                                "Cross-device sync",
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Text(
@@ -102,6 +107,35 @@ fun CloudSyncSettingsScreen(
                                 viewModel.appState.cloudSyncEnabled = it
                             },
                         )
+                    }
+                }
+            }
+
+            if (syncEnabled) {
+                item { SectionHeader("Sync options") }
+                item {
+                    ContentCard {
+                        Column {
+                            SyncToggleRow("Assignments", syncAssignments) {
+                                syncAssignments = it
+                                viewModel.prefs.syncAssignments = it
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            SyncToggleRow("Courses", syncCourses) {
+                                syncCourses = it
+                                viewModel.prefs.syncCourses = it
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            SyncToggleRow("Course colours", syncCourseColors) {
+                                syncCourseColors = it
+                                viewModel.prefs.syncCourseColors = it
+                            }
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            SyncToggleRow("Custom course names", syncCourseNames) {
+                                syncCourseNames = it
+                                viewModel.prefs.syncCourseNames = it
+                            }
+                        }
                     }
                 }
             }
@@ -253,5 +287,22 @@ private fun LinkRow(label: String, onClick: () -> Unit) {
                 modifier = Modifier.size(16.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun SyncToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

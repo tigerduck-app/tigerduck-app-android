@@ -396,7 +396,7 @@ fun SettingsScreen(
             }
 
             // MARK: Cross-Device Sync
-            item { SectionHeader(stringResource(R.string.settings_cloud_sync_title)) }
+            item { SectionHeader("Cross-device sync") }
             item {
                 ContentCard {
                     if (BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
@@ -418,7 +418,7 @@ fun SettingsScreen(
                         }
                     } else {
                         SettingsLinkRowWithValue(
-                            label = stringResource(R.string.settings_cloud_sync_toggle_label),
+                            label = "Cross-device sync",
                             value = if (viewModel.appState.cloudSyncEnabled)
                                 stringResource(R.string.settings_sync_status_on)
                             else stringResource(R.string.settings_sync_status_off),
