@@ -60,6 +60,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
 
         liveActivityManager.refreshAndWait()
         widgetUpdater.updateAll()
+        dataCache.notifyBackgroundSyncComplete()
 
         return if (coursesOk && assignmentsOk) Result.success() else Result.retry()
     }
@@ -99,7 +100,6 @@ class BackgroundSyncWorker @AssistedInject constructor(
                     dataCache.saveDeletedCourseNos(deleted)
                 }
             }
-            dataCache.notifyBackgroundSyncComplete()
             prefs.setLastSyncSource(SyncSource.BACKEND)
         } catch (e: Exception) {
             prefs.setLastSyncSource(SyncSource.LOCAL)
