@@ -65,7 +65,7 @@ class CourseColorStore @Inject constructor(
         if (prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
             for (course in updated) {
                 val hex = course.customColorHex ?: continue
-                val moodleId = course.moodleNumericCourseId ?: continue
+                val moodleId = course.moodleIdNumber ?: continue
                 try {
                     pushApiClient.patchCourseOverride(moodleId, colorHex = hex)
                 } catch (e: Exception) {

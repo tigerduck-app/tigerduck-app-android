@@ -536,7 +536,7 @@ class ClassTableViewModel @Inject constructor(
     ) {
         if (!appPreferences.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return
         val course = _courses.value.find { it.courseNo == courseNo } ?: return
-        val moodleId = resolveMoodleNumericId(course) ?: return
+        val moodleId = course.moodleIdNumber ?: return
         viewModelScope.launch {
             try {
                 pushApiClient.patchCourseOverride(

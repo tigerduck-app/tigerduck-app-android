@@ -151,7 +151,7 @@ class PushApiClient @Inject constructor(
     }
 
     suspend fun patchCourseOverride(
-        courseId: Int,
+        courseId: Any,
         colorHex: String? = null,
         customName: String? = null,
         locale: String? = null,
