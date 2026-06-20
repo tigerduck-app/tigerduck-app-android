@@ -278,6 +278,14 @@ class HomeViewModel @Inject constructor(
                         dataCache.saveCourses(current)
                     }
                 }
+            } else {
+                val localCourses = dataCache.loadCourses()
+                if (localCourses.isNotEmpty()) {
+                    val semester = courseService.currentSemesterCode()
+                    runCatching { pushApiClient.uploadCourses(localCourses, semester) }
+                        .onFailure { e -> Log.w("HomeViewModel", "[Sync] auto-upload failed", e) }
+                    Log.i("HomeViewModel", "[Sync] backend empty, auto-uploaded ${localCourses.size} courses")
+                }
             }
             context.getSharedPreferences("tigerduck_sync", 0).edit()
                 .putLong("last_course_sync_at", System.currentTimeMillis())

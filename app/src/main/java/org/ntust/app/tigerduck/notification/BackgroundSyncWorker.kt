@@ -99,6 +99,14 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 if (deleted.size != sizeBefore || deleted != dataCache.loadDeletedCourseNos()) {
                     dataCache.saveDeletedCourseNos(deleted)
                 }
+            } else {
+                val localCourses = dataCache.loadCourses()
+                if (localCourses.isNotEmpty()) {
+                    val semester = courseService.currentSemesterCode()
+                    runCatching { pushApiClient.uploadCourses(localCourses, semester) }
+                        .onFailure { e -> Log.w(TAG, "[Sync] auto-upload failed", e) }
+                    Log.i(TAG, "[Sync] backend empty, auto-uploaded ${localCourses.size} courses")
+                }
             }
             prefs.setLastSyncSource(SyncSource.BACKEND)
         } catch (e: Exception) {
