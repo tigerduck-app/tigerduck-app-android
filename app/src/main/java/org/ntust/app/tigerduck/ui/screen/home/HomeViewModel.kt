@@ -620,6 +620,7 @@ class HomeViewModel @Inject constructor(
                 val assignments = dataCache.loadAssignments()
                 TigerDuckTheme.buildCourseColorMap(courses)
                 updateCoursesAndAssignments(courses, assignments)
+                dataCache.notifyBackgroundSyncComplete()
             }
         }
     }
@@ -685,8 +686,11 @@ class HomeViewModel @Inject constructor(
 
             TigerDuckTheme.buildCourseColorMap(courses)
             updateCoursesAndAssignments(courses, assignments)
-            if (forceRemote && authService.isNtustAuthenticated) {
-                _syncCompleteEvent.tryEmit(Unit)
+            if (forceRemote) {
+                dataCache.notifyBackgroundSyncComplete()
+                if (authService.isNtustAuthenticated) {
+                    _syncCompleteEvent.tryEmit(Unit)
+                }
             }
         } finally {
             _isLoading.value = false
