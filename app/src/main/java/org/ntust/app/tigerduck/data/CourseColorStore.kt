@@ -6,7 +6,11 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import android.util.Log
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
 import org.ntust.app.tigerduck.widget.WidgetUpdater
 import javax.inject.Inject
@@ -22,6 +26,8 @@ import kotlin.random.Random
 class CourseColorStore @Inject constructor(
     private val dataCache: DataCache,
     private val widgetUpdater: WidgetUpdater,
+    private val pushApiClient: PushApiClient,
+    private val prefs: AppPreferences,
 ) {
     private val _changeEvent = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
@@ -55,6 +61,18 @@ class CourseColorStore @Inject constructor(
         dataCache.saveCourses(updated)
         widgetUpdater.requestUpdate()
         _changeEvent.tryEmit(Unit)
+
+        if (prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+            for (course in updated) {
+                val hex = course.customColorHex ?: continue
+                val moodleId = course.moodleNumericCourseId ?: continue
+                try {
+                    pushApiClient.patchCourseOverride(moodleId, colorHex = hex)
+                } catch (e: Exception) {
+                    Log.w("CourseColorStore", "color sync failed: ${course.courseNo}", e)
+                }
+            }
+        }
     }
 
     private fun formatHex(color: Color): String =
