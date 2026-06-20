@@ -203,13 +203,17 @@ class HomeViewModel @Inject constructor(
                 val localCourseNos = dataCache.loadCourses().map { it.courseNo }.toSet()
                 val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
                 val sizeBefore = deleted.size
+                Log.i("HomeViewModel", "[sync-debug] serverCourseNos=${result.serverCourseNos.sorted()} localCourseNos=${localCourseNos.sorted()} deletedNos=${deleted.sorted()}")
                 // Any local course not on the server → treat as deleted
                 for (no in localCourseNos) {
                     if (no !in result.serverCourseNos) {
+                        Log.i("HomeViewModel", "[sync-debug] marking $no as deleted (local-only, not in server)")
                         deleted.add(no)
                     }
                 }
                 // Any previously-deleted course that reappeared on the server → un-delete
+                val undeleted = deleted.filter { it in result.serverCourseNos }
+                if (undeleted.isNotEmpty()) Log.i("HomeViewModel", "[sync-debug] un-deleting $undeleted")
                 deleted.removeAll { it in result.serverCourseNos }
                 if (deleted.size != sizeBefore || deleted != dataCache.loadDeletedCourseNos()) {
                     dataCache.saveDeletedCourseNos(deleted)
@@ -218,6 +222,7 @@ class HomeViewModel @Inject constructor(
                 // Merge courses from server that don't exist locally
                 val semester = courseService.currentSemesterCode()
                 val missingLocally = result.serverCourseNos - localCourseNos - deleted
+                Log.i("HomeViewModel", "[sync-debug] semester=$semester missingLocally=${missingLocally.sorted()} serverCourseSemesters=${result.serverCourses.map { it.semester }.toSet()}")
                 if (missingLocally.isNotEmpty()) {
                     val current = dataCache.loadCourses().toMutableList()
                     val currentNos = current.map { it.courseNo }.toSet()
