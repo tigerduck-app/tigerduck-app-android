@@ -393,6 +393,7 @@ class AppState @Inject constructor(
      * dialog after migration returns [DataMigration.Outcome.NeedsUserReset].
      */
     fun performFullReset() {
+        authService.logout()
         scope.launch {
             runCatching { dataCache.clearAllUserData() }
             credentials.clearAll()
