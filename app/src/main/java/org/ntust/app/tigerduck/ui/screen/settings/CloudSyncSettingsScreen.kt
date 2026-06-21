@@ -195,7 +195,10 @@ fun CloudSyncSettingsScreen(
                     ContentCard {
                         Column {
                             SyncToggleRow(stringResource(R.string.cloud_sync_assignments), syncAssignments) {
-                                if (it && !syncAssignments) viewModel.markCategoryReenabled("assignments")
+                                if (it && !syncAssignments) {
+                                    viewModel.markCategoryReenabled("assignments")
+                                    viewModel.checkPendingConflicts()
+                                }
                                 syncAssignments = it
                                 viewModel.prefs.syncAssignments = it
                                 viewModel.pushSyncPreferences()
@@ -329,6 +332,7 @@ fun ClassTableSyncScreen(
                             viewModel.markCategoryReenabled("courses")
                             viewModel.markCategoryReenabled("course_colors")
                             viewModel.markCategoryReenabled("course_names")
+                            viewModel.checkPendingConflicts()
                         }
                         syncCourses = on
                         syncCourseColors = on
@@ -352,7 +356,10 @@ fun ClassTableSyncScreen(
                     ContentCard {
                         Column {
                             SyncToggleRow(stringResource(R.string.cloud_sync_courses), syncCourses) {
-                                if (it && !syncCourses) viewModel.markCategoryReenabled("courses")
+                                if (it && !syncCourses) {
+                                    viewModel.markCategoryReenabled("courses")
+                                    viewModel.checkPendingConflicts()
+                                }
                                 syncCourses = it
                                 viewModel.prefs.syncCourses = it
                                 if (!it) {
@@ -363,14 +370,20 @@ fun ClassTableSyncScreen(
                             }
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                             SyncToggleRow(stringResource(R.string.cloud_sync_course_colours), syncCourseColors, enabled = syncCourses) {
-                                if (it && !syncCourseColors) viewModel.markCategoryReenabled("course_colors")
+                                if (it && !syncCourseColors) {
+                                    viewModel.markCategoryReenabled("course_colors")
+                                    viewModel.checkPendingConflicts()
+                                }
                                 syncCourseColors = it
                                 viewModel.prefs.syncCourseColors = it
                                 viewModel.pushSyncPreferences()
                             }
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                             SyncToggleRow(stringResource(R.string.cloud_sync_custom_course_names), syncCourseNames) {
-                                if (it && !syncCourseNames) viewModel.markCategoryReenabled("course_names")
+                                if (it && !syncCourseNames) {
+                                    viewModel.markCategoryReenabled("course_names")
+                                    viewModel.checkPendingConflicts()
+                                }
                                 syncCourseNames = it
                                 viewModel.prefs.syncCourseNames = it
                                 viewModel.pushSyncPreferences()
