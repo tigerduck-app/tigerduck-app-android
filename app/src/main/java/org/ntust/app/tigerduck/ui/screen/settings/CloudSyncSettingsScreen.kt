@@ -180,6 +180,13 @@ fun CloudSyncSettingsScreen(
                         Switch(
                             checked = syncEnabled,
                             onCheckedChange = {
+                                if (it && !syncEnabled) {
+                                    if (viewModel.prefs.syncCourses) viewModel.markCategoryReenabled("courses")
+                                    if (viewModel.prefs.syncCourseColors) viewModel.markCategoryReenabled("course_colors")
+                                    if (viewModel.prefs.syncCourseNames) viewModel.markCategoryReenabled("course_names")
+                                    if (viewModel.prefs.syncAssignments) viewModel.markCategoryReenabled("assignments")
+                                    viewModel.checkPendingConflicts()
+                                }
                                 syncEnabled = it
                                 viewModel.appState.cloudSyncEnabled = it
                                 viewModel.pushCloudSyncEnabled(it)
