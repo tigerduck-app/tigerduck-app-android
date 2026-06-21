@@ -219,8 +219,7 @@ class SettingsViewModel @Inject constructor(
                     prefs.pendingConflictCategories = emptySet()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "[reenable] checkPendingConflicts FAILED", e)
-                prefs.pendingConflictCategories = emptySet()
+                Log.e(TAG, "[reenable] checkPendingConflicts FAILED — pending kept for retry", e)
             }
         }
     }
