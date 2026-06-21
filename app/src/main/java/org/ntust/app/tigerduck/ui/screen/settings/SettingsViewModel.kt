@@ -143,11 +143,38 @@ class SettingsViewModel @Inject constructor(
                         })
                     }
                 }
-                if ("course_colors" in pending && result.courseOverrides.any { it.colorHex != null }) {
-                    diffs.add(context.getString(R.string.sync_conflict_reenable_colors_differ))
+
+                if ("course_colors" in pending) {
+                    val courses = dataCache.loadCourses()
+                    val localColors = courses.associate { it.courseNo to it.customColorHex }
+                    val hasColorDiff = result.courseOverrides.any { override ->
+                        val courseNo = override.courseNo ?: return@any false
+                        val serverHex = override.colorHex ?: return@any false
+                        localColors[courseNo] != serverHex
+                    }
+                    if (hasColorDiff) {
+                        diffs.add(context.getString(R.string.sync_conflict_reenable_colors_differ))
+                    }
                 }
-                if ("course_names" in pending && result.courseOverrides.any { it.customNames.isNotEmpty() }) {
-                    diffs.add(context.getString(R.string.sync_conflict_reenable_names_differ))
+
+                if ("course_names" in pending) {
+                    val localNames = dataCache.loadCourseCustomNames()
+                    val hasNameDiff = result.courseOverrides.any { override ->
+                        val courseNo = override.courseNo ?: return@any false
+                        if (override.customNames.isEmpty()) return@any false
+                        (localNames[courseNo] ?: emptyMap()) != override.customNames
+                    }
+                    if (hasNameDiff) {
+                        diffs.add(context.getString(R.string.sync_conflict_reenable_names_differ))
+                    }
+                }
+
+                if ("assignments" in pending) {
+                    val localIgnored = dataCache.loadIgnoredAssignments()
+                    val localCompleted = dataCache.loadMarkedCompletedAssignments()
+                    if (localIgnored != result.ignoredIds || localCompleted != result.completedIds) {
+                        diffs.add(context.getString(R.string.sync_conflict_reenable_assignments_differ))
+                    }
                 }
 
                 if (diffs.isNotEmpty()) {
@@ -176,9 +203,46 @@ class SettingsViewModel @Inject constructor(
                     runCatching { pushApiClient.deleteAllCourses() }
                     runCatching { pushApiClient.uploadCourses(courses, semester) }
                 }
+                if ("course_colors" in conflict.categories) {
+                    val courses = dataCache.loadCourses()
+                    for (course in courses) {
+                        val hex = course.customColorHex ?: continue
+                        val moodleId = course.moodleIdNumber ?: continue
+                        runCatching { pushApiClient.patchCourseOverride(moodleId, colorHex = hex) }
+                    }
+                }
+                if ("course_names" in conflict.categories) {
+                    val customNames = dataCache.loadCourseCustomNames()
+                    val courses = dataCache.loadCourses()
+                    val noToMoodle = courses.mapNotNull { c ->
+                        c.moodleIdNumber?.let { c.courseNo to it }
+                    }.toMap()
+                    for ((courseNo, locales) in customNames) {
+                        val moodleId = noToMoodle[courseNo] ?: continue
+                        for ((locale, name) in locales) {
+                            if (name.isNotEmpty()) {
+                                runCatching { pushApiClient.patchCourseOverride(moodleId, customName = name, locale = locale) }
+                            }
+                        }
+                    }
+                }
+                if ("assignments" in conflict.categories) {
+                    for (id in dataCache.loadIgnoredAssignments()) {
+                        val intId = id.toIntOrNull() ?: continue
+                        runCatching { pushApiClient.patchAssignmentOverride(intId, "ignored") }
+                    }
+                    for (id in dataCache.loadMarkedCompletedAssignments()) {
+                        val intId = id.toIntOrNull() ?: continue
+                        runCatching { pushApiClient.patchAssignmentOverride(intId, "locally_completed") }
+                    }
+                }
             } else {
                 if ("courses" in conflict.categories) {
                     dataCache.saveDeletedCourseNos(emptySet())
+                }
+                if ("assignments" in conflict.categories) {
+                    dataCache.replaceIgnoredAssignments(emptySet())
+                    dataCache.replaceMarkedCompletedAssignments(emptySet())
                 }
                 val result = runCatching { syncApiClient.fetchFullSync() }.getOrNull()
                 if (result != null) {
@@ -203,6 +267,24 @@ class SettingsViewModel @Inject constructor(
                             }
                             dataCache.saveCourses(updated)
                         }
+                    }
+                    if ("course_names" in conflict.categories) {
+                        val localNames = dataCache.loadCourseCustomNames().toMutableMap()
+                        for (override in result.courseOverrides) {
+                            val courseNo = override.courseNo ?: continue
+                            if (override.customNames.isNotEmpty()) {
+                                val existing = localNames[courseNo]?.toMutableMap() ?: mutableMapOf()
+                                for ((locale, name) in override.customNames) {
+                                    if (name.isEmpty()) existing.remove(locale) else existing[locale] = name
+                                }
+                                if (existing.isEmpty()) localNames.remove(courseNo) else localNames[courseNo] = existing
+                            }
+                        }
+                        dataCache.saveCourseCustomNames(localNames)
+                    }
+                    if ("assignments" in conflict.categories) {
+                        dataCache.replaceIgnoredAssignments(result.ignoredIds)
+                        dataCache.replaceMarkedCompletedAssignments(result.completedIds)
                     }
                 }
             }

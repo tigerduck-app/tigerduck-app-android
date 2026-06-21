@@ -738,6 +738,7 @@
     <string name="sync_conflict_reenable_courses_server_only">Courses: %1$s server-only</string>
     <string name="sync_conflict_reenable_message">Sync was re-enabled and your local data differs from the server:</string>
     <string name="sync_conflict_reenable_names_differ">Custom names: different on server</string>
+    <string name="sync_conflict_reenable_assignments_differ">Assignment status: different on server</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>
