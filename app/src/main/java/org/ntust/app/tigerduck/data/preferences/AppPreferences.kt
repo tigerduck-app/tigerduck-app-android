@@ -99,6 +99,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getBoolean("syncAssignments", true)
         set(value) = prefs.edit().putBoolean("syncAssignments", value).apply()
 
+    var pendingConflictCategories: Set<String>
+        get() = prefs.getStringSet("pendingConflictCategories", emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet("pendingConflictCategories", value).apply()
+
     var hasCompletedOnboarding: Boolean
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
         set(value) = prefs.edit().putBoolean("hasCompletedOnboarding", value).apply()

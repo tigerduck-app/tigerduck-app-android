@@ -22,11 +22,14 @@ import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.network.CourseService
+import org.ntust.app.tigerduck.push.CloudSyncCoordinator
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushDiagnostic
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.push.PushRegistrationService
 import org.ntust.app.tigerduck.push.SyncApiClient
+import org.ntust.app.tigerduck.push.SyncIdMap
+import org.ntust.app.tigerduck.push.SyncOutbox
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
@@ -51,6 +54,15 @@ class SettingsViewModel @Inject constructor(
     private val dataCache: DataCache,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
+
+    val cloudSyncCoordinator: CloudSyncCoordinator = CloudSyncCoordinator(
+        pushApiClient = pushApiClient,
+        pushRegistration = pushRegistration,
+        prefs = prefs,
+        outbox = SyncOutbox(context),
+        idMap = SyncIdMap(context),
+        scope = viewModelScope,
+    )
 
     private val _syncDiagnostic = MutableStateFlow(PushDiagnostic(false, false, null, null, null))
     val syncDiagnostic: StateFlow<PushDiagnostic> = _syncDiagnostic
@@ -80,8 +92,10 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun pushCloudSyncEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            pushRegistration.updateCloudSyncEnabled(enabled)
+        if (enabled) {
+            cloudSyncCoordinator.enable()
+        } else {
+            cloudSyncCoordinator.disable()
         }
     }
 
