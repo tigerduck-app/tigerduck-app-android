@@ -304,6 +304,38 @@ fun ClassTableSyncScreen(
     var syncCourseColors by remember { mutableStateOf(viewModel.prefs.syncCourseColors) }
     var syncCourseNames by remember { mutableStateOf(viewModel.prefs.syncCourseNames) }
     val masterOn = syncCourses || syncCourseColors || syncCourseNames
+    val reenableConflict by viewModel.reenableConflict.collectAsState()
+
+    if (reenableConflict != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.sync_conflict_title)) },
+            text = {
+                Column {
+                    Text(
+                        stringResource(R.string.sync_conflict_reenable_message),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        reenableConflict!!.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { viewModel.resolveReenableConflict(keepLocal = false) }
+                ) { Text(stringResource(R.string.sync_conflict_use_server)) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { viewModel.resolveReenableConflict(keepLocal = true) }
+                ) { Text(stringResource(R.string.sync_conflict_use_local)) }
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
