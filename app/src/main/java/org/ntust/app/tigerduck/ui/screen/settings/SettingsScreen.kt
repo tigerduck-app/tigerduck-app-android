@@ -11,8 +11,10 @@ import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -571,6 +573,37 @@ fun SettingsScreen(
                                     viewModel.appState.disableScreenCaptureProtection = it
                                 },
                             )
+                            HorizontalDivider()
+                            @OptIn(ExperimentalFoundationApi::class)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .combinedClickable(
+                                        onClick = { },
+                                        onLongClick = {
+                                            Haptics.perform(
+                                                context,
+                                                HapticScenario.ClassTableLongPress,
+                                            )
+                                            viewModel.appState.performFullReset()
+                                        },
+                                    )
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Long press to erase everything and restart",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                    Text(
+                                        text = "Wipes all data, accounts, and preferences",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error.copy(alpha = ContentAlpha.SECONDARY),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
