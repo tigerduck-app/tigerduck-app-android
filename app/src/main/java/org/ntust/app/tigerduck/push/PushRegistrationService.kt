@@ -273,6 +273,27 @@ class PushRegistrationService @Inject constructor(
         return error == null
     }
 
+    suspend fun updateSyncPreferences(
+        syncCourses: Boolean,
+        syncCourseColors: Boolean,
+        syncCourseNames: Boolean,
+        syncAssignments: Boolean,
+    ) {
+        val deviceId = identity.uuid()
+        runCatching {
+            api.updateDevicePreferences(
+                deviceId,
+                syncCourses = syncCourses,
+                syncCourseColors = syncCourseColors,
+                syncCourseNames = syncCourseNames,
+                syncAssignments = syncAssignments,
+            )
+        }.onFailure { e ->
+            if (e is CancellationException) throw e
+            Log.w(TAG, "sync preferences PATCH failed", e)
+        }
+    }
+
     private companion object {
         const val TAG = "Push.Register"
         const val PREFS_NAME = "push_diagnostics"

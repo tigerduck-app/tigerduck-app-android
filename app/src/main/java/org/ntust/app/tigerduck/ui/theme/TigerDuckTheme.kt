@@ -110,7 +110,34 @@ object TigerDuckTheme {
     }
 
     fun buildCourseColorMap(courses: List<Course>) {
-        courseColorMapRef.set(buildCourseColorAssignments(courses))
+        val existing = courseColorMapRef.get().toMutableMap()
+
+        val pinnedCourseNos = mutableSetOf<String>()
+        courses.forEach { course ->
+            val pinned = parseHexOrNull(course.customColorHex) ?: return@forEach
+            pinnedCourseNos.add(course.courseNo)
+            existing[course.courseNo] = pinned
+        }
+
+        // Evict auto-assigned entries that now conflict with a pinned color
+        val pinnedColors = pinnedCourseNos.mapNotNullTo(mutableSetOf()) { existing[it] }
+        val evict = existing.keys.filter { it !in pinnedCourseNos && existing[it] in pinnedColors }
+        evict.forEach { existing.remove(it) }
+
+        val taken = existing.values.toMutableSet()
+        courses.filter { existing[it.courseNo] == null }
+            .sortedBy { it.courseNo }
+            .forEach { course ->
+                val color = pickFreeCourseColor(course.courseNo, taken)
+                existing[course.courseNo] = color
+                taken.add(color)
+            }
+
+        courseColorMapRef.set(existing)
+    }
+
+    fun clearCourseColorMap() {
+        courseColorMapRef.set(emptyMap())
     }
 
     fun courseColor(courseNo: String): Color {

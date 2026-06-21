@@ -181,9 +181,7 @@ fun HomeScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.syncOnForeground()
-                viewModel.startRevisionPolling()
             } else if (event == Lifecycle.Event.ON_PAUSE) {
-                viewModel.stopRevisionPolling()
                 viewModel.onHomePaused()
             }
         }

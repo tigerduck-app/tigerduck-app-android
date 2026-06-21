@@ -161,7 +161,7 @@ class HomeViewModel @Inject constructor(
                         id in localMarked -> "locally_completed"
                         else -> "none"
                     }
-                    if (serverStatus != localStatus) {
+                    if (serverStatus != localStatus && localStatus != "none" && serverStatus != "none") {
                         val a = assignmentsByMoodleId[id]
                         conflicts.add(SyncConflict(
                             id = id,
@@ -201,7 +201,7 @@ class HomeViewModel @Inject constructor(
 
             // Course overrides and deletion detection always run regardless
             // of whether this was a first-time migration.
-            if (result.courseOverrides.isNotEmpty()) {
+            if (result.courseOverrides.isNotEmpty() && (prefs.syncCourseColors || prefs.syncCourseNames)) {
                 applyCourseOverrides(result.courseOverrides)
             }
             // Conflict resolution: detect reset + process tombstones
@@ -217,7 +217,7 @@ class HomeViewModel @Inject constructor(
             }
             val tombstonedNos = result.tombstones.mapNotNull { it.courseNo }.toSet()
 
-            if (result.serverCourseNos.isNotEmpty()) {
+            if (prefs.syncCourses && result.serverCourseNos.isNotEmpty()) {
                 val localCourseNos = dataCache.loadCourses().map { it.courseNo }.toSet()
                 val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
                 val sizeBefore = deleted.size
@@ -280,7 +280,7 @@ class HomeViewModel @Inject constructor(
                         dataCache.saveCourses(current)
                     }
                 }
-            } else {
+            } else if (prefs.syncCourses) {
                 val localCourses = dataCache.loadCourses()
                 if (localCourses.isNotEmpty()) {
                     val semester = courseService.currentSemesterCode()
@@ -334,17 +334,16 @@ class HomeViewModel @Inject constructor(
                 ?: overrides.find { it.moodleCourseId == course.moodleNumericCourseId?.toString() }
                 ?: return@map course
             val newHex = override.colorHex
-            if (newHex != course.customColorHex) {
+            if (prefs.syncCourseColors && newHex != course.customColorHex) {
                 changed = true
                 course.copy(customColorHex = newHex)
             } else course
         }
-        // Sync custom names from server
         var nameCount = 0
         val customNames = dataCache.loadCourseCustomNames().toMutableMap()
         for (o in overrides) {
             val no = o.courseNo ?: continue
-            if (o.customNames.isNotEmpty()) {
+            if (prefs.syncCourseNames && o.customNames.isNotEmpty()) {
                 val existing = customNames[no]?.toMutableMap() ?: mutableMapOf()
                 for ((locale, name) in o.customNames) {
                     if (name.isEmpty()) existing.remove(locale) else existing[locale] = name
@@ -642,16 +641,32 @@ class HomeViewModel @Inject constructor(
     private var revisionPollingJob: Job? = null
 
     fun startRevisionPolling() {
-        if (revisionPollingJob?.isActive == true) return
+        if (revisionPollingJob?.isActive == true) {
+            Log.d("RevisionPoll", "[poll] startRevisionPolling skipped — job already active")
+            return
+        }
+        Log.d("RevisionPoll", "[poll] startRevisionPolling — launching 10s loop")
         revisionPollingJob = viewModelScope.launch {
             while (true) {
                 delay(10_000)
-                if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) continue
-                if (!authTokenManager.isLoggedIn) continue
-                if (!networkChecker.isAvailable()) continue
+                if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                    Log.d("RevisionPoll", "[poll] tick skipped — cloudSyncEnabled=false or fdroid")
+                    continue
+                }
+                if (!authTokenManager.isLoggedIn) {
+                    Log.d("RevisionPoll", "[poll] tick skipped — not logged in")
+                    continue
+                }
+                if (!networkChecker.isAvailable()) {
+                    Log.d("RevisionPoll", "[poll] tick skipped — no network")
+                    continue
+                }
+                Log.d("RevisionPoll", "[poll] tick — fetching revision (lastKnown=$_lastKnownRevision)")
                 try {
                     val revision = syncApiClient.fetchRevision()
+                    Log.d("RevisionPoll", "[poll] server revision=$revision lastKnown=$_lastKnownRevision")
                     if (revision > _lastKnownRevision) {
+                        Log.d("RevisionPoll", "[poll] revision changed — triggering full sync")
                         syncOverridesFromBackend()
                         val courses = dataCache.loadCourses()
                             .filter { it.courseNo !in dataCache.loadDeletedCourseNos() }
@@ -659,11 +674,9 @@ class HomeViewModel @Inject constructor(
                         TigerDuckTheme.buildCourseColorMap(courses)
                         updateCoursesAndAssignments(courses, assignments)
                         dataCache.notifyBackgroundSyncComplete()
-                        // Update from the full sync's current_revision if available
-                        _lastKnownRevision = revision
                     }
                 } catch (e: Exception) {
-                    Log.w("HomeViewModel", "[RevisionPoll] check failed", e)
+                    Log.w("RevisionPoll", "[poll] tick failed", e)
                 }
             }
         }
@@ -722,13 +735,11 @@ class HomeViewModel @Inject constructor(
                     if (!remoteAssignments.isNullOrEmpty()) {
                         assignments = remoteAssignments
                         dataCache.saveAssignments(remoteAssignments)
-                        if (prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                            runCatching { pushApiClient.uploadAssignments(remoteAssignments) }
-                                .onFailure {
-                                    prefs.setLastSyncSource(SyncSource.LOCAL)
-                                    Log.w("HomeViewModel", "uploadAssignments failed (non-fatal)", it)
-                                }
-                        }
+                        runCatching { pushApiClient.uploadAssignments(remoteAssignments) }
+                            .onFailure {
+                                prefs.setLastSyncSource(SyncSource.LOCAL)
+                                Log.w("HomeViewModel", "uploadAssignments failed (non-fatal)", it)
+                            }
                     }
                 }
             }
@@ -972,7 +983,6 @@ class HomeViewModel @Inject constructor(
         val status = if (wasIgnored) "none" else "ignored"
         pendingOverrides.add(id)
         viewModelScope.launch {
-            if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return@launch
             try {
                 pushApiClient.patchAssignmentOverride(
                     id.toIntOrNull() ?: return@launch, status,
@@ -999,7 +1009,6 @@ class HomeViewModel @Inject constructor(
         val status = if (wasCompleted) "none" else "locally_completed"
         pendingOverrides.add(id)
         viewModelScope.launch {
-            if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return@launch
             try {
                 pushApiClient.patchAssignmentOverride(
                     id.toIntOrNull() ?: return@launch, status,

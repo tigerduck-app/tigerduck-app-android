@@ -7,6 +7,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
@@ -18,6 +20,9 @@ import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
+import org.ntust.app.tigerduck.push.PushDiagnostic
+import org.ntust.app.tigerduck.push.PushIdentity
+import org.ntust.app.tigerduck.push.PushRegistrationService
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
@@ -34,8 +39,57 @@ class SettingsViewModel @Inject constructor(
     private val courseColorStore: CourseColorStore,
     private val liveActivityManager: LiveActivityManager,
     private val wearBridge: WearScheduleBridge,
+    val identity: PushIdentity,
+    private val pushRegistration: PushRegistrationService,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
+
+    private val _syncDiagnostic = MutableStateFlow(PushDiagnostic(false, false, null, null, null))
+    val syncDiagnostic: StateFlow<PushDiagnostic> = _syncDiagnostic
+
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing
+
+    private val _serverPushOn = MutableStateFlow(!pushRegistration.isServerPushOptedOut())
+    val serverPushOn: StateFlow<Boolean> = _serverPushOn
+
+    private val _isTogglingPush = MutableStateFlow(false)
+
+    init {
+        pushRegistration.diagnostic
+            .onEach { d -> _syncDiagnostic.value = d }
+            .launchIn(viewModelScope)
+    }
+
+    fun setServerPushOn(isOn: Boolean) {
+        if (_isTogglingPush.value || _serverPushOn.value == isOn) return
+        _serverPushOn.value = isOn
+        _isTogglingPush.value = true
+        viewModelScope.launch {
+            try { pushRegistration.updateServerPushOptOut(optOut = !isOn) }
+            finally { _isTogglingPush.value = false }
+        }
+    }
+
+    fun pushSyncPreferences() {
+        viewModelScope.launch {
+            pushRegistration.updateSyncPreferences(
+                syncCourses = prefs.syncCourses,
+                syncCourseColors = prefs.syncCourseColors,
+                syncCourseNames = prefs.syncCourseNames,
+                syncAssignments = prefs.syncAssignments,
+            )
+        }
+    }
+
+    fun syncNow() {
+        if (_isSyncing.value) return
+        _isSyncing.value = true
+        viewModelScope.launch {
+            try { pushRegistration.syncNow() }
+            finally { _isSyncing.value = false }
+        }
+    }
 
     val isNtustLoggingIn = authService.isLoggingIn
     val ntustLoginError = authService.loginError

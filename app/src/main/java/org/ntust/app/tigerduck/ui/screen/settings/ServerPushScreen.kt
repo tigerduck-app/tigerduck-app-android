@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -74,8 +75,7 @@ import org.ntust.app.tigerduck.push.PushDiagnostic
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.push.PushRegistrationService
-import java.text.DateFormat
-import java.util.Date
+import android.text.format.DateUtils
 import javax.inject.Inject
 
 /**
@@ -187,6 +187,7 @@ fun ServerPushScreen(
                         )
                     }
                 },
+                expandedHeight = SubSettingsBarHeight,
             )
         },
     ) { padding ->
@@ -232,7 +233,8 @@ private fun ServerPushToggleCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .heightIn(min = SettingRowHeight)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -320,16 +322,14 @@ private fun PushStatusCard(
                 Spacer(Modifier.height(10.dp))
                 LabeledText(
                     label = stringResource(R.string.push_server_last_registration),
-                    value = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-                        .format(Date(ts)),
+                    value = DateUtils.getRelativeTimeSpanString(ts, System.currentTimeMillis(), DateUtils.SECOND_IN_MILLIS).toString(),
                 )
             }
             diagnostic.lastSyncAt?.let { ts ->
                 Spacer(Modifier.height(10.dp))
                 LabeledText(
                     label = stringResource(R.string.push_server_last_sync),
-                    value = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-                        .format(Date(ts)),
+                    value = DateUtils.getRelativeTimeSpanString(ts, System.currentTimeMillis(), DateUtils.SECOND_IN_MILLIS).toString(),
                 )
             }
             diagnostic.lastError?.let { msg ->
@@ -398,16 +398,15 @@ private fun IdRow(label: String, value: String, clipLabel: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = SettingRowHeight)
             .clickable {
                 val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                 cm?.setPrimaryClip(ClipData.newPlainText(clipLabel, value))
-                // Android 13+ shows a system-level "Copied" chip on its own,
-                // so suppress the toast there to avoid double feedback.
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
                     Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
                 }
             }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Column(modifier = Modifier.weight(1f)) {

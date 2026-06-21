@@ -101,7 +101,8 @@ fun TabEditorScreen(
                     TextButton(onClick = { save(AppFeature.defaultTabs) }) {
                         Text(stringResource(R.string.tab_editor_reset_default))
                     }
-                }
+                },
+                expandedHeight = SubSettingsBarHeight,
             )
         }
     ) { padding ->

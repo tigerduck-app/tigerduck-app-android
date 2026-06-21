@@ -30,11 +30,9 @@ class PushApiClient @Inject constructor(
     private val authTokenManager: AuthTokenManager,
 ) {
 
-    // Resolved per call so the debug API-endpoint override applies to push
-    // immediately (no relaunch). Resolver name is historical — the override
-    // governs both Announcement and Push API base URLs now. Release builds
-    // never write the override, so the resolver collapses to the build's
-    // default endpoint there.
+    private val isSyncCapable: Boolean
+        get() = prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)
+
     private val baseUrl: String
         get() = resolveAnnouncementEndpoint(prefs).url.trimEnd('/')
     private val gson = Gson()
@@ -93,9 +91,19 @@ class PushApiClient @Inject constructor(
     /** PATCH the user-facing server-push opt-out for this device. */
     suspend fun updateDevicePreferences(
         deviceId: String,
-        serverPushEnabled: Boolean,
+        serverPushEnabled: Boolean? = null,
+        syncCourses: Boolean? = null,
+        syncCourseColors: Boolean? = null,
+        syncCourseNames: Boolean? = null,
+        syncAssignments: Boolean? = null,
     ): DevicePreferencesResponse = withContext(Dispatchers.IO) {
-        val payload = UpdateDevicePreferencesRequest(serverPushEnabled = serverPushEnabled)
+        val payload = UpdateDevicePreferencesRequest(
+            serverPushEnabled = serverPushEnabled,
+            syncCourses = syncCourses,
+            syncCourseColors = syncCourseColors,
+            syncCourseNames = syncCourseNames,
+            syncAssignments = syncAssignments,
+        )
         val body = gson.toJson(payload).toRequestBody(jsonType)
         val request = Request.Builder()
             .url("$baseUrl/devices/$deviceId/preferences")
@@ -138,6 +146,7 @@ class PushApiClient @Inject constructor(
         assignmentId: Int,
         localStatus: String,
     ) = withContext(Dispatchers.IO) {
+        if (!isSyncCapable) return@withContext
         val payload = mapOf("local_status" to localStatus)
         val body = gson.toJson(payload).toRequestBody(jsonType)
         val request = Request.Builder()
@@ -158,6 +167,7 @@ class PushApiClient @Inject constructor(
         customName: String? = null,
         locale: String? = null,
     ) = withContext(Dispatchers.IO) {
+        if (!isSyncCapable) return@withContext
         val payload = mutableMapOf<String, Any?>()
         if (colorHex != null) payload["color_hex"] = colorHex
         if (customName != null) payload["custom_name"] = customName
@@ -183,6 +193,7 @@ class PushApiClient @Inject constructor(
     suspend fun uploadAssignments(
         assignments: List<Assignment>,
     ) = withContext(Dispatchers.IO) {
+        if (!isSyncCapable) return@withContext
         val iso8601 = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
@@ -222,6 +233,7 @@ class PushApiClient @Inject constructor(
         semester: String,
         forceKeys: List<String> = emptyList(),
     ) = withContext(Dispatchers.IO) {
+        if (!isSyncCapable) return@withContext
         val items = courses.map { c ->
             mapOf(
                 "semester" to semester,
@@ -264,6 +276,7 @@ class PushApiClient @Inject constructor(
     }
 
     suspend fun deleteCourse(courseKey: String) = withContext(Dispatchers.IO) {
+        if (!isSyncCapable) return@withContext
         val request = Request.Builder()
             .url("$baseUrl/sync/courses/$courseKey")
             .delete()
@@ -277,6 +290,7 @@ class PushApiClient @Inject constructor(
     }
 
     suspend fun deleteAllCourses() = withContext(Dispatchers.IO) {
+        if (!isSyncCapable) return@withContext
         val request = Request.Builder()
             .url("$baseUrl/sync/courses")
             .delete()

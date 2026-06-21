@@ -72,6 +72,7 @@ fun OtherSettingsScreen(
                         )
                     }
                 },
+                expandedHeight = SubSettingsBarHeight,
             )
         },
         containerColor = MaterialTheme.colorScheme.background,

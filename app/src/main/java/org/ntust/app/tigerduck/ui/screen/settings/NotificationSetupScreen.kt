@@ -80,6 +80,7 @@ fun NotificationSetupScreen(
                         )
                     }
                 },
+                expandedHeight = SubSettingsBarHeight,
             )
         },
         containerColor = MaterialTheme.colorScheme.background,

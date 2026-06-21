@@ -395,8 +395,8 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Cross-Device Sync
-            item { SectionHeader("Cross-device sync") }
+            // MARK: Cloud Sync
+            item { SectionHeader(stringResource(R.string.cloud_sync_title)) }
             item {
                 ContentCard {
                     if (BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
@@ -418,7 +418,7 @@ fun SettingsScreen(
                         }
                     } else {
                         SettingsLinkRowWithValue(
-                            label = "Cross-device sync",
+                            label = stringResource(R.string.cloud_sync_title),
                             value = if (viewModel.appState.cloudSyncEnabled)
                                 stringResource(R.string.settings_sync_status_on)
                             else stringResource(R.string.settings_sync_status_off),
@@ -716,6 +716,7 @@ private fun CheckForUpdatesRow(isChecking: Boolean, onClick: () -> Unit) {
 }
 
 internal val SettingRowHeight = 56.dp
+internal val SubSettingsBarHeight = 48.dp
 
 /**
  * Width that fits whichever of "Sign in" / "Sign out" is wider, so the

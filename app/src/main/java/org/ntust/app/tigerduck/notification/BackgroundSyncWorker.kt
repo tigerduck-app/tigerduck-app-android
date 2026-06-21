@@ -81,12 +81,12 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 dataCache.replaceMarkedCompletedAssignments(result.completedIds)
             }
 
-            if (result.courseOverrides.isNotEmpty()) {
+            if (prefs.syncCourseColors && result.courseOverrides.isNotEmpty()) {
                 applyCourseOverridesBackground(result.courseOverrides)
             }
             // Hard-delete model: courses removed on the server are absent from
             // the courses array. Compare against local to update deletedCourseNos.
-            if (result.serverCourseNos.isNotEmpty()) {
+            if (prefs.syncCourses && result.serverCourseNos.isNotEmpty()) {
                 val localCourseNos = dataCache.loadCourses().map { it.courseNo }.toSet()
                 val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
                 val sizeBefore = deleted.size
@@ -99,7 +99,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 if (deleted.size != sizeBefore || deleted != dataCache.loadDeletedCourseNos()) {
                     dataCache.saveDeletedCourseNos(deleted)
                 }
-            } else {
+            } else if (prefs.syncCourses) {
                 val localCourses = dataCache.loadCourses()
                 if (localCourses.isNotEmpty()) {
                     val semester = courseService.currentSemesterCode()
@@ -236,13 +236,11 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 val merged = (fetchedWithState + manualLeftovers + cachedRemoteFallbacks)
                     .filter { it.courseNo !in deletedNos }
                 dataCache.saveCourses(merged)
-                if (prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                    runCatching { pushApiClient.uploadCourses(merged, semester) }
-                        .onFailure {
-                            prefs.setLastSyncSource(SyncSource.LOCAL)
-                            Log.w(TAG, "uploadCourses failed (non-fatal)", it)
-                        }
-                }
+                runCatching { pushApiClient.uploadCourses(merged, semester) }
+                    .onFailure {
+                        prefs.setLastSyncSource(SyncSource.LOCAL)
+                        Log.w(TAG, "uploadCourses failed (non-fatal)", it)
+                    }
             }
             true
         } catch (e: Exception) {
@@ -264,13 +262,11 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 if (a.assignmentId in completed) a.copy(isCompleted = true) else a
             }
             dataCache.saveAssignments(merged)
-            if (prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                runCatching { pushApiClient.uploadAssignments(merged) }
-                    .onFailure {
-                        prefs.setLastSyncSource(SyncSource.LOCAL)
-                        Log.w(TAG, "uploadAssignments failed (non-fatal)", it)
-                    }
-            }
+            runCatching { pushApiClient.uploadAssignments(merged) }
+                .onFailure {
+                    prefs.setLastSyncSource(SyncSource.LOCAL)
+                    Log.w(TAG, "uploadAssignments failed (non-fatal)", it)
+                }
 
             if (prefs.notifyAssignments) {
                 // Hand the scheduler both the full non-completed list and the

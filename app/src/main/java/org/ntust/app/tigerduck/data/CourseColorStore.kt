@@ -11,6 +11,7 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
 import org.ntust.app.tigerduck.widget.WidgetUpdater
 import javax.inject.Inject
@@ -59,6 +60,7 @@ class CourseColorStore @Inject constructor(
         }
 
         dataCache.saveCourses(updated)
+        TigerDuckTheme.clearCourseColorMap()
         widgetUpdater.requestUpdate()
         _changeEvent.tryEmit(Unit)
 

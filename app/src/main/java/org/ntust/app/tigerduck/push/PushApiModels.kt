@@ -29,10 +29,18 @@ data class DeviceRegisterResponse(
 )
 
 data class UpdateDevicePreferencesRequest(
-    @SerializedName("server_push_enabled") val serverPushEnabled: Boolean,
+    @SerializedName("server_push_enabled") val serverPushEnabled: Boolean? = null,
+    @SerializedName("sync_courses") val syncCourses: Boolean? = null,
+    @SerializedName("sync_course_colors") val syncCourseColors: Boolean? = null,
+    @SerializedName("sync_course_names") val syncCourseNames: Boolean? = null,
+    @SerializedName("sync_assignments") val syncAssignments: Boolean? = null,
 )
 
 data class DevicePreferencesResponse(
     @SerializedName("device_id") val deviceId: String? = null,
-    @SerializedName("server_push_enabled") val serverPushEnabled: Boolean,
+    @SerializedName("server_push_enabled") val serverPushEnabled: Boolean = true,
+    @SerializedName("sync_courses") val syncCourses: Boolean = true,
+    @SerializedName("sync_course_colors") val syncCourseColors: Boolean = true,
+    @SerializedName("sync_course_names") val syncCourseNames: Boolean = true,
+    @SerializedName("sync_assignments") val syncAssignments: Boolean = true,
 )

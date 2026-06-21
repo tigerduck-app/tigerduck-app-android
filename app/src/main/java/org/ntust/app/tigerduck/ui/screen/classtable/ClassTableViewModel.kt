@@ -177,7 +177,7 @@ class ClassTableViewModel @Inject constructor(
                     _moodleCourseIdByIdnumber.value = emptyMap()
                     courseCustomNames.clear()
                     hasLoaded = false
-                    TigerDuckTheme.buildCourseColorMap(emptyList())
+                    TigerDuckTheme.clearCourseColorMap()
                 } else {
                     fetchData()
                 }
@@ -420,10 +420,8 @@ class ClassTableViewModel @Inject constructor(
                 dataCache.saveDeletedCourseNos(deleted - course.courseNo)
             }
             dataCache.saveCourses(updated, _currentSemester.value)
-            if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                val forceKey = "client:${_currentSemester.value}:${course.courseNo}"
-                runCatching { pushApiClient.uploadCourses(updated, _currentSemester.value, forceKeys = listOf(forceKey)) }
-            }
+            val forceKey = "client:${_currentSemester.value}:${course.courseNo}"
+            runCatching { pushApiClient.uploadCourses(updated, _currentSemester.value, forceKeys = listOf(forceKey)) }
             widgetUpdater.requestUpdate()
         }
         TigerDuckTheme.buildCourseColorMap(updated)
@@ -495,13 +493,11 @@ class ClassTableViewModel @Inject constructor(
             dataCache.saveDeletedCourseNos(deleted)
             dataCache.saveCourses(updated, semester)
             widgetUpdater.requestUpdate()
-            if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                val courseKey = "client:$semester:$courseNo"
-                runCatching { pushApiClient.deleteCourse(courseKey) }
-                    .onFailure { e -> Log.w("ClassTable", "deleteCourse backend failed", e) }
-                runCatching { pushApiClient.uploadCourses(updated, semester) }
-                    .onFailure { e -> Log.w("ClassTable", "uploadCourses after delete failed", e) }
-            }
+            val courseKey = "client:$semester:$courseNo"
+            runCatching { pushApiClient.deleteCourse(courseKey) }
+                .onFailure { e -> Log.w("ClassTable", "deleteCourse backend failed", e) }
+            runCatching { pushApiClient.uploadCourses(updated, semester) }
+                .onFailure { e -> Log.w("ClassTable", "uploadCourses after delete failed", e) }
         }
         TigerDuckTheme.buildCourseColorMap(updated)
     }
@@ -538,7 +534,6 @@ class ClassTableViewModel @Inject constructor(
         customName: String? = null,
         locale: String? = null,
     ) {
-        if (!appPreferences.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return
         val course = _courses.value.find { it.courseNo == courseNo } ?: return
         val moodleId = course.moodleIdNumber ?: return
         viewModelScope.launch {
@@ -793,10 +788,8 @@ class ClassTableViewModel @Inject constructor(
     fun resetCourses() {
         viewModelScope.launch {
             dataCache.saveDeletedCourseNos(emptySet())
-            if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                runCatching { pushApiClient.deleteAllCourses() }
-                    .onFailure { Log.w("ClassTableVM", "deleteAllCourses failed (non-fatal)", it) }
-            }
+            runCatching { pushApiClient.deleteAllCourses() }
+                .onFailure { Log.w("ClassTableVM", "deleteAllCourses failed (non-fatal)", it) }
             fetchData()
         }
     }
@@ -989,10 +982,8 @@ class ClassTableViewModel @Inject constructor(
                                 TigerDuckTheme.buildCourseColorMap(merged)
                             }
                             dataCache.saveCourses(merged, semester)
-                            if (appPreferences.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                                runCatching { pushApiClient.uploadCourses(merged, semester) }
-                                    .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal)", it) }
-                            }
+                            runCatching { pushApiClient.uploadCourses(merged, semester) }
+                                .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal)", it) }
                             widgetUpdater.requestUpdate()
                         }
                     }
