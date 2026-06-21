@@ -184,12 +184,20 @@ class SettingsViewModel @Inject constructor(
                 if ("course_names" in pending) {
                     val localNames = dataCache.loadCourseCustomNames()
                     var nameMismatches = 0
+                    val serverNosWithNames = mutableSetOf<String>()
                     for (override in result.courseOverrides) {
                         val courseNo = override.courseNo ?: continue
                         if (override.customNames.isEmpty()) continue
+                        serverNosWithNames.add(courseNo)
                         if ((localNames[courseNo] ?: emptyMap()) != override.customNames) {
                             nameMismatches++
                             Log.d(TAG, "[reenable] name mismatch: $courseNo local=${localNames[courseNo]} server=${override.customNames}")
+                        }
+                    }
+                    for ((courseNo, locales) in localNames) {
+                        if (locales.isNotEmpty() && courseNo !in serverNosWithNames) {
+                            nameMismatches++
+                            Log.d(TAG, "[reenable] name mismatch: $courseNo local=$locales server=default")
                         }
                     }
                     Log.i(TAG, "[reenable] names: ${if (nameMismatches == 0) "MATCH" else "DIFFER ($nameMismatches)"}")
@@ -273,6 +281,9 @@ class SettingsViewModel @Inject constructor(
             } else {
                 if ("courses" in conflict.categories) {
                     dataCache.saveDeletedCourseNos(emptySet())
+                }
+                if ("course_names" in conflict.categories) {
+                    dataCache.saveCourseCustomNames(emptyMap())
                 }
                 if ("assignments" in conflict.categories) {
                     dataCache.replaceIgnoredAssignments(emptySet())
