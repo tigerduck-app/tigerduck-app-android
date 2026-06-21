@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import android.util.Log
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
@@ -54,6 +55,10 @@ class SettingsViewModel @Inject constructor(
     private val dataCache: DataCache,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
+
+    private companion object {
+        const val TAG = "SyncReenable"
+    }
 
     val cloudSyncCoordinator: CloudSyncCoordinator = CloudSyncCoordinator(
         pushApiClient = pushApiClient,
@@ -120,51 +125,75 @@ class SettingsViewModel @Inject constructor(
 
     fun markCategoryReenabled(category: String) {
         prefs.pendingConflictCategories = prefs.pendingConflictCategories + category
+        Log.i(TAG, "[reenable] marked category=$category pending=${prefs.pendingConflictCategories}")
     }
 
     fun checkPendingConflicts() {
         val pending = prefs.pendingConflictCategories
-        if (pending.isEmpty()) return
+        if (pending.isEmpty()) {
+            Log.d(TAG, "[reenable] checkPendingConflicts skip: pending is empty")
+            return
+        }
+        Log.i(TAG, "[reenable] checkPendingConflicts start: pending=$pending")
         viewModelScope.launch {
             try {
                 val result = syncApiClient.fetchFullSync()
                 val diffs = mutableListOf<String>()
 
                 if ("courses" in pending) {
-                    val localNos = dataCache.loadCourses().map { it.courseNo }.toSet()
+                    val allCachedNos = dataCache.loadCourses().map { it.courseNo }.toSet()
+                    val deletedNos = dataCache.loadDeletedCourseNos()
+                    val localNos = allCachedNos - deletedNos
                     val serverNos = result.serverCourseNos
+                    Log.i(TAG, "[reenable] courses: cached=${allCachedNos.size} deleted=${deletedNos.size} effective=${localNos.size} server=${serverNos.size}")
+                    Log.d(TAG, "[reenable] courses local=${localNos.sorted()}")
+                    Log.d(TAG, "[reenable] courses server=${serverNos.sorted()}")
                     if (localNos != serverNos) {
                         val localOnly = (localNos - serverNos).size
                         val serverOnly = (serverNos - localNos).size
+                        Log.i(TAG, "[reenable] courses DIFFER: localOnly=$localOnly serverOnly=$serverOnly")
                         diffs.add(when {
                             localOnly > 0 && serverOnly > 0 -> context.getString(R.string.sync_conflict_reenable_courses, localOnly.toString(), serverOnly.toString())
                             localOnly > 0 -> context.getString(R.string.sync_conflict_reenable_courses_local_only, localOnly.toString())
                             else -> context.getString(R.string.sync_conflict_reenable_courses_server_only, serverOnly.toString())
                         })
+                    } else {
+                        Log.i(TAG, "[reenable] courses MATCH — no conflict")
                     }
                 }
 
                 if ("course_colors" in pending) {
                     val courses = dataCache.loadCourses()
                     val localColors = courses.associate { it.courseNo to it.customColorHex }
-                    val hasColorDiff = result.courseOverrides.any { override ->
-                        val courseNo = override.courseNo ?: return@any false
-                        val serverHex = override.colorHex ?: return@any false
-                        localColors[courseNo] != serverHex
+                    var colorMismatches = 0
+                    for (override in result.courseOverrides) {
+                        val courseNo = override.courseNo ?: continue
+                        val serverHex = override.colorHex ?: continue
+                        val localHex = localColors[courseNo]
+                        if (localHex != serverHex) {
+                            colorMismatches++
+                            Log.d(TAG, "[reenable] color mismatch: $courseNo local=$localHex server=$serverHex")
+                        }
                     }
-                    if (hasColorDiff) {
+                    Log.i(TAG, "[reenable] colors: ${if (colorMismatches == 0) "MATCH" else "DIFFER ($colorMismatches)"}")
+                    if (colorMismatches > 0) {
                         diffs.add(context.getString(R.string.sync_conflict_reenable_colors_differ))
                     }
                 }
 
                 if ("course_names" in pending) {
                     val localNames = dataCache.loadCourseCustomNames()
-                    val hasNameDiff = result.courseOverrides.any { override ->
-                        val courseNo = override.courseNo ?: return@any false
-                        if (override.customNames.isEmpty()) return@any false
-                        (localNames[courseNo] ?: emptyMap()) != override.customNames
+                    var nameMismatches = 0
+                    for (override in result.courseOverrides) {
+                        val courseNo = override.courseNo ?: continue
+                        if (override.customNames.isEmpty()) continue
+                        if ((localNames[courseNo] ?: emptyMap()) != override.customNames) {
+                            nameMismatches++
+                            Log.d(TAG, "[reenable] name mismatch: $courseNo local=${localNames[courseNo]} server=${override.customNames}")
+                        }
                     }
-                    if (hasNameDiff) {
+                    Log.i(TAG, "[reenable] names: ${if (nameMismatches == 0) "MATCH" else "DIFFER ($nameMismatches)"}")
+                    if (nameMismatches > 0) {
                         diffs.add(context.getString(R.string.sync_conflict_reenable_names_differ))
                     }
                 }
@@ -172,11 +201,15 @@ class SettingsViewModel @Inject constructor(
                 if ("assignments" in pending) {
                     val localIgnored = dataCache.loadIgnoredAssignments()
                     val localCompleted = dataCache.loadMarkedCompletedAssignments()
-                    if (localIgnored != result.ignoredIds || localCompleted != result.completedIds) {
+                    val ignoredMatch = localIgnored == result.ignoredIds
+                    val completedMatch = localCompleted == result.completedIds
+                    Log.i(TAG, "[reenable] assignments: localIgnored=${localIgnored.size} serverIgnored=${result.ignoredIds.size} match=$ignoredMatch | localCompleted=${localCompleted.size} serverCompleted=${result.completedIds.size} match=$completedMatch")
+                    if (!ignoredMatch || !completedMatch) {
                         diffs.add(context.getString(R.string.sync_conflict_reenable_assignments_differ))
                     }
                 }
 
+                Log.i(TAG, "[reenable] result: ${diffs.size} diffs → ${if (diffs.isEmpty()) "no conflict" else "SHOW POPUP"}")
                 if (diffs.isNotEmpty()) {
                     _reenableConflict.value = ReenableConflict(
                         categories = pending.toList(),
@@ -185,7 +218,8 @@ class SettingsViewModel @Inject constructor(
                 } else {
                     prefs.pendingConflictCategories = emptySet()
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e(TAG, "[reenable] checkPendingConflicts FAILED", e)
                 prefs.pendingConflictCategories = emptySet()
             }
         }
@@ -193,6 +227,7 @@ class SettingsViewModel @Inject constructor(
 
     fun resolveReenableConflict(keepLocal: Boolean) {
         val conflict = _reenableConflict.value ?: return
+        Log.i(TAG, "[reenable] resolve: keepLocal=$keepLocal categories=${conflict.categories}")
         _reenableConflict.value = null
         prefs.pendingConflictCategories = emptySet()
         viewModelScope.launch {
