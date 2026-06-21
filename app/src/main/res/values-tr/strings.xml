@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Giriş yap</string>
     <string name="onboarding_skip_for_now">Şimdilik atla</string>
     <string name="onboarding_start_button">TigerDuck\'ı kullanmaya başla</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync derslerinizi, ödevlerinizi ve ayarlarınızı tüm cihazlarınızda senkronize tutar. Cloud Sync ayarlarından tam olarak neyin senkronize edileceğini seçebilirsiniz.</string>
     <string name="onboarding_sync_not_shared_password">Şifre asla yüklenmez</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">Senkronizasyon kapalıyken tüm veriler yalnızca bu cihazda kalır. Ödev hatırlatmaları için push bildirimleri Cloud Sync olmadan yerel olarak çalışır.</string>
     <string name="onboarding_sync_shared_assignments">Ödev verileri</string>
     <string name="onboarding_sync_shared_courses">Ders verileri</string>
     <string name="onboarding_sync_shared_device_id">Cihaz kimliği</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Ders renkleri: sunucuda farklı</string>
+    <string name="sync_conflict_reenable_courses">Dersler: %1$s yalnızca yerel, %2$s yalnızca sunucuda</string>
+    <string name="sync_conflict_reenable_courses_local_only">Dersler: %1$s yalnızca yerel</string>
+    <string name="sync_conflict_reenable_courses_server_only">Dersler: %1$s yalnızca sunucuda</string>
+    <string name="sync_conflict_reenable_message">Senkronizasyon yeniden etkinleştirildi ve yerel verileriniz sunucudan farklı:</string>
+    <string name="sync_conflict_reenable_names_differ">Özel adlar: sunucuda farklı</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

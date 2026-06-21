@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">تسجيل الدخول</string>
     <string name="onboarding_skip_for_now">تخطٍ في الوقت الحالي</string>
     <string name="onboarding_start_button">ابدأ استخدام TigerDuck</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">يحافظ Cloud Sync على مزامنة مقرراتك وواجباتك وإعداداتك عبر جميع أجهزتك. يمكنك اختيار ما تريد مزامنته بالضبط في إعدادات Cloud Sync.</string>
     <string name="onboarding_sync_not_shared_password">لا يتم رفع كلمة المرور أبدًا</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">عند إيقاف المزامنة، تبقى جميع البيانات على هذا الجهاز فقط. تعمل الإشعارات الفورية لتذكيرات الواجبات محليًا بدون Cloud Sync.</string>
     <string name="onboarding_sync_shared_assignments">بيانات الواجبات</string>
     <string name="onboarding_sync_shared_courses">بيانات المقررات</string>
     <string name="onboarding_sync_shared_device_id">معرّف الجهاز</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">ألوان المقررات: مختلفة على الخادم</string>
+    <string name="sync_conflict_reenable_courses">المقررات: %1$s محلية فقط، %2$s على الخادم فقط</string>
+    <string name="sync_conflict_reenable_courses_local_only">المقررات: %1$s محلية فقط</string>
+    <string name="sync_conflict_reenable_courses_server_only">المقررات: %1$s على الخادم فقط</string>
+    <string name="sync_conflict_reenable_message">تمت إعادة تفعيل المزامنة وبياناتك المحلية تختلف عن الخادم:</string>
+    <string name="sync_conflict_reenable_names_differ">الأسماء المخصصة: مختلفة على الخادم</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

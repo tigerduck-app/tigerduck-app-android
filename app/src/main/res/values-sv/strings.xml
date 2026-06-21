@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Logga in</string>
     <string name="onboarding_skip_for_now">Hoppa över för nu</string>
     <string name="onboarding_start_button">Börja använda TigerDuck</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync håller dina kurser, uppgifter och inställningar synkroniserade mellan alla dina enheter. Du kan välja exakt vad som ska synkas i Cloud Sync-inställningarna.</string>
     <string name="onboarding_sync_not_shared_password">Lösenord laddas aldrig upp</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">När synkronisering är avstängd stannar all data bara på den här enheten. Push-notiser för läxpåminnelser fungerar lokalt utan Cloud Sync.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Kursfärger: annorlunda på servern</string>
+    <string name="sync_conflict_reenable_courses">Kurser: %1$s bara lokala, %2$s bara på servern</string>
+    <string name="sync_conflict_reenable_courses_local_only">Kurser: %1$s bara lokala</string>
+    <string name="sync_conflict_reenable_courses_server_only">Kurser: %1$s bara på servern</string>
+    <string name="sync_conflict_reenable_message">Synkronisering återaktiverades och dina lokala data skiljer sig från servern:</string>
+    <string name="sync_conflict_reenable_names_differ">Egna namn: annorlunda på servern</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

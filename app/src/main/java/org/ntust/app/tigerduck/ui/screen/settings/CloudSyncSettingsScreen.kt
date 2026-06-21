@@ -77,6 +77,7 @@ fun CloudSyncSettingsScreen(
     val deviceId = remember { viewModel.identity.uuid() }
     val diagnostic by viewModel.syncDiagnostic.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
+    val reenableConflict by viewModel.reenableConflict.collectAsState()
 
     fun refreshSyncStates() {
         syncCourses = viewModel.prefs.syncCourses
@@ -86,16 +87,51 @@ fun CloudSyncSettingsScreen(
         if (syncEnabled && !syncCourses && !syncCourseColors && !syncCourseNames && !syncAssignments) {
             syncEnabled = false
             viewModel.appState.cloudSyncEnabled = false
+            viewModel.pushCloudSyncEnabled(false)
         }
     }
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) refreshSyncStates()
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                refreshSyncStates()
+                viewModel.checkPendingConflicts()
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    if (reenableConflict != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.sync_conflict_title)) },
+            text = {
+                Column {
+                    Text(
+                        stringResource(R.string.sync_conflict_reenable_message),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        reenableConflict!!.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { viewModel.resolveReenableConflict(keepLocal = false) }
+                ) { Text(stringResource(R.string.sync_conflict_use_server)) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { viewModel.resolveReenableConflict(keepLocal = true) }
+                ) { Text(stringResource(R.string.sync_conflict_use_local)) }
+            },
+        )
     }
 
     Scaffold(
@@ -103,7 +139,10 @@ fun CloudSyncSettingsScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.cloud_sync_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        viewModel.checkPendingConflicts()
+                        onBack()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
                 },
@@ -143,6 +182,7 @@ fun CloudSyncSettingsScreen(
                             onCheckedChange = {
                                 syncEnabled = it
                                 viewModel.appState.cloudSyncEnabled = it
+                                viewModel.pushCloudSyncEnabled(it)
                             },
                         )
                     }
@@ -155,6 +195,7 @@ fun CloudSyncSettingsScreen(
                     ContentCard {
                         Column {
                             SyncToggleRow(stringResource(R.string.cloud_sync_assignments), syncAssignments) {
+                                if (it && !syncAssignments) viewModel.markCategoryReenabled("assignments")
                                 syncAssignments = it
                                 viewModel.prefs.syncAssignments = it
                                 viewModel.pushSyncPreferences()
@@ -284,6 +325,11 @@ fun ClassTableSyncScreen(
             item {
                 ContentCard {
                     SyncToggleRow(stringResource(R.string.cloud_sync_class_table), masterOn) { on ->
+                        if (on && !masterOn) {
+                            viewModel.markCategoryReenabled("courses")
+                            viewModel.markCategoryReenabled("course_colors")
+                            viewModel.markCategoryReenabled("course_names")
+                        }
                         syncCourses = on
                         syncCourseColors = on
                         syncCourseNames = on
@@ -306,6 +352,7 @@ fun ClassTableSyncScreen(
                     ContentCard {
                         Column {
                             SyncToggleRow(stringResource(R.string.cloud_sync_courses), syncCourses) {
+                                if (it && !syncCourses) viewModel.markCategoryReenabled("courses")
                                 syncCourses = it
                                 viewModel.prefs.syncCourses = it
                                 if (!it) {
@@ -318,12 +365,14 @@ fun ClassTableSyncScreen(
                             }
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                             SyncToggleRow(stringResource(R.string.cloud_sync_course_colours), syncCourseColors, enabled = syncCourses) {
+                                if (it && !syncCourseColors) viewModel.markCategoryReenabled("course_colors")
                                 syncCourseColors = it
                                 viewModel.prefs.syncCourseColors = it
                                 viewModel.pushSyncPreferences()
                             }
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                             SyncToggleRow(stringResource(R.string.cloud_sync_custom_course_names), syncCourseNames, enabled = syncCourses) {
+                                if (it && !syncCourseNames) viewModel.markCategoryReenabled("course_names")
                                 syncCourseNames = it
                                 viewModel.prefs.syncCourseNames = it
                                 viewModel.pushSyncPreferences()

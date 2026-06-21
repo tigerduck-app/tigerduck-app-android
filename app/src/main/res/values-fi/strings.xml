@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Kirjaudu sisään</string>
     <string name="onboarding_skip_for_now">Ohita toistaiseksi</string>
     <string name="onboarding_start_button">Aloita TigerDuckin käyttö</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync pitää kurssisi, tehtäväsi ja asetuksesi synkronoituina kaikilla laitteillasi. Voit valita tarkalleen, mitä synkronoidaan Cloud Sync -asetuksista.</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">Kun synkronointi on pois päältä, kaikki tiedot pysyvät vain tässä laitteessa. Kotitehtävämuistutusten push-ilmoitukset toimivat paikallisesti ilman Cloud Sync -palvelua.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Kurssien värit: eri palvelimella</string>
+    <string name="sync_conflict_reenable_courses">Kurssit: %1$s vain paikallisia, %2$s vain palvelimella</string>
+    <string name="sync_conflict_reenable_courses_local_only">Kurssit: %1$s vain paikallisia</string>
+    <string name="sync_conflict_reenable_courses_server_only">Kurssit: %1$s vain palvelimella</string>
+    <string name="sync_conflict_reenable_message">Synkronointi otettiin uudelleen käyttöön ja paikalliset tietosi eroavat palvelimesta:</string>
+    <string name="sync_conflict_reenable_names_differ">Mukautetut nimet: eri palvelimella</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

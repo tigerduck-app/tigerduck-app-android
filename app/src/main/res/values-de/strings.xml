@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Anmelden</string>
     <string name="onboarding_skip_for_now">Vorerst überspringen</string>
     <string name="onboarding_start_button">TigerDuck verwenden</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync hält deine Kurse, Aufgaben und Einstellungen auf allen deinen Geräten synchron. Du kannst in den Cloud Sync-Einstellungen genau festlegen, was synchronisiert werden soll.</string>
     <string name="onboarding_sync_not_shared_password">Passwort wird niemals hochgeladen</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">Wenn die Synchronisierung deaktiviert ist, verbleiben alle Daten nur auf diesem Gerät. Push-Benachrichtigungen für Aufgabenerinnerungen funktionieren lokal ohne Cloud Sync.</string>
     <string name="onboarding_sync_shared_assignments">Aufgabendaten</string>
     <string name="onboarding_sync_shared_courses">Kursdaten</string>
     <string name="onboarding_sync_shared_device_id">Geräte-ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Kursfarben: unterschiedlich auf dem Server</string>
+    <string name="sync_conflict_reenable_courses">Kurse: %1$s nur lokal, %2$s nur auf dem Server</string>
+    <string name="sync_conflict_reenable_courses_local_only">Kurse: %1$s nur lokal</string>
+    <string name="sync_conflict_reenable_courses_server_only">Kurse: %1$s nur auf dem Server</string>
+    <string name="sync_conflict_reenable_message">Die Synchronisierung wurde wieder aktiviert und deine lokalen Daten unterscheiden sich vom Server:</string>
+    <string name="sync_conflict_reenable_names_differ">Eigene Namen: unterschiedlich auf dem Server</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

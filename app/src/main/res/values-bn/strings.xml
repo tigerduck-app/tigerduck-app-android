@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">সাইন ইন</string>
     <string name="onboarding_skip_for_now">এখনের জন্য এড়িয়ে যান</string>
     <string name="onboarding_start_button">TigerDuck ব্যবহার শুরু করুন</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync আপনার সব ডিভাইসে আপনার কোর্স, অ্যাসাইনমেন্ট এবং সেটিংস সিঙ্ক রাখে। Cloud Sync সেটিংসে আপনি ঠিক কী সিঙ্ক করতে চান তা বেছে নিতে পারেন।</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">সিঙ্ক বন্ধ থাকলে সব ডেটা শুধুমাত্র এই ডিভাইসে থাকে। হোমওয়ার্ক রিমাইন্ডারের জন্য পুশ নোটিফিকেশন Cloud Sync ছাড়াই স্থানীয়ভাবে কাজ করে।</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">কোর্সের রং: সার্ভারে আলাদা</string>
+    <string name="sync_conflict_reenable_courses">কোর্স: %1$s শুধু স্থানীয়, %2$s শুধু সার্ভারে</string>
+    <string name="sync_conflict_reenable_courses_local_only">কোর্স: %1$s শুধু স্থানীয়</string>
+    <string name="sync_conflict_reenable_courses_server_only">কোর্স: %1$s শুধু সার্ভারে</string>
+    <string name="sync_conflict_reenable_message">সিঙ্ক পুনরায় চালু হয়েছে এবং আপনার স্থানীয় ডেটা সার্ভার থেকে আলাদা:</string>
+    <string name="sync_conflict_reenable_names_differ">কাস্টম নাম: সার্ভারে আলাদা</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

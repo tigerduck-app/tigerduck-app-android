@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Bejelentkezés</string>
     <string name="onboarding_skip_for_now">Kihagyás egyelőre</string>
     <string name="onboarding_start_button">TigerDuck használatának megkezdése</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">A Cloud Sync szinkronban tartja kurzusait, feladatait és beállításait minden eszközén. A Cloud Sync beállításaiban pontosan kiválaszthatja, mit szeretne szinkronizálni.</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">Ha a szinkronizálás ki van kapcsolva, minden adat csak ezen az eszközön marad. A házi feladat emlékeztetők push értesítései Cloud Sync nélkül is helyben működnek.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Kurzusszínek: eltérőek a szerveren</string>
+    <string name="sync_conflict_reenable_courses">Kurzusok: %1$s csak helyi, %2$s csak a szerveren</string>
+    <string name="sync_conflict_reenable_courses_local_only">Kurzusok: %1$s csak helyi</string>
+    <string name="sync_conflict_reenable_courses_server_only">Kurzusok: %1$s csak a szerveren</string>
+    <string name="sync_conflict_reenable_message">A szinkronizálás újra be lett kapcsolva, és a helyi adataid eltérnek a szervertől:</string>
+    <string name="sync_conflict_reenable_names_differ">Egyéni nevek: eltérőek a szerveren</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

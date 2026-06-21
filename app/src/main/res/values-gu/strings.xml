@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">સાઇન ઇન</string>
     <string name="onboarding_skip_for_now">હમણાં છોડો</string>
     <string name="onboarding_start_button">TigerDuck વાપરવાનું શરૂ કરો</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync તમારા કોર્સ, અસાઇનમેન્ટ અને સેટિંગ્સને તમારા બધા ઉપકરણો પર સિંક રાખે છે. Cloud Sync સેટિંગ્સમાં તમે બરાબર શું સિંક કરવું તે પસંદ કરી શકો છો.</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">જ્યારે સિંક બંધ હોય, ત્યારે બધો ડેટા ફક્ત આ ડિવાઇસ પર જ રહે છે. હોમવર્ક રિમાઇન્ડર માટે પુશ નોટિફિકેશન Cloud Sync વિના સ્થાનિક રીતે કામ કરે છે.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">કોર્સના રંગ: સર્વર પર અલગ</string>
+    <string name="sync_conflict_reenable_courses">કોર્સ: %1$s ફક્ત સ્થાનિક, %2$s ફક્ત સર્વર પર</string>
+    <string name="sync_conflict_reenable_courses_local_only">કોર્સ: %1$s ફક્ત સ્થાનિક</string>
+    <string name="sync_conflict_reenable_courses_server_only">કોર્સ: %1$s ફક્ત સર્વર પર</string>
+    <string name="sync_conflict_reenable_message">સિંક ફરી ચાલુ થયું અને તમારો સ્થાનિક ડેટા સર્વરથી અલગ છે:</string>
+    <string name="sync_conflict_reenable_names_differ">કસ્ટમ નામ: સર્વર પર અલગ</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

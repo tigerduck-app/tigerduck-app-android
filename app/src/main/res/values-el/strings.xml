@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Σύνδεση</string>
     <string name="onboarding_skip_for_now">Παράλειψη προς το παρόν</string>
     <string name="onboarding_start_button">Ξεκινήστε να χρησιμοποιείτε το TigerDuck</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Το Cloud Sync διατηρεί τα μαθήματα, τις εργασίες και τις ρυθμίσεις σας συγχρονισμένα σε όλες τις συσκευές σας. Μπορείτε να επιλέξετε ακριβώς τι θα συγχρονίζεται στις ρυθμίσεις Cloud Sync.</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">Όταν ο συγχρονισμός είναι απενεργοποιημένος, όλα τα δεδομένα παραμένουν μόνο σε αυτή τη συσκευή. Οι ειδοποιήσεις push για υπενθυμίσεις εργασιών λειτουργούν τοπικά χωρίς Cloud Sync.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Χρώματα μαθημάτων: διαφορετικά στον διακομιστή</string>
+    <string name="sync_conflict_reenable_courses">Μαθήματα: %1$s μόνο τοπικά, %2$s μόνο στον διακομιστή</string>
+    <string name="sync_conflict_reenable_courses_local_only">Μαθήματα: %1$s μόνο τοπικά</string>
+    <string name="sync_conflict_reenable_courses_server_only">Μαθήματα: %1$s μόνο στον διακομιστή</string>
+    <string name="sync_conflict_reenable_message">Ο συγχρονισμός επανενεργοποιήθηκε και τα τοπικά σου δεδομένα διαφέρουν από τον διακομιστή:</string>
+    <string name="sync_conflict_reenable_names_differ">Προσαρμοσμένα ονόματα: διαφορετικά στον διακομιστή</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

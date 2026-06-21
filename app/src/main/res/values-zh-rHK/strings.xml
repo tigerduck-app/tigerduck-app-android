@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">登入帳號</string>
     <string name="onboarding_skip_for_now">暫時跳過</string>
     <string name="onboarding_start_button">開始使用 TigerDuck</string>
-    <string name="onboarding_sync_description">啟用後，TigerDuck 會透過 TigerDuck 伺服器在你的裝置間同步課表編輯和作業狀態。</string>
+    <string name="onboarding_sync_description">Cloud Sync 可以喺你所有裝置之間同步課表、功課同設定。你可以喺 Cloud Sync 設定入面揀要同步嘅項目。</string>
     <string name="onboarding_sync_not_shared_password">密碼不會被上傳</string>
-    <string name="onboarding_sync_note">關閉同步後，所有資料僅儲存於本機。推播通知仍可在本機正常運作。</string>
+    <string name="onboarding_sync_note">閂咗同步之後，所有資料淨係留喺呢部裝置。推播通知唔需要 Cloud Sync 都可以正常運作。</string>
     <string name="onboarding_sync_shared_assignments">作業資料</string>
     <string name="onboarding_sync_shared_courses">課程資料</string>
     <string name="onboarding_sync_shared_device_id">裝置 ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">本機：%1$s → 伺服器：%2$s</string>
     <string name="sync_conflict_item_header">%1$s：%2$s</string>
     <string name="sync_conflict_message">部分項目在本機與伺服器之間有差異：</string>
+    <string name="sync_conflict_reenable_colors_differ">課程顏色：同伺服器唔同</string>
+    <string name="sync_conflict_reenable_courses">課程：%1$s 淨本機、%2$s 淨伺服器</string>
+    <string name="sync_conflict_reenable_courses_local_only">課程：%1$s 淨本機</string>
+    <string name="sync_conflict_reenable_courses_server_only">課程：%1$s 淨伺服器</string>
+    <string name="sync_conflict_reenable_message">同步重新開咗，你嘅本機資料同伺服器唔同：</string>
+    <string name="sync_conflict_reenable_names_differ">自訂名稱：同伺服器唔同</string>
     <string name="sync_conflict_status_completed">已完成</string>
     <string name="sync_conflict_status_ignored">已忽略</string>
     <string name="sync_conflict_status_none">無</string>

@@ -34,6 +34,7 @@ data class UpdateDevicePreferencesRequest(
     @SerializedName("sync_course_colors") val syncCourseColors: Boolean? = null,
     @SerializedName("sync_course_names") val syncCourseNames: Boolean? = null,
     @SerializedName("sync_assignments") val syncAssignments: Boolean? = null,
+    @SerializedName("cloud_sync_enabled") val cloudSyncEnabled: Boolean? = null,
 )
 
 data class DevicePreferencesResponse(
@@ -43,4 +44,5 @@ data class DevicePreferencesResponse(
     @SerializedName("sync_course_colors") val syncCourseColors: Boolean = true,
     @SerializedName("sync_course_names") val syncCourseNames: Boolean = true,
     @SerializedName("sync_assignments") val syncAssignments: Boolean = true,
+    @SerializedName("cloud_sync_enabled") val cloudSyncEnabled: Boolean = true,
 )

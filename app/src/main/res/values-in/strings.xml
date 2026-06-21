@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Masuk</string>
     <string name="onboarding_skip_for_now">Lewati untuk sekarang</string>
     <string name="onboarding_start_button">Mulai gunakan TigerDuck</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync menjaga mata kuliah, tugas, dan pengaturan Anda tetap sinkron di semua perangkat Anda. Anda dapat memilih dengan tepat apa yang ingin disinkronkan di pengaturan Cloud Sync.</string>
     <string name="onboarding_sync_not_shared_password">Kata sandi tidak pernah diunggah</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">Saat sinkronisasi mati, semua data hanya tersimpan di perangkat ini. Notifikasi push untuk pengingat tugas tetap berfungsi secara lokal tanpa Cloud Sync.</string>
     <string name="onboarding_sync_shared_assignments">Data tugas</string>
     <string name="onboarding_sync_shared_courses">Data mata kuliah</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Warna mata kuliah: berbeda di server</string>
+    <string name="sync_conflict_reenable_courses">Mata kuliah: %1$s hanya lokal, %2$s hanya di server</string>
+    <string name="sync_conflict_reenable_courses_local_only">Mata kuliah: %1$s hanya lokal</string>
+    <string name="sync_conflict_reenable_courses_server_only">Mata kuliah: %1$s hanya di server</string>
+    <string name="sync_conflict_reenable_message">Sinkronisasi diaktifkan kembali dan data lokal Anda berbeda dari server:</string>
+    <string name="sync_conflict_reenable_names_differ">Nama kustom: berbeda di server</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

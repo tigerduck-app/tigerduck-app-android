@@ -96,6 +96,7 @@ class PushApiClient @Inject constructor(
         syncCourseColors: Boolean? = null,
         syncCourseNames: Boolean? = null,
         syncAssignments: Boolean? = null,
+        cloudSyncEnabled: Boolean? = null,
     ): DevicePreferencesResponse = withContext(Dispatchers.IO) {
         val payload = UpdateDevicePreferencesRequest(
             serverPushEnabled = serverPushEnabled,
@@ -103,6 +104,7 @@ class PushApiClient @Inject constructor(
             syncCourseColors = syncCourseColors,
             syncCourseNames = syncCourseNames,
             syncAssignments = syncAssignments,
+            cloudSyncEnabled = cloudSyncEnabled,
         )
         val body = gson.toJson(payload).toRequestBody(jsonType)
         val request = Request.Builder()
@@ -146,7 +148,7 @@ class PushApiClient @Inject constructor(
         assignmentId: Int,
         localStatus: String,
     ) = withContext(Dispatchers.IO) {
-        if (!isSyncCapable) return@withContext
+        if (!isSyncCapable || !prefs.syncAssignments) return@withContext
         val payload = mapOf("local_status" to localStatus)
         val body = gson.toJson(payload).toRequestBody(jsonType)
         val request = Request.Builder()
@@ -168,6 +170,8 @@ class PushApiClient @Inject constructor(
         locale: String? = null,
     ) = withContext(Dispatchers.IO) {
         if (!isSyncCapable) return@withContext
+        if (colorHex != null && !prefs.syncCourseColors) return@withContext
+        if (customName != null && !prefs.syncCourseNames) return@withContext
         val payload = mutableMapOf<String, Any?>()
         if (colorHex != null) payload["color_hex"] = colorHex
         if (customName != null) payload["custom_name"] = customName
@@ -193,7 +197,7 @@ class PushApiClient @Inject constructor(
     suspend fun uploadAssignments(
         assignments: List<Assignment>,
     ) = withContext(Dispatchers.IO) {
-        if (!isSyncCapable) return@withContext
+        if (!isSyncCapable || !prefs.syncAssignments) return@withContext
         val iso8601 = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
@@ -233,7 +237,7 @@ class PushApiClient @Inject constructor(
         semester: String,
         forceKeys: List<String> = emptyList(),
     ) = withContext(Dispatchers.IO) {
-        if (!isSyncCapable) return@withContext
+        if (!isSyncCapable || !prefs.syncCourses) return@withContext
         val items = courses.map { c ->
             mapOf(
                 "semester" to semester,
@@ -276,7 +280,7 @@ class PushApiClient @Inject constructor(
     }
 
     suspend fun deleteCourse(courseKey: String) = withContext(Dispatchers.IO) {
-        if (!isSyncCapable) return@withContext
+        if (!isSyncCapable || !prefs.syncCourses) return@withContext
         val request = Request.Builder()
             .url("$baseUrl/sync/courses/$courseKey")
             .delete()
@@ -290,7 +294,7 @@ class PushApiClient @Inject constructor(
     }
 
     suspend fun deleteAllCourses() = withContext(Dispatchers.IO) {
-        if (!isSyncCapable) return@withContext
+        if (!isSyncCapable || !prefs.syncCourses) return@withContext
         val request = Request.Builder()
             .url("$baseUrl/sync/courses")
             .delete()

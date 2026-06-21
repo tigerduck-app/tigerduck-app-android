@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">ಸೈನ್ ಇನ್</string>
     <string name="onboarding_skip_for_now">ಈಗ ಬಿಟ್ಟುಬಿಡಿ</string>
     <string name="onboarding_start_button">TigerDuck ಬಳಸಲು ಆರಂಭಿಸಿ</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync ನಿಮ್ಮ ಎಲ್ಲಾ ಸಾಧನಗಳಲ್ಲಿ ನಿಮ್ಮ ಕೋರ್ಸ್‌ಗಳು, ಅಸೈನ್‌ಮೆಂಟ್‌ಗಳು ಮತ್ತು ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಸಿಂಕ್‌ನಲ್ಲಿ ಇಡುತ್ತದೆ. Cloud Sync ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಏನನ್ನು ಸಿಂಕ್ ಮಾಡಬೇಕೆಂದು ನೀವು ನಿಖರವಾಗಿ ಆಯ್ಕೆ ಮಾಡಬಹುದು.</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">ಸಿಂಕ್ ಆಫ್ ಆಗಿದ್ದಾಗ, ಎಲ್ಲಾ ಡೇಟಾ ಈ ಸಾಧನದಲ್ಲಿ ಮಾತ್ರ ಉಳಿಯುತ್ತದೆ. ಹೋಮ್‌ವರ್ಕ್ ಜ್ಞಾಪನೆಗಳ ಪುಶ್ ಅಧಿಸೂಚನೆಗಳು Cloud Sync ಇಲ್ಲದೆ ಸ್ಥಳೀಯವಾಗಿ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತವೆ.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">ಕೋರ್ಸ್ ಬಣ್ಣಗಳು: ಸರ್ವರ್‌ನಲ್ಲಿ ಬೇರೆ</string>
+    <string name="sync_conflict_reenable_courses">ಕೋರ್ಸ್‌ಗಳು: %1$s ಸ್ಥಳೀಯ ಮಾತ್ರ, %2$s ಸರ್ವರ್‌ನಲ್ಲಿ ಮಾತ್ರ</string>
+    <string name="sync_conflict_reenable_courses_local_only">ಕೋರ್ಸ್‌ಗಳು: %1$s ಸ್ಥಳೀಯ ಮಾತ್ರ</string>
+    <string name="sync_conflict_reenable_courses_server_only">ಕೋರ್ಸ್‌ಗಳು: %1$s ಸರ್ವರ್‌ನಲ್ಲಿ ಮಾತ್ರ</string>
+    <string name="sync_conflict_reenable_message">ಸಿಂಕ್ ಮರುಸಕ್ರಿಯಗೊಂಡಿದೆ ಮತ್ತು ನಿಮ್ಮ ಸ್ಥಳೀಯ ಡೇಟಾ ಸರ್ವರ್‌ನಿಂದ ಭಿನ್ನವಾಗಿದೆ:</string>
+    <string name="sync_conflict_reenable_names_differ">ಕಸ್ಟಮ್ ಹೆಸರುಗಳು: ಸರ್ವರ್‌ನಲ್ಲಿ ಬೇರೆ</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

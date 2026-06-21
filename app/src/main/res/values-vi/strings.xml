@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Đăng nhập</string>
     <string name="onboarding_skip_for_now">Tạm bỏ qua</string>
     <string name="onboarding_start_button">Bắt đầu sử dụng TigerDuck</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync giữ cho các môn học, bài tập và cài đặt của bạn được đồng bộ trên tất cả thiết bị. Bạn có thể chọn chính xác những gì cần đồng bộ trong cài đặt Cloud Sync.</string>
     <string name="onboarding_sync_not_shared_password">Mật khẩu không bao giờ được tải lên</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">Khi đồng bộ tắt, tất cả dữ liệu chỉ lưu trên thiết bị này. Thông báo đẩy nhắc bài tập về nhà vẫn hoạt động cục bộ mà không cần Cloud Sync.</string>
     <string name="onboarding_sync_shared_assignments">Dữ liệu bài tập</string>
     <string name="onboarding_sync_shared_courses">Dữ liệu môn học</string>
     <string name="onboarding_sync_shared_device_id">ID thiết bị</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Màu môn học: khác trên máy chủ</string>
+    <string name="sync_conflict_reenable_courses">Môn học: %1$s chỉ cục bộ, %2$s chỉ trên máy chủ</string>
+    <string name="sync_conflict_reenable_courses_local_only">Môn học: %1$s chỉ cục bộ</string>
+    <string name="sync_conflict_reenable_courses_server_only">Môn học: %1$s chỉ trên máy chủ</string>
+    <string name="sync_conflict_reenable_message">Đồng bộ đã được bật lại và dữ liệu cục bộ của bạn khác với máy chủ:</string>
+    <string name="sync_conflict_reenable_names_differ">Tên tùy chỉnh: khác trên máy chủ</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

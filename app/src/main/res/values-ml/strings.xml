@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">സൈൻ ഇൻ ചെയ്യുക</string>
     <string name="onboarding_skip_for_now">ഇപ്പോൾ ഒഴിവാക്കുക</string>
     <string name="onboarding_start_button">TigerDuck ഉപയോഗം ആരംഭിക്കുക</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync നിങ്ങളുടെ എല്ലാ ഉപകരണങ്ങളിലും കോഴ്‌സുകൾ, അസൈൻമെന്റുകൾ, ക്രമീകരണങ്ങൾ എന്നിവ സിങ്ക് ചെയ്‌ത് നിലനിർത്തുന്നു. Cloud Sync ക്രമീകരണങ്ങളിൽ എന്തൊക്കെ സിങ്ക് ചെയ്യണമെന്ന് നിങ്ങൾക്ക് കൃത്യമായി തിരഞ്ഞെടുക്കാം.</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">സിങ്ക് ഓഫ് ആയിരിക്കുമ്പോൾ, എല്ലാ ഡാറ്റയും ഈ ഉപകരണത്തിൽ മാത്രം നിലനിൽക്കും. ഹോംവർക്ക് ഓർമ്മപ്പെടുത്തലുകൾക്കുള്ള പുഷ് അറിയിപ്പുകൾ Cloud Sync ഇല്ലാതെ പ്രാദേശികമായി പ്രവർത്തിക്കും.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">കോഴ്‌സ് നിറങ്ങൾ: സെർവറിൽ വ്യത്യസ്തം</string>
+    <string name="sync_conflict_reenable_courses">കോഴ്‌സുകൾ: %1$s ലോക്കൽ മാത്രം, %2$s സെർവറിൽ മാത്രം</string>
+    <string name="sync_conflict_reenable_courses_local_only">കോഴ്‌സുകൾ: %1$s ലോക്കൽ മാത്രം</string>
+    <string name="sync_conflict_reenable_courses_server_only">കോഴ്‌സുകൾ: %1$s സെർവറിൽ മാത്രം</string>
+    <string name="sync_conflict_reenable_message">സിങ്ക് വീണ്ടും പ്രവർത്തനക്ഷമമാക്കി, നിങ്ങളുടെ ലോക്കൽ ഡാറ്റ സെർവറിൽ നിന്ന് വ്യത്യസ്തമാണ്:</string>
+    <string name="sync_conflict_reenable_names_differ">ഇഷ്ടാനുസൃത പേരുകൾ: സെർവറിൽ വ്യത്യസ്തം</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

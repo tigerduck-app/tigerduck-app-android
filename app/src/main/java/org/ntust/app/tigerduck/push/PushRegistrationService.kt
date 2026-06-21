@@ -273,6 +273,16 @@ class PushRegistrationService @Inject constructor(
         return error == null
     }
 
+    suspend fun updateCloudSyncEnabled(enabled: Boolean) {
+        val deviceId = identity.uuid()
+        runCatching {
+            api.updateDevicePreferences(deviceId, cloudSyncEnabled = enabled)
+        }.onFailure { e ->
+            if (e is CancellationException) throw e
+            Log.w(TAG, "cloud_sync_enabled PATCH failed", e)
+        }
+    }
+
     suspend fun updateSyncPreferences(
         syncCourses: Boolean,
         syncCourseColors: Boolean,

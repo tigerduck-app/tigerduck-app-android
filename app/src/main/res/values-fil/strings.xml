@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Mag-sign in</string>
     <string name="onboarding_skip_for_now">Laktawan muna</string>
     <string name="onboarding_start_button">Simulan na gamitin ang TigerDuck</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Pinapanatili ng Cloud Sync na naka-sync ang iyong mga kurso, assignment, at settings sa lahat ng iyong device. Maaari mong piliin nang eksakto kung ano ang isi-sync sa Cloud Sync settings.</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">Kapag naka-off ang sync, ang lahat ng data ay nananatili sa device na ito lamang. Gumagana nang lokal ang push notification para sa mga paalala sa takdang-aralin kahit walang Cloud Sync.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Mga kulay ng kurso: iba sa server</string>
+    <string name="sync_conflict_reenable_courses">Mga kurso: %1$s lokal lang, %2$s sa server lang</string>
+    <string name="sync_conflict_reenable_courses_local_only">Mga kurso: %1$s lokal lang</string>
+    <string name="sync_conflict_reenable_courses_server_only">Mga kurso: %1$s sa server lang</string>
+    <string name="sync_conflict_reenable_message">Na-re-enable ang sync at iba ang iyong lokal na data sa server:</string>
+    <string name="sync_conflict_reenable_names_differ">Mga custom na pangalan: iba sa server</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

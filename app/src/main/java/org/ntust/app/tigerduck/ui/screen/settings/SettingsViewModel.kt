@@ -20,9 +20,13 @@ import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
+import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.network.CourseService
+import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushDiagnostic
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.push.PushRegistrationService
+import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
@@ -41,6 +45,10 @@ class SettingsViewModel @Inject constructor(
     private val wearBridge: WearScheduleBridge,
     val identity: PushIdentity,
     private val pushRegistration: PushRegistrationService,
+    private val pushApiClient: PushApiClient,
+    private val syncApiClient: SyncApiClient,
+    private val courseService: CourseService,
+    private val dataCache: DataCache,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -71,6 +79,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun pushCloudSyncEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            pushRegistration.updateCloudSyncEnabled(enabled)
+        }
+    }
+
     fun pushSyncPreferences() {
         viewModelScope.launch {
             pushRegistration.updateSyncPreferences(
@@ -79,6 +93,105 @@ class SettingsViewModel @Inject constructor(
                 syncCourseNames = prefs.syncCourseNames,
                 syncAssignments = prefs.syncAssignments,
             )
+        }
+    }
+
+    data class ReenableConflict(
+        val categories: List<String>,
+        val description: String,
+    )
+
+    private val _reenableConflict = MutableStateFlow<ReenableConflict?>(null)
+    val reenableConflict: StateFlow<ReenableConflict?> = _reenableConflict
+
+    fun markCategoryReenabled(category: String) {
+        prefs.pendingConflictCategories = prefs.pendingConflictCategories + category
+    }
+
+    fun checkPendingConflicts() {
+        val pending = prefs.pendingConflictCategories
+        if (pending.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val result = syncApiClient.fetchFullSync()
+                val diffs = mutableListOf<String>()
+
+                if ("courses" in pending) {
+                    val localNos = dataCache.loadCourses().map { it.courseNo }.toSet()
+                    val serverNos = result.serverCourseNos
+                    if (localNos != serverNos) {
+                        val localOnly = (localNos - serverNos).size
+                        val serverOnly = (serverNos - localNos).size
+                        diffs.add(when {
+                            localOnly > 0 && serverOnly > 0 -> context.getString(R.string.sync_conflict_reenable_courses, localOnly.toString(), serverOnly.toString())
+                            localOnly > 0 -> context.getString(R.string.sync_conflict_reenable_courses_local_only, localOnly.toString())
+                            else -> context.getString(R.string.sync_conflict_reenable_courses_server_only, serverOnly.toString())
+                        })
+                    }
+                }
+                if ("course_colors" in pending && result.courseOverrides.any { it.colorHex != null }) {
+                    diffs.add(context.getString(R.string.sync_conflict_reenable_colors_differ))
+                }
+                if ("course_names" in pending && result.courseOverrides.any { it.customNames.isNotEmpty() }) {
+                    diffs.add(context.getString(R.string.sync_conflict_reenable_names_differ))
+                }
+
+                if (diffs.isNotEmpty()) {
+                    _reenableConflict.value = ReenableConflict(
+                        categories = pending.toList(),
+                        description = diffs.joinToString("\n"),
+                    )
+                } else {
+                    prefs.pendingConflictCategories = emptySet()
+                }
+            } catch (_: Exception) {
+                prefs.pendingConflictCategories = emptySet()
+            }
+        }
+    }
+
+    fun resolveReenableConflict(keepLocal: Boolean) {
+        val conflict = _reenableConflict.value ?: return
+        _reenableConflict.value = null
+        prefs.pendingConflictCategories = emptySet()
+        viewModelScope.launch {
+            if (keepLocal) {
+                if ("courses" in conflict.categories) {
+                    val courses = dataCache.loadCourses()
+                    val semester = courseService.currentSemesterCode()
+                    runCatching { pushApiClient.deleteAllCourses() }
+                    runCatching { pushApiClient.uploadCourses(courses, semester) }
+                }
+            } else {
+                if ("courses" in conflict.categories) {
+                    dataCache.saveDeletedCourseNos(emptySet())
+                }
+                val result = runCatching { syncApiClient.fetchFullSync() }.getOrNull()
+                if (result != null) {
+                    if ("courses" in conflict.categories && result.serverCourseNos.isNotEmpty()) {
+                        val localCourses = dataCache.loadCourses()
+                        val deleted = localCourses.map { it.courseNo }.toSet() - result.serverCourseNos
+                        if (deleted.isNotEmpty()) {
+                            dataCache.saveDeletedCourseNos(deleted)
+                        }
+                    }
+                    if ("course_colors" in conflict.categories || "course_names" in conflict.categories) {
+                        if (result.courseOverrides.isNotEmpty()) {
+                            val courses = dataCache.loadCourses()
+                            val updated = courses.map { course ->
+                                val override = result.courseOverrides.find { it.courseNo == course.courseNo }
+                                    ?: return@map course
+                                var c = course
+                                if ("course_colors" in conflict.categories && override.colorHex != null) {
+                                    c = c.copy(customColorHex = override.colorHex)
+                                }
+                                c
+                            }
+                            dataCache.saveCourses(updated)
+                        }
+                    }
+                }
+            }
         }
     }
 

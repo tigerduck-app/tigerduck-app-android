@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Вход</string>
     <string name="onboarding_skip_for_now">Пропустить пока</string>
     <string name="onboarding_start_button">Начать пользоваться TigerDuck</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync поддерживает синхронизацию курсов, заданий и настроек на всех ваших устройствах. Вы можете выбрать, что именно синхронизировать, в настройках Cloud Sync.</string>
     <string name="onboarding_sync_not_shared_password">Пароль никогда не загружается</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">Когда синхронизация отключена, все данные остаются только на этом устройстве. Push-уведомления для напоминаний о домашних заданиях работают локально без Cloud Sync.</string>
     <string name="onboarding_sync_shared_assignments">Данные заданий</string>
     <string name="onboarding_sync_shared_courses">Данные курсов</string>
     <string name="onboarding_sync_shared_device_id">ID устройства</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Цвета курсов: отличаются на сервере</string>
+    <string name="sync_conflict_reenable_courses">Курсы: %1$s только локальные, %2$s только на сервере</string>
+    <string name="sync_conflict_reenable_courses_local_only">Курсы: %1$s только локальные</string>
+    <string name="sync_conflict_reenable_courses_server_only">Курсы: %1$s только на сервере</string>
+    <string name="sync_conflict_reenable_message">Синхронизация была включена снова, и ваши локальные данные отличаются от сервера:</string>
+    <string name="sync_conflict_reenable_names_differ">Пользовательские названия: отличаются на сервере</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

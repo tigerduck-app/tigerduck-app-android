@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Sign in</string>
     <string name="onboarding_skip_for_now">Skip for now</string>
     <string name="onboarding_start_button">Start using TigerDuck</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync keeps your courses, assignments, and settings in sync across all your devices. You can choose exactly what to sync in Cloud Sync settings.</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications for homework reminders work locally without Cloud Sync.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Course colours: different on server</string>
+    <string name="sync_conflict_reenable_courses">Courses: %1$s local-only, %2$s server-only</string>
+    <string name="sync_conflict_reenable_courses_local_only">Courses: %1$s local-only</string>
+    <string name="sync_conflict_reenable_courses_server_only">Courses: %1$s server-only</string>
+    <string name="sync_conflict_reenable_message">Sync was re-enabled and your local data differs from the server:</string>
+    <string name="sync_conflict_reenable_names_differ">Custom names: different on server</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

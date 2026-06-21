@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Prijava</string>
     <string name="onboarding_skip_for_now">Preskoči za sada</string>
     <string name="onboarding_start_button">Počni koristiti TigerDuck</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync održava vaše kolegije, zadatke i postavke sinkroniziranima na svim vašim uređajima. Možete odabrati što točno želite sinkronizirati u postavkama Cloud Sync.</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">Kad je sinkronizacija isključena, svi podaci ostaju samo na ovom uređaju. Push obavijesti za podsjetnike na zadatke rade lokalno bez Cloud Sync.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Boje kolegija: različite na poslužitelju</string>
+    <string name="sync_conflict_reenable_courses">Kolegiji: %1$s samo lokalni, %2$s samo na poslužitelju</string>
+    <string name="sync_conflict_reenable_courses_local_only">Kolegiji: %1$s samo lokalni</string>
+    <string name="sync_conflict_reenable_courses_server_only">Kolegiji: %1$s samo na poslužitelju</string>
+    <string name="sync_conflict_reenable_message">Sinkronizacija je ponovno omogućena i vaši lokalni podaci razlikuju se od poslužitelja:</string>
+    <string name="sync_conflict_reenable_names_differ">Prilagođeni nazivi: različiti na poslužitelju</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">로그인</string>
     <string name="onboarding_skip_for_now">건너뛰기</string>
     <string name="onboarding_start_button">TigerDuck 시작하기</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync는 모든 기기에서 시간표, 과제 및 설정을 동기화합니다. Cloud Sync 설정에서 동기화할 항목을 선택할 수 있습니다.</string>
     <string name="onboarding_sync_not_shared_password">비밀번호는 업로드되지 않습니다</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">동기화를 끄면 모든 데이터가 이 기기에만 저장됩니다. 푸시 알림은 Cloud Sync 없이도 로컬에서 작동합니다.</string>
     <string name="onboarding_sync_shared_assignments">과제 데이터</string>
     <string name="onboarding_sync_shared_courses">강좌 데이터</string>
     <string name="onboarding_sync_shared_device_id">기기 ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">과목 색상: 서버와 다름</string>
+    <string name="sync_conflict_reenable_courses">과목: %1$s 로컬만, %2$s 서버만</string>
+    <string name="sync_conflict_reenable_courses_local_only">과목: %1$s 로컬만</string>
+    <string name="sync_conflict_reenable_courses_server_only">과목: %1$s 서버만</string>
+    <string name="sync_conflict_reenable_message">동기화가 다시 활성화되었으며 로컬 데이터가 서버와 다릅니다:</string>
+    <string name="sync_conflict_reenable_names_differ">사용자 지정 이름: 서버와 다름</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

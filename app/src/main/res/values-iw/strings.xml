@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">כניסה</string>
     <string name="onboarding_skip_for_now">דלג לעת עתה</string>
     <string name="onboarding_start_button">התחל להשתמש ב-TigerDuck</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync שומר על הקורסים, המטלות וההגדרות שלך מסונכרנים בכל המכשירים שלך. תוכל לבחור בדיוק מה לסנכרן בהגדרות Cloud Sync.</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">כאשר הסנכרון כבוי, כל הנתונים נשארים במכשיר זה בלבד. התראות פוש לתזכורות שיעורי בית פועלות מקומית ללא Cloud Sync.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">צבעי קורסים: שונים בשרת</string>
+    <string name="sync_conflict_reenable_courses">קורסים: %1$s מקומיים בלבד, %2$s בשרת בלבד</string>
+    <string name="sync_conflict_reenable_courses_local_only">קורסים: %1$s מקומיים בלבד</string>
+    <string name="sync_conflict_reenable_courses_server_only">קורסים: %1$s בשרת בלבד</string>
+    <string name="sync_conflict_reenable_message">הסנכרון הופעל מחדש והנתונים המקומיים שלך שונים מהשרת:</string>
+    <string name="sync_conflict_reenable_names_differ">שמות מותאמים אישית: שונים בשרת</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

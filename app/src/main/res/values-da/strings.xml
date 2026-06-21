@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Log ind</string>
     <string name="onboarding_skip_for_now">Spring over for nu</string>
     <string name="onboarding_start_button">Begynd at bruge TigerDuck</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync holder dine kurser, opgaver og indstillinger synkroniseret på tværs af alle dine enheder. Du kan vælge præcis, hvad der skal synkroniseres, i Cloud Sync-indstillingerne.</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">Når synkronisering er slået fra, forbliver alle data kun på denne enhed. Push-notifikationer for lektiepåmindelser fungerer lokalt uden Cloud Sync.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Kursusfarver: forskellige på serveren</string>
+    <string name="sync_conflict_reenable_courses">Kurser: %1$s kun lokale, %2$s kun på serveren</string>
+    <string name="sync_conflict_reenable_courses_local_only">Kurser: %1$s kun lokale</string>
+    <string name="sync_conflict_reenable_courses_server_only">Kurser: %1$s kun på serveren</string>
+    <string name="sync_conflict_reenable_message">Synkronisering blev genaktiveret, og dine lokale data afviger fra serveren:</string>
+    <string name="sync_conflict_reenable_names_differ">Tilpassede navne: forskellige på serveren</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

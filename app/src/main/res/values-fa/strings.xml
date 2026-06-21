@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">ورود</string>
     <string name="onboarding_skip_for_now">فعلاً رد کردن</string>
     <string name="onboarding_start_button">شروع استفاده از TigerDuck</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync دروس، تکالیف و تنظیمات شما را در همه دستگاه‌هایتان همگام نگه می‌دارد. می‌توانید در تنظیمات Cloud Sync دقیقاً انتخاب کنید چه چیزی همگام‌سازی شود.</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">وقتی همگام‌سازی خاموش است، همه داده‌ها فقط در این دستگاه باقی می‌مانند. اعلان‌های فوری برای یادآوری تکالیف بدون Cloud Sync به صورت محلی کار می‌کنند.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">رنگ‌های دروس: در سرور متفاوت</string>
+    <string name="sync_conflict_reenable_courses">دروس: %1$s فقط محلی، %2$s فقط در سرور</string>
+    <string name="sync_conflict_reenable_courses_local_only">دروس: %1$s فقط محلی</string>
+    <string name="sync_conflict_reenable_courses_server_only">دروس: %1$s فقط در سرور</string>
+    <string name="sync_conflict_reenable_message">همگام‌سازی دوباره فعال شد و داده‌های محلی شما با سرور متفاوت است:</string>
+    <string name="sync_conflict_reenable_names_differ">نام‌های سفارشی: در سرور متفاوت</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

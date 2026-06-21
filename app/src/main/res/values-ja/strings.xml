@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">サインイン</string>
     <string name="onboarding_skip_for_now">今はスキップ</string>
     <string name="onboarding_start_button">TigerDuck を使い始める</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync はすべてのデバイス間で時間割、課題、設定を同期します。Cloud Sync の設定で同期する項目を選択できます。</string>
     <string name="onboarding_sync_not_shared_password">パスワードはアップロードされません</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">同期をオフにすると、すべてのデータはこのデバイスのみに保存されます。プッシュ通知は Cloud Sync なしでもローカルで動作します。</string>
     <string name="onboarding_sync_shared_assignments">課題データ</string>
     <string name="onboarding_sync_shared_courses">コースデータ</string>
     <string name="onboarding_sync_shared_device_id">デバイス ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">コースの色：サーバーと異なる</string>
+    <string name="sync_conflict_reenable_courses">コース：%1$s ローカルのみ、%2$s サーバーのみ</string>
+    <string name="sync_conflict_reenable_courses_local_only">コース：%1$s ローカルのみ</string>
+    <string name="sync_conflict_reenable_courses_server_only">コース：%1$s サーバーのみ</string>
+    <string name="sync_conflict_reenable_message">同期が再度有効になりましたが、ローカルデータがサーバーと異なります：</string>
+    <string name="sync_conflict_reenable_names_differ">カスタム名：サーバーと異なる</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

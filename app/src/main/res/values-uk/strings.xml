@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Увійти</string>
     <string name="onboarding_skip_for_now">Пропустити поки що</string>
     <string name="onboarding_start_button">Почати користуватися TigerDuck</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync підтримує синхронізацію ваших курсів, завдань та налаштувань на всіх ваших пристроях. Ви можете точно обрати, що саме синхронізувати, у налаштуваннях Cloud Sync.</string>
     <string name="onboarding_sync_not_shared_password">Пароль ніколи не завантажується</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">Коли синхронізацію вимкнено, усі дані залишаються лише на цьому пристрої. Push-сповіщення для нагадувань про домашні завдання працюють локально без Cloud Sync.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Кольори курсів: відрізняються на сервері</string>
+    <string name="sync_conflict_reenable_courses">Курси: %1$s лише локальні, %2$s лише на сервері</string>
+    <string name="sync_conflict_reenable_courses_local_only">Курси: %1$s лише локальні</string>
+    <string name="sync_conflict_reenable_courses_server_only">Курси: %1$s лише на сервері</string>
+    <string name="sync_conflict_reenable_message">Синхронізацію було повторно ввімкнено, і ваші локальні дані відрізняються від сервера:</string>
+    <string name="sync_conflict_reenable_names_differ">Власні назви: відрізняються на сервері</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

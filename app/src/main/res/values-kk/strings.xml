@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">Кіру</string>
     <string name="onboarding_skip_for_now">Қазіргіше өткізіп жіберу</string>
     <string name="onboarding_start_button">TigerDuck-ты қолдануды бастау</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync сіздің курстарыңызды, тапсырмаларыңызды және параметрлеріңізді барлық құрылғыларыңызда синхрондап ұстайды. Cloud Sync параметрлерінде нені синхрондау керектігін дәл таңдай аласыз.</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">Синхрондау өшірулі кезде барлық деректер тек осы құрылғыда сақталады. Тапсырма еске салулары үшін push хабарландырулар Cloud Sync-сіз жергілікті жұмыс істейді.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">Курс түстері: серверде өзгеше</string>
+    <string name="sync_conflict_reenable_courses">Курстар: %1$s тек жергілікті, %2$s тек серверде</string>
+    <string name="sync_conflict_reenable_courses_local_only">Курстар: %1$s тек жергілікті</string>
+    <string name="sync_conflict_reenable_courses_server_only">Курстар: %1$s тек серверде</string>
+    <string name="sync_conflict_reenable_message">Синхрондау қайта қосылды және жергілікті деректеріңіз серверден ерекшеленеді:</string>
+    <string name="sync_conflict_reenable_names_differ">Реттелген атаулар: серверде өзгеше</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

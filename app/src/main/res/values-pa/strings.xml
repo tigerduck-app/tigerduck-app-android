@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">ਸਾਈਨ ਇਨ ਕਰੋ</string>
     <string name="onboarding_skip_for_now">ਹੁਣੇ ਛੱਡੋ</string>
     <string name="onboarding_start_button">TigerDuck ਵਰਤਣਾ ਸ਼ੁਰੂ ਕਰੋ</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync ਤੁਹਾਡੇ ਕੋਰਸਾਂ, ਅਸਾਈਨਮੈਂਟਾਂ ਅਤੇ ਸੈਟਿੰਗਾਂ ਨੂੰ ਤੁਹਾਡੇ ਸਾਰੇ ਡਿਵਾਈਸਾਂ ਵਿੱਚ ਸਿੰਕ ਰੱਖਦਾ ਹੈ। ਤੁਸੀਂ Cloud Sync ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਚੁਣ ਸਕਦੇ ਹੋ ਕਿ ਕੀ ਸਿੰਕ ਕਰਨਾ ਹੈ।</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">ਜਦੋਂ ਸਿੰਕ ਬੰਦ ਹੁੰਦਾ ਹੈ, ਸਾਰਾ ਡੇਟਾ ਸਿਰਫ਼ ਇਸ ਡਿਵਾਈਸ \'ਤੇ ਰਹਿੰਦਾ ਹੈ। ਹੋਮਵਰਕ ਰੀਮਾਈਂਡਰਾਂ ਲਈ ਪੁਸ਼ ਸੂਚਨਾਵਾਂ Cloud Sync ਤੋਂ ਬਿਨਾਂ ਸਥਾਨਕ ਤੌਰ \'ਤੇ ਕੰਮ ਕਰਦੀਆਂ ਹਨ।</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">ਕੋਰਸ ਦੇ ਰੰਗ: ਸਰਵਰ \'ਤੇ ਵੱਖਰੇ</string>
+    <string name="sync_conflict_reenable_courses">ਕੋਰਸ: %1$s ਸਿਰਫ਼ ਸਥਾਨਕ, %2$s ਸਿਰਫ਼ ਸਰਵਰ \'ਤੇ</string>
+    <string name="sync_conflict_reenable_courses_local_only">ਕੋਰਸ: %1$s ਸਿਰਫ਼ ਸਥਾਨਕ</string>
+    <string name="sync_conflict_reenable_courses_server_only">ਕੋਰਸ: %1$s ਸਿਰਫ਼ ਸਰਵਰ \'ਤੇ</string>
+    <string name="sync_conflict_reenable_message">ਸਿੰਕ ਦੁਬਾਰਾ ਚਾਲੂ ਹੋਇਆ ਅਤੇ ਤੁਹਾਡਾ ਸਥਾਨਕ ਡੇਟਾ ਸਰਵਰ ਤੋਂ ਵੱਖਰਾ ਹੈ:</string>
+    <string name="sync_conflict_reenable_names_differ">ਕਸਟਮ ਨਾਮ: ਸਰਵਰ \'ਤੇ ਵੱਖਰੇ</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>

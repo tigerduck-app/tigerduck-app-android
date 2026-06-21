@@ -531,9 +531,9 @@
     <string name="onboarding_sign_in_title">உள்நுழைவு</string>
     <string name="onboarding_skip_for_now">இப்போதைக்கு தவிர்க்கவும்</string>
     <string name="onboarding_start_button">TigerDuck பயன்படுத்தத் தொடங்குங்கள்</string>
-    <string name="onboarding_sync_description">When enabled, TigerDuck syncs timetable edits and assignment states across your devices via the TigerDuck server.</string>
+    <string name="onboarding_sync_description">Cloud Sync உங்கள் பாடநெறிகள், ஒப்படைப்புகள் மற்றும் அமைப்புகளை உங்கள் அனைத்து சாதனங்களிலும் ஒத்திசைவாக வைத்திருக்கிறது. Cloud Sync அமைப்புகளில் எதை ஒத்திசைக்க வேண்டும் என்பதை நீங்கள் துல்லியமாகத் தேர்வுசெய்யலாம்.</string>
     <string name="onboarding_sync_not_shared_password">Password is never uploaded</string>
-    <string name="onboarding_sync_note">When sync is off, all data stays on this device only. Push notifications still work locally.</string>
+    <string name="onboarding_sync_note">ஒத்திசைவு முடக்கப்பட்டிருக்கும்போது, எல்லா தரவும் இந்தச் சாதனத்தில் மட்டுமே இருக்கும். வீட்டுப்பாட நினைவூட்டல்களுக்கான புஷ் அறிவிப்புகள் Cloud Sync இல்லாமல் உள்ளூரில் செயல்படும்.</string>
     <string name="onboarding_sync_shared_assignments">Assignment data</string>
     <string name="onboarding_sync_shared_courses">Course data</string>
     <string name="onboarding_sync_shared_device_id">Device ID</string>
@@ -732,6 +732,12 @@
     <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Some items differ between this device and the server:</string>
+    <string name="sync_conflict_reenable_colors_differ">பாட நிறங்கள்: சேவையகத்தில் வேறுபட்டவை</string>
+    <string name="sync_conflict_reenable_courses">பாடங்கள்: %1$s உள்ளூர் மட்டும், %2$s சேவையகத்தில் மட்டும்</string>
+    <string name="sync_conflict_reenable_courses_local_only">பாடங்கள்: %1$s உள்ளூர் மட்டும்</string>
+    <string name="sync_conflict_reenable_courses_server_only">பாடங்கள்: %1$s சேவையகத்தில் மட்டும்</string>
+    <string name="sync_conflict_reenable_message">ஒத்திசைவு மீண்டும் இயக்கப்பட்டது, உங்கள் உள்ளூர் தரவு சேவையகத்திலிருந்து வேறுபடுகிறது:</string>
+    <string name="sync_conflict_reenable_names_differ">தனிப்பயன் பெயர்கள்: சேவையகத்தில் வேறுபட்டவை</string>
     <string name="sync_conflict_status_completed">Completed</string>
     <string name="sync_conflict_status_ignored">Ignored</string>
     <string name="sync_conflict_status_none">None</string>
