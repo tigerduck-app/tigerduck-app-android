@@ -300,6 +300,7 @@ class HomeViewModel @Inject constructor(
             _lastKnownRevision = result.currentRevision
             ServerStatusTracker.set(ServerStatus.OK, ServerKind.BACKEND)
             prefs.setLastSyncSource(SyncSource.BACKEND)
+            widgetUpdater.requestUpdate()
         } catch (e: Exception) {
             ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.BACKEND)
             prefs.setLastSyncSource(SyncSource.LOCAL)

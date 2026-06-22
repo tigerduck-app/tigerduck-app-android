@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.widget
 
 import android.content.Context
+import android.util.Log
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -50,6 +51,13 @@ object WidgetDataLoader {
         )
         val tomorrowFirst = computeTomorrowFirst(courses, weekday)
 
+        val courseColors = buildCourseColorAssignments(courses)
+        val customCount = courses.count { it.customColorHex != null }
+        Log.d("WidgetData", "[load] ${courses.size} courses, $customCount with customColorHex, ${courseColors.size} color assignments")
+        courses.filter { it.customColorHex != null }.forEach { c ->
+            Log.d("WidgetData", "[load] ${c.courseNo}: customHex=${c.customColorHex} resolved=${courseColors[c.courseNo]}")
+        }
+
         return WidgetState(
             courses = courses,
             activeWeekdays = computeActiveWeekdays(courses),
@@ -62,7 +70,7 @@ object WidgetDataLoader {
             tomorrowFirstCourseNo = tomorrowFirst?.courseNo,
             tomorrowFirstCourseWeekday = tomorrowFirst?.weekday,
             tomorrowFirstCoursePeriodId = tomorrowFirst?.periodId,
-            courseColors = buildCourseColorAssignments(courses),
+            courseColors = courseColors,
             courseNameScale = entry.appPreferences().courseNameScale,
         )
     }
