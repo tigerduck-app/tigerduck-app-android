@@ -335,16 +335,24 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun applyCourseOverrides(overrides: List<CourseOverrideResult>) {
         val courses = _allCourses.value.ifEmpty { return }
+        Log.d("HomeViewModel", "[sync-color] applyCourseOverrides: ${overrides.size} overrides, ${courses.size} courses, syncColors=${prefs.syncCourseColors}")
         var changed = false
         val updated = courses.map { course ->
             val override = overrides.find { it.courseNo == course.courseNo }
                 ?: overrides.find { it.moodleCourseId == course.moodleNumericCourseId?.toString() }
-                ?: return@map course
+            if (override == null) {
+                Log.d("HomeViewModel", "[sync-color] no override for ${course.courseNo} (moodle=${course.moodleNumericCourseId})")
+                return@map course
+            }
             val newHex = override.colorHex
             if (prefs.syncCourseColors && newHex != course.customColorHex) {
+                Log.d("HomeViewModel", "[sync-color] ${course.courseNo}: ${course.customColorHex} -> $newHex")
                 changed = true
                 course.copy(customColorHex = newHex)
-            } else course
+            } else {
+                Log.d("HomeViewModel", "[sync-color] ${course.courseNo}: already $newHex (syncColors=${prefs.syncCourseColors})")
+                course
+            }
         }
         var nameCount = 0
         val customNames = dataCache.loadCourseCustomNames().toMutableMap()
@@ -363,10 +371,13 @@ class HomeViewModel @Inject constructor(
             dataCache.saveCourseCustomNames(customNames)
         }
         if (changed) {
+            Log.i("HomeViewModel", "[sync-color] saving ${updated.count { it.customColorHex != null }} courses with custom colors, refreshing widgets")
             _allCourses.value = updated
             TigerDuckTheme.buildCourseColorMap(updated)
             dataCache.saveCourses(updated)
             widgetUpdater.requestUpdate()
+        } else {
+            Log.d("HomeViewModel", "[sync-color] no color changes to apply")
         }
     }
 

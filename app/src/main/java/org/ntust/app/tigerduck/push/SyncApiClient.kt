@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.push
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -202,6 +203,8 @@ class SyncApiClient @Inject constructor(
             }
         }
 
+        Log.d("SyncApi", "[fullSync] courseMoodleIdToNo: ${courseMoodleIdToNo.size} entries, courses: ${serverCourses.size}")
+
         val courseOverrides = mutableListOf<CourseOverrideResult>()
         val courseOverArr = json.optJSONArray("course_overrides")
         if (courseOverArr != null) {
@@ -216,10 +219,13 @@ class SyncApiClient @Inject constructor(
                         if (v.isNotEmpty()) names[key] = v
                     }
                 }
+                val resolvedNo = nullStr(co, "course_no") ?: courseMoodleIdToNo[moodleId]
+                val colorHex = nullStr(co, "color_hex")
+                Log.d("SyncApi", "[fullSync] override moodleId=$moodleId courseNo=$resolvedNo colorHex=$colorHex names=${names.size}")
                 courseOverrides.add(CourseOverrideResult(
                     moodleCourseId = moodleId,
-                    courseNo = nullStr(co, "course_no") ?: courseMoodleIdToNo[moodleId],
-                    colorHex = nullStr(co, "color_hex"),
+                    courseNo = resolvedNo,
+                    colorHex = colorHex,
                     customNames = names,
                 ))
             }
