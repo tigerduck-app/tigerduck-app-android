@@ -345,7 +345,7 @@ class HomeViewModel @Inject constructor(
                 Log.d("HomeViewModel", "[sync-color] no override for ${course.courseNo} (moodle=${course.moodleNumericCourseId})")
                 return@map course
             }
-            val newHex = override.colorHex
+            val newHex = override.colorHex ?: return@map course
             if (prefs.syncCourseColors && newHex != course.customColorHex) {
                 Log.d("HomeViewModel", "[sync-color] ${course.courseNo}: ${course.customColorHex} -> $newHex")
                 changed = true

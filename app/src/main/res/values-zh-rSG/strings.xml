@@ -732,7 +732,7 @@
     <string name="sync_conflict_item_detail">本机：%1$s → 服务器：%2$s</string>
     <string name="sync_conflict_item_header">%1$s：%2$s</string>
     <string name="sync_conflict_message">部分项目在本机与服务器之间有差异：</string>
-    <string name="sync_conflict_reenable_assignments_differ">Assignment status: different on server</string>
+    <string name="sync_conflict_reenable_assignments_differ">作业状态：与服务器不同</string>
     <string name="sync_conflict_reenable_colors_differ">课程颜色：与服务器不同</string>
     <string name="sync_conflict_reenable_courses">课程：%1$s 仅本地、%2$s 仅服务器</string>
     <string name="sync_conflict_reenable_courses_local_only">课程：%1$s 仅本地</string>

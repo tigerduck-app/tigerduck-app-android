@@ -86,6 +86,8 @@ import org.ntust.app.tigerduck.network.model.localizedTagLabel
 import org.ntust.app.tigerduck.network.model.orgLabel
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.ServerStatusIcons
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import kotlin.math.abs
@@ -197,6 +199,9 @@ fun AnnouncementsScreen(
                                 showCheckmark = showCheckmark,
                                 dragProgress = pullProgress,
                                 isLocalOnly = isSyncLocalOnly,
+                            )
+                            ServerStatusIcons(
+                                servers = listOf(ServerKind.BACKEND),
                             )
                             if (state.unreadOnly && state.hasUnread) {
                                 IconButton(onClick = viewModel::markAllRead) {

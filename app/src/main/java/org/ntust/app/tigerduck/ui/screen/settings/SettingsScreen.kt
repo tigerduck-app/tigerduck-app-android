@@ -119,6 +119,7 @@ fun SettingsScreen(
     onNavigateToNotificationDebug: () -> Unit = {},
     onNavigateToApiEndpointDebug: () -> Unit = {},
     onNavigateToTriggersDebug: () -> Unit = {},
+    onNavigateToServerFailureDebug: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsStateWithLifecycle()
@@ -559,6 +560,8 @@ fun SettingsScreen(
                             SettingsLinkRow("Notification") { onNavigateToNotificationDebug() }
                             HorizontalDivider()
                             SettingsLinkRow("API endpoint") { onNavigateToApiEndpointDebug() }
+                            HorizontalDivider()
+                            SettingsLinkRow("Server failure simulation") { onNavigateToServerFailureDebug() }
                             HorizontalDivider()
                             // One-shot UI surfaces (What's new, update prompt,
                             // flip-to-library first trigger) live behind here so

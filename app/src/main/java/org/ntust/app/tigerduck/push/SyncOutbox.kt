@@ -185,7 +185,7 @@ class SyncOutbox(context: Context) {
 
     private fun resolve(op: SyncOp, idMap: SyncIdMap): ResolvedSyncOp? = when (op) {
         is SyncOp.CourseOverride -> {
-            val moodleId = "${op.semester}${op.courseKey}"
+            val moodleId = "client:${op.semester}:${op.courseKey}"
             val locale = if (op.customName != null) java.util.Locale.getDefault().language else null
             ResolvedSyncOp.CourseOverride(
                 courseId = moodleId,

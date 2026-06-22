@@ -82,6 +82,8 @@ import org.ntust.app.tigerduck.data.model.SemesterRanking
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.ServerStatusIcons
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -127,6 +129,9 @@ fun ScoreScreen(
                         showCheckmark = false,
                         dragProgress = pullProgress,
                         isLocalOnly = isSyncLocalOnly,
+                    )
+                    ServerStatusIcons(
+                        servers = listOf(ServerKind.COURSE_SELECTION),
                     )
                 }
 

@@ -93,6 +93,8 @@ import org.ntust.app.tigerduck.ui.component.CourseCard
 import org.ntust.app.tigerduck.ui.component.CurrentClassCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.ServerStatusIcons
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.isEnglishUiLanguage
@@ -210,6 +212,9 @@ fun ClassTableScreen(
                             isLocalOnly = isSyncLocalOnly,
                         )
                     }
+                    ServerStatusIcons(
+                        servers = listOf(ServerKind.MOODLE, ServerKind.COURSE_SELECTION, ServerKind.BACKEND),
+                    )
                     IconButton(
                         onClick = { showResetConfirm = true },
                         enabled = isLoggedIn

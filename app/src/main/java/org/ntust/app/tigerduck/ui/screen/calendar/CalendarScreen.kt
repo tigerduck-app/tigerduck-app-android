@@ -61,6 +61,8 @@ import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.ServerStatusIcons
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -122,6 +124,9 @@ fun CalendarScreen(
                             showCheckmark = showCheckmark,
                             dragProgress = pullProgress,
                             isLocalOnly = isSyncLocalOnly,
+                        )
+                        ServerStatusIcons(
+                            servers = listOf(ServerKind.MOODLE),
                         )
                         Spacer(Modifier.width(8.dp))
                         JumpToNowChip(

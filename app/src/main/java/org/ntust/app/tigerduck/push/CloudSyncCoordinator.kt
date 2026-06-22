@@ -215,29 +215,31 @@ class CloudSyncCoordinator(
     // -- Execute resolved op ----------------------------------------------
 
     private suspend fun execute(op: ResolvedSyncOp) {
-        when (op) {
-            is ResolvedSyncOp.CourseOverride -> {
-                pushApiClient.patchCourseOverride(
-                    courseId = op.courseId,
-                    colorHex = op.colorHex,
-                    customName = op.customName,
-                    locale = op.locale,
-                )
-            }
+        try {
+            when (op) {
+                is ResolvedSyncOp.CourseOverride -> {
+                    pushApiClient.patchCourseOverride(
+                        courseId = op.courseId,
+                        colorHex = op.colorHex,
+                        customName = op.customName,
+                        locale = op.locale,
+                    )
+                }
 
-            is ResolvedSyncOp.AssignmentOverride -> {
-                pushApiClient.patchAssignmentOverride(
-                    assignmentId = op.assignmentId,
-                    localStatus = op.localStatus,
-                )
-            }
+                is ResolvedSyncOp.AssignmentOverride -> {
+                    pushApiClient.patchAssignmentOverride(
+                        assignmentId = op.assignmentId,
+                        localStatus = op.localStatus,
+                    )
+                }
 
-            is ResolvedSyncOp.UploadSnapshot -> {
-                // Delegate to existing upload logic — the caller (e.g.
-                // AppState) should observe the outbox or listen for a
-                // callback to trigger their upload flow.
-                Log.d(TAG, "UploadSnapshot op executed — caller should trigger upload")
+                is ResolvedSyncOp.UploadSnapshot -> {
+                    Log.d(TAG, "UploadSnapshot op executed — caller should trigger upload")
+                }
             }
+        } catch (e: PushApiException) {
+            if (e.message?.contains("401") == true) throw SyncOutboxAuthException(401)
+            throw e
         }
     }
 
