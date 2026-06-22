@@ -18,6 +18,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -45,6 +46,7 @@ class PushRegistrationService @Inject constructor(
     private val identity: PushIdentity,
     private val api: PushApiClient,
     private val authTokenManager: AuthTokenManager,
+    private val appPreferences: AppPreferences,
     @param:ApplicationScope private val scope: CoroutineScope,
 ) {
     private val mutex = Mutex()
@@ -151,6 +153,7 @@ class PushRegistrationService @Inject constructor(
                     appVersion = BuildConfig.VERSION_NAME,
                     osVersion = "Android ${android.os.Build.VERSION.RELEASE}",
                     pushToken = PushTokenIn(tokenValue = token),
+                    cloudSyncEnabled = appPreferences.cloudSyncEnabled,
                 )
             )
         }.fold(

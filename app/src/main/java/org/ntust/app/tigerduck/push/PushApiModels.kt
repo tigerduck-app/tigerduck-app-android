@@ -21,6 +21,7 @@ data class DeviceRegisterRequest(
     @SerializedName("app_version") val appVersion: String? = null,
     @SerializedName("os_version") val osVersion: String? = null,
     @SerializedName("push_token") val pushToken: PushTokenIn? = null,
+    @SerializedName("cloud_sync_enabled") val cloudSyncEnabled: Boolean? = null,
 )
 
 data class DeviceRegisterResponse(
