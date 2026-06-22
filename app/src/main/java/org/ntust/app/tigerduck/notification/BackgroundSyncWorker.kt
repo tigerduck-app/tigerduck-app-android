@@ -121,7 +121,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         val updated = courses.map { course ->
             val override = overrides.find { it.courseNo == course.courseNo }
                 ?: return@map course
-            val newHex = override.colorHex
+            val newHex = override.colorHex ?: return@map course
             if (newHex != course.customColorHex) {
                 changed = true
                 course.copy(customColorHex = newHex)

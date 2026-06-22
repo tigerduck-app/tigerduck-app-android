@@ -185,9 +185,10 @@ class SyncOutbox(context: Context) {
 
     private fun resolve(op: SyncOp, idMap: SyncIdMap): ResolvedSyncOp? = when (op) {
         is SyncOp.CourseOverride -> {
+            val moodleId = "${op.semester}${op.courseKey}"
             val locale = if (op.customName != null) java.util.Locale.getDefault().language else null
             ResolvedSyncOp.CourseOverride(
-                courseId = "",
+                courseId = moodleId,
                 colorHex = op.colorHex,
                 customName = op.customName,
                 locale = locale,
@@ -195,13 +196,10 @@ class SyncOutbox(context: Context) {
         }
 
         is SyncOp.AssignmentOverride -> {
-            val assignmentId = idMap.assignmentId(op.moodleCourseId, op.moodleAssignmentId)
-            if (assignmentId != null) {
-                ResolvedSyncOp.AssignmentOverride(
-                    assignmentId = assignmentId,
-                    localStatus = op.localStatus,
-                )
-            } else null
+            ResolvedSyncOp.AssignmentOverride(
+                assignmentId = op.moodleAssignmentId,
+                localStatus = op.localStatus,
+            )
         }
 
         is SyncOp.UploadSnapshot -> ResolvedSyncOp.UploadSnapshot

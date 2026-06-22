@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.IOException
 import java.util.Date
+import java.util.concurrent.atomic.AtomicBoolean
 
 // ---------------------------------------------------------------------------
 // State
@@ -66,7 +67,7 @@ class CloudSyncCoordinator(
 
     // -- Internal state ---------------------------------------------------
 
-    private var tickInFlight = false
+    private val tickInFlight = AtomicBoolean(false)
     private var tickTimerJob: Job? = null
     private var started = false
 
@@ -85,19 +86,22 @@ class CloudSyncCoordinator(
         _lastError.value = null
 
         scope.launch {
+            var failed = false
             try {
                 pushRegistration.updateCloudSyncEnabled(true)
                 _state.value = CloudSyncState.Enabling(step = "sync")
-                // Initial pull would go here when implemented.
             } catch (e: Exception) {
                 _lastError.value = e.message ?: e::class.java.simpleName
                 Log.w(TAG, "enable failed", e)
+                failed = true
             }
 
             prefs.cloudSyncEnabled = true
             _state.value = CloudSyncState.Active
-            _lastError.value = null
-            start()
+            if (!failed) {
+                _lastError.value = null
+                start()
+            }
         }
     }
 
@@ -122,8 +126,7 @@ class CloudSyncCoordinator(
     // -- Sync tick --------------------------------------------------------
 
     fun syncTick() {
-        if (_state.value != CloudSyncState.Active || tickInFlight) return
-        tickInFlight = true
+        if (_state.value != CloudSyncState.Active || !tickInFlight.compareAndSet(false, true)) return
 
         scope.launch {
             try {
@@ -131,23 +134,23 @@ class CloudSyncCoordinator(
             } catch (e: PushApiException) {
                 if (isAuthError(e)) {
                     _state.value = CloudSyncState.NeedsReauth(reason = "session_revoked")
-                    tickInFlight = false
+                    tickInFlight.set(false)
                     return@launch
                 }
                 if (e.cause is IOException) {
-                    tickInFlight = false
+                    tickInFlight.set(false)
                     return@launch
                 }
                 _lastError.value = e.message
             } catch (e: IOException) {
-                tickInFlight = false
+                tickInFlight.set(false)
                 return@launch
             } catch (e: Exception) {
                 _lastError.value = e.message ?: e::class.java.simpleName
             }
 
             if (_state.value != CloudSyncState.Active) {
-                tickInFlight = false
+                tickInFlight.set(false)
                 return@launch
             }
 
@@ -158,7 +161,7 @@ class CloudSyncCoordinator(
                 _lastSyncedAt.value = Date()
             }
 
-            tickInFlight = false
+            tickInFlight.set(false)
         }
     }
 
