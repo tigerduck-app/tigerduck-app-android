@@ -188,12 +188,16 @@ class SyncApiClient @Inject constructor(
                     ))
                 }
                 val mId = nullStr(c, "moodle_id") ?: continue
-                val cName = nullStr(c, "course_name") ?: continue
-                val bracketEnd = cName.indexOf("】")
-                if (bracketEnd >= 0) {
-                    val rest = cName.substring(bracketEnd + 1).trim()
-                    val code = rest.split(" ", limit = 2).firstOrNull()?.takeIf { it.isNotEmpty() }
-                    if (code != null) courseMoodleIdToNo[mId] = code
+                if (courseNo != null) {
+                    courseMoodleIdToNo[mId] = courseNo
+                } else {
+                    val cName = nullStr(c, "course_name") ?: continue
+                    val bracketEnd = cName.indexOf("】")
+                    if (bracketEnd >= 0) {
+                        val rest = cName.substring(bracketEnd + 1).trim()
+                        val code = rest.split(" ", limit = 2).firstOrNull()?.takeIf { it.isNotEmpty() }
+                        if (code != null) courseMoodleIdToNo[mId] = code
+                    }
                 }
             }
         }
@@ -214,7 +218,7 @@ class SyncApiClient @Inject constructor(
                 }
                 courseOverrides.add(CourseOverrideResult(
                     moodleCourseId = moodleId,
-                    courseNo = courseMoodleIdToNo[moodleId],
+                    courseNo = nullStr(co, "course_no") ?: courseMoodleIdToNo[moodleId],
                     colorHex = nullStr(co, "color_hex"),
                     customNames = names,
                 ))
