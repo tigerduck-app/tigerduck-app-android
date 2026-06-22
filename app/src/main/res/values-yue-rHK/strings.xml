@@ -732,6 +732,7 @@
     <string name="sync_conflict_item_detail">本機：%1$s → 伺服器：%2$s</string>
     <string name="sync_conflict_item_header">%1$s：%2$s</string>
     <string name="sync_conflict_message">部分項目在本機與伺服器之間有差異：</string>
+    <string name="sync_conflict_reenable_assignments_differ">Assignment status: different on server</string>
     <string name="sync_conflict_reenable_colors_differ">課程顏色：同伺服器唔同</string>
     <string name="sync_conflict_reenable_courses">課程：%1$s 淨本機、%2$s 淨伺服器</string>
     <string name="sync_conflict_reenable_courses_local_only">課程：%1$s 淨本機</string>
