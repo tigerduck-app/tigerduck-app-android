@@ -129,6 +129,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         }
         if (changed) {
             dataCache.saveCourses(updated)
+            widgetUpdater.requestUpdate()
         }
     }
 

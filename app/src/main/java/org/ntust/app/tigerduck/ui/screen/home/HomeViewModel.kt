@@ -32,6 +32,10 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.ServerStatus
+import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.SyncApiClient
@@ -132,6 +136,7 @@ class HomeViewModel @Inject constructor(
             return
         }
         try {
+            if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.BACKEND)
             val result = syncApiClient.fetchFullSync()
             val localIgnored = dataCache.loadIgnoredAssignments()
             val localMarked = dataCache.loadMarkedCompletedAssignments()
@@ -293,8 +298,10 @@ class HomeViewModel @Inject constructor(
                 .putLong("last_course_sync_at", System.currentTimeMillis())
                 .apply()
             _lastKnownRevision = result.currentRevision
+            ServerStatusTracker.set(ServerStatus.OK, ServerKind.BACKEND)
             prefs.setLastSyncSource(SyncSource.BACKEND)
         } catch (e: Exception) {
+            ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.BACKEND)
             prefs.setLastSyncSource(SyncSource.LOCAL)
             if (!retried && (e.message?.contains("401") == true || e.message?.contains("session_revoked") == true)) {
                 val reloginOk = attemptBackendRelogin()
@@ -359,7 +366,7 @@ class HomeViewModel @Inject constructor(
             _allCourses.value = updated
             TigerDuckTheme.buildCourseColorMap(updated)
             dataCache.saveCourses(updated)
-        } else {
+            widgetUpdater.requestUpdate()
         }
     }
 
@@ -775,8 +782,10 @@ class HomeViewModel @Inject constructor(
         // Let them run concurrently with the SSO + course-selection scrape.
         val moodleEnrolledDef = async {
             try {
+                if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.MOODLE)
                 moodleService.fetchEnrolledCourses()
             } catch (e: Exception) {
+                ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.MOODLE)
                 Log.e("HomeViewModel", "Failed to fetch Moodle enrolled courses", e)
                 null
             }
@@ -785,8 +794,12 @@ class HomeViewModel @Inject constructor(
             val authed = runCatching { authService.ensureAuthenticated() }.getOrDefault(false)
             if (!authed) return@async null
             try {
-                courseService.fetchEnrolledCourseNos(studentId, password)
+                if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.COURSE_SELECTION)
+                val nos = courseService.fetchEnrolledCourseNos(studentId, password)
+                ServerStatusTracker.set(ServerStatus.OK, ServerKind.COURSE_SELECTION)
+                nos
             } catch (e: Exception) {
+                ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.COURSE_SELECTION)
                 Log.e("HomeViewModel", "Failed to fetch enrolled course numbers", e)
                 null
             }
@@ -864,12 +877,14 @@ class HomeViewModel @Inject constructor(
                     .filter { it.isCompleted }
                     .map { it.assignmentId }
                     .toSet()
+                ServerStatusTracker.set(ServerStatus.OK, ServerKind.MOODLE)
                 remote.map { assignment ->
                     if (!assignment.isCompleted && assignment.assignmentId in existingCompleted) {
                         assignment.copy(isCompleted = true)
                     } else assignment
                 }
             } catch (e: Exception) {
+                ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.MOODLE)
                 Log.e("HomeViewModel", "Failed to fetch assignments", e)
                 null
             }
