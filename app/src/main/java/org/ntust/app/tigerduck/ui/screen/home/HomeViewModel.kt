@@ -591,6 +591,10 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun migrateColorHashIfNeeded() {
         if (prefs.colorHashV2Migrated) return
+        if (!prefs.cloudSyncEnabled) {
+            prefs.colorHashV2Migrated = true
+            return
+        }
         val courses = dataCache.loadCourses()
         if (courses.isNotEmpty()) {
             val cleared = courses.map { it.copy(customColorHex = null) }
