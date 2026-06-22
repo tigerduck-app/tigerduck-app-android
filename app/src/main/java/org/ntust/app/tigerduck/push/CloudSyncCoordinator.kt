@@ -86,22 +86,20 @@ class CloudSyncCoordinator(
         _lastError.value = null
 
         scope.launch {
-            var failed = false
             try {
                 pushRegistration.updateCloudSyncEnabled(true)
                 _state.value = CloudSyncState.Enabling(step = "sync")
             } catch (e: Exception) {
                 _lastError.value = e.message ?: e::class.java.simpleName
+                _state.value = CloudSyncState.Disabled
                 Log.w(TAG, "enable failed", e)
-                failed = true
+                return@launch
             }
 
             prefs.cloudSyncEnabled = true
+            _lastError.value = null
             _state.value = CloudSyncState.Active
-            if (!failed) {
-                _lastError.value = null
-                start()
-            }
+            start()
         }
     }
 
