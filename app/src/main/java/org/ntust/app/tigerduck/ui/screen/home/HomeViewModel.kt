@@ -314,25 +314,9 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private suspend fun attemptBackendRelogin(): Boolean {
-        val studentId = authService.storedStudentId ?: return false
-        val moodleToken = authService.storedMoodleToken
-        if (moodleToken.isNullOrEmpty()) {
-            return false
-        }
-        return try {
-            authTokenManager.login(
-                studentId = studentId,
-                password = "",
-                moodleToken = moodleToken,
-                moodlePrivateToken = null,
-            )
-            true
-        } catch (e: Exception) {
-            Log.w("HomeViewModel", "[Sync] auto-relogin failed", e)
-            false
-        }
-    }
+    // Delegates to AuthService so the relogin harvests a fresh Moodle token —
+    // the backend rejects stale stored tokens with 401 invalid_token.
+    private suspend fun attemptBackendRelogin(): Boolean = authService.attemptRelogin()
 
     private suspend fun applyCourseOverrides(overrides: List<CourseOverrideResult>) {
         val courses = _allCourses.value.ifEmpty { return }

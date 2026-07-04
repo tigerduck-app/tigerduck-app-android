@@ -62,14 +62,30 @@ class AuthService @Inject constructor(
         }
     }
 
-    private suspend fun attemptRelogin(): Boolean {
+    suspend fun attemptRelogin(): Boolean {
         val studentId = credentials.ntustStudentId ?: return false
-        val moodleToken = credentials.moodleToken
+        val password = credentials.ntustPassword
+        // Harvest a FRESH Moodle token before the v3 login — the backend
+        // verifies it against moodle2, and the stored one may be stale, which
+        // gets the login rejected with 401 invalid_token (see login()).
+        // Best-effort: fall back to the stored token if the harvest fails.
+        val moodleToken = if (password != null) {
+            try {
+                moodleTokenService.obtainToken(studentId, password)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("AuthService", "auto-relogin: Moodle token harvest failed; using stored", e)
+                credentials.moodleToken
+            }
+        } else {
+            credentials.moodleToken
+        }
         if (moodleToken.isNullOrEmpty()) return false
         return try {
             authTokenManager.login(
                 studentId = studentId,
-                password = "",
+                password = password ?: "",
                 moodleToken = moodleToken,
                 moodlePrivateToken = null,
             )
