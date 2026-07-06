@@ -39,6 +39,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val syncApiClient: org.ntust.app.tigerduck.push.SyncApiClient,
     private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
+    private val authTokenManager: org.ntust.app.tigerduck.auth.AuthTokenManager,
 ) : CoroutineWorker(context, params) {
 
     @Deprecated("Use prefs.lastSyncSource instead", level = DeprecationLevel.HIDDEN)
@@ -67,6 +68,13 @@ class BackgroundSyncWorker @AssistedInject constructor(
 
     private suspend fun syncOverridesFromBackend() {
         if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+            prefs.setLastSyncSource(SyncSource.NONE)
+            return
+        }
+        // No v3 JWT yet (silent migration pending or failed): NONE, not LOCAL —
+        // LOCAL would light the "sync from local only" indicator even though no
+        // sync was ever attempted. Mirrors HomeViewModel.syncOverridesFromBackend.
+        if (!authTokenManager.isLoggedIn) {
             prefs.setLastSyncSource(SyncSource.NONE)
             return
         }
