@@ -116,3 +116,25 @@ data points.
       tried to keep the text IME while `length == 1 && value[0].isLetter()` and was reverted because
       it delayed the numeric-pad switch by one keystroke on every account-ID entry, which is the hot
       path.
+
+## Course-override endpoint ID format — moodle_id, not course_key
+
+- Anywhere the client PATCHes `/sync/courses/{id}/override` (currently
+  `CourseColorStore.resetAllColors` via `pushApiClient.patchCourseOverride`,
+  and `SyncOutbox.resolve` for `SyncOp.CourseOverride`), do **not** flag
+  passing `Course.moodleIdNumber` or `"{semester}{courseNo}"` as the path
+  segment, and do **not** suggest changing it to the
+  `"client:{semester}:{courseNo}"` course_key format.
+    - **Why:** The backend resolves the path segment against
+      `UserCourse.moodle_id` only (`server/routes/overrides.py`,
+      `_get_course_by_moodle_id`) — there is no fallback lookup by
+      `course_key`. The server stores `moodle_id` as the client's uploaded
+      `moodleIdNumber`, or the `{semester}{courseNo}` concatenation when
+      that is null (`server/routes/sync.py`, `upload_courses`). The
+      `"client:{semester}:{courseNo}"` string is the `course_key` column —
+      a different column this endpoint never consults — so PATCHing with it
+      404s on every course, and the callers swallow the failure silently.
+      This inverted suggestion has been made twice: once applied in
+      `373adbdb` (regressing `SyncOutbox.resolve`, reverted in `0bf433d1`),
+      and once against `resetAllColors` (rejected; see `0bf433d1`'s commit
+      message, which documents the backend verification).
