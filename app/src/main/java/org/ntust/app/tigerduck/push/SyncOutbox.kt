@@ -185,7 +185,13 @@ class SyncOutbox(context: Context) {
 
     private fun resolve(op: SyncOp, idMap: SyncIdMap): ResolvedSyncOp? = when (op) {
         is SyncOp.CourseOverride -> {
-            val moodleId = "client:${op.semester}:${op.courseKey}"
+            // The override endpoint is keyed by the server's moodle_id column,
+            // which is the NTUST Moodle idnumber: "{semester}{courseNo}"
+            // (both the client and server fall back to that concatenation when
+            // no real idnumber exists). "client:{semester}:{courseNo}" is the
+            // course_key column format — the server never stores it in
+            // moodle_id, so PATCHing with it 404s on every course.
+            val moodleId = "${op.semester}${op.courseKey}"
             val locale = if (op.customName != null) java.util.Locale.getDefault().language else null
             ResolvedSyncOp.CourseOverride(
                 courseId = moodleId,
