@@ -920,7 +920,8 @@ class ClassTableViewModel @Inject constructor(
                                             maxCount = r.maxEnrollment,
                                             schedule = schedule,
                                             classroomMap = classroomMap,
-                                            moodleIdNumber = "${r.semester}${r.courseNo}"
+                                            moodleIdNumber = "${r.semester}${r.courseNo}",
+                                            moodleNumericCourseId = moodleByNo[courseNo]?.id
                                         )
                                     } else {
                                         // QueryCourse only indexes the latest

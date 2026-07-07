@@ -267,6 +267,7 @@ class CourseService @Inject constructor(
                 courseNo = courseNo,
                 courseName = (moodle.fullname ?: courseNo).decodeHtmlEntities(),
                 moodleIdNumber = moodle.idnumber,
+                moodleNumericCourseId = moodle.id,
             )
         }
     }

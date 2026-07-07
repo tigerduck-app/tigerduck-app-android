@@ -849,7 +849,8 @@ class HomeViewModel @Inject constructor(
                                 schedule = schedule,
                                 classroomMap = classroomMap,
                                 moodleIdNumber = moodleByNo[courseNo]?.idnumber
-                                    ?: "${r.semester}${r.courseNo}"
+                                    ?: "${r.semester}${r.courseNo}",
+                                moodleNumericCourseId = moodleByNo[courseNo]?.id
                             )
                         } else {
                             CourseService.fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
