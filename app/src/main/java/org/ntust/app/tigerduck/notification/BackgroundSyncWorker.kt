@@ -12,6 +12,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -117,6 +118,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 }
             }
             prefs.setLastSyncSource(SyncSource.BACKEND)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             prefs.setLastSyncSource(SyncSource.LOCAL)
             Log.w(TAG, "override sync failed", e)
