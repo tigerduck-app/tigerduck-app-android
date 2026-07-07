@@ -133,39 +133,40 @@ class CloudSyncCoordinator(
         if (_state.value != CloudSyncState.Active || !tickInFlight.compareAndSet(false, true)) return
 
         scope.launch {
+            // Single finally owns the flag: drain() can throw (including
+            // CancellationException), and a missed reset kills every future
+            // tick for this coordinator's lifetime.
             try {
-                // Pull phase would go here when full-sync pull is wired up.
-            } catch (e: PushApiException) {
-                if (isAuthError(e)) {
-                    _state.value = CloudSyncState.NeedsReauth(reason = "session_revoked")
-                    tickInFlight.set(false)
+                try {
+                    // Pull phase would go here when full-sync pull is wired up.
+                } catch (e: PushApiException) {
+                    if (isAuthError(e)) {
+                        _state.value = CloudSyncState.NeedsReauth(reason = "session_revoked")
+                        return@launch
+                    }
+                    if (e.cause is IOException) {
+                        return@launch
+                    }
+                    _lastError.value = e.message
+                } catch (e: IOException) {
+                    return@launch
+                } catch (e: Exception) {
+                    _lastError.value = e.message ?: e::class.java.simpleName
+                }
+
+                if (_state.value != CloudSyncState.Active) {
                     return@launch
                 }
-                if (e.cause is IOException) {
-                    tickInFlight.set(false)
-                    return@launch
+
+                // Drain outbox.
+                outbox.drain(idMap) { resolved -> execute(resolved) }
+
+                if (_state.value == CloudSyncState.Active) {
+                    _lastSyncedAt.value = Date()
                 }
-                _lastError.value = e.message
-            } catch (e: IOException) {
+            } finally {
                 tickInFlight.set(false)
-                return@launch
-            } catch (e: Exception) {
-                _lastError.value = e.message ?: e::class.java.simpleName
             }
-
-            if (_state.value != CloudSyncState.Active) {
-                tickInFlight.set(false)
-                return@launch
-            }
-
-            // Drain outbox.
-            outbox.drain(idMap) { resolved -> execute(resolved) }
-
-            if (_state.value == CloudSyncState.Active) {
-                _lastSyncedAt.value = Date()
-            }
-
-            tickInFlight.set(false)
         }
     }
 
