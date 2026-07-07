@@ -128,7 +128,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         var changed = false
         val updated = courses.map { course ->
             val override = overrides.find { it.courseNo == course.courseNo }
-                ?: overrides.find { it.moodleCourseId == course.moodleNumericCourseId?.toString() }
+                ?: overrides.find { it.moodleCourseId == course.moodleIdNumber }
                 ?: return@map course
             val newHex = override.colorHex ?: return@map course
             if (newHex != course.customColorHex) {

@@ -7,6 +7,7 @@ import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.shared.LibraryService
@@ -43,10 +44,11 @@ object NetworkModule {
         credentials: CredentialManager,
         httpClient: OkHttpClient,
         identity: PushIdentity,
+        prefs: AppPreferences,
     ): AuthTokenManager = AuthTokenManager(
         credentials = credentials,
         httpClient = httpClient,
-        baseUrl = BuildConfig.PUSH_BASE_URL.trimEnd('/'),
+        prefs = prefs,
         deviceUuid = identity.uuid(),
     )
 }

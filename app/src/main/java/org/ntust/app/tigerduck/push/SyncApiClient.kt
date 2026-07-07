@@ -7,6 +7,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
 import java.util.Date
@@ -58,9 +60,14 @@ data class BackendSyncResult(
 @Singleton
 class SyncApiClient @Inject constructor(
     private val authTokenManager: AuthTokenManager,
+    private val prefs: AppPreferences,
     baseClient: OkHttpClient,
 ) {
-    private val baseUrl = org.ntust.app.tigerduck.BuildConfig.PUSH_BASE_URL.trimEnd('/')
+    // Resolve per-call so the debug API-endpoint override applies immediately,
+    // matching PushApiClient — pinning at construction made auth/full-sync
+    // traffic ignore an override that push traffic honored.
+    private val baseUrl: String
+        get() = resolveAnnouncementEndpoint(prefs).url.trimEnd('/')
 
     private val client = baseClient.newBuilder().build()
 
@@ -106,11 +113,17 @@ class SyncApiClient @Inject constructor(
         for (i in 0 until arr.length()) {
             val a = arr.getJSONObject(i)
             if (!a.isNull("deleted_at")) continue
+            // moodle_assignment_id can legitimately be absent/null (see the
+            // pkToMoodleId fallback below and the assignment_overrides loop),
+            // so read it defensively and skip records we can't key — one bad
+            // record must not fail the entire /sync/full response.
+            val moodleAssignmentId = a.optInt("moodle_assignment_id", -1)
+            if (moodleAssignmentId <= 0) continue
             val dueDate = nullStr(a, "due_at")?.let { parseIso(it) }
                 ?: Date(Long.MAX_VALUE)
             assignments.add(
                 Assignment(
-                    assignmentId = a.getInt("moodle_assignment_id").toString(),
+                    assignmentId = moodleAssignmentId.toString(),
                     courseNo = nullStr(a, "course_no") ?: "",
                     courseName = nullStr(a, "course_name") ?: "",
                     title = nullStr(a, "title") ?: "",

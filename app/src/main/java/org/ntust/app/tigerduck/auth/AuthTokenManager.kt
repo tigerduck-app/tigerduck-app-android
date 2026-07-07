@@ -10,7 +10,9 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 
 /**
  * Manages v3 JWT access and refresh tokens.
@@ -19,12 +21,19 @@ import org.ntust.app.tigerduck.data.preferences.CredentialManager
 class AuthTokenManager(
     private val credentials: CredentialManager,
     private val httpClient: OkHttpClient,
-    private val baseUrl: String,
+    private val prefs: AppPreferences,
     private val deviceUuid: String,
 ) {
     private val refreshMutex = Mutex()
     private val jsonType = "application/json".toMediaType()
     var onRefreshFailed: (suspend () -> Boolean)? = null
+
+    // Resolve per-call so the debug API-endpoint override applies immediately,
+    // matching PushApiClient — pinning at construction made login/refresh
+    // traffic ignore an override that push traffic honored, minting tokens on
+    // one host and presenting them to another.
+    private val baseUrl: String
+        get() = resolveAnnouncementEndpoint(prefs).url.trimEnd('/')
 
     val isLoggedIn: Boolean get() = credentials.v3RefreshToken != null
 
@@ -32,6 +41,15 @@ class AuthTokenManager(
         val access = validAccessToken() ?: return null
         return "Bearer $access"
     }
+
+    /**
+     * Non-suspending snapshot of the current bearer header, or null if no
+     * access token is stored. Does NOT trigger a refresh — intended for
+     * capturing the header before [logout] wipes the tokens, so a fire-and-
+     * forget device-unregister DELETE can still authenticate.
+     */
+    fun currentAuthHeader(): String? =
+        credentials.v3AccessToken?.let { "Bearer $it" }
 
     suspend fun login(
         studentId: String,

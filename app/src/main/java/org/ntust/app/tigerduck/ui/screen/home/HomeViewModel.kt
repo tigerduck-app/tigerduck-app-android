@@ -324,7 +324,7 @@ class HomeViewModel @Inject constructor(
         var changed = false
         val updated = courses.map { course ->
             val override = overrides.find { it.courseNo == course.courseNo }
-                ?: overrides.find { it.moodleCourseId == course.moodleNumericCourseId?.toString() }
+                ?: overrides.find { it.moodleCourseId == course.moodleIdNumber }
             if (override == null) {
                 Log.d("HomeViewModel", "[sync-color] no override for ${course.courseNo} (moodle=${course.moodleNumericCourseId})")
                 return@map course
@@ -1003,9 +1003,13 @@ class HomeViewModel @Inject constructor(
                 pushApiClient.patchAssignmentOverride(
                     id.toIntOrNull() ?: return@launch, status,
                 )
-                pendingOverrides.remove(id)
             } catch (e: Exception) {
                 Log.w("HomeViewModel", "override PATCH FAILED: $id → $status", e)
+            } finally {
+                // Always release the in-flight lock — a failed PATCH must not
+                // pin this id in pendingOverrides forever, which would block it
+                // from ever being reconciled from the server again.
+                pendingOverrides.remove(id)
             }
         }
     }
@@ -1029,9 +1033,13 @@ class HomeViewModel @Inject constructor(
                 pushApiClient.patchAssignmentOverride(
                     id.toIntOrNull() ?: return@launch, status,
                 )
-                pendingOverrides.remove(id)
             } catch (e: Exception) {
                 Log.w("HomeViewModel", "override PATCH FAILED: $id → $status", e)
+            } finally {
+                // Always release the in-flight lock — a failed PATCH must not
+                // pin this id in pendingOverrides forever, which would block it
+                // from ever being reconciled from the server again.
+                pendingOverrides.remove(id)
             }
         }
     }

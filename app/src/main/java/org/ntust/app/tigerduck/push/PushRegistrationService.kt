@@ -93,7 +93,7 @@ class PushRegistrationService @Inject constructor(
         }
     }
 
-    fun unregister() {
+    fun unregister(authHeaderOverride: String? = null) {
         scope.launch {
             // Clear fcmToken and latch isUnregistering in the same critical
             // section that cancels the debounce so a token rotation or
@@ -106,7 +106,7 @@ class PushRegistrationService @Inject constructor(
             }
             val deviceId = identity.uuid()
             try {
-                runCatching { api.unregister(deviceId) }
+                runCatching { api.unregister(deviceId, authHeaderOverride) }
                     .onFailure { e ->
                         if (e is CancellationException) throw e
                         Log.w(TAG, "unregister failed", e)

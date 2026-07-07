@@ -246,6 +246,12 @@ class AuthService @Inject constructor(
     }
 
     fun logout() {
+        // Snapshot the bearer BEFORE wiping tokens: clearNtustCredentials() and
+        // authTokenManager.logout() both null the v3 access token, and
+        // pushRegistration.unregister() runs its DELETE fire-and-forget on its
+        // own scope — so without a captured header the device-unregister call
+        // would go out unauthenticated, 401, and leak the device row.
+        val authHeader = authTokenManager.currentAuthHeader()
         credentials.clearNtustCredentials()
         credentials.clearLibraryCredentials()
         authTokenManager.logout()
@@ -253,7 +259,7 @@ class AuthService @Inject constructor(
         bulletinReadStateStore.clear()
         _loginError.value = null
         _authState.value = false
-        pushRegistration.unregister()
+        pushRegistration.unregister(authHeader)
         // Wipe persisted user data on the application scope so a coroutine
         // launched from a transient ViewModel scope can't be cancelled mid-
         // delete when the user backs out of Settings or the activity dies.

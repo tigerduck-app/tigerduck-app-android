@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.data
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -70,6 +71,8 @@ class CourseColorStore @Inject constructor(
                 val moodleId = course.moodleIdNumber ?: continue
                 try {
                     pushApiClient.patchCourseOverride(moodleId, colorHex = hex)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.w("CourseColorStore", "color sync failed: ${course.courseNo}", e)
                 }

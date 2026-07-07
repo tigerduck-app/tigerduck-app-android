@@ -73,14 +73,22 @@ class PushApiClient @Inject constructor(
             }
         }
 
-    suspend fun unregister(deviceId: String) = withContext(Dispatchers.IO) {
+    suspend fun unregister(
+        deviceId: String,
+        authHeaderOverride: String? = null,
+    ) = withContext(Dispatchers.IO) {
         // v3: DELETE /devices/{client_device_id}, scoped to the authed user
         // (matches iOS + the server). `deviceId` is PushIdentity.uuid().
-        val request = Request.Builder()
+        // On logout the caller passes a pre-captured header because the tokens
+        // are wiped before this fire-and-forget call runs — without it the
+        // DELETE goes out unauthenticated, 401s, and the device row leaks.
+        val builder = Request.Builder()
             .url("$baseUrl/devices/$deviceId")
             .delete()
-            .addAuthHeader()
-            .build()
+        val request = (
+            if (authHeaderOverride != null) builder.header("Authorization", authHeaderOverride)
+            else builder.addAuthHeader()
+            ).build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("unregister failed: HTTP ${response.code}")
