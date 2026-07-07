@@ -108,16 +108,22 @@ class CloudSyncCoordinator(
     fun disable() {
         stop()
 
+        // Local state must flip synchronously, not inside the launch: scope is
+        // a viewModelScope, so the coroutine may be cancelled before it runs
+        // (toggle off, then leave the screen) or die on a failed server call —
+        // either would leave prefs.cloudSyncEnabled true and silently
+        // re-activate sync on next launch.
+        prefs.cloudSyncEnabled = false
+        idMap.clear()
+        _lastSyncedAt.value = null
+        _lastError.value = null
+        _state.value = CloudSyncState.Disabled
+
         scope.launch {
-            pushRegistration.updateCloudSyncEnabled(false)
+            runCatching { pushRegistration.updateCloudSyncEnabled(false) }
+                .onFailure { Log.w(TAG, "disable: server update failed (non-fatal)", it) }
 
             outbox.clearAll()
-            idMap.clear()
-
-            prefs.cloudSyncEnabled = false
-            _lastSyncedAt.value = null
-            _lastError.value = null
-            _state.value = CloudSyncState.Disabled
         }
     }
 
