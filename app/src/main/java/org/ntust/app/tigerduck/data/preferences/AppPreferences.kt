@@ -79,8 +79,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     val isSyncLocalOnly: Boolean
         get() = cloudSyncEnabled && _lastSyncSource.value == SyncSource.LOCAL
 
+    // Opt-in: must default to false. A true default would silently enable
+    // upload for existing users on upgrade (they never see the onboarding
+    // sync page, and silent v3 migration logs them in without interaction).
     var cloudSyncEnabled: Boolean
-        get() = prefs.getBoolean("cloudSyncEnabled", true)
+        get() = prefs.getBoolean("cloudSyncEnabled", false)
         set(value) = prefs.edit().putBoolean("cloudSyncEnabled", value).apply()
 
     var syncCourses: Boolean
