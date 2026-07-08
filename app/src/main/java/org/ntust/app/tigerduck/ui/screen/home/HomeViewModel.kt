@@ -223,15 +223,18 @@ class HomeViewModel @Inject constructor(
             val tombstonedNos = result.tombstones.mapNotNull { it.courseNo }.toSet()
 
             if (prefs.syncCourses && result.serverCourseNos.isNotEmpty()) {
-                val localCourseNos = dataCache.loadCourses().map { it.courseNo }.toSet()
+                val localCourses = dataCache.loadCourses()
+                val localCourseNos = localCourses.map { it.courseNo }.toSet()
                 val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
                 val sizeBefore = deleted.size
                 Log.i("HomeViewModel", "[sync-debug] serverCourseNos=${result.serverCourseNos.sorted()} localCourseNos=${localCourseNos.sorted()} deletedNos=${deleted.sorted()}")
-                // Any local course not on the server → treat as deleted
-                for (no in localCourseNos) {
-                    if (no !in result.serverCourseNos) {
-                        Log.i("HomeViewModel", "[sync-debug] marking $no as deleted (local-only, not in server)")
-                        deleted.add(no)
+                // Any non-manual local course not on the server → treat as deleted.
+                // Manual (user-local) courses may just be pending a prior failed
+                // upload, so never tombstone them on server-absence.
+                for (course in localCourses) {
+                    if (!course.isManual && course.courseNo !in result.serverCourseNos) {
+                        Log.i("HomeViewModel", "[sync-debug] marking ${course.courseNo} as deleted (local-only, not in server)")
+                        deleted.add(course.courseNo)
                     }
                 }
                 // Apply tombstones
@@ -240,13 +243,6 @@ class HomeViewModel @Inject constructor(
                         Log.i("HomeViewModel", "[sync-debug] marking $no as deleted (tombstone)")
                         deleted.add(no)
                     }
-                }
-                // Bug fix: also remove manual (server-merged) courses not on server
-                val allCoursesForClean = dataCache.loadCourses().toMutableList()
-                val manualRemoved = allCoursesForClean.removeAll { it.isManual && it.courseNo !in result.serverCourseNos }
-                if (manualRemoved) {
-                    dataCache.saveCourses(allCoursesForClean)
-                    Log.i("HomeViewModel", "[sync-debug] removed manual courses not on server")
                 }
                 // Any previously-deleted course that reappeared on the server → un-delete
                 val undeleted = deleted.filter { it in result.serverCourseNos }

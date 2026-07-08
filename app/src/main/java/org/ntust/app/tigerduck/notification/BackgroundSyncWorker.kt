@@ -96,12 +96,15 @@ class BackgroundSyncWorker @AssistedInject constructor(
             // Hard-delete model: courses removed on the server are absent from
             // the courses array. Compare against local to update deletedCourseNos.
             if (prefs.syncCourses && result.serverCourseNos.isNotEmpty()) {
-                val localCourseNos = dataCache.loadCourses().map { it.courseNo }.toSet()
+                val localCourses = dataCache.loadCourses()
                 val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
                 val sizeBefore = deleted.size
-                for (no in localCourseNos) {
-                    if (no !in result.serverCourseNos) {
-                        deleted.add(no)
+                for (course in localCourses) {
+                    // Manual (user-local) courses absent from the server may just
+                    // be pending a prior failed upload — never tombstone them here,
+                    // or syncCourses would filter them out of saveCourses permanently.
+                    if (!course.isManual && course.courseNo !in result.serverCourseNos) {
+                        deleted.add(course.courseNo)
                     }
                 }
                 deleted.removeAll { it in result.serverCourseNos }
