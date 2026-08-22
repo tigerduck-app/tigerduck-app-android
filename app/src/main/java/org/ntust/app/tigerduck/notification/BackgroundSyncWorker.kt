@@ -22,6 +22,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
+import org.ntust.app.tigerduck.network.SemesterCatalog
 import java.util.concurrent.TimeUnit
 
 enum class SyncSource { NONE, BACKEND, LOCAL }
@@ -33,6 +34,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private val authService: AuthService,
     private val moodleService: MoodleService,
     private val courseService: CourseService,
+    private val semesterCatalog: SemesterCatalog,
     private val dataCache: DataCache,
     private val notificationScheduler: AssignmentNotificationScheduler,
     private val liveActivityManager: org.ntust.app.tigerduck.liveactivity.LiveActivityManager,
@@ -147,9 +149,19 @@ class BackgroundSyncWorker @AssistedInject constructor(
 
     private suspend fun syncCourses(studentId: String, password: String): Boolean {
         return try {
+            // TTL-throttled; resolved before the gate below, which depends
+            // on it.
+            semesterCatalog.refreshIfStale()
             val semester = courseService.currentSemesterCode()
+            // 選課 serves exactly one term and its 選課清單 page carries no
+            // term marker, so its course numbers belong to whichever term the
+            // catalogue reports as open. That runs ahead of the term in
+            // session, and importing them here would file the *next* term's
+            // enrolments into this term's cache.
+            val servesSelectionSemester = semester == semesterCatalog.selectionSemesterCode()
             val (selectionNos, moodleAll) = coroutineScope {
                 val selectionDef = async {
+                    if (!servesSelectionSemester) return@async emptyList()
                     try {
                         courseService.fetchEnrolledCourseNos(studentId, password)
                     } catch (e: Exception) {
@@ -169,6 +181,10 @@ class BackgroundSyncWorker @AssistedInject constructor(
             }
 
             if (selectionNos == null && moodleAll == null) return false
+            // With 選課 gated off, Moodle is the only source — its failure is
+            // a total failure, so retry rather than report success on an
+            // empty roster.
+            if (!servesSelectionSemester && moodleAll == null) return false
             val moodleForSemester = moodleAll
                 .orEmpty()
                 .filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }

@@ -96,6 +96,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
@@ -113,6 +114,7 @@ import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.ServerStatusIcons
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.component.rememberAppClockVersion
 import org.ntust.app.tigerduck.ui.navigation.icon
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.util.Calendar
@@ -129,6 +131,20 @@ fun HomeScreen(
     val context = LocalContext.current
     val resources = LocalResources.current
     val sections by viewModel.sections.collectAsStateWithLifecycle()
+    // Slow pulse (60s, plus every debug-clock flip) so the term gate below
+    // flips on its own when wall-clock time crosses CurrentTerm.START / .END
+    // while Home stays mounted. Both boundaries land at midnight, so a minute
+    // of latency is ample.
+    val termClockVersion by rememberAppClockVersion()
+    // Home's time slider is a "today" surface, so it is dropped outside the
+    // term rather than left to scrub a day with no classes. Reorder is
+    // unaffected — the drag handler resolves both ends by section id, never by
+    // this list's indices — and the add-section dialog still sees the full
+    // list, so a hidden section can't be added twice.
+    val visibleSections = remember(sections, termClockVersion) {
+        if (AppConstants.CurrentTerm.isInSession()) sections
+        else sections.filterNot { it.type == HomeSection.HomeSectionType.TODAY_COURSES }
+    }
     val allCourses by viewModel.allCourses.collectAsStateWithLifecycle()
     val upcomingAssignments by viewModel.upcomingAssignments.collectAsStateWithLifecycle()
     val assignmentFilter by viewModel.assignmentFilter.collectAsStateWithLifecycle()
@@ -260,7 +276,7 @@ fun HomeScreen(
                 }
 
                 itemsIndexed(
-                    items = sections,
+                    items = visibleSections,
                     key = { _, s -> s.id },
                 ) { index, section ->
                     ReorderableSection(
@@ -275,25 +291,27 @@ fun HomeScreen(
                         },
                         onDrag = { delta ->
                             dragOffsetY += delta
-                            val fromIdx = sections.indexOfFirst { it.id == section.id }
+                            val fromIdx = visibleSections.indexOfFirst { it.id == section.id }
                             if (fromIdx < 0) return@ReorderableSection
 
                             // Threshold-based swap: when the drag has crossed half of
                             // the neighbor's height, swap in the data model and
                             // compensate `dragOffsetY` so the card stays visually
                             // under the user's finger (no snap-back).
-                            if (dragOffsetY > 0 && fromIdx < sections.lastIndex) {
-                                val nextH = sectionHeights[sections[fromIdx + 1].id]
+                            if (dragOffsetY > 0 && fromIdx < visibleSections.lastIndex) {
+                                val next = visibleSections[fromIdx + 1]
+                                val nextH = sectionHeights[next.id]
                                     ?: return@ReorderableSection
                                 if (dragOffsetY > nextH / 2f) {
-                                    viewModel.moveSections(fromIdx, fromIdx + 1)
+                                    viewModel.moveSections(section.id, next.id)
                                     dragOffsetY -= nextH
                                 }
                             } else if (dragOffsetY < 0 && fromIdx > 0) {
-                                val prevH = sectionHeights[sections[fromIdx - 1].id]
+                                val prev = visibleSections[fromIdx - 1]
+                                val prevH = sectionHeights[prev.id]
                                     ?: return@ReorderableSection
                                 if (dragOffsetY < -prevH / 2f) {
-                                    viewModel.moveSections(fromIdx, fromIdx - 1)
+                                    viewModel.moveSections(section.id, prev.id)
                                     dragOffsetY += prevH
                                 }
                             }

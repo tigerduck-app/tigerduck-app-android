@@ -44,8 +44,8 @@ class AppState @Inject constructor(
     val dataCache: DataCache,
     val calendarService: CalendarService,
     val systemPermissions: SystemPermissions,
-    private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val dataMigration: DataMigration,
+    private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var syncJob: Job? = null
@@ -65,6 +65,9 @@ class AppState @Inject constructor(
     val needsUserReset: StateFlow<Boolean> = _needsUserReset
 
     init {
+        // Already run — and cached — by TigerDuckApp.onCreate, which is what
+        // guarantees migrations beat every non-Activity cache reader. This
+        // call only reads the verdict so the reset prompt can fire.
         when (dataMigration.run()) {
             DataMigration.Outcome.NeedsUserReset -> _needsUserReset.value = true
             DataMigration.Outcome.Ok -> Unit

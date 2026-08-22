@@ -226,7 +226,7 @@ private fun statusBadge(status: AssignmentStatus): Pair<String, Color>? = when (
  * triggered a recomposition.
  */
 @Composable
-private fun rememberAppClockVersion(): State<Long> =
+internal fun rememberAppClockVersion(): State<Long> =
     produceState(initialValue = AppClock.version()) {
         val listener: (Long) -> Unit = { value = value + 1 }
         AppClock.addOverrideListener(listener)

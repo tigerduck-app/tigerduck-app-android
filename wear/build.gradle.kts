@@ -17,7 +17,7 @@ android {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 30
         targetSdk = 36
-        versionCode = 22
+        versionCode = 23
         versionName = "2.0.0"
     }
 
