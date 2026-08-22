@@ -1,24 +1,22 @@
-// The rules Home applies when a network fetch lands on top of cached data.
+// How Home folds a freshly fetched course list onto the cached one.
 //
-// The parts the class table needs too — roster ordering, the Moodle
-// semester filter, the submission safety net — live in
-// data.CourseRosterMerge. What is left here is Home-specific.
+// One question, asked three ways: what does the user keep? A refresh must
+// not silently drop a course they added by hand, must not resurrect one they
+// deleted, and must not throw away a colour they just picked. Each of those
+// has been a bug, and each is one line below.
 //
-// Every function here answers the same question in a different shape: what
-// does the user keep? A refresh must not silently drop a manually-added
-// course, must not resurrect one the user deleted, must not throw away a
-// colour they just picked, and must not un-submit an assignment because one
-// Moodle call flaked. Each of those has been a bug, and each is one line of
-// this file.
+// The rules the class table needs too — roster ordering, the Moodle semester
+// filter, the submission safety net, the weekday mapping — live in
+// data.CourseRosterMerge. The class table's own version of this merge is
+// ClassTableCourseMerge, which additionally restores the manual flag and the
+// per-locale rename; the two are deliberately not shared.
 //
-// Pure on purpose — extracted from HomeViewModel.fetchData and
-// fetchCoursesAndAssignments, which are 200 lines of coroutine orchestration
-// that no test can reach.
+// Pure on purpose — extracted from HomeViewModel.fetchData, which is 200
+// lines of coroutine orchestration that no test can reach.
 
 package org.ntust.app.tigerduck.ui.screen.home
 
 import org.ntust.app.tigerduck.shared.Course
-import java.util.Calendar
 
 object HomeCourseMerge {
 
@@ -47,20 +45,5 @@ object HomeCourseMerge {
         val fetchedNos = fetched.mapTo(mutableSetOf()) { it.courseNo }
         val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
         return (fetched + manualLeftovers).filter { it.courseNo !in deletedNos }
-    }
-
-    /**
-     * `java.util.Calendar`'s Sunday-first weekday to the Monday-first index
-     * course schedules are keyed by (Mon=1 … Sun=7).
-     */
-    fun weekdayIndex(calendarDayOfWeek: Int): Int = when (calendarDayOfWeek) {
-        Calendar.MONDAY -> 1
-        Calendar.TUESDAY -> 2
-        Calendar.WEDNESDAY -> 3
-        Calendar.THURSDAY -> 4
-        Calendar.FRIDAY -> 5
-        Calendar.SATURDAY -> 6
-        Calendar.SUNDAY -> 7
-        else -> 1
     }
 }

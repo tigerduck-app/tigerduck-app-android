@@ -8,6 +8,7 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.shared.Course
 import java.util.Calendar
 
@@ -21,17 +22,8 @@ object ClassTableSelection {
      * course schedules are keyed; `Calendar` is Sunday-first.
      */
     fun dayTimeFrom(calendar: Calendar): DayTime {
-        val weekday = when (calendar.get(Calendar.DAY_OF_WEEK)) {
-            Calendar.MONDAY -> 1
-            Calendar.TUESDAY -> 2
-            Calendar.WEDNESDAY -> 3
-            Calendar.THURSDAY -> 4
-            Calendar.FRIDAY -> 5
-            Calendar.SATURDAY -> 6
-            else -> 7
-        }
         return DayTime(
-            weekday = weekday,
+            weekday = CourseRosterMerge.weekdayIndex(calendar.get(Calendar.DAY_OF_WEEK)),
             minuteOfDay = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE),
         )
     }

@@ -595,7 +595,7 @@ class HomeViewModel @Inject constructor(
 
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
         _allCourses.value = courses
-        val todayIndex = HomeCourseMerge.weekdayIndex(
+        val todayIndex = CourseRosterMerge.weekdayIndex(
             AppClock.calendar().get(Calendar.DAY_OF_WEEK)
         )
         _todayCourses.value = courses.filter { it.schedule.containsKey(todayIndex) }
