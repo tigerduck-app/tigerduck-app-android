@@ -19,8 +19,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.shared.OngoingCourseInfo
@@ -36,11 +36,9 @@ import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.network.SemesterCatalog
-import org.ntust.app.tigerduck.network.decodeHtmlEntities
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import java.util.Calendar
 import javax.inject.Inject
 
 @HiltViewModel
@@ -88,25 +86,14 @@ class ClassTableViewModel @Inject constructor(
     // Loaded from DataCache.courseCustomNames on init; written on every rename.
     // The resolved value for the current locale is stamped onto
     // Course.customCourseName when building the in-memory course list.
-    private var courseCustomNames: MutableMap<String, MutableMap<String, String>> = mutableMapOf()
+    private var courseCustomNames: CustomNameMap = emptyMap()
 
     /** Current course-API locale ("zh" or "en"), derived from the user's app language. */
     private val currentCourseLocale: String
         get() = AppLanguageManager.resolvedCourseApiLanguage(appPreferences.appLanguage)
 
-    /**
-     * Stamp [Course.customCourseName] from [courseCustomNames] for the current
-     * locale. Courses without a per-locale entry keep their existing override
-     * (may be null).
-     */
-    private fun resolveCustomNames(courses: List<Course>): List<Course> {
-        if (courseCustomNames.isEmpty()) return courses
-        val locale = currentCourseLocale
-        return courses.map { course ->
-            val name = courseCustomNames[course.courseNo]?.get(locale)
-            if (name != null) course.copy(customCourseName = name) else course
-        }
-    }
+    private fun resolveCustomNames(courses: List<Course>): List<Course> =
+        CourseNameOverrides.resolve(courses, courseCustomNames, currentCourseLocale)
 
     private val _selectedWeekday = MutableStateFlow<Int?>(null)
     private val _selectedPeriodId = MutableStateFlow<String?>(null)
@@ -118,8 +105,6 @@ class ClassTableViewModel @Inject constructor(
         semesterCatalog.selectedSemester(appPreferences.classTableSelectedSemester)
     )
     val currentSemester: StateFlow<String> = _currentSemester
-
-    data class DayTime(val weekday: Int, val minuteOfDay: Int)
 
     private val _currentDayTime = MutableStateFlow(currentDayTime())
     val currentMinute: StateFlow<Int> = _currentDayTime
@@ -180,7 +165,7 @@ class ClassTableViewModel @Inject constructor(
                     _assignments.value = emptyList()
                     _selectedCourse.value = null
                     _moodleCourseIdByIdnumber.value = emptyMap()
-                    courseCustomNames.clear()
+                    courseCustomNames = emptyMap()
                     hasLoaded = false
                     TigerDuckTheme.clearCourseColorMap()
                 } else {
@@ -219,15 +204,8 @@ class ClassTableViewModel @Inject constructor(
         }
     }
 
-    private fun currentDayTime(): DayTime {
-        val c = AppClock.calendar()
-        val wd = when (c.get(Calendar.DAY_OF_WEEK)) {
-            Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
-            Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
-            else -> 7
-        }
-        return DayTime(wd, c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE))
-    }
+    private fun currentDayTime(): ClassTableSelection.DayTime =
+        ClassTableSelection.dayTimeFrom(AppClock.calendar())
 
     /** The actual live semester code (not whatever the user picked). */
     val liveSemesterCode: String
@@ -300,15 +278,7 @@ class ClassTableViewModel @Inject constructor(
             // carousel would either be empty or surface a stale day. Empty
             // here also hides the section, which keys off `isNotEmpty()`.
             if (!AppConstants.CurrentTerm.isInSession()) return emptyList()
-            val today = _currentDayTime.value.weekday
-            return _courses.value
-                .filter { it.schedule.containsKey(today) }
-                .sortedBy { course ->
-                    val firstPeriod = course.schedule[today]
-                        ?.minByOrNull { AppConstants.Periods.chronologicalOrder.indexOf(it) }
-                    firstPeriod?.let { AppConstants.Periods.chronologicalOrder.indexOf(it) }
-                        ?: Int.MAX_VALUE
-                }
+            return ClassTableSelection.coursesOn(_courses.value, _currentDayTime.value.weekday)
         }
 
     val activeWeekdays: List<Int>
@@ -345,13 +315,7 @@ class ClassTableViewModel @Inject constructor(
         get() {
             val course = _selectedCourse.value ?: return null
             val weekday = _selectedWeekday.value ?: return null
-            val periods = course.schedule[weekday]?.sortedBy {
-                AppConstants.Periods.chronologicalOrder.indexOf(it)
-            } ?: return null
-            if (periods.isEmpty()) return null
-            val first = AppConstants.PeriodTimes.mapping[periods.first()] ?: return null
-            val last = AppConstants.PeriodTimes.mapping[periods.last()] ?: return null
-            return "${first.first} - ${last.second}"
+            return ClassTableSelection.timeRange(course, weekday)
         }
 
     /**
@@ -364,22 +328,13 @@ class ClassTableViewModel @Inject constructor(
     val selectedCourseClassroom: String
         get() {
             val course = _selectedCourse.value ?: return ""
-            val weekday = _selectedWeekday.value ?: return Course.dedupRooms(course.classroom)
-            val periodId = _selectedPeriodId.value ?: return course.classroom(weekday)
-            return course.classroom(weekday, periodId)
+            return ClassTableSelection.classroom(
+                course, _selectedWeekday.value, _selectedPeriodId.value,
+            )
         }
 
-    fun isCourseFinishedToday(course: Course): Boolean {
-        val dayTime = _currentDayTime.value
-        val periods = course.schedule[dayTime.weekday]
-            ?.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
-        val lastPeriodId = periods?.lastOrNull() ?: return false
-        val endTimeStr = AppConstants.PeriodTimes.mapping[lastPeriodId]?.second ?: return false
-        val parts = endTimeStr.split(":")
-        val endMinutes = (parts.getOrNull(0)?.toIntOrNull() ?: return false) * 60 +
-                (parts.getOrNull(1)?.toIntOrNull() ?: return false)
-        return dayTime.minuteOfDay > endMinutes
-    }
+    fun isCourseFinishedToday(course: Course): Boolean =
+        ClassTableSelection.isFinishedAt(course, _currentDayTime.value)
 
     val ongoingCourses: List<OngoingCourseInfo>
         get() {
@@ -464,13 +419,8 @@ class ClassTableViewModel @Inject constructor(
             val override = trimmed.takeIf {
                 it.isNotEmpty() && it != course.courseName && it != defaultName
             }
-            // Update per-locale map
-            if (override != null) {
-                courseCustomNames.getOrPut(courseNo) { mutableMapOf() }[locale] = override
-            } else {
-                courseCustomNames[courseNo]?.remove(locale)
-                if (courseCustomNames[courseNo].isNullOrEmpty()) courseCustomNames.remove(courseNo)
-            }
+            courseCustomNames =
+                CourseNameOverrides.withOverride(courseCustomNames, courseNo, locale, override)
             course.copy(customCourseName = override)
         }
         _courses.value = updated
@@ -485,8 +435,8 @@ class ClassTableViewModel @Inject constructor(
     /** Clears any user override for [courseNo], restoring the default name. */
     fun revertCourseName(courseNo: String) {
         val locale = currentCourseLocale
-        courseCustomNames[courseNo]?.remove(locale)
-        if (courseCustomNames[courseNo].isNullOrEmpty()) courseCustomNames.remove(courseNo)
+        courseCustomNames =
+            CourseNameOverrides.withOverride(courseCustomNames, courseNo, locale, null)
         val updated = _courses.value.map { course ->
             if (course.courseNo == courseNo) course.copy(customCourseName = null) else course
         }
@@ -715,20 +665,14 @@ class ClassTableViewModel @Inject constructor(
                 dataCache.saveMoodleCourseIds(fresh)
             }
 
-            val moodleForSem =
-                moodleAll.filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }
+            val moodleForSem = CourseRosterMerge.moodleCoursesFor(semester, moodleAll)
             val moodleByNo = moodleForSem.associateBy { it.courseNo }
             Log.i(
                 "ClassTableVM",
                 "moodleForSem[$semester]=${moodleForSem.size} -> ${moodleForSem.map { it.courseNo }}"
             )
 
-            // Dedup while preserving order: selection first, then whatever
-            // Moodle adds.
-            val seen = LinkedHashSet<String>()
-            selectionNos.forEach { seen.add(it) }
-            moodleForSem.forEach { seen.add(it.courseNo) }
-            val orderedCourseNos = seen.toList()
+            val orderedCourseNos = CourseRosterMerge.rosterOrder(selectionNos, moodleForSem)
             Log.i("ClassTableVM", "orderedCourseNos=${orderedCourseNos.size} -> $orderedCourseNos")
 
             // Course detail lookups and assignment fetching are fully
@@ -737,88 +681,26 @@ class ClassTableViewModel @Inject constructor(
             coroutineScope {
                 val coursesJob = if (orderedCourseNos.isNotEmpty()) {
                     launch {
+                        // QueryCourse only indexes the latest term or two;
+                        // lookupOrFallback drops to Moodle metadata for
+                        // historical courses so they still render, with the
+                        // name and credits but no schedule.
                         val courses = orderedCourseNos.map { courseNo ->
                             async {
-                                try {
-                                    val results = courseService.lookupCourse(semester, courseNo)
-                                    if (results.isNotEmpty()) {
-                                        val r = results.first()
-                                        val schedule = courseService.mergeSchedules(
-                                            *results.map { it.node }.toTypedArray()
-                                        )
-                                        val classroomMap = courseService.buildClassroomMap(results)
-                                        val allRooms = LinkedHashSet<String>().apply {
-                                            for (row in results) {
-                                                Course.splitRooms(row.classRoomNo ?: "")
-                                                    .forEach { add(it) }
-                                            }
-                                        }
-                                        Course.fromSchedule(
-                                            courseNo = r.courseNo,
-                                            courseName = r.courseName,
-                                            instructor = r.courseTeacher,
-                                            credits = r.creditPoint.toIntOrNull() ?: 0,
-                                            classroom = allRooms.joinToString(", "),
-                                            enrolledCount = r.chooseStudent ?: 0,
-                                            maxCount = r.maxEnrollment,
-                                            schedule = schedule,
-                                            classroomMap = classroomMap,
-                                            moodleIdNumber = "${r.semester}${r.courseNo}",
-                                            moodleNumericCourseId = moodleByNo[courseNo]?.id
-                                        )
-                                    } else {
-                                        // QueryCourse only indexes the latest
-                                        // term or two; fall back to Moodle
-                                        // metadata so historical courses still
-                                        // render (no schedule, but at least the
-                                        // name and credits).
-                                        moodleByNo[courseNo]?.let { m ->
-                                            Course.fromSchedule(
-                                                courseNo = courseNo,
-                                                courseName = (m.fullname
-                                                    ?: courseNo).decodeHtmlEntities(),
-                                                moodleIdNumber = m.idnumber,
-                                                moodleNumericCourseId = m.id,
-                                            )
-                                        }
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("ClassTableVM", "Failed to lookup course $courseNo", e)
-                                    moodleByNo[courseNo]?.let { m ->
-                                        Course.fromSchedule(
-                                            courseNo = courseNo,
-                                            courseName = (m.fullname
-                                                ?: courseNo).decodeHtmlEntities(),
-                                            moodleIdNumber = m.idnumber,
-                                            moodleNumericCourseId = m.id,
-                                        )
-                                    }
-                                }
+                                courseService.lookupOrFallback(
+                                    semester, courseNo, moodleByNo[courseNo],
+                                )
                             }
                         }.awaitAll().filterNotNull()
 
                         if (courses.isNotEmpty()) {
-                            val cached = dataCache.loadCourses(semester)
-                            val deletedNos = dataCache.loadDeletedCourseNos()
-                            val cachedByNo = cached.associateBy { it.courseNo }
-                            val locale = currentCourseLocale
-                            // Carry forward the user's color pick AND the
-                            // `isManual` flag. Resolve customCourseName from
-                            // the per-locale map so a language switch picks up
-                            // the right override.
-                            val fetched = courses.map { c ->
-                                val prior = cachedByNo[c.courseNo]
-                                c.copy(
-                                    customColorHex = prior?.customColorHex,
-                                    isManual = prior?.isManual == true,
-                                    customCourseName = courseCustomNames[c.courseNo]?.get(locale),
-                                )
-                            }
-                            val fetchedNos = fetched.map { it.courseNo }.toSet()
-                            val manualLeftovers =
-                                cached.filter { it.isManual && it.courseNo !in fetchedNos }
-                            val merged = resolveCustomNames(fetched + manualLeftovers)
-                                .filter { it.courseNo !in deletedNos }
+                            val merged = ClassTableCourseMerge.mergeFetched(
+                                fetched = courses,
+                                cached = dataCache.loadCourses(semester),
+                                names = courseCustomNames,
+                                locale = currentCourseLocale,
+                                deletedNos = dataCache.loadDeletedCourseNos(),
+                            )
                             // Only apply if the user hasn't flipped to a
                             // different semester mid-flight.
                             if (_currentSemester.value == semester) {
@@ -844,15 +726,11 @@ class ClassTableViewModel @Inject constructor(
                                 enrolledCourses = moodleAll,
                                 rosterCourseNos = orderedCourseNos.toSet()
                             )
-                            val existingCompleted = _assignments.value
-                                .filter { it.isCompleted }
-                                .map { it.assignmentId }
-                                .toSet()
-                            val merged = remoteAssignments.map { assignment ->
-                                if (assignment.assignmentId in existingCompleted) {
-                                    assignment.copy(isCompleted = true)
-                                } else assignment
-                            }
+                            val merged = CourseRosterMerge.preserveConfirmedSubmissions(
+                                remote = remoteAssignments,
+                                previouslyCompleted =
+                                    CourseRosterMerge.completedIds(_assignments.value),
+                            )
                             _assignments.value = merged
                             dataCache.saveAssignments(merged)
                         } catch (e: Exception) {

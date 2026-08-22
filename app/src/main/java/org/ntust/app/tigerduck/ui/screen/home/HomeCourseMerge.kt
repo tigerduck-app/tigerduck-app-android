@@ -1,5 +1,9 @@
 // The rules Home applies when a network fetch lands on top of cached data.
 //
+// The parts the class table needs too — roster ordering, the Moodle
+// semester filter, the submission safety net — live in
+// data.CourseRosterMerge. What is left here is Home-specific.
+//
 // Every function here answers the same question in a different shape: what
 // does the user keep? A refresh must not silently drop a manually-added
 // course, must not resurrect one the user deleted, must not throw away a
@@ -13,8 +17,6 @@
 
 package org.ntust.app.tigerduck.ui.screen.home
 
-import org.ntust.app.tigerduck.data.model.Assignment
-import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.shared.Course
 import java.util.Calendar
 
@@ -46,62 +48,6 @@ object HomeCourseMerge {
         val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
         return (fetched + manualLeftovers).filter { it.courseNo !in deletedNos }
     }
-
-    /**
-     * Don't let a fetch walk back a submission we already confirmed.
-     *
-     * Moodle reports submission status through a separate call per course; if
-     * one fails, the assignment comes back `isCompleted = false` rather than
-     * unknown. Treating that as truth flips a submitted item back to
-     * outstanding and re-arms its notification. Remote still wins when it
-     * says `true`, so a genuine un-submit is picked up.
-     */
-    fun preserveConfirmedSubmissions(
-        remote: List<Assignment>,
-        previouslyCompleted: Set<String>,
-    ): List<Assignment> = remote.map { assignment ->
-        if (!assignment.isCompleted && assignment.assignmentId in previouslyCompleted) {
-            assignment.copy(isCompleted = true)
-        } else {
-            assignment
-        }
-    }
-
-    /** Ids of everything already recorded as submitted, for the call above. */
-    fun completedIds(assignments: List<Assignment>): Set<String> =
-        assignments.filter { it.isCompleted }.mapTo(mutableSetOf()) { it.assignmentId }
-
-    /**
-     * Merge the two enrolment sources into one ordered, de-duplicated roster.
-     *
-     * NTUST's 選課 list comes first because it is the authoritative
-     * enrolment record and its order is the one the user recognises; Moodle
-     * contributes anything 選課 missed (cross-listed courses, late adds).
-     * Insertion-ordered and de-duplicated, so a course in both appears once,
-     * in its 選課 position.
-     *
-     * [selectionCourseNos] is null when the 選課 scrape failed — distinct
-     * from empty, which means "asked, enrolled in nothing".
-     */
-    fun rosterOrder(
-        selectionCourseNos: List<String>?,
-        moodleForSemester: List<MoodleEnrolledCourse>,
-    ): List<String> = LinkedHashSet<String>().apply {
-        selectionCourseNos?.forEach { add(it) }
-        moodleForSemester.forEach { add(it.courseNo) }
-    }.toList()
-
-    /**
-     * Moodle enrolments that belong to [semester] and carry a usable course
-     * number. Moodle returns every course the account can see, including past
-     * terms and admin shells with no NTUST course number at all.
-     */
-    fun moodleCoursesFor(
-        semester: String,
-        enrolled: List<MoodleEnrolledCourse>?,
-    ): List<MoodleEnrolledCourse> = enrolled
-        .orEmpty()
-        .filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }
 
     /**
      * `java.util.Calendar`'s Sunday-first weekday to the Monday-first index

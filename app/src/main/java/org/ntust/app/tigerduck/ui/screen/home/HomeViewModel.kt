@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import android.util.Log
+import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.BuildConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -556,9 +557,9 @@ class HomeViewModel @Inject constructor(
 
         val courseNos = courseNosDef.await()
         val moodleEnrolled = moodleEnrolledDef.await()
-        val moodleForSemester = HomeCourseMerge.moodleCoursesFor(semester, moodleEnrolled)
+        val moodleForSemester = CourseRosterMerge.moodleCoursesFor(semester, moodleEnrolled)
         val moodleByNo = moodleForSemester.associateBy { it.courseNo }
-        val orderedCourseNos = HomeCourseMerge.rosterOrder(courseNos, moodleForSemester)
+        val orderedCourseNos = CourseRosterMerge.rosterOrder(courseNos, moodleForSemester)
         val rosterCourseNos = orderedCourseNos.toSet()
 
         val coursesDef = async {
@@ -579,9 +580,9 @@ class HomeViewModel @Inject constructor(
                     rosterCourseNos = rosterCourseNos
                 )
                 val existingCompleted =
-                    HomeCourseMerge.completedIds(dataCache.loadAssignments())
+                    CourseRosterMerge.completedIds(dataCache.loadAssignments())
                 ServerStatusTracker.set(ServerStatus.OK, ServerKind.MOODLE)
-                HomeCourseMerge.preserveConfirmedSubmissions(remote, existingCompleted)
+                CourseRosterMerge.preserveConfirmedSubmissions(remote, existingCompleted)
             } catch (e: Exception) {
                 ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.MOODLE)
                 Log.e("HomeViewModel", "Failed to fetch assignments", e)

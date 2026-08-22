@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.shared.Course
@@ -125,7 +126,7 @@ class HomeCourseMergeTest {
 
     @Test
     fun `a confirmed submission is not walked back by a flaky fetch`() {
-        val out = HomeCourseMerge.preserveConfirmedSubmissions(
+        val out = CourseRosterMerge.preserveConfirmedSubmissions(
             remote = listOf(assignment("1", completed = false)),
             previouslyCompleted = setOf("1"),
         )
@@ -134,7 +135,7 @@ class HomeCourseMergeTest {
 
     @Test
     fun `remote still wins when it says completed`() {
-        val out = HomeCourseMerge.preserveConfirmedSubmissions(
+        val out = CourseRosterMerge.preserveConfirmedSubmissions(
             remote = listOf(assignment("1", completed = true)),
             previouslyCompleted = emptySet(),
         )
@@ -143,7 +144,7 @@ class HomeCourseMergeTest {
 
     @Test
     fun `an assignment we never confirmed is left alone`() {
-        val out = HomeCourseMerge.preserveConfirmedSubmissions(
+        val out = CourseRosterMerge.preserveConfirmedSubmissions(
             remote = listOf(assignment("1", completed = false)),
             previouslyCompleted = setOf("2"),
         )
@@ -154,7 +155,7 @@ class HomeCourseMergeTest {
     fun `completedIds picks out only the submitted ones`() {
         assertEquals(
             setOf("1"),
-            HomeCourseMerge.completedIds(
+            CourseRosterMerge.completedIds(
                 listOf(assignment("1", completed = true), assignment("2"))
             ),
         )
@@ -164,7 +165,7 @@ class HomeCourseMergeTest {
 
     @Test
     fun `selection order leads and moodle fills the gaps`() {
-        val order = HomeCourseMerge.rosterOrder(
+        val order = CourseRosterMerge.rosterOrder(
             selectionCourseNos = listOf("B", "A"),
             moodleForSemester = listOf(moodle("C", "1131"), moodle("A", "1131")),
         )
@@ -173,7 +174,7 @@ class HomeCourseMergeTest {
 
     @Test
     fun `a failed selection scrape still yields the moodle roster`() {
-        val order = HomeCourseMerge.rosterOrder(
+        val order = CourseRosterMerge.rosterOrder(
             selectionCourseNos = null,
             moodleForSemester = listOf(moodle("C", "1131")),
         )
@@ -182,7 +183,7 @@ class HomeCourseMergeTest {
 
     @Test
     fun `moodle courses from other terms and without a course number are ignored`() {
-        val kept = HomeCourseMerge.moodleCoursesFor(
+        val kept = CourseRosterMerge.moodleCoursesFor(
             semester = "1131",
             enrolled = listOf(
                 moodle("A", "1131"),
@@ -195,7 +196,7 @@ class HomeCourseMergeTest {
 
     @Test
     fun `a null moodle response is not an error`() {
-        assertTrue(HomeCourseMerge.moodleCoursesFor("1131", null).isEmpty())
+        assertTrue(CourseRosterMerge.moodleCoursesFor("1131", null).isEmpty())
     }
 
     // --- weekday -----------------------------------------------------------
