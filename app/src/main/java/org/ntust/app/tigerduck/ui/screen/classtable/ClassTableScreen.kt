@@ -132,7 +132,7 @@ fun ClassTableScreen(
     var showCheckmark by remember { mutableStateOf(false) }
     var conflictPicker by remember { mutableStateOf<ConflictPickerTarget?>(null) }
     var tripleConflictError by remember {
-        mutableStateOf<ClassTableViewModel.TripleConflictError?>(
+        mutableStateOf<TripleConflictError?>(
             null
         )
     }

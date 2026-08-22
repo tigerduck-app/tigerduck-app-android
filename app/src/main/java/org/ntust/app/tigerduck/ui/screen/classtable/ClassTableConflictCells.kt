@@ -69,7 +69,7 @@ import org.ntust.app.tigerduck.ui.theme.courseColorPaletteDark
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ConflictCourseCell(
-    cellRole: ClassTableViewModel.CellRole.ConflictStart,
+    cellRole: CellRole.ConflictStart,
     dayColWidth: androidx.compose.ui.unit.Dp,
     cellHeight: androidx.compose.ui.unit.Dp,
     x: androidx.compose.ui.unit.Dp,
@@ -343,7 +343,7 @@ internal fun ConflictCourseCell(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun MultiConflictCourseCell(
-    cellRole: ClassTableViewModel.CellRole.MultiConflictStart,
+    cellRole: CellRole.MultiConflictStart,
     dayColWidth: androidx.compose.ui.unit.Dp,
     cellHeight: androidx.compose.ui.unit.Dp,
     x: androidx.compose.ui.unit.Dp,

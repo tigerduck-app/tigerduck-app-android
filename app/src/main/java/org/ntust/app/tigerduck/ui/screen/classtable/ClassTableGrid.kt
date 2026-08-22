@@ -149,7 +149,7 @@ internal fun TimetableGrid(
                         val y = cellHeight * periodIndex
 
                         when (val role = viewModel.cellRole(weekday, periodIndex)) {
-                            is ClassTableViewModel.CellRole.Empty -> {
+                            is CellRole.Empty -> {
                                 Box(
                                     modifier = Modifier
                                         .width(dayColWidth)
@@ -165,7 +165,7 @@ internal fun TimetableGrid(
                                 )
                             }
 
-                            is ClassTableViewModel.CellRole.SoloStart -> {
+                            is CellRole.SoloStart -> {
                                 SoloCourseCell(
                                     course = role.course,
                                     spanCount = role.spanCount,
@@ -194,7 +194,7 @@ internal fun TimetableGrid(
                                 )
                             }
 
-                            is ClassTableViewModel.CellRole.ConflictStart -> {
+                            is CellRole.ConflictStart -> {
                                 ConflictCourseCell(
                                     cellRole = role,
                                     dayColWidth = dayColWidth,
@@ -218,7 +218,7 @@ internal fun TimetableGrid(
                                 )
                             }
 
-                            is ClassTableViewModel.CellRole.MultiConflictStart -> {
+                            is CellRole.MultiConflictStart -> {
                                 MultiConflictCourseCell(
                                     cellRole = role,
                                     dayColWidth = dayColWidth,
@@ -242,7 +242,7 @@ internal fun TimetableGrid(
                                 )
                             }
 
-                            is ClassTableViewModel.CellRole.Skip -> {
+                            is CellRole.Skip -> {
                                 // Rendered as part of an earlier SoloStart / ConflictStart
                             }
                         }
