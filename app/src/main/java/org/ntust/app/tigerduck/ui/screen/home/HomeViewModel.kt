@@ -482,17 +482,28 @@ class HomeViewModel @Inject constructor(
     )
     val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
-    // 翹課 is read-only as of d334459c, which replaced it with the 已忽略
-    // homework flow. Nothing writes skipped dates any more, so this only ever
-    // holds what an older build left in the cache — but that data is still
-    // honoured downstream by LiveActivityResolver.isSkipped and
-    // ClassPreparingNotificationScheduler, which read the cache directly, so
-    // it is deliberately still loaded rather than dropped. 374122a9 is the
-    // last commit with the write path wired up.
-    private val _skippedDates = MutableStateFlow<Map<String, List<String>>>(emptyMap())
-    val skippedDates: StateFlow<Map<String, List<String>>> = _skippedDates
+    // 翹課 — parked, not abandoned. Scheduled to land after the add-friend
+    // feature, so the whole ViewModel side stays commented out rather than
+    // sitting here as live code nothing reaches. 374122a9 is the last commit
+    // where it was wired up end to end.
+    //
+    // Note this is only the *UI* side. LiveActivityResolver.isSkipped and
+    // ClassPreparingNotificationScheduler read skipped dates straight out of
+    // DataCache and are untouched — anything an older build wrote still
+    // suppresses notifications today. Don't remove DataCache.saveSkippedDates
+    // / loadSkippedDates on the assumption that this block is all of it.
+    //
+    // private val _skippedDates = MutableStateFlow<Map<String, List<String>>>(emptyMap())
+    // val skippedDates: StateFlow<Map<String, List<String>>> = _skippedDates
+    //
+    // private val saveSkipChannel = Channel<Map<String, List<String>>>(Channel.CONFLATED)
 
     init {
+        // viewModelScope.launch {
+        //     for (data in saveSkipChannel) {
+        //         dataCache.saveSkippedDates(data)
+        //     }
+        // }
         viewModelScope.launch {
             for (ids in saveIgnoredChannel) {
                 dataCache.saveIgnoredAssignments(ids)
@@ -522,7 +533,7 @@ class HomeViewModel @Inject constructor(
                     _allCourses.value = emptyList()
                     _todayCourses.value = emptyList()
                     _allAssignments.value = emptyList()
-                    _skippedDates.value = emptyMap()
+                    // _skippedDates.value = emptyMap()
                     _ignoredAssignmentIds.value = emptySet()
                     _markedCompletedIds.value = emptySet()
                     hasLoaded = false
@@ -593,7 +604,7 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch {
             migrateColorHashIfNeeded()
-            _skippedDates.value = dataCache.loadSkippedDates()
+            // _skippedDates.value = dataCache.loadSkippedDates()
             _ignoredAssignmentIds.value = dataCache.loadIgnoredAssignments()
             _markedCompletedIds.value = dataCache.loadMarkedCompletedAssignments()
 
@@ -1056,6 +1067,19 @@ class HomeViewModel @Inject constructor(
         _selectedCourse.value = info
     }
 
+    // 翹課 — see the block above _skippedDates.
+    // fun toggleSkip(course: Course, date: Date) {
+    //     val key = date.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate().format(SKIP_DATE_FMT)
+    //     _skippedDates.update { current ->
+    //         val map = current.toMutableMap()
+    //         val dates = (map[course.courseNo] ?: emptyList()).toMutableList()
+    //         if (key in dates) dates.remove(key) else dates.add(key)
+    //         map[course.courseNo] = dates
+    //         map
+    //     }
+    //     saveSkipChannel.trySend(_skippedDates.value)
+    // }
+
     fun removeSection(sectionId: String) {
         _sections.value = _sections.value.filter { it.id != sectionId }
             .mapIndexed { i, s -> s.copy(sortOrder = i) }
@@ -1089,6 +1113,10 @@ class HomeViewModel @Inject constructor(
             }.parse(s.take(19))?.time ?: 0L
         } catch (_: Exception) { 0L }
     }
+
+    // companion object {
+    //     private val SKIP_DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE
+    // }
 
     fun addSection(type: HomeSection.HomeSectionType, title: String) {
         val newSection = HomeSection(

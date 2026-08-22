@@ -219,9 +219,10 @@ private fun CourseTimeCard(
                     if (it.height > maxHeightPx) maxHeightPx = it.height
                 }
         ) {
-            // No SlotCard here passes onSkipToggle, so every card takes the null
-            // default and the left-swipe 翹課 gesture stays inert — see
-            // HomeViewModel._skippedDates for why the feature is read-only.
+            // No SlotCard passes onSkipToggle yet, so every card takes the null
+            // default and the left-swipe 翹課 gesture stays inert. Restoring the
+            // commented lines below is what turns it on — see
+            // HomeViewModel._skippedDates for when.
             when (state) {
                 is CourseState.InClass -> {
                     // 衝堂: render one card per overlapping slot so each
@@ -231,6 +232,7 @@ private fun CourseTimeCard(
                             slot = slot,
                             alpha = 1f,
                             isSkipped = isSkippedFor(slot),
+                            // onSkipToggle = { onSkipCourse(slot.course, slot.date) },
                             onClick = { onSelect(slot.course, slot.classroom) },
                         )
                     }
@@ -241,6 +243,7 @@ private fun CourseTimeCard(
                         SlotCard(
                             slot = it, alpha = 0.8f,
                             isSkipped = isSkippedFor(it),
+                            // onSkipToggle = { onSkipCourse(it.course, it.date) },
                             onClick = { onSelect(it.course, it.classroom) },
                         )
                     }
@@ -248,6 +251,7 @@ private fun CourseTimeCard(
                         SlotCard(
                             slot = it, alpha = 0.8f,
                             isSkipped = isSkippedFor(it),
+                            // onSkipToggle = { onSkipCourse(it.course, it.date) },
                             onClick = { onSelect(it.course, it.classroom) },
                         )
                     }
@@ -257,6 +261,7 @@ private fun CourseTimeCard(
                     SlotCard(
                         slot = state.next, alpha = 0.8f,
                         isSkipped = isSkippedFor(state.next),
+                        // onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
                         onClick = { onSelect(state.next.course, state.next.classroom) },
                     )
                 }
@@ -265,6 +270,7 @@ private fun CourseTimeCard(
                     SlotCard(
                         slot = state.previous, alpha = 0.8f,
                         isSkipped = isSkippedFor(state.previous),
+                        // onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
                         onClick = { onSelect(state.previous.course, state.previous.classroom) },
                     )
                 }
