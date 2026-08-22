@@ -47,7 +47,7 @@ android {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 29
         targetSdk = 36
-        versionCode = 22
+        versionCode = 23
         versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -120,9 +120,9 @@ android {
 
     testOptions {
         unitTests {
-            // Let android.util.Log calls in code under test (e.g.
-            // DataMigration.sweepCourseFiles) return defaults instead of
-            // throwing "not mocked" on the JVM.
+            // Matches :shared. Without it any JVM unit test that reaches a
+            // real android.util.Log call throws "not mocked", which would
+            // limit migration and cache coverage to log-free code paths.
             isReturnDefaultValues = true
         }
     }

@@ -20,7 +20,6 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import java.io.File
-import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -188,17 +187,15 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    private fun currentSemesterCode(): String {
-        val cal = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ)
-        val year = cal.get(Calendar.YEAR)
-        val month = cal.get(Calendar.MONTH) + 1
-        val rocYear = year - 1911
-        return when (month) {
-            in 2..7 -> "${rocYear - 1}2"   // Feb 1 – Jul 31: spring
-            in 8..12 -> "${rocYear}1"       // Aug 1 – Dec 31: fall
-            else -> "${rocYear - 1}1"       // January: prior fall
-        }
-    }
+    /**
+     * Must stay identical to [org.ntust.app.tigerduck.network.CourseService.currentSemesterCode]
+     * — the no-arg course aliases above key cache files off this, so any drift
+     * between the two would file "today's" courses under a semester nothing
+     * else reads. Duplicated rather than injected so DataCache keeps no
+     * dependency on the network layer.
+     */
+    private fun currentSemesterCode(): String =
+        org.ntust.app.tigerduck.AppConstants.CurrentTerm.CODE
 
     // MARK: - Assignments
 

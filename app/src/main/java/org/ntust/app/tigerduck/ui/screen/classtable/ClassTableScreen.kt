@@ -138,6 +138,7 @@ fun ClassTableScreen(
     // body invites readers from the wrong scope and is fragile if the
     // condition changes.
     val selectedSemester by viewModel.currentSemester.collectAsStateWithLifecycle()
+    val availableSemesters by viewModel.availableSemesters.collectAsStateWithLifecycle()
     val todayCourses = remember(courses, currentMinute) { viewModel.todayCourses }
     val ongoingCourses = remember(courses, currentMinute) { viewModel.ongoingCourses }
     val activePeriods = remember(courses) { viewModel.activePeriods }
@@ -341,7 +342,7 @@ fun ClassTableScreen(
                 ) {
                     SemesterPicker(
                         current = selectedSemester,
-                        options = viewModel.availableSemesters,
+                        options = availableSemesters,
                         labelFor = viewModel::displayLabel,
                         onPick = { viewModel.setSemester(it) }
                     )

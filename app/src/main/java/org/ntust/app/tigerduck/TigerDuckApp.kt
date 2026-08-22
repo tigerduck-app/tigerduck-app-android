@@ -36,6 +36,9 @@ class TigerDuckApp : Application(), Configuration.Provider {
     lateinit var fcmBootstrap: FcmBootstrap
 
     @Inject
+    lateinit var dataMigration: DataMigration
+
+    @Inject
     lateinit var dataCache: DataCache
 
     @Inject
@@ -43,9 +46,6 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var wearBridge: WearScheduleBridge
-
-    @Inject
-    lateinit var dataMigration: DataMigration
 
     @Inject
     lateinit var analyticsLogger: AnalyticsLogger
@@ -69,6 +69,11 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        // First, before anything can read or write DataCache. BootReceiver and
+        // BackgroundSyncWorker both run without an Activity, so leaving this
+        // to AppState let WorkManager's persisted periodic sync fire on the
+        // upgrade launch and rebuild caches that a pending migration step then
+        // deleted. AppState re-reads the cached outcome for the reset prompt.
         dataMigration.run()
         analyticsLogger.setEnabled(appPreferences.analyticsEnabled)
         analyticsLogger.setUserProperty("app_version", BuildConfig.VERSION_NAME)
