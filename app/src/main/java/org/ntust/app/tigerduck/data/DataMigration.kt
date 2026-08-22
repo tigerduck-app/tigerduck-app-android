@@ -2,9 +2,12 @@ package org.ntust.app.tigerduck.data
 
 import android.content.Context
 import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * One-shot runner for on-device data migrations.
@@ -22,9 +25,24 @@ import java.io.File
  *      credential store, user downgraded the app, old-and-unsupported
  *      layout) — [run] returns [Outcome.NeedsUserReset] and the UI is
  *      expected to show a "please re-login and reconfigure" prompt.
+ *
+ * [run] is called from [org.ntust.app.tigerduck.TigerDuckApp.onCreate], so
+ * migrations complete before anything can read or write
+ * [org.ntust.app.tigerduck.data.cache.DataCache] — including entry points that
+ * never create an Activity, such as `BackgroundSyncWorker` and `BootReceiver`.
+ * Running it from `AppState` alone was not enough: WorkManager persists its
+ * periodic request across an upgrade and can fire before the user first opens
+ * the app, so a cache-clearing step could delete data a sync had just
+ * correctly rebuilt.
+ *
+ * The outcome is cached, so the later call from `AppState` — which needs it to
+ * decide whether to show the reset prompt — reuses this result rather than
+ * re-running the steps. `performFullReset` clears its own UI flag and re-stamps
+ * the schema version, so the stale cached value cannot re-fire the prompt.
  */
-class DataMigration(
-    private val context: Context,
+@Singleton
+class DataMigration @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val prefs: AppPreferences,
     private val credentials: CredentialManager,
 ) {
@@ -36,7 +54,19 @@ class DataMigration(
         NeedsUserReset,
     }
 
-    fun run(): Outcome {
+    /**
+     * Runs every pending step once per process and caches the verdict.
+     *
+     * Synchronous on purpose. The steady-state path is a single
+     * `SharedPreferences.getInt` and an early return — file I/O happens only
+     * on the one launch that actually migrates, which is the launch that must
+     * not be raced.
+     */
+    private val outcome: Outcome by lazy(LazyThreadSafetyMode.SYNCHRONIZED) { doRun() }
+
+    fun run(): Outcome = outcome
+
+    private fun doRun(): Outcome {
         // If Keystore corruption forced CredentialManager to rebuild the
         // credential store from scratch, the user's logins are gone and
         // the app is effectively logged out. Surface it so the dialog
