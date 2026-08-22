@@ -434,7 +434,7 @@ private fun CourseDetailDialog(
 }
 @Composable
 private fun SyncConflictDialog(
-    conflicts: List<HomeViewModel.SyncConflict>,
+    conflicts: List<AssignmentSyncConflict>,
     onKeepLocal: () -> Unit,
     onKeepServer: () -> Unit,
 ) {

@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.network
 
 import android.content.Context
+import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
@@ -237,6 +238,56 @@ class CourseService @Inject constructor(
     }
 
     /**
+     * Resolve one course number into a [Course], from QueryCourse if it knows
+     * the course and from Moodle enrolment metadata if it does not.
+     *
+     * A course legitimately meets in several rooms across several days, and
+     * QueryCourse returns one row per (room x day-set) rather than one row per
+     * course. So the rows are folded together here: schedules merge, the
+     * per-slot classroom map is built across all of them, and [Course.classroom]
+     * carries the de-duplicated union for surfaces that show a single string.
+     * Everything else is read off the first row, which repeats the
+     * course-level fields.
+     *
+     * Returns null only when both sources come up empty. A lookup that throws
+     * degrades to the Moodle fallback rather than failing the whole roster —
+     * one unreachable course must not blank out a timetable.
+     */
+    suspend fun lookupOrFallback(
+        semester: String,
+        courseNo: String,
+        moodle: MoodleEnrolledCourse?,
+    ): Course? = try {
+        val results = lookupCourse(semester, courseNo)
+        if (results.isEmpty()) {
+            fallbackCourseFromMoodle(courseNo, moodle)
+        } else {
+            val first = results.first()
+            val allRooms = LinkedHashSet<String>().apply {
+                for (row in results) {
+                    Course.splitRooms(row.classRoomNo ?: "").forEach { add(it) }
+                }
+            }
+            Course.fromSchedule(
+                courseNo = first.courseNo,
+                courseName = first.courseName,
+                instructor = first.courseTeacher,
+                credits = first.creditPoint.toIntOrNull() ?: 0,
+                classroom = allRooms.joinToString(", "),
+                enrolledCount = first.chooseStudent ?: 0,
+                maxCount = first.maxEnrollment,
+                schedule = mergeSchedules(*results.map { it.node }.toTypedArray()),
+                classroomMap = buildClassroomMap(results),
+                moodleIdNumber = moodle?.idnumber ?: "${first.semester}${first.courseNo}",
+                moodleNumericCourseId = moodle?.id,
+            )
+        }
+    } catch (e: Exception) {
+        Log.e(TAG_LOOKUP, "Failed to lookup course $courseNo", e)
+        fallbackCourseFromMoodle(courseNo, moodle)
+    }
+
+    /**
      * The term in session right now — what "today's courses" means for the
      * widget, the Wear tile, Home's carousel and every current-semester cache
      * key.
@@ -259,6 +310,10 @@ class CourseService @Inject constructor(
     fun heuristicSemesterCode(): String = SemesterCodes.heuristic()
 
     companion object {
+        // Kept as "HomeViewModel" so the existing logcat filter for a failed
+        // course lookup still matches after the lookup moved here.
+        private const val TAG_LOOKUP = "HomeViewModel"
+
         // Course metadata (name, instructor, schedule, caps) is stable within
         // a term; only ChooseStudent drifts. 30 min staleness on the enrolment
         // count is acceptable given the surrounding fields all update live
