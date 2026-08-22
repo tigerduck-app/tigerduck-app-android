@@ -140,7 +140,6 @@ fun TimeSliderSection(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Course card
                 CourseTimeCard(
                     state = viewModel.currentCourseState,
                     skippedDates = skippedDates,
@@ -155,7 +154,6 @@ fun TimeSliderSection(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
                 )
 
-                // Track
                 FluidTrack(viewModel, invertDirection)
             }
         } else if (isLoggedIn && !initialLoadComplete) {

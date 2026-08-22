@@ -158,7 +158,6 @@ class CloudSyncCoordinator(
                     return@launch
                 }
 
-                // Drain outbox.
                 outbox.drain(idMap) { resolved -> execute(resolved) }
 
                 if (_state.value == CloudSyncState.Active) {
