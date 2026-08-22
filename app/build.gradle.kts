@@ -119,6 +119,13 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        // Matches :shared. Without it any JVM unit test that reaches a real
+        // android.util.Log call throws "not mocked" — which meant migration
+        // and cache code could only be covered by stripping its logging.
+        unitTests.isReturnDefaultValues = true
+    }
+
     // Two distribution channels:
     //   * play   — Google Play Store + sideload. Uses FCM for real-time push.
     //   * fdroid — F-Droid. 100% FOSS, no Google Play Services. The

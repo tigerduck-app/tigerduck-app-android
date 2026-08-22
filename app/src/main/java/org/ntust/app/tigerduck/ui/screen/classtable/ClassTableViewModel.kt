@@ -31,6 +31,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
+import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.network.decodeHtmlEntities
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
@@ -46,6 +47,7 @@ class ClassTableViewModel @Inject constructor(
     private val dataCache: DataCache,
     private val courseColorStore: CourseColorStore,
     private val appPreferences: AppPreferences,
+    private val semesterCatalog: SemesterCatalog,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
 ) : ViewModel() {
 
@@ -75,8 +77,11 @@ class ClassTableViewModel @Inject constructor(
     private val _selectedWeekday = MutableStateFlow<Int?>(null)
     private val _selectedPeriodId = MutableStateFlow<String?>(null)
 
+    // Stored pick, else the newest published term, else the pinned term.
+    // The catalogue can land after construction on a cold launch, so
+    // followNewestSemesterIfUnpicked re-applies the rule once it does.
     private val _currentSemester = MutableStateFlow(
-        appPreferences.classTableSelectedSemester ?: courseService.currentSemesterCode()
+        semesterCatalog.selectedSemester(appPreferences.classTableSelectedSemester)
     )
     val currentSemester: StateFlow<String> = _currentSemester
 
@@ -183,27 +188,45 @@ class ClassTableViewModel @Inject constructor(
         get() = courseService.currentSemesterCode()
 
     /**
-     * The four most recent semesters, anchored on the *actual* current
-     * semester — not whatever the user last switched to. Matches iOS so
-     * the picker always offers the same range regardless of selection.
+     * Terms the picker offers, newest first, as published by NTUST — see
+     * [SemesterCatalog]. A `StateFlow` rather than a computed getter so a term
+     * the school publishes ahead of the month heuristic (115-1 opened weeks
+     * before the heuristic rolled off 114-2) becomes selectable in the same
+     * session the catalogue lands.
      */
-    val availableSemesters: List<String>
-        get() {
-            val code = courseService.currentSemesterCode()
-            val year = code.dropLast(1).toIntOrNull() ?: return listOf(code)
-            val sem = code.last().digitToIntOrNull() ?: 1
-            val result = mutableListOf<String>()
-            var y = year
-            var s = sem
-            repeat(4) {
-                result.add("$y$s")
-                s--
-                if (s < 1) {
-                    s = 2; y--
-                }
-            }
-            return result
-        }
+    private val _availableSemesters = MutableStateFlow(semesterOptions(_currentSemester.value))
+    val availableSemesters: StateFlow<List<String>> = _availableSemesters
+
+    /**
+     * Keeps the persisted selection selectable even after it ages out of the
+     * catalogue window — a picker whose selected value matches no option
+     * renders blank.
+     */
+    private fun semesterOptions(selected: String): List<String> {
+        val options = semesterCatalog.availableSemesters()
+        return if (options.contains(selected)) options else options + selected
+    }
+
+    /**
+     * The catalogue can land after construction on a cold launch, so re-apply
+     * the "never picked → newest term" rule once it does.
+     *
+     * Deliberately does not persist the move: an untouched picker should keep
+     * tracking the newest term rather than freezing on whichever one happened
+     * to be newest at first launch.
+     */
+    private suspend fun followNewestSemesterIfUnpicked() {
+        if (appPreferences.classTableSelectedSemester != null) return
+        val newest = semesterCatalog.availableSemesters().firstOrNull() ?: return
+        if (newest == _currentSemester.value) return
+        _currentSemester.value = newest
+        // The grid is still showing the term we just moved off. Swap in the
+        // new term's cache immediately rather than leaving the wrong timetable
+        // up for the length of the network round-trip.
+        val cached = dataCache.loadCourses(newest)
+        _courses.value = cached
+        TigerDuckTheme.buildCourseColorMap(cached)
+    }
 
     /** Format semester code for display, e.g. "1142" → "114-2". */
     fun displayLabel(code: String): String {
@@ -227,6 +250,10 @@ class ClassTableViewModel @Inject constructor(
 
     val todayCourses: List<Course>
         get() {
+            // Outside the term there is no "today" worth showing — the
+            // carousel would either be empty or surface a stale day. Empty
+            // here also hides the section, which keys off `isNotEmpty()`.
+            if (!AppConstants.CurrentTerm.isInSession()) return emptyList()
             val today = _currentDayTime.value.weekday
             return _courses.value
                 .filter { it.schedule.containsKey(today) }
@@ -698,22 +725,39 @@ class ClassTableViewModel @Inject constructor(
         }
         _isLoading.value = true
         try {
+            // Before anything else, so a newly-published term is offered by the
+            // picker and 選課 enrolments are attributed to the term the portal
+            // is actually serving. TTL-throttled, so this costs one request an
+            // hour no matter how often the class table refreshes.
+            semesterCatalog.refreshIfStale()
+            followNewestSemesterIfUnpicked()
             val semester = _currentSemester.value
+            _availableSemesters.value = semesterOptions(semester)
+            // Assignments are "upcoming from now", so they belong to the term
+            // in session.
             val isCurrentSemester = semester == courseService.currentSemesterCode()
+            // 選課 serves exactly one term and its 選課清單 page has no term
+            // marker, so its course numbers belong to whichever term the
+            // catalogue reports as open — not to whatever term is in session.
+            // Keying this off currentSemesterCode() mis-filed 115-1 enrolments
+            // into 114-2 for the weeks between 選課 opening and the month
+            // heuristic rolling over.
+            val servesSelectionSemester = semester == semesterCatalog.selectionSemesterCode()
             Log.i(
                 "ClassTableVM",
-                "fetchData start: semester=$semester isCurrent=$isCurrentSemester"
+                "fetchData start: semester=$semester isCurrent=$isCurrentSemester " +
+                    "servesSelection=$servesSelectionSemester"
             )
 
             // Kick off the two enrolment sources concurrently — they hit
             // different hosts (courseselection.ntust.edu.tw vs.
             // moodle2.ntust.edu.tw) and neither depends on the other.
-            //   Source 1: course-selection portal, current term only.
+            //   Source 1: course-selection portal, open term only.
             //   Source 2: Moodle enrolment list, all semesters (needed for
             //             historical terms and for fanning out assignments).
             val (selectionNos, moodleAll) = coroutineScope {
                 val selectionDef = async {
-                    if (isCurrentSemester) {
+                    if (servesSelectionSemester) {
                         try {
                             courseService.fetchEnrolledCourseNos(studentId, password)
                         } catch (e: Exception) {

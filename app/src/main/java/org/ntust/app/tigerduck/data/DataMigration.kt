@@ -64,6 +64,7 @@ class DataMigration(
             when (current) {
                 0 -> migrate0to1()
                 1 -> migrate1to2()
+                2 -> migrate2to3()
             }
             current++
             prefs.dataSchemaVersion = current
@@ -121,8 +122,55 @@ class DataMigration(
             }
     }
 
+    /**
+     * Drops cached `courses_<semester>.json` files written by builds that
+     * filed 選課清單 enrolments under the month heuristic instead of the term
+     * the 選課 system was actually serving.
+     *
+     * NTUST opened 115-1 on 2026-08-20, weeks before the heuristic would have
+     * rolled off 114-2. Any install that synced in that window has a
+     * `courses_1142.json` holding a mix of both terms, and nothing rewrites it
+     * on upgrade — the class table only refetches the semester it is showing,
+     * and a non-empty cache renders as-is. See
+     * [org.ntust.app.tigerduck.network.SemesterCatalog].
+     *
+     * Only the evictable `cacheDir` copies are dropped. Manual courses live in
+     * `filesDir/manual_courses_<semester>.json`, are per-semester already, and
+     * have no remote source to rebuild from — deleting those would destroy
+     * courses the user typed in by hand.
+     */
+    private fun migrate2to3() {
+        val cacheDir = File(context.cacheDir, CACHE_SUBDIR)
+        deleteCourseCaches(cacheDir)
+    }
+
     companion object {
         private const val TAG = "DataMigration"
+
+        /**
+         * Unconditionally removes every remote course cache in [dir]. Unlike
+         * [sweepCourseFiles] this does not inspect content — the wrong-semester
+         * payload is indistinguishable from a correct one at the file level,
+         * since both carry well-formed `"courseNo":` keys. The next sync
+         * rebuilds each semester from its own sources.
+         */
+        internal fun deleteCourseCaches(dir: File) {
+            if (!dir.isDirectory) return
+            dir.listFiles()
+                ?.filter {
+                    it.isFile && (
+                        it.name == LEGACY_COURSES_FILENAME ||
+                            (it.name.startsWith(COURSES_PREFIX) && it.name.endsWith(".json"))
+                        )
+                }
+                ?.forEach { file ->
+                    runCatching {
+                        if (file.delete()) {
+                            Log.i(TAG, "Cleared wrong-semester course cache: ${file.name}")
+                        }
+                    }.onFailure { Log.w(TAG, "Failed to delete ${file.name}", it) }
+                }
+        }
 
         // Mirrors DataCache. Kept in sync deliberately — DataMigration must
         // run before any DataCache access, so we don't import the cache
@@ -142,7 +190,7 @@ class DataMigration(
         private const val COURSE_NO_TOKEN = "\"courseNo\":"
 
         /** Highest schema this build writes. Bump when adding a new step. */
-        const val CURRENT_SCHEMA = 2
+        const val CURRENT_SCHEMA = 3
 
         /**
          * Lowest schema this build can migrate forward from. Anything below
