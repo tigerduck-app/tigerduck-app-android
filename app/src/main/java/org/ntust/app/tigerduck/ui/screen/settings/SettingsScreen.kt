@@ -1,16 +1,16 @@
+// The Settings screen itself: section order, the state it holds, and the
+// navigation out to sub-screens. The row primitives it is built from
+// live in SettingsRows.kt.
+
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.content.Intent
 import androidx.browser.customtabs.CustomTabsIntent
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,24 +31,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -64,16 +50,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -706,402 +687,12 @@ fun SettingsScreen(
         )
     }
 }
-
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 internal interface SettingsEntryPoint {
     fun updateChecker(): UpdateChecker
     fun whatsNewRepository(): WhatsNewRepository
 }
-
-/**
- * About section row that swaps a chevron for a spinner while a manual
- * "Check for updates" call is in flight. Disabled while checking so a
- * stuck-finger user can't fire a second concurrent query.
- */
-@Composable
-private fun CheckForUpdatesRow(isChecking: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(SettingRowHeight)
-            .semantics(mergeDescendants = true) { role = Role.Button }
-            .clickable(enabled = !isChecking) { onClick() }
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            stringResource(R.string.settings_check_for_updates),
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        if (isChecking) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                strokeWidth = 2.dp,
-            )
-        } else {
-            Icon(
-                Icons.Filled.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
-                modifier = Modifier.size(18.dp),
-            )
-        }
-    }
-}
-
-internal val SettingRowHeight = 56.dp
-internal val SubSettingsBarHeight = 48.dp
-
-/**
- * Width that fits whichever of "Sign in" / "Sign out" is wider, so the
- * two buttons line up when both are visible (one row logged-in, one not).
- * Adds the M3 button horizontal content padding (24.dp each side).
- */
-@Composable
-private fun rememberAccountButtonMinWidth(): Dp {
-    val loginText = stringResource(R.string.action_sign_in)
-    val logoutText = stringResource(R.string.action_sign_out)
-    val style = MaterialTheme.typography.labelLarge
-    val measurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    val labelWidthPx = remember(loginText, logoutText, style) {
-        maxOf(
-            measurer.measure(loginText, style).size.width,
-            measurer.measure(logoutText, style).size.width,
-        )
-    }
-    return with(density) { labelWidthPx.toDp() } + 48.dp
-}
-
-@Composable
-private fun AccountRow(
-    title: String,
-    isLoggedIn: Boolean,
-    subtitle: String?,
-    isLoggingIn: Boolean,
-    onLogin: () -> Unit,
-    onLogout: () -> Unit,
-    actionMinWidth: Dp,
-    highlight: Boolean = false,
-    onHighlightConsumed: () -> Unit = {},
-) {
-    // Two-pulse attention flash when an off-screen surface (e.g. a
-    // signed-out empty state) deep-links here to surface the "Sign in"
-    // action. Uses keyframes so the row briefly tints with the accent
-    // container, fades, tints again, then settles back — enough motion
-    // to catch the eye without being noisy.
-    val highlightAlpha = remember { Animatable(0f) }
-    LaunchedEffect(highlight) {
-        if (!highlight) return@LaunchedEffect
-        highlightAlpha.snapTo(0f)
-        highlightAlpha.animateTo(
-            targetValue = 0f,
-            animationSpec = keyframes {
-                durationMillis = 2200
-                0f at 0
-                1f at 250
-                0f at 900
-                1f at 1200
-                0f at 1900
-            },
-        )
-        onHighlightConsumed()
-    }
-    val highlightColor = MaterialTheme.colorScheme.primaryContainer
-        .copy(alpha = 0.55f * highlightAlpha.value)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(highlightColor)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .clip(CircleShape)
-                .background(if (isLoggedIn) Color(0xFF34C759) else Color(0xFFFF3B30))
-        )
-        Spacer(Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-            )
-            if (!subtitle.isNullOrBlank()) {
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                )
-            }
-        }
-        if (isLoggingIn) {
-            Box(
-                modifier = Modifier
-                    .widthIn(min = actionMinWidth)
-                    .height(ButtonDefaults.MinHeight),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                )
-            }
-        } else if (isLoggedIn) {
-            OutlinedButton(
-                onClick = onLogout,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error,
-                ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
-                modifier = Modifier.widthIn(min = actionMinWidth),
-            ) { Text(stringResource(R.string.action_sign_out)) }
-        } else {
-            Button(
-                onClick = onLogin,
-                modifier = Modifier.widthIn(min = actionMinWidth),
-            ) { Text(stringResource(R.string.action_sign_in)) }
-        }
-    }
-}
-
-@Composable
-private fun SettingsRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(SettingRowHeight)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Text(
-            value, style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-        )
-    }
-}
-
-@Composable
-internal fun SettingsToggleRow(
-    label: String,
-    checked: Boolean,
-    enabled: Boolean = true,
-    subtitle: String? = null,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = SettingRowHeight)
-            .padding(horizontal = 16.dp, vertical = if (subtitle != null) 8.dp else 0.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(
-                    alpha = if (enabled) 1f else ContentAlpha.DISABLED,
-                ),
-            )
-            if (subtitle != null) {
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(
-                        alpha = if (enabled) ContentAlpha.SECONDARY else ContentAlpha.DISABLED,
-                    ),
-                )
-            }
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            enabled = enabled,
-            colors = tigerDuckSwitchColors(),
-        )
-    }
-}
-
-@Composable
-internal fun SettingsPickerRow(
-    label: String,
-    value: String,
-    options: List<Pair<String, String>>,
-    selectedKey: String,
-    onSelect: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            // `heightIn` (not `height`) so a long label that wraps to two
-            // lines can grow the row instead of getting its descenders
-            // clipped — e.g. Mandarin labels like "中文教室名稱顯示方式"
-            // are tall enough to need the extra room.
-            .heightIn(min = SettingRowHeight)
-            .clickable { expanded = true }
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Box {
-            Text(
-                value, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-            )
-
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                options.forEach { (key, display) ->
-                    DropdownMenuItem(
-                        text = { Text(display) },
-                        onClick = {
-                            onSelect(key)
-                            expanded = false
-                        },
-                        leadingIcon = {
-                            RadioButton(
-                                selected = selectedKey == key,
-                                onClick = null
-                            )
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-internal fun SettingsLinkRow(label: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(SettingRowHeight)
-            .semantics(mergeDescendants = true) { role = Role.Button }
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Icon(
-            Icons.Filled.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
-            modifier = Modifier.size(18.dp)
-        )
-    }
-}
-
-@Composable
-internal fun SettingsLinkRowWithValue(label: String, value: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(SettingRowHeight)
-            .semantics(mergeDescendants = true) { role = Role.Button }
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Text(
-            value,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-            maxLines = 1,
-        )
-        Spacer(Modifier.width(8.dp))
-        Icon(
-            Icons.Filled.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
-            modifier = Modifier.size(18.dp)
-        )
-    }
-}
-
-@Composable
-internal fun LibraryWarningDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    var countdown by remember { mutableIntStateOf(5) }
-    var confirmEnabled by remember { mutableStateOf(false) }
-    val view = LocalView.current
-
-    LaunchedEffect(Unit) {
-        Haptics.perform(
-            view.context,
-            HapticScenario.LibraryWarning,
-        )
-
-        for (i in 4 downTo 0) {
-            delay(1000)
-            countdown = i
-        }
-        confirmEnabled = true
-    }
-
-    val infiniteTransition = rememberInfiniteTransition(label = "flash")
-    val flashAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.15f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "flash_alpha"
-    )
-
-    TigerDuckDialog(
-        onDismissRequest = onDismiss,
-        icon = {
-            // Flashing red warning icon + title to signal the destructive
-            // weight of enabling the library feature. Kept in the icon slot
-            // (rather than the plain `title`) so both can pulse together.
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Icon(
-                    Icons.Filled.Warning,
-                    contentDescription = null,
-                    tint = Color.Red.copy(alpha = flashAlpha),
-                    modifier = Modifier.size(32.dp)
-                )
-                Text(
-                    stringResource(R.string.settings_library_warning_title),
-                    color = Color.Red.copy(alpha = flashAlpha),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                )
-            }
-        },
-        message = stringResource(R.string.settings_library_warning_message),
-        confirmText = if (confirmEnabled) stringResource(R.string.settings_library_warning_confirm)
-        else stringResource(R.string.settings_library_warning_confirm_countdown, countdown),
-        onConfirm = onConfirm,
-        confirmEnabled = confirmEnabled,
-        confirmColors = ButtonDefaults.buttonColors(
-            containerColor = Color.Red,
-            disabledContainerColor = Color.Red.copy(alpha = 0.35f),
-        ),
-        dismissText = stringResource(R.string.settings_library_warning_dismiss),
-        onDismiss = onDismiss,
-    )
-}
-
 private fun openUrl(context: android.content.Context, url: String, browserPreference: String) {
     val uri = url.toUri()
     if (browserPreference == "inApp") {
