@@ -209,6 +209,18 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     // --- Skipped Dates (courseNo -> list of ISO date strings "yyyy-MM-dd") ---
     // Stored in filesDir — never cleared by the OS, unlike cacheDir.
+    //
+    // 翹課 is parked until after the add-friend feature, so nothing reads this
+    // file today: every caller passes emptyMap() instead, and the reads are
+    // commented out beside them. Read/write stay here on purpose — the file is
+    // NOT deleted, so a user who marked classes before v2.0.0 gets their marks
+    // back the day the feature is switched on.
+    //
+    // Do not "reconnect" a caller in isolation. Skipping suppresses class-prep
+    // notifications and Live Activity slots, and the UI that undoes a skip
+    // (the left-swipe on the Home tile) is commented out — so a live read with
+    // a dead toggle means classes silently vanish with no way to get them back.
+    // Turn the UI on first. See HomeViewModel._skippedDates.
 
     suspend fun saveSkippedDates(data: Map<String, List<String>>) =
         saveToUserData(data, "skipped_dates.json")
