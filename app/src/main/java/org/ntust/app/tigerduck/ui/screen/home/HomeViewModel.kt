@@ -94,7 +94,6 @@ class HomeViewModel @Inject constructor(
     private val _syncConflicts = MutableStateFlow<List<SyncConflict>>(emptyList())
     val syncConflicts: StateFlow<List<SyncConflict>> = _syncConflicts
 
-
     private var _pendingSyncResult: BackendSyncResult? = null
 
     fun resolveSyncConflicts(keepLocal: Boolean) {
@@ -214,7 +213,7 @@ class HomeViewModel @Inject constructor(
             // Conflict resolution: detect reset + process tombstones
             val lastCourseSyncAt = context.getSharedPreferences("tigerduck_sync", 0)
                 .getLong("last_course_sync_at", 0L)
-            val resetAt = result.coursesResetAt?.let { parseIsoTimestamp(it) } ?: 0L
+            val resetAt = result.coursesResetAt?.let { HomeAssignmentFilters.parseIsoTimestamp(it) } ?: 0L
             if (resetAt > lastCourseSyncAt && lastCourseSyncAt > 0L) {
                 val allCourses = dataCache.loadCourses().toMutableList()
                 allCourses.removeAll { it.isManual }
@@ -227,61 +226,27 @@ class HomeViewModel @Inject constructor(
             if (prefs.syncCourses && result.serverCourseNos.isNotEmpty()) {
                 val localCourses = dataCache.loadCourses()
                 val localCourseNos = localCourses.map { it.courseNo }.toSet()
-                val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
-                val sizeBefore = deleted.size
-                Log.i("HomeViewModel", "[sync-debug] serverCourseNos=${result.serverCourseNos.sorted()} localCourseNos=${localCourseNos.sorted()} deletedNos=${deleted.sorted()}")
-                // Any non-manual local course not on the server → treat as deleted.
-                // Manual (user-local) courses may just be pending a prior failed
-                // upload, so never tombstone them on server-absence.
-                for (course in localCourses) {
-                    if (!course.isManual && course.courseNo !in result.serverCourseNos) {
-                        Log.i("HomeViewModel", "[sync-debug] marking ${course.courseNo} as deleted (local-only, not in server)")
-                        deleted.add(course.courseNo)
-                    }
-                }
-                // Apply tombstones
-                for (no in tombstonedNos) {
-                    if (no !in result.serverCourseNos && no !in deleted) {
-                        Log.i("HomeViewModel", "[sync-debug] marking $no as deleted (tombstone)")
-                        deleted.add(no)
-                    }
-                }
-                // Any previously-deleted course that reappeared on the server → un-delete
-                val undeleted = deleted.filter { it in result.serverCourseNos }
-                if (undeleted.isNotEmpty()) Log.i("HomeViewModel", "[sync-debug] un-deleting $undeleted")
-                deleted.removeAll { it in result.serverCourseNos }
-                if (deleted.size != sizeBefore || deleted != dataCache.loadDeletedCourseNos()) {
+                val previouslyDeleted = dataCache.loadDeletedCourseNos()
+                val deleted = CourseSyncReconciler.reconcileDeletions(
+                    localCourses = localCourses,
+                    serverCourseNos = result.serverCourseNos,
+                    tombstonedNos = tombstonedNos,
+                    previouslyDeleted = previouslyDeleted,
+                )
+                Log.i("HomeViewModel", "[sync-debug] server=${result.serverCourseNos.sorted()} local=${localCourseNos.sorted()} deleted=${deleted.sorted()}")
+                if (deleted != previouslyDeleted) {
                     dataCache.saveDeletedCourseNos(deleted)
                 }
 
-                // Merge courses from server that don't exist locally
                 val semester = courseService.currentSemesterCode()
-                val missingLocally = result.serverCourseNos - localCourseNos - deleted
-                Log.i("HomeViewModel", "[sync-debug] semester=$semester missingLocally=${missingLocally.sorted()} serverCourseSemesters=${result.serverCourses.map { it.semester }.toSet()}")
-                if (missingLocally.isNotEmpty()) {
-                    val current = dataCache.loadCourses().toMutableList()
-                    val currentNos = current.map { it.courseNo }.toSet()
-                    for (sc in result.serverCourses) {
-                        if (sc.courseNo in missingLocally && sc.courseNo !in currentNos && sc.semester == semester) {
-                            current.add(Course(
-                                courseNo = sc.courseNo,
-                                courseName = sc.courseName,
-                                instructor = sc.instructors.joinToString(", "),
-                                credits = sc.credits,
-                                classroom = sc.classroom,
-                                enrolledCount = sc.enrolledCount,
-                                maxCount = sc.maxCount,
-                                moodleIdNumber = sc.moodleId,
-                                isManual = true,
-                                scheduleJson = sc.scheduleJson,
-                                classroomMapJson = sc.classroomMapJson,
-                            ))
-                            Log.i("HomeViewModel", "[Sync] merged course from server: ${sc.courseNo}")
-                        }
-                    }
-                    if (current.size > dataCache.loadCourses().size) {
-                        dataCache.saveCourses(current)
-                    }
+                val merged = CourseSyncReconciler.coursesToMerge(
+                    serverCourses = result.serverCourses,
+                    wanted = result.serverCourseNos - localCourseNos - deleted,
+                    semester = semester,
+                )
+                if (merged.isNotEmpty()) {
+                    Log.i("HomeViewModel", "[Sync] merged from server: ${merged.map { it.courseNo }}")
+                    dataCache.saveCourses(localCourses + merged)
                 }
             } else if (prefs.syncCourses) {
                 val localCourses = dataCache.loadCourses()
@@ -317,50 +282,29 @@ class HomeViewModel @Inject constructor(
     private suspend fun attemptBackendRelogin(): Boolean = authService.attemptRelogin()
 
     private suspend fun applyCourseOverrides(overrides: List<CourseOverrideResult>) {
+        // The early return on an empty course list also skips the custom-name
+        // merge below. That coupling predates this refactor and is preserved
+        // deliberately: changing it would make names land on a device whose
+        // course list has not loaded yet, which is a behaviour change and not
+        // this commit's business.
         val courses = _allCourses.value.ifEmpty { return }
-        Log.d("HomeViewModel", "[sync-color] applyCourseOverrides: ${overrides.size} overrides, ${courses.size} courses, syncColors=${prefs.syncCourseColors}")
-        var changed = false
-        val updated = courses.map { course ->
-            val override = overrides.find { it.courseNo == course.courseNo }
-                ?: overrides.find { it.moodleCourseId == course.moodleIdNumber }
-            if (override == null) {
-                Log.d("HomeViewModel", "[sync-color] no override for ${course.courseNo} (moodle=${course.moodleNumericCourseId})")
-                return@map course
-            }
-            val newHex = override.colorHex ?: return@map course
-            if (prefs.syncCourseColors && newHex != course.customColorHex) {
-                Log.d("HomeViewModel", "[sync-color] ${course.courseNo}: ${course.customColorHex} -> $newHex")
-                changed = true
-                course.copy(customColorHex = newHex)
-            } else {
-                Log.d("HomeViewModel", "[sync-color] ${course.courseNo}: already $newHex (syncColors=${prefs.syncCourseColors})")
-                course
-            }
-        }
-        var nameCount = 0
-        val customNames = dataCache.loadCourseCustomNames().toMutableMap()
-        for (o in overrides) {
-            val no = o.courseNo ?: continue
-            if (prefs.syncCourseNames && o.customNames.isNotEmpty()) {
-                val existing = customNames[no]?.toMutableMap() ?: mutableMapOf()
-                for ((locale, name) in o.customNames) {
-                    if (name.isEmpty()) existing.remove(locale) else existing[locale] = name
-                }
-                if (existing.isEmpty()) customNames.remove(no) else customNames[no] = existing.toMap()
-                nameCount++
-            }
-        }
-        if (nameCount > 0) {
-            dataCache.saveCourseCustomNames(customNames)
-        }
-        if (changed) {
-            Log.i("HomeViewModel", "[sync-color] saving ${updated.count { it.customColorHex != null }} courses with custom colors, refreshing widgets")
+
+        CourseSyncReconciler.mergeCustomNames(
+            existing = dataCache.loadCourseCustomNames(),
+            overrides = overrides,
+            syncNames = prefs.syncCourseNames,
+        )?.let { dataCache.saveCourseCustomNames(it) }
+
+        CourseSyncReconciler.applyColorOverrides(
+            courses = courses,
+            overrides = overrides,
+            syncColors = prefs.syncCourseColors,
+        )?.let { updated ->
+            Log.i("HomeViewModel", "[sync-color] applying ${updated.count { c -> c.customColorHex != null }} custom colors")
             _allCourses.value = updated
             TigerDuckTheme.buildCourseColorMap(updated)
             dataCache.saveCourses(updated)
             widgetUpdater.requestUpdate()
-        } else {
-            Log.d("HomeViewModel", "[sync-color] no color changes to apply")
         }
     }
 
@@ -429,28 +373,7 @@ class HomeViewModel @Inject constructor(
         _assignmentFilter,
         appClockChanges,
     ) { all, ignored, marked, filter, _ ->
-        // "Effectively done" = Moodle says submitted OR the user manually
-        // marked it from the swipe gesture. Both buckets get treated the
-        // same for filter/sort purposes.
-        fun done(a: Assignment) = a.isCompleted || a.assignmentId in marked
-        when (filter) {
-            AssignmentFilter.INCOMPLETE ->
-                all.filter { !done(it) && it.assignmentId !in ignored }
-                    .sortedBy { it.dueDate }
-
-            AssignmentFilter.ALL -> {
-                // 全部: show everything (including ignored and marked-done),
-                // matching iOS allCandidates(). Future first (soonest on top),
-                // then past (most recently due first).
-                val now = Date(AppClock.nowMillis())
-                val (future, past) = all.partition { !it.dueDate.before(now) }
-                future.sortedBy { it.dueDate } +
-                        past.sortedByDescending { it.dueDate }
-            }
-
-            AssignmentFilter.IGNORED ->
-                all.filter { it.assignmentId in ignored }.sortedBy { it.dueDate }
-        }
+        HomeAssignmentFilters.visible(all, ignored, marked, filter, Date(AppClock.nowMillis()))
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val saveIgnoredChannel = Channel<Set<String>>(Channel.CONFLATED)
@@ -962,23 +885,16 @@ class HomeViewModel @Inject constructor(
         notificationScheduler.cancelAllTracked()
     }
 
-    fun hasUnfinishedAssignment(courseNo: String): Boolean {
-        val ignored = _ignoredAssignmentIds.value
-        val marked = _markedCompletedIds.value
-        return _allAssignments.value.any {
-            it.courseNo == courseNo && !it.isCompleted &&
-                    it.assignmentId !in ignored && it.assignmentId !in marked
-        }
-    }
+    fun hasUnfinishedAssignment(courseNo: String): Boolean =
+        assignmentsFor(courseNo).isNotEmpty()
 
-    fun assignmentsFor(courseNo: String): List<Assignment> {
-        val ignored = _ignoredAssignmentIds.value
-        val marked = _markedCompletedIds.value
-        return _allAssignments.value.filter {
-            it.courseNo == courseNo && !it.isCompleted &&
-                    it.assignmentId !in ignored && it.assignmentId !in marked
-        }
-    }
+    fun assignmentsFor(courseNo: String): List<Assignment> =
+        HomeAssignmentFilters.unfinishedFor(
+            all = _allAssignments.value,
+            courseNo = courseNo,
+            ignoredIds = _ignoredAssignmentIds.value,
+            markedCompletedIds = _markedCompletedIds.value,
+        )
 
     fun setAssignmentFilter(filter: AssignmentFilter) {
         _assignmentFilter.value = filter
@@ -1103,15 +1019,6 @@ class HomeViewModel @Inject constructor(
         list.add(to, list.removeAt(from))
         _sections.value = list.mapIndexed { i, s -> s.copy(sortOrder = i) }
         prefs.homeSections = _sections.value
-    }
-
-    private fun parseIsoTimestamp(s: String): Long {
-        if (s.isBlank()) return 0L
-        return try {
-            java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).apply {
-                timeZone = java.util.TimeZone.getTimeZone("UTC")
-            }.parse(s.take(19))?.time ?: 0L
-        } catch (_: Exception) { 0L }
     }
 
     // companion object {
