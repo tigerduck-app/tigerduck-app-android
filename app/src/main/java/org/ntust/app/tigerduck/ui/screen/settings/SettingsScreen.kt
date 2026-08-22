@@ -11,8 +11,10 @@ import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -111,11 +113,13 @@ fun SettingsScreen(
     onNavigateToLiveActivity: () -> Unit = {},
     onNavigateToAssignmentReminders: () -> Unit = {},
     onNavigateToServerPush: () -> Unit = {},
+    onNavigateToCloudSync: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToNotificationDebug: () -> Unit = {},
     onNavigateToApiEndpointDebug: () -> Unit = {},
     onNavigateToTriggersDebug: () -> Unit = {},
+    onNavigateToServerFailureDebug: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsStateWithLifecycle()
@@ -394,6 +398,39 @@ fun SettingsScreen(
                 }
             }
 
+            // MARK: Cloud Sync
+            item { SectionHeader(stringResource(R.string.cloud_sync_title)) }
+            item {
+                ContentCard {
+                    if (BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                stringResource(R.string.sync_fdroid_unavailable_title),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            )
+                            Text(
+                                stringResource(R.string.sync_fdroid_unavailable_body),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+                            )
+                        }
+                    } else {
+                        SettingsLinkRowWithValue(
+                            label = stringResource(R.string.cloud_sync_title),
+                            value = if (viewModel.appState.cloudSyncEnabled)
+                                stringResource(R.string.settings_sync_status_on)
+                            else stringResource(R.string.settings_sync_status_off),
+                            onClick = onNavigateToCloudSync,
+                        )
+                    }
+                }
+            }
+
             // MARK: Notifications
             item { SectionHeader(stringResource(R.string.settings_section_notifications)) }
             item {
@@ -524,6 +561,8 @@ fun SettingsScreen(
                             HorizontalDivider()
                             SettingsLinkRow("API endpoint") { onNavigateToApiEndpointDebug() }
                             HorizontalDivider()
+                            SettingsLinkRow("Server failure simulation") { onNavigateToServerFailureDebug() }
+                            HorizontalDivider()
                             // One-shot UI surfaces (What's new, update prompt,
                             // flip-to-library first trigger) live behind here so
                             // they can be re-fired after a single dismissal.
@@ -537,6 +576,37 @@ fun SettingsScreen(
                                     viewModel.appState.disableScreenCaptureProtection = it
                                 },
                             )
+                            HorizontalDivider()
+                            @OptIn(ExperimentalFoundationApi::class)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .combinedClickable(
+                                        onClick = { },
+                                        onLongClick = {
+                                            Haptics.perform(
+                                                context,
+                                                HapticScenario.ClassTableLongPress,
+                                            )
+                                            viewModel.appState.performFullReset()
+                                        },
+                                    )
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Long press to erase everything and restart",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                    Text(
+                                        text = "Wipes all data, accounts, and preferences",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error.copy(alpha = ContentAlpha.SECONDARY),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -682,6 +752,7 @@ private fun CheckForUpdatesRow(isChecking: Boolean, onClick: () -> Unit) {
 }
 
 internal val SettingRowHeight = 56.dp
+internal val SubSettingsBarHeight = 48.dp
 
 /**
  * Width that fits whichever of "Sign in" / "Sign out" is wider, so the

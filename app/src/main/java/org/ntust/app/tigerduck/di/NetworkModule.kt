@@ -6,7 +6,10 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.shared.LibraryService
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
@@ -34,4 +37,18 @@ object NetworkModule {
     @Singleton
     fun provideLibraryService(credentials: CredentialManager): LibraryService =
         LibraryService(credentials, isDebugBuild = BuildConfig.DEBUG)
+
+    @Provides
+    @Singleton
+    fun provideAuthTokenManager(
+        credentials: CredentialManager,
+        httpClient: OkHttpClient,
+        identity: PushIdentity,
+        prefs: AppPreferences,
+    ): AuthTokenManager = AuthTokenManager(
+        credentials = credentials,
+        httpClient = httpClient,
+        prefs = prefs,
+        deviceUuid = identity.uuid(),
+    )
 }

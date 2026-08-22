@@ -8,6 +8,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
@@ -16,6 +18,7 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.di.ApplicationScope
+import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.serverpush.ServerPushIntentToken
 import javax.inject.Inject
@@ -57,6 +60,12 @@ class FcmService : FirebaseMessagingService() {
         // plus "1"; anything else (including null) defaults to silent.
         val forceRing = data["force_ring"]?.lowercase() in setOf("true", "1")
         when (data["kind"]) {
+            "sync_trigger" -> {
+                Log.d(TAG, "Silent sync trigger received — enqueuing background sync")
+                WorkManager.getInstance(this)
+                    .enqueue(OneTimeWorkRequestBuilder<BackgroundSyncWorker>().build())
+                return
+            }
             "custom_push_bulletin" -> {
                 val bulletinId = data["bulletin_id"]?.toIntOrNull() ?: return
                 val title = data["title"].orEmpty()

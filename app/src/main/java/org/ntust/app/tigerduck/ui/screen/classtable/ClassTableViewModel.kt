@@ -8,16 +8,19 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.shared.OngoingCourseInfo
@@ -26,7 +29,9 @@ import org.ntust.app.tigerduck.shared.computeOngoingCourses
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.model.TimetablePeriod
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
@@ -47,7 +52,12 @@ class ClassTableViewModel @Inject constructor(
     private val courseColorStore: CourseColorStore,
     private val appPreferences: AppPreferences,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
+    private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
 ) : ViewModel() {
+
+    val isSyncLocalOnly = appPreferences.lastSyncSource
+        .map { appPreferences.cloudSyncEnabled && it == SyncSource.LOCAL }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _courses = MutableStateFlow<List<Course>>(emptyList())
     val courses: StateFlow<List<Course>> = _courses
@@ -71,6 +81,30 @@ class ClassTableViewModel @Inject constructor(
     // doesn't make the button vanish; [DataCache.clearAllUserData] wipes
     // it on logout so a stale map can't survive an account switch.
     private val _moodleCourseIdByIdnumber = MutableStateFlow<Map<String, Int>>(emptyMap())
+
+    // Per-locale custom course names: courseNo → locale ("zh"/"en") → display name.
+    // Loaded from DataCache.courseCustomNames on init; written on every rename.
+    // The resolved value for the current locale is stamped onto
+    // Course.customCourseName when building the in-memory course list.
+    private var courseCustomNames: MutableMap<String, MutableMap<String, String>> = mutableMapOf()
+
+    /** Current course-API locale ("zh" or "en"), derived from the user's app language. */
+    private val currentCourseLocale: String
+        get() = AppLanguageManager.resolvedCourseApiLanguage(appPreferences.appLanguage)
+
+    /**
+     * Stamp [Course.customCourseName] from [courseCustomNames] for the current
+     * locale. Courses without a per-locale entry keep their existing override
+     * (may be null).
+     */
+    private fun resolveCustomNames(courses: List<Course>): List<Course> {
+        if (courseCustomNames.isEmpty()) return courses
+        val locale = currentCourseLocale
+        return courses.map { course ->
+            val name = courseCustomNames[course.courseNo]?.get(locale)
+            if (name != null) course.copy(customCourseName = name) else course
+        }
+    }
 
     private val _selectedWeekday = MutableStateFlow<Int?>(null)
     private val _selectedPeriodId = MutableStateFlow<String?>(null)
@@ -113,13 +147,24 @@ class ClassTableViewModel @Inject constructor(
             // so picking a past term doesn't get snapped back to the
             // current semester on a color reset.
             courseColorStore.changeEvent.collect {
-                val fresh = dataCache.loadCourses(_currentSemester.value)
+                val fresh = resolveCustomNames(dataCache.loadCourses(_currentSemester.value))
                 if (fresh.isNotEmpty()) {
                     _courses.value = fresh
                     TigerDuckTheme.buildCourseColorMap(fresh)
                     // Widget refresh is driven by CourseColorStore itself, so
                     // subscribers don't need to re-trigger it.
                 }
+            }
+        }
+        viewModelScope.launch {
+            dataCache.backgroundSyncVersion.drop(1).collect {
+                val semester = _currentSemester.value
+                val fresh = resolveCustomNames(dataCache.loadCourses(semester))
+                if (fresh.isNotEmpty()) {
+                    _courses.value = fresh
+                    TigerDuckTheme.buildCourseColorMap(fresh)
+                }
+                _assignments.value = dataCache.loadAssignments()
             }
         }
         viewModelScope.launch {
@@ -130,8 +175,9 @@ class ClassTableViewModel @Inject constructor(
                     _assignments.value = emptyList()
                     _selectedCourse.value = null
                     _moodleCourseIdByIdnumber.value = emptyMap()
+                    courseCustomNames.clear()
                     hasLoaded = false
-                    TigerDuckTheme.buildCourseColorMap(emptyList())
+                    TigerDuckTheme.clearCourseColorMap()
                 } else {
                     fetchData()
                 }
@@ -216,7 +262,7 @@ class ClassTableViewModel @Inject constructor(
         appPreferences.classTableSelectedSemester = code
         _currentSemester.value = code
         viewModelScope.launch {
-            val cached = dataCache.loadCourses(code)
+            val cached = resolveCustomNames(dataCache.loadCourses(code))
             _courses.value = cached
             TigerDuckTheme.buildCourseColorMap(cached)
             fetchData()
@@ -369,7 +415,13 @@ class ClassTableViewModel @Inject constructor(
         val updated = _courses.value + flagged
         _courses.value = updated
         viewModelScope.launch {
+            val deleted = dataCache.loadDeletedCourseNos()
+            if (course.courseNo in deleted) {
+                dataCache.saveDeletedCourseNos(deleted - course.courseNo)
+            }
             dataCache.saveCourses(updated, _currentSemester.value)
+            val forceKey = "client:${_currentSemester.value}:${course.courseNo}"
+            runCatching { pushApiClient.uploadCourses(updated, _currentSemester.value, forceKeys = listOf(forceKey)) }
             widgetUpdater.requestUpdate()
         }
         TigerDuckTheme.buildCourseColorMap(updated)
@@ -384,39 +436,68 @@ class ClassTableViewModel @Inject constructor(
      */
     fun setCustomCourseName(courseNo: String, newName: String) {
         val trimmed = newName.trim()
+        val locale = currentCourseLocale
         val updated = _courses.value.map { course ->
             if (course.courseNo != courseNo) return@map course
             val defaultName = defaultNameFor(course)
             val override = trimmed.takeIf {
                 it.isNotEmpty() && it != course.courseName && it != defaultName
             }
+            // Update per-locale map
+            if (override != null) {
+                courseCustomNames.getOrPut(courseNo) { mutableMapOf() }[locale] = override
+            } else {
+                courseCustomNames[courseNo]?.remove(locale)
+                if (courseCustomNames[courseNo].isNullOrEmpty()) courseCustomNames.remove(courseNo)
+            }
             course.copy(customCourseName = override)
         }
         _courses.value = updated
         viewModelScope.launch {
+            dataCache.saveCourseCustomNames(courseCustomNames)
             dataCache.saveCourses(updated, _currentSemester.value)
             widgetUpdater.requestUpdate()
         }
+        syncCourseOverride(courseNo, customName = trimmed.ifEmpty { "" }, locale = locale)
     }
 
     /** Clears any user override for [courseNo], restoring the default name. */
     fun revertCourseName(courseNo: String) {
+        val locale = currentCourseLocale
+        courseCustomNames[courseNo]?.remove(locale)
+        if (courseCustomNames[courseNo].isNullOrEmpty()) courseCustomNames.remove(courseNo)
         val updated = _courses.value.map { course ->
             if (course.courseNo == courseNo) course.copy(customCourseName = null) else course
         }
         _courses.value = updated
         viewModelScope.launch {
+            dataCache.saveCourseCustomNames(courseCustomNames)
             dataCache.saveCourses(updated, _currentSemester.value)
             widgetUpdater.requestUpdate()
         }
+        syncCourseOverride(courseNo, customName = "", locale = locale)
+    }
+
+    private fun resolveMoodleNumericId(course: Course): Int? {
+        course.moodleNumericCourseId?.let { return it }
+        val idnumber = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: return null
+        return _moodleCourseIdByIdnumber.value[idnumber]
     }
 
     fun deleteCourse(courseNo: String) {
         val updated = _courses.value.filter { it.courseNo != courseNo }
         _courses.value = updated
+        val semester = _currentSemester.value
         viewModelScope.launch {
-            dataCache.saveCourses(updated, _currentSemester.value)
+            val deleted = dataCache.loadDeletedCourseNos() + courseNo
+            dataCache.saveDeletedCourseNos(deleted)
+            dataCache.saveCourses(updated, semester)
             widgetUpdater.requestUpdate()
+            val courseKey = "client:$semester:$courseNo"
+            runCatching { pushApiClient.deleteCourse(courseKey) }
+                .onFailure { e -> Log.w("ClassTable", "deleteCourse backend failed", e) }
+            runCatching { pushApiClient.uploadCourses(updated, semester) }
+                .onFailure { e -> Log.w("ClassTable", "uploadCourses after delete failed", e) }
         }
         TigerDuckTheme.buildCourseColorMap(updated)
     }
@@ -443,6 +524,29 @@ class ClassTableViewModel @Inject constructor(
         viewModelScope.launch {
             dataCache.saveCourses(updated, _currentSemester.value)
             widgetUpdater.requestUpdate()
+        }
+        syncCourseOverride(courseNo, colorHex = normalized)
+    }
+
+    private fun syncCourseOverride(
+        courseNo: String,
+        colorHex: String? = null,
+        customName: String? = null,
+        locale: String? = null,
+    ) {
+        val course = _courses.value.find { it.courseNo == courseNo } ?: return
+        val moodleId = course.moodleIdNumber ?: return
+        viewModelScope.launch {
+            try {
+                pushApiClient.patchCourseOverride(
+                    moodleId,
+                    colorHex = colorHex,
+                    customName = customName,
+                    locale = locale,
+                )
+            } catch (e: Exception) {
+                Log.w("ClassTableVM", "course override FAILED: $courseNo", e)
+            }
         }
     }
 
@@ -654,10 +758,13 @@ class ClassTableViewModel @Inject constructor(
             val cached = dataCache.loadCourses(_currentSemester.value)
             val cachedA = dataCache.loadAssignments()
             val cachedMoodleIds = dataCache.loadMoodleCourseIds()
+            courseCustomNames = dataCache.loadCourseCustomNames()
+                .mapValues { it.value.toMutableMap() }
+                .toMutableMap()
             if (cached.isNotEmpty()) {
-                _courses.value = cached
+                _courses.value = resolveCustomNames(cached)
                 _assignments.value = cachedA
-                TigerDuckTheme.buildCourseColorMap(cached)
+                TigerDuckTheme.buildCourseColorMap(_courses.value)
             }
             if (cachedMoodleIds.isNotEmpty()) {
                 _moodleCourseIdByIdnumber.value = cachedMoodleIds
@@ -677,6 +784,15 @@ class ClassTableViewModel @Inject constructor(
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
     val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
+
+    fun resetCourses() {
+        viewModelScope.launch {
+            dataCache.saveDeletedCourseNos(emptySet())
+            runCatching { pushApiClient.deleteAllCourses() }
+                .onFailure { Log.w("ClassTableVM", "deleteAllCourses failed (non-fatal)", it) }
+            fetchData()
+        }
+    }
 
     fun refresh() {
         viewModelScope.launch {
@@ -804,7 +920,8 @@ class ClassTableViewModel @Inject constructor(
                                             maxCount = r.maxEnrollment,
                                             schedule = schedule,
                                             classroomMap = classroomMap,
-                                            moodleIdNumber = "${r.semester}${r.courseNo}"
+                                            moodleIdNumber = "${r.semester}${r.courseNo}",
+                                            moodleNumericCourseId = moodleByNo[courseNo]?.id
                                         )
                                     } else {
                                         // QueryCourse only indexes the latest
@@ -817,7 +934,8 @@ class ClassTableViewModel @Inject constructor(
                                                 courseNo = courseNo,
                                                 courseName = (m.fullname
                                                     ?: courseNo).decodeHtmlEntities(),
-                                                moodleIdNumber = m.idnumber
+                                                moodleIdNumber = m.idnumber,
+                                                moodleNumericCourseId = m.id,
                                             )
                                         }
                                     }
@@ -828,7 +946,8 @@ class ClassTableViewModel @Inject constructor(
                                             courseNo = courseNo,
                                             courseName = (m.fullname
                                                 ?: courseNo).decodeHtmlEntities(),
-                                            moodleIdNumber = m.idnumber
+                                            moodleIdNumber = m.idnumber,
+                                            moodleNumericCourseId = m.id,
                                         )
                                     }
                                 }
@@ -837,24 +956,26 @@ class ClassTableViewModel @Inject constructor(
 
                         if (courses.isNotEmpty()) {
                             val cached = dataCache.loadCourses(semester)
+                            val deletedNos = dataCache.loadDeletedCourseNos()
                             val cachedByNo = cached.associateBy { it.courseNo }
-                            // Carry forward both the user's color pick AND the
-                            // `isManual` flag. If the user manually added a
-                            // course that later appears in the remote feed,
-                            // keep it marked manual so subsequent refreshes
-                            // still rescue it when it drops off the feed.
+                            val locale = currentCourseLocale
+                            // Carry forward the user's color pick AND the
+                            // `isManual` flag. Resolve customCourseName from
+                            // the per-locale map so a language switch picks up
+                            // the right override.
                             val fetched = courses.map { c ->
                                 val prior = cachedByNo[c.courseNo]
                                 c.copy(
                                     customColorHex = prior?.customColorHex,
                                     isManual = prior?.isManual == true,
-                                    customCourseName = prior?.customCourseName,
+                                    customCourseName = courseCustomNames[c.courseNo]?.get(locale),
                                 )
                             }
                             val fetchedNos = fetched.map { it.courseNo }.toSet()
                             val manualLeftovers =
                                 cached.filter { it.isManual && it.courseNo !in fetchedNos }
-                            val merged = fetched + manualLeftovers
+                            val merged = resolveCustomNames(fetched + manualLeftovers)
+                                .filter { it.courseNo !in deletedNos }
                             // Only apply if the user hasn't flipped to a
                             // different semester mid-flight.
                             if (_currentSemester.value == semester) {
@@ -862,6 +983,8 @@ class ClassTableViewModel @Inject constructor(
                                 TigerDuckTheme.buildCourseColorMap(merged)
                             }
                             dataCache.saveCourses(merged, semester)
+                            runCatching { pushApiClient.uploadCourses(merged, semester) }
+                                .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal)", it) }
                             widgetUpdater.requestUpdate()
                         }
                     }

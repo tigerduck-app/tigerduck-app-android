@@ -16,6 +16,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -42,6 +45,8 @@ class PushRegistrationService @Inject constructor(
     @ApplicationContext context: Context,
     private val identity: PushIdentity,
     private val api: PushApiClient,
+    private val authTokenManager: AuthTokenManager,
+    private val appPreferences: AppPreferences,
     @param:ApplicationScope private val scope: CoroutineScope,
 ) {
     private val mutex = Mutex()
@@ -72,8 +77,7 @@ class PushRegistrationService @Inject constructor(
         }
     }
 
-    suspend fun onSignedIn(userId: String) {
-        identity.setUserId(userId)
+    suspend fun onSignedIn() {
         scheduleRegister()
     }
 
@@ -89,7 +93,7 @@ class PushRegistrationService @Inject constructor(
         }
     }
 
-    fun unregister() {
+    fun unregister(authHeaderOverride: String? = null) {
         scope.launch {
             // Clear fcmToken and latch isUnregistering in the same critical
             // section that cancels the debounce so a token rotation or
@@ -100,9 +104,9 @@ class PushRegistrationService @Inject constructor(
                 fcmToken = null
                 isUnregistering = true
             }
-            val deviceId = identity.deviceId()
+            val deviceId = identity.uuid()
             try {
-                runCatching { api.unregister(deviceId) }
+                runCatching { api.unregister(deviceId, authHeaderOverride) }
                     .onFailure { e ->
                         if (e is CancellationException) throw e
                         Log.w(TAG, "unregister failed", e)
@@ -111,7 +115,6 @@ class PushRegistrationService @Inject constructor(
                 // Always reset state so a cancelled coroutine (e.g. test scope
                 // cancellation) can't leave isUnregistering latched true and
                 // block all future scheduleRegister() calls.
-                identity.clearUserId()
                 withContext(NonCancellable) {
                     mutex.withLock { isUnregistering = false }
                 }
@@ -129,26 +132,28 @@ class PushRegistrationService @Inject constructor(
     }
 
     private suspend fun performRegister(): Boolean {
-        // Snapshot token and opt-out under the same mutex so a concurrent
-        // updateServerPushOptOut can't flip the pref between read and POST
-        // and race the PATCH on the wire.
-        val (token, serverPushOptOut) = mutex.withLock {
-            if (isUnregistering) null to false
-            else fcmToken to prefs.getBoolean(KEY_SERVER_PUSH_OPT_OUT, false)
+        // Snapshot token under the mutex so a concurrent token rotation or
+        // updateServerPushOptOut can't flip state between read and POST.
+        val token = mutex.withLock {
+            if (isUnregistering) null else fcmToken
         }
         if (token == null) return false
-        val deviceId = identity.deviceId()
-        // Bulletin push is opt-in via subscriptions, not gated on sign-in.
-        // Without a signed-in user we register under an anonymous user_id
-        // so the device row exists and subscriptions PUT doesn't 404.
-        val userId = identity.userId() ?: "anon-$deviceId"
+        // Registration requires a v3 JWT — the device row belongs to a
+        // signed-in user. The FCM token usually arrives before login on a
+        // cold start; defer until sign-in (onSignedIn() re-fires this) rather
+        // than POSTing with no Bearer and getting 401 missing_bearer_token.
+        if (!authTokenManager.isLoggedIn) {
+            return false
+        }
+        val clientDeviceId = identity.uuid()
         return runCatching {
             api.register(
                 DeviceRegisterRequest(
-                    userId = userId,
-                    deviceId = deviceId,
-                    ptsTokenHex = token,
-                    serverPushEnabled = !serverPushOptOut,
+                    clientDeviceId = clientDeviceId,
+                    appVersion = BuildConfig.VERSION_NAME,
+                    osVersion = "Android ${android.os.Build.VERSION.RELEASE}",
+                    pushToken = PushTokenIn(tokenValue = token),
+                    cloudSyncEnabled = appPreferences.cloudSyncEnabled,
                 )
             )
         }.fold(
@@ -190,6 +195,7 @@ class PushRegistrationService @Inject constructor(
             val reason = mutex.withLock {
                 when {
                     isUnregistering -> "Unregister in progress"
+                    !authTokenManager.isLoggedIn -> "Not signed in"
                     fcmToken == null -> "Waiting for FCM token"
                     else -> null
                 }
@@ -244,7 +250,7 @@ class PushRegistrationService @Inject constructor(
      *  pref is still flipped so the next `performRegister` reconciles, and
      *  `lastError` is surfaced via the diagnostic for the status card. */
     suspend fun updateServerPushOptOut(optOut: Boolean): Boolean {
-        val deviceId = identity.deviceId()
+        val deviceId = identity.uuid()
         // Hold the mutex across the pref write AND the PATCH so a concurrent
         // performRegister (which snapshots under the same mutex) can't read
         // an in-flight value, and so rapid toggle taps serialize their
@@ -268,6 +274,32 @@ class PushRegistrationService @Inject constructor(
         // status card now reflects backend reachability for this PATCH.
         updateDiagnostic { it.copy(lastError = error) }
         return error == null
+    }
+
+    suspend fun updateCloudSyncEnabled(enabled: Boolean) {
+        val deviceId = identity.uuid()
+        api.updateDevicePreferences(deviceId, cloudSyncEnabled = enabled)
+    }
+
+    suspend fun updateSyncPreferences(
+        syncCourses: Boolean,
+        syncCourseColors: Boolean,
+        syncCourseNames: Boolean,
+        syncAssignments: Boolean,
+    ) {
+        val deviceId = identity.uuid()
+        runCatching {
+            api.updateDevicePreferences(
+                deviceId,
+                syncCourses = syncCourses,
+                syncCourseColors = syncCourseColors,
+                syncCourseNames = syncCourseNames,
+                syncAssignments = syncAssignments,
+            )
+        }.onFailure { e ->
+            if (e is CancellationException) throw e
+            Log.w(TAG, "sync preferences PATCH failed", e)
+        }
     }
 
     private companion object {

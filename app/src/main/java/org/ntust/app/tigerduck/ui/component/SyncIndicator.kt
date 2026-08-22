@@ -36,6 +36,7 @@ fun SyncIndicator(
     showCheckmark: Boolean,
     modifier: Modifier = Modifier,
     dragProgress: Float = 0f,
+    isLocalOnly: Boolean = false,
 ) {
     val loadingLabel = stringResource(R.string.refreshing_message)
     val successLabel = stringResource(R.string.sync_success_content_description)
@@ -75,7 +76,7 @@ fun SyncIndicator(
                 "checkmark" -> Icon(
                     Icons.Filled.CheckCircle,
                     contentDescription = null,
-                    tint = Color(0xFF34C759),
+                    tint = if (isLocalOnly) Color(0xFFFFCC00) else Color(0xFF34C759),
                     modifier = Modifier.size(20.dp)
                 )
 

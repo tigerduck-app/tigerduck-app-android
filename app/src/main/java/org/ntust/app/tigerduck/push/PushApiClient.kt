@@ -1,6 +1,5 @@
 package org.ntust.app.tigerduck.push
 
-import android.util.Log
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -8,10 +7,17 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.logging.HttpLoggingInterceptor
+import androidx.compose.ui.graphics.toArgb
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.shared.Course
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,44 +27,30 @@ class PushApiException(message: String) : Exception(message)
 class PushApiClient @Inject constructor(
     baseClient: OkHttpClient,
     private val prefs: AppPreferences,
+    private val authTokenManager: AuthTokenManager,
 ) {
 
-    // Resolved per call so the debug API-endpoint override applies to push
-    // immediately (no relaunch). Resolver name is historical — the override
-    // governs both Announcement and Push API base URLs now. Release builds
-    // never write the override, so the resolver collapses to the build's
-    // default endpoint there.
+    private val isSyncCapable: Boolean
+        get() = prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)
+
     private val baseUrl: String
         get() = resolveAnnouncementEndpoint(prefs).url.trimEnd('/')
-    private val sharedSecret = BuildConfig.PUSH_SHARED_SECRET
     private val gson = Gson()
     private val jsonType = "application/json".toMediaType()
-
-    private val logging = HttpLoggingInterceptor { msg ->
-        Log.d("TigerDuck-Push", msg)
-    }.apply {
-        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
-        else HttpLoggingInterceptor.Level.NONE
-        // Redact every credential the base client or this interceptor may add;
-        // HEADERS level otherwise dumps them into logcat verbatim on debug.
-        redactHeader("X-Push-Token")
-        redactHeader("Authorization")
-        redactHeader("Cookie")
-        redactHeader("Set-Cookie")
-        redactHeader("Proxy-Authorization")
-    }
 
     private val client = baseClient.newBuilder()
         .addInterceptor { chain ->
             val builder = chain.request().newBuilder()
                 .header("Accept", "application/json")
-            if (sharedSecret.isNotEmpty()) {
-                builder.header("X-Push-Token", sharedSecret)
-            }
             chain.proceed(builder.build())
         }
-        .addInterceptor(logging)
         .build()
+
+    /** Adds a Bearer Authorization header if a v3 token is available. */
+    private suspend fun Request.Builder.addAuthHeader(): Request.Builder {
+        val authHeader = authTokenManager.authHeader()
+        return if (authHeader != null) header("Authorization", authHeader) else this
+    }
 
     suspend fun register(req: DeviceRegisterRequest): DeviceRegisterResponse =
         withContext(Dispatchers.IO) {
@@ -66,6 +58,7 @@ class PushApiClient @Inject constructor(
             val request = Request.Builder()
                 .url("$baseUrl/devices/register")
                 .post(body)
+                .addAuthHeader()
                 .build()
             client.newCall(request).execute().use { response ->
                 val text = response.body.string()
@@ -80,12 +73,22 @@ class PushApiClient @Inject constructor(
             }
         }
 
-    suspend fun unregister(deviceId: String) = withContext(Dispatchers.IO) {
-        val body = gson.toJson(DeviceUnregisterRequest(deviceId)).toRequestBody(jsonType)
-        val request = Request.Builder()
-            .url("$baseUrl/devices/unregister")
-            .post(body)
-            .build()
+    suspend fun unregister(
+        deviceId: String,
+        authHeaderOverride: String? = null,
+    ) = withContext(Dispatchers.IO) {
+        // v3: DELETE /devices/{client_device_id}, scoped to the authed user
+        // (matches iOS + the server). `deviceId` is PushIdentity.uuid().
+        // On logout the caller passes a pre-captured header because the tokens
+        // are wiped before this fire-and-forget call runs — without it the
+        // DELETE goes out unauthenticated, 401s, and the device row leaks.
+        val builder = Request.Builder()
+            .url("$baseUrl/devices/$deviceId")
+            .delete()
+        val request = (
+            if (authHeaderOverride != null) builder.header("Authorization", authHeaderOverride)
+            else builder.addAuthHeader()
+            ).build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("unregister failed: HTTP ${response.code}")
@@ -96,13 +99,26 @@ class PushApiClient @Inject constructor(
     /** PATCH the user-facing server-push opt-out for this device. */
     suspend fun updateDevicePreferences(
         deviceId: String,
-        serverPushEnabled: Boolean,
+        serverPushEnabled: Boolean? = null,
+        syncCourses: Boolean? = null,
+        syncCourseColors: Boolean? = null,
+        syncCourseNames: Boolean? = null,
+        syncAssignments: Boolean? = null,
+        cloudSyncEnabled: Boolean? = null,
     ): DevicePreferencesResponse = withContext(Dispatchers.IO) {
-        val payload = UpdateDevicePreferencesRequest(serverPushEnabled = serverPushEnabled)
+        val payload = UpdateDevicePreferencesRequest(
+            serverPushEnabled = serverPushEnabled,
+            syncCourses = syncCourses,
+            syncCourseColors = syncCourseColors,
+            syncCourseNames = syncCourseNames,
+            syncAssignments = syncAssignments,
+            cloudSyncEnabled = cloudSyncEnabled,
+        )
         val body = gson.toJson(payload).toRequestBody(jsonType)
         val request = Request.Builder()
             .url("$baseUrl/devices/$deviceId/preferences")
             .patch(body)
+            .addAuthHeader()
             .build()
         client.newCall(request).execute().use { response ->
             val text = response.body.string()
@@ -112,6 +128,190 @@ class PushApiClient @Inject constructor(
             if (text.isBlank()) throw PushApiException("updateDevicePreferences: empty body")
             gson.fromJson(text, DevicePreferencesResponse::class.java)
                 ?: throw PushApiException("updateDevicePreferences: empty body")
+        }
+    }
+
+    suspend fun updateCredentials(
+        moodleToken: String,
+        moodlePrivateToken: String? = null,
+    ) = withContext(Dispatchers.IO) {
+        val payload = mapOf(
+            "moodle_token" to moodleToken,
+            "moodle_private_token" to moodlePrivateToken,
+        )
+        val body = gson.toJson(payload).toRequestBody(jsonType)
+        val request = Request.Builder()
+            .url("$baseUrl/auth/credentials")
+            .patch(body)
+            .addAuthHeader()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw PushApiException("updateCredentials failed: HTTP ${response.code}")
+            }
+        }
+    }
+
+    suspend fun patchAssignmentOverride(
+        assignmentId: Int,
+        localStatus: String,
+    ) = withContext(Dispatchers.IO) {
+        if (!isSyncCapable || !prefs.syncAssignments) return@withContext
+        val payload = mapOf("local_status" to localStatus)
+        val body = gson.toJson(payload).toRequestBody(jsonType)
+        val request = Request.Builder()
+            .url("$baseUrl/sync/assignments/$assignmentId/override")
+            .patch(body)
+            .addAuthHeader()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw PushApiException("patchAssignmentOverride failed: HTTP ${response.code}")
+            }
+        }
+    }
+
+    suspend fun patchCourseOverride(
+        courseId: Any,
+        colorHex: String? = null,
+        customName: String? = null,
+        locale: String? = null,
+    ) = withContext(Dispatchers.IO) {
+        if (!isSyncCapable) return@withContext
+        if (colorHex != null && !prefs.syncCourseColors) return@withContext
+        if (customName != null && !prefs.syncCourseNames) return@withContext
+        val payload = mutableMapOf<String, Any?>()
+        if (colorHex != null) payload["color_hex"] = colorHex
+        if (customName != null) payload["custom_name"] = customName
+        if (locale != null) payload["locale"] = locale
+        val body = gson.toJson(payload).toRequestBody(jsonType)
+        val request = Request.Builder()
+            .url("$baseUrl/sync/courses/$courseId/override")
+            .patch(body)
+            .addAuthHeader()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw PushApiException("patchCourseOverride failed: HTTP ${response.code}")
+            }
+        }
+    }
+
+    /**
+     * Fire-and-forget upload of the user's assignment list so the backend can
+     * persist it for cross-device sync. Callers wrap this in `runCatching`
+     * — a failure here must never block the normal fetch/save flow.
+     */
+    suspend fun uploadAssignments(
+        assignments: List<Assignment>,
+    ) = withContext(Dispatchers.IO) {
+        if (!isSyncCapable || !prefs.syncAssignments) return@withContext
+        val iso8601 = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        val items = assignments.map { a ->
+            mapOf(
+                "moodle_assignment_id" to (a.assignmentId.toIntOrNull() ?: 0),
+                "course_no" to a.courseNo,
+                "course_name" to a.courseName,
+                "title" to a.title,
+                "due_at" to iso8601.format(a.dueDate),
+                "moodle_url" to a.moodleUrl,
+                "is_submitted" to a.isCompleted,
+                "grade" to null,
+            )
+        }
+        val payload = mapOf("assignments" to items)
+        val body = gson.toJson(payload).toRequestBody(jsonType)
+        val request = Request.Builder()
+            .url("$baseUrl/sync/assignments/upload")
+            .post(body)
+            .addAuthHeader()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw PushApiException("uploadAssignments failed: HTTP ${response.code}")
+            }
+        }
+    }
+
+    /**
+     * Fire-and-forget upload of the user's enrolled course list so the backend
+     * can persist it for cross-device sync. Callers wrap this in `runCatching`
+     * — a failure here must never block the normal fetch/save flow.
+     */
+    suspend fun uploadCourses(
+        courses: List<Course>,
+        semester: String,
+        forceKeys: List<String> = emptyList(),
+    ) = withContext(Dispatchers.IO) {
+        if (!isSyncCapable || !prefs.syncCourses) return@withContext
+        val items = courses.map { c ->
+            mapOf(
+                "semester" to semester,
+                "course_no" to c.courseNo,
+                "course_name" to c.displayName,
+                "course_name_en" to null,
+                "moodle_id" to c.moodleIdNumber,
+                "credits" to c.credits.toDouble(),
+                "classroom" to c.classroom,
+                "instructors" to c.instructor
+                    .split(",", "，", "、")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() },
+                "schedule_json" to c.schedule.mapKeys { it.key.toString() },
+                "classroom_map" to c.classroomMap,
+            )
+        }
+        val overrides = courses.map { c ->
+            val hex = TigerDuckTheme.courseColorVibrant(c.courseNo).let {
+                String.format("#%06X", it.toArgb() and 0xFFFFFF)
+            }
+            mapOf(
+                "course_key" to "client:$semester:${c.courseNo}",
+                "color_hex" to hex,
+            )
+        }
+        val payload = mutableMapOf<String, Any>("courses" to items, "course_overrides" to overrides)
+        if (forceKeys.isNotEmpty()) payload["force_keys"] = forceKeys
+        val body = gson.toJson(payload).toRequestBody(jsonType)
+        val request = Request.Builder()
+            .url("$baseUrl/sync/courses/upload")
+            .post(body)
+            .addAuthHeader()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw PushApiException("uploadCourses failed: HTTP ${response.code}")
+            }
+        }
+    }
+
+    suspend fun deleteCourse(courseKey: String) = withContext(Dispatchers.IO) {
+        if (!isSyncCapable || !prefs.syncCourses) return@withContext
+        val request = Request.Builder()
+            .url("$baseUrl/sync/courses/$courseKey")
+            .delete()
+            .addAuthHeader()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw PushApiException("deleteCourse failed: HTTP ${response.code}")
+            }
+        }
+    }
+
+    suspend fun deleteAllCourses() = withContext(Dispatchers.IO) {
+        if (!isSyncCapable || !prefs.syncCourses) return@withContext
+        val request = Request.Builder()
+            .url("$baseUrl/sync/courses")
+            .delete()
+            .addAuthHeader()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw PushApiException("deleteAllCourses failed: HTTP ${response.code}")
+            }
         }
     }
 }

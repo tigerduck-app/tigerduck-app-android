@@ -2,38 +2,48 @@ package org.ntust.app.tigerduck.push
 
 import com.google.gson.annotations.SerializedName
 
-// Backend stores the push token in `pts_token_hex` for both iOS (APNs) and
-// Android (FCM); the column name predates Android support but is platform-
-// agnostic in practice (see DEBUG.md verification query).
-data class DeviceRegisterRequest(
-    @SerializedName("user_id") val userId: String,
-    @SerializedName("device_id") val deviceId: String,
-    @SerializedName("platform") val platform: String = "android",
-    @SerializedName("pts_token_hex") val ptsTokenHex: String,
+// v3 device registration DTOs.
+// @SerializedName is load-bearing on every field: these classes have no R8
+// keep rule, so an unannotated field gets renamed in release builds and Gson
+// silently leaves it null after deserialization.
+
+data class PushTokenIn(
+    @SerializedName("provider") val provider: String = "fcm",
+    @SerializedName("token_kind") val tokenKind: String = "standard",
+    @SerializedName("token_value") val tokenValue: String,
     @SerializedName("bundle_id") val bundleId: String = "org.ntust.app.tigerduck",
-    @SerializedName("device_class") val deviceClass: String = "android",
-    @SerializedName("server_push_enabled") val serverPushEnabled: Boolean = true,
+    @SerializedName("scope_key") val scopeKey: String = "",
+)
+
+data class DeviceRegisterRequest(
+    @SerializedName("client_device_id") val clientDeviceId: String,
+    @SerializedName("platform") val platform: String = "android",
+    @SerializedName("app_version") val appVersion: String? = null,
+    @SerializedName("os_version") val osVersion: String? = null,
+    @SerializedName("push_token") val pushToken: PushTokenIn? = null,
+    @SerializedName("cloud_sync_enabled") val cloudSyncEnabled: Boolean? = null,
 )
 
 data class DeviceRegisterResponse(
     @SerializedName("device_id") val deviceId: String,
-    @SerializedName("user_id") val userId: String,
-    // @SerializedName is load-bearing on every field here: these classes
-    // have no R8 keep rule, so an unannotated field gets renamed in release
-    // builds and Gson silently leaves it null after deserialization.
-    @SerializedName("platform") val platform: String?,
-    @SerializedName("registered_at") val registeredAt: String?,
-)
-
-data class DeviceUnregisterRequest(
-    @SerializedName("device_id") val deviceId: String,
+    @SerializedName("push_token_id") val pushTokenId: Int?,
 )
 
 data class UpdateDevicePreferencesRequest(
-    @SerializedName("server_push_enabled") val serverPushEnabled: Boolean,
+    @SerializedName("server_push_enabled") val serverPushEnabled: Boolean? = null,
+    @SerializedName("sync_courses") val syncCourses: Boolean? = null,
+    @SerializedName("sync_course_colors") val syncCourseColors: Boolean? = null,
+    @SerializedName("sync_course_names") val syncCourseNames: Boolean? = null,
+    @SerializedName("sync_assignments") val syncAssignments: Boolean? = null,
+    @SerializedName("cloud_sync_enabled") val cloudSyncEnabled: Boolean? = null,
 )
 
 data class DevicePreferencesResponse(
-    @SerializedName("device_id") val deviceId: String,
-    @SerializedName("server_push_enabled") val serverPushEnabled: Boolean,
+    @SerializedName("device_id") val deviceId: String? = null,
+    @SerializedName("server_push_enabled") val serverPushEnabled: Boolean = true,
+    @SerializedName("sync_courses") val syncCourses: Boolean = true,
+    @SerializedName("sync_course_colors") val syncCourseColors: Boolean = true,
+    @SerializedName("sync_course_names") val syncCourseNames: Boolean = true,
+    @SerializedName("sync_assignments") val syncAssignments: Boolean = true,
+    @SerializedName("cloud_sync_enabled") val cloudSyncEnabled: Boolean = true,
 )

@@ -61,6 +61,8 @@ import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.ServerStatusIcons
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -79,6 +81,7 @@ fun CalendarScreen(
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val displayedMonth by viewModel.displayedMonth.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isSyncLocalOnly by viewModel.isSyncLocalOnly.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val dayEvents by viewModel.selectedDateEvents.collectAsStateWithLifecycle()
     val resources = LocalResources.current
@@ -120,6 +123,10 @@ fun CalendarScreen(
                             isLoading = isLoading,
                             showCheckmark = showCheckmark,
                             dragProgress = pullProgress,
+                            isLocalOnly = isSyncLocalOnly,
+                        )
+                        ServerStatusIcons(
+                            servers = listOf(ServerKind.MOODLE),
                         )
                         Spacer(Modifier.width(8.dp))
                         JumpToNowChip(

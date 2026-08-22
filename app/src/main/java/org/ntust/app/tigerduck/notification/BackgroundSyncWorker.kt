@@ -12,15 +12,19 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import java.util.concurrent.TimeUnit
+
+enum class SyncSource { NONE, BACKEND, LOCAL }
 
 @HiltWorker
 class BackgroundSyncWorker @AssistedInject constructor(
@@ -34,29 +38,111 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private val liveActivityManager: org.ntust.app.tigerduck.liveactivity.LiveActivityManager,
     private val prefs: org.ntust.app.tigerduck.data.preferences.AppPreferences,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
+    private val syncApiClient: org.ntust.app.tigerduck.push.SyncApiClient,
+    private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
+    private val authTokenManager: org.ntust.app.tigerduck.auth.AuthTokenManager,
 ) : CoroutineWorker(context, params) {
+
+    @Deprecated("Use prefs.lastSyncSource instead", level = DeprecationLevel.HIDDEN)
+    var lastSyncSource: SyncSource = SyncSource.NONE
+        private set
 
     override suspend fun doWork(): Result {
         val studentId = authService.storedStudentId
         val password = authService.storedPassword
         if (studentId.isNullOrBlank() || password.isNullOrBlank()) return Result.success()
 
-        val coursesOk = syncCourses(studentId, password)
-        // The user may have logged out while the network call was in flight.
-        // Bail before touching the cache or scheduling anything.
-        if (authService.storedStudentId != studentId) return Result.success()
+        // Moodle-direct for assignments/courses, backend for override sync.
+        syncOverridesFromBackend()
 
+        val coursesOk = syncCourses(studentId, password)
+        if (authService.storedStudentId != studentId) return Result.success()
         val assignmentsOk = syncAssignments()
         if (authService.storedStudentId != studentId) return Result.success()
 
         liveActivityManager.refreshAndWait()
         widgetUpdater.updateAll()
+        dataCache.notifyBackgroundSyncComplete()
 
-        // Retry whenever either half failed: treating a partial failure as
-        // success would silently drop the failing component until the next
-        // hourly tick. WorkManager's exponential backoff is the right
-        // recovery path for transient Moodle/NTUST outages.
         return if (coursesOk && assignmentsOk) Result.success() else Result.retry()
+    }
+
+    private suspend fun syncOverridesFromBackend() {
+        if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+            prefs.setLastSyncSource(SyncSource.NONE)
+            return
+        }
+        // No v3 JWT yet (silent migration pending or failed): NONE, not LOCAL —
+        // LOCAL would light the "sync from local only" indicator even though no
+        // sync was ever attempted. Mirrors HomeViewModel.syncOverridesFromBackend.
+        if (!authTokenManager.isLoggedIn) {
+            prefs.setLastSyncSource(SyncSource.NONE)
+            return
+        }
+        try {
+            val result = syncApiClient.fetchFullSync()
+            val localIgnored = dataCache.loadIgnoredAssignments()
+            val localMarked = dataCache.loadMarkedCompletedAssignments()
+            val isFirstTimeMigration = result.ignoredIds.isEmpty() && result.completedIds.isEmpty()
+                && (localIgnored.isNotEmpty() || localMarked.isNotEmpty())
+            if (!isFirstTimeMigration) {
+                dataCache.replaceIgnoredAssignments(result.ignoredIds)
+                dataCache.replaceMarkedCompletedAssignments(result.completedIds)
+            }
+
+            if (prefs.syncCourseColors && result.courseOverrides.isNotEmpty()) {
+                applyCourseOverridesBackground(result.courseOverrides)
+            }
+            // Hard-delete model: courses removed on the server are absent from
+            // the courses array. Compare against local to update deletedCourseNos.
+            if (prefs.syncCourses && result.serverCourseNos.isNotEmpty()) {
+                val localCourseNos = dataCache.loadCourses().map { it.courseNo }.toSet()
+                val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
+                val sizeBefore = deleted.size
+                for (no in localCourseNos) {
+                    if (no !in result.serverCourseNos) {
+                        deleted.add(no)
+                    }
+                }
+                deleted.removeAll { it in result.serverCourseNos }
+                if (deleted.size != sizeBefore || deleted != dataCache.loadDeletedCourseNos()) {
+                    dataCache.saveDeletedCourseNos(deleted)
+                }
+            } else if (prefs.syncCourses) {
+                val localCourses = dataCache.loadCourses()
+                if (localCourses.isNotEmpty()) {
+                    val semester = courseService.currentSemesterCode()
+                    runCatching { pushApiClient.uploadCourses(localCourses, semester) }
+                        .onFailure { e -> Log.w(TAG, "[Sync] auto-upload failed", e) }
+                    Log.i(TAG, "[Sync] backend empty, auto-uploaded ${localCourses.size} courses")
+                }
+            }
+            prefs.setLastSyncSource(SyncSource.BACKEND)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            prefs.setLastSyncSource(SyncSource.LOCAL)
+            Log.w(TAG, "override sync failed", e)
+        }
+    }
+
+    private suspend fun applyCourseOverridesBackground(overrides: List<org.ntust.app.tigerduck.push.CourseOverrideResult>) {
+        val courses = dataCache.loadCourses()
+        var changed = false
+        val updated = courses.map { course ->
+            val override = overrides.find { it.courseNo == course.courseNo }
+                ?: overrides.find { it.moodleCourseId == course.moodleIdNumber }
+                ?: return@map course
+            val newHex = override.colorHex ?: return@map course
+            if (newHex != course.customColorHex) {
+                changed = true
+                course.copy(customColorHex = newHex)
+            } else course
+        }
+        if (changed) {
+            dataCache.saveCourses(updated)
+            widgetUpdater.requestUpdate()
+        }
     }
 
     private suspend fun syncCourses(studentId: String, password: String): Boolean {
@@ -123,7 +209,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
                                     schedule = schedule,
                                     classroomMap = classroomMap,
                                     moodleIdNumber = moodleByNo[courseNo]?.idnumber
-                                        ?: "${r.semester}${r.courseNo}"
+                                        ?: "${r.semester}${r.courseNo}",
+                                    moodleNumericCourseId = moodleByNo[courseNo]?.id
                                 )
                             } else {
                                 CourseService.fallbackCourseFromMoodle(
@@ -143,6 +230,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 // Preserve user-picked tile colors and manually-added courses
                 // across the background refresh.
                 val cached = dataCache.loadCourses()
+                val deletedNos = dataCache.loadDeletedCourseNos()
                 val cachedByNo = cached.associateBy { it.courseNo }
                 val fetchedWithState = fetched.map { c ->
                     val prior = cachedByNo[c.courseNo]
@@ -159,8 +247,14 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 // this cycle's roster but unresolved due to transient lookup failures.
                 val cachedRemoteFallbacks =
                     cached.filter { !it.isManual && it.courseNo in unresolvedNos }
-                val merged = fetchedWithState + manualLeftovers + cachedRemoteFallbacks
+                val merged = (fetchedWithState + manualLeftovers + cachedRemoteFallbacks)
+                    .filter { it.courseNo !in deletedNos }
                 dataCache.saveCourses(merged)
+                runCatching { pushApiClient.uploadCourses(merged, semester) }
+                    .onFailure {
+                        prefs.setLastSyncSource(SyncSource.LOCAL)
+                        Log.w(TAG, "uploadCourses failed (non-fatal)", it)
+                    }
             }
             true
         } catch (e: Exception) {
@@ -182,6 +276,11 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 if (a.assignmentId in completed) a.copy(isCompleted = true) else a
             }
             dataCache.saveAssignments(merged)
+            runCatching { pushApiClient.uploadAssignments(merged) }
+                .onFailure {
+                    prefs.setLastSyncSource(SyncSource.LOCAL)
+                    Log.w(TAG, "uploadAssignments failed (non-fatal)", it)
+                }
 
             if (prefs.notifyAssignments) {
                 // Hand the scheduler both the full non-completed list and the

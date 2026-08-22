@@ -7,8 +7,12 @@ import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.data.model.HomeSection
@@ -66,6 +70,41 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     )
     val disableScreenCaptureProtectionChanged: SharedFlow<Unit> =
         _disableScreenCaptureProtectionChanged.asSharedFlow()
+
+    private val _lastSyncSource = MutableStateFlow(SyncSource.NONE)
+    val lastSyncSource: StateFlow<SyncSource> = _lastSyncSource.asStateFlow()
+
+    fun setLastSyncSource(source: SyncSource) { _lastSyncSource.value = source }
+
+    val isSyncLocalOnly: Boolean
+        get() = cloudSyncEnabled && _lastSyncSource.value == SyncSource.LOCAL
+
+    // Opt-in: must default to false. A true default would silently enable
+    // upload for existing users on upgrade (they never see the onboarding
+    // sync page, and silent v3 migration logs them in without interaction).
+    var cloudSyncEnabled: Boolean
+        get() = prefs.getBoolean("cloudSyncEnabled", false)
+        set(value) = prefs.edit().putBoolean("cloudSyncEnabled", value).apply()
+
+    var syncCourses: Boolean
+        get() = prefs.getBoolean("syncCourses", true)
+        set(value) = prefs.edit().putBoolean("syncCourses", value).apply()
+
+    var syncCourseColors: Boolean
+        get() = prefs.getBoolean("syncCourseColors", true)
+        set(value) = prefs.edit().putBoolean("syncCourseColors", value).apply()
+
+    var syncCourseNames: Boolean
+        get() = prefs.getBoolean("syncCourseNames", true)
+        set(value) = prefs.edit().putBoolean("syncCourseNames", value).apply()
+
+    var syncAssignments: Boolean
+        get() = prefs.getBoolean("syncAssignments", true)
+        set(value) = prefs.edit().putBoolean("syncAssignments", value).apply()
+
+    var pendingConflictCategories: Set<String>
+        get() = prefs.getStringSet("pendingConflictCategories", emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet("pendingConflictCategories", value).apply()
 
     var hasCompletedOnboarding: Boolean
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
@@ -148,6 +187,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     var rememberAnnouncementFilter: Boolean
         get() = prefs.getBoolean("rememberAnnouncementFilter", false)
         set(value) = prefs.edit().putBoolean("rememberAnnouncementFilter", value).apply()
+
+    var colorHashV2Migrated: Boolean
+        get() = prefs.getBoolean("color_hash_v2_migrated", false)
+        set(value) = prefs.edit().putBoolean("color_hash_v2_migrated", value).apply()
 
     /**
      * Persisted department (org) filter for the announcements list. Always

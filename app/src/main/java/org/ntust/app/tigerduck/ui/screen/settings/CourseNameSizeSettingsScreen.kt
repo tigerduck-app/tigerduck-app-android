@@ -83,6 +83,7 @@ fun CourseNameSizeSettingsScreen(
                         )
                     }
                 },
+                expandedHeight = SubSettingsBarHeight,
             )
         },
         containerColor = MaterialTheme.colorScheme.background,

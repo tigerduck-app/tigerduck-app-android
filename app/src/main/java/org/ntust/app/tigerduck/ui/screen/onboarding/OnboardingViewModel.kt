@@ -35,6 +35,10 @@ class OnboardingViewModel @Inject constructor(
         analyticsLogger.setEnabled(enabled)
     }
 
+    fun setSyncEnabled(enabled: Boolean) {
+        prefs.cloudSyncEnabled = enabled
+    }
+
     fun completeOnboarding() {
         appState.completeOnboarding()
     }

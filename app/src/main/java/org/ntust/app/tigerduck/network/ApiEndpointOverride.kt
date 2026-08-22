@@ -29,7 +29,7 @@ internal data class ResolvedAnnouncementEndpoint(
  * "active override" status cannot diverge from what the client actually
  * sends). Re-validation here (not just URL parsing) guarantees that a stale
  * value `OverrideValidator` would now reject — say, `http://example.com/v2`
- * left by an older build — cannot leak `X-Push-Token` to a disallowed host
+ * left by an older build — cannot leak Bearer credentials to a disallowed host
  * from subscription calls.
  */
 internal fun resolveAnnouncementEndpoint(prefs: AppPreferences): ResolvedAnnouncementEndpoint {

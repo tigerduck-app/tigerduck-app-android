@@ -6,6 +6,7 @@ import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,6 +28,7 @@ import javax.inject.Singleton
 @Singleton
 class AnalyticsLogger @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val prefs: AppPreferences,
 ) {
     private val analytics: FirebaseAnalytics? by lazy {
         if (FirebaseApp.getApps(context).isEmpty()) null
@@ -35,6 +37,7 @@ class AnalyticsLogger @Inject constructor(
     private var previouslyEnabled: Boolean? = null
 
     fun log(event: String, params: Map<String, Any?> = emptyMap()) {
+        if (!prefs.analyticsEnabled) return
         val fa = analytics ?: return
         if (!validateName("event name", event, MAX_NAME_CHARS)) return
         val entries =

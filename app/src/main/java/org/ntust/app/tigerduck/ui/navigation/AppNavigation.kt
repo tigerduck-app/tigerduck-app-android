@@ -39,6 +39,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -78,6 +81,8 @@ import org.ntust.app.tigerduck.ui.screen.settings.CourseNameSizeSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.ClassTableSyncScreen
+import org.ntust.app.tigerduck.ui.screen.settings.CloudSyncSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.ServerPushScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SourceCodePickerScreen
@@ -107,12 +112,15 @@ sealed class Screen(val route: String) {
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
     object CourseNameSizeSettings : Screen("courseNameSizeSettings")
+    object CloudSync : Screen("cloudSync")
+    object ClassTableSync : Screen("classTableSync")
     object ServerPush : Screen("serverPush")
     object VibrationSettings : Screen("vibrationSettings")
     object Debug : Screen("debug")
     object NotificationDebug : Screen("notificationDebug")
     object ApiEndpointDebug : Screen("apiEndpointDebug")
     object TriggersDebug : Screen("triggersDebug")
+    object ServerFailureDebug : Screen("serverFailureDebug")
 }
 
 @Composable
@@ -201,6 +209,18 @@ fun MainNavigation(
         homeViewModel.load()
         classTableViewModel.load()
         calendarViewModel.load()
+    }
+    val pollingLifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(pollingLifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                homeViewModel.startRevisionPolling()
+            } else if (event == Lifecycle.Event.ON_PAUSE) {
+                homeViewModel.stopRevisionPolling()
+            }
+        }
+        pollingLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { pollingLifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val configuredTabs by remember {
         derivedStateOf {
@@ -396,6 +416,7 @@ fun MainNavigation(
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
                     onNavigateToAssignmentReminders = { navController.navigate(Screen.AssignmentReminderSettings.route) },
                     onNavigateToServerPush = { navController.navigate(Screen.ServerPush.route) },
+                    onNavigateToCloudSync = { navController.navigate(Screen.CloudSync.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
                     // Debug-route navigation is no-op in release builds:
                     // the composables themselves are registered only inside
@@ -414,6 +435,9 @@ fun MainNavigation(
                     },
                     onNavigateToTriggersDebug = {
                         if (BuildConfig.DEBUG) navController.navigate(Screen.TriggersDebug.route)
+                    },
+                    onNavigateToServerFailureDebug = {
+                        if (BuildConfig.DEBUG) navController.navigate(Screen.ServerFailureDebug.route)
                     },
                 )
             }
@@ -436,6 +460,11 @@ fun MainNavigation(
                 composable(Screen.TriggersDebug.route) {
                     org.ntust.app.tigerduck.ui.screen.debug.TriggersDebugScreen(
                         appState = appState,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(Screen.ServerFailureDebug.route) {
+                    org.ntust.app.tigerduck.ui.screen.debug.ServerFailureDebugScreen(
                         onBack = { navController.popBackStack() },
                     )
                 }
@@ -472,6 +501,15 @@ fun MainNavigation(
             }
             composable(Screen.AssignmentReminderSettings.route) {
                 AssignmentReminderSettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.CloudSync.route) {
+                CloudSyncSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToClassTableSync = { navController.navigate(Screen.ClassTableSync.route) },
+                )
+            }
+            composable(Screen.ClassTableSync.route) {
+                ClassTableSyncScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.ServerPush.route) {
                 ServerPushScreen(onBack = { navController.popBackStack() })

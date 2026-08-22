@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
@@ -22,7 +23,9 @@ import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.MoodleService
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.NetworkChecker
+import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Calendar
 import java.util.Date
@@ -34,8 +37,13 @@ class CalendarViewModel @Inject constructor(
     private val calendarService: CalendarService,
     private val moodleService: MoodleService,
     private val authService: AuthService,
-    private val dataCache: DataCache
+    private val dataCache: DataCache,
+    private val prefs: AppPreferences,
 ) : ViewModel() {
+
+    val isSyncLocalOnly = prefs.lastSyncSource
+        .map { prefs.cloudSyncEnabled && it == SyncSource.LOCAL }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _events = MutableStateFlow<List<CalendarEvent>>(emptyList())
     val events: StateFlow<List<CalendarEvent>> = _events

@@ -22,49 +22,54 @@ import kotlin.random.Random
  * light-mode hex; [courseColorPaletteDark] provides the paired dark variant at
  * the same index so switching themes keeps the "same" class color.
  */
+// Shared with iOS (TigerDuckTheme.coursePaletteHexes). Both platforms
+// store and sync colors as these hex values so cross-device sync works.
 val courseColorPalette: List<Color> = listOf(
-    Color(0xFFDC2626), // Red
-    Color(0xFFEA580C), // Orange
-    Color(0xFFD97706), // Amber
-    Color(0xFFCA8A04), // Ochre
-    Color(0xFF65A30D), // Lime
-    Color(0xFF16A34A), // Green
-    Color(0xFF059669), // Emerald
-    Color(0xFF0D9488), // Teal
-    Color(0xFF0891B2), // Cyan
-    Color(0xFF0284C7), // Sky
-    Color(0xFF2563EB), // Blue
-    Color(0xFF4F46E5), // Indigo
-    Color(0xFF7C3AED), // Violet
-    Color(0xFF9333EA), // Purple
-    Color(0xFFC026D3), // Fuchsia
-    Color(0xFFDB2777), // Pink
-    Color(0xFFE11D48), // Rose
-    Color(0xFF475569), // Slate
+    Color(0xFFFF6B6B), // 珊瑚紅
+    Color(0xFF4ECDC4), // 青綠
+    Color(0xFF45B7D1), // 天藍
+    Color(0xFFF39C12), // 橘橙
+    Color(0xFFDDA0DD), // 梅紫
+    Color(0xFF2ECC71), // 翡翠綠
+    Color(0xFFE74C3C), // 磚紅
+    Color(0xFF3498DB), // 寶藍
+    Color(0xFFF7DC6F), // 金黃
+    Color(0xFF9B59B6), // 紫羅蘭
+    Color(0xFF1ABC9C), // 碧綠
+    Color(0xFFE67E22), // 南瓜橘
+    Color(0xFF85C1E9), // 淺藍
+    Color(0xFFD35400), // 焦橙
+    Color(0xFF27AE60), // 森林綠
+    Color(0xFFC0392B), // 酒紅
+    Color(0xFF8E44AD), // 深紫
+    Color(0xFF16A085), // 松綠
+    Color(0xFFF1C40F), // 向日葵黃
+    Color(0xFF2980B9), // 鈷藍
 )
 
-// Hues inherited from the Tailwind -700 line but with HSV saturation scaled
-// to ~0.55x and value scaled to ~0.75x so dark-mode tiles read as muted and
-// dim rather than vivid.
+// Dark-mode variants: HSV saturation scaled to ~0.55x, value to ~0.75x
+// so tiles read as muted/dim. Same palette order as above.
 val courseColorPaletteDark: List<Color> = listOf(
-    Color(0xFF8B4A4A), // Red
-    Color(0xFF925C46), // Orange
-    Color(0xFF875F41), // Amber
-    Color(0xFF795F39), // Ochre
-    Color(0xFF4A5D30), // Lime
-    Color(0xFF346045), // Green
-    Color(0xFF2A5A4C), // Emerald
-    Color(0xFF2E5855), // Teal
-    Color(0xFF36616C), // Cyan
-    Color(0xFF386179), // Sky
-    Color(0xFF5569A2), // Blue
-    Color(0xFF605B98), // Indigo
-    Color(0xFF765AA3), // Violet
-    Color(0xFF7A549B), // Purple
-    Color(0xFF7E4783), // Fuchsia
-    Color(0xFF8F4A67), // Pink
-    Color(0xFF8F4859), // Rose
-    Color(0xFF323840), // Slate
+    Color(0xFF994747), // 珊瑚紅
+    Color(0xFF3A7A73), // 青綠
+    Color(0xFF366D7D), // 天藍
+    Color(0xFF916111), // 橘橙
+    Color(0xFF846284), // 梅紫
+    Color(0xFF267A4C), // 翡翠綠
+    Color(0xFF8A3329), // 磚紅
+    Color(0xFF265F83), // 寶藍
+    Color(0xFF948448), // 金黃
+    Color(0xFF5E3E6E), // 紫羅蘭
+    Color(0xFF13715E), // 碧綠
+    Color(0xFF8A5118), // 南瓜橘
+    Color(0xFF54748C), // 淺藍
+    Color(0xFF7E3700), // 焦橙
+    Color(0xFF1E693D), // 森林綠
+    Color(0xFF73281D), // 酒紅
+    Color(0xFF562D68), // 深紫
+    Color(0xFF126150), // 松綠
+    Color(0xFF91750F), // 向日葵黃
+    Color(0xFF1E4F6F), // 鈷藍
 )
 
 object TigerDuckTheme {
@@ -105,7 +110,34 @@ object TigerDuckTheme {
     }
 
     fun buildCourseColorMap(courses: List<Course>) {
-        courseColorMapRef.set(buildCourseColorAssignments(courses))
+        val existing = courseColorMapRef.get().toMutableMap()
+
+        val pinnedCourseNos = mutableSetOf<String>()
+        courses.forEach { course ->
+            val pinned = parseHexOrNull(course.customColorHex) ?: return@forEach
+            pinnedCourseNos.add(course.courseNo)
+            existing[course.courseNo] = pinned
+        }
+
+        // Evict auto-assigned entries that now conflict with a pinned color
+        val pinnedColors = pinnedCourseNos.mapNotNullTo(mutableSetOf()) { existing[it] }
+        val evict = existing.keys.filter { it !in pinnedCourseNos && existing[it] in pinnedColors }
+        evict.forEach { existing.remove(it) }
+
+        val taken = existing.values.toMutableSet()
+        courses.filter { existing[it.courseNo] == null }
+            .sortedBy { it.courseNo }
+            .forEach { course ->
+                val color = pickFreeCourseColor(course.courseNo, taken)
+                existing[course.courseNo] = color
+                taken.add(color)
+            }
+
+        courseColorMapRef.set(existing)
+    }
+
+    fun clearCourseColorMap() {
+        courseColorMapRef.set(emptyMap())
     }
 
     fun courseColor(courseNo: String): Color {

@@ -82,6 +82,8 @@ import org.ntust.app.tigerduck.data.model.SemesterRanking
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.ServerStatusIcons
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -96,6 +98,7 @@ fun ScoreScreen(
 ) {
     val report by viewModel.report.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val isSyncLocalOnly by viewModel.isSyncLocalOnly.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val rankingScope by viewModel.rankingScope.collectAsStateWithLifecycle()
@@ -125,6 +128,10 @@ fun ScoreScreen(
                         isLoading = isRefreshing,
                         showCheckmark = false,
                         dragProgress = pullProgress,
+                        isLocalOnly = isSyncLocalOnly,
+                    )
+                    ServerStatusIcons(
+                        servers = listOf(ServerKind.COURSE_SELECTION),
                     )
                 }
 

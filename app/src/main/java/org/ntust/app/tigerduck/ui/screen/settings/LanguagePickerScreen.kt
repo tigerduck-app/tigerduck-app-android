@@ -167,6 +167,7 @@ fun LanguagePickerScreen(
                         )
                     }
                 },
+                expandedHeight = SubSettingsBarHeight,
             )
         },
     ) { padding ->

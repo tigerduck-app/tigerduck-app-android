@@ -55,6 +55,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -108,6 +109,8 @@ import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.ServerStatusIcons
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.navigation.icon
@@ -138,6 +141,8 @@ fun HomeScreen(
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
     // 翹課 feature disabled — kept for potential re-enable.
     // val skippedDates by viewModel.skippedDates.collectAsStateWithLifecycle()
+    val syncConflicts by viewModel.syncConflicts.collectAsStateWithLifecycle()
+    val isSyncLocalOnly by viewModel.isSyncLocalOnly.collectAsStateWithLifecycle()
     var showComingSoon by remember { mutableStateOf(false) }
     var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -176,7 +181,9 @@ fun HomeScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) {
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.syncOnForeground()
+            } else if (event == Lifecycle.Event.ON_PAUSE) {
                 viewModel.onHomePaused()
             }
         }
@@ -243,6 +250,10 @@ fun HomeScreen(
                                 isLoading = isLoading,
                                 showCheckmark = showCheckmark,
                                 dragProgress = pullProgress,
+                                isLocalOnly = isSyncLocalOnly,
+                            )
+                            ServerStatusIcons(
+                                servers = listOf(ServerKind.MOODLE, ServerKind.BACKEND),
                             )
                         }
                     }
@@ -356,6 +367,14 @@ fun HomeScreen(
 
     if (showComingSoon) {
         ComingSoonDialog(onDismiss = { showComingSoon = false })
+    }
+
+    if (syncConflicts.isNotEmpty()) {
+        SyncConflictDialog(
+            conflicts = syncConflicts,
+            onKeepLocal = { viewModel.resolveSyncConflicts(keepLocal = true) },
+            onKeepServer = { viewModel.resolveSyncConflicts(keepLocal = false) },
+        )
     }
 
     selectedCourse?.let { info ->
@@ -826,7 +845,7 @@ private fun SwipeableAssignmentRow(
     // but pointer deltas are raw screen-space. Negate in RTL so swipeOffset
     // stays "logical" (positive = start) and the visual row tracks the finger.
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val ignoreColor = Color(0xFFFF9500)
+    val ignoreColor = Color(0xFF8E8E93)
     val completeColor = Color(0xFF34C759)
 
     Box(modifier = Modifier.fillMaxWidth()) {
@@ -935,8 +954,57 @@ private fun SwipeableAssignmentRow(
                 course = course,
                 showAbsoluteTime = showAbsoluteTime,
                 markedCompleted = isMarkedCompleted,
+                isIgnored = isIgnored,
                 onClick = onClick,
             )
         }
     }
+}
+
+@Composable
+private fun SyncConflictDialog(
+    conflicts: List<HomeViewModel.SyncConflict>,
+    onKeepLocal: () -> Unit,
+    onKeepServer: () -> Unit,
+) {
+    @Composable
+    fun statusLabel(s: String) = when (s) {
+        "ignored", "archived" -> stringResource(R.string.sync_conflict_status_ignored)
+        "locally_completed" -> stringResource(R.string.sync_conflict_status_completed)
+        "none" -> stringResource(R.string.sync_conflict_status_none)
+        else -> s
+    }
+
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text(stringResource(R.string.sync_conflict_title)) },
+        text = {
+            Column {
+                Text(stringResource(R.string.sync_conflict_message), style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(8.dp))
+                conflicts.forEach { c ->
+                    Text(
+                        stringResource(R.string.sync_conflict_item_header, c.kind, c.label),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        stringResource(R.string.sync_conflict_item_detail, statusLabel(c.localStatus), statusLabel(c.serverStatus)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onKeepServer) {
+                Text(stringResource(R.string.sync_conflict_use_server))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onKeepLocal) {
+                Text(stringResource(R.string.sync_conflict_use_local))
+            }
+        },
+    )
 }

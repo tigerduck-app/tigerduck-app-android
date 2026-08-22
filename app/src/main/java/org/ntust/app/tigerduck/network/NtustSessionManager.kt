@@ -1,12 +1,10 @@
 package org.ntust.app.tigerduck.network
 
-import android.util.Log
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.Dispatcher
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import java.util.concurrent.ConcurrentHashMap
@@ -43,18 +41,6 @@ class NtustSessionManager @Inject constructor(
 
         override fun loadForRequest(url: HttpUrl): List<Cookie> =
             cookieStore[url.host]?.toList() ?: emptyList()
-    }
-
-    private val loggingInterceptor = HttpLoggingInterceptor { message ->
-        Log.d("TigerDuck-HTTP", redactSensitive(message))
-    }.apply {
-        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
-        else HttpLoggingInterceptor.Level.NONE
-        // Session cookies and wstoken can appear in these headers; mask them
-        // even in debug so logcat doesn't carry long-lived credentials.
-        redactHeader("Cookie")
-        redactHeader("Set-Cookie")
-        redactHeader("Authorization")
     }
 
     // Default OkHttp caps parallelism at 5 requests per host, which
@@ -101,7 +87,6 @@ class NtustSessionManager @Inject constructor(
                 .build()
             chain.proceed(request)
         }
-        .addInterceptor(loggingInterceptor)
         .build()
 
     companion object {

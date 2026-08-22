@@ -108,6 +108,7 @@ fun SourceCodePickerScreen(
                         )
                     }
                 },
+                expandedHeight = SubSettingsBarHeight,
             )
         },
     ) { padding ->

@@ -28,9 +28,9 @@ if (hasGoogleServices) {
     }
 }
 
-// Pull dev push-server config out of root-level local.properties so the URL
-// + shared secret never end up in VCS. project.findProperty() only reads
-// gradle.properties, so do it manually here.
+// Pull dev push-server URL out of root-level local.properties so it never
+// ends up in VCS. project.findProperty() only reads gradle.properties,
+// so do it manually here.
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
@@ -47,8 +47,8 @@ android {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 29
         targetSdk = 36
-        versionCode = 21
-        versionName = "1.4.3"
+        versionCode = 22
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -71,15 +71,16 @@ android {
 
     buildTypes {
         debug {
+            // Default to the local backend, NOT production — a debug build must
+            // never silently hit api.tigerduck.app (mirrors the iOS Debug
+            // resolver, which defaults to localhost). 10.0.2.2 is the Android
+            // emulator's host-loopback (the Mac running the backend); physical
+            // devices override `pushBaseUrl` in local.properties with the Mac's
+            // LAN IP. Cleartext to this host is permitted in network_security_config.
             buildConfigField(
                 "String",
                 "PUSH_BASE_URL",
-                "\"${localProp("pushBaseUrl", "https://api.tigerduck.app/v2")}\"",
-            )
-            buildConfigField(
-                "String",
-                "PUSH_SHARED_SECRET",
-                "\"${localProp("pushSharedSecret")}\"",
+                "\"${localProp("pushBaseUrl", "http://10.0.2.2:40000/v3")}\"",
             )
         }
         release {
@@ -101,13 +102,8 @@ android {
                 "PUSH_BASE_URL",
                 "\"${
                     System.getenv("PUSH_BASE_URL")
-                        ?: localProp("pushBaseUrlRelease", "https://api.tigerduck.app/v2")
+                        ?: localProp("pushBaseUrlRelease", "https://api.tigerduck.app/v3")
                 }\"",
-            )
-            buildConfigField(
-                "String",
-                "PUSH_SHARED_SECRET",
-                "\"${System.getenv("PUSH_SHARED_SECRET") ?: ""}\"",
             )
         }
     }

@@ -9,8 +9,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
+import org.ntust.app.tigerduck.data.model.SyncConflict
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
@@ -32,6 +37,23 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     // User-generated state that has no remote source — stored in filesDir so the OS never evicts it.
     private val userDataDir: File = File(context.filesDir, "TigerDuckData").also { it.mkdirs() }
     private val cacheMutex = Mutex()
+
+    private val _syncConflict = MutableStateFlow<SyncConflict?>(null)
+    val syncConflict: StateFlow<SyncConflict?> = _syncConflict.asStateFlow()
+
+    fun setSyncConflict(conflict: SyncConflict?) { _syncConflict.value = conflict }
+
+    private val _backgroundSyncVersion = MutableStateFlow(0)
+    val backgroundSyncVersion: StateFlow<Int> = _backgroundSyncVersion.asStateFlow()
+    fun notifyBackgroundSyncComplete() { _backgroundSyncVersion.update { it + 1 } }
+
+    suspend fun replaceIgnoredAssignments(ids: Set<String>) {
+        saveToUserData(ids.toList(), "ignored_assignments.json")
+    }
+
+    suspend fun replaceMarkedCompletedAssignments(ids: Set<String>) {
+        saveToUserData(ids.toList(), "marked_completed_assignments.json")
+    }
     private val userDataMutex = Mutex()
     private val gson: Gson = GsonBuilder()
         .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
@@ -172,9 +194,9 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         val month = cal.get(Calendar.MONTH) + 1
         val rocYear = year - 1911
         return when (month) {
-            in 2..8 -> "${rocYear - 1}2"
-            in 9..12 -> "${rocYear}1"
-            else -> "${rocYear - 1}1"
+            in 2..7 -> "${rocYear - 1}2"   // Feb 1 – Jul 31: spring
+            in 8..12 -> "${rocYear}1"       // Aug 1 – Dec 31: fall
+            else -> "${rocYear - 1}1"       // January: prior fall
         }
     }
 
@@ -197,6 +219,32 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     suspend fun loadSkippedDates(): Map<String, List<String>> {
         val type = object : TypeToken<Map<String, List<String>>>() {}.type
         return loadFromUserData(type, "skipped_dates.json") ?: emptyMap()
+    }
+
+    // MARK: - Course Custom Names (per-locale overrides)
+    // courseNo → locale → name. Stored in filesDir so user renames survive
+    // cache eviction. The ClassTableViewModel resolves the current locale's
+    // entry into Course.customCourseName at load/display time.
+
+    suspend fun saveCourseCustomNames(names: Map<String, Map<String, String>>) =
+        saveToUserData(names, "course_custom_names.json")
+
+    suspend fun loadCourseCustomNames(): Map<String, Map<String, String>> {
+        val type = object : TypeToken<Map<String, Map<String, String>>>() {}.type
+        return loadFromUserData(type, "course_custom_names.json") ?: emptyMap()
+    }
+
+    // MARK: - Deleted Course Nos (hidden by user or server)
+    // Stored in filesDir so courses hidden via sync or the delete gesture
+    // stay gone even when Moodle/NTUST re-fetches re-add them.
+
+    suspend fun saveDeletedCourseNos(nos: Set<String>) =
+        saveToUserData(nos.toList(), "deleted_courses.json")
+
+    suspend fun loadDeletedCourseNos(): Set<String> {
+        val type = object : TypeToken<List<String>>() {}.type
+        return loadFromUserData<List<String>>(type, "deleted_courses.json")?.toSet()
+            ?: emptySet()
     }
 
     // MARK: - Ignored Assignments (set of assignmentIds)
@@ -339,6 +387,8 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
                     "skipped_dates.json",
                     "ignored_assignments.json",
                     "marked_completed_assignments.json",
+                    "deleted_courses.json",
+                    "course_custom_names.json",
                 ).forEach { name ->
                     runCatching { File(userDataDir, name).delete() }
                 }
@@ -400,12 +450,14 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         try {
             tmp.writeText(content)
             if (!tmp.renameTo(target)) {
-                // Rename-over-existing can fail on some filesystems; retry
-                // after deleting the target.
+                // Rename-over-existing can fail on some filesystems; delete
+                // the target only after the temp file write has succeeded so
+                // we never lose existing data if the write itself fails.
                 target.delete()
                 if (!tmp.renameTo(target)) {
-                    // Both renames failed and target is already deleted —
-                    // fall back to direct write so data isn't lost entirely.
+                    // Both renames failed — fall back to direct write so
+                    // data isn't lost entirely. The temp file still holds
+                    // the content so the write is safe to attempt.
                     target.writeText(content)
                     runCatching { tmp.delete() }
                     return

@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -92,6 +93,8 @@ import org.ntust.app.tigerduck.ui.component.CourseCard
 import org.ntust.app.tigerduck.ui.component.CurrentClassCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.ServerStatusIcons
 import org.ntust.app.tigerduck.ui.component.SyncIndicator
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.isEnglishUiLanguage
@@ -118,6 +121,7 @@ fun ClassTableScreen(
 ) {
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isSyncLocalOnly by viewModel.isSyncLocalOnly.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val currentMinute by viewModel.currentMinute.collectAsStateWithLifecycle()
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
@@ -139,6 +143,7 @@ fun ClassTableScreen(
     val activePeriods = remember(courses) { viewModel.activePeriods }
     val activeWeekdays = remember(courses) { viewModel.activeWeekdays }
     var showAddCourse by remember { mutableStateOf(false) }
+    var showResetConfirm by remember { mutableStateOf(false) }
     var courseToRename by remember { mutableStateOf<Course?>(null) }
     var renameText by remember { mutableStateOf("") }
     var courseToRecolor by remember { mutableStateOf<Course?>(null) }
@@ -196,11 +201,32 @@ fun ClassTableScreen(
                     .verticalScroll(rememberScrollState())
             ) {
                 PageHeader(title = stringResource(R.string.feature_class_table)) {
-                    SyncIndicator(
-                        isLoading = isLoading,
-                        showCheckmark = showCheckmark,
-                        dragProgress = pullProgress,
+                    Box(
+                        modifier = Modifier.size(48.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        SyncIndicator(
+                            isLoading = isLoading,
+                            showCheckmark = showCheckmark,
+                            dragProgress = pullProgress,
+                            isLocalOnly = isSyncLocalOnly,
+                        )
+                    }
+                    ServerStatusIcons(
+                        servers = listOf(ServerKind.MOODLE, ServerKind.COURSE_SELECTION, ServerKind.BACKEND),
                     )
+                    IconButton(
+                        onClick = { showResetConfirm = true },
+                        enabled = isLoggedIn
+                    ) {
+                        Icon(
+                            Icons.Filled.Refresh,
+                            contentDescription = stringResource(R.string.class_table_reset_title),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(
+                                alpha = if (isLoggedIn) ContentAlpha.SECONDARY else ContentAlpha.DISABLED
+                            )
+                        )
+                    }
                     IconButton(
                         onClick = { showAddCourse = true },
                         enabled = isLoggedIn
@@ -513,6 +539,20 @@ fun ClassTableScreen(
             ),
             confirmText = stringResource(R.string.action_confirm),
             onConfirm = { tripleConflictError = null },
+        )
+    }
+
+    if (showResetConfirm) {
+        TigerDuckDialog(
+            onDismissRequest = { showResetConfirm = false },
+            title = stringResource(R.string.class_table_reset_title),
+            message = stringResource(R.string.class_table_reset_message),
+            confirmText = stringResource(R.string.action_confirm),
+            onConfirm = {
+                showResetConfirm = false
+                viewModel.resetCourses()
+            },
+            dismissText = stringResource(R.string.action_cancel),
         )
     }
 

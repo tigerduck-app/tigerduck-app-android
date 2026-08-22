@@ -98,6 +98,7 @@ fun AssignmentReminderSettingsScreen(
                         )
                     }
                 },
+                expandedHeight = SubSettingsBarHeight,
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
