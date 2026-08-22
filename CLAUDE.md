@@ -2,7 +2,7 @@
 
 Multi-module Gradle project: `:app` (phone), `:wear` (watch OS), `:shared`
 (domain models reused on both). Phone has `play` and `fdroid` flavors;
-`:wear` is play-only. Localization strings come from the `localization/`
+`:wear` is play-only. Localization strings come from the `app-translation/`
 submodule and are generated via `tools/localization/sync_localizations.py`
 (also wired into the `syncLocalizations` Gradle task).
 
@@ -52,7 +52,7 @@ default is silently dropped and the field is null at runtime.
 - **Flavor split is load-bearing.** `play` uses Firebase + Google Play
   Services; `fdroid` cannot. Anything FCM / GMS-flavored lives under
   `app/src/play/`. Don't sprinkle Play-Services imports into `main/`.
-- **Localization strings are generated** from the `localization/` submodule.
+- **Localization strings are generated** from the `app-translation/` submodule.
   Edit the JSON in the submodule, not `app/src/main/res/values*/strings.xml`
   (those are regenerated and would be clobbered). Run `:app:syncLocalizations`
   to refresh.

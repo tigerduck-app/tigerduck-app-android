@@ -191,7 +191,7 @@ even more OAO!
 ### Android App
 
 ```bash
-# Clone the repository (with submodules: localization, name-abbr)
+# Clone the repository (with submodules: app-translation, name-abbr)
 git clone --recurse-submodules https://github.com/tigerduck-app/tigerduck-app-android.git
 cd tigerduck-app-android
 
@@ -205,7 +205,7 @@ git submodule update --init --recursive
 ```
 
 > 💡 Course / classroom abbreviations (`name-abbr/`) and localization strings (
-`localization/generated/android/`) come from submodules. **Always** initialize submodules before
+`app-translation/generated/android/`) come from submodules. **Always** initialize submodules before
 > opening Android Studio, otherwise the build will fail to locate resource files.
 
 ### Wear OS App (`:wear` module)
@@ -238,12 +238,12 @@ ADB, push backend wiring, and common pitfalls, see [`debug/DEBUG.md`](debug/DEBU
 
 ### Localization (shared with iOS)
 
-Translation strings live in the [`localization/`](https://github.com/tigerduck-app/app-translation)
+Translation strings live in the [`app-translation/`](https://github.com/tigerduck-app/app-translation)
 submodule and are shared with the iOS client.
 
-- Source files in `localization/source/` — 50+ locales (`en.json`, `zh-Hant.json`, `ja.json`,
+- Source files in `app-translation/source/` — 50+ locales (`en.json`, `zh-Hant.json`, `ja.json`,
   `ko.json`, `ar.json`, …)
-- Generated outputs in `localization/generated/`:
+- Generated outputs in `app-translation/generated/`:
     - Android: `android/values/strings.xml` (Traditional Chinese as default),
       `android/values-<lang>/strings.xml`
     - iOS: `ios/<lang>.lproj/Localizable.strings`
@@ -257,10 +257,10 @@ python3 tools/localization/sync_localizations.py
 ```
 
 The Android build wires this in automatically (`preBuild` depends on `syncLocalizations`), so
-editing `localization/source/*.json` regenerates Android/iOS outputs before each build.
+editing `app-translation/source/*.json` regenerates Android/iOS outputs before each build.
 
 For new locales or strings, open a separate PR against the
-[`localization/`](https://github.com/tigerduck-app/app-translation) submodule — do **not** edit
+[`app-translation/`](https://github.com/tigerduck-app/app-translation) submodule — do **not** edit
 generated files.
 
 ### Course Name Abbreviations
@@ -324,7 +324,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.3 / Co
 ├── debug/                              # Quick install scripts and [DEBUG.md](debug/DEBUG.md) (build variants, debug clock, push)
 ├── gradle/
 │   └── libs.versions.toml              # Version Catalog
-├── localization/                       # ⤴ git submodule: 50+ locale translations (incl. `watch_*` keys)
+├── app-translation/                    # ⤴ git submodule: 50+ locale translations (incl. `watch_*` keys)
 ├── name-abbr/                          # ⤴ git submodule: course / classroom abbreviations
 ├── tools/localization/                 # Translation sync script (auto-triggered by preBuild)
 ├── build.gradle.kts
@@ -343,7 +343,7 @@ Before submitting, please make sure to:
 3. Name your branch using `feature/your-feature` or `fix/your-fix`
 4. Target the `dev` branch when opening a PR, and enable Copilot review
 5. For translation strings, open a separate PR against the
-   [`localization/`](https://github.com/tigerduck-app/app-translation) submodule — do **not** edit
+   [`app-translation/`](https://github.com/tigerduck-app/app-translation) submodule — do **not** edit
    generated files
 
 ## License
