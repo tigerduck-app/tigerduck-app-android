@@ -222,7 +222,7 @@ fun SettingsScreen(
                 PageHeader(title = stringResource(R.string.feature_settings))
             }
 
-            // MARK: Account section
+            // --- Account section ---
             item { SectionHeader(stringResource(R.string.settings_section_account)) }
             item {
                 val accountButtonMinWidth = rememberAccountButtonMinWidth()
@@ -256,7 +256,7 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Custom
+            // --- Custom ---
             item { SectionHeader(stringResource(R.string.settings_section_custom)) }
             item {
                 ContentCard {
@@ -310,7 +310,7 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Display
+            // --- Display ---
             item { SectionHeader(stringResource(R.string.settings_section_display)) }
             item {
                 ContentCard {
@@ -348,7 +348,7 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Abbreviations
+            // --- Abbreviations ---
             if (shouldShowEnglishAbbreviationToggle) {
                 item { SectionHeader(stringResource(R.string.settings_section_abbreviation)) }
                 item {
@@ -398,7 +398,7 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Cloud Sync
+            // --- Cloud Sync ---
             item { SectionHeader(stringResource(R.string.cloud_sync_title)) }
             item {
                 ContentCard {
@@ -431,7 +431,7 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Notifications
+            // --- Notifications ---
             item { SectionHeader(stringResource(R.string.settings_section_notifications)) }
             item {
                 ContentCard {
@@ -452,7 +452,7 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Other settings
+            // --- Other settings ---
             item { SectionHeader(stringResource(R.string.settings_section_other_settings)) }
             item {
                 val flipSensorSupported = remember(context) {
@@ -492,7 +492,7 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Language
+            // --- Language ---
             item { SectionHeader(stringResource(R.string.feature_category_language)) }
             item {
                 ContentCard {
@@ -512,7 +512,7 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: About
+            // --- About ---
             item { SectionHeader(stringResource(R.string.settings_section_about)) }
             item {
                 ContentCard {
@@ -549,7 +549,7 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Developer (debug builds only)
+            // --- Developer (debug builds only) ---
             if (BuildConfig.DEBUG) {
                 item { SectionHeader("Developer") }
                 item {

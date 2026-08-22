@@ -189,7 +189,7 @@ fun ScoreScreen(
     }
 }
 
-// MARK: - Student header
+// --- Student header ---
 
 @Composable
 private fun StudentHeaderCard(student: String, currentTerm: String) {
@@ -246,7 +246,7 @@ private fun formatCurrentTerm(pattern: String, code: String): String {
     return pattern.format(year, label)
 }
 
-// MARK: - Credit summary
+// --- Credit summary ---
 
 @Composable
 private fun CreditSummaryCard(summary: CreditSummary) {
@@ -306,7 +306,7 @@ private fun CreditStat(label: String, value: Int, modifier: Modifier = Modifier)
     }
 }
 
-// MARK: - GPA trend
+// --- GPA trend ---
 
 private val trendAccent = Color(0xFF4ECDC4)
 
@@ -698,7 +698,7 @@ private fun displayTermShort(code: String): String {
     return "$year-$label"
 }
 
-// MARK: - Semester section
+// --- Semester section ---
 
 @Composable
 private fun SemesterSection(
@@ -864,7 +864,7 @@ private fun creditTypeLabel(type: CreditType): String? = when (type) {
     CreditType.NORMAL, CreditType.UNKNOWN -> null
 }
 
-// MARK: - Detail dialog
+// --- Detail dialog ---
 
 @Composable
 private fun CourseDetailDialog(course: CourseGrade, onDismiss: () -> Unit) {

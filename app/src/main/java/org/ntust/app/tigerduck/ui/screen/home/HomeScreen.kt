@@ -155,8 +155,6 @@ fun HomeScreen(
     val initialLoadComplete by viewModel.initialLoadComplete.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
-    // 翹課 feature disabled — kept for potential re-enable.
-    // val skippedDates by viewModel.skippedDates.collectAsStateWithLifecycle()
     val syncConflicts by viewModel.syncConflicts.collectAsStateWithLifecycle()
     val isSyncLocalOnly by viewModel.isSyncLocalOnly.collectAsStateWithLifecycle()
     var showComingSoon by remember { mutableStateOf(false) }
@@ -354,10 +352,6 @@ fun HomeScreen(
                                 if (!isEditing) viewModel.toggleMarkCompleted(it)
                             },
                             onSelectFilter = { viewModel.setAssignmentFilter(it) },
-                            // 翹課 feature disabled — replaced by 已忽略 homework flow.
-                            // onSkipCourse = { course, date ->
-                            //     if (!isEditing) viewModel.toggleSkip(course, date)
-                            // },
                             onWidgetClick = { if (!isEditing) showComingSoon = true },
                             onOpenSignInSettings = onOpenSignInSettings,
                         )

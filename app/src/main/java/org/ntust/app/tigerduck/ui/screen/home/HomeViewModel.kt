@@ -482,17 +482,17 @@ class HomeViewModel @Inject constructor(
     )
     val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
+    // 翹課 is read-only as of d334459c, which replaced it with the 已忽略
+    // homework flow. Nothing writes skipped dates any more, so this only ever
+    // holds what an older build left in the cache — but that data is still
+    // honoured downstream by LiveActivityResolver.isSkipped and
+    // ClassPreparingNotificationScheduler, which read the cache directly, so
+    // it is deliberately still loaded rather than dropped. 374122a9 is the
+    // last commit with the write path wired up.
     private val _skippedDates = MutableStateFlow<Map<String, List<String>>>(emptyMap())
     val skippedDates: StateFlow<Map<String, List<String>>> = _skippedDates
 
-    private val saveSkipChannel = Channel<Map<String, List<String>>>(Channel.CONFLATED)
-
     init {
-        viewModelScope.launch {
-            for (data in saveSkipChannel) {
-                dataCache.saveSkippedDates(data)
-            }
-        }
         viewModelScope.launch {
             for (ids in saveIgnoredChannel) {
                 dataCache.saveIgnoredAssignments(ids)
@@ -1056,21 +1056,6 @@ class HomeViewModel @Inject constructor(
         _selectedCourse.value = info
     }
 
-    // 翹課 feature disabled — replaced by the "已忽略" homework flow. Kept as
-    // a no-op so existing call sites still compile; re-enable by uncommenting
-    // the body below if the feature is ever reinstated.
-    fun toggleSkip(course: Course, date: Date) {
-        // val key = date.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate().format(SKIP_DATE_FMT)
-        // _skippedDates.update { current ->
-        //     val map = current.toMutableMap()
-        //     val dates = (map[course.courseNo] ?: emptyList()).toMutableList()
-        //     if (key in dates) dates.remove(key) else dates.add(key)
-        //     map[course.courseNo] = dates
-        //     map
-        // }
-        // saveSkipChannel.trySend(_skippedDates.value)
-    }
-
     fun removeSection(sectionId: String) {
         _sections.value = _sections.value.filter { it.id != sectionId }
             .mapIndexed { i, s -> s.copy(sortOrder = i) }
@@ -1103,10 +1088,6 @@ class HomeViewModel @Inject constructor(
                 timeZone = java.util.TimeZone.getTimeZone("UTC")
             }.parse(s.take(19))?.time ?: 0L
         } catch (_: Exception) { 0L }
-    }
-
-    companion object {
-        private val SKIP_DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE
     }
 
     fun addSection(type: HomeSection.HomeSectionType, title: String) {
