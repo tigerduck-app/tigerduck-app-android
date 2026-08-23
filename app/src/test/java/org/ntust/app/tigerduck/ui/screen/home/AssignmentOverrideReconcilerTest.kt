@@ -173,30 +173,46 @@ class AssignmentOverrideReconcilerTest {
     }
 
     @Test
-    fun `KNOWN GAP - an in-flight un-toggle is resurrected by stale server state`() {
-        // Mirror image of the test above: the user just *cleared* an
-        // override and the PATCH has not landed, so the server still reports
-        // it. The in-flight carve-out does not protect this direction.
-        //
-        // The merge starts from the server's set and pendingOverrides only
-        // ever *adds* to it, so an id the server still holds is re-applied
-        // even though we know our view of it is stale. In the app that means
-        // the row the user just un-ignored disappears again, and the wrong
-        // state is written to disk, until the next sync after the PATCH
-        // lands corrects it.
-        //
-        // Asserted as-is rather than fixed: this is the behaviour that has
-        // shipped, and making the carve-out authoritative in both directions
-        // is a change to conflict semantics, not a refactor. The fix would be
-        // to drop pending ids from the server sets before merging, then add
-        // the in-flight values back.
+    fun `an in-flight un-toggle is not resurrected by stale server state`() {
+        // Mirror image of the test above: the user just *cleared* an override
+        // and the PATCH has not landed, so the server still reports it. Fixed
+        // by subtracting pendingOverrides from the server sets before merging
+        // — adding the in-flight values alone left the server's copy in place
+        // and the row the user un-ignored vanished again.
         val out = reconcile(
             serverIgnored = setOf("1"),
             localIgnored = setOf("1"),
             inFlightIgnored = emptySet(),
             pendingOverrides = setOf("1"),
         )
-        assertEquals(setOf("1"), out.ignored)
+        assertTrue(out.ignored.isEmpty())
+    }
+
+    @Test
+    fun `an in-flight switch from ignored to completed lands on completed only`() {
+        // Both sets carry the id at once during the swap; the server still
+        // says ignored. Neither half of the carve-out may leak the old value.
+        val out = reconcile(
+            serverIgnored = setOf("1"),
+            localIgnored = setOf("1"),
+            inFlightIgnored = emptySet(),
+            inFlightCompleted = setOf("1"),
+            pendingOverrides = setOf("1"),
+        )
+        assertTrue(out.ignored.isEmpty())
+        assertEquals(setOf("1"), out.completed)
+    }
+
+    @Test
+    fun `the carve-out is scoped to pending ids only`() {
+        // An id that is not in flight must still take the server's answer,
+        // otherwise subtracting would quietly disable sync altogether.
+        val out = reconcile(
+            serverIgnored = setOf("1", "2"),
+            inFlightIgnored = emptySet(),
+            pendingOverrides = setOf("1"),
+        )
+        assertEquals(setOf("2"), out.ignored)
     }
 
     // --- resolving in the server's favour ----------------------------------
@@ -214,5 +230,19 @@ class AssignmentOverrideReconcilerTest {
         // "4" is not pending, so it is not carried over.
         assertEquals(setOf("2"), out.completed)
         assertTrue(out.conflicts.isEmpty())
+    }
+
+    @Test
+    fun `serverWins does not resurrect an override cleared while the dialog was open`() {
+        // The tap happened after the user chose "keep the server's version",
+        // so it is the more recent intent and wins over it.
+        val out = AssignmentOverrideReconciler.serverWins(
+            serverIgnored = setOf("1"),
+            serverCompleted = emptySet(),
+            inFlightIgnored = emptySet(),
+            inFlightCompleted = emptySet(),
+            pendingOverrides = setOf("1"),
+        )
+        assertTrue(out.ignored.isEmpty())
     }
 }

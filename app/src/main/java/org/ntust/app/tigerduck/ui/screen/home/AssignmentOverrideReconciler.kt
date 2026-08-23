@@ -89,15 +89,10 @@ object AssignmentOverrideReconciler {
      *    those is known-stale — it predates the tap — so they are skipped for
      *    conflict detection and their current in-memory value
      *    ([inFlightIgnored] / [inFlightCompleted]) is carried through
-     *    verbatim. Without this, tapping 已忽略 while a sync is in flight
-     *    reverts under the user's finger.
-     *
-     *    Known gap, preserved from the original: this only protects the
-     *    *setting* direction. The merge starts from the server's sets and the
-     *    carve-out only adds to them, so an id the user just *cleared* while
-     *    the server still holds it comes back until the PATCH lands and a
-     *    later sync corrects it. See the `KNOWN GAP` case in
-     *    AssignmentOverrideReconcilerTest.
+     *    verbatim, and the server's value for those ids is discarded rather
+     *    than merged. Without this, tapping 已忽略 while a sync is in flight
+     *    reverts under the user's finger — and, in the other direction,
+     *    *un*-ignoring during a sync silently comes back.
      *
      * 2. **Only a real disagreement is a conflict.** Both sides must name a
      *    status, and they must differ. If one side says [STATUS_NONE] the
@@ -145,8 +140,13 @@ object AssignmentOverrideReconciler {
         }
 
         val contestedIds = conflicts.mapTo(mutableSetOf()) { it.id }
-        val ignored = (serverIgnored - contestedIds).toMutableSet()
-        val completed = (serverCompleted - contestedIds).toMutableSet()
+        // Drop the in-flight ids from the server's answer *before* merging,
+        // then put this device's values back. Subtracting is what makes the
+        // carve-out work in both directions: adding alone would re-apply an
+        // override the user just cleared, because it would still be sitting
+        // in the server's set.
+        val ignored = (serverIgnored - contestedIds - pendingOverrides).toMutableSet()
+        val completed = (serverCompleted - contestedIds - pendingOverrides).toMutableSet()
         ignored += inFlightIgnored.filter { it in pendingOverrides }
         completed += inFlightCompleted.filter { it in pendingOverrides }
         for (c in conflicts) {
@@ -160,8 +160,12 @@ object AssignmentOverrideReconciler {
 
     /**
      * Non-conflicting merge, used when the user has already answered the
-     * dialog with "keep the server's version". Same in-flight carve-out as
-     * [reconcile] — a tap made while the dialog was open still wins.
+     * dialog with "keep the server's version".
+     *
+     * Same in-flight carve-out as [reconcile], and for the same reason: a tap
+     * made while the dialog was open happened *after* the choice and is the
+     * more recent statement of intent, so it survives "keep the server's
+     * version" in both directions.
      */
     fun serverWins(
         serverIgnored: Set<String>,
@@ -170,8 +174,10 @@ object AssignmentOverrideReconciler {
         inFlightCompleted: Set<String>,
         pendingOverrides: Set<String>,
     ): Outcome = Outcome(
-        ignored = serverIgnored + inFlightIgnored.filter { it in pendingOverrides },
-        completed = serverCompleted + inFlightCompleted.filter { it in pendingOverrides },
+        ignored = (serverIgnored - pendingOverrides) +
+            inFlightIgnored.filter { it in pendingOverrides },
+        completed = (serverCompleted - pendingOverrides) +
+            inFlightCompleted.filter { it in pendingOverrides },
         conflicts = emptyList(),
     )
 
