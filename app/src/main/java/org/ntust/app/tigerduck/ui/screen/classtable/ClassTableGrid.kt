@@ -126,7 +126,7 @@ internal fun TimetableGrid(
                     periods.forEachIndexed { periodIndex, period ->
                         val y = cellHeight * periodIndex
 
-                        when (val role = viewModel.cellRole(weekday, periodIndex)) {
+                        when (val role = viewModel.cellRole(periods, weekday, periodIndex)) {
                             is CellRole.Empty -> {
                                 Box(
                                     modifier = Modifier

@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
+import org.ntust.app.tigerduck.AppConstants
 import android.util.Log
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.BuildConfig
@@ -52,7 +53,6 @@ import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
@@ -595,7 +595,7 @@ class HomeViewModel @Inject constructor(
 
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
         _allCourses.value = courses
-        val todayIndex = CourseRosterMerge.weekdayIndex(
+        val todayIndex = AppConstants.weekdayIndex(
             AppClock.calendar().get(Calendar.DAY_OF_WEEK)
         )
         _todayCourses.value = courses.filter { it.schedule.containsKey(todayIndex) }
@@ -632,7 +632,12 @@ class HomeViewModel @Inject constructor(
     }
 
     fun hasUnfinishedAssignment(courseNo: String): Boolean =
-        assignmentsFor(courseNo).isNotEmpty()
+        HomeAssignmentFilters.anyUnfinishedFor(
+            all = _allAssignments.value,
+            courseNo = courseNo,
+            ignoredIds = _ignoredAssignmentIds.value,
+            markedCompletedIds = _markedCompletedIds.value,
+        )
 
     fun assignmentsFor(courseNo: String): List<Assignment> =
         HomeAssignmentFilters.unfinishedFor(

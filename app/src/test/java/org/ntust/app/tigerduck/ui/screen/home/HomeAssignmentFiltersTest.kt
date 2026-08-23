@@ -109,16 +109,4 @@ class HomeAssignmentFiltersTest {
             ids(HomeAssignmentFilters.unfinishedFor(all, "C1", setOf("b"), setOf("a"))),
         )
     }
-
-    @Test
-    fun `ISO timestamps parse as UTC, and anything unparseable reads as zero`() {
-        assertEquals(0L, HomeAssignmentFilters.parseIsoTimestamp(""))
-        assertEquals(0L, HomeAssignmentFilters.parseIsoTimestamp("not a date"))
-        assertEquals(1_700_000_000_000L, HomeAssignmentFilters.parseIsoTimestamp("2023-11-14T22:13:20"))
-        // A fractional part is truncated rather than rejected.
-        assertEquals(
-            1_700_000_000_000L,
-            HomeAssignmentFilters.parseIsoTimestamp("2023-11-14T22:13:20.123456Z"),
-        )
-    }
 }

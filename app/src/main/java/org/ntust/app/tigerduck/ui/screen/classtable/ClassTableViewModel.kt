@@ -349,6 +349,22 @@ class ClassTableViewModel @Inject constructor(
     fun cellRole(weekday: Int, periodIndex: Int): CellRole =
         ClassTableCellLayout.roleAt(_courses.value, activePeriods, weekday, periodIndex)
 
+    /**
+     * [cellRole] for callers that already hold the period list.
+     *
+     * The no-[periods] overload reads the `activePeriods` getter, which walks
+     * every course's schedule, builds a period-id set and filters the
+     * chronological order — per call. The grid asks for a role once per cell,
+     * so roughly seven weekdays x fourteen periods rebuild the same list a
+     * hundred times per recomposition. TimetableGrid is already handed the
+     * memoized list as `periods`; passing it back through skips all of that.
+     */
+    fun cellRole(
+        periods: List<TimetablePeriod>,
+        weekday: Int,
+        periodIndex: Int,
+    ): CellRole = ClassTableCellLayout.roleAt(_courses.value, periods, weekday, periodIndex)
+
     fun wouldCauseTripleConflict(candidate: Course): TripleConflictError? =
         ClassTableCellLayout.findTripleConflict(_courses.value, candidate)
 

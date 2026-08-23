@@ -5,7 +5,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
-import java.util.Calendar
 import java.util.Date
 
 class CourseRosterMergeTest {
@@ -42,14 +41,6 @@ class CourseRosterMergeTest {
         enddate = null,
     )
 
-    @Test
-    fun `calendar weekdays map to monday-first schedule keys`() {
-        assertEquals(1, CourseRosterMerge.weekdayIndex(Calendar.MONDAY))
-        assertEquals(5, CourseRosterMerge.weekdayIndex(Calendar.FRIDAY))
-        // Sunday is 1 in Calendar and 7 here — the off-by-one that makes this
-        // worth a test at all, and the reason both screens now share one copy.
-        assertEquals(7, CourseRosterMerge.weekdayIndex(Calendar.SUNDAY))
-    }
 
     // --- roster ------------------------------------------------------------
 

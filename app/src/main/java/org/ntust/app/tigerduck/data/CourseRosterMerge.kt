@@ -16,7 +16,6 @@ package org.ntust.app.tigerduck.data
 
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
-import java.util.Calendar
 
 object CourseRosterMerge {
 
@@ -76,18 +75,4 @@ object CourseRosterMerge {
     fun completedIds(assignments: List<Assignment>): Set<String> =
         assignments.filter { it.isCompleted }.mapTo(mutableSetOf()) { it.assignmentId }
 
-    /**
-     * `java.util.Calendar`'s Sunday-first weekday to the Monday-first index
-     * course schedules are keyed by (Mon=1 … Sun=7).
-     */
-    fun weekdayIndex(calendarDayOfWeek: Int): Int = when (calendarDayOfWeek) {
-        Calendar.MONDAY -> 1
-        Calendar.TUESDAY -> 2
-        Calendar.WEDNESDAY -> 3
-        Calendar.THURSDAY -> 4
-        Calendar.FRIDAY -> 5
-        Calendar.SATURDAY -> 6
-        Calendar.SUNDAY -> 7
-        else -> 1
-    }
 }

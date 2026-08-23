@@ -8,10 +8,7 @@
 
 package org.ntust.app.tigerduck.ui.screen.home
 
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 
@@ -60,27 +57,31 @@ object HomeAssignmentFilters {
         courseNo: String,
         ignoredIds: Set<String>,
         markedCompletedIds: Set<String>,
-    ): List<Assignment> = all.filter {
-        it.courseNo == courseNo &&
-            !it.isCompleted &&
-            it.assignmentId !in ignoredIds &&
-            it.assignmentId !in markedCompletedIds
-    }
+    ): List<Assignment> = all.filter { it.isUnfinishedFor(courseNo, ignoredIds, markedCompletedIds) }
 
     /**
-     * Epoch millis from the backend's ISO-8601 timestamps, which are UTC and
-     * may carry a fractional part this drops. Returns 0 for anything
-     * unparseable — callers compare it against a stored watermark, where 0
-     * reads as "no information" and skips the reset rather than triggering one.
+     * Whether [unfinishedFor] would return anything, without building the list.
+     *
+     * The course tile only needs the dot, and Home asks once per tile on every
+     * recomposition of the today-courses carousel — so the list version scans
+     * the whole assignment set and allocates, per tile, to answer a yes/no.
+     * Shares [isUnfinishedFor] with [unfinishedFor] so the two cannot drift.
      */
-    fun parseIsoTimestamp(s: String): Long {
-        if (s.isBlank()) return 0L
-        return try {
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
-                timeZone = TimeZone.getTimeZone("UTC")
-            }.parse(s.take(19))?.time ?: 0L
-        } catch (_: Exception) {
-            0L
-        }
-    }
+    fun anyUnfinishedFor(
+        all: List<Assignment>,
+        courseNo: String,
+        ignoredIds: Set<String>,
+        markedCompletedIds: Set<String>,
+    ): Boolean = all.any { it.isUnfinishedFor(courseNo, ignoredIds, markedCompletedIds) }
+
+    private fun Assignment.isUnfinishedFor(
+        courseNo: String,
+        ignoredIds: Set<String>,
+        markedCompletedIds: Set<String>,
+    ): Boolean =
+        this.courseNo == courseNo &&
+            !isCompleted &&
+            assignmentId !in ignoredIds &&
+            assignmentId !in markedCompletedIds
+
 }
