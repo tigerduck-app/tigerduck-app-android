@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -32,6 +33,8 @@ class TigerDuckApp : Application(), Configuration.Provider {
     @Inject
     lateinit var fcmBootstrap: FcmBootstrap
     @Inject
+    lateinit var dataMigration: DataMigration
+    @Inject
     lateinit var dataCache: DataCache
     @Inject
     lateinit var authService: AuthService
@@ -49,6 +52,12 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        // First, before anything can read or write DataCache. BootReceiver and
+        // BackgroundSyncWorker both run without an Activity, so leaving this
+        // to AppState let WorkManager's persisted periodic sync fire on the
+        // upgrade launch and rebuild caches that a pending migration step then
+        // deleted. AppState re-reads the cached outcome for the reset prompt.
+        dataMigration.run()
         debugClockController.bootstrap()
         AppLanguageManager.apply(appPreferences.appLanguage)
         createNotificationChannels()

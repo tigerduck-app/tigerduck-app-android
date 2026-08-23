@@ -20,7 +20,6 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.model.CourseSearchRequest
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
-import java.util.Calendar
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -233,17 +232,27 @@ class CourseService @Inject constructor(
         return map
     }
 
-    fun currentSemesterCode(): String {
-        val cal = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ)
-        val year = cal.get(Calendar.YEAR)
-        val month = cal.get(Calendar.MONTH) + 1
-        val rocYear = year - 1911
-        return when (month) {
-            in 2..8 -> "${rocYear - 1}2"   // Spring semester
-            in 9..12 -> "${rocYear}1"       // Fall semester
-            else -> "${rocYear - 1}1"       // January: still in prior fall semester
-        }
-    }
+    /**
+     * The term in session right now — what "today's courses" means for the
+     * widget, the Wear tile, Home's carousel and every current-semester cache
+     * key.
+     *
+     * Pinned to [org.ntust.app.tigerduck.AppConstants.CurrentTerm]. The month
+     * heuristic this replaced still says 114-2 through August, which mislabels
+     * the 115-1 term the school opened early. Swap the body for
+     * [heuristicSemesterCode] to hand control back — it is left intact, so
+     * lifting the pin is a one-line change.
+     *
+     * Not to be confused with [SemesterCatalog.selectionSemesterCode] — 選課
+     * opens the *next* term weeks before this one ends.
+     */
+    fun currentSemesterCode(): String = org.ntust.app.tigerduck.AppConstants.CurrentTerm.CODE
+
+    /**
+     * The month-based guess [currentSemesterCode] used before it was pinned.
+     * Kept so lifting the pin is a one-line change.
+     */
+    fun heuristicSemesterCode(): String = SemesterCodes.heuristic()
 
     companion object {
         // Course metadata (name, instructor, schedule, caps) is stable within

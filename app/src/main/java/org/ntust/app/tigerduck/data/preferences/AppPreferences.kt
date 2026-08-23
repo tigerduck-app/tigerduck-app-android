@@ -279,6 +279,44 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
             editor.apply()
         }
 
+    /**
+     * Semester codes published by NTUST, newest first — see
+     * [org.ntust.app.tigerduck.network.SemesterCatalog]. Empty until the first
+     * successful fetch, which the catalogue reads as "fall back to the month
+     * heuristic".
+     *
+     * Stored as a delimited string rather than a `StringSet` because
+     * `SharedPreferences` sets are unordered, and this list's whole value is
+     * that it is newest-first.
+     */
+    var semesterCatalogTerms: List<String>
+        get() = prefs.getString("semesterCatalogTerms", null)
+            ?.split(SEMESTER_LIST_DELIMITER)
+            ?.filter { it.isNotBlank() }
+            ?: emptyList()
+        set(value) = prefs.edit()
+            .putString("semesterCatalogTerms", value.joinToString(SEMESTER_LIST_DELIMITER))
+            .apply()
+
+    /**
+     * The term the 選課 system is currently open for (`LoginEnable`). Runs
+     * weeks ahead of the term in session, so it is not interchangeable with
+     * [org.ntust.app.tigerduck.AppConstants.CurrentTerm.CODE].
+     */
+    var semesterCatalogSelection: String?
+        get() = prefs.getString("semesterCatalogSelection", null)
+        set(value) {
+            val editor = prefs.edit()
+            if (value == null) editor.remove("semesterCatalogSelection")
+            else editor.putString("semesterCatalogSelection", value)
+            editor.apply()
+        }
+
+    /** Wall-clock millis of the last successful catalogue fetch. 0 = never. */
+    var semesterCatalogRefreshedAt: Long
+        get() = prefs.getLong("semesterCatalogRefreshedAt", 0L)
+        set(value) = prefs.edit().putLong("semesterCatalogRefreshedAt", value).apply()
+
     fun hapticStrength(scenario: HapticScenario): Int =
         prefs.getInt("haptic_strength_${scenario.prefKey}", scenario.defaultStrengthPct)
             .coerceIn(0, 100)
@@ -303,6 +341,9 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     }
 
     companion object {
+        /** Comma is safe: NTUST semester codes are `[0-9]{3}[12H]`. */
+        private const val SEMESTER_LIST_DELIMITER = ","
+
         const val MIN_TUNABLE_HAPTIC_DURATION_MS = 5
         const val MAX_TUNABLE_HAPTIC_DURATION_MS = 60
 

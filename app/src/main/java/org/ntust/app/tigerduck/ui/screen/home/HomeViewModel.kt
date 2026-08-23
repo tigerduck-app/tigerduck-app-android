@@ -36,6 +36,7 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
+import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.time.format.DateTimeFormatter
@@ -53,6 +54,7 @@ class HomeViewModel @Inject constructor(
     private val notificationScheduler: AssignmentNotificationScheduler,
     private val prefs: AppPreferences,
     private val courseColorStore: CourseColorStore,
+    private val semesterCatalog: SemesterCatalog,
     private val liveActivityManager: LiveActivityManager,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
 ) : ViewModel() {
@@ -364,7 +366,16 @@ class HomeViewModel @Inject constructor(
         studentId: String,
         password: String,
     ): Pair<List<Course>?, List<Assignment>?> = coroutineScope {
+        // TTL-throttled, so this costs one request an hour however often Home
+        // refreshes. Resolved before the gate below, which depends on it.
+        semesterCatalog.refreshIfStale()
         val semester = courseService.currentSemesterCode()
+        // 選課 serves exactly one term and its 選課清單 page carries no term
+        // marker, so its course numbers belong to whichever term the catalogue
+        // reports as open. While that runs ahead of the term in session —
+        // 選課 for the next term opens weeks before it starts — importing them
+        // here would file the *next* term's enrolments into this term's cache.
+        val servesSelectionSemester = semester == semesterCatalog.selectionSemesterCode()
 
         // Moodle webservice calls auth with a long-lived wstoken, so they
         // don't need the NTUST SSO cookies that ensureAuthenticated refreshes.
@@ -378,6 +389,7 @@ class HomeViewModel @Inject constructor(
             }
         }
         val courseNosDef = async {
+            if (!servesSelectionSemester) return@async emptyList()
             val authed = runCatching { authService.ensureAuthenticated() }.getOrDefault(false)
             if (!authed) return@async null
             try {
@@ -617,10 +629,21 @@ class HomeViewModel @Inject constructor(
         prefs.homeSections = _sections.value
     }
 
-    fun moveSections(from: Int, to: Int) {
+    /**
+     * Moves [fromId] to [toId]'s slot.
+     *
+     * Id-based rather than index-based because Home renders a *filtered* list
+     * — the today-courses section drops out of the term window (see
+     * [org.ntust.app.tigerduck.AppConstants.CurrentTerm]) — so a position in
+     * what the user dragged is not a position in the stored layout. Resolving
+     * both ends here keeps the two from drifting.
+     */
+    fun moveSections(fromId: String, toId: String) {
         val list = _sections.value.toMutableList()
-        val item = list.removeAt(from)
-        list.add(to, item)
+        val from = list.indexOfFirst { it.id == fromId }
+        val to = list.indexOfFirst { it.id == toId }
+        if (from < 0 || to < 0 || from == to) return
+        list.add(to, list.removeAt(from))
         _sections.value = list.mapIndexed { i, s -> s.copy(sortOrder = i) }
         prefs.homeSections = _sections.value
     }

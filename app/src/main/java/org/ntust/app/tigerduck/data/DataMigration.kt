@@ -2,9 +2,12 @@ package org.ntust.app.tigerduck.data
 
 import android.content.Context
 import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import java.io.File
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * One-shot runner for on-device data migrations.
@@ -22,9 +25,24 @@ import java.io.File
  *      credential store, user downgraded the app, old-and-unsupported
  *      layout) — [run] returns [Outcome.NeedsUserReset] and the UI is
  *      expected to show a "please re-login and reconfigure" prompt.
+ *
+ * [run] is called from [org.ntust.app.tigerduck.TigerDuckApp.onCreate], so
+ * migrations complete before anything can read or write
+ * [org.ntust.app.tigerduck.data.cache.DataCache] — including entry points that
+ * never create an Activity, such as `BackgroundSyncWorker` and `BootReceiver`.
+ * Running it from `AppState` alone was not enough: WorkManager persists its
+ * periodic request across an upgrade and can fire before the user first opens
+ * the app, so a cache-clearing step could delete data a sync had just
+ * correctly rebuilt.
+ *
+ * The outcome is cached, so the later call from `AppState` — which needs it to
+ * decide whether to show the reset prompt — reuses this result rather than
+ * re-running the steps. `performFullReset` clears its own UI flag and re-stamps
+ * the schema version, so the stale cached value cannot re-fire the prompt.
  */
-class DataMigration(
-    private val context: Context,
+@Singleton
+class DataMigration @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     private val prefs: AppPreferences,
     private val credentials: CredentialManager,
 ) {
@@ -36,7 +54,19 @@ class DataMigration(
         NeedsUserReset,
     }
 
-    fun run(): Outcome {
+    /**
+     * Runs every pending step once per process and caches the verdict.
+     *
+     * Synchronous on purpose. The steady-state path is a single
+     * `SharedPreferences.getInt` and an early return — file I/O happens only
+     * on the one launch that actually migrates, which is the launch that must
+     * not be raced.
+     */
+    private val outcome: Outcome by lazy(LazyThreadSafetyMode.SYNCHRONIZED) { doRun() }
+
+    fun run(): Outcome = outcome
+
+    private fun doRun(): Outcome {
         // If Keystore corruption forced CredentialManager to rebuild the
         // credential store from scratch, the user's logins are gone and
         // the app is effectively logged out. Surface it so the dialog
@@ -64,6 +94,7 @@ class DataMigration(
             when (current) {
                 0 -> migrate0to1()
                 1 -> migrate1to2()
+                2 -> migrate2to3()
             }
             current++
             prefs.dataSchemaVersion = current
@@ -121,8 +152,55 @@ class DataMigration(
             }
     }
 
+    /**
+     * Drops cached `courses_<semester>.json` files written by builds that
+     * filed 選課清單 enrolments under the month heuristic instead of the term
+     * the 選課 system was actually serving.
+     *
+     * NTUST opened 115-1 on 2026-08-20, weeks before the heuristic would have
+     * rolled off 114-2. Any install that synced in that window has a
+     * `courses_1142.json` holding a mix of both terms, and nothing rewrites it
+     * on upgrade — the class table only refetches the semester it is showing,
+     * and a non-empty cache renders as-is. See
+     * [org.ntust.app.tigerduck.network.SemesterCatalog].
+     *
+     * Only the evictable `cacheDir` copies are dropped. Manual courses live in
+     * `filesDir/manual_courses_<semester>.json`, are per-semester already, and
+     * have no remote source to rebuild from — deleting those would destroy
+     * courses the user typed in by hand.
+     */
+    private fun migrate2to3() {
+        val cacheDir = File(context.cacheDir, CACHE_SUBDIR)
+        deleteCourseCaches(cacheDir)
+    }
+
     companion object {
         private const val TAG = "DataMigration"
+
+        /**
+         * Unconditionally removes every remote course cache in [dir]. Unlike
+         * [sweepCourseFiles] this does not inspect content — the wrong-semester
+         * payload is indistinguishable from a correct one at the file level,
+         * since both carry well-formed `"courseNo":` keys. The next sync
+         * rebuilds each semester from its own sources.
+         */
+        internal fun deleteCourseCaches(dir: File) {
+            if (!dir.isDirectory) return
+            dir.listFiles()
+                ?.filter {
+                    it.isFile && (
+                        it.name == LEGACY_COURSES_FILENAME ||
+                            (it.name.startsWith(COURSES_PREFIX) && it.name.endsWith(".json"))
+                        )
+                }
+                ?.forEach { file ->
+                    runCatching {
+                        if (file.delete()) {
+                            Log.i(TAG, "Cleared wrong-semester course cache: ${file.name}")
+                        }
+                    }.onFailure { Log.w(TAG, "Failed to delete ${file.name}", it) }
+                }
+        }
 
         // Mirrors DataCache. Kept in sync deliberately — DataMigration must
         // run before any DataCache access, so we don't import the cache
@@ -142,7 +220,7 @@ class DataMigration(
         private const val COURSE_NO_TOKEN = "\"courseNo\":"
 
         /** Highest schema this build writes. Bump when adding a new step. */
-        const val CURRENT_SCHEMA = 2
+        const val CURRENT_SCHEMA = 3
 
         /**
          * Lowest schema this build can migrate forward from. Anything below
