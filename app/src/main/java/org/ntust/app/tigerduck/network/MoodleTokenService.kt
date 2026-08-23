@@ -249,7 +249,7 @@ class MoodleTokenService @Inject constructor(
         )
     }
 
-    // MARK: - HTTP helpers
+    // --- HTTP helpers ---
 
     private fun getPage(url: HttpUrl): Pair<String, HttpUrl> {
         val req = Request.Builder().url(url).get().build()
@@ -288,7 +288,7 @@ class MoodleTokenService @Inject constructor(
         }
     }
 
-    // MARK: - HTML parsing
+    // --- HTML parsing ---
 
     private data class SSOLoginFields(
         val action: String,

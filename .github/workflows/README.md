@@ -44,6 +44,16 @@ Currently suspended.
 
 ## PR check workflows
 
+### `ci.yaml`
+
+Runs on PRs to `main` and `dev`. Compiles both phone flavors plus `:wear` and
+runs every JVM unit test. Lean on purpose: no emulator, no lint baseline.
+
+### `pr-checklist.yaml`
+
+Posts the target-branch checklist as a PR comment and holds a commit status
+until every box is ticked. Re-evaluates on PR edits and on comment activity.
+
 ### `submodules-up-to-date.yaml`
 
 Runs on PRs to `main` and `dev`. Verifies every git submodule (e.g.
@@ -55,3 +65,11 @@ submodule references.
 Runs on PRs to `main`. Verifies `versionCode` and `versionName` have been bumped
 relative to the base branch, so a release tag cut from `main` always carries a
 fresh version.
+
+### `whatsnew-has-version.yaml`
+
+Runs on PRs to `main`. Verifies `app/src/main/assets/whatsnew.json` has an entry
+for the `versionCode` in `app/build.gradle.kts`, so the "What's New" dialog is
+never empty on a fresh release.
+
+

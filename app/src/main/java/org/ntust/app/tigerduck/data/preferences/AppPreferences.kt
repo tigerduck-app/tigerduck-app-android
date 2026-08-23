@@ -364,6 +364,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
                 @Suppress("DEPRECATION")
                 gson.fromJson<List<HomeSection>>(json, type)
                     ?.filter { it.type != HomeSection.HomeSectionType.QUICK_WIDGETS }
+                    // Renumber after the filter: dropping a section out of the
+                    // middle leaves a gap, and HomeSectionLayout.add derives the
+                    // next value from list size, so the gap becomes a duplicate.
+                    ?.mapIndexed { i, s -> s.copy(sortOrder = i) }
                     ?.ifEmpty { HomeSection.defaults() }
                     ?: HomeSection.defaults()
             } catch (e: Exception) {

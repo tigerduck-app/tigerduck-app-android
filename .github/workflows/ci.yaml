@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
         with:
-          # name-abbr is required by verifyNameAbbrSubmodule; localization is
+          # name-abbr is required by verifyNameAbbrSubmodule; app-translation is
           # required by the generated-resources contract. Do not drop this.
           submodules: true
 

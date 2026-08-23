@@ -1,63 +1,43 @@
+// The onboarding pager: page order, the permission and privacy gates,
+// and what 'done' means. Page chrome is in OnboardingComponents.kt, the
+// animated illustrations in OnboardingIcons.kt.
+
 package org.ntust.app.tigerduck.ui.screen.onboarding
 
 import android.app.Activity
-import android.content.Context
-import android.content.Intent
 import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.browser.customtabs.CustomTabsIntent
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.Watch
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -85,9 +65,6 @@ import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -101,7 +78,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.BuildConfig
@@ -109,7 +85,6 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
 import org.ntust.app.tigerduck.ui.component.SecureScreen
-import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupContent
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 private const val URL_TIGERDUCK_WEBSITE = "https://tigerduck.app"
@@ -117,10 +92,8 @@ private const val URL_TIGERDUCK_GITHUB = "https://github.com/tigerduck-app"
 private const val URL_PRIVACY_POLICY = "https://tigerduck.app/privacy-policy"
 private const val URL_DELETE_ACCOUNT = "https://tigerduck.app/delete-account"
 private const val URL_LEARN_MORE_BACKEND = "https://tigerduck.app/learn-more-about-backend"
-
 private val isFdroidFlavor: Boolean
     get() = BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)
-
 @Composable
 fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel()
@@ -621,493 +594,5 @@ fun OnboardingScreen(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun LinkRow(
-    icon: ImageVector,
-    label: String,
-    url: String,
-    modifier: Modifier = Modifier,
-) {
-    val context = LocalContext.current
-    Surface(
-        onClick = { openUrl(context, url) },
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun SyncDataInfoRows(modifier: Modifier = Modifier) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        SyncDataInfoRow(icon = Icons.Filled.CheckCircle, color = onboardingGreen(), text = stringResource(R.string.onboarding_sync_shared_student_id))
-        SyncDataInfoRow(icon = Icons.Filled.CheckCircle, color = onboardingGreen(), text = stringResource(R.string.onboarding_sync_shared_moodle_token))
-        SyncDataInfoRow(icon = Icons.Filled.CheckCircle, color = onboardingGreen(), text = stringResource(R.string.onboarding_sync_shared_device_id))
-        SyncDataInfoRow(icon = Icons.Filled.CheckCircle, color = onboardingGreen(), text = stringResource(R.string.onboarding_sync_shared_courses))
-        SyncDataInfoRow(icon = Icons.Filled.CheckCircle, color = onboardingGreen(), text = stringResource(R.string.onboarding_sync_shared_assignments))
-        SyncDataInfoRow(icon = Icons.Filled.Cancel, color = onboardingRed(), text = stringResource(R.string.onboarding_sync_not_shared_password))
-    }
-}
-
-@Composable
-private fun SyncDataInfoRow(icon: ImageVector, color: Color, text: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = color,
-            modifier = Modifier.size(20.dp),
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-    }
-}
-
-@Composable
-private fun PrivacyCheckRow(
-    label: String,
-    url: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val context = LocalContext.current
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(end = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Checkbox(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-            )
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { openUrl(context, url) }
-                    .padding(vertical = 8.dp, horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AnalyticsOptInCard(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        modifier = Modifier.fillMaxWidth(0.9f),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.onboarding_analytics_label),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = stringResource(R.string.onboarding_analytics_description),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                )
-            }
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
-        }
-    }
-}
-
-private fun openUrl(context: Context, url: String) {
-    val uri = url.toUri()
-    runCatching {
-        CustomTabsIntent.Builder().build().launchUrl(context, uri)
-    }.onFailure {
-        runCatching {
-            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-        }
-    }
-}
-
-@Composable
-private fun PermissionsPage(
-    systemPermissions: org.ntust.app.tigerduck.notification.SystemPermissions,
-    onContinue: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-            .padding(top = 72.dp, bottom = 100.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        BellBadgeIcon(tint = onboardingOrange())
-        Text(
-            stringResource(R.string.onboarding_permissions_title),
-            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-            stringResource(R.string.onboarding_permissions_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
-        Spacer(Modifier.height(8.dp))
-        NotificationSetupContent(
-            systemPermissions = systemPermissions,
-            finishLabel = stringResource(R.string.action_next),
-            onFinish = onContinue,
-            modifier = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-@Composable
-private fun OnboardingPage(
-    icon: ImageVector,
-    iconTint: Color,
-    title: String,
-    subtitle: String,
-    actions: @Composable ColumnScope.() -> Unit = {},
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    OnboardingPageScaffold(
-        iconContent = { PulsingIcon(icon = icon, tint = iconTint) },
-        title = title,
-        subtitle = subtitle,
-        actions = actions,
-        content = content,
-    )
-}
-
-@Composable
-private fun OnboardingPageScaffold(
-    iconContent: @Composable () -> Unit,
-    title: String,
-    subtitle: String,
-    actions: @Composable ColumnScope.() -> Unit = {},
-    content: @Composable ColumnScope.() -> Unit = {},
-) {
-    // Layout: one big scrollable column whose inner content is forced to be
-    // at least the viewport tall. With Arrangement.SpaceBetween, that means
-    //   – short body  → actions sit at the visible bottom
-    //   – long body   → inner column grows past the viewport, actions get
-    //                    pushed below the fold but stay reachable by scroll
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .imePadding(),
-    ) {
-        val viewportHeight = this.maxHeight
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = viewportHeight)
-                    .padding(horizontal = 32.dp)
-                    .padding(top = 64.dp, bottom = 96.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    iconContent()
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    content()
-                }
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    actions()
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PulsingIcon(
-    icon: ImageVector,
-    tint: Color,
-    modifier: Modifier = Modifier,
-) {
-    val transition = rememberInfiniteTransition(label = "onboarding-pulse")
-    val pulse by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "onboarding-pulse-fraction",
-    )
-    val alpha = 0.45f + 0.55f * pulse
-    val scale = 0.94f + 0.08f * pulse
-    Icon(
-        imageVector = icon,
-        contentDescription = null,
-        tint = tint,
-        modifier = modifier
-            .size(72.dp)
-            .graphicsLayer {
-                this.alpha = alpha
-                scaleX = scale
-                scaleY = scale
-            },
-    )
-}
-
-// iOS system color palette, dark-mode adapted. Used for the per-page accent
-// tints on the onboarding pages so the icons match the iOS app exactly
-// (privacy = blue, watch = red, login = green, notifications = orange).
-@Composable
-private fun onboardingBlue(): Color =
-    if (isSystemInDarkTheme()) Color(0xFF0A84FF) else Color(0xFF007AFF)
-
-@Composable
-private fun onboardingRed(): Color =
-    if (isSystemInDarkTheme()) Color(0xFFFF453A) else Color(0xFFFF3B30)
-
-@Composable
-private fun onboardingGreen(): Color =
-    if (isSystemInDarkTheme()) Color(0xFF32D74B) else Color(0xFF34C759)
-
-@Composable
-private fun onboardingOrange(): Color =
-    if (isSystemInDarkTheme()) Color(0xFFFF9F0A) else Color(0xFFFF9500)
-
-// Layered shield + inner lock: matches the iOS `OnboardingPageView.layerFlash`
-// path. The shield holds steady at the accent color while the inner lock
-// pulses its alpha — reads as a slow "flash" on the lock without disturbing
-// the surrounding shield silhouette.
-@Composable
-private fun FlashingShieldLockIcon(
-    tint: Color,
-    modifier: Modifier = Modifier,
-) {
-    val transition = rememberInfiniteTransition(label = "shield-lock-flash")
-    val pulse by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "shield-lock-flash-fraction",
-    )
-    val lockAlpha = 0.3f + 0.7f * pulse
-    Box(
-        modifier = modifier.size(72.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Shield,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.fillMaxSize(),
-        )
-        Icon(
-            imageVector = Icons.Filled.Lock,
-            contentDescription = null,
-            tint = Color.White.copy(alpha = lockAlpha),
-            modifier = Modifier
-                .size(42.dp)
-                .offset(y = (-2).dp),
-        )
-    }
-}
-
-// Person silhouette with a key badge in the lower-right — Material's closest
-// approximation of iOS `person.badge.key.fill`. Whole composition pulses
-// together (matching the iOS .symbolEffect(.pulse) on the single SF symbol).
-@Composable
-private fun PersonKeyBadgeIcon(
-    tint: Color,
-    modifier: Modifier = Modifier,
-) {
-    val transition = rememberInfiniteTransition(label = "person-key-pulse")
-    val pulse by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "person-key-pulse-fraction",
-    )
-    val alpha = 0.45f + 0.55f * pulse
-    val scale = 0.94f + 0.08f * pulse
-    val background = MaterialTheme.colorScheme.background
-    Box(
-        modifier = modifier
-            .size(72.dp)
-            .graphicsLayer {
-                this.alpha = alpha
-                scaleX = scale
-                scaleY = scale
-            },
-    ) {
-        Icon(
-            imageVector = Icons.Filled.AccountCircle,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.fillMaxSize(),
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .size(30.dp)
-                .clip(CircleShape)
-                .background(background)
-                .padding(2.dp)
-                .clip(CircleShape)
-                .background(tint),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Filled.VpnKey,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-    }
-}
-
-// Bell with a small notification dot in the upper-right — Material's closest
-// approximation of iOS `bell.badge.fill`. Pulses as one composition.
-@Composable
-private fun BellBadgeIcon(
-    tint: Color,
-    modifier: Modifier = Modifier,
-) {
-    val transition = rememberInfiniteTransition(label = "bell-pulse")
-    val pulse by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "bell-pulse-fraction",
-    )
-    val alpha = 0.45f + 0.55f * pulse
-    val scale = 0.94f + 0.08f * pulse
-    val background = MaterialTheme.colorScheme.background
-    Box(
-        modifier = modifier
-            .size(72.dp)
-            .graphicsLayer {
-                this.alpha = alpha
-                scaleX = scale
-                scaleY = scale
-            },
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Notifications,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.fillMaxSize(),
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 6.dp, end = 10.dp)
-                .size(16.dp)
-                .clip(CircleShape)
-                .background(background)
-                .padding(2.dp)
-                .clip(CircleShape)
-                .background(tint),
-        )
     }
 }

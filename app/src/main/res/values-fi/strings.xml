@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from localization/source/*.json. Do not edit directly. -->
+    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Avaa tehtävä Moodlessa kaksoisnapauttamalla</string>
     <string name="a11y_calendar_day">%1$@, %2$lld tapahtumaa</string>
     <string name="a11y_calendar_nav_next">Seuraava kuukausi</string>

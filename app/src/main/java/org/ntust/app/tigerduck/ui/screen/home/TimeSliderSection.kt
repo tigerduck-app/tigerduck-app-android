@@ -77,7 +77,7 @@ import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.courseNameForDisplay
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import java.text.SimpleDateFormat
+// import java.text.SimpleDateFormat  // 翹課 (parked) — isSkippedFor's date key
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -88,10 +88,11 @@ import kotlin.math.roundToInt
 fun TimeSliderSection(
     courses: List<Course>,
     invertDirection: Boolean,
-    skippedDates: Map<String, List<String>> = emptyMap(),
     isLoggedIn: Boolean = true,
     initialLoadComplete: Boolean = true,
-    onSkipCourse: (Course, Date) -> Unit = { _, _ -> },
+    // 翹課 — parked until after add-friend. See HomeViewModel._skippedDates.
+    // skippedDates: Map<String, List<String>> = emptyMap(),
+    // onSkipCourse: (Course, Date) -> Unit = { _, _ -> },
     onSelectCourse: (Course, String) -> Unit
 ) {
     val viewModel = remember { TimeSliderViewModel() }
@@ -140,11 +141,10 @@ fun TimeSliderSection(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Course card
                 CourseTimeCard(
                     state = viewModel.currentCourseState,
-                    skippedDates = skippedDates,
-                    onSkipCourse = onSkipCourse,
+                    // skippedDates = skippedDates,
+                    // onSkipCourse = onSkipCourse,
                     onSelect = onSelectCourse
                 )
 
@@ -155,7 +155,6 @@ fun TimeSliderSection(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
                 )
 
-                // Track
                 FluidTrack(viewModel, invertDirection)
             }
         } else if (isLoggedIn && !initialLoadComplete) {
@@ -192,15 +191,15 @@ fun TimeSliderSection(
 @Composable
 private fun CourseTimeCard(
     state: CourseState,
-    skippedDates: Map<String, List<String>>,
-    onSkipCourse: (Course, Date) -> Unit,
+    // skippedDates: Map<String, List<String>>,
+    // onSkipCourse: (Course, Date) -> Unit,
     onSelect: (Course, String) -> Unit
 ) {
-    val isoFmt = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
-    val isSkippedFor: (CourseTimeSlot) -> Boolean = { slot ->
-        val dateKey = isoFmt.format(slot.date)
-        skippedDates[slot.course.courseNo]?.contains(dateKey) == true
-    }
+    // val isoFmt = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
+    // val isSkippedFor: (CourseTimeSlot) -> Boolean = { slot ->
+    //     val dateKey = isoFmt.format(slot.date)
+    //     skippedDates[slot.course.courseNo]?.contains(dateKey) == true
+    // }
 
     // Pin the card area to the tallest height seen this session so the slider
     // track below doesn't bob up and down as the user scrubs across states
@@ -221,9 +220,11 @@ private fun CourseTimeCard(
                     if (it.height > maxHeightPx) maxHeightPx = it.height
                 }
         ) {
-            // 翹課 feature disabled — the onSkipToggle wiring below is commented out
-            // so SlotCard falls back to its null default and the left-swipe gesture
-            // + "翹課" indicator are inert. Re-enable by restoring the commented lines.
+            // 翹課 is parked, so every SlotCard below takes the `isSkipped =
+            // false` / `onSkipToggle = null` defaults: no red course name, no
+            // left-swipe gesture, nothing to discover. SlotCard itself still
+            // implements both — uncommenting the argument lines is what turns
+            // the feature back on. See HomeViewModel._skippedDates for when.
             when (state) {
                 is CourseState.InClass -> {
                     // 衝堂: render one card per overlapping slot so each
@@ -232,7 +233,7 @@ private fun CourseTimeCard(
                         SlotCard(
                             slot = slot,
                             alpha = 1f,
-                            isSkipped = isSkippedFor(slot),
+                            // isSkipped = isSkippedFor(slot),
                             // onSkipToggle = { onSkipCourse(slot.course, slot.date) },
                             onClick = { onSelect(slot.course, slot.classroom) },
                         )
@@ -243,7 +244,7 @@ private fun CourseTimeCard(
                     state.previous?.let {
                         SlotCard(
                             slot = it, alpha = 0.8f,
-                            isSkipped = isSkippedFor(it),
+                            // isSkipped = isSkippedFor(it),
                             // onSkipToggle = { onSkipCourse(it.course, it.date) },
                             onClick = { onSelect(it.course, it.classroom) },
                         )
@@ -251,7 +252,7 @@ private fun CourseTimeCard(
                     state.next?.let {
                         SlotCard(
                             slot = it, alpha = 0.8f,
-                            isSkipped = isSkippedFor(it),
+                            // isSkipped = isSkippedFor(it),
                             // onSkipToggle = { onSkipCourse(it.course, it.date) },
                             onClick = { onSelect(it.course, it.classroom) },
                         )
@@ -261,7 +262,7 @@ private fun CourseTimeCard(
                 is CourseState.BeforeFirst -> {
                     SlotCard(
                         slot = state.next, alpha = 0.8f,
-                        isSkipped = isSkippedFor(state.next),
+                        // isSkipped = isSkippedFor(state.next),
                         // onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
                         onClick = { onSelect(state.next.course, state.next.classroom) },
                     )
@@ -270,7 +271,7 @@ private fun CourseTimeCard(
                 is CourseState.AfterLast -> {
                     SlotCard(
                         slot = state.previous, alpha = 0.8f,
-                        isSkipped = isSkippedFor(state.previous),
+                        // isSkipped = isSkippedFor(state.previous),
                         // onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
                         onClick = { onSelect(state.previous.course, state.previous.classroom) },
                     )

@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.Calendar
 import java.util.TimeZone
 
 object AppConstants {
@@ -14,6 +15,25 @@ object AppConstants {
 
     val Periods = org.ntust.app.tigerduck.shared.Periods
     val PeriodTimes = org.ntust.app.tigerduck.shared.PeriodTimes
+
+    /**
+     * `java.util.Calendar`'s Sunday-first weekday to the Monday-first index
+     * course schedules are keyed by (Mon=1 … Sun=7).
+     *
+     * Here rather than in a feature package because Home, the class table and
+     * the schedule keys generally all need it — it is a calendar fact, like
+     * [TAIPEI_TZ] and [Periods], not a rule belonging to any one screen.
+     */
+    fun weekdayIndex(calendarDayOfWeek: Int): Int = when (calendarDayOfWeek) {
+        Calendar.MONDAY -> 1
+        Calendar.TUESDAY -> 2
+        Calendar.WEDNESDAY -> 3
+        Calendar.THURSDAY -> 4
+        Calendar.FRIDAY -> 5
+        Calendar.SATURDAY -> 6
+        Calendar.SUNDAY -> 7
+        else -> 1
+    }
 
     /**
      * The academic term the app currently considers "now".

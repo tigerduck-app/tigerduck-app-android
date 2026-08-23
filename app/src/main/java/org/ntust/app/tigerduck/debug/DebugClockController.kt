@@ -82,7 +82,9 @@ class DebugClockController @Inject constructor(
         if (liveActivityPreferences.isEnabled && liveActivityPreferences.showClassPreparing &&
             courses.isNotEmpty()
         ) {
-            val skipped = dataCache.loadSkippedDates()
+            // 翹課 parked — see DataCache's skipped-dates section.
+            val skipped = emptyMap<String, List<String>>()
+            // val skipped = dataCache.loadSkippedDates()
             classPreparingScheduler.scheduleAll(
                 courses = courses,
                 skippedDates = skipped,

@@ -87,7 +87,10 @@ class LiveActivityManager @Inject constructor(
         val now = Date(AppClock.nowMillis())
         val courses = dataCache.loadCourses()
         val assignments = dataCache.loadAssignments()
-        val skipped = dataCache.loadSkippedDates()
+        // 翹課 parked — see DataCache's skipped-dates section. Not read, so
+        // pre-v2.0.0 marks can't suppress a class the user can no longer unskip.
+        val skipped = emptyMap<String, List<String>>()
+        // val skipped = dataCache.loadSkippedDates()
 
         val snapshot = resolver.resolve(
             courses = courses,

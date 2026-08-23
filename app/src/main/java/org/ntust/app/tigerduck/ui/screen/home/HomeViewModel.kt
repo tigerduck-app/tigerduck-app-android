@@ -1,12 +1,12 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
+import org.ntust.app.tigerduck.AppConstants
 import android.util.Log
+import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.BuildConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import android.content.Context
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -37,7 +37,6 @@ import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.ServerStatus
 import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.notification.SyncSource
-import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -53,16 +52,13 @@ import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.shared.clock.AppClock
-import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    @param:ApplicationContext private val context: Context,
     private val networkChecker: NetworkChecker,
     private val authService: AuthService,
     private val dataCache: DataCache,
@@ -77,292 +73,12 @@ class HomeViewModel @Inject constructor(
     private val pushApiClient: PushApiClient,
     private val syncApiClient: SyncApiClient,
     private val authTokenManager: AuthTokenManager,
+    private val backendSync: HomeBackendSync,
 ) : ViewModel() {
-
-    data class SyncConflict(
-        val id: String,
-        val kind: String,
-        val label: String,
-        val localStatus: String,
-        val serverStatus: String,
-    )
 
     val isSyncLocalOnly = prefs.lastSyncSource
         .map { prefs.cloudSyncEnabled && it == SyncSource.LOCAL }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
-    private val _syncConflicts = MutableStateFlow<List<SyncConflict>>(emptyList())
-    val syncConflicts: StateFlow<List<SyncConflict>> = _syncConflicts
-
-
-    private var _pendingSyncResult: BackendSyncResult? = null
-
-    fun resolveSyncConflicts(keepLocal: Boolean) {
-        val result = _pendingSyncResult ?: return
-        val conflicts = _syncConflicts.value.toList()
-        _pendingSyncResult = null
-        _syncConflicts.value = emptyList()
-        viewModelScope.launch {
-            if (keepLocal) {
-                for (c in conflicts) {
-                    val mid = c.id.toIntOrNull() ?: continue
-                    runCatching { pushApiClient.patchAssignmentOverride(mid, c.localStatus) }
-                }
-            } else {
-                applyServerOverrides(result)
-            }
-        }
-    }
-
-    private suspend fun applyServerOverrides(result: BackendSyncResult) {
-        val safeIgnored = result.ignoredIds +
-            _ignoredAssignmentIds.value.filter { it in pendingOverrides }
-        val safeCompleted = result.completedIds +
-            _markedCompletedIds.value.filter { it in pendingOverrides }
-        dataCache.replaceIgnoredAssignments(safeIgnored)
-        dataCache.replaceMarkedCompletedAssignments(safeCompleted)
-        _ignoredAssignmentIds.value = safeIgnored
-        _markedCompletedIds.value = safeCompleted
-        if (result.courseOverrides.isNotEmpty()) {
-            applyCourseOverrides(result.courseOverrides)
-        }
-    }
-
-    private suspend fun syncOverridesFromBackend(retried: Boolean = false) {
-        if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-            prefs.setLastSyncSource(SyncSource.NONE)
-            return
-        }
-        if (!authTokenManager.isLoggedIn) {
-            prefs.setLastSyncSource(SyncSource.NONE)
-            return
-        }
-        try {
-            if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.BACKEND)
-            val result = syncApiClient.fetchFullSync()
-            val localIgnored = dataCache.loadIgnoredAssignments()
-            val localMarked = dataCache.loadMarkedCompletedAssignments()
-
-            val isFirstTimeMigration = result.ignoredIds.isEmpty() && result.completedIds.isEmpty()
-                && (localIgnored.isNotEmpty() || localMarked.isNotEmpty())
-            if (isFirstTimeMigration) {
-                for (id in localIgnored) {
-                    runCatching { pushApiClient.patchAssignmentOverride(id.toIntOrNull() ?: return@runCatching, "ignored") }
-                }
-                for (id in localMarked) {
-                    runCatching { pushApiClient.patchAssignmentOverride(id.toIntOrNull() ?: return@runCatching, "locally_completed") }
-                }
-            } else {
-                val conflicts = mutableListOf<SyncConflict>()
-                val allIds = (result.ignoredIds + result.completedIds + localIgnored + localMarked).toSet()
-                val assignmentsByMoodleId = _allAssignments.value.associateBy { it.assignmentId }
-                for (id in allIds) {
-                    if (id in pendingOverrides) continue
-                    val serverStatus = when {
-                        id in result.ignoredIds -> "ignored"
-                        id in result.completedIds -> "locally_completed"
-                        else -> "none"
-                    }
-                    val localStatus = when {
-                        id in localIgnored -> "ignored"
-                        id in localMarked -> "locally_completed"
-                        else -> "none"
-                    }
-                    if (serverStatus != localStatus && localStatus != "none" && serverStatus != "none") {
-                        val a = assignmentsByMoodleId[id]
-                        conflicts.add(SyncConflict(
-                            id = id,
-                            kind = "作業",
-                            label = a?.title ?: "ID $id",
-                            localStatus = localStatus,
-                            serverStatus = serverStatus,
-                        ))
-                    }
-                }
-
-                // Always apply non-conflicting items
-                val conflictIds = conflicts.map { it.id }.toSet()
-                val safeIgnored = result.ignoredIds.filter { it !in conflictIds } +
-                    _ignoredAssignmentIds.value.filter { it in pendingOverrides }
-                val safeCompleted = result.completedIds.filter { it !in conflictIds } +
-                    _markedCompletedIds.value.filter { it in pendingOverrides }
-                // Preserve local state for conflicting items until user resolves
-                val finalIgnored = safeIgnored.toMutableSet()
-                val finalCompleted = safeCompleted.toMutableSet()
-                for (c in conflicts) {
-                    when (c.localStatus) {
-                        "ignored" -> finalIgnored.add(c.id)
-                        "locally_completed" -> finalCompleted.add(c.id)
-                    }
-                }
-                dataCache.replaceIgnoredAssignments(finalIgnored)
-                dataCache.replaceMarkedCompletedAssignments(finalCompleted)
-                _ignoredAssignmentIds.value = finalIgnored
-                _markedCompletedIds.value = finalCompleted
-
-                if (conflicts.isNotEmpty()) {
-                    _pendingSyncResult = result
-                    _syncConflicts.value = conflicts
-                }
-            }
-
-            // Course overrides and deletion detection always run regardless
-            // of whether this was a first-time migration.
-            if (result.courseOverrides.isNotEmpty() && (prefs.syncCourseColors || prefs.syncCourseNames)) {
-                applyCourseOverrides(result.courseOverrides)
-            }
-            // Conflict resolution: detect reset + process tombstones
-            val lastCourseSyncAt = context.getSharedPreferences("tigerduck_sync", 0)
-                .getLong("last_course_sync_at", 0L)
-            val resetAt = result.coursesResetAt?.let { parseIsoTimestamp(it) } ?: 0L
-            if (resetAt > lastCourseSyncAt && lastCourseSyncAt > 0L) {
-                val allCourses = dataCache.loadCourses().toMutableList()
-                allCourses.removeAll { it.isManual }
-                dataCache.saveCourses(allCourses)
-                dataCache.saveDeletedCourseNos(emptySet())
-                Log.i("HomeViewModel", "[sync] courses reset detected, wiped manual courses")
-            }
-            val tombstonedNos = result.tombstones.mapNotNull { it.courseNo }.toSet()
-
-            if (prefs.syncCourses && result.serverCourseNos.isNotEmpty()) {
-                val localCourses = dataCache.loadCourses()
-                val localCourseNos = localCourses.map { it.courseNo }.toSet()
-                val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
-                val sizeBefore = deleted.size
-                Log.i("HomeViewModel", "[sync-debug] serverCourseNos=${result.serverCourseNos.sorted()} localCourseNos=${localCourseNos.sorted()} deletedNos=${deleted.sorted()}")
-                // Any non-manual local course not on the server → treat as deleted.
-                // Manual (user-local) courses may just be pending a prior failed
-                // upload, so never tombstone them on server-absence.
-                for (course in localCourses) {
-                    if (!course.isManual && course.courseNo !in result.serverCourseNos) {
-                        Log.i("HomeViewModel", "[sync-debug] marking ${course.courseNo} as deleted (local-only, not in server)")
-                        deleted.add(course.courseNo)
-                    }
-                }
-                // Apply tombstones
-                for (no in tombstonedNos) {
-                    if (no !in result.serverCourseNos && no !in deleted) {
-                        Log.i("HomeViewModel", "[sync-debug] marking $no as deleted (tombstone)")
-                        deleted.add(no)
-                    }
-                }
-                // Any previously-deleted course that reappeared on the server → un-delete
-                val undeleted = deleted.filter { it in result.serverCourseNos }
-                if (undeleted.isNotEmpty()) Log.i("HomeViewModel", "[sync-debug] un-deleting $undeleted")
-                deleted.removeAll { it in result.serverCourseNos }
-                if (deleted.size != sizeBefore || deleted != dataCache.loadDeletedCourseNos()) {
-                    dataCache.saveDeletedCourseNos(deleted)
-                }
-
-                // Merge courses from server that don't exist locally
-                val semester = courseService.currentSemesterCode()
-                val missingLocally = result.serverCourseNos - localCourseNos - deleted
-                Log.i("HomeViewModel", "[sync-debug] semester=$semester missingLocally=${missingLocally.sorted()} serverCourseSemesters=${result.serverCourses.map { it.semester }.toSet()}")
-                if (missingLocally.isNotEmpty()) {
-                    val current = dataCache.loadCourses().toMutableList()
-                    val currentNos = current.map { it.courseNo }.toSet()
-                    for (sc in result.serverCourses) {
-                        if (sc.courseNo in missingLocally && sc.courseNo !in currentNos && sc.semester == semester) {
-                            current.add(Course(
-                                courseNo = sc.courseNo,
-                                courseName = sc.courseName,
-                                instructor = sc.instructors.joinToString(", "),
-                                credits = sc.credits,
-                                classroom = sc.classroom,
-                                enrolledCount = sc.enrolledCount,
-                                maxCount = sc.maxCount,
-                                moodleIdNumber = sc.moodleId,
-                                isManual = true,
-                                scheduleJson = sc.scheduleJson,
-                                classroomMapJson = sc.classroomMapJson,
-                            ))
-                            Log.i("HomeViewModel", "[Sync] merged course from server: ${sc.courseNo}")
-                        }
-                    }
-                    if (current.size > dataCache.loadCourses().size) {
-                        dataCache.saveCourses(current)
-                    }
-                }
-            } else if (prefs.syncCourses) {
-                val localCourses = dataCache.loadCourses()
-                if (localCourses.isNotEmpty()) {
-                    val semester = courseService.currentSemesterCode()
-                    runCatching { pushApiClient.uploadCourses(localCourses, semester) }
-                        .onFailure { e -> Log.w("HomeViewModel", "[Sync] auto-upload failed", e) }
-                    Log.i("HomeViewModel", "[Sync] backend empty, auto-uploaded ${localCourses.size} courses")
-                }
-            }
-            context.getSharedPreferences("tigerduck_sync", 0).edit()
-                .putLong("last_course_sync_at", System.currentTimeMillis())
-                .apply()
-            _lastKnownRevision = result.currentRevision
-            ServerStatusTracker.set(ServerStatus.OK, ServerKind.BACKEND)
-            prefs.setLastSyncSource(SyncSource.BACKEND)
-            widgetUpdater.requestUpdate()
-        } catch (e: Exception) {
-            ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.BACKEND)
-            prefs.setLastSyncSource(SyncSource.LOCAL)
-            if (!retried && (e.message?.contains("401") == true || e.message?.contains("session_revoked") == true)) {
-                val reloginOk = attemptBackendRelogin()
-                if (reloginOk) {
-                    syncOverridesFromBackend(retried = true)
-                }
-            }
-            Log.w("HomeViewModel", "[Sync] override sync failed", e)
-        }
-    }
-
-    // Delegates to AuthService so the relogin harvests a fresh Moodle token —
-    // the backend rejects stale stored tokens with 401 invalid_token.
-    private suspend fun attemptBackendRelogin(): Boolean = authService.attemptRelogin()
-
-    private suspend fun applyCourseOverrides(overrides: List<CourseOverrideResult>) {
-        val courses = _allCourses.value.ifEmpty { return }
-        Log.d("HomeViewModel", "[sync-color] applyCourseOverrides: ${overrides.size} overrides, ${courses.size} courses, syncColors=${prefs.syncCourseColors}")
-        var changed = false
-        val updated = courses.map { course ->
-            val override = overrides.find { it.courseNo == course.courseNo }
-                ?: overrides.find { it.moodleCourseId == course.moodleIdNumber }
-            if (override == null) {
-                Log.d("HomeViewModel", "[sync-color] no override for ${course.courseNo} (moodle=${course.moodleNumericCourseId})")
-                return@map course
-            }
-            val newHex = override.colorHex ?: return@map course
-            if (prefs.syncCourseColors && newHex != course.customColorHex) {
-                Log.d("HomeViewModel", "[sync-color] ${course.courseNo}: ${course.customColorHex} -> $newHex")
-                changed = true
-                course.copy(customColorHex = newHex)
-            } else {
-                Log.d("HomeViewModel", "[sync-color] ${course.courseNo}: already $newHex (syncColors=${prefs.syncCourseColors})")
-                course
-            }
-        }
-        var nameCount = 0
-        val customNames = dataCache.loadCourseCustomNames().toMutableMap()
-        for (o in overrides) {
-            val no = o.courseNo ?: continue
-            if (prefs.syncCourseNames && o.customNames.isNotEmpty()) {
-                val existing = customNames[no]?.toMutableMap() ?: mutableMapOf()
-                for ((locale, name) in o.customNames) {
-                    if (name.isEmpty()) existing.remove(locale) else existing[locale] = name
-                }
-                if (existing.isEmpty()) customNames.remove(no) else customNames[no] = existing.toMap()
-                nameCount++
-            }
-        }
-        if (nameCount > 0) {
-            dataCache.saveCourseCustomNames(customNames)
-        }
-        if (changed) {
-            Log.i("HomeViewModel", "[sync-color] saving ${updated.count { it.customColorHex != null }} courses with custom colors, refreshing widgets")
-            _allCourses.value = updated
-            TigerDuckTheme.buildCourseColorMap(updated)
-            dataCache.saveCourses(updated)
-            widgetUpdater.requestUpdate()
-        } else {
-            Log.d("HomeViewModel", "[sync-color] no color changes to apply")
-        }
-    }
 
     private val _sections = MutableStateFlow(prefs.homeSections)
     val sections: StateFlow<List<HomeSection>> = _sections
@@ -388,6 +104,43 @@ class HomeViewModel @Inject constructor(
     // never records a submission for it.
     private val _markedCompletedIds = MutableStateFlow<Set<String>>(emptySet())
     val markedCompletedIds: StateFlow<Set<String>> = _markedCompletedIds
+
+    // Everything the backend sync touches, bundled so HomeBackendSync can
+    // read and write it directly. Declared here rather than at the top of the
+    // class because Kotlin runs property initializers in declaration order —
+    // built any earlier, it would capture nulls for the flows above.
+    //
+    // Handed over on every call instead of snapshotting values, so a sync in
+    // flight sees pendingOverrides as the toggle handlers leave it rather
+    // than as it was when the network call started.
+    private val syncState = HomeSyncState(
+        ignoredAssignmentIds = _ignoredAssignmentIds,
+        markedCompletedIds = _markedCompletedIds,
+        allAssignments = _allAssignments,
+        allCourses = _allCourses,
+        conflicts = MutableStateFlow(emptyList()),
+        pendingOverrides = pendingOverrides,
+    )
+
+    val syncConflicts: StateFlow<List<AssignmentSyncConflict>> = syncState.conflicts
+
+    /**
+     * Answer the sync-conflict dialog.
+     *
+     * The dialog is dismissed synchronously — clearing [syncConflicts] here
+     * rather than inside the coroutine — so it cannot be answered twice while
+     * the resolution's network calls are still going out. The captured
+     * result is what the user was actually shown.
+     */
+    fun resolveSyncConflicts(keepLocal: Boolean) {
+        val result = syncState.pendingResult ?: return
+        val conflicts = syncState.conflicts.value.toList()
+        syncState.pendingResult = null
+        syncState.conflicts.value = emptyList()
+        viewModelScope.launch {
+            backendSync.applyResolution(syncState, result, conflicts, keepLocal)
+        }
+    }
 
     private val _assignmentFilter = MutableStateFlow(prefs.homeAssignmentFilter)
     val assignmentFilter: StateFlow<AssignmentFilter> = _assignmentFilter
@@ -429,28 +182,7 @@ class HomeViewModel @Inject constructor(
         _assignmentFilter,
         appClockChanges,
     ) { all, ignored, marked, filter, _ ->
-        // "Effectively done" = Moodle says submitted OR the user manually
-        // marked it from the swipe gesture. Both buckets get treated the
-        // same for filter/sort purposes.
-        fun done(a: Assignment) = a.isCompleted || a.assignmentId in marked
-        when (filter) {
-            AssignmentFilter.INCOMPLETE ->
-                all.filter { !done(it) && it.assignmentId !in ignored }
-                    .sortedBy { it.dueDate }
-
-            AssignmentFilter.ALL -> {
-                // 全部: show everything (including ignored and marked-done),
-                // matching iOS allCandidates(). Future first (soonest on top),
-                // then past (most recently due first).
-                val now = Date(AppClock.nowMillis())
-                val (future, past) = all.partition { !it.dueDate.before(now) }
-                future.sortedBy { it.dueDate } +
-                        past.sortedByDescending { it.dueDate }
-            }
-
-            AssignmentFilter.IGNORED ->
-                all.filter { it.assignmentId in ignored }.sortedBy { it.dueDate }
-        }
+        HomeAssignmentFilters.visible(all, ignored, marked, filter, Date(AppClock.nowMillis()))
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val saveIgnoredChannel = Channel<Set<String>>(Channel.CONFLATED)
@@ -482,17 +214,34 @@ class HomeViewModel @Inject constructor(
     )
     val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
-    private val _skippedDates = MutableStateFlow<Map<String, List<String>>>(emptyMap())
-    val skippedDates: StateFlow<Map<String, List<String>>> = _skippedDates
-
-    private val saveSkipChannel = Channel<Map<String, List<String>>>(Channel.CONFLATED)
+    // 翹課 — parked, not abandoned. Scheduled to land after the add-friend
+    // feature, so the whole ViewModel side stays commented out rather than
+    // sitting here as live code nothing reaches. 374122a9 is the last commit
+    // where it was wired up end to end.
+    //
+    // The read side is parked too, as of f2c075ff: LiveActivityManager,
+    // BootReceiver and DebugClockController each pass emptyMap() with the
+    // DataCache read commented out beside it, so nothing an older build wrote
+    // suppresses anything today. That is deliberate — a live read with a dead
+    // toggle would make classes vanish with no way to get them back, because
+    // the left-swipe that undoes a skip is commented out as well.
+    //
+    // Keep DataCache.saveSkippedDates / loadSkippedDates anyway. The file is
+    // not deleted, so marks made before v2.0.0 come back the day the feature
+    // is switched on. Turn the UI on first, then the readers — not the other
+    // way round.
+    //
+    // private val _skippedDates = MutableStateFlow<Map<String, List<String>>>(emptyMap())
+    // val skippedDates: StateFlow<Map<String, List<String>>> = _skippedDates
+    //
+    // private val saveSkipChannel = Channel<Map<String, List<String>>>(Channel.CONFLATED)
 
     init {
-        viewModelScope.launch {
-            for (data in saveSkipChannel) {
-                dataCache.saveSkippedDates(data)
-            }
-        }
+        // viewModelScope.launch {
+        //     for (data in saveSkipChannel) {
+        //         dataCache.saveSkippedDates(data)
+        //     }
+        // }
         viewModelScope.launch {
             for (ids in saveIgnoredChannel) {
                 dataCache.saveIgnoredAssignments(ids)
@@ -522,7 +271,7 @@ class HomeViewModel @Inject constructor(
                     _allCourses.value = emptyList()
                     _todayCourses.value = emptyList()
                     _allAssignments.value = emptyList()
-                    _skippedDates.value = emptyMap()
+                    // _skippedDates.value = emptyMap()
                     _ignoredAssignmentIds.value = emptySet()
                     _markedCompletedIds.value = emptySet()
                     hasLoaded = false
@@ -593,7 +342,7 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch {
             migrateColorHashIfNeeded()
-            _skippedDates.value = dataCache.loadSkippedDates()
+            // _skippedDates.value = dataCache.loadSkippedDates()
             _ignoredAssignmentIds.value = dataCache.loadIgnoredAssignments()
             _markedCompletedIds.value = dataCache.loadMarkedCompletedAssignments()
 
@@ -629,20 +378,13 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             if (!networkChecker.isAvailable()) return@launch
             runCatching {
-                syncOverridesFromBackend()
-                val courses = dataCache.loadCourses()
-                    .filter { it.courseNo !in dataCache.loadDeletedCourseNos() }
-                val assignments = dataCache.loadAssignments()
-                TigerDuckTheme.buildCourseColorMap(courses)
-                updateCoursesAndAssignments(courses, assignments)
-                dataCache.notifyBackgroundSyncComplete()
+                syncAndRepublish()
             }
         }
     }
 
     // --- Foreground revision polling ---
 
-    private var _lastKnownRevision: Long = 0
     private var revisionPollingJob: Job? = null
 
     fun startRevisionPolling() {
@@ -666,19 +408,13 @@ class HomeViewModel @Inject constructor(
                     Log.d("RevisionPoll", "[poll] tick skipped — no network")
                     continue
                 }
-                Log.d("RevisionPoll", "[poll] tick — fetching revision (lastKnown=$_lastKnownRevision)")
+                Log.d("RevisionPoll", "[poll] tick — fetching revision (lastKnown=${syncState.lastKnownRevision})")
                 try {
                     val revision = syncApiClient.fetchRevision()
-                    Log.d("RevisionPoll", "[poll] server revision=$revision lastKnown=$_lastKnownRevision")
-                    if (revision > _lastKnownRevision) {
+                    Log.d("RevisionPoll", "[poll] server revision=$revision lastKnown=${syncState.lastKnownRevision}")
+                    if (revision > syncState.lastKnownRevision) {
                         Log.d("RevisionPoll", "[poll] revision changed — triggering full sync")
-                        syncOverridesFromBackend()
-                        val courses = dataCache.loadCourses()
-                            .filter { it.courseNo !in dataCache.loadDeletedCourseNos() }
-                        val assignments = dataCache.loadAssignments()
-                        TigerDuckTheme.buildCourseColorMap(courses)
-                        updateCoursesAndAssignments(courses, assignments)
-                        dataCache.notifyBackgroundSyncComplete()
+                        syncAndRepublish()
                     }
                 } catch (e: Exception) {
                     Log.w("RevisionPoll", "[poll] tick failed", e)
@@ -692,6 +428,24 @@ class HomeViewModel @Inject constructor(
         revisionPollingJob = null
     }
 
+    /**
+     * Pull from the backend, then re-publish whatever landed in the cache.
+     *
+     * The re-read is not redundant: the sync writes merged courses and
+     * deletions straight to disk, so the in-memory lists are stale by the
+     * time it returns. This is the "catch up quietly" path — no Moodle
+     * refresh, no spinner — used by the foreground sync and the poller.
+     */
+    private suspend fun syncAndRepublish() {
+        backendSync.pull(syncState)
+        val courses = dataCache.loadCourses()
+            .filter { it.courseNo !in dataCache.loadDeletedCourseNos() }
+        val assignments = dataCache.loadAssignments()
+        TigerDuckTheme.buildCourseColorMap(courses)
+        updateCoursesAndAssignments(courses, assignments)
+        dataCache.notifyBackgroundSyncComplete()
+    }
+
     private suspend fun fetchData(forceRemote: Boolean) {
         _isLoading.value = true
         try {
@@ -702,7 +456,7 @@ class HomeViewModel @Inject constructor(
                 // Moodle-direct for the assignment/course list (proven,
                 // correct semester filtering). Backend handles override
                 // sync only (done/ignored marks across devices).
-                syncOverridesFromBackend()
+                backendSync.pull(syncState)
                 // Re-read after backend sync so server-merged courses and
                 // deletions are reflected even if the Moodle fetch below fails.
                 courses = dataCache.loadCourses()
@@ -717,17 +471,11 @@ class HomeViewModel @Inject constructor(
                     if (!remoteCourses.isNullOrEmpty()) {
                         // Re-read cache so a concurrent color change isn't erased,
                         // and so manually-added courses survive the refresh.
-                        val cached = dataCache.loadCourses()
-                        val deletedNos = dataCache.loadDeletedCourseNos()
-                        val latestColors = cached.associate { it.courseNo to it.customColorHex }
-                        val fetched = remoteCourses.map { c ->
-                            c.copy(customColorHex = latestColors[c.courseNo])
-                        }
-                        val fetchedNos = fetched.map { it.courseNo }.toSet()
-                        val manualLeftovers =
-                            cached.filter { it.isManual && it.courseNo !in fetchedNos }
-                        courses = (fetched + manualLeftovers)
-                            .filter { it.courseNo !in deletedNos }
+                        courses = HomeCourseMerge.mergeRemote(
+                            remote = remoteCourses,
+                            cached = dataCache.loadCourses(),
+                            deletedNos = dataCache.loadDeletedCourseNos(),
+                        )
                         dataCache.saveCourses(courses)
                         widgetUpdater.requestUpdate()
                     }
@@ -815,14 +563,9 @@ class HomeViewModel @Inject constructor(
 
         val courseNos = courseNosDef.await()
         val moodleEnrolled = moodleEnrolledDef.await()
-        val moodleForSemester = moodleEnrolled
-            .orEmpty()
-            .filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }
+        val moodleForSemester = CourseRosterMerge.moodleCoursesFor(semester, moodleEnrolled)
         val moodleByNo = moodleForSemester.associateBy { it.courseNo }
-        val orderedCourseNos = LinkedHashSet<String>().apply {
-            courseNos?.forEach { add(it) }
-            moodleForSemester.forEach { add(it.courseNo) }
-        }.toList()
+        val orderedCourseNos = CourseRosterMerge.rosterOrder(courseNos, moodleForSemester)
         val rosterCourseNos = orderedCourseNos.toSet()
 
         val coursesDef = async {
@@ -831,43 +574,7 @@ class HomeViewModel @Inject constructor(
             if (orderedCourseNos.isEmpty()) return@async emptyList()
 
             orderedCourseNos.map { courseNo ->
-                async {
-                    try {
-                        val results = courseService.lookupCourse(semester, courseNo)
-                        if (results.isNotEmpty()) {
-                            val r = results.first()
-                            val schedule = courseService.mergeSchedules(
-                                *results.map { it.node }.toTypedArray()
-                            )
-                            val classroomMap = courseService.buildClassroomMap(results)
-                            val allRooms = LinkedHashSet<String>().apply {
-                                for (row in results) {
-                                    Course.splitRooms(row.classRoomNo ?: "")
-                                        .forEach { add(it) }
-                                }
-                            }
-                            Course.fromSchedule(
-                                courseNo = r.courseNo,
-                                courseName = r.courseName,
-                                instructor = r.courseTeacher,
-                                credits = r.creditPoint.toIntOrNull() ?: 0,
-                                classroom = allRooms.joinToString(", "),
-                                enrolledCount = r.chooseStudent ?: 0,
-                                maxCount = r.maxEnrollment,
-                                schedule = schedule,
-                                classroomMap = classroomMap,
-                                moodleIdNumber = moodleByNo[courseNo]?.idnumber
-                                    ?: "${r.semester}${r.courseNo}",
-                                moodleNumericCourseId = moodleByNo[courseNo]?.id
-                            )
-                        } else {
-                            CourseService.fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
-                        }
-                    } catch (e: Exception) {
-                        Log.e("HomeViewModel", "Failed to lookup course $courseNo", e)
-                        CourseService.fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
-                    }
-                }
+                async { courseService.lookupOrFallback(semester, courseNo, moodleByNo[courseNo]) }
             }.awaitAll().filterNotNull()
         }
 
@@ -878,20 +585,10 @@ class HomeViewModel @Inject constructor(
                     enrolledCourses = moodleEnrolled,
                     rosterCourseNos = rosterCourseNos
                 )
-                // Safety net: if a transient submission-status call failed and
-                // the remote reports isCompleted=false for something we
-                // previously confirmed as submitted, don't regress the user's
-                // view. Remote wins when it explicitly says isCompleted=true.
-                val existingCompleted = dataCache.loadAssignments()
-                    .filter { it.isCompleted }
-                    .map { it.assignmentId }
-                    .toSet()
+                val existingCompleted =
+                    CourseRosterMerge.completedIds(dataCache.loadAssignments())
                 ServerStatusTracker.set(ServerStatus.OK, ServerKind.MOODLE)
-                remote.map { assignment ->
-                    if (!assignment.isCompleted && assignment.assignmentId in existingCompleted) {
-                        assignment.copy(isCompleted = true)
-                    } else assignment
-                }
+                CourseRosterMerge.preserveConfirmedSubmissions(remote, existingCompleted)
             } catch (e: Exception) {
                 ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.MOODLE)
                 Log.e("HomeViewModel", "Failed to fetch assignments", e)
@@ -904,20 +601,9 @@ class HomeViewModel @Inject constructor(
 
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
         _allCourses.value = courses
-        val todayIndex =
-            AppClock.calendar().get(Calendar.DAY_OF_WEEK).let {
-                // Android: Sun=1, Mon=2..Sat=7. We need Mon=1..Sun=7
-                when (it) {
-                    Calendar.MONDAY -> 1
-                    Calendar.TUESDAY -> 2
-                    Calendar.WEDNESDAY -> 3
-                    Calendar.THURSDAY -> 4
-                    Calendar.FRIDAY -> 5
-                    Calendar.SATURDAY -> 6
-                    Calendar.SUNDAY -> 7
-                    else -> 1
-                }
-            }
+        val todayIndex = AppConstants.weekdayIndex(
+            AppClock.calendar().get(Calendar.DAY_OF_WEEK)
+        )
         _todayCourses.value = courses.filter { it.schedule.containsKey(todayIndex) }
         _allAssignments.value = assignments.sortedBy { it.dueDate }
 
@@ -951,23 +637,21 @@ class HomeViewModel @Inject constructor(
         notificationScheduler.cancelAllTracked()
     }
 
-    fun hasUnfinishedAssignment(courseNo: String): Boolean {
-        val ignored = _ignoredAssignmentIds.value
-        val marked = _markedCompletedIds.value
-        return _allAssignments.value.any {
-            it.courseNo == courseNo && !it.isCompleted &&
-                    it.assignmentId !in ignored && it.assignmentId !in marked
-        }
-    }
+    fun hasUnfinishedAssignment(courseNo: String): Boolean =
+        HomeAssignmentFilters.anyUnfinishedFor(
+            all = _allAssignments.value,
+            courseNo = courseNo,
+            ignoredIds = _ignoredAssignmentIds.value,
+            markedCompletedIds = _markedCompletedIds.value,
+        )
 
-    fun assignmentsFor(courseNo: String): List<Assignment> {
-        val ignored = _ignoredAssignmentIds.value
-        val marked = _markedCompletedIds.value
-        return _allAssignments.value.filter {
-            it.courseNo == courseNo && !it.isCompleted &&
-                    it.assignmentId !in ignored && it.assignmentId !in marked
-        }
-    }
+    fun assignmentsFor(courseNo: String): List<Assignment> =
+        HomeAssignmentFilters.unfinishedFor(
+            all = _allAssignments.value,
+            courseNo = courseNo,
+            ignoredIds = _ignoredAssignmentIds.value,
+            markedCompletedIds = _markedCompletedIds.value,
+        )
 
     fun setAssignmentFilter(filter: AssignmentFilter) {
         _assignmentFilter.value = filter
@@ -992,49 +676,53 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun toggleIgnore(assignment: Assignment) {
-        val id = assignment.assignmentId
-        val wasIgnored = id in _ignoredAssignmentIds.value
-        _ignoredAssignmentIds.update { if (wasIgnored) it - id else it + id }
-        if (!wasIgnored) {
-            _markedCompletedIds.update { it - id }
-            saveMarkedCompletedChannel.trySend(_markedCompletedIds.value)
-        }
-        saveIgnoredChannel.trySend(_ignoredAssignmentIds.value)
-        if (prefs.notifyAssignments) {
-            rescheduleAssignmentNotifications(_allAssignments.value)
-        }
-        val status = if (wasIgnored) "none" else "ignored"
-        pendingOverrides.add(id)
-        viewModelScope.launch {
-            try {
-                pushApiClient.patchAssignmentOverride(
-                    id.toIntOrNull() ?: return@launch, status,
-                )
-            } catch (e: Exception) {
-                Log.w("HomeViewModel", "override PATCH FAILED: $id → $status", e)
-            } finally {
-                // Always release the in-flight lock — a failed PATCH must not
-                // pin this id in pendingOverrides forever, which would block it
-                // from ever being reconciled from the server again.
-                pendingOverrides.remove(id)
-            }
-        }
-    }
+    fun toggleIgnore(assignment: Assignment) = toggleOverride(
+        assignment = assignment,
+        primary = _ignoredAssignmentIds,
+        primaryChannel = saveIgnoredChannel,
+        secondary = _markedCompletedIds,
+        secondaryChannel = saveMarkedCompletedChannel,
+        statusWhenSet = AssignmentOverrideReconciler.STATUS_IGNORED,
+    )
 
-    fun toggleMarkCompleted(assignment: Assignment) {
+    fun toggleMarkCompleted(assignment: Assignment) = toggleOverride(
+        assignment = assignment,
+        primary = _markedCompletedIds,
+        primaryChannel = saveMarkedCompletedChannel,
+        secondary = _ignoredAssignmentIds,
+        secondaryChannel = saveIgnoredChannel,
+        statusWhenSet = AssignmentOverrideReconciler.STATUS_COMPLETED,
+    )
+
+    /**
+     * Flip one override on or off, locally first and upstream after.
+     *
+     * 已忽略 and 標示為完成 are mutually exclusive, so setting either clears
+     * the other — that is what [secondary] is for. The UI updates before the
+     * PATCH goes out and is never rolled back if it fails: the id stays in
+     * this device's cache and the next sync re-asserts it, which is a better
+     * outcome than a row that silently springs back under the user's finger.
+     */
+    private fun toggleOverride(
+        assignment: Assignment,
+        primary: MutableStateFlow<Set<String>>,
+        primaryChannel: Channel<Set<String>>,
+        secondary: MutableStateFlow<Set<String>>,
+        secondaryChannel: Channel<Set<String>>,
+        statusWhenSet: String,
+    ) {
         val id = assignment.assignmentId
-        val wasCompleted = id in _markedCompletedIds.value
-        _markedCompletedIds.update { if (wasCompleted) it - id else it + id }
-        if (!wasCompleted) {
-            _ignoredAssignmentIds.update { it - id }
-            saveIgnoredChannel.trySend(_ignoredAssignmentIds.value)
+        val wasSet = id in primary.value
+        primary.update { if (wasSet) it - id else it + id }
+        if (!wasSet) {
+            secondary.update { it - id }
+            secondaryChannel.trySend(secondary.value)
         }
-        saveMarkedCompletedChannel.trySend(_markedCompletedIds.value)
+        primaryChannel.trySend(primary.value)
         if (prefs.notifyAssignments) {
             rescheduleAssignmentNotifications(_allAssignments.value)
         }
-        val status = if (wasCompleted) "none" else "locally_completed"
+        val status = if (wasSet) AssignmentOverrideReconciler.STATUS_NONE else statusWhenSet
         pendingOverrides.add(id)
         viewModelScope.launch {
             try {
@@ -1056,69 +744,49 @@ class HomeViewModel @Inject constructor(
         _selectedCourse.value = info
     }
 
-    // 翹課 feature disabled — replaced by the "已忽略" homework flow. Kept as
-    // a no-op so existing call sites still compile; re-enable by uncommenting
-    // the body below if the feature is ever reinstated.
-    fun toggleSkip(course: Course, date: Date) {
-        // val key = date.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate().format(SKIP_DATE_FMT)
-        // _skippedDates.update { current ->
-        //     val map = current.toMutableMap()
-        //     val dates = (map[course.courseNo] ?: emptyList()).toMutableList()
-        //     if (key in dates) dates.remove(key) else dates.add(key)
-        //     map[course.courseNo] = dates
-        //     map
-        // }
-        // saveSkipChannel.trySend(_skippedDates.value)
-    }
+    // 翹課 — see the block above _skippedDates.
+    // fun toggleSkip(course: Course, date: Date) {
+    //     val key = date.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate().format(SKIP_DATE_FMT)
+    //     _skippedDates.update { current ->
+    //         val map = current.toMutableMap()
+    //         val dates = (map[course.courseNo] ?: emptyList()).toMutableList()
+    //         if (key in dates) dates.remove(key) else dates.add(key)
+    //         map[course.courseNo] = dates
+    //         map
+    //     }
+    //     saveSkipChannel.trySend(_skippedDates.value)
+    // }
 
     fun removeSection(sectionId: String) {
-        _sections.value = _sections.value.filter { it.id != sectionId }
-            .mapIndexed { i, s -> s.copy(sortOrder = i) }
-        prefs.homeSections = _sections.value
+        persistSections(HomeSectionLayout.remove(_sections.value, sectionId))
     }
 
-    /**
-     * Moves [fromId] to [toId]'s slot.
-     *
-     * Id-based rather than index-based because Home renders a *filtered* list
-     * — the today-courses section drops out of the term window (see
-     * [org.ntust.app.tigerduck.AppConstants.CurrentTerm]) — so a position in
-     * what the user dragged is not a position in the stored layout. Resolving
-     * both ends here keeps the two from drifting.
-     */
     fun moveSections(fromId: String, toId: String) {
-        val list = _sections.value.toMutableList()
-        val from = list.indexOfFirst { it.id == fromId }
-        val to = list.indexOfFirst { it.id == toId }
-        if (from < 0 || to < 0 || from == to) return
-        list.add(to, list.removeAt(from))
-        _sections.value = list.mapIndexed { i, s -> s.copy(sortOrder = i) }
-        prefs.homeSections = _sections.value
+        val moved = HomeSectionLayout.move(_sections.value, fromId, toId)
+        // Identity, not equality: HomeSectionLayout.move hands back the very
+        // list it was given when the drag was a no-op, and a no-op must not
+        // write to preferences.
+        if (moved !== _sections.value) persistSections(moved)
     }
 
-    private fun parseIsoTimestamp(s: String): Long {
-        if (s.isBlank()) return 0L
-        return try {
-            java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).apply {
-                timeZone = java.util.TimeZone.getTimeZone("UTC")
-            }.parse(s.take(19))?.time ?: 0L
-        } catch (_: Exception) { 0L }
-    }
-
-    companion object {
-        private val SKIP_DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE
-    }
+    // companion object {
+    //     private val SKIP_DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE
+    // }
 
     fun addSection(type: HomeSection.HomeSectionType, title: String) {
-        val newSection = HomeSection(
-            id = java.util.UUID.randomUUID().toString(),
-            type = type,
-            title = title,
-            sortOrder = _sections.value.size,
-            isVisible = true
+        persistSections(
+            HomeSectionLayout.add(
+                sections = _sections.value,
+                id = java.util.UUID.randomUUID().toString(),
+                type = type,
+                title = title,
+            )
         )
-        _sections.value = _sections.value + newSection
-        prefs.homeSections = _sections.value
+    }
+
+    private fun persistSections(sections: List<HomeSection>) {
+        _sections.value = sections
+        prefs.homeSections = sections
     }
 }
 

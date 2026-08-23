@@ -2,14 +2,14 @@
 """Refresh Android localization artifacts.
 
 Steps:
-1. Invoke the canonical generator in the localization submodule to (re)produce
-   `localization/generated/{android,apple}/...` from the grouped source JSON.
+1. Invoke the canonical generator in the app-translation submodule to (re)produce
+   `app-translation/generated/{android,apple}/...` from the grouped source JSON.
 2. Generate Android's `locales_config.xml` from the resulting values-* dirs
    so the system language picker (Android 13+) sees every shipped locale.
 
-Strings.xml generation itself lives in the localization submodule
+Strings.xml generation itself lives in the app-translation submodule
 (`tools/localization/generate_localizations.py`); the Gradle copy step picks
-those up from `localization/generated/android/`. This script does not write
+those up from `app-translation/generated/android/`. This script does not write
 strings.xml itself.
 """
 
@@ -20,9 +20,9 @@ from pathlib import Path
 from typing import Iterable, Set
 
 ROOT = Path(__file__).resolve().parents[2]
-LOCALIZATION_DIR = ROOT / "localization"
-CONFIG_PATH = LOCALIZATION_DIR / "config" / "locales.json"
-GENERATED_ANDROID_DIR = LOCALIZATION_DIR / "generated" / "android"
+APP_TRANSLATION_DIR = ROOT / "app-translation"
+CONFIG_PATH = APP_TRANSLATION_DIR / "config" / "locales.json"
+GENERATED_ANDROID_DIR = APP_TRANSLATION_DIR / "generated" / "android"
 LOCALES_CONFIG_PATH = ROOT / "app" / "src" / "main" / "res" / "xml" / "locales_config.xml"
 
 
@@ -32,7 +32,7 @@ def load_locale_config() -> dict:
 
 
 def run_canonical_generator() -> None:
-    script = LOCALIZATION_DIR / "tools" / "localization" / "generate_localizations.py"
+    script = APP_TRANSLATION_DIR / "tools" / "localization" / "generate_localizations.py"
     subprocess.check_call([sys.executable, str(script)])
 
 
@@ -66,7 +66,7 @@ def discover_android_values_locales(default_dir_locale: str) -> Set[str]:
 def render_locale_config(locales: Iterable[str]) -> str:
     lines = [
         "<?xml version=\"1.0\" encoding=\"utf-8\"?>",
-        "<!-- Generated from localization/source/*.json. Do not edit directly. -->",
+        "<!-- Generated from app-translation/source/*.json. Do not edit directly. -->",
         "<locale-config xmlns:android=\"http://schemas.android.com/apk/res/android\">",
     ]
     for locale in sorted(locales):

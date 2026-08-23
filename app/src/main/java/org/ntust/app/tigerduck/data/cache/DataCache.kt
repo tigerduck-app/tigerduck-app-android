@@ -71,7 +71,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         onCoursesSaved = listener
     }
 
-    // MARK: - Courses (semester-scoped)
+    // --- Courses (semester-scoped) ---
 
     /**
      * Save courses for a specific semester. Splits the list: remote-fetched
@@ -151,7 +151,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         saveToUserData(manual, manualCoursesFilename(semester))
     }
 
-    // MARK: - Courses (current-semester aliases)
+    // --- Courses (current-semester aliases) ---
     // Home, BackgroundSyncWorker, LiveActivity, etc. operate on "whatever
     // the user is studying right now" so we keep a no-arg convenience that
     // always maps to the actual current semester.
@@ -197,7 +197,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
     private fun currentSemesterCode(): String =
         org.ntust.app.tigerduck.AppConstants.CurrentTerm.CODE
 
-    // MARK: - Assignments
+    // --- Assignments ---
 
     suspend fun saveAssignments(assignments: List<Assignment>) =
         save(assignments, "assignments.json")
@@ -207,8 +207,20 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return load(type, "assignments.json") ?: emptyList()
     }
 
-    // MARK: - Skipped Dates (courseNo -> list of ISO date strings "yyyy-MM-dd")
+    // --- Skipped Dates (courseNo -> list of ISO date strings "yyyy-MM-dd") ---
     // Stored in filesDir — never cleared by the OS, unlike cacheDir.
+    //
+    // 翹課 is parked until after the add-friend feature, so nothing reads this
+    // file today: every caller passes emptyMap() instead, and the reads are
+    // commented out beside them. Read/write stay here on purpose — the file is
+    // NOT deleted, so a user who marked classes before v2.0.0 gets their marks
+    // back the day the feature is switched on.
+    //
+    // Do not "reconnect" a caller in isolation. Skipping suppresses class-prep
+    // notifications and Live Activity slots, and the UI that undoes a skip
+    // (the left-swipe on the Home tile) is commented out — so a live read with
+    // a dead toggle means classes silently vanish with no way to get them back.
+    // Turn the UI on first. See HomeViewModel._skippedDates.
 
     suspend fun saveSkippedDates(data: Map<String, List<String>>) =
         saveToUserData(data, "skipped_dates.json")
@@ -218,7 +230,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return loadFromUserData(type, "skipped_dates.json") ?: emptyMap()
     }
 
-    // MARK: - Course Custom Names (per-locale overrides)
+    // --- Course Custom Names (per-locale overrides) ---
     // courseNo → locale → name. Stored in filesDir so user renames survive
     // cache eviction. The ClassTableViewModel resolves the current locale's
     // entry into Course.customCourseName at load/display time.
@@ -231,7 +243,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return loadFromUserData(type, "course_custom_names.json") ?: emptyMap()
     }
 
-    // MARK: - Deleted Course Nos (hidden by user or server)
+    // --- Deleted Course Nos (hidden by user or server) ---
     // Stored in filesDir so courses hidden via sync or the delete gesture
     // stay gone even when Moodle/NTUST re-fetches re-add them.
 
@@ -244,7 +256,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
             ?: emptySet()
     }
 
-    // MARK: - Ignored Assignments (set of assignmentIds)
+    // --- Ignored Assignments (set of assignmentIds) ---
     // Stored in filesDir so the user's ignore decisions survive OS cache eviction
     // and remote re-fetches, mirroring skipped_dates.json handling.
 
@@ -257,7 +269,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
             ?: emptySet()
     }
 
-    // MARK: - Marked-Completed Assignments (set of assignmentIds)
+    // --- Marked-Completed Assignments (set of assignmentIds) ---
     // Independent from Moodle's `isCompleted`: lets the user manually flag a
     // homework as done from the swipe gesture even when Moodle hasn't (or
     // won't) record a submission. Persisted in filesDir alongside the ignore
@@ -272,7 +284,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
             ?: emptySet()
     }
 
-    // MARK: - Score Report (per studentId)
+    // --- Score Report (per studentId) ---
 
     /**
      * Fields are nullable as Gson-Unsafe defense (see CLAUDE.md): this class
@@ -300,7 +312,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     private fun scoreReportFilename(studentId: String): String = "score_$studentId.json"
 
-    // MARK: - Course lookup (querycourse.ntust.edu.tw responses)
+    // --- Course lookup (querycourse.ntust.edu.tw responses) ---
     // Course metadata (name, instructor, schedule, caps) is static within a
     // semester; only ChooseStudent drifts, and drifting by a few minutes is
     // tolerable for a pull-to-refresh UX. Caching the raw CourseSearchResult
@@ -319,7 +331,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return load<Map<String, CourseLookupEntry>>(type, "course_lookups.json") ?: emptyMap()
     }
 
-    // MARK: - Moodle course id map (idnumber → numeric id)
+    // --- Moodle course id map (idnumber → numeric id) ---
     // Powers the course-detail "Open in Moodle" deep link, which needs the
     // numeric id (Moodle's web endpoint won't accept the idnumber). The map
     // is harvested from `fetchEnrolledCourses` across ALL semesters so
@@ -336,7 +348,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return load<Map<String, Int>>(type, "moodle_course_ids.json") ?: emptyMap()
     }
 
-    // MARK: - Calendar Events
+    // --- Calendar Events ---
 
     suspend fun saveCalendarEvents(events: List<CalendarEvent>) =
         save(events, "calendar_events.json")
@@ -346,7 +358,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return load(type, "calendar_events.json") ?: emptyList()
     }
 
-    // MARK: - Logout cleanup
+    // --- Logout cleanup ---
 
     /**
      * Wipe every piece of user-scoped data so the next login does not inherit
@@ -401,7 +413,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    // MARK: - Private helpers
+    // --- Private helpers ---
 
     private suspend fun <T> save(value: T, filename: String) = cacheMutex.withLock {
         withContext(Dispatchers.IO) {

@@ -215,7 +215,6 @@ data class ConflictLShape(
         val hasSoloAbove = overlapTopY > 0.5f
         val hasSoloBelow = overlapEndY < h - 0.5f
         val topY = if (hasSoloAbove) 0f else overlapTopY
-        if (hasSoloBelow) h else overlapEndY
 
         return Path().apply {
             // --- Start after top-left arc (always on left cell edge) ---

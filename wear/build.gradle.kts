@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "org.ntust.app.tigerduck.wear"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         // The wear app is shipped only alongside the play distribution of
@@ -48,11 +48,11 @@ android {
 // Wear strings live alongside phone strings in the `~/app-translation`
 // submodule's source/*.json files (under the `shared` group, since they're
 // reused on Apple Watch). The submodule's Python generator emits per-locale
-// strings.xml under localization/generated/android/values-*/, and this opt-in
+// strings.xml under app-translation/generated/android/values-*/, and this opt-in
 // task copies them into wear/src/main/res/. Run with `-PsyncLocalizations` to
 // regenerate; otherwise builds use the committed copies.
 
-val syncLocalizations by tasks.registering(Exec::class) {
+val syncLocalizations = tasks.register<Exec>("syncLocalizations") {
     group = "localization"
     description = "Generate Android localization files from shared JSON sources."
     workingDir = rootProject.projectDir
@@ -74,12 +74,12 @@ val syncLocalizations by tasks.registering(Exec::class) {
     }
 }
 
-val copyGeneratedAndroidLocalizations by tasks.registering(Copy::class) {
+val copyGeneratedAndroidLocalizations = tasks.register<Copy>("copyGeneratedAndroidLocalizations") {
     group = "localization"
-    description = "Copy localization/generated/android values-* resources into wear/src/main/res."
+    description = "Copy app-translation/generated/android values-* resources into wear/src/main/res."
     dependsOn(syncLocalizations)
 
-    val sourceDir = rootProject.layout.projectDirectory.dir("localization/generated/android")
+    val sourceDir = rootProject.layout.projectDirectory.dir("app-translation/generated/android")
     val destDir = layout.projectDirectory.dir("src/main/res")
 
     from(sourceDir) {

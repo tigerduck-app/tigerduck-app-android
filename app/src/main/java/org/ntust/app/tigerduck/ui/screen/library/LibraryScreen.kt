@@ -216,17 +216,9 @@ fun LibraryScreen(
             )
         }
 
-        // 討論小間 / 圖書館講座 — hidden until the backing data sources are
-        // available. Re-enable the row below when ready.
-        // Row(
-        //     modifier = Modifier
-        //         .fillMaxWidth()
-        //         .padding(horizontal = 16.dp),
-        //     horizontalArrangement = Arrangement.spacedBy(12.dp)
-        // ) {
-        //     FeatureCard("討論小間", "即將推出", modifier = Modifier.weight(1f))
-        //     FeatureCard("圖書館講座", "即將推出", modifier = Modifier.weight(1f))
-        // }
+        // 討論小間 / 圖書館講座 would sit here, but neither has a backing data
+        // source yet. The "即將推出" card row and its FeatureCard composable are
+        // in history — restore them rather than rewriting when the APIs land.
 
         Spacer(Modifier.height(16.dp))
     }
@@ -464,26 +456,3 @@ private fun LoginPromptCard(
     }
 }
 
-@Composable
-private fun FeatureCard(title: String, subtitle: String, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-            )
-            Text(
-                subtitle, style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-            )
-        }
-    }
-}
