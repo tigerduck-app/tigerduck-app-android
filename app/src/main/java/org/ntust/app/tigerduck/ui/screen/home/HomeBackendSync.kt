@@ -12,15 +12,20 @@
 // is left here is sequencing and I/O, which is what makes it hard to test and
 // exactly why it should not also contain the rules.
 //
-// Failure policy is "degrade to local, never lose a tap": any throw sets the
+// Failure policy is "degrade to local, never lose a tap": a throw sets the
 // sync source to LOCAL and leaves the cache alone, and a 401 gets one relogin
 // retry. A sync that fails must never look like a sync that found nothing.
+//
+// Cancellation is the one exception and is rethrown untouched. Leaving Home
+// mid-sync is not a backend failure, and reporting it as one turns on the
+// "local only" banner for a sync nobody was waiting for.
 
 package org.ntust.app.tigerduck.ui.screen.home
 
 import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
@@ -120,6 +125,14 @@ class HomeBackendSync @Inject constructor(
             ServerStatusTracker.set(ServerStatus.OK, ServerKind.BACKEND)
             prefs.setLastSyncSource(SyncSource.BACKEND)
             widgetUpdater.requestUpdate()
+        } catch (e: CancellationException) {
+            // Leaving Home mid-sync cancels viewModelScope, which lands here.
+            // The writes below are not suspending, so they would run even in a
+            // cancelled scope and report a backend failure for a sync that was
+            // simply abandoned — flipping on the "local only" banner and, if
+            // the cancellation message happened to contain "401", kicking off
+            // a relogin. Same guard BackgroundSyncWorker took in cd644d04.
+            throw e
         } catch (e: Exception) {
             ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.BACKEND)
             prefs.setLastSyncSource(SyncSource.LOCAL)

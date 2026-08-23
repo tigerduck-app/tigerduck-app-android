@@ -6,6 +6,7 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -282,6 +283,12 @@ class CourseService @Inject constructor(
                 moodleNumericCourseId = moodle?.id,
             )
         }
+    } catch (e: CancellationException) {
+        // ClassTableViewModel cancels its load job on every semester flip, and
+        // each in-flight lookup lands here. Swallowing it would log a failure
+        // per course and hand back a schedule-less fallback Course that a
+        // partially-applied result then renders as a blank timetable row.
+        throw e
     } catch (e: Exception) {
         Log.e(TAG_LOOKUP, "Failed to lookup course $courseNo", e)
         fallbackCourseFromMoodle(courseNo, moodle)
