@@ -6,9 +6,10 @@ import org.junit.Test
 import org.ntust.app.tigerduck.data.model.HomeSection
 
 /**
- * `sortOrder` is what the persisted layout is re-sorted by on the next
- * launch, so an edit that leaves it stale reorders the user's Home screen
- * behind their back. Every case here checks the field, not just the order.
+ * Order itself is carried by list position — nothing in the app sorts on
+ * `sortOrder`. These cases still assert the field because it is part of the
+ * persisted shape, and a layout stored with duplicate or gapped values cannot
+ * be told apart from a corrupt one if a reader is ever added.
  */
 class HomeSectionLayoutTest {
 
@@ -99,5 +100,22 @@ class HomeSectionLayoutTest {
             title = "New",
         )
         assertEquals(listOf(0, 1, 2), afterAdd.map { it.sortOrder })
+    }
+
+    // AppPreferences.homeSections drops QUICK_WIDGETS out of a restored
+    // layout, which is the one way `add` receives a list whose highest
+    // sortOrder is >= its size. Deriving the new value from size alone would
+    // hand the new section a number an existing one already holds.
+    @Test
+    fun `adding to a gapped layout does not duplicate a sort order`() {
+        val gapped = listOf(section("a", 0), section("b", 1), section("d", 3))
+        val out = HomeSectionLayout.add(
+            sections = gapped,
+            id = "new",
+            type = HomeSection.HomeSectionType.CUSTOM,
+            title = "New",
+        )
+        assertEquals(listOf(0, 1, 2, 3), out.map { it.sortOrder })
+        assertEquals(listOf("a", "b", "d", "new"), out.map { it.id })
     }
 }

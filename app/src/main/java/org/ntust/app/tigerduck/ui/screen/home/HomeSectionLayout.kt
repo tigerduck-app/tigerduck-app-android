@@ -1,9 +1,18 @@
 // Add / remove / reorder for the Home screen's section list.
 //
-// Every operation renumbers `sortOrder` to match list position afterwards.
-// That redundancy is the point: the list is persisted as JSON and read back
-// by code that sorts on the field, so a gap or a duplicate left behind by an
-// edit shows up later as sections silently swapping places.
+// Order is carried by list position, not by `sortOrder` — nothing in the app
+// sorts on that field, and Gson round-trips a JSON array in order. `sortOrder`
+// is a mirror of the index that exists because it is part of the persisted
+// shape (HomeSection lives in data.model, which proguard-rules keeps
+// wholesale) and dropping it would be a schema change for a field no reader
+// needs.
+//
+// Every operation here still renumbers it to match position, for one reason:
+// a stored layout with duplicate or gapped values is indistinguishable from a
+// corrupt one, so if a reader is ever added it must not inherit garbage. The
+// restore path in AppPreferences.homeSections renumbers for the same reason —
+// it filters QUICK_WIDGETS out without which `[0,1,2,3]` would come back as
+// `[0,1,3]` and the next `add` would hand out a duplicate 3.
 //
 // Extracted from HomeViewModel, which only needs to persist what these
 // return.
@@ -42,19 +51,26 @@ object HomeSectionLayout {
     /**
      * Append a new section. [id] is a parameter rather than generated here so
      * the result is a function of its inputs and can be asserted on.
+     *
+     * Renumbers like the other two rather than trusting `sections.size` as the
+     * new value: a restored layout that had a section filtered out of it is
+     * shorter than its highest `sortOrder`, so `size` collides with a value
+     * already in the list.
      */
     fun add(
         sections: List<HomeSection>,
         id: String,
         type: HomeSection.HomeSectionType,
         title: String,
-    ): List<HomeSection> = sections + HomeSection(
-        id = id,
-        type = type,
-        title = title,
-        sortOrder = sections.size,
-        isVisible = true,
-    )
+    ): List<HomeSection> = (
+        sections + HomeSection(
+            id = id,
+            type = type,
+            title = title,
+            sortOrder = sections.size,
+            isVisible = true,
+        )
+        ).renumbered()
 
     private fun List<HomeSection>.renumbered(): List<HomeSection> =
         mapIndexed { i, s -> s.copy(sortOrder = i) }
