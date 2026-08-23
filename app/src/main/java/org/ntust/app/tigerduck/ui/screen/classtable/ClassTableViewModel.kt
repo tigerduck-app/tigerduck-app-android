@@ -106,6 +106,16 @@ class ClassTableViewModel @Inject constructor(
     )
     val currentSemester: StateFlow<String> = _currentSemester
 
+    /**
+     * Terms the picker offers, newest first, as published by NTUST — see
+     * [SemesterCatalog]. A `StateFlow` rather than a computed getter so a term
+     * the school publishes ahead of the month heuristic (115-1 opened weeks
+     * before the heuristic rolled off 114-2) becomes selectable in the same
+     * session the catalogue lands.
+     */
+    private val _availableSemesters = MutableStateFlow(semesterOptions(_currentSemester.value))
+    val availableSemesters: StateFlow<List<String>> = _availableSemesters
+
     private val _currentDayTime = MutableStateFlow(currentDayTime())
     val currentMinute: StateFlow<Int> = _currentDayTime
         .map { it.minuteOfDay }
@@ -114,6 +124,28 @@ class ClassTableViewModel @Inject constructor(
             kotlinx.coroutines.flow.SharingStarted.Eagerly,
             currentDayTime().minuteOfDay
         )
+
+    // One-shot UI events. These live above `init` with the rest of the
+    // state for the same reason every other field does: init's collectors
+    // run synchronously during construction under Main.immediate, so a
+    // field declared below it is still null when they reach it.
+    private val _tripleConflictEvent = MutableSharedFlow<TripleConflictError>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val tripleConflictEvent: SharedFlow<TripleConflictError> = _tripleConflictEvent.asSharedFlow()
+
+    private val _noNetworkEvent = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
+
+    private val _syncCompleteEvent = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
     private var hasLoaded = false
 
@@ -210,16 +242,6 @@ class ClassTableViewModel @Inject constructor(
     /** The actual live semester code (not whatever the user picked). */
     val liveSemesterCode: String
         get() = courseService.currentSemesterCode()
-
-    /**
-     * Terms the picker offers, newest first, as published by NTUST — see
-     * [SemesterCatalog]. A `StateFlow` rather than a computed getter so a term
-     * the school publishes ahead of the month heuristic (115-1 opened weeks
-     * before the heuristic rolled off 114-2) becomes selectable in the same
-     * session the catalogue lands.
-     */
-    private val _availableSemesters = MutableStateFlow(semesterOptions(_currentSemester.value))
-    val availableSemesters: StateFlow<List<String>> = _availableSemesters
 
     /**
      * Keeps the persisted selection selectable even after it ages out of the
@@ -537,12 +559,6 @@ class ClassTableViewModel @Inject constructor(
         }
     }
 
-    private val _tripleConflictEvent = MutableSharedFlow<TripleConflictError>(
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
-    val tripleConflictEvent: SharedFlow<TripleConflictError> = _tripleConflictEvent.asSharedFlow()
-
     fun load() {
         if (hasLoaded) return
         hasLoaded = true
@@ -564,18 +580,6 @@ class ClassTableViewModel @Inject constructor(
             fetchData()
         }
     }
-
-    private val _noNetworkEvent = MutableSharedFlow<Unit>(
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-    val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
-
-    private val _syncCompleteEvent = MutableSharedFlow<Unit>(
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-    val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
     fun resetCourses() {
         viewModelScope.launch {
