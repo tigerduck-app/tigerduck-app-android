@@ -3,7 +3,7 @@
 <br>
 
 [![License](https://img.shields.io/github/license/tigerduck-app/tigerduck-app-android?style=for-the-badge)](LICENSE)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.3-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-10.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge)](https://developer.android.com/compose)
 
@@ -70,7 +70,7 @@ even more OAO!
 
 ### 🌏 **Multilingual**
 
-- **50+ locales shared with the iOS client** — follow the system language or set per-app
+- **65 locales shared with the iOS client** — follow the system language or set per-app
 - Course / classroom names **automatically abbreviated** when long
 
 ### 🎨 **Customization**
@@ -139,7 +139,7 @@ even more OAO!
 
 ### 🌏 Localization & Accessibility
 
-- [x] **Multilingual (50+ locales, shared with iOS)** — Follows system language or per-app override
+- [x] **Multilingual (65 locales, shared with iOS)** — Follows system language or per-app override
 - [x] **Course / Classroom name abbreviations** — One-tap toggle, fully reversible
 - [X] **RTL layout fixes** — Arabic / Hebrew and other right-to-left scripts
 
@@ -179,13 +179,13 @@ even more OAO!
 
 ## Development Setup
 
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.3-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android Studio](https://img.shields.io/badge/Android%20Studio-Latest-3DDC84?style=for-the-badge&logo=androidstudio&logoColor=white)](https://developer.android.com/studio)
 
 ### Prerequisites
 
 - Android Studio (latest preferred)
-- Android SDK Platform 36
+- Android SDK Platform 37
 - JDK 11
 
 ### Android App
@@ -241,7 +241,7 @@ ADB, push backend wiring, and common pitfalls, see [`debug/DEBUG.md`](debug/DEBU
 Translation strings live in the [`app-translation/`](https://github.com/tigerduck-app/app-translation)
 submodule and are shared with the iOS client.
 
-- Source files in `app-translation/source/` — 50+ locales (`en.json`, `zh-Hant.json`, `ja.json`,
+- Source files in `app-translation/source/` — 55 files (`en.json`, `zh-Hant.json`, `ja.json`,
   `ko.json`, `ar.json`, …)
 - Generated outputs in `app-translation/generated/`:
     - Android: `android/values/strings.xml` (Traditional Chinese as default),
@@ -272,7 +272,7 @@ readable.
 ## Project Structure
 
 ```text
-tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.3 / Compose / API 26+)
+tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Compose / API 29+)
 ├── app/                                # Phone app (fdroid / play flavors)
 │   ├── build.gradle.kts
 │   └── src/main/java/org/ntust/app/tigerduck/
@@ -324,7 +324,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.3 / Co
 ├── debug/                              # Quick install scripts and [DEBUG.md](debug/DEBUG.md) (build variants, debug clock, push)
 ├── gradle/
 │   └── libs.versions.toml              # Version Catalog
-├── app-translation/                    # ⤴ git submodule: 50+ locale translations (incl. `watch_*` keys)
+├── app-translation/                    # ⤴ git submodule: 65 locale translations (incl. `watch_*` keys)
 ├── name-abbr/                          # ⤴ git submodule: course / classroom abbreviations
 ├── tools/localization/                 # Translation sync script (auto-triggered by preBuild)
 ├── build.gradle.kts

@@ -3,7 +3,7 @@
 <br>
 
 [![License](https://img.shields.io/github/license/tigerduck-app/tigerduck-app-android?style=for-the-badge)](LICENSE)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.3-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-10.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge)](https://developer.android.com/compose)
 
@@ -68,7 +68,7 @@ TigerDuck 是由一群學生共同開發的校園助手
 
 ### 🌏 **外觀**
 
-- 與 iOS **共用 50+ 種語系翻譯**，自行設定或跟著系統語言切換
+- 與 iOS **共用 65 種語系翻譯**，自行設定或跟著系統語言切換
 - 名字過長？課程 / 教室名稱**自動簡寫**
 
 ### 🎨 **客製化**
@@ -131,7 +131,7 @@ TigerDuck 是由一群學生共同開發的校園助手
 
 ### 🌏 在地化與無障礙
 
-- [x] **多語系（與 iOS 共用，50+ 語系）** – 跟著系統或在 App 內單獨切換
+- [x] **多語系（與 iOS 共用，65 語系）** – 跟著系統或在 App 內單獨切換
 - [x] **課程 / 教室名稱簡稱** – 一鍵切換、可還原
 - [X] **RTL 版面修正** – 阿拉伯語 / 希伯來語等右至左語系排版
 
@@ -168,13 +168,13 @@ TigerDuck 是由一群學生共同開發的校園助手
 
 ## 開發環境建置
 
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.3-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android Studio](https://img.shields.io/badge/Android%20Studio-Latest-3DDC84?style=for-the-badge&logo=androidstudio&logoColor=white)](https://developer.android.com/studio)
 
 ### 需求
 
 - Android Studio（建議最新版）
-- Android SDK Platform 36
+- Android SDK Platform 37
 - JDK 11
 
 ### Android App
@@ -227,7 +227,7 @@ F-Droid 變體**，也不會出現在 F-Droid 商店上。
 
 翻譯字串放在 [`app-translation/`](https://github.com/tigerduck-app/app-translation) 子模組，與 iOS 共用。
 
-- 翻譯原始檔在 `app-translation/source/`，共 50+ 種語系（`en.json`、`zh-Hant.json`、`ja.json`、`ko.json`、
+- 翻譯原始檔在 `app-translation/source/`，共 55 份（`en.json`、`zh-Hant.json`、`ja.json`、`ko.json`、
   `ar.json` …）
 - 共用翻譯輸出在 `app-translation/generated/`：
     - Android：`android/values/strings.xml`（繁中預設）、`android/values-<lang>/strings.xml`
@@ -254,7 +254,7 @@ Android build 已綁定自動同步（`preBuild` 依賴 `syncLocalizations`）�
 ## 專案架構
 
 ```text
-tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.3 / Compose / API 26+）
+tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.4 / Compose / API 29+）
 ├── app/                                # 手機 App（fdroid / play 兩種 flavor）
 │   ├── build.gradle.kts
 │   └── src/main/java/org/ntust/app/tigerduck/
@@ -306,7 +306,7 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.3 / C
 ├── debug/                              # 一鍵安裝腳本與 [DEBUG.md](debug/DEBUG.md)（build variants、debug 時鐘、push 等）
 ├── gradle/
 │   └── libs.versions.toml              # Version Catalog
-├── app-translation/                    # ⤴ git submodule：50+ 語系翻譯（含 `watch_*` 鍵）
+├── app-translation/                    # ⤴ git submodule：65 語系翻譯（含 `watch_*` 鍵）
 ├── name-abbr/                          # ⤴ git submodule：課程 / 教室簡稱字典
 ├── tools/localization/                 # 翻譯同步腳本（preBuild 自動觸發）
 ├── build.gradle.kts
