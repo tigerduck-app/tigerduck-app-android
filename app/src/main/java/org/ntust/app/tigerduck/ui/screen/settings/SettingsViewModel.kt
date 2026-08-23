@@ -32,6 +32,9 @@ import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.push.SyncIdMap
 import org.ntust.app.tigerduck.push.SyncOutbox
 import org.ntust.app.tigerduck.ui.AppState
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.ServerStatus
+import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
 
@@ -101,6 +104,11 @@ class SettingsViewModel @Inject constructor(
             cloudSyncCoordinator.enable()
         } else {
             cloudSyncCoordinator.disable()
+            // HomeBackendSync greys the cloud out too, but only on the next
+            // pull — and the disabled guard is what stops that pull from
+            // running. Flip it here so the icon matches the switch as soon as
+            // the user leaves this screen rather than at the next sync.
+            ServerStatusTracker.set(ServerStatus.UNKNOWN, ServerKind.BACKEND)
         }
     }
 

@@ -104,11 +104,11 @@ class HomeBackendSync @Inject constructor(
      */
     suspend fun pull(state: HomeSyncState, retried: Boolean = false) {
         if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-            prefs.setLastSyncSource(SyncSource.NONE)
+            markBackendIdle()
             return
         }
         if (!authTokenManager.isLoggedIn) {
-            prefs.setLastSyncSource(SyncSource.NONE)
+            markBackendIdle()
             return
         }
         try {
@@ -148,6 +148,20 @@ class HomeBackendSync @Inject constructor(
             }
             Log.w(TAG, "[Sync] override sync failed", e)
         }
+    }
+
+    /**
+     * Report "no sync was attempted" — grey cloud, no local-only banner.
+     *
+     * Clearing the tracker is the load-bearing half. [ServerStatusTracker] is
+     * a process-wide singleton, so an OK written by an earlier successful pull
+     * stays green for the rest of the process. Turning cloud sync off (or
+     * logging out) only short-circuits `pull`, so without this the indicator
+     * kept claiming a healthy backend on every screen that shows it.
+     */
+    private fun markBackendIdle() {
+        prefs.setLastSyncSource(SyncSource.NONE)
+        ServerStatusTracker.set(ServerStatus.UNKNOWN, ServerKind.BACKEND)
     }
 
     /**
