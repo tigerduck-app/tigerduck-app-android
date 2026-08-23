@@ -34,6 +34,11 @@ class FcmService : FirebaseMessagingService() {
     @Inject
     lateinit var intentToken: ServerPushIntentToken
 
+    // Deprecated in firebase-messaging 25.1.2 with no replacement callback —
+    // see the note in FcmBootstrap.start(). Suppressed rather than marked
+    // @Deprecated, which would push the warning onto every caller of a
+    // framework entry point we do not control.
+    @Suppress("OVERRIDE_DEPRECATION")
     override fun onNewToken(token: String) {
         scope.launch { registration.update(token) }
     }
