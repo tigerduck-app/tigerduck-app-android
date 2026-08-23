@@ -175,7 +175,7 @@ TigerDuck 是由一群學生共同開發的校園助手
 
 - Android Studio（建議最新版）
 - Android SDK Platform 37
-- JDK 11
+- JDK 21（Gradle 9.7 / AGP 9.3 需要 JDK 17 以上）
 
 ### Android App
 

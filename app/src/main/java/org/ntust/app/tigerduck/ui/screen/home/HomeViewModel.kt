@@ -219,11 +219,17 @@ class HomeViewModel @Inject constructor(
     // sitting here as live code nothing reaches. 374122a9 is the last commit
     // where it was wired up end to end.
     //
-    // Note this is only the *UI* side. LiveActivityResolver.isSkipped and
-    // ClassPreparingNotificationScheduler read skipped dates straight out of
-    // DataCache and are untouched — anything an older build wrote still
-    // suppresses notifications today. Don't remove DataCache.saveSkippedDates
-    // / loadSkippedDates on the assumption that this block is all of it.
+    // The read side is parked too, as of f2c075ff: LiveActivityManager,
+    // BootReceiver and DebugClockController each pass emptyMap() with the
+    // DataCache read commented out beside it, so nothing an older build wrote
+    // suppresses anything today. That is deliberate — a live read with a dead
+    // toggle would make classes vanish with no way to get them back, because
+    // the left-swipe that undoes a skip is commented out as well.
+    //
+    // Keep DataCache.saveSkippedDates / loadSkippedDates anyway. The file is
+    // not deleted, so marks made before v2.0.0 come back the day the feature
+    // is switched on. Turn the UI on first, then the readers — not the other
+    // way round.
     //
     // private val _skippedDates = MutableStateFlow<Map<String, List<String>>>(emptyMap())
     // val skippedDates: StateFlow<Map<String, List<String>>> = _skippedDates

@@ -186,7 +186,7 @@ even more OAO!
 
 - Android Studio (latest preferred)
 - Android SDK Platform 37
-- JDK 11
+- JDK 21 (Gradle 9.7 / AGP 9.3 require JDK 17+)
 
 ### Android App
 
