@@ -72,10 +72,4 @@ Runs on PRs to `main`. Verifies `app/src/main/assets/whatsnew.json` has an entry
 for the `versionCode` in `app/build.gradle.kts`, so the "What's New" dialog is
 never empty on a fresh release.
 
-## One-off workflows
 
-### `recover-secrets.yaml` — **temporary**
-
-Owner-dispatched secret recovery: packs every workflow secret into an artifact
-encrypted with a one-shot `REVEAL_PASS`. Delete the file, the run, and the
-artifact after use.
