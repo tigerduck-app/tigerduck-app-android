@@ -84,4 +84,39 @@ class HomeCourseMergeTest {
         )
         assertEquals(listOf("A"), merged.map { it.courseNo })
     }
+
+    // Home and the class table write the same cache file, and
+    // CourseSyncReconciler.reconcileDeletions keys its "never tombstone a
+    // manual course on server-absence" guard on isManual. If only one of the
+    // two merges restores the flag, whether a hand-added course survives a
+    // later sync depends on which screen refreshed last.
+    @Test
+    fun `a manual course the roster now lists keeps its manual flag`() {
+        val merged = HomeCourseMerge.mergeRemote(
+            remote = listOf(course("A")),
+            cached = listOf(course("A", manual = true)),
+            deletedNos = emptySet(),
+        )
+        assertEquals(true, merged.single().isManual)
+    }
+
+    @Test
+    fun `a course that was never manual does not become manual`() {
+        val merged = HomeCourseMerge.mergeRemote(
+            remote = listOf(course("A")),
+            cached = listOf(course("A")),
+            deletedNos = emptySet(),
+        )
+        assertEquals(false, merged.single().isManual)
+    }
+
+    @Test
+    fun `a course the cache has never seen is not manual`() {
+        val merged = HomeCourseMerge.mergeRemote(
+            remote = listOf(course("A")),
+            cached = emptyList(),
+            deletedNos = emptySet(),
+        )
+        assertEquals(false, merged.single().isManual)
+    }
 }
