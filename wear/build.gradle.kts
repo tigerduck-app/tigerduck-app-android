@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "org.ntust.app.tigerduck.wear"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         // The wear app is shipped only alongside the play distribution of
@@ -52,7 +52,7 @@ android {
 // task copies them into wear/src/main/res/. Run with `-PsyncLocalizations` to
 // regenerate; otherwise builds use the committed copies.
 
-val syncLocalizations by tasks.registering(Exec::class) {
+val syncLocalizations = tasks.register<Exec>("syncLocalizations") {
     group = "localization"
     description = "Generate Android localization files from shared JSON sources."
     workingDir = rootProject.projectDir
@@ -74,7 +74,7 @@ val syncLocalizations by tasks.registering(Exec::class) {
     }
 }
 
-val copyGeneratedAndroidLocalizations by tasks.registering(Copy::class) {
+val copyGeneratedAndroidLocalizations = tasks.register<Copy>("copyGeneratedAndroidLocalizations") {
     group = "localization"
     description = "Copy app-translation/generated/android values-* resources into wear/src/main/res."
     dependsOn(syncLocalizations)

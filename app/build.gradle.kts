@@ -41,7 +41,7 @@ fun localProp(key: String, default: String = ""): String =
 
 android {
     namespace = "org.ntust.app.tigerduck"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "org.ntust.app.tigerduck"
@@ -171,7 +171,7 @@ android {
 // FileNotFoundException and returns an empty map). v1.3.2 hit Play Store
 // in exactly this state because the release workflows were missing
 // `submodules: true` on actions/checkout.
-val verifyNameAbbrSubmodule by tasks.registering {
+val verifyNameAbbrSubmodule = tasks.register("verifyNameAbbrSubmodule") {
     val nameAbbrDir = rootProject.file("name-abbr")
     // Explicit contract: files the runtime loader requires by name. Update
     // this list when CourseService starts loading additional JSONs.
@@ -269,7 +269,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 }
 
-val syncLocalizations by tasks.registering(Exec::class) {
+val syncLocalizations = tasks.register<Exec>("syncLocalizations") {
     group = "localization"
     description = "Generate Android localization files from shared JSON sources."
     workingDir = rootProject.projectDir
@@ -295,7 +295,7 @@ val syncLocalizations by tasks.registering(Exec::class) {
     }
 }
 
-val copyGeneratedAndroidLocalizations by tasks.registering(Copy::class) {
+val copyGeneratedAndroidLocalizations = tasks.register<Copy>("copyGeneratedAndroidLocalizations") {
     group = "localization"
     description = "Copy app-translation/generated/android values-* resources into app/src/main/res."
 
