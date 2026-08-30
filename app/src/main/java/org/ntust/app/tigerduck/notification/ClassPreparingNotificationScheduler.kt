@@ -175,6 +175,11 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         val results = mutableListOf<UpcomingSlot>()
         for (dayOffset in 0 until daysAhead) {
             val date = today.plusDays(dayOffset.toLong())
+            // No 即將上課 alarms outside the term. The timetable is populated
+            // weeks before 開學 (選課 opens ahead of the term), and this loop
+            // looks DAYS_AHEAD days out, so an install in late August would
+            // otherwise arm notifications for classes that have not started.
+            if (!AppConstants.CurrentTerm.containsDate(date)) continue
             val weekdayIdx = when (date.dayOfWeek.value) {
                 in 1..7 -> date.dayOfWeek.value // Monday=1 .. Sunday=7
                 else -> continue

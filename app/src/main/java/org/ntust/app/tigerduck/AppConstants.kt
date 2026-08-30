@@ -30,10 +30,16 @@ object AppConstants {
      * [isInSession] and needs no change.
      */
     object CurrentTerm {
+        // TODO(開學時間): CODE / START / END are hard-coded for 115-1. Replace
+        //  them with a backend-served 開學時間 / 結業時間 so a term rollover stops
+        //  needing an app release. Every consumer already goes through [CODE],
+        //  [isInSession] or [containsDate], so only this object has to change
+        //  when that lands.
+
         /** 115 學年度第 1 學期. */
         const val CODE = "1151"
 
-        /** First day of classes, Taipei wall time. */
+        /** First day of classes (開學日), Taipei wall time. */
         val START: Long = taipeiEpochMillis(2026, 9, 7)
 
         /**
@@ -52,6 +58,27 @@ object AppConstants {
         fun isInSession(): Boolean {
             val now = AppClock.nowMillis()
             return now in START..<END
+        }
+
+        /**
+         * True when [date] falls inside the term.
+         *
+         * Date-level counterpart to [isInSession], for the notification paths
+         * that decide per-day rather than per-instant: class-preparing alarms
+         * are armed several days ahead, and the Live Update resolves today's
+         * slots. Both read straight from the timetable, which is already
+         * populated well before 開學 — 選課 opens weeks ahead of the term — so
+         * without this gate the app fires 即將上課 for classes that have not
+         * started yet.
+         *
+         * Fails closed exactly as [isInSession] does: a date that cannot be
+         * resolved reads false rather than leaking a notification.
+         */
+        fun containsDate(date: LocalDate): Boolean {
+            val startOfDay = runCatching {
+                date.atStartOfDay(TAIPEI_ZONE).toInstant().toEpochMilli()
+            }.getOrNull() ?: return false
+            return startOfDay in START..<END
         }
 
         /**
