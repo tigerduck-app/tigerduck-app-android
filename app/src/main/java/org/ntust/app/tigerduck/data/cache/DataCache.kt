@@ -110,12 +110,12 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
             type,
             coursesFilename(semester),
             requireContent = COURSE_NO_TOKEN,
-        ) ?: emptyList()
+        )?.let(::usableRows) ?: emptyList()
         val manual = loadFromUserData<List<Course>>(
             type,
             manualCoursesFilename(semester),
             requireContent = COURSE_NO_TOKEN,
-        ) ?: emptyList()
+        )?.let(::usableRows) ?: emptyList()
         if (manual.isEmpty()) return remote
         val manualNos = manual.map { it.courseNo }.toSet()
         return remote.filter { it.courseNo !in manualNos } + manual
@@ -521,5 +521,28 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
                 null
             }
         }
+
+        /**
+         * Drops rows Gson left un-populated.
+         *
+         * [COURSE_NO_TOKEN] is necessary but not sufficient: it proves the
+         * writer used un-obfuscated field names, but only that the *key* is
+         * present — `{"courseNo":null}` satisfies it just as well. Gson's
+         * `Unsafe.allocateInstance` path bypasses the Kotlin constructor, so an
+         * absent or explicitly-null key leaves a non-null-declared `String`
+         * holding null, with no intrinsic check at the read site to catch it.
+         *
+         * [Course.courseNo] is the identity every lookup keys on and
+         * [Course.courseName] backs [Course.displayName], so a row missing
+         * either is unusable — and it NPEs far from here, in
+         * `TigerDuckTheme.courseHashIndex` (`courseNo.fold {}`) or
+         * `WearScheduleBridge.toDto`, neither of which null-checks first.
+         *
+         * Deliberately additive to the sentinel, not a replacement for it —
+         * the sentinel still rejects whole obfuscated files before Gson runs.
+         */
+        @Suppress("SENSELESS_COMPARISON")
+        internal fun usableRows(courses: List<Course>): List<Course> =
+            courses.filter { it.courseNo != null && it.courseName != null }
     }
 }
