@@ -185,13 +185,11 @@ class MoodleService @Inject constructor(
             response.body.string()
         }
         MoodleWebserviceError.fromJsonBody(body)?.let { throw it }
-        val type = object : TypeToken<List<MoodleEnrolledCourse>>() {}.type
-        val courses: List<MoodleEnrolledCourse> = try {
-            gson.fromJson(body, type)
+        return try {
+            decodeEnrolledCourses(body)
         } catch (e: Exception) {
             throw MoodleWebserviceError.MalformedResponse("enrolled response not decodable: ${e.message}")
-        } ?: emptyList()
-        return courses
+        }
     }
 
     private fun callGetAssignments(token: String, courseIds: List<Int>): MoodleAssignmentsEnvelope {
@@ -254,5 +252,36 @@ class MoodleService @Inject constructor(
         val courseNoRegex = Regex("3?[A-Z]{2}[A-Z0-9]{6,7}")
         val idx = parts.indexOfFirst { courseNoRegex.containsMatchIn(it) }
         return if (idx >= 0 && idx + 1 < parts.size) parts[idx + 1] else fullname
+    }
+
+    companion object {
+        private val decodeGson = Gson()
+
+        /**
+         * Decodes a `core_enrol_get_users_courses` payload, dropping rows Gson
+         * could not build.
+         *
+         * Split out from [callEnrolledCourses] so the case that actually
+         * matters is testable offline, mirroring [SemesterCatalog.decodeSemesters].
+         *
+         * Gson does not strip nulls out of a JSON array: `[null, {...}]`
+         * decodes to a list *holding* a null while Kotlin's type system insists
+         * the element type is non-null, and the familiar `?: emptyList()` only
+         * covers the whole list being null. Every downstream read in
+         * [org.ntust.app.tigerduck.ui.screen.classtable.ClassTableViewModel]'s
+         * `fetchData` — `it.idnumber`, `it.semesterCode`, `it.courseNo` — then
+         * dereferences elements outside any try/catch, so one null row used to
+         * reach the default uncaught handler and take down the process rather
+         * than fail a single refresh.
+         *
+         * Gson decode failures propagate; the caller wraps them in
+         * [MoodleWebserviceError.MalformedResponse].
+         */
+        internal fun decodeEnrolledCourses(json: String): List<MoodleEnrolledCourse> {
+            val type = object : TypeToken<List<MoodleEnrolledCourse>>() {}.type
+            val decoded: List<MoodleEnrolledCourse?> =
+                decodeGson.fromJson(json, type) ?: emptyList()
+            return decoded.filterNotNull()
+        }
     }
 }

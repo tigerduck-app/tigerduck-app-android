@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.BufferOverflow
@@ -940,6 +941,20 @@ class ClassTableViewModel @Inject constructor(
                 assignmentsJob?.join()
             }
             _syncCompleteEvent.tryEmit(Unit)
+        } catch (e: CancellationException) {
+            // Structured concurrency: viewModelScope cancellation has to keep
+            // propagating, or navigating away mid-refresh leaves this coroutine
+            // running against a dead screen.
+            throw e
+        } catch (e: Exception) {
+            // This method had no catch at all. Nothing here is guarded except
+            // the per-course lookups and the assignments job, so anything that
+            // threw in between — a null row in a network payload, a cache row
+            // Gson could not populate — propagated out of viewModelScope. With
+            // no CoroutineExceptionHandler anywhere in the app, that reached
+            // the default uncaught handler and killed the process instead of
+            // failing one refresh. This is the only boundary in that path.
+            Log.e("ClassTableVM", "fetchData failed", e)
         } finally {
             _isLoading.value = false
         }
