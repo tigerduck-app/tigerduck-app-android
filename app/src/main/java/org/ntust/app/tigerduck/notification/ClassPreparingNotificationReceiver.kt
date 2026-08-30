@@ -28,6 +28,18 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         // collide the way slotId.hashCode() could.
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1)
         if (notificationId < 0) return
+
+        // Defence in depth for the term gate, which primarily lives in
+        // ClassPreparingNotificationScheduler.upcomingSlots. v1.4.3 armed these
+        // alarms for pre-開學 days, and an AlarmManager entry outlives the
+        // upgrade until the next scheduleAll cancels it — which only happens on
+        // the next sync or Live Update refresh. Until then a stale alarm would
+        // still land here and post, so re-check at the point of posting rather
+        // than trusting that the alarm should have existed at all.
+        val startDate = runCatching {
+            Instant.ofEpochMilli(startMs).atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
+        }.getOrNull()
+        if (startDate == null || !AppConstants.CurrentTerm.containsDate(startDate)) return
         // The lead-time extra lets us auto-cancel the "即將上課" notification when
         // class actually starts: post-time + leadTimeMs ≈ classStart. Without it
         // (older intents from before the field existed) we fall back to manual
