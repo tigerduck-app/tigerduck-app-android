@@ -43,12 +43,14 @@ class WidgetBoundaryScheduler @Inject constructor(
             firstBoundaryOnOrAfterTomorrow(courses, weekday) ?: return
         }
 
+        val triggerMillis = chooseTriggerMillis(triggerCal.timeInMillis, AppClock.nowMillis())
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerCal.timeInMillis), pi)
+            alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerMillis), pi)
         } else {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
-                AppClock.realTimeFor(triggerCal.timeInMillis),
+                AppClock.realTimeFor(triggerMillis),
                 pi
             )
         }
@@ -90,6 +92,29 @@ class WidgetBoundaryScheduler @Inject constructor(
     companion object {
         internal const val ACTION_BOUNDARY = "org.ntust.app.tigerduck.WIDGET_BOUNDARY"
         internal const val REQUEST_CODE = 9001
+
+        /**
+         * Earlier of the next class boundary and the next 開學 / 結業 flip.
+         *
+         * A term boundary silently changes what the Today and Next Class
+         * widgets are allowed to show — [AppConstants.CurrentTerm.isInSession]
+         * flips at midnight on START — but nothing announces it. The widgets
+         * only re-read that flag when something asks them to redraw, and the
+         * next thing that does is the *first class boundary of 開學日*. Left
+         * alone they would sit on their pre-term empty state through the whole
+         * first morning of the term, which is the morning students are most
+         * likely to look. Same shape at 結業.
+         *
+         * The refresh this triggers re-enters [scheduleForToday], which re-arms
+         * the ordinary boundary chain, so a term flip costs one extra alarm per
+         * term and nothing after it.
+         */
+        internal fun chooseTriggerMillis(boundaryMillis: Long, appNowMillis: Long): Long {
+            val nextTermFlip = listOf(AppConstants.CurrentTerm.START, AppConstants.CurrentTerm.END)
+                .filter { it > appNowMillis }
+                .minOrNull() ?: return boundaryMillis
+            return minOf(nextTermFlip, boundaryMillis)
+        }
 
         internal fun nextBoundaryMinuteAfter(
             courses: List<Course>,
