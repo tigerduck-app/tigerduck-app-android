@@ -41,12 +41,21 @@ object WidgetDataLoader {
         val weekday = cal.toWeekday()
         val minuteOfDay = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
 
-        val ongoingInfos = computeOngoingCourses(courses, weekday, minuteOfDay)
+        // 選課 fills the timetable weeks before classes begin, so having courses
+        // is not evidence the term has started. Every "now"-scoped derivation
+        // below is suppressed outside it: with all three empty, both Next Class
+        // layouts fall through to their "no more classes" branch on their own.
+        // `courses` itself is left alone — the Week grid is a reference
+        // timetable and keeps rendering, matching the class table screen.
+        val inSession = AppConstants.CurrentTerm.isInSession()
+
+        val ongoingInfos =
+            if (inSession) computeOngoingCourses(courses, weekday, minuteOfDay) else emptyList()
         val ongoingNos = ongoingInfos.map { it.course.courseNo }
-        val nextCourseTodayNo = computeNextCourseTodayNo(
-            courses, weekday, minuteOfDay, ongoingNos,
-        )
-        val tomorrowFirst = computeTomorrowFirst(courses, weekday)
+        val nextCourseTodayNo = if (inSession) {
+            computeNextCourseTodayNo(courses, weekday, minuteOfDay, ongoingNos)
+        } else null
+        val tomorrowFirst = if (inSession) computeTomorrowFirst(courses, weekday) else null
 
         return WidgetState(
             courses = courses,
@@ -55,6 +64,7 @@ object WidgetDataLoader {
             currentWeekday = weekday,
             currentMinuteOfDay = minuteOfDay,
             isLoggedIn = isLoggedIn,
+            isTermInSession = inSession,
             ongoingCourseNos = ongoingNos,
             nextCourseTodayNo = nextCourseTodayNo,
             tomorrowFirstCourseNo = tomorrowFirst?.courseNo,
