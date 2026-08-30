@@ -105,6 +105,12 @@ class LiveActivityResolver {
             else -> 1
         }
         val today = now.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
+        // Outside the term there are no class slots to surface, so the Live
+        // Update shows neither 上課中 nor 即將上課 before 開學 — the timetable is
+        // already cached by then because 選課 runs weeks ahead of the term.
+        // Gating here rather than in resolve() also stops todaySlotsAfter from
+        // arming boundary alarms for pre-term days.
+        if (!AppConstants.CurrentTerm.containsDate(today)) return emptyList()
 
         val results = mutableListOf<Slot>()
         for (course in courses) {

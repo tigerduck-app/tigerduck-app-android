@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.BufferOverflow
@@ -98,6 +99,49 @@ class ClassTableViewModel @Inject constructor(
 
     private var hasLoaded = false
 
+    /**
+     * Terms the picker offers, newest first, as published by NTUST — see
+     * [SemesterCatalog]. A `StateFlow` rather than a computed getter so a term
+     * the school publishes ahead of the month heuristic (115-1 opened weeks
+     * before the heuristic rolled off 114-2) becomes selectable in the same
+     * session the catalogue lands.
+     */
+    private val _availableSemesters = MutableStateFlow(semesterOptions(_currentSemester.value))
+    val availableSemesters: StateFlow<List<String>> = _availableSemesters
+
+    private val _tripleConflictEvent = MutableSharedFlow<TripleConflictError>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val tripleConflictEvent: SharedFlow<TripleConflictError> = _tripleConflictEvent.asSharedFlow()
+
+    private val _noNetworkEvent = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
+
+    private val _syncCompleteEvent = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
+
+    // EVERY property this class touches must be declared ABOVE this block.
+    //
+    // Kotlin runs property initializers and init blocks in declaration order,
+    // and the collectors below do not reliably reach a suspension point before
+    // touching ViewModel state: `viewModelScope` dispatches on
+    // Dispatchers.Main.immediate, the ViewModel is constructed on the main
+    // thread, so `launch` runs its body inline rather than posting it. The
+    // authState collector below then sees the StateFlow's current value
+    // immediately — for an already-logged-in user that means fetchData() runs
+    // to completion inside this constructor.
+    //
+    // v1.4.3 shipped `_availableSemesters` declared *after* here and assigned
+    // from fetchData, so it was still null on that inline path and every
+    // launch crashed with "MutableStateFlow.setValue on a null object
+    // reference". Declaring state below this block re-arms that.
     init {
         viewModelScope.launch {
             // Tick at 5s so transitions land within at most a few seconds of
@@ -186,16 +230,6 @@ class ClassTableViewModel @Inject constructor(
     /** The actual live semester code (not whatever the user picked). */
     val liveSemesterCode: String
         get() = courseService.currentSemesterCode()
-
-    /**
-     * Terms the picker offers, newest first, as published by NTUST — see
-     * [SemesterCatalog]. A `StateFlow` rather than a computed getter so a term
-     * the school publishes ahead of the month heuristic (115-1 opened weeks
-     * before the heuristic rolled off 114-2) becomes selectable in the same
-     * session the catalogue lands.
-     */
-    private val _availableSemesters = MutableStateFlow(semesterOptions(_currentSemester.value))
-    val availableSemesters: StateFlow<List<String>> = _availableSemesters
 
     /**
      * Keeps the persisted selection selectable even after it ages out of the
@@ -667,12 +701,6 @@ class ClassTableViewModel @Inject constructor(
         return null
     }
 
-    private val _tripleConflictEvent = MutableSharedFlow<TripleConflictError>(
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
-    val tripleConflictEvent: SharedFlow<TripleConflictError> = _tripleConflictEvent.asSharedFlow()
-
     fun load() {
         if (hasLoaded) return
         hasLoaded = true
@@ -691,18 +719,6 @@ class ClassTableViewModel @Inject constructor(
             fetchData()
         }
     }
-
-    private val _noNetworkEvent = MutableSharedFlow<Unit>(
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-    val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
-
-    private val _syncCompleteEvent = MutableSharedFlow<Unit>(
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-    val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
     fun refresh() {
         viewModelScope.launch {
@@ -940,6 +956,20 @@ class ClassTableViewModel @Inject constructor(
                 assignmentsJob?.join()
             }
             _syncCompleteEvent.tryEmit(Unit)
+        } catch (e: CancellationException) {
+            // Structured concurrency: viewModelScope cancellation has to keep
+            // propagating, or navigating away mid-refresh leaves this coroutine
+            // running against a dead screen.
+            throw e
+        } catch (e: Exception) {
+            // This method had no catch at all. Nothing here is guarded except
+            // the per-course lookups and the assignments job, so anything that
+            // threw in between — a null row in a network payload, a cache row
+            // Gson could not populate — propagated out of viewModelScope. With
+            // no CoroutineExceptionHandler anywhere in the app, that reached
+            // the default uncaught handler and killed the process instead of
+            // failing one refresh. This is the only boundary in that path.
+            Log.e("ClassTableVM", "fetchData failed", e)
         } finally {
             _isLoading.value = false
         }
