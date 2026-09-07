@@ -50,6 +50,30 @@ class PushApiClient @Inject constructor(
         return if (authHeader != null) header("Authorization", authHeader) else this
     }
 
+    /**
+     * Register the device with no account attached.
+     *
+     * Unauthenticated by design — there is no session yet. Deliberately does
+     * not send an Authorization header even if one happens to exist: the
+     * signed-in path is [register], and mixing the two would create a second,
+     * unlinked row for a device that already has one.
+     */
+    suspend fun registerAnonymous(req: AnonymousDeviceRequest): Unit =
+        withContext(Dispatchers.IO) {
+            val body = gson.toJson(req).toRequestBody(jsonType)
+            val request = Request.Builder()
+                .url("$baseUrl/devices/anonymous")
+                .post(body)
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw PushApiException(
+                        "anonymous register failed: HTTP ${response.code} ${response.body.string()}"
+                    )
+                }
+            }
+        }
+
     suspend fun register(req: DeviceRegisterRequest): DeviceRegisterResponse =
         withContext(Dispatchers.IO) {
             val body = gson.toJson(req).toRequestBody(jsonType)

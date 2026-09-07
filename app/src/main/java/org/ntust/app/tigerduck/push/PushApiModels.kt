@@ -29,6 +29,22 @@ data class DeviceRegisterResponse(
     @SerializedName("push_token_id") val pushTokenId: Int?,
 )
 
+/**
+ * Device-only registration for an app that has never been signed in.
+ *
+ * Carries no account, just enough for an operator to see that an Android
+ * device is running the app and to send it a custom push. Every field is
+ * @SerializedName'd because this class is Gson-serialised and the `push`
+ * package has no R8 keep rule — see the upgrade-safe-persistence skill.
+ */
+data class AnonymousDeviceRequest(
+    @SerializedName("device_id") val deviceId: String,
+    @SerializedName("platform") val platform: String = "android",
+    @SerializedName("device_class") val deviceClass: String = "android",
+    @SerializedName("push_token") val pushToken: String? = null,
+    @SerializedName("bundle_id") val bundleId: String = "",
+)
+
 data class UpdateDevicePreferencesRequest(
     @SerializedName("server_push_enabled") val serverPushEnabled: Boolean? = null,
     @SerializedName("sync_courses") val syncCourses: Boolean? = null,

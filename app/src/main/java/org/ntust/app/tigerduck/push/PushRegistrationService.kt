@@ -138,14 +138,35 @@ class PushRegistrationService @Inject constructor(
             if (isUnregistering) null else fcmToken
         }
         if (token == null) return false
-        // Registration requires a v3 JWT — the device row belongs to a
-        // signed-in user. The FCM token usually arrives before login on a
-        // cold start; defer until sign-in (onSignedIn() re-fires this) rather
-        // than POSTing with no Bearer and getting 401 missing_bearer_token.
-        if (!authTokenManager.isLoggedIn) {
-            return false
-        }
         val clientDeviceId = identity.uuid()
+        // Announce the hardware first, every time, signed in or not. The two
+        // registrations answer different questions — "which device is this"
+        // and "whose account is on it" — and only the device one puts a row in
+        // the table custom-push targeting reads. Gating it on sign-in would
+        // leave a device that signs in immediately just as unreachable as one
+        // that never signs in at all.
+        val announceError = announceDevice(clientDeviceId, token)
+
+        // Without an account there is no second registration to make. The
+        // backend links the two rows on sign-in and unlinks them on sign-out,
+        // so nothing is delivered twice either way.
+        if (!authTokenManager.isLoggedIn) {
+            updateDiagnostic {
+                it.copy(
+                    hasFcmToken = true,
+                    // Not isRegistered: no account row exists, and the settings
+                    // screen reads that flag to mean cloud sync is live. Custom
+                    // push reaches this device; user-scoped push does not.
+                    lastRegistrationAt = if (announceError == null) {
+                        System.currentTimeMillis()
+                    } else {
+                        it.lastRegistrationAt
+                    },
+                    lastError = announceError?.let { e -> e.message ?: e::class.java.simpleName },
+                )
+            }
+            return announceError == null
+        }
         return runCatching {
             api.register(
                 DeviceRegisterRequest(
@@ -275,6 +296,28 @@ class PushRegistrationService @Inject constructor(
         updateDiagnostic { it.copy(lastError = error) }
         return error == null
     }
+
+    /**
+     * Register the physical device, with no account attached.
+     *
+     * Returns the failure rather than throwing, and never writes the
+     * diagnostic: the caller decides what a failure here means. Signed in it
+     * is a background detail — cloud sync still works — while signed out it
+     * is the only registration there was, so it is the thing to report.
+     */
+    private suspend fun announceDevice(deviceId: String, token: String): Throwable? =
+        runCatching {
+            api.registerAnonymous(
+                AnonymousDeviceRequest(deviceId = deviceId, pushToken = token)
+            )
+        }.fold(
+            onSuccess = { null },
+            onFailure = { e ->
+                if (e is CancellationException) throw e
+                Log.w(TAG, "device announce failed", e)
+                e
+            },
+        )
 
     suspend fun updateCloudSyncEnabled(enabled: Boolean) {
         val deviceId = identity.uuid()
