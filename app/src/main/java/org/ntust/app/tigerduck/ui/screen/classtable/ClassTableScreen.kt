@@ -501,7 +501,12 @@ fun ClassTableScreen(
     if (showResetConfirm) {
         TigerDuckDialog(
             onDismissRequest = { showResetConfirm = false },
-            title = stringResource(R.string.class_table_reset_title),
+            // Names the term: the reset is scoped to the semester on screen
+            // now, and an unqualified "Reset class table" reads as all of them.
+            title = stringResource(
+                R.string.class_table_reset_title_with_semester,
+                viewModel.displayLabel(selectedSemester),
+            ),
             message = stringResource(R.string.class_table_reset_message),
             confirmText = stringResource(R.string.action_confirm),
             onConfirm = {
