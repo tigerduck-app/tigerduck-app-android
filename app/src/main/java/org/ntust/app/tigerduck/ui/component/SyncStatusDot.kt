@@ -29,6 +29,10 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -153,9 +157,19 @@ fun SyncStatusDot(
             }
         }
 
-        DropdownMenu(expanded = showDetails, onDismissRequest = { showDetails = false }) {
+        DropdownMenu(
+            expanded = showDetails,
+            onDismissRequest = { showDetails = false },
+            shape = RoundedCornerShape(16.dp),
+        ) {
             Column(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                // IntrinsicSize.Max sizes the column to its widest row, which
+                // is what lets each row fillMaxWidth without the popup
+                // stretching to the window — DropdownMenu hands its content
+                // the full screen width as a max constraint.
+                modifier = Modifier
+                    .width(IntrinsicSize.Max)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (isLoading) {
@@ -228,6 +242,7 @@ private fun SpinningRing(color: Color) {
 @Composable
 private fun SourceRow(color: Color, icon: ImageVector, name: String, text: String?) {
     Row(
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -242,7 +257,10 @@ private fun SourceRow(color: Color, icon: ImageVector, name: String, text: Strin
         }
         Text(name, style = MaterialTheme.typography.bodyMedium)
         if (text != null) {
-            Spacer(Modifier.width(12.dp))
+            // Takes the slack so every state lands on the right edge, in one
+            // column. A fixed spacer left them ragged, tracking each name's
+            // length rather than the popup's edge.
+            Spacer(Modifier.weight(1f).widthIn(min = 12.dp))
             Text(
                 text,
                 style = MaterialTheme.typography.bodyMedium,
