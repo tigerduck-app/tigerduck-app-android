@@ -24,14 +24,11 @@ import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.network.CourseService
-import org.ntust.app.tigerduck.push.CloudSyncCoordinator
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushDiagnostic
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.push.PushRegistrationService
 import org.ntust.app.tigerduck.push.SyncApiClient
-import org.ntust.app.tigerduck.push.SyncIdMap
-import org.ntust.app.tigerduck.push.SyncOutbox
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.ServerStatus
@@ -64,15 +61,6 @@ class SettingsViewModel @Inject constructor(
         const val TAG = "SyncReenable"
     }
 
-    val cloudSyncCoordinator: CloudSyncCoordinator = CloudSyncCoordinator(
-        pushApiClient = pushApiClient,
-        pushRegistration = pushRegistration,
-        prefs = prefs,
-        outbox = SyncOutbox(context),
-        idMap = SyncIdMap(context),
-        scope = viewModelScope,
-    )
-
     private val _syncDiagnostic = MutableStateFlow(PushDiagnostic(false, false, null, null, null))
     val syncDiagnostic: StateFlow<PushDiagnostic> = _syncDiagnostic
 
@@ -103,14 +91,32 @@ class SettingsViewModel @Inject constructor(
     fun pushCloudSyncEnabled(enabled: Boolean) {
         ServerStatusTracker.setCloudSyncEnabled(enabled)
         if (enabled) {
-            cloudSyncCoordinator.enable()
+            // Fail closed: record the preference only once the server has
+            // accepted the device, so a failed registration cannot leave the
+            // app believing it is syncing when it is not.
+            viewModelScope.launch {
+                runCatching { pushRegistration.updateCloudSyncEnabled(true) }
+                    .onSuccess { prefs.cloudSyncEnabled = true }
+                    .onFailure {
+                        ServerStatusTracker.setCloudSyncEnabled(false)
+                        Log.w(TAG, "enabling cloud sync failed", it)
+                    }
+            }
         } else {
-            cloudSyncCoordinator.disable()
+            // Fail open, and synchronously rather than inside the launch:
+            // viewModelScope may be cancelled before the coroutine runs
+            // (toggle off, then leave the screen), and a preference left true
+            // would silently re-activate sync on the next launch.
+            prefs.cloudSyncEnabled = false
             // HomeBackendSync greys the cloud out too, but only on the next
             // pull — and the disabled guard is what stops that pull from
             // running. Flip it here so the icon matches the switch as soon as
             // the user leaves this screen rather than at the next sync.
             ServerStatusTracker.set(ServerStatus.UNKNOWN, ServerKind.BACKEND)
+            viewModelScope.launch {
+                runCatching { pushRegistration.updateCloudSyncEnabled(false) }
+                    .onFailure { Log.w(TAG, "disabling cloud sync: server update failed (non-fatal)", it) }
+            }
         }
     }
 
