@@ -72,8 +72,7 @@ import org.ntust.app.tigerduck.ui.component.CurrentClassCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.ServerKind
-import org.ntust.app.tigerduck.ui.component.ServerStatusIcons
-import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
@@ -94,7 +93,6 @@ fun ClassTableScreen(
 ) {
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val isSyncLocalOnly by viewModel.isSyncLocalOnly.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val currentMinute by viewModel.currentMinute.collectAsStateWithLifecycle()
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
@@ -121,7 +119,6 @@ fun ClassTableScreen(
     var courseToRename by remember { mutableStateOf<Course?>(null) }
     var renameText by remember { mutableStateOf("") }
     var courseToRecolor by remember { mutableStateOf<Course?>(null) }
-    var showCheckmark by remember { mutableStateOf(false) }
     var conflictPicker by remember { mutableStateOf<ConflictPickerTarget?>(null) }
     var tripleConflictError by remember {
         mutableStateOf<TripleConflictError?>(
@@ -144,13 +141,6 @@ fun ClassTableScreen(
 
     LaunchedEffect(viewModel) { viewModel.load() }
     LaunchedEffect(viewModel) {
-        viewModel.syncCompleteEvent.collect {
-            showCheckmark = true
-            kotlinx.coroutines.delay(2000)
-            showCheckmark = false
-        }
-    }
-    LaunchedEffect(viewModel) {
         viewModel.noNetworkEvent.collect {
             snackbarHostState.showSnackbar(errorNetworkUnavailable)
         }
@@ -159,13 +149,11 @@ fun ClassTableScreen(
         viewModel.tripleConflictEvent.collect { tripleConflictError = it }
     }
 
-    var pullProgress by remember { mutableFloatStateOf(0f) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         TigerPullToRefresh(
             isRefreshing = isLoading,
             onRefresh = { viewModel.refresh() },
-            onDragProgress = { pullProgress = it },
             modifier = Modifier.fillMaxSize(),
             refreshingMessage = refreshingMessage,
         ) {
@@ -175,19 +163,13 @@ fun ClassTableScreen(
                     .verticalScroll(rememberScrollState())
             ) {
                 PageHeader(title = stringResource(R.string.feature_class_table)) {
-                    Box(
-                        modifier = Modifier.size(48.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        SyncIndicator(
-                            isLoading = isLoading,
-                            showCheckmark = showCheckmark,
-                            dragProgress = pullProgress,
-                            isLocalOnly = isSyncLocalOnly,
-                        )
-                    }
-                    ServerStatusIcons(
-                        servers = listOf(ServerKind.MOODLE, ServerKind.COURSE_SELECTION, ServerKind.BACKEND),
+                    SyncStatusDot(
+                        servers = listOf(
+                            ServerKind.MOODLE,
+                            ServerKind.COURSE_SELECTION,
+                            ServerKind.BACKEND,
+                        ),
+                        isLoading = isLoading,
                     )
                     IconButton(
                         onClick = { showResetConfirm = true },

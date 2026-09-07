@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Dvojitým klepnutím otevřete úkol v Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld událostí</string>
     <string name="a11y_calendar_nav_next">Příští měsíc</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Obnovit výchozí</string>
     <string name="class_table_rename_title">Přejmenovat</string>
     <string name="class_table_rename_with_course">Přejmenovat — %1$s</string>
-    <string name="class_table_reset_message">Tímto se obnoví váš rozvrh předmětů podle zápisu v Moodle. Skryté předměty se znovu zobrazí a ručně přidané předměty budou odstraněny.</string>
+    <string name="class_table_reset_message">Rozvrh bude znovu sestaven podle Moodle, systému výběru kurzů a systému známek. Ručně přidané, odstraněné a přejmenované předměty budou ztraceny.</string>
     <string name="class_table_reset_title">Obnovit rozvrh předmětů</string>
+    <string name="class_table_reset_title_with_semester">Obnovit rozvrh %1$s</string>
     <string name="class_table_semester_picker_label">Semestr</string>
     <string name="class_table_sign_in_required_message">Chcete-li zobrazit tabulku třídy, přihlaste se</string>
     <string name="class_table_total_credits_value">%1$d kreditů</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Přihlášení vypršelo. Přihlaste se prosím znovu.</string>
     <string name="score_gpa_cumulative_to">Kumulativní GPA k %1$s</string>
     <string name="score_gpa_latest">Nejnovější GPA</string>
+    <string name="score_gpa_provisional">Předběžně</string>
     <string name="score_gpa_term_label">Semestrální GPA (%1$s)</string>
     <string name="score_gpa_trend_title">Vývoj GPA</string>
     <string name="score_grade_exempted">Uznáno</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Rozumím</string>
     <string name="settings_analytics_description">Sdílej anonymní data o používání (navštívené stránky, používání widgetů) a pomoz nám vylepšit TigerDuck</string>
     <string name="settings_analytics_enabled">Analytika používání</string>
+    <string name="settings_api_endpoint">Koncový bod API</string>
     <string name="settings_assignment_due_reminder">Upozornění na blížící se termín úkolu</string>
     <string name="settings_browser_in_app">Prohlížeč v aplikaci</string>
     <string name="settings_browser_system_default">Výchozí systémový prohlížeč</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Oficiální web</string>
     <string name="settings_open_source_licenses">Open-source licence</string>
     <string name="settings_privacy_policy">Zásady ochrany osobních údajů</string>
-    <string name="settings_push_server_nav_label">Server push (experimentální)</string>
+    <string name="settings_push_server_nav_label">Server push</string>
     <string name="settings_remember_bulletin_filter">Pamatujte na filtry bulletinů</string>
     <string name="settings_reset_course_colors">Znovu přiřadit barvy kurzů</string>
     <string name="settings_reset_course_colors_confirm_message">Každý kurz dostane novou jedinečnou barvu — nejprve z přednastavené palety, po vyčerpání náhodně.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Použít server</string>
     <string name="sync_fdroid_unavailable_body">Cloudová synchronizace vyžaduje služby Google Play a není dostupná v sestavení F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Nedostupné na F-Droid</string>
+    <string name="sync_status_failed">Selhalo</string>
+    <string name="sync_status_ok">OK</string>
+    <string name="sync_status_syncing">Synchronizace…</string>
+    <string name="sync_status_title">Stav synchronizace</string>
     <string name="sync_success_content_description">Synchronizace úspěšná</string>
     <string name="tab_editor_apply_action">Použít</string>
     <string name="tab_editor_drag_reorder">Přetažením změníte pořadí</string>

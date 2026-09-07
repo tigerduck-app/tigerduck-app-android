@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Nhấn đúp để mở bài tập trong Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld sự kiện</string>
     <string name="a11y_calendar_nav_next">Tháng sau</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Khôi phục mặc định</string>
     <string name="class_table_rename_title">Đổi tên</string>
     <string name="class_table_rename_with_course">Đổi tên — %1$s</string>
-    <string name="class_table_reset_message">Thao tác này sẽ đặt lại lịch học của bạn theo đăng ký trên Moodle. Các môn đã ẩn sẽ hiển thị lại và các môn được thêm thủ công sẽ bị xóa.</string>
+    <string name="class_table_reset_message">Lịch học sẽ được dựng lại từ Moodle, hệ thống đăng ký môn học và hệ thống điểm. Các môn được thêm, xoá hoặc đổi tên thủ công sẽ bị mất.</string>
     <string name="class_table_reset_title">Đặt lại lịch học</string>
+    <string name="class_table_reset_title_with_semester">Đặt lại lịch học %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Đăng nhập để xem thời khóa biểu</string>
     <string name="class_table_total_credits_value">%1$d tín chỉ</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.</string>
     <string name="score_gpa_cumulative_to">GPA tích lũy đến %1$s</string>
     <string name="score_gpa_latest">GPA mới nhất</string>
+    <string name="score_gpa_provisional">Tạm tính</string>
     <string name="score_gpa_term_label">GPA học kỳ (%1$s)</string>
     <string name="score_gpa_trend_title">Xu hướng GPA</string>
     <string name="score_grade_exempted">Miễn</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Đã hiểu</string>
     <string name="settings_analytics_description">Chia sẻ dữ liệu sử dụng ẩn danh (trang đã truy cập, sử dụng widget) để giúp cải thiện TigerDuck</string>
     <string name="settings_analytics_enabled">Phân tích sử dụng</string>
+    <string name="settings_api_endpoint">Điểm cuối API</string>
     <string name="settings_assignment_due_reminder">Nhắc bài tập sắp đến hạn</string>
     <string name="settings_browser_in_app">Trình duyệt trong ứng dụng</string>
     <string name="settings_browser_system_default">Trình duyệt mặc định của hệ thống</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Trang web chính thức</string>
     <string name="settings_open_source_licenses">Giấy phép mã nguồn mở</string>
     <string name="settings_privacy_policy">Chính sách quyền riêng tư</string>
-    <string name="settings_push_server_nav_label">Đẩy máy chủ (Thử nghiệm)</string>
+    <string name="settings_push_server_nav_label">Đẩy máy chủ</string>
     <string name="settings_remember_bulletin_filter">Ghi nhớ bộ lọc bản tin</string>
     <string name="settings_reset_course_colors">Gán lại màu khóa học</string>
     <string name="settings_reset_course_colors_confirm_message">Mỗi khóa học sẽ nhận màu mới, không trùng — trước hết từ bảng màu định sẵn, sau đó ngẫu nhiên khi đã dùng hết.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Dùng máy chủ</string>
     <string name="sync_fdroid_unavailable_body">Đồng bộ đám mây yêu cầu Dịch vụ Google Play và không khả dụng trong bản F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Không khả dụng trên F-Droid</string>
+    <string name="sync_status_failed">Thất bại</string>
+    <string name="sync_status_ok">Bình thường</string>
+    <string name="sync_status_syncing">Đang đồng bộ…</string>
+    <string name="sync_status_title">Trạng thái đồng bộ</string>
     <string name="sync_success_content_description">Đồng bộ thành công</string>
     <string name="tab_editor_apply_action">Áp dụng</string>
     <string name="tab_editor_drag_reorder">Kéo để sắp xếp lại</string>

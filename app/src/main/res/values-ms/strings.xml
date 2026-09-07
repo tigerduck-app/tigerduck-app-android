@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Ketik dua kali untuk membuka tugasan dalam Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld acara</string>
     <string name="a11y_calendar_nav_next">Bulan seterusnya</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Kembalikan ke lalai</string>
     <string name="class_table_rename_title">Namakan semula</string>
     <string name="class_table_rename_with_course">Namakan semula — %1$s</string>
-    <string name="class_table_reset_message">Ini akan menetapkan semula jadual kursus anda agar sepadan dengan pendaftaran Moodle anda. Kursus yang disembunyikan akan muncul semula dan kursus yang ditambah secara manual akan dialih keluar.</string>
+    <string name="class_table_reset_message">Jadual kursus akan dibina semula berdasarkan Moodle, sistem pemilihan kursus dan sistem markah. Kursus yang ditambah, dipadam atau dinamakan semula secara manual akan hilang.</string>
     <string name="class_table_reset_title">Tetapkan semula jadual kursus</string>
+    <string name="class_table_reset_title_with_semester">Tetapkan semula jadual %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Log masuk untuk melihat jadual kelas anda</string>
     <string name="class_table_total_credits_value">%1$d kredit</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Log masuk tamat tempoh. Sila log masuk semula.</string>
     <string name="score_gpa_cumulative_to">GPA kumulatif hingga %1$s</string>
     <string name="score_gpa_latest">GPA terkini</string>
+    <string name="score_gpa_provisional">Sementara</string>
     <string name="score_gpa_term_label">GPA semester (%1$s)</string>
     <string name="score_gpa_trend_title">Trend GPA</string>
     <string name="score_grade_exempted">Dikecualikan</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Faham</string>
     <string name="settings_analytics_description">Kongsi data penggunaan tanpa nama (halaman dilawati, penggunaan widget) untuk membantu meningkatkan TigerDuck</string>
     <string name="settings_analytics_enabled">Analitik penggunaan</string>
+    <string name="settings_api_endpoint">Titik akhir API</string>
     <string name="settings_assignment_due_reminder">Peringatan tugasan hampir tamat</string>
     <string name="settings_browser_in_app">Pelayar dalam aplikasi</string>
     <string name="settings_browser_system_default">Pelayar lalai sistem</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Laman web rasmi</string>
     <string name="settings_open_source_licenses">Lesen sumber terbuka</string>
     <string name="settings_privacy_policy">Dasar privasi</string>
-    <string name="settings_push_server_nav_label">Tolak pelayan (Eksperimen)</string>
+    <string name="settings_push_server_nav_label">Tolak pelayan</string>
     <string name="settings_remember_bulletin_filter">Ingat penapis buletin</string>
     <string name="settings_reset_course_colors">Tetapkan semula warna kursus</string>
     <string name="settings_reset_course_colors_confirm_message">Setiap kursus akan diberikan warna baharu yang unik — mula-mula daripada palet praset, kemudian rawak apabila palet habis.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Guna Pelayan</string>
     <string name="sync_fdroid_unavailable_body">Penyegerakan Awan memerlukan Perkhidmatan Google Play dan tidak tersedia dalam binaan F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Tidak tersedia di F-Droid</string>
+    <string name="sync_status_failed">Gagal</string>
+    <string name="sync_status_ok">OK</string>
+    <string name="sync_status_syncing">Menyegerakkan…</string>
+    <string name="sync_status_title">Status penyegerakan</string>
     <string name="sync_success_content_description">Segerak berjaya</string>
     <string name="tab_editor_apply_action">Guna</string>
     <string name="tab_editor_drag_reorder">Seret untuk susun semula</string>

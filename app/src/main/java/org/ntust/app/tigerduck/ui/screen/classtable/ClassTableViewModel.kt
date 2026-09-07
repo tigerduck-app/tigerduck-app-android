@@ -57,9 +57,6 @@ class ClassTableViewModel @Inject constructor(
     private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
 ) : ViewModel() {
 
-    val isSyncLocalOnly = appPreferences.lastSyncSource
-        .map { appPreferences.cloudSyncEnabled && it == SyncSource.LOCAL }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _courses = MutableStateFlow<List<Course>>(emptyList())
     val courses: StateFlow<List<Course>> = _courses

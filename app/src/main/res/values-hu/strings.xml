@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Koppintson duplán a feladat Moodle-ban való megnyitásához</string>
     <string name="a11y_calendar_day">%1$@, %2$lld esemény</string>
     <string name="a11y_calendar_nav_next">Következő hónap</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Alapértelmezett visszaállítása</string>
     <string name="class_table_rename_title">Átnevezés</string>
     <string name="class_table_rename_with_course">Átnevezés — %1$s</string>
-    <string name="class_table_reset_message">Ez visszaállítja az órarendet a Moodle-beiratkozásnak megfelelően. A rejtett kurzusok újra megjelennek, a kézzel hozzáadott kurzusok pedig törlődnek.</string>
+    <string name="class_table_reset_message">Az órarend a Moodle, a kurzusválasztó rendszer és az osztályzatrendszer alapján újraépül. A kézzel hozzáadott, törölt és átnevezett kurzusok elvesznek.</string>
     <string name="class_table_reset_title">Órarend visszaállítása</string>
+    <string name="class_table_reset_title_with_semester">%1$s órarend visszaállítása</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Melden Sie sich an, um Ihre Klassentabelle anzuzeigen</string>
     <string name="class_table_total_credits_value">%1$d kredit</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">A bejelentkezés lejárt. Kérjük, jelentkezzen be újra.</string>
     <string name="score_gpa_cumulative_to">Kumulatív GPA %1$s-ig</string>
     <string name="score_gpa_latest">Legújabb GPA</string>
+    <string name="score_gpa_provisional">Előzetes</string>
     <string name="score_gpa_term_label">Féléves GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA trend</string>
     <string name="score_grade_exempted">Felmentett</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Értem</string>
     <string name="settings_analytics_description">Ossz meg névtelen használati adatokat (meglátogatott oldalak, widget-használat), hogy segíts fejleszteni a TigerDuck-ot</string>
     <string name="settings_analytics_enabled">Használati analitika</string>
+    <string name="settings_api_endpoint">API-végpont</string>
     <string name="settings_assignment_due_reminder">Házi feladat határidő emlékeztetők</string>
     <string name="settings_browser_in_app">Alkalmazáson belüli böngésző</string>
     <string name="settings_browser_system_default">Rendszer alapértelmezett böngésző</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Hivatalos weboldal</string>
     <string name="settings_open_source_licenses">Nyílt forráskódú licencek</string>
     <string name="settings_privacy_policy">Adatvédelmi irányelvek</string>
-    <string name="settings_push_server_nav_label">Szerver push (Kísérleti)</string>
+    <string name="settings_push_server_nav_label">Szerver push</string>
     <string name="settings_remember_bulletin_filter">Hirdetményszűrők megjegyzése</string>
     <string name="settings_reset_course_colors">Kurzusszínek újrakiosztása</string>
     <string name="settings_reset_course_colors_confirm_message">Minden kurzus új, egyedi színt kap — előbb az előre beállított palettából, kimerülésekor véletlenszerűen.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Szerver használata</string>
     <string name="sync_fdroid_unavailable_body">A felhőszinkronizálás Google Play szolgáltatásokat igényel, és nem érhető el az F-Droid változatban.</string>
     <string name="sync_fdroid_unavailable_title">Nem érhető el az F-Droidon</string>
+    <string name="sync_status_failed">Sikertelen</string>
+    <string name="sync_status_ok">Rendben</string>
+    <string name="sync_status_syncing">Szinkronizálás…</string>
+    <string name="sync_status_title">Szinkronizálás állapota</string>
     <string name="sync_success_content_description">Szinkronizálás sikeres</string>
     <string name="tab_editor_apply_action">Alkalmaz</string>
     <string name="tab_editor_drag_reorder">Húzza az átrendezéshez</string>

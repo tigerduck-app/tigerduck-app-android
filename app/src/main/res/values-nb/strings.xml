@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Dobbelttrykk for å åpne oppgaven i Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld hendelser</string>
     <string name="a11y_calendar_nav_next">Neste måned</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Tilbakestill til standard</string>
     <string name="class_table_rename_title">Gi nytt navn</string>
     <string name="class_table_rename_with_course">Gi nytt navn — %1$s</string>
-    <string name="class_table_reset_message">Dette vil tilbakestille timeplanen din for å samsvare med Moodle-registreringen din. Skjulte emner vil dukke opp igjen, og manuelt lagt til emner vil bli fjernet.</string>
+    <string name="class_table_reset_message">Timeplanen bygges opp på nytt fra Moodle, fagvalgsystemet og karaktersystemet. Manuelt lagt til, slettede og omdøpte emner går tapt.</string>
     <string name="class_table_reset_title">Tilbakestill timeplan</string>
+    <string name="class_table_reset_title_with_semester">Tilbakestill timeplan for %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Logg inn for å se timeplanen din</string>
     <string name="class_table_total_credits_value">%1$d studiepoeng</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Påloggingen er utløpt. Logg inn på nytt.</string>
     <string name="score_gpa_cumulative_to">Kumulativt GPA til %1$s</string>
     <string name="score_gpa_latest">Siste GPA</string>
+    <string name="score_gpa_provisional">Foreløpig</string>
     <string name="score_gpa_term_label">Semester-GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA-trend</string>
     <string name="score_grade_exempted">Fritatt</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Forstått</string>
     <string name="settings_analytics_description">Del anonyme bruksdata (besøkte sider, bruk av widgets) for å hjelpe med å forbedre TigerDuck</string>
     <string name="settings_analytics_enabled">Bruksanalyse</string>
+    <string name="settings_api_endpoint">API-endepunkt</string>
     <string name="settings_assignment_due_reminder">Påminnelser om oppgavefrist</string>
     <string name="settings_browser_in_app">Nettleser i appen</string>
     <string name="settings_browser_system_default">Standard systemnettleser</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Offisielt nettsted</string>
     <string name="settings_open_source_licenses">Åpen kildekode-lisenser</string>
     <string name="settings_privacy_policy">Personvernpolicy</string>
-    <string name="settings_push_server_nav_label">Server-push (eksperimentell)</string>
+    <string name="settings_push_server_nav_label">Server-push</string>
     <string name="settings_remember_bulletin_filter">Husk oppslagstavlefiltre</string>
     <string name="settings_reset_course_colors">Tildel kursfarger på nytt</string>
     <string name="settings_reset_course_colors_confirm_message">Hvert kurs får en ny, unik farge – først fra forhåndsinnstilt palett, deretter tilfeldig når paletten er brukt opp.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Bruk server</string>
     <string name="sync_fdroid_unavailable_body">Skysynkronisering krever Google Play-tjenester og er ikke tilgjengelig i F-Droid-versjonen.</string>
     <string name="sync_fdroid_unavailable_title">Ikke tilgjengelig på F-Droid</string>
+    <string name="sync_status_failed">Mislyktes</string>
+    <string name="sync_status_ok">OK</string>
+    <string name="sync_status_syncing">Synkroniserer…</string>
+    <string name="sync_status_title">Synkroniseringsstatus</string>
     <string name="sync_success_content_description">Synkronisering vellykket</string>
     <string name="tab_editor_apply_action">Bruk</string>
     <string name="tab_editor_drag_reorder">Dra for å endre rekkefølge</string>

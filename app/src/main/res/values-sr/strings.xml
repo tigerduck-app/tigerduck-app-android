@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Двапут тапните да отворите задатак у Moodle-у</string>
     <string name="a11y_calendar_day">%1$@, %2$lld догађаја</string>
     <string name="a11y_calendar_nav_next">Следећи месец</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Врати на подразумевано</string>
     <string name="class_table_rename_title">Преименуј</string>
     <string name="class_table_rename_with_course">Преименуј — %1$s</string>
-    <string name="class_table_reset_message">Ово ће ресетовати ваш распоред предмета да одговара вашем упису на Moodle. Скривени предмети ће се поново појавити, а ручно додати предмети ће бити уклоњени.</string>
+    <string name="class_table_reset_message">Распоред ће бити поново изграђен на основу Moodle-а, система за избор курсева и система оцена. Ручно додати, обрисани и преименовани курсеви биће изгубљени.</string>
     <string name="class_table_reset_title">Ресетуј распоред предмета</string>
+    <string name="class_table_reset_title_with_semester">Ресетуј распоред %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Melden Sie sich an, um Ihre Klassentabelle anzuzeigen</string>
     <string name="class_table_total_credits_value">%1$d ЕСПБ бодова</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Пријава је истекла. Пријавите се поново.</string>
     <string name="score_gpa_cumulative_to">Кумулативни GPA до %1$s</string>
     <string name="score_gpa_latest">Најновији GPA</string>
+    <string name="score_gpa_provisional">Привремено</string>
     <string name="score_gpa_term_label">GPA за семестар (%1$s)</string>
     <string name="score_gpa_trend_title">Тренд GPA</string>
     <string name="score_grade_exempted">Ослобођено</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Разумем</string>
     <string name="settings_analytics_description">Дели анонимне податке о коришћењу (посећене странице, коришћење виџета) да би помогао у побољшању TigerDuck-а</string>
     <string name="settings_analytics_enabled">Аналитика коришћења</string>
+    <string name="settings_api_endpoint">Крајња тачка API-ја</string>
     <string name="settings_assignment_due_reminder">Подсетници за рок задатка</string>
     <string name="settings_browser_in_app">Уграђени претраживач</string>
     <string name="settings_browser_system_default">Подразумевани системски претраживач</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Званични веб-сајт</string>
     <string name="settings_open_source_licenses">Лиценце отвореног кода</string>
     <string name="settings_privacy_policy">Политика приватности</string>
-    <string name="settings_push_server_nav_label">Server push (eksperimentalno)</string>
+    <string name="settings_push_server_nav_label">Server push</string>
     <string name="settings_remember_bulletin_filter">Zapamti filtere biltena</string>
     <string name="settings_reset_course_colors">Поново додели боје курсева</string>
     <string name="settings_reset_course_colors_confirm_message">Сваки курс ће добити нову, јединствену боју — прво из унапред подешене палете, затим насумично када се палета исцрпи.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Користи сервер</string>
     <string name="sync_fdroid_unavailable_body">Синхронизација у облаку захтева Google Play услуге и није доступна у F-Droid верзији.</string>
     <string name="sync_fdroid_unavailable_title">Није доступно на F-Droid</string>
+    <string name="sync_status_failed">Неуспешно</string>
+    <string name="sync_status_ok">У реду</string>
+    <string name="sync_status_syncing">Синхронизација…</string>
+    <string name="sync_status_title">Стање синхронизације</string>
     <string name="sync_success_content_description">Синхронизација успешна</string>
     <string name="tab_editor_apply_action">Primeni</string>
     <string name="tab_editor_drag_reorder">Превуците за измену редоследа</string>

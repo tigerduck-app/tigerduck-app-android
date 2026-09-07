@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Dvakrat tapnite, da odprete nalogo v Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld dogodkov</string>
     <string name="a11y_calendar_nav_next">Naslednji mesec</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Obnovi privzeto</string>
     <string name="class_table_rename_title">Preimenuj</string>
     <string name="class_table_rename_with_course">Preimenuj — %1$s</string>
-    <string name="class_table_reset_message">To bo ponastavilo vaš urnik predmetov glede na vpis v Moodle. Skriti predmeti se bodo ponovno prikazali, ročno dodani predmeti pa bodo odstranjeni.</string>
+    <string name="class_table_reset_message">Urnik bo znova zgrajen iz Moodla, sistema za izbiro predmetov in sistema ocen. Ročno dodani, izbrisani in preimenovani predmeti bodo izgubljeni.</string>
     <string name="class_table_reset_title">Ponastavi urnik predmetov</string>
+    <string name="class_table_reset_title_with_semester">Ponastavi urnik %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Prijavite se za ogled urnika</string>
     <string name="class_table_total_credits_value">%1$d kreditnih točk</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Seja je potekla. Znova se prijavite.</string>
     <string name="score_gpa_cumulative_to">Kumulativni GPA do %1$s</string>
     <string name="score_gpa_latest">Najnovejši GPA</string>
+    <string name="score_gpa_provisional">Začasno</string>
     <string name="score_gpa_term_label">GPA semestra (%1$s)</string>
     <string name="score_gpa_trend_title">Trend GPA</string>
     <string name="score_grade_exempted">Opravičen</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Razumem</string>
     <string name="settings_analytics_description">Deli anonimne podatke o uporabi (obiskane strani, uporaba widgetov), da pomagaš izboljšati TigerDuck</string>
     <string name="settings_analytics_enabled">Analitika uporabe</string>
+    <string name="settings_api_endpoint">Končna točka API</string>
     <string name="settings_assignment_due_reminder">Opomniki za rok naloge</string>
     <string name="settings_browser_in_app">Brskalnik v aplikaciji</string>
     <string name="settings_browser_system_default">Privzeti sistemski brskalnik</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Uradna spletna stran</string>
     <string name="settings_open_source_licenses">Odprtokodne licence</string>
     <string name="settings_privacy_policy">Pravilnik o zasebnosti</string>
-    <string name="settings_push_server_nav_label">Strežniški push (eksperimentalno)</string>
+    <string name="settings_push_server_nav_label">Strežniški push</string>
     <string name="settings_remember_bulletin_filter">Zapomni si filtre oglasne deske</string>
     <string name="settings_reset_course_colors">Znova dodeli barve predmetov</string>
     <string name="settings_reset_course_colors_confirm_message">Vsak predmet bo dobil novo, edinstveno barvo — najprej iz prednastavljene palete, nato naključno, ko se ta izčrpa.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Uporabi strežnik</string>
     <string name="sync_fdroid_unavailable_body">Sinhronizacija v oblaku zahteva storitve Google Play in ni na voljo v različici F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Ni na voljo na F-Droid</string>
+    <string name="sync_status_failed">Neuspešno</string>
+    <string name="sync_status_ok">V redu</string>
+    <string name="sync_status_syncing">Sinhronizacija…</string>
+    <string name="sync_status_title">Stanje sinhronizacije</string>
     <string name="sync_success_content_description">Sinhronizacija uspešna</string>
     <string name="tab_editor_apply_action">Uporabi</string>
     <string name="tab_editor_drag_reorder">Povlecite za preureditev</string>

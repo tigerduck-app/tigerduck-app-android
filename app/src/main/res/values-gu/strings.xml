@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Moodle માં સોંપણી ખોલવા ડબલ ટૅપ કરો</string>
     <string name="a11y_calendar_day">%1$@, %2$lld ઇવેન્ટ</string>
     <string name="a11y_calendar_nav_next">આગળનો મહિનો</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">ડિફૉલ્ટ પર પાછા ફરો</string>
     <string name="class_table_rename_title">નામ બદલો</string>
     <string name="class_table_rename_with_course">નામ બદલો — %1$s</string>
-    <string name="class_table_reset_message">આ તમારા કોર્સ ટેબલને તમારી Moodle નોંધણી સાથે મેળ ખાતો રીસેટ કરશે. છુપાયેલા કોર્સ ફરી દેખાશે અને મેન્યુઅલી ઉમેરેલા કોર્સ દૂર થશે.</string>
+    <string name="class_table_reset_message">કોર્સ ટેબલ Moodle, કોર્સ સિલેક્શન સિસ્ટમ અને ગુણ સિસ્ટમ પ્રમાણે ફરીથી બનાવવામાં આવશે. મેન્યુઅલી ઉમેરેલા, દૂર કરેલા અને નામ બદલેલા કોર્સ ખોવાઈ જશે.</string>
     <string name="class_table_reset_title">કોર્સ ટેબલ રીસેટ કરો</string>
+    <string name="class_table_reset_title_with_semester">%1$s કોર્સ ટેબલ રીસેટ કરો</string>
     <string name="class_table_semester_picker_label">સેમેસ્ટર </string>
     <string name="class_table_sign_in_required_message">તમારું વર્ગ કોષ્ટક જોવા માટે સાઇન ઇન કરો</string>
     <string name="class_table_total_credits_value">%1$d ક્રેડિટ</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">લૉગ ઇન એક્સ્પાયર. કૃપા ફરી સાઇન ઇન કરો.</string>
     <string name="score_gpa_cumulative_to">%1$s સુધીનો સંચિત GPA</string>
     <string name="score_gpa_latest">સૌથી નવો GPA</string>
+    <string name="score_gpa_provisional">કામચલાઉ</string>
     <string name="score_gpa_term_label">સેમેસ્ટર GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA ટ્રેન્ડ</string>
     <string name="score_grade_exempted">માફ</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">સમજ્યા</string>
     <string name="settings_analytics_description">TigerDuck સુધારવામાં મદદ કરવા અજ્ઞાત ઉપયોગ ડેટા (મુલાકાત લીધેલ પૃષ્ઠો, વિજેટ ઉપયોગ) શેર કરો</string>
     <string name="settings_analytics_enabled">ઉપયોગ વિશ્લેષણ</string>
+    <string name="settings_api_endpoint">API એન્ડપોઇન્ટ</string>
     <string name="settings_assignment_due_reminder">અસાઇનમેન્ટ ડ્યૂ રિમાઇન્ડર</string>
     <string name="settings_browser_in_app">App ની અંદર બ્રાઉઝર</string>
     <string name="settings_browser_system_default">સિસ્ટમ ડિફૉલ્ટ બ્રાઉઝર</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">અધિકૃત વેબસાઇટ</string>
     <string name="settings_open_source_licenses">ઓપન-સોર્સ લાઇસન્સ</string>
     <string name="settings_privacy_policy">ગોપનીયતા નીતિ</string>
-    <string name="settings_push_server_nav_label">સર્વર પુશ (પ્રાયોગિક)</string>
+    <string name="settings_push_server_nav_label">સર્વર પુશ</string>
     <string name="settings_remember_bulletin_filter">બુલેટિન ફિલ્ટર્સ યાદ રાખો</string>
     <string name="settings_reset_course_colors">કોર્સ રંગો ફરી ફાળવો</string>
     <string name="settings_reset_course_colors_confirm_message">દરેક કોર્સને નવો, અનન્ય રંગ સોંપાશે — પ્રથમ પ્રીસેટ પૅલેટ માંથી, પૅલેટ સમાપ્ત થયા પછી રેન્ડમ.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">સર્વર વાપરો</string>
     <string name="sync_fdroid_unavailable_body">ક્લાઉડ સિંક માટે Google Play સેવાઓ જરૂરી છે અને F-Droid બિલ્ડમાં ઉપલબ્ધ નથી.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid પર ઉપલબ્ધ નથી</string>
+    <string name="sync_status_failed">નિષ્ફળ</string>
+    <string name="sync_status_ok">બરાબર</string>
+    <string name="sync_status_syncing">સિંક થઈ રહ્યું છે…</string>
+    <string name="sync_status_title">સિંક સ્થિતિ</string>
     <string name="sync_success_content_description">સિંક સફળ</string>
     <string name="tab_editor_apply_action">ઍપ્લાય કરો</string>
     <string name="tab_editor_drag_reorder">ક્રમ બદલવા ખેંચો</string>

@@ -39,8 +39,13 @@ private const val PostThresholdScale = 0.3f
 fun TigerPullToRefresh(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
-    onDragProgress: (Float) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Pull distance, 0..1. Optional since the header dot replaced the arc
+     * this used to draw; kept because the rebound animation is still the
+     * only place that knows it.
+     */
+    onDragProgress: (Float) -> Unit = {},
     refreshingMessage: String? = null,
     content: @Composable () -> Unit,
 ) {

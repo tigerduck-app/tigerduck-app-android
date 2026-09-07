@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Πατήστε δύο φορές για να ανοίξετε την εργασία στο Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld εκδηλώσεις</string>
     <string name="a11y_calendar_nav_next">Επόμενος μήνας</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Επαναφορά προεπιλογής</string>
     <string name="class_table_rename_title">Μετονομασία</string>
     <string name="class_table_rename_with_course">Μετονομασία — %1$s</string>
-    <string name="class_table_reset_message">Αυτό θα επαναφέρει το πρόγραμμα μαθημάτων σας ώστε να αντιστοιχεί στην εγγραφή σας στο Moodle. Τα κρυφά μαθήματα θα εμφανιστούν ξανά και τα χειροκίνητα προστιθέμενα μαθήματα θα αφαιρεθούν.</string>
+    <string name="class_table_reset_message">Το πρόγραμμα θα αναδημιουργηθεί από το Moodle, το σύστημα επιλογής μαθημάτων και το σύστημα βαθμών. Τα μαθήματα που προστέθηκαν, διαγράφηκαν ή μετονομάστηκαν χειροκίνητα θα χαθούν.</string>
     <string name="class_table_reset_title">Επαναφορά προγράμματος μαθημάτων</string>
+    <string name="class_table_reset_title_with_semester">Επαναφορά προγράμματος %1$s</string>
     <string name="class_table_semester_picker_label">Ακαδημαϊκό εξάμηνο</string>
     <string name="class_table_sign_in_required_message">Συνδεθείτε για να δείτε τον πίνακα της τάξης σας</string>
     <string name="class_table_total_credits_value">%1$d πιστωτικές μονάδες</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Η σύνδεση έληξε. Παρακαλώ συνδεθείτε ξανά.</string>
     <string name="score_gpa_cumulative_to">Αθροιστικό GPA έως %1$s</string>
     <string name="score_gpa_latest">Τελευταίο GPA</string>
+    <string name="score_gpa_provisional">Προσωρινό</string>
     <string name="score_gpa_term_label">GPA εξαμήνου (%1$s)</string>
     <string name="score_gpa_trend_title">Τάση GPA</string>
     <string name="score_grade_exempted">Απαλλαγή</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Κατάλαβα</string>
     <string name="settings_analytics_description">Μοιράσου ανώνυμα δεδομένα χρήσης (σελίδες που επισκέφτηκες, χρήση widget) για να βοηθήσεις στη βελτίωση του TigerDuck</string>
     <string name="settings_analytics_enabled">Ανάλυση χρήσης</string>
+    <string name="settings_api_endpoint">Τελικό σημείο API</string>
     <string name="settings_assignment_due_reminder">Υπενθυμίσεις λήξης εργασίας</string>
     <string name="settings_browser_in_app">Ενσωματωμένος περιηγητής</string>
     <string name="settings_browser_system_default">Προεπιλεγμένος περιηγητής συστήματος</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Επίσημος ιστότοπος</string>
     <string name="settings_open_source_licenses">Άδειες ανοιχτού κώδικα</string>
     <string name="settings_privacy_policy">Πολιτική απορρήτου</string>
-    <string name="settings_push_server_nav_label">Push διακομιστή (Πειραματικό)</string>
+    <string name="settings_push_server_nav_label">Push διακομιστή</string>
     <string name="settings_remember_bulletin_filter">Θυμηθείτε τα φίλτρα του δελτίου</string>
     <string name="settings_reset_course_colors">Επανεκχώρηση χρωμάτων μαθημάτων</string>
     <string name="settings_reset_course_colors_confirm_message">Κάθε μάθημα θα λάβει ένα νέο, μοναδικό χρώμα — πρώτα από την προκαθορισμένη παλέτα, στη συνέχεια τυχαία όταν εξαντληθεί.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Από διακομιστή</string>
     <string name="sync_fdroid_unavailable_body">Ο συγχρονισμός cloud απαιτεί υπηρεσίες Google Play και δεν είναι διαθέσιμος στην έκδοση F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Μη διαθέσιμο στο F-Droid</string>
+    <string name="sync_status_failed">Απέτυχε</string>
+    <string name="sync_status_ok">OK</string>
+    <string name="sync_status_syncing">Συγχρονισμός…</string>
+    <string name="sync_status_title">Κατάσταση συγχρονισμού</string>
     <string name="sync_success_content_description">Επιτυχής συγχρονισμός</string>
     <string name="tab_editor_apply_action">Εφαρμόζω</string>
     <string name="tab_editor_drag_reorder">Σύρετε για αναδιάταξη</string>

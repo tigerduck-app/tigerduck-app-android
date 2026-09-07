@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Avaa tehtävä Moodlessa kaksoisnapauttamalla</string>
     <string name="a11y_calendar_day">%1$@, %2$lld tapahtumaa</string>
     <string name="a11y_calendar_nav_next">Seuraava kuukausi</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Palauta oletus</string>
     <string name="class_table_rename_title">Nimeä uudelleen</string>
     <string name="class_table_rename_with_course">Nimeä uudelleen — %1$s</string>
-    <string name="class_table_reset_message">Tämä palauttaa lukujärjestyksesi vastaamaan Moodle-ilmoittautumistasi. Piilotetut kurssit tulevat takaisin näkyviin ja manuaalisesti lisätyt kurssit poistetaan.</string>
+    <string name="class_table_reset_message">Lukujärjestys rakennetaan uudelleen Moodlen, kurssivalintajärjestelmän ja arvosanajärjestelmän perusteella. Käsin lisätyt, poistetut ja uudelleennimetyt kurssit menetetään.</string>
     <string name="class_table_reset_title">Palauta lukujärjestys</string>
+    <string name="class_table_reset_title_with_semester">Palauta lukujärjestys %1$s</string>
     <string name="class_table_semester_picker_label">Lukukausi</string>
     <string name="class_table_sign_in_required_message">Kirjaudu sisään nähdäksesi luokkataulukkosi</string>
     <string name="class_table_total_credits_value">%1$d opintopistettä</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Kirjautuminen vanhentunut. Kirjaudu uudelleen.</string>
     <string name="score_gpa_cumulative_to">Kumulatiivinen GPA %1$s asti</string>
     <string name="score_gpa_latest">Viimeisin GPA</string>
+    <string name="score_gpa_provisional">Alustava</string>
     <string name="score_gpa_term_label">Lukukauden GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA-kehitys</string>
     <string name="score_grade_exempted">Hyväksiluku</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Selvä</string>
     <string name="settings_analytics_description">Jaa anonyymiä käyttödataa (vieraillut sivut, widgetien käyttö) TigerDuckin kehittämiseksi</string>
     <string name="settings_analytics_enabled">Käyttöanalytiikka</string>
+    <string name="settings_api_endpoint">API-päätepiste</string>
     <string name="settings_assignment_due_reminder">Tehtävän palautusmuistutukset</string>
     <string name="settings_browser_in_app">Sovelluksen sisäinen selain</string>
     <string name="settings_browser_system_default">Järjestelmän oletusselain</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Virallinen verkkosivusto</string>
     <string name="settings_open_source_licenses">Avoimen lähdekoodin lisenssit</string>
     <string name="settings_privacy_policy">Tietosuojakäytäntö</string>
-    <string name="settings_push_server_nav_label">Palvelimen push (kokeellinen)</string>
+    <string name="settings_push_server_nav_label">Palvelimen push</string>
     <string name="settings_remember_bulletin_filter">Muista tiedotesuodattimet</string>
     <string name="settings_reset_course_colors">Määritä kurssien värit uudelleen</string>
     <string name="settings_reset_course_colors_confirm_message">Kullekin kurssille määritetään uusi, ainutlaatuinen väri — ensin esivalintapaletista, sitten satunnaisesti, kun paletti loppuu.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Käytä palvelinta</string>
     <string name="sync_fdroid_unavailable_body">Pilvisynkronointi vaatii Google Play -palvelut eikä ole käytettävissä F-Droid-versiossa.</string>
     <string name="sync_fdroid_unavailable_title">Ei saatavilla F-Droidissa</string>
+    <string name="sync_status_failed">Epäonnistui</string>
+    <string name="sync_status_ok">OK</string>
+    <string name="sync_status_syncing">Synkronoidaan…</string>
+    <string name="sync_status_title">Synkronoinnin tila</string>
     <string name="sync_success_content_description">Synkronointi onnistui</string>
     <string name="tab_editor_apply_action">Käytä</string>
     <string name="tab_editor_drag_reorder">Vedä järjestelläksesi</string>

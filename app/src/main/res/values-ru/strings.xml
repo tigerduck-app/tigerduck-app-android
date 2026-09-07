@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Дважды нажмите, чтобы открыть задание в Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld событий</string>
     <string name="a11y_calendar_nav_next">Следующий месяц</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Вернуть по умолчанию</string>
     <string name="class_table_rename_title">Переименовать</string>
     <string name="class_table_rename_with_course">Переименовать — %1$s</string>
-    <string name="class_table_reset_message">Это сбросит ваше расписание в соответствии с записью в Moodle. Скрытые курсы появятся снова, а добавленные вручную курсы будут удалены.</string>
+    <string name="class_table_reset_message">Расписание будет пересобрано по данным Moodle, системы выбора курсов и системы оценок. Курсы, добавленные, удалённые или переименованные вручную, будут потеряны.</string>
     <string name="class_table_reset_title">Сбросить расписание</string>
+    <string name="class_table_reset_title_with_semester">Сбросить расписание %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Войдите, чтобы просмотреть расписание занятий</string>
     <string name="class_table_total_credits_value">%1$d кредитов</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Срок сессии истёк. Пожалуйста, войдите заново.</string>
     <string name="score_gpa_cumulative_to">Совокупный GPA до %1$s</string>
     <string name="score_gpa_latest">Последний GPA</string>
+    <string name="score_gpa_provisional">Предварительно</string>
     <string name="score_gpa_term_label">GPA за семестр (%1$s)</string>
     <string name="score_gpa_trend_title">Динамика GPA</string>
     <string name="score_grade_exempted">Зачтено</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Понятно</string>
     <string name="settings_analytics_description">Делись анонимными данными об использовании (посещённые страницы, использование виджетов), чтобы помочь улучшить TigerDuck</string>
     <string name="settings_analytics_enabled">Аналитика использования</string>
+    <string name="settings_api_endpoint">Конечная точка API</string>
     <string name="settings_assignment_due_reminder">Напоминания о сроках сдачи заданий</string>
     <string name="settings_browser_in_app">Встроенный браузер</string>
     <string name="settings_browser_system_default">Системный браузер по умолчанию</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Официальный сайт</string>
     <string name="settings_open_source_licenses">Лицензии открытого кода</string>
     <string name="settings_privacy_policy">Политика конфиденциальности</string>
-    <string name="settings_push_server_nav_label">Server push (Экспериментально)</string>
+    <string name="settings_push_server_nav_label">Server push</string>
     <string name="settings_remember_bulletin_filter">Запомнить фильтры бюллетеней</string>
     <string name="settings_reset_course_colors">Переназначить цвета курсов</string>
     <string name="settings_reset_course_colors_confirm_message">Каждому курсу будет назначен новый уникальный цвет — сначала из палитры, затем случайно, когда палитра исчерпана.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Использовать сервер</string>
     <string name="sync_fdroid_unavailable_body">Облачная синхронизация требует сервисов Google Play и недоступна в сборке F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Недоступно в F-Droid</string>
+    <string name="sync_status_failed">Ошибка</string>
+    <string name="sync_status_ok">ОК</string>
+    <string name="sync_status_syncing">Синхронизация…</string>
+    <string name="sync_status_title">Состояние синхронизации</string>
     <string name="sync_success_content_description">Синхронизация выполнена</string>
     <string name="tab_editor_apply_action">Применить</string>
     <string name="tab_editor_drag_reorder">Перетащите для изменения порядка</string>

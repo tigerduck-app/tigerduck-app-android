@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Ketuk dua kali untuk membuka tugas di Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld acara</string>
     <string name="a11y_calendar_nav_next">Bulan berikutnya</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Kembalikan ke default</string>
     <string name="class_table_rename_title">Ganti nama</string>
     <string name="class_table_rename_with_course">Ganti nama — %1$s</string>
-    <string name="class_table_reset_message">Ini akan mereset jadwal kuliah Anda agar sesuai dengan pendaftaran Moodle Anda. Mata kuliah yang disembunyikan akan muncul kembali dan mata kuliah yang ditambahkan secara manual akan dihapus.</string>
+    <string name="class_table_reset_message">Jadwal kuliah akan dibuat ulang berdasarkan Moodle, sistem pemilihan mata kuliah, dan sistem nilai. Mata kuliah yang ditambahkan, dihapus, atau diganti namanya secara manual akan hilang.</string>
     <string name="class_table_reset_title">Reset jadwal kuliah</string>
+    <string name="class_table_reset_title_with_semester">Reset jadwal kuliah %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Masuk untuk melihat jadwal kelas Anda</string>
     <string name="class_table_total_credits_value">%1$d SKS</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Sesi login berakhir. Silakan masuk kembali.</string>
     <string name="score_gpa_cumulative_to">GPA kumulatif hingga %1$s</string>
     <string name="score_gpa_latest">GPA terbaru</string>
+    <string name="score_gpa_provisional">Sementara</string>
     <string name="score_gpa_term_label">GPA semester (%1$s)</string>
     <string name="score_gpa_trend_title">Tren GPA</string>
     <string name="score_grade_exempted">Dikecualikan</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Mengerti</string>
     <string name="settings_analytics_description">Bagikan data penggunaan anonim (halaman yang dikunjungi, penggunaan widget) untuk membantu meningkatkan TigerDuck</string>
     <string name="settings_analytics_enabled">Analitik penggunaan</string>
+    <string name="settings_api_endpoint">Endpoint API</string>
     <string name="settings_assignment_due_reminder">Pengingat tenggat tugas</string>
     <string name="settings_browser_in_app">Peramban dalam aplikasi</string>
     <string name="settings_browser_system_default">Peramban default sistem</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Situs web resmi</string>
     <string name="settings_open_source_licenses">Lisensi sumber terbuka</string>
     <string name="settings_privacy_policy">Kebijakan privasi</string>
-    <string name="settings_push_server_nav_label">Push server (Eksperimental)</string>
+    <string name="settings_push_server_nav_label">Push server</string>
     <string name="settings_remember_bulletin_filter">Ingat filter buletin</string>
     <string name="settings_reset_course_colors">Tetapkan ulang warna kursus</string>
     <string name="settings_reset_course_colors_confirm_message">Setiap kursus akan diberi warna baru yang unik — pertama dari palet preset, lalu acak setelah palet habis.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Gunakan Server</string>
     <string name="sync_fdroid_unavailable_body">Cloud Sync memerlukan Google Play Services dan tidak tersedia di build F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Tidak tersedia di F-Droid</string>
+    <string name="sync_status_failed">Gagal</string>
+    <string name="sync_status_ok">OK</string>
+    <string name="sync_status_syncing">Menyinkronkan…</string>
+    <string name="sync_status_title">Status sinkronisasi</string>
     <string name="sync_success_content_description">Sinkronisasi berhasil</string>
     <string name="tab_editor_apply_action">Terapkan</string>
     <string name="tab_editor_drag_reorder">Seret untuk mengurutkan</string>

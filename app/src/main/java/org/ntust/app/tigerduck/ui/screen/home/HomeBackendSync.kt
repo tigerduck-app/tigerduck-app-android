@@ -165,6 +165,10 @@ class HomeBackendSync @Inject constructor(
     private fun markBackendIdle() {
         prefs.setLastSyncSource(SyncSource.NONE)
         ServerStatusTracker.set(ServerStatus.UNKNOWN, ServerKind.BACKEND)
+        // Grey is the right colour for all three reasons we land here, but
+        // only one of them is "switched off" — the status dot's detail list
+        // needs to tell that apart from logged-out and fdroid.
+        ServerStatusTracker.setCloudSyncEnabled(prefs.cloudSyncEnabled)
     }
 
     /**

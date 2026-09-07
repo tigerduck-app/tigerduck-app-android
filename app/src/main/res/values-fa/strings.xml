@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">دو بار ضربه بزنید تا تکلیف را در Moodle باز کنید</string>
     <string name="a11y_calendar_day">%1$@، %2$lld رویداد</string>
     <string name="a11y_calendar_nav_next">ماه بعد</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">بازگرداندن به پیش‌فرض</string>
     <string name="class_table_rename_title">تغییر نام</string>
     <string name="class_table_rename_with_course">تغییر نام — %1$s</string>
-    <string name="class_table_reset_message">این کار جدول دروس شما را مطابق با ثبت‌نام Moodle بازنشانی می‌کند. دروس پنهان‌شده دوباره نمایش داده می‌شوند و دروس اضافه‌شده به صورت دستی حذف خواهند شد.</string>
+    <string name="class_table_reset_message">جدول دروس بر اساس Moodle، سامانه انتخاب واحد و سامانه نمرات دوباره ساخته می‌شود. دروسی که به‌صورت دستی افزوده، حذف یا تغییر نام داده شده‌اند از بین می‌روند.</string>
     <string name="class_table_reset_title">بازنشانی جدول دروس</string>
+    <string name="class_table_reset_title_with_semester">بازنشانی جدول دروس %1$s</string>
     <string name="class_table_semester_picker_label">ترم</string>
     <string name="class_table_sign_in_required_message">برای مشاهده جدول کلاس خود وارد شوید</string>
     <string name="class_table_total_credits_value">%1$d واحد</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">ورود منقضی شده است. لطفاً دوباره وارد شوید.</string>
     <string name="score_gpa_cumulative_to">GPA تجمیعی تا %1$s</string>
     <string name="score_gpa_latest">آخرین GPA</string>
+    <string name="score_gpa_provisional">موقت</string>
     <string name="score_gpa_term_label">GPA ترم (%1$s)</string>
     <string name="score_gpa_trend_title">روند GPA</string>
     <string name="score_grade_exempted">معاف/معادل‌سازی</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">متوجه شدم</string>
     <string name="settings_analytics_description">داده‌های ناشناس استفاده (صفحات بازدیدشده، استفاده از ویجت) را برای بهبود TigerDuck به اشتراک بگذارید</string>
     <string name="settings_analytics_enabled">آمار استفاده</string>
+    <string name="settings_api_endpoint">نقطهٔ پایانی API</string>
     <string name="settings_assignment_due_reminder">یادآورهای موعد تکلیف</string>
     <string name="settings_browser_in_app">مرورگر داخل برنامه</string>
     <string name="settings_browser_system_default">مرورگر پیش‌فرض سیستم</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">وب‌سایت رسمی</string>
     <string name="settings_open_source_licenses">مجوزهای متن‌باز</string>
     <string name="settings_privacy_policy">سیاست حریم خصوصی</string>
-    <string name="settings_push_server_nav_label">فشار سرور (تجربی)</string>
+    <string name="settings_push_server_nav_label">فشار سرور</string>
     <string name="settings_remember_bulletin_filter">فیلترهای بولتن را به خاطر بسپارید</string>
     <string name="settings_reset_course_colors">اختصاص دوبارهٔ رنگ‌های درس</string>
     <string name="settings_reset_course_colors_confirm_message">به هر درس یک رنگ جدید و منحصربه‌فرد اختصاص می‌یابد — ابتدا از پالت پیش‌فرض، پس از پایان پالت به‌صورت تصادفی.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">استفاده از سرور</string>
     <string name="sync_fdroid_unavailable_body">همگام‌سازی ابری به خدمات Google Play نیاز دارد و در نسخه F-Droid موجود نیست.</string>
     <string name="sync_fdroid_unavailable_title">در F-Droid موجود نیست</string>
+    <string name="sync_status_failed">ناموفق</string>
+    <string name="sync_status_ok">عادی</string>
+    <string name="sync_status_syncing">در حال همگام‌سازی…</string>
+    <string name="sync_status_title">وضعیت همگام‌سازی</string>
     <string name="sync_success_content_description">همگام‌سازی موفق بود</string>
     <string name="tab_editor_apply_action">درخواست کنید</string>
     <string name="tab_editor_drag_reorder">برای تغییر ترتیب بکشید</string>

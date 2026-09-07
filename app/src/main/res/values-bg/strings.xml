@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Докоснете двукратно, за да отворите заданието в Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld събития</string>
     <string name="a11y_calendar_nav_next">Следващ месец</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Връщане към подразбиране</string>
     <string name="class_table_rename_title">Преименуване</string>
     <string name="class_table_rename_with_course">Преименуване — %1$s</string>
-    <string name="class_table_reset_message">Това ще нулира вашето учебно разписание, за да съответства на записването ви в Moodle. Скритите курсове ще се появят отново, а ръчно добавените курсове ще бъдат премахнати.</string>
+    <string name="class_table_reset_message">Разписанието ще бъде изградено наново от Moodle, системата за избор на курсове и системата за оценки. Ръчно добавените, изтритите и преименуваните курсове ще бъдат загубени.</string>
     <string name="class_table_reset_title">Нулиране на учебното разписание</string>
+    <string name="class_table_reset_title_with_semester">Нулиране на разписанието за %1$s</string>
     <string name="class_table_semester_picker_label">Семестър</string>
     <string name="class_table_sign_in_required_message">Влезте, за да видите таблицата на вашия клас</string>
     <string name="class_table_total_credits_value">%1$d кредити</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Сесията е изтекла. Моля, влезте отново.</string>
     <string name="score_gpa_cumulative_to">Кумулативен GPA до %1$s</string>
     <string name="score_gpa_latest">Последен GPA</string>
+    <string name="score_gpa_provisional">Предварително</string>
     <string name="score_gpa_term_label">GPA за семестър (%1$s)</string>
     <string name="score_gpa_trend_title">Тенденция на GPA</string>
     <string name="score_grade_exempted">Освободен</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Разбрах</string>
     <string name="settings_analytics_description">Споделяй анонимни данни за използването (посетени страници, използване на виджети), за да помогнеш за подобряването на TigerDuck</string>
     <string name="settings_analytics_enabled">Анализ на използването</string>
+    <string name="settings_api_endpoint">Крайна точка на API</string>
     <string name="settings_assignment_due_reminder">Напомняния за крайни срокове на задания</string>
     <string name="settings_browser_in_app">Вграден браузър</string>
     <string name="settings_browser_system_default">Системен браузър по подразбиране</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Официален уебсайт</string>
     <string name="settings_open_source_licenses">Лицензи с отворен код</string>
     <string name="settings_privacy_policy">Политика за поверителност</string>
-    <string name="settings_push_server_nav_label">Натискане на сървъра (експериментално)</string>
+    <string name="settings_push_server_nav_label">Натискане на сървъра</string>
     <string name="settings_remember_bulletin_filter">Запомнете филтрите за бюлетини</string>
     <string name="settings_reset_course_colors">Преразпределяне на цветовете на курсовете</string>
     <string name="settings_reset_course_colors_confirm_message">Всеки курс ще получи нов уникален цвят — първо от готовата палитра, после случайно, когато палитрата свърши.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">От сървъра</string>
     <string name="sync_fdroid_unavailable_body">Облачната синхронизация изисква Google Play услуги и не е налична в F-Droid версията.</string>
     <string name="sync_fdroid_unavailable_title">Не е налично за F-Droid</string>
+    <string name="sync_status_failed">Неуспешно</string>
+    <string name="sync_status_ok">OK</string>
+    <string name="sync_status_syncing">Синхронизиране…</string>
+    <string name="sync_status_title">Състояние на синхронизацията</string>
     <string name="sync_success_content_description">Синхронизацията е успешна</string>
     <string name="tab_editor_apply_action">Кандидатствайте</string>
     <string name="tab_editor_drag_reorder">Плъзнете, за да пренаредите</string>

@@ -50,8 +50,7 @@ import org.ntust.app.tigerduck.data.model.CreditSummary
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.ServerKind
-import org.ntust.app.tigerduck.ui.component.ServerStatusIcons
-import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -63,7 +62,6 @@ fun ScoreScreen(
 ) {
     val report by viewModel.report.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-    val isSyncLocalOnly by viewModel.isSyncLocalOnly.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val rankingScope by viewModel.rankingScope.collectAsStateWithLifecycle()
@@ -71,7 +69,6 @@ fun ScoreScreen(
 
     LaunchedEffect(Unit) { viewModel.load() }
 
-    var pullProgress by remember { mutableFloatStateOf(0f) }
 
     var selectedCourse by remember { mutableStateOf<CourseGrade?>(null) }
 
@@ -79,7 +76,6 @@ fun ScoreScreen(
         TigerPullToRefresh(
             isRefreshing = isRefreshing,
             onRefresh = { viewModel.triggerRefresh() },
-            onDragProgress = { pullProgress = it },
             modifier = Modifier.fillMaxSize(),
             refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
@@ -89,14 +85,9 @@ fun ScoreScreen(
                     .verticalScroll(rememberScrollState())
             ) {
                 PageHeader(title = stringResource(R.string.feature_score)) {
-                    SyncIndicator(
-                        isLoading = isRefreshing,
-                        showCheckmark = false,
-                        dragProgress = pullProgress,
-                        isLocalOnly = isSyncLocalOnly,
-                    )
-                    ServerStatusIcons(
+                    SyncStatusDot(
                         servers = listOf(ServerKind.COURSE_SELECTION),
+                        isLoading = isRefreshing,
                     )
                 }
 

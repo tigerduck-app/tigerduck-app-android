@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">แตะสองครั้งเพื่อเปิดงานใน Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld กิจกรรม</string>
     <string name="a11y_calendar_nav_next">เดือนถัดไป</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">คืนค่าเริ่มต้น</string>
     <string name="class_table_rename_title">เปลี่ยนชื่อ</string>
     <string name="class_table_rename_with_course">เปลี่ยนชื่อ — %1$s</string>
-    <string name="class_table_reset_message">การดำเนินการนี้จะรีเซ็ตตารางเรียนของคุณให้ตรงกับการลงทะเบียนใน Moodle รายวิชาที่ซ่อนไว้จะปรากฏขึ้นอีกครั้ง และรายวิชาที่เพิ่มด้วยตนเองจะถูกลบออก</string>
+    <string name="class_table_reset_message">ตารางเรียนจะถูกสร้างใหม่ตามข้อมูลจาก Moodle ระบบลงทะเบียนเรียน และระบบผลการเรียน วิชาที่เพิ่ม ลบ หรือเปลี่ยนชื่อด้วยตนเองจะหายไป</string>
     <string name="class_table_reset_title">รีเซ็ตตารางเรียน</string>
+    <string name="class_table_reset_title_with_semester">รีเซ็ตตารางเรียน %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Melden Sie sich an, um Ihre Klassentabelle anzuzeigen</string>
     <string name="class_table_total_credits_value">%1$d หน่วยกิต</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">การเข้าสู่ระบบหมดอายุ กรุณาเข้าสู่ระบบใหม่</string>
     <string name="score_gpa_cumulative_to">GPA สะสมถึง %1$s</string>
     <string name="score_gpa_latest">GPA ล่าสุด</string>
+    <string name="score_gpa_provisional">ชั่วคราว</string>
     <string name="score_gpa_term_label">GPA ภาคการศึกษา (%1$s)</string>
     <string name="score_gpa_trend_title">แนวโน้ม GPA</string>
     <string name="score_grade_exempted">ได้รับการยกเว้น</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">เข้าใจแล้ว</string>
     <string name="settings_analytics_description">แชร์ข้อมูลการใช้งานแบบไม่ระบุตัวตน (หน้าที่เข้าชม, การใช้วิดเจ็ต) เพื่อช่วยพัฒนา TigerDuck</string>
     <string name="settings_analytics_enabled">การวิเคราะห์การใช้งาน</string>
+    <string name="settings_api_endpoint">ปลายทาง API</string>
     <string name="settings_assignment_due_reminder">การแจ้งเตือนการบ้านใกล้ครบกำหนด</string>
     <string name="settings_browser_in_app">เบราว์เซอร์ในแอป</string>
     <string name="settings_browser_system_default">เบราว์เซอร์เริ่มต้นของระบบ</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">เว็บไซต์ทางการ</string>
     <string name="settings_open_source_licenses">สัญญาอนุญาตโอเพนซอร์ส</string>
     <string name="settings_privacy_policy">นโยบายความเป็นส่วนตัว</string>
-    <string name="settings_push_server_nav_label">Server push (ทดลอง)</string>
+    <string name="settings_push_server_nav_label">Server push</string>
     <string name="settings_remember_bulletin_filter">จดจำตัวกรองกระดานข่าว</string>
     <string name="settings_reset_course_colors">กำหนดสีรายวิชาใหม่</string>
     <string name="settings_reset_course_colors_confirm_message">ทุกรายวิชาจะได้รับสีใหม่ที่ไม่ซ้ำกัน — เริ่มจากชุดสีล่วงหน้า เมื่อหมดแล้วจะสุ่มขึ้นมา.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">ใช้ของเซิร์ฟเวอร์</string>
     <string name="sync_fdroid_unavailable_body">การซิงค์คลาวด์ต้องการ Google Play Services และไม่พร้อมใช้งานในเวอร์ชัน F-Droid</string>
     <string name="sync_fdroid_unavailable_title">ไม่พร้อมใช้งานบน F-Droid</string>
+    <string name="sync_status_failed">ล้มเหลว</string>
+    <string name="sync_status_ok">ปกติ</string>
+    <string name="sync_status_syncing">กำลังซิงค์…</string>
+    <string name="sync_status_title">สถานะการซิงค์</string>
     <string name="sync_success_content_description">ซิงค์สำเร็จ</string>
     <string name="tab_editor_apply_action">นำไปใช้</string>
     <string name="tab_editor_drag_reorder">ลากเพื่อจัดเรียง</string>

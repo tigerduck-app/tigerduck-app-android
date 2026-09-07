@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Atingeți de două ori pentru a deschide tema în Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld evenimente</string>
     <string name="a11y_calendar_nav_next">Luna următoare</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Revenire la implicit</string>
     <string name="class_table_rename_title">Redenumire</string>
     <string name="class_table_rename_with_course">Redenumire — %1$s</string>
-    <string name="class_table_reset_message">Aceasta va reseta orarul cursurilor pentru a corespunde înscrierii tale pe Moodle. Cursurile ascunse vor reapărea, iar cursurile adăugate manual vor fi eliminate.</string>
+    <string name="class_table_reset_message">Orarul va fi reconstruit din Moodle, sistemul de selecție a cursurilor și sistemul de note. Cursurile adăugate, șterse sau redenumite manual se vor pierde.</string>
     <string name="class_table_reset_title">Resetează orarul cursurilor</string>
+    <string name="class_table_reset_title_with_semester">Resetează orarul %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Melden Sie sich an, um Ihre Klassentabelle anzuzeigen</string>
     <string name="class_table_total_credits_value">%1$d credite</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Sesiunea a expirat. Autentifică-te din nou.</string>
     <string name="score_gpa_cumulative_to">GPA cumulativ până la %1$s</string>
     <string name="score_gpa_latest">Ultimul GPA</string>
+    <string name="score_gpa_provisional">Provizoriu</string>
     <string name="score_gpa_term_label">GPA semestru (%1$s)</string>
     <string name="score_gpa_trend_title">Tendință GPA</string>
     <string name="score_grade_exempted">Scutit</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Înțeles</string>
     <string name="settings_analytics_description">Împărtășește date anonime despre utilizare (pagini vizitate, utilizarea widget-urilor) pentru a ajuta la îmbunătățirea TigerDuck</string>
     <string name="settings_analytics_enabled">Analiză utilizare</string>
+    <string name="settings_api_endpoint">Punct final API</string>
     <string name="settings_assignment_due_reminder">Remindere teme scadente</string>
     <string name="settings_browser_in_app">Browser în aplicație</string>
     <string name="settings_browser_system_default">Browser implicit de sistem</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Site web oficial</string>
     <string name="settings_open_source_licenses">Licențe open-source</string>
     <string name="settings_privacy_policy">Politică de confidențialitate</string>
-    <string name="settings_push_server_nav_label">Push server (Experimental)</string>
+    <string name="settings_push_server_nav_label">Push server</string>
     <string name="settings_remember_bulletin_filter">Reține filtrele buletinului</string>
     <string name="settings_reset_course_colors">Reatribuie culorile cursurilor</string>
     <string name="settings_reset_course_colors_confirm_message">Fiecare curs primește o culoare nouă, unică — întâi din paleta presetată, apoi aleatoriu când paleta este epuizată.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Folosește server</string>
     <string name="sync_fdroid_unavailable_body">Sincronizarea cloud necesită servicii Google Play și nu este disponibilă în versiunea F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Indisponibil pe F-Droid</string>
+    <string name="sync_status_failed">Eșuat</string>
+    <string name="sync_status_ok">OK</string>
+    <string name="sync_status_syncing">Se sincronizează…</string>
+    <string name="sync_status_title">Stare sincronizare</string>
     <string name="sync_success_content_description">Sincronizare reușită</string>
     <string name="tab_editor_apply_action">Aplică</string>
     <string name="tab_editor_drag_reorder">Trage pentru reordonare</string>

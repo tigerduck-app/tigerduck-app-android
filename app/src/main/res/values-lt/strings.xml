@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Dukart bakstelėkite, kad atidarytumėte užduotį Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld įvykių</string>
     <string name="a11y_calendar_nav_next">Kitas mėnuo</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Atkurti numatytąjį</string>
     <string name="class_table_rename_title">Pervadinti</string>
     <string name="class_table_rename_with_course">Pervadinti — %1$s</string>
-    <string name="class_table_reset_message">Tai atstatys jūsų tvarkaraštį pagal Moodle registraciją. Paslėpti dalykai vėl bus rodomi, o rankiniu būdu pridėti dalykai bus pašalinti.</string>
+    <string name="class_table_reset_message">Tvarkaraštis bus iš naujo sudarytas pagal Moodle, kursų pasirinkimo sistemą ir pažymių sistemą. Rankiniu būdu pridėti, pašalinti ir pervadinti dalykai bus prarasti.</string>
     <string name="class_table_reset_title">Atstatyti tvarkaraštį</string>
+    <string name="class_table_reset_title_with_semester">Atstatyti %1$s tvarkaraštį</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Melden Sie sich an, um Ihre Klassentabelle anzuzeigen</string>
     <string name="class_table_total_credits_value">%1$d kreditai</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Prisijungimas baigė galioti. Prisijunkite iš naujo.</string>
     <string name="score_gpa_cumulative_to">Kaupiamasis GPA iki %1$s</string>
     <string name="score_gpa_latest">Naujausias GPA</string>
+    <string name="score_gpa_provisional">Preliminarus</string>
     <string name="score_gpa_term_label">Semestro GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA tendencija</string>
     <string name="score_grade_exempted">Atleista</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Supratau</string>
     <string name="settings_analytics_description">Dalinkis anonimais naudojimo duomenimis (lankyti puslapiai, valdiklių naudojimas), kad padėtum tobulinti TigerDuck</string>
     <string name="settings_analytics_enabled">Naudojimo analizė</string>
+    <string name="settings_api_endpoint">API galinis taškas</string>
     <string name="settings_assignment_due_reminder">Užduočių terminų priminimai</string>
     <string name="settings_browser_in_app">Programos vidaus naršyklė</string>
     <string name="settings_browser_system_default">Numatytoji sistemos naršyklė</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Oficiali svetainė</string>
     <string name="settings_open_source_licenses">Atvirojo kodo licencijos</string>
     <string name="settings_privacy_policy">Privatumo politika</string>
-    <string name="settings_push_server_nav_label">Serverio siuntimas (eksperimentinis)</string>
+    <string name="settings_push_server_nav_label">Serverio siuntimas</string>
     <string name="settings_remember_bulletin_filter">Įsiminti biuletenių filtrus</string>
     <string name="settings_reset_course_colors">Iš naujo priskirti kursų spalvas</string>
     <string name="settings_reset_course_colors_confirm_message">Kiekvienam kursui bus priskirta nauja unikali spalva — pirma iš išankstinės paletės, paskui atsitiktinai, kai paletė pasibaigs.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Naudoti serverį</string>
     <string name="sync_fdroid_unavailable_body">Debesų sinchronizacijai reikia „Google Play“ paslaugų ir ji nepasiekiama F-Droid versijoje.</string>
     <string name="sync_fdroid_unavailable_title">Nepasiekiama F-Droid</string>
+    <string name="sync_status_failed">Nepavyko</string>
+    <string name="sync_status_ok">Gerai</string>
+    <string name="sync_status_syncing">Sinchronizuojama…</string>
+    <string name="sync_status_title">Sinchronizavimo būsena</string>
     <string name="sync_success_content_description">Sinchronizavimas sėkmingas</string>
     <string name="tab_editor_apply_action">Taikyti</string>
     <string name="tab_editor_drag_reorder">Vilkite, kad pertvarkytumėte</string>

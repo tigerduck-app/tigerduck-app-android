@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Topelttoksake ülesande avamiseks Moodle\'is</string>
     <string name="a11y_calendar_day">%1$@, %2$lld sündmust</string>
     <string name="a11y_calendar_nav_next">Järgmine kuu</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Lähtesta vaikimisi</string>
     <string name="class_table_rename_title">Nimeta ümber</string>
     <string name="class_table_rename_with_course">Nimeta ümber — %1$s</string>
-    <string name="class_table_reset_message">See lähtestab teie tunniplaani vastavalt Moodle\'i registreerimisele. Peidetud kursused ilmuvad uuesti ja käsitsi lisatud kursused eemaldatakse.</string>
+    <string name="class_table_reset_message">Tunniplaan koostatakse uuesti Moodle\'i, ainete valimise süsteemi ja hinnete süsteemi põhjal. Käsitsi lisatud, kustutatud ja ümbernimetatud kursused lähevad kaduma.</string>
     <string name="class_table_reset_title">Lähtesta tunniplaan</string>
+    <string name="class_table_reset_title_with_semester">Lähtesta %1$s tunniplaan</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Oma klassitabeli vaatamiseks logige sisse</string>
     <string name="class_table_total_credits_value">%1$d ainepunkti</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Sisselogimine aegus. Logige uuesti sisse.</string>
     <string name="score_gpa_cumulative_to">Kumulatiivne GPA kuni %1$s</string>
     <string name="score_gpa_latest">Viimane GPA</string>
+    <string name="score_gpa_provisional">Esialgne</string>
     <string name="score_gpa_term_label">Semestri GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA trend</string>
     <string name="score_grade_exempted">Vabastatud</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Selge</string>
     <string name="settings_analytics_description">Jaga anonüümseid kasutusandmeid (külastatud lehed, vidinate kasutamine), et aidata TigerDucki paremaks muuta</string>
     <string name="settings_analytics_enabled">Kasutusanalüütika</string>
+    <string name="settings_api_endpoint">API lõpp-punkt</string>
     <string name="settings_assignment_due_reminder">Ülesande tähtaja meeldetuletused</string>
     <string name="settings_browser_in_app">Rakendusesisene brauser</string>
     <string name="settings_browser_system_default">Süsteemi vaikebrauser</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Ametlik veebisait</string>
     <string name="settings_open_source_licenses">Avatud lähtekoodiga litsentsid</string>
     <string name="settings_privacy_policy">Privaatsuspoliitika</string>
-    <string name="settings_push_server_nav_label">Serveri tõuge (eksperimentaalne)</string>
+    <string name="settings_push_server_nav_label">Serveri tõuge</string>
     <string name="settings_remember_bulletin_filter">Pidage meeles bülletäänide filtreid</string>
     <string name="settings_reset_course_colors">Määra kursuste värvid uuesti</string>
     <string name="settings_reset_course_colors_confirm_message">Iga kursus saab uue ainulaadse värvi — kõigepealt eelmääratud paletist, seejärel juhuslikult, kui palett on otsas.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Kasuta serverit</string>
     <string name="sync_fdroid_unavailable_body">Pilve sünkroonimine nõuab Google Play teenuseid ja pole F-Droidi versioonis saadaval.</string>
     <string name="sync_fdroid_unavailable_title">Pole F-Droidis saadaval</string>
+    <string name="sync_status_failed">Ebaõnnestus</string>
+    <string name="sync_status_ok">Korras</string>
+    <string name="sync_status_syncing">Sünkroonimine…</string>
+    <string name="sync_status_title">Sünkroonimise olek</string>
     <string name="sync_success_content_description">Sünkroonimine õnnestus</string>
     <string name="tab_editor_apply_action">Rakenda</string>
     <string name="tab_editor_drag_reorder">Lohistage ümberjärjestamiseks</string>

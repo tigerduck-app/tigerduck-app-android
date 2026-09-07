@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Moodle-ൽ അസൈൻമെന്റ് തുറക്കാൻ രണ്ടുതവണ ടാപ്പ് ചെയ്യുക</string>
     <string name="a11y_calendar_day">%1$@, %2$lld ഇവന്റുകൾ</string>
     <string name="a11y_calendar_nav_next">അടുത്ത മാസം</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">സ്ഥിരസ്ഥിതിയിലേക്ക് മടങ്ങുക</string>
     <string name="class_table_rename_title">പുനർനാമകരണം ചെയ്യുക</string>
     <string name="class_table_rename_with_course">പുനർനാമകരണം — %1$s</string>
-    <string name="class_table_reset_message">ഇത് നിങ്ങളുടെ കോഴ്‌സ് ടേബിൾ Moodle എൻറോൾമെന്റുമായി പൊരുത്തപ്പെടുത്തി റീസെറ്റ് ചെയ്യും. മറച്ച കോഴ്‌സുകൾ വീണ്ടും കാണിക്കുകയും സ്വമേധയാ ചേർത്ത കോഴ്‌സുകൾ നീക്കം ചെയ്യുകയും ചെയ്യും.</string>
+    <string name="class_table_reset_message">Moodle, കോഴ്‌സ് തിരഞ്ഞെടുക്കൽ സിസ്റ്റം, ഗ്രേഡ് സിസ്റ്റം എന്നിവയുടെ അടിസ്ഥാനത്തിൽ കോഴ്‌സ് ടേബിൾ വീണ്ടും നിർമ്മിക്കും. സ്വമേധയാ ചേർത്തതും നീക്കം ചെയ്തതും പേര് മാറ്റിയതുമായ കോഴ്‌സുകൾ നഷ്ടപ്പെടും.</string>
     <string name="class_table_reset_title">കോഴ്‌സ് ടേബിൾ റീസെറ്റ് ചെയ്യുക</string>
+    <string name="class_table_reset_title_with_semester">%1$s കോഴ്‌സ് ടേബിൾ റീസെറ്റ് ചെയ്യുക</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">നിങ്ങളുടെ ക്ലാസ് ടേബിൾ കാണാൻ സൈൻ ഇൻ ചെയ്യുക</string>
     <string name="class_table_total_credits_value">%1$d ക്രെഡിറ്റുകൾ</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">ലോഗിൻ കാലഹരണപ്പെട്ടു. വീണ്ടും സൈൻ ഇൻ ചെയ്യുക.</string>
     <string name="score_gpa_cumulative_to">%1$s വരെ ക്യുമുലേറ്റീവ് GPA</string>
     <string name="score_gpa_latest">ഏറ്റവും പുതിയ GPA</string>
+    <string name="score_gpa_provisional">താൽക്കാലികം</string>
     <string name="score_gpa_term_label">സെമസ്റ്റർ GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA ട്രെൻഡ്</string>
     <string name="score_grade_exempted">ഒഴിവാക്കപ്പെട്ടു</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">മനസ്സിലായി</string>
     <string name="settings_analytics_description">TigerDuck മെച്ചപ്പെടുത്താൻ സഹായിക്കാൻ അജ്ഞാത ഉപയോഗ ഡേറ്റ (സന്ദർശിച്ച പേജുകൾ, വിജറ്റ് ഉപയോഗം) പങ്കിടുക</string>
     <string name="settings_analytics_enabled">ഉപയോഗ വിശകലനം</string>
+    <string name="settings_api_endpoint">API എൻഡ്‌പോയിന്റ്</string>
     <string name="settings_assignment_due_reminder">അസൈൻമെന്റ് സമയ ഓർമ്മപ്പെടുത്തലുകൾ</string>
     <string name="settings_browser_in_app">ആപ്പ് ഇൻ-ബ്രൗസർ</string>
     <string name="settings_browser_system_default">സിസ്റ്റം ഡിഫോൾട്ട് ബ്രൗസർ</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">ഔദ്യോഗിക വെബ്സൈറ്റ്</string>
     <string name="settings_open_source_licenses">ഓപ്പൺ-സോഴ്‌സ് ലൈസൻസുകൾ</string>
     <string name="settings_privacy_policy">സ്വകാര്യതാ നയം</string>
-    <string name="settings_push_server_nav_label">സെർവർ പുഷ് (പരീക്ഷണാത്മകം)</string>
+    <string name="settings_push_server_nav_label">സെർവർ പുഷ്</string>
     <string name="settings_remember_bulletin_filter">ബുള്ളറ്റിൻ ഫിൽട്ടറുകൾ ഓർക്കുക</string>
     <string name="settings_reset_course_colors">കോഴ്സ് നിറങ്ങൾ പുനഃനൽകുക</string>
     <string name="settings_reset_course_colors_confirm_message">ഓരോ കോഴ്സിനും പുതിയ, വ്യത്യസ്തമായ ഒരു നിറം നൽകും — ആദ്യം പ്രീസെറ്റ് പാലെറ്റിൽ നിന്നു, അത് തീർന്നാൽ ക്രമരഹിതമായി.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">സെർവർ ഉപയോഗിക്കുക</string>
     <string name="sync_fdroid_unavailable_body">ക്ലൗഡ് സിങ്കിന് Google Play സേവനങ്ങൾ ആവശ്യമാണ്, F-Droid ബിൽഡിൽ ലഭ്യമല്ല.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid-ൽ ലഭ്യമല്ല</string>
+    <string name="sync_status_failed">പരാജയപ്പെട്ടു</string>
+    <string name="sync_status_ok">ശരി</string>
+    <string name="sync_status_syncing">സിങ്ക് ചെയ്യുന്നു…</string>
+    <string name="sync_status_title">സിങ്ക് നില</string>
     <string name="sync_success_content_description">സമന്വയം വിജയകരം</string>
     <string name="tab_editor_apply_action">പ്രയോഗിക്കുക</string>
     <string name="tab_editor_drag_reorder">ക്രമമാക്കാൻ വലിക്കുക</string>

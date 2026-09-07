@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Moodle లో అసైన్‌మెంట్ తెరవడానికి రెండుసార్లు నొక్కండి</string>
     <string name="a11y_calendar_day">%1$@, %2$lld ఈవెంట్‌లు</string>
     <string name="a11y_calendar_nav_next">తదుపరి నెల</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">డిఫాల్ట్‌కు తిరిగి వెళ్ళు</string>
     <string name="class_table_rename_title">పేరు మార్చండి</string>
     <string name="class_table_rename_with_course">పేరు మార్చండి — %1$s</string>
-    <string name="class_table_reset_message">ఇది మీ కోర్సు టేబుల్‌ను మీ Moodle నమోదుకు సరిపోయేలా రీసెట్ చేస్తుంది. దాచిన కోర్సులు మళ్ళీ కనిపిస్తాయి మరియు మాన్యువల్‌గా జోడించిన కోర్సులు తొలగించబడతాయి.</string>
+    <string name="class_table_reset_message">Moodle, కోర్సు ఎంపిక వ్యవస్థ మరియు మార్కుల వ్యవస్థ ఆధారంగా కోర్సు టేబుల్ మళ్లీ రూపొందించబడుతుంది. మాన్యువల్‌గా జోడించిన, తొలగించిన మరియు పేరు మార్చిన కోర్సులు పోతాయి.</string>
     <string name="class_table_reset_title">కోర్సు టేబుల్ రీసెట్ చేయండి</string>
+    <string name="class_table_reset_title_with_semester">%1$s కోర్సు టేబుల్ రీసెట్ చేయండి</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">మీ క్లాస్ టేబుల్ చూడటానికి సైన్ ఇన్ చేయండి</string>
     <string name="class_table_total_credits_value">%1$d క్రెడిట్‌లు</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">లాగిన్ గడువు మించింది. దయచేసి మళ్ళీ సైన్ ఇన్ చేయండి.</string>
     <string name="score_gpa_cumulative_to">%1$s వరకు సంచిత GPA</string>
     <string name="score_gpa_latest">తాజా GPA</string>
+    <string name="score_gpa_provisional">తాత్కాలికం</string>
     <string name="score_gpa_term_label">సెమెస్టర్ GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA ట్రెండ్</string>
     <string name="score_grade_exempted">మినహాయించారు</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">అర్థమైంది</string>
     <string name="settings_analytics_description">TigerDuck మెరుగుపరచడానికి అనామక వినియోగ డేటా (సందర్శించిన పేజీలు, విజెట్ వినియోగం) పంచుకోండి</string>
     <string name="settings_analytics_enabled">వినియోగ విశ్లేషణ</string>
+    <string name="settings_api_endpoint">API ఎండ్‌పాయింట్</string>
     <string name="settings_assignment_due_reminder">అసైన్‌మెంట్ గడువు రిమైండర్లు</string>
     <string name="settings_browser_in_app">యాప్ లోపల బ్రౌజర్</string>
     <string name="settings_browser_system_default">సిస్టమ్ డిఫాల్ట్ బ్రౌజర్</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">అధికారిక వెబ్‌సైట్</string>
     <string name="settings_open_source_licenses">ఓపెన్-సోర్స్ లైసెన్సులు</string>
     <string name="settings_privacy_policy">గోప్యతా విధానం</string>
-    <string name="settings_push_server_nav_label">సర్వర్ పుష్ (ప్రయోగాత్మకం)</string>
+    <string name="settings_push_server_nav_label">సర్వర్ పుష్</string>
     <string name="settings_remember_bulletin_filter">బులెటిన్ ఫిల్టర్‌లను గుర్తుంచుకో</string>
     <string name="settings_reset_course_colors">కోర్సు రంగులను తిరిగి కేటాయించండి</string>
     <string name="settings_reset_course_colors_confirm_message">ప్రతి కోర్సుకు కొత్త, ప్రత్యేకమైన రంగు కేటాయించబడుతుంది — మొదట ముందుగా అమర్చిన ప్యాలెట్ నుండి, ప్యాలెట్ అయిపోయాక యాదృచ్ఛికంగా.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">సర్వర్ ఉపయోగించు</string>
     <string name="sync_fdroid_unavailable_body">క్లౌడ్ సింక్‌కు Google Play సేవలు అవసరం, F-Droid బిల్డ్‌లో అందుబాటులో లేదు.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid లో అందుబాటులో లేదు</string>
+    <string name="sync_status_failed">విఫలమైంది</string>
+    <string name="sync_status_ok">సరే</string>
+    <string name="sync_status_syncing">సింక్ అవుతోంది…</string>
+    <string name="sync_status_title">సింక్ స్థితి</string>
     <string name="sync_success_content_description">సమకాలీకరణ విజయవంతమైంది</string>
     <string name="tab_editor_apply_action">వర్తించు</string>
     <string name="tab_editor_drag_reorder">క్రమాన్ని మార్చడానికి లాగండి</string>

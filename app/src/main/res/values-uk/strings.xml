@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Двічі торкніться, щоб відкрити завдання у Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld подій</string>
     <string name="a11y_calendar_nav_next">Наступний місяць</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Повернути до типового</string>
     <string name="class_table_rename_title">Перейменувати</string>
     <string name="class_table_rename_with_course">Перейменувати — %1$s</string>
-    <string name="class_table_reset_message">Це скине ваш розклад відповідно до реєстрації в Moodle. Приховані курси з\'являться знову, а додані вручну курси будуть видалені.</string>
+    <string name="class_table_reset_message">Розклад буде перебудовано за даними Moodle, системи вибору курсів і системи оцінок. Курси, додані, видалені або перейменовані вручну, буде втрачено.</string>
     <string name="class_table_reset_title">Скинути розклад</string>
+    <string name="class_table_reset_title_with_semester">Скинути розклад %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Увійдіть, щоб переглянути розклад занять</string>
     <string name="class_table_total_credits_value">%1$d кредитів</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Сеанс минув. Будь ласка, увійдіть знову.</string>
     <string name="score_gpa_cumulative_to">Накопичений GPA до %1$s</string>
     <string name="score_gpa_latest">Останній GPA</string>
+    <string name="score_gpa_provisional">Попередньо</string>
     <string name="score_gpa_term_label">Семестровий GPA (%1$s)</string>
     <string name="score_gpa_trend_title">Тенденція GPA</string>
     <string name="score_grade_exempted">Звільнено</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Зрозуміло</string>
     <string name="settings_analytics_description">Діліться анонімними даними про використання (відвідані сторінки, використання віджетів), щоб допомогти покращити TigerDuck</string>
     <string name="settings_analytics_enabled">Аналітика використання</string>
+    <string name="settings_api_endpoint">Кінцева точка API</string>
     <string name="settings_assignment_due_reminder">Нагадування про дедлайн завдань</string>
     <string name="settings_browser_in_app">Вбудований браузер</string>
     <string name="settings_browser_system_default">Стандартний системний браузер</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Офіційний сайт</string>
     <string name="settings_open_source_licenses">Ліцензії з відкритим кодом</string>
     <string name="settings_privacy_policy">Політика конфіденційності</string>
-    <string name="settings_push_server_nav_label">Push-сервер (Експериментально)</string>
+    <string name="settings_push_server_nav_label">Push-сервер</string>
     <string name="settings_remember_bulletin_filter">Запам\'ятати фільтри бюлетеня</string>
     <string name="settings_reset_course_colors">Перепризначити кольори курсів</string>
     <string name="settings_reset_course_colors_confirm_message">Кожному курсу буде призначено новий унікальний колір — спочатку з пресетної палітри, потім випадково, коли палітра вичерпається.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Використати сервер</string>
     <string name="sync_fdroid_unavailable_body">Хмарна синхронізація потребує сервісів Google Play і недоступна у збірці F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Недоступно в F-Droid</string>
+    <string name="sync_status_failed">Помилка</string>
+    <string name="sync_status_ok">ОК</string>
+    <string name="sync_status_syncing">Синхронізація…</string>
+    <string name="sync_status_title">Стан синхронізації</string>
     <string name="sync_success_content_description">Синхронізація успішна</string>
     <string name="tab_editor_apply_action">Застосувати</string>
     <string name="tab_editor_drag_reorder">Перетягніть, щоб змінити порядок</string>

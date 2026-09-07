@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Moodle-ல் ஒப்படைப்பைத் திறக்க இருமுறை தட்டவும்</string>
     <string name="a11y_calendar_day">%1$@, %2$lld நிகழ்வுகள்</string>
     <string name="a11y_calendar_nav_next">அடுத்த மாதம்</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">இயல்புநிலைக்கு மீட்டமை</string>
     <string name="class_table_rename_title">மறுபெயரிடு</string>
     <string name="class_table_rename_with_course">மறுபெயரிடு — %1$s</string>
-    <string name="class_table_reset_message">இது உங்கள் பாடநேர அட்டவணையை உங்கள் Moodle பதிவுக்கு ஏற்ப மீட்டமைக்கும். மறைக்கப்பட்ட பாடங்கள் மீண்டும் தோன்றும் மற்றும் கைமுறையாக சேர்க்கப்பட்ட பாடங்கள் நீக்கப்படும்.</string>
+    <string name="class_table_reset_message">Moodle, பாடத் தேர்வு அமைப்பு மற்றும் மதிப்பெண் அமைப்பின் அடிப்படையில் பாடநேர அட்டவணை மீண்டும் உருவாக்கப்படும். கைமுறையாகச் சேர்க்கப்பட்ட, நீக்கப்பட்ட மற்றும் பெயர் மாற்றப்பட்ட பாடங்கள் இழக்கப்படும்.</string>
     <string name="class_table_reset_title">பாடநேர அட்டவணையை மீட்டமைக்கவும்</string>
+    <string name="class_table_reset_title_with_semester">%1$s பாடநேர அட்டவணையை மீட்டமைக்கவும்</string>
     <string name="class_table_semester_picker_label">பருவம்</string>
     <string name="class_table_sign_in_required_message">உங்கள் வகுப்பு அட்டவணையை காண உள்நுழையவும்</string>
     <string name="class_table_total_credits_value">%1$d கிரெடிட்கள்</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">உள்நுழைவு காலாவதியானது. மீண்டும் உள்நுழையவும்.</string>
     <string name="score_gpa_cumulative_to">%1$s வரை ஒட்டுமொத்த GPA</string>
     <string name="score_gpa_latest">சமீபத்திய GPA</string>
+    <string name="score_gpa_provisional">தற்காலிகம்</string>
     <string name="score_gpa_term_label">பருவ GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA போக்கு</string>
     <string name="score_grade_exempted">விலக்கு அளிக்கப்பட்டது</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">புரிந்தது</string>
     <string name="settings_analytics_description">TigerDuck-ஐ மேம்படுத்த உதவ அநாமதேய பயன்பாட்டு தரவு (பார்வையிட்ட பக்கங்கள், விட்ஜெட் பயன்பாடு) பகிரவும்</string>
     <string name="settings_analytics_enabled">பயன்பாட்டு பகுப்பாய்வு</string>
+    <string name="settings_api_endpoint">API எண்ட்பாயிண்ட்</string>
     <string name="settings_assignment_due_reminder">ஒப்படைப்பு காலக்கெடு நினைவூட்டல்கள்</string>
     <string name="settings_browser_in_app">App உள் உலாவி</string>
     <string name="settings_browser_system_default">கணினி இயல்புநிலை உலாவி</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">அதிகாரப்பூர்வ இணையதளம்</string>
     <string name="settings_open_source_licenses">திறந்த மூல உரிமங்கள்</string>
     <string name="settings_privacy_policy">தனியுரிமை கொள்கை</string>
-    <string name="settings_push_server_nav_label">சேவையக புஷ் (சோதனை முறை)</string>
+    <string name="settings_push_server_nav_label">சேவையக புஷ்</string>
     <string name="settings_remember_bulletin_filter">அறிவிப்பு வடிகட்டிகளை நினைவில் வை</string>
     <string name="settings_reset_course_colors">பாடநெறி வண்ணங்களை மீண்டும் ஒதுக்குங்கள்</string>
     <string name="settings_reset_course_colors_confirm_message">ஒவ்வொரு பாடநெறிக்கும் புதிய, தனித்துவமான வண்ணம் ஒதுக்கப்படும் — முதலில் முன்னமைப்பு வண்ணப்பலகையில் இருந்து, பின்னர் அது தீர்ந்துவிட்டால் எழுந்தாற்போல்.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">சேவையகம் பயன்படுத்து</string>
     <string name="sync_fdroid_unavailable_body">கிளவுட் ஒத்திசைவுக்கு Google Play சேவைகள் தேவை, F-Droid பதிப்பில் கிடைக்காது.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid இல் கிடைக்காது</string>
+    <string name="sync_status_failed">தோல்வி</string>
+    <string name="sync_status_ok">சரி</string>
+    <string name="sync_status_syncing">ஒத்திசைக்கிறது…</string>
+    <string name="sync_status_title">ஒத்திசைவு நிலை</string>
     <string name="sync_success_content_description">ஒத்திசைவு வெற்றி</string>
     <string name="tab_editor_apply_action">பயன்படுத்து</string>
     <string name="tab_editor_drag_reorder">மறுவரிசைப்படுத்த இழுக்கவும்</string>

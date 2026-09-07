@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">انقر مرتين لفتح المهمة في Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld أحداث</string>
     <string name="a11y_calendar_nav_next">الشهر التالي</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">العودة إلى الافتراضي</string>
     <string name="class_table_rename_title">إعادة التسمية</string>
     <string name="class_table_rename_with_course">إعادة التسمية — %1$s</string>
-    <string name="class_table_reset_message">سيتم إعادة تعيين جدول المواد ليتوافق مع تسجيلك في Moodle. ستظهر المواد المخفية مجددًا وسيتم حذف المواد المضافة يدويًا.</string>
+    <string name="class_table_reset_message">سيُعاد بناء الجدول وفق Moodle ونظام تسجيل المقررات ونظام الدرجات. ستُفقد المقررات المضافة أو المحذوفة أو المُعاد تسميتها يدويًا.</string>
     <string name="class_table_reset_title">إعادة تعيين جدول المواد</string>
+    <string name="class_table_reset_title_with_semester">إعادة تعيين جدول %1$s</string>
     <string name="class_table_semester_picker_label">الفصل الدراسي</string>
     <string name="class_table_sign_in_required_message">قم بتسجيل الدخول لعرض جدول صفك</string>
     <string name="class_table_total_credits_value">%1$d ساعات معتمدة</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">انتهت صلاحية تسجيل الدخول. يرجى تسجيل الدخول مرة أخرى.</string>
     <string name="score_gpa_cumulative_to">GPA التراكمي حتى %1$s</string>
     <string name="score_gpa_latest">أحدث GPA</string>
+    <string name="score_gpa_provisional">مؤقت</string>
     <string name="score_gpa_term_label">GPA الفصلي (%1$s)</string>
     <string name="score_gpa_trend_title">اتجاه GPA</string>
     <string name="score_grade_exempted">معفى</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">حسنًا</string>
     <string name="settings_analytics_description">شارك بيانات استخدام مجهولة الهوية (الصفحات المزارة، استخدام الأدوات) للمساعدة في تحسين TigerDuck</string>
     <string name="settings_analytics_enabled">تحليلات الاستخدام</string>
+    <string name="settings_api_endpoint">نقطة نهاية API</string>
     <string name="settings_assignment_due_reminder">تذكيرات استحقاق الواجبات</string>
     <string name="settings_browser_in_app">متصفح داخل التطبيق</string>
     <string name="settings_browser_system_default">متصفح النظام الافتراضي</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">الموقع الرسمي</string>
     <string name="settings_open_source_licenses">تراخيص المصادر المفتوحة</string>
     <string name="settings_privacy_policy">سياسة الخصوصية</string>
-    <string name="settings_push_server_nav_label">دفع الخادم (تجريبي)</string>
+    <string name="settings_push_server_nav_label">دفع الخادم</string>
     <string name="settings_remember_bulletin_filter">تذكر مرشحات النشرة</string>
     <string name="settings_reset_course_colors">إعادة تعيين ألوان المقررات</string>
     <string name="settings_reset_course_colors_confirm_message">سيُسنَد لكل مقرر لون فريد جديد — من اللوحة المحددة أولاً، ثم عشوائياً عند نفاد اللوحة.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">استخدام الخادم</string>
     <string name="sync_fdroid_unavailable_body">تتطلب المزامنة السحابية خدمات Google Play وغير متوفرة في إصدار F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">غير متوفر على F-Droid</string>
+    <string name="sync_status_failed">فشل</string>
+    <string name="sync_status_ok">سليم</string>
+    <string name="sync_status_syncing">جارٍ المزامنة…</string>
+    <string name="sync_status_title">حالة المزامنة</string>
     <string name="sync_success_content_description">تمت المزامنة بنجاح</string>
     <string name="tab_editor_apply_action">يتقدم</string>
     <string name="tab_editor_drag_reorder">اسحب لإعادة الترتيب</string>

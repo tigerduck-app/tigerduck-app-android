@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Double tap to open the assignment in Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld events</string>
     <string name="a11y_calendar_nav_next">Next month</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Revert to default</string>
     <string name="class_table_rename_title">Rename</string>
     <string name="class_table_rename_with_course">Rename — %1$s</string>
-    <string name="class_table_reset_message">This will reset your course timetable to match your Moodle enrolment. Hidden courses will reappear and manually added courses will be removed.</string>
+    <string name="class_table_reset_message">This will rebuild the course timetable from Moodle, the course selection system and the grade system. Manually added, deleted and renamed courses will be lost.</string>
     <string name="class_table_reset_title">Reset course timetable</string>
+    <string name="class_table_reset_title_with_semester">Reset %1$s course timetable</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Sign in to view your class table</string>
     <string name="class_table_total_credits_value">%1$d credits</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Login expired. Please sign in again.</string>
     <string name="score_gpa_cumulative_to">Cumulative GPA to %1$s</string>
     <string name="score_gpa_latest">Latest GPA</string>
+    <string name="score_gpa_provisional">Provisional</string>
     <string name="score_gpa_term_label">Semester GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA trend</string>
     <string name="score_grade_exempted">Exempted</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Got it</string>
     <string name="settings_analytics_description">Share anonymised usage data (pages visited, widget usage) to help improve TigerDuck</string>
     <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_api_endpoint">API endpoint</string>
     <string name="settings_assignment_due_reminder">Assignment due reminders</string>
     <string name="settings_browser_in_app">In-app browser</string>
     <string name="settings_browser_system_default">System default browser</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Official website</string>
     <string name="settings_open_source_licenses">Open-source licences</string>
     <string name="settings_privacy_policy">Privacy policy</string>
-    <string name="settings_push_server_nav_label">Server push (Experimental)</string>
+    <string name="settings_push_server_nav_label">Server push</string>
     <string name="settings_remember_bulletin_filter">Remember bulletin filters</string>
     <string name="settings_reset_course_colors">Reset course colours</string>
     <string name="settings_reset_course_colors_confirm_message">This will randomly reassign class table colours using default presets.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Use Server</string>
     <string name="sync_fdroid_unavailable_body">Cloud Sync requires Google Play Services and is not available in the F-Droid build.</string>
     <string name="sync_fdroid_unavailable_title">Not available on F-Droid</string>
+    <string name="sync_status_failed">Failed</string>
+    <string name="sync_status_ok">OK</string>
+    <string name="sync_status_syncing">Syncing…</string>
+    <string name="sync_status_title">Sync status</string>
     <string name="sync_success_content_description">Sync successful</string>
     <string name="tab_editor_apply_action">Apply</string>
     <string name="tab_editor_drag_reorder">Drag to reorder</string>

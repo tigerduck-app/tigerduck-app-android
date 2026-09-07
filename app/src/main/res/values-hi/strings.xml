@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Moodle में असाइनमेंट खोलने के लिए दो बार टैप करें</string>
     <string name="a11y_calendar_day">%1$@, %2$lld इवेंट</string>
     <string name="a11y_calendar_nav_next">अगला महीना</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">डिफ़ॉल्ट पर लौटें</string>
     <string name="class_table_rename_title">नाम बदलें</string>
     <string name="class_table_rename_with_course">नाम बदलें — %1$s</string>
-    <string name="class_table_reset_message">यह आपकी कोर्स टेबल को आपके Moodle नामांकन के अनुसार रीसेट करेगा। छिपे हुए कोर्स फिर से दिखाई देंगे और मैन्युअल रूप से जोड़े गए कोर्स हटा दिए जाएंगे।</string>
+    <string name="class_table_reset_message">कोर्स टेबल को Moodle, कोर्स चयन सिस्टम और अंक सिस्टम के अनुसार फिर से बनाया जाएगा। मैन्युअल रूप से जोड़े, हटाए या नाम बदले गए कोर्स खो जाएँगे।</string>
     <string name="class_table_reset_title">कोर्स टेबल रीसेट करें</string>
+    <string name="class_table_reset_title_with_semester">%1$s कोर्स टेबल रीसेट करें</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">अपनी क्लास टेबल देखने के लिए साइन इन करें</string>
     <string name="class_table_total_credits_value">%1$d क्रेडिट</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">लॉगिन समाप्त हो गया। कृपया फिर से साइन इन करें।</string>
     <string name="score_gpa_cumulative_to">%1$s तक संचयी GPA</string>
     <string name="score_gpa_latest">नवीनतम GPA</string>
+    <string name="score_gpa_provisional">अस्थायी</string>
     <string name="score_gpa_term_label">सेमेस्टर GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA ट्रेंड</string>
     <string name="score_grade_exempted">छूट</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">समझ गया</string>
     <string name="settings_analytics_description">TigerDuck को बेहतर बनाने में मदद के लिए गुमनाम उपयोग डेटा (देखे गए पेज, विजेट उपयोग) साझा करें</string>
     <string name="settings_analytics_enabled">उपयोग विश्लेषण</string>
+    <string name="settings_api_endpoint">API एंडपॉइंट</string>
     <string name="settings_assignment_due_reminder">असाइनमेंट देय अनुस्मारक</string>
     <string name="settings_browser_in_app">इन-ऐप ब्राउज़र</string>
     <string name="settings_browser_system_default">सिस्टम डिफ़ॉल्ट ब्राउज़र</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">आधिकारिक वेबसाइट</string>
     <string name="settings_open_source_licenses">ओपन-सोर्स लाइसेंस</string>
     <string name="settings_privacy_policy">गोपनीयता नीति</string>
-    <string name="settings_push_server_nav_label">सर्वर पुश (प्रायोगिक)</string>
+    <string name="settings_push_server_nav_label">सर्वर पुश</string>
     <string name="settings_remember_bulletin_filter">बुलेटिन फ़िल्टर याद रखें</string>
     <string name="settings_reset_course_colors">कोर्स के रंग पुनः निर्धारित करें</string>
     <string name="settings_reset_course_colors_confirm_message">हर कोर्स को एक नया, अनोखा रंग मिलेगा — पहले प्रीसेट पैलेट से, फिर पैलेट खत्म होने पर यादृच्छिक रूप से।</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">सर्वर उपयोग करें</string>
     <string name="sync_fdroid_unavailable_body">क्लाउड सिंक के लिए Google Play सेवाओं की आवश्यकता है और F-Droid बिल्ड में उपलब्ध नहीं है।</string>
     <string name="sync_fdroid_unavailable_title">F-Droid पर उपलब्ध नहीं</string>
+    <string name="sync_status_failed">विफल</string>
+    <string name="sync_status_ok">ठीक</string>
+    <string name="sync_status_syncing">सिंक हो रहा है…</string>
+    <string name="sync_status_title">सिंक स्थिति</string>
     <string name="sync_success_content_description">सिंक सफल</string>
     <string name="tab_editor_apply_action">लागू करें</string>
     <string name="tab_editor_drag_reorder">क्रम बदलने के लिए खींचें</string>

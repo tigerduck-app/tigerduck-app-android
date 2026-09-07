@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">㩒兩下喺 Moodle 開啟作業</string>
     <string name="a11y_calendar_day">%1$@，共 %2$lld 個事件</string>
     <string name="a11y_calendar_nav_next">下個月</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">還原預設</string>
     <string name="class_table_rename_title">重新命名</string>
     <string name="class_table_rename_with_course">重新命名 — %1$s</string>
-    <string name="class_table_reset_message">呢個會將你嘅課程表重設為 Moodle 選課紀錄。隱藏咗嘅課程會重新出現，手動新增嘅課程會被刪除。</string>
+    <string name="class_table_reset_message">會根據 Moodle、選課系統同成績系統嘅狀態重設，手動新增、刪除同改名嘅課都會唔見</string>
     <string name="class_table_reset_title">重設課程表</string>
+    <string name="class_table_reset_title_with_semester">重設 %1$s 課程表</string>
     <string name="class_table_semester_picker_label">學期</string>
     <string name="class_table_sign_in_required_message">尚未登入,無法查看課表</string>
     <string name="class_table_total_credits_value">%1$d 學分</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">登入已失效，請重新登入。</string>
     <string name="score_gpa_cumulative_to">累積 GPA（截至 %1$s）</string>
     <string name="score_gpa_latest">最新 GPA</string>
+    <string name="score_gpa_provisional">暫定</string>
     <string name="score_gpa_term_label">學期 GPA（%1$s）</string>
     <string name="score_gpa_trend_title">GPA 趨勢</string>
     <string name="score_grade_exempted">抵免</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">知道了</string>
     <string name="settings_analytics_description">分享匿名使用資料（瀏覽頁面、小工具使用情形）以協助改善 TigerDuck</string>
     <string name="settings_analytics_enabled">使用分析</string>
+    <string name="settings_api_endpoint">API 端點</string>
     <string name="settings_assignment_due_reminder">作業到期提醒</string>
     <string name="settings_browser_in_app">App 內瀏覽器</string>
     <string name="settings_browser_system_default">系統預設瀏覽器</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">官方網站</string>
     <string name="settings_open_source_licenses">開源授權</string>
     <string name="settings_privacy_policy">隱私權政策</string>
-    <string name="settings_push_server_nav_label">伺服器推播（實驗性）</string>
+    <string name="settings_push_server_nav_label">伺服器推播</string>
     <string name="settings_remember_bulletin_filter">記住公告篩選條件</string>
     <string name="settings_reset_course_colors">重新分配課表顏色</string>
     <string name="settings_reset_course_colors_confirm_message">每門課都會被指派一個全新且不重複的顏色——優先使用預設色盤，色盤用完後隨機產生。</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">使用伺服器</string>
     <string name="sync_fdroid_unavailable_body">雲端同步需要 Google Play 服務，F-Droid 版本不支援此功能。</string>
     <string name="sync_fdroid_unavailable_title">F-Droid 不支援</string>
+    <string name="sync_status_failed">失敗</string>
+    <string name="sync_status_ok">正常</string>
+    <string name="sync_status_syncing">同步緊…</string>
+    <string name="sync_status_title">同步狀態</string>
     <string name="sync_success_content_description">同步成功</string>
     <string name="tab_editor_apply_action">套用</string>
     <string name="tab_editor_drag_reorder">拖動排序</string>

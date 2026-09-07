@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">두 번 탭하여 Moodle에서 과제 열기</string>
     <string name="a11y_calendar_day">%1$@, 이벤트 %2$lld개</string>
     <string name="a11y_calendar_nav_next">다음 달</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">기본값으로 되돌리기</string>
     <string name="class_table_rename_title">이름 바꾸기</string>
     <string name="class_table_rename_with_course">이름 바꾸기 — %1$s</string>
-    <string name="class_table_reset_message">시간표가 Moodle 수강 등록에 맞게 초기화됩니다. 숨겨진 과목이 다시 표시되고, 수동으로 추가한 과목은 삭제됩니다.</string>
+    <string name="class_table_reset_message">Moodle, 수강 신청 시스템, 성적 시스템의 상태에 따라 시간표를 초기화합니다. 수동으로 추가·삭제·이름 변경한 과목은 사라집니다.</string>
     <string name="class_table_reset_title">시간표 초기화</string>
+    <string name="class_table_reset_title_with_semester">%1$s 시간표 초기화</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">시간표를 보려면 로그인하세요</string>
     <string name="class_table_total_credits_value">%1$d 학점</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">로그인이 만료되었습니다. 다시 로그인해 주세요.</string>
     <string name="score_gpa_cumulative_to">%1$s까지의 누적 GPA</string>
     <string name="score_gpa_latest">최신 GPA</string>
+    <string name="score_gpa_provisional">잠정</string>
     <string name="score_gpa_term_label">학기 GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA 추세</string>
     <string name="score_grade_exempted">면제</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">확인</string>
     <string name="settings_analytics_description">익명 사용 데이터(방문한 페이지, 위젯 사용)를 공유하여 TigerDuck 개선에 도움을 주세요</string>
     <string name="settings_analytics_enabled">사용 분석</string>
+    <string name="settings_api_endpoint">API 엔드포인트</string>
     <string name="settings_assignment_due_reminder">과제 마감 알림</string>
     <string name="settings_browser_in_app">앱 내 브라우저</string>
     <string name="settings_browser_system_default">시스템 기본 브라우저</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">공식 웹사이트</string>
     <string name="settings_open_source_licenses">오픈소스 라이선스</string>
     <string name="settings_privacy_policy">개인정보 처리방침</string>
-    <string name="settings_push_server_nav_label">서버 푸시 (실험적)</string>
+    <string name="settings_push_server_nav_label">서버 푸시</string>
     <string name="settings_remember_bulletin_filter">게시판 필터 기억</string>
     <string name="settings_reset_course_colors">수업 색상 재할당</string>
     <string name="settings_reset_course_colors_confirm_message">모든 수업에 고유한 새 색상을 할당합니다. 먼저 프리셋 팔레트에서, 팔레트가 부족하면 무작위로 생성됩니다.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">서버 사용</string>
     <string name="sync_fdroid_unavailable_body">클라우드 동기화에는 Google Play 서비스가 필요하며 F-Droid 빌드에서는 사용할 수 없습니다.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid에서 사용 불가</string>
+    <string name="sync_status_failed">실패</string>
+    <string name="sync_status_ok">정상</string>
+    <string name="sync_status_syncing">동기화 중…</string>
+    <string name="sync_status_title">동기화 상태</string>
     <string name="sync_success_content_description">동기화 성공</string>
     <string name="tab_editor_apply_action">적용</string>
     <string name="tab_editor_drag_reorder">끌어서 순서 변경</string>

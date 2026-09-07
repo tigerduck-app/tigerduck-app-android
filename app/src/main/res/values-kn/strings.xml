@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Moodle ನಲ್ಲಿ ಕಾರ್ಯವನ್ನು ತೆರೆಯಲು ಎರಡು ಬಾರಿ ಟ್ಯಾಪ್ ಮಾಡಿ</string>
     <string name="a11y_calendar_day">%1$@, %2$lld ಘಟನೆಗಳು</string>
     <string name="a11y_calendar_nav_next">ಮುಂದಿನ ತಿಂಗಳು</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">ಡೀಫಾಲ್ಟ್‌ಗೆ ಮರಳಿಸಿ</string>
     <string name="class_table_rename_title">ಮರುಹೆಸರಿಸಿ</string>
     <string name="class_table_rename_with_course">ಮರುಹೆಸರಿಸಿ — %1$s</string>
-    <string name="class_table_reset_message">ಇದು ನಿಮ್ಮ ಕೋರ್ಸ್ ಟೇಬಲ್ ಅನ್ನು ನಿಮ್ಮ Moodle ನೋಂದಣಿಗೆ ಹೊಂದಿಕೆಯಾಗುವಂತೆ ಮರುಹೊಂದಿಸುತ್ತದೆ. ಮರೆಮಾಡಿದ ಕೋರ್ಸ್‌ಗಳು ಮತ್ತೆ ಕಾಣಿಸಿಕೊಳ್ಳುತ್ತವೆ ಮತ್ತು ಹಸ್ತಚಾಲಿತವಾಗಿ ಸೇರಿಸಿದ ಕೋರ್ಸ್‌ಗಳು ತೆಗೆದುಹಾಕಲ್ಪಡುತ್ತವೆ.</string>
+    <string name="class_table_reset_message">ಕೋರ್ಸ್ ಟೇಬಲ್ ಅನ್ನು Moodle, ಕೋರ್ಸ್ ಆಯ್ಕೆ ವ್ಯವಸ್ಥೆ ಮತ್ತು ಅಂಕಗಳ ವ್ಯವಸ್ಥೆಯ ಆಧಾರದಲ್ಲಿ ಮತ್ತೆ ರಚಿಸಲಾಗುತ್ತದೆ. ಹಸ್ತಚಾಲಿತವಾಗಿ ಸೇರಿಸಿದ, ಅಳಿಸಿದ ಮತ್ತು ಮರುಹೆಸರಿಸಿದ ಕೋರ್ಸ್‌ಗಳು ಕಳೆದುಹೋಗುತ್ತವೆ.</string>
     <string name="class_table_reset_title">ಕೋರ್ಸ್ ಟೇಬಲ್ ಮರುಹೊಂದಿಸಿ</string>
+    <string name="class_table_reset_title_with_semester">%1$s ಕೋರ್ಸ್ ಟೇಬಲ್ ಮರುಹೊಂದಿಸಿ</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">ನಿಮ್ಮ ತರಗತಿ ವೇಳಾಪಟ್ಟಿ ನೋಡಲು ಸೈನ್ ಇನ್ ಮಾಡಿ</string>
     <string name="class_table_total_credits_value">%1$d ಕ್ರೆಡಿಟ್‌ಗಳು</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">ಲಾಗಿನ್ ಅವಧಿ ಮುಗಿದಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಸೈನ್ ಇನ್ ಮಾಡಿ.</string>
     <string name="score_gpa_cumulative_to">%1$s ವರೆಗಿನ ಸಂಚಿತ GPA</string>
     <string name="score_gpa_latest">ಇತ್ತೀಚಿನ GPA</string>
+    <string name="score_gpa_provisional">ತಾತ್ಕಾಲಿಕ</string>
     <string name="score_gpa_term_label">ಸೆಮಿಸ್ಟರ್ GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA ಪ್ರವೃತ್ತಿ</string>
     <string name="score_grade_exempted">ವಿನಾಯಿತಿ</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">ತಿಳಿಯಿತು</string>
     <string name="settings_analytics_description">TigerDuck ಸುಧಾರಿಸಲು ಸಹಾಯ ಮಾಡಲು ಅನಾಮಧೇಯ ಬಳಕೆ ಡೇಟಾ (ಭೇಟಿ ನೀಡಿದ ಪುಟಗಳು, ವಿಜೆಟ್ ಬಳಕೆ) ಹಂಚಿಕೊಳ್ಳಿ</string>
     <string name="settings_analytics_enabled">ಬಳಕೆ ವಿಶ್ಲೇಷಣೆ</string>
+    <string name="settings_api_endpoint">API ಎಂಡ್‌ಪಾಯಿಂಟ್</string>
     <string name="settings_assignment_due_reminder">ಕಾರ್ಯ ಗಡುವು ಜ್ಞಾಪನೆಗಳು</string>
     <string name="settings_browser_in_app">ಅಪ್ಲಿಕೇಶನ್ ಒಳಗಿನ ಬ್ರೌಸರ್</string>
     <string name="settings_browser_system_default">ಸಿಸ್ಟಂ ಡೀಫಾಲ್ಟ್ ಬ್ರೌಸರ್</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">ಅಧಿಕೃತ ವೆಬ್‌ಸೈಟ್</string>
     <string name="settings_open_source_licenses">ಮುಕ್ತ ಮೂಲ ಪರವಾನಗಿಗಳು</string>
     <string name="settings_privacy_policy">ಗೌಪ್ಯತಾ ನೀತಿ</string>
-    <string name="settings_push_server_nav_label">ಸರ್ವರ್ ಪುಶ್ (ಪ್ರಾಯೋಗಿಕ)</string>
+    <string name="settings_push_server_nav_label">ಸರ್ವರ್ ಪುಶ್</string>
     <string name="settings_remember_bulletin_filter">ಬುಲೆಟಿನ್ ಫಿಲ್ಟರ್‌ಗಳನ್ನು ನೆನಪಿಡಿ</string>
     <string name="settings_reset_course_colors">ಕೋರ್ಸ್‌ಗಳಿಗೆ ಬಣ್ಣಗಳನ್ನು ಮರುಹೊಂದಿಸಿ</string>
     <string name="settings_reset_course_colors_confirm_message">ಪ್ರತಿ ಕೋರ್ಸ್‌ಗೆ ಹೊಸ ಮತ್ತು ಅನನ್ಯ ಬಣ್ಣ ನಿಗದಿಯಾಗುತ್ತದೆ — ಮೊದಲು ಪ್ರಿಸೆಟ್ ಪ್ಯಾಲೆಟ್‌ನಿಂದ, ಪ್ಯಾಲೆಟ್ ಮುಗಿದ ಮೇಲೆ ಯಾದೃಚ್ಛಿಕವಾಗಿ.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">ಸರ್ವರ್ ಬಳಸಿ</string>
     <string name="sync_fdroid_unavailable_body">ಕ್ಲೌಡ್ ಸಿಂಕ್‌ಗೆ Google Play ಸೇವೆಗಳು ಅಗತ್ಯ ಮತ್ತು F-Droid ಬಿಲ್ಡ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ</string>
+    <string name="sync_status_failed">ವಿಫಲ</string>
+    <string name="sync_status_ok">ಸರಿ</string>
+    <string name="sync_status_syncing">ಸಿಂಕ್ ಆಗುತ್ತಿದೆ…</string>
+    <string name="sync_status_title">ಸಿಂಕ್ ಸ್ಥಿತಿ</string>
     <string name="sync_success_content_description">ಸಿಂಕ್ ಯಶಸ್ವಿಯಾಗಿದೆ</string>
     <string name="tab_editor_apply_action">ಅನ್ವಯಿಸಿ</string>
     <string name="tab_editor_drag_reorder">ಮರುಕ್ರಮಿಸಲು ಎಳೆಯಿರಿ</string>

@@ -33,9 +33,6 @@ class ScoreViewModel @Inject constructor(
     private val prefs: AppPreferences,
 ) : ViewModel() {
 
-    val isSyncLocalOnly = prefs.lastSyncSource
-        .map { prefs.cloudSyncEnabled && it == SyncSource.LOCAL }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     enum class RankingScope { SEMESTER, CUMULATIVE }
 

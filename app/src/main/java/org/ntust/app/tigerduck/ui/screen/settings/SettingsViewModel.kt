@@ -101,6 +101,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun pushCloudSyncEnabled(enabled: Boolean) {
+        ServerStatusTracker.setCloudSyncEnabled(enabled)
         if (enabled) {
             cloudSyncCoordinator.enable()
         } else {

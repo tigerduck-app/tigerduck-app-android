@@ -77,9 +77,6 @@ class HomeViewModel @Inject constructor(
     private val backendSync: HomeBackendSync,
 ) : ViewModel() {
 
-    val isSyncLocalOnly = prefs.lastSyncSource
-        .map { prefs.cloudSyncEnabled && it == SyncSource.LOCAL }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _sections = MutableStateFlow(prefs.homeSections)
     val sections: StateFlow<List<HomeSection>> = _sections

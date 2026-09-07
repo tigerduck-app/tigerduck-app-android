@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Moodle-дегі тапсырманы ашу үшін екі рет түртіңіз</string>
     <string name="a11y_calendar_day">%1$@, %2$lld оқиға</string>
     <string name="a11y_calendar_nav_next">Келесі ай</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Әдепкіге қайтару</string>
     <string name="class_table_rename_title">Атауын өзгерту</string>
     <string name="class_table_rename_with_course">Атауын өзгерту — %1$s</string>
-    <string name="class_table_reset_message">Бұл сабақ кестеңізді Moodle тіркелуіңізге сәйкестендіріп қалпына келтіреді. Жасырылған пәндер қайта пайда болады, ал қолмен қосылған пәндер жойылады.</string>
+    <string name="class_table_reset_message">Сабақ кестесі Moodle, курс таңдау жүйесі және бағалар жүйесі негізінде қайта құрылады. Қолмен қосылған, жойылған және атауы өзгертілген пәндер жоғалады.</string>
     <string name="class_table_reset_title">Сабақ кестесін қалпына келтіру</string>
+    <string name="class_table_reset_title_with_semester">%1$s сабақ кестесін қалпына келтіру</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Сабақ кестесін қарау үшін жүйеге кіріңіз</string>
     <string name="class_table_total_credits_value">%1$d кредит</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Сеанс мерзімі аяқталды. Қайта кіріңіз.</string>
     <string name="score_gpa_cumulative_to">%1$s дейінгі жинақталған GPA</string>
     <string name="score_gpa_latest">Соңғы GPA</string>
+    <string name="score_gpa_provisional">Алдын ала</string>
     <string name="score_gpa_term_label">Семестр GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA үрдісі</string>
     <string name="score_grade_exempted">Есептелді</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Түсінікті</string>
     <string name="settings_analytics_description">TigerDuck-ты жақсартуға көмектесу үшін анонимді пайдалану деректерін (қаралған беттер, виджет пайдалануы) бөлісіңіз</string>
     <string name="settings_analytics_enabled">Пайдалану аналитикасы</string>
+    <string name="settings_api_endpoint">API соңғы нүктесі</string>
     <string name="settings_assignment_due_reminder">Тапсырма мерзімі туралы еске салулар</string>
     <string name="settings_browser_in_app">Қолданба ішіндегі браузер</string>
     <string name="settings_browser_system_default">Жүйенің әдепкі браузері</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Ресми веб-сайт</string>
     <string name="settings_open_source_licenses">Ашық бастапқы лицензиялар</string>
     <string name="settings_privacy_policy">Құпиялылық саясаты</string>
-    <string name="settings_push_server_nav_label">Серверді итеру (Эксперименталды)</string>
+    <string name="settings_push_server_nav_label">Серверді итеру</string>
     <string name="settings_remember_bulletin_filter">Хабарлама сүзгілерін есте сақтау</string>
     <string name="settings_reset_course_colors">Курс түстерін қайта тағайындау</string>
     <string name="settings_reset_course_colors_confirm_message">Әр курсқа жаңа, бірегей түс тағайындалады — әуелі алдын ала орнатылған палитрадан, палитра таусылған соң кездейсоқ.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Серверді пайдалану</string>
     <string name="sync_fdroid_unavailable_body">Бұлтты синхрондау Google Play қызметтерін қажет етеді және F-Droid нұсқасында қолжетімді емес.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid-та қолжетімді емес</string>
+    <string name="sync_status_failed">Сәтсіз</string>
+    <string name="sync_status_ok">Дұрыс</string>
+    <string name="sync_status_syncing">Синхрондалуда…</string>
+    <string name="sync_status_title">Синхрондау күйі</string>
     <string name="sync_success_content_description">Синхрондау сәтті аяқталды</string>
     <string name="tab_editor_apply_action">Қолдану</string>
     <string name="tab_editor_drag_reorder">Ретті өзгерту үшін сүйреңіз</string>

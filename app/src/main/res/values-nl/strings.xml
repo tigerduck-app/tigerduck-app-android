@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Dubbeltik om de opdracht in Moodle te openen</string>
     <string name="a11y_calendar_day">%1$@, %2$lld evenementen</string>
     <string name="a11y_calendar_nav_next">Volgende maand</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Standaard herstellen</string>
     <string name="class_table_rename_title">Naam wijzigen</string>
     <string name="class_table_rename_with_course">Naam wijzigen — %1$s</string>
-    <string name="class_table_reset_message">Dit zal uw lesrooster herstellen op basis van uw Moodle-inschrijving. Verborgen vakken worden weer zichtbaar en handmatig toegevoegde vakken worden verwijderd.</string>
+    <string name="class_table_reset_message">Het lesrooster wordt opnieuw opgebouwd op basis van Moodle, de vakkeuze en het cijfersysteem. Handmatig toegevoegde, verwijderde en hernoemde vakken gaan verloren.</string>
     <string name="class_table_reset_title">Lesrooster herstellen</string>
+    <string name="class_table_reset_title_with_semester">Lesrooster %1$s herstellen</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Meld je aan om je rooster te bekijken</string>
     <string name="class_table_total_credits_value">%1$d studiepunten</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Inlogsessie verlopen. Log opnieuw in.</string>
     <string name="score_gpa_cumulative_to">Cumulatief GPA tot %1$s</string>
     <string name="score_gpa_latest">Laatste GPA</string>
+    <string name="score_gpa_provisional">Voorlopig</string>
     <string name="score_gpa_term_label">Semester GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA-trend</string>
     <string name="score_grade_exempted">Vrijgesteld</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Begrepen</string>
     <string name="settings_analytics_description">Deel anonieme gebruiksgegevens (bezochte pagina\'s, gebruik van widgets) om TigerDuck te helpen verbeteren</string>
     <string name="settings_analytics_enabled">Gebruiksanalyse</string>
+    <string name="settings_api_endpoint">API-eindpunt</string>
     <string name="settings_assignment_due_reminder">Herinneringen voor opdrachtdeadlines</string>
     <string name="settings_browser_in_app">Browser in app</string>
     <string name="settings_browser_system_default">Standaardbrowser van systeem</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Officiële website</string>
     <string name="settings_open_source_licenses">Opensource-licenties</string>
     <string name="settings_privacy_policy">Privacybeleid</string>
-    <string name="settings_push_server_nav_label">Serverpush (experimenteel)</string>
+    <string name="settings_push_server_nav_label">Serverpush</string>
     <string name="settings_remember_bulletin_filter">Bulletinfilters onthouden</string>
     <string name="settings_reset_course_colors">Cursuskleuren opnieuw toewijzen</string>
     <string name="settings_reset_course_colors_confirm_message">Elke cursus krijgt een nieuwe, unieke kleur — eerst uit het voorgedefinieerde palet, daarna willekeurig zodra het palet op is.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Server gebruiken</string>
     <string name="sync_fdroid_unavailable_body">Cloud Sync vereist Google Play-services en is niet beschikbaar in de F-Droid-versie.</string>
     <string name="sync_fdroid_unavailable_title">Niet beschikbaar op F-Droid</string>
+    <string name="sync_status_failed">Mislukt</string>
+    <string name="sync_status_ok">OK</string>
+    <string name="sync_status_syncing">Synchroniseren…</string>
+    <string name="sync_status_title">Synchronisatiestatus</string>
     <string name="sync_success_content_description">Synchronisatie geslaagd</string>
     <string name="tab_editor_apply_action">Toepassen</string>
     <string name="tab_editor_drag_reorder">Sleep om opnieuw te ordenen</string>

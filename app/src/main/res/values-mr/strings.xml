@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Moodle मध्ये असाइनमेंट उघडण्यासाठी दोनदा टॅप करा</string>
     <string name="a11y_calendar_day">%1$@, %2$lld इव्हेंट</string>
     <string name="a11y_calendar_nav_next">पुढचा महिना</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">डीफॉल्टवर परत जा</string>
     <string name="class_table_rename_title">नाव बदला</string>
     <string name="class_table_rename_with_course">नाव बदला — %1$s</string>
-    <string name="class_table_reset_message">हे तुमचे कोर्स टेबल तुमच्या Moodle नोंदणीशी जुळवून रीसेट करेल. लपवलेले कोर्स पुन्हा दिसतील आणि स्वहस्ते जोडलेले कोर्स काढले जातील.</string>
+    <string name="class_table_reset_message">कोर्स टेबल Moodle, अभ्यासक्रम निवड प्रणाली आणि गुण प्रणालीनुसार पुन्हा तयार केले जाईल. स्वहस्ते जोडलेले, हटवलेले आणि नाव बदललेले कोर्स गमावले जातील.</string>
     <string name="class_table_reset_title">कोर्स टेबल रीसेट करा</string>
+    <string name="class_table_reset_title_with_semester">%1$s कोर्स टेबल रीसेट करा</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">तुमचा वर्ग तक्ता पाहण्यासाठी साइन इन करा</string>
     <string name="class_table_total_credits_value">%1$d क्रेडिट्स</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">लॉगिन कालबाह्य झाले. कृपया पुन्हा साइन इन करा.</string>
     <string name="score_gpa_cumulative_to">%1$s पर्यंत संचयी GPA</string>
     <string name="score_gpa_latest">सर्वात अलीकडील GPA</string>
+    <string name="score_gpa_provisional">तात्पुरते</string>
     <string name="score_gpa_term_label">सत्र GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA ट्रेंड</string>
     <string name="score_grade_exempted">सूट दिली</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">समजले</string>
     <string name="settings_analytics_description">TigerDuck सुधारण्यास मदत करण्यासाठी अनामिक वापर डेटा (भेट दिलेली पृष्ठे, विजेट वापर) शेअर करा</string>
     <string name="settings_analytics_enabled">वापर विश्लेषण</string>
+    <string name="settings_api_endpoint">API एंडपॉइंट</string>
     <string name="settings_assignment_due_reminder">असाइनमेंट मुदत स्मरणपत्रे</string>
     <string name="settings_browser_in_app">ॲप-अंतर्गत ब्राउझर</string>
     <string name="settings_browser_system_default">सिस्टम डीफॉल्ट ब्राउझर</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">अधिकृत वेबसाइट</string>
     <string name="settings_open_source_licenses">ओपन-सोर्स परवाने</string>
     <string name="settings_privacy_policy">गोपनीयता धोरण</string>
-    <string name="settings_push_server_nav_label">सर्व्हर पुश (प्रायोगिक)</string>
+    <string name="settings_push_server_nav_label">सर्व्हर पुश</string>
     <string name="settings_remember_bulletin_filter">बुलेटिन फिल्टर लक्षात ठेवा</string>
     <string name="settings_reset_course_colors">अभ्यासक्रम रंग पुन्हा नियुक्त करा</string>
     <string name="settings_reset_course_colors_confirm_message">प्रत्येक अभ्यासक्रमाला नवा, अद्वितीय रंग दिला जाईल — आधी प्रीसेट पॅलेटमधून, पॅलेट संपल्यावर यादृच्छिक.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">सर्व्हर वापरा</string>
     <string name="sync_fdroid_unavailable_body">क्लाउड सिंकसाठी Google Play सेवा आवश्यक आहेत आणि F-Droid बिल्डमध्ये उपलब्ध नाहीत.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid वर उपलब्ध नाही</string>
+    <string name="sync_status_failed">अयशस्वी</string>
+    <string name="sync_status_ok">ठीक</string>
+    <string name="sync_status_syncing">सिंक होत आहे…</string>
+    <string name="sync_status_title">सिंक स्थिती</string>
     <string name="sync_success_content_description">सिंक यशस्वी</string>
     <string name="tab_editor_apply_action">लागू करा</string>
     <string name="tab_editor_drag_reorder">क्रम बदलण्यासाठी ड्रॅग करा</string>

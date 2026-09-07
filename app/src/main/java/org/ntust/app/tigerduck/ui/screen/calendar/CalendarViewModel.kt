@@ -41,9 +41,6 @@ class CalendarViewModel @Inject constructor(
     private val prefs: AppPreferences,
 ) : ViewModel() {
 
-    val isSyncLocalOnly = prefs.lastSyncSource
-        .map { prefs.cloudSyncEnabled && it == SyncSource.LOCAL }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _events = MutableStateFlow<List<CalendarEvent>>(emptyList())
     val events: StateFlow<List<CalendarEvent>> = _events

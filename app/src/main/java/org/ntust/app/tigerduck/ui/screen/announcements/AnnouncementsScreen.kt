@@ -87,8 +87,7 @@ import org.ntust.app.tigerduck.network.model.orgLabel
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.ServerKind
-import org.ntust.app.tigerduck.ui.component.ServerStatusIcons
-import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -102,27 +101,8 @@ fun AnnouncementsScreen(
 ) {
     LaunchedEffect(Unit) { viewModel.load() }
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val isSyncLocalOnly by viewModel.isSyncLocalOnly.collectAsStateWithLifecycle()
-    var pullProgress by remember { mutableFloatStateOf(0f) }
     val listState = rememberLazyListState()
     val isLoading = state.loadState is AnnouncementsViewModel.LoadState.Loading
-    var showCheckmark by remember { mutableStateOf(false) }
-    var sawLoading by remember { mutableStateOf(false) }
-    LaunchedEffect(state.loadState) {
-        when (state.loadState) {
-            is AnnouncementsViewModel.LoadState.Loading -> sawLoading = true
-            is AnnouncementsViewModel.LoadState.Loaded -> {
-                if (sawLoading) {
-                    sawLoading = false
-                    showCheckmark = true
-                    delay(2000)
-                    showCheckmark = false
-                }
-            }
-
-            else -> sawLoading = false
-        }
-    }
     LaunchedEffect(state.unreadOnly, state.selectedOrgs, state.selectedTags, state.searchText) {
         listState.scrollToItem(0)
     }
@@ -173,7 +153,6 @@ fun AnnouncementsScreen(
         TigerPullToRefresh(
             isRefreshing = state.loadState is AnnouncementsViewModel.LoadState.Loading,
             onRefresh = viewModel::refresh,
-            onDragProgress = { pullProgress = it },
             modifier = Modifier.fillMaxSize(),
             refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
@@ -194,14 +173,9 @@ fun AnnouncementsScreen(
                             .onSizeChanged { headerHeightPx = it.height },
                     ) {
                         PageHeader(title = stringResource(R.string.feature_announcements)) {
-                            SyncIndicator(
-                                isLoading = isLoading,
-                                showCheckmark = showCheckmark,
-                                dragProgress = pullProgress,
-                                isLocalOnly = isSyncLocalOnly,
-                            )
-                            ServerStatusIcons(
+                            SyncStatusDot(
                                 servers = listOf(ServerKind.BACKEND),
+                                isLoading = isLoading,
                             )
                             if (state.unreadOnly && state.hasUnread) {
                                 IconButton(onClick = viewModel::markAllRead) {

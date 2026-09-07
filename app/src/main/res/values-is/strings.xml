@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Ýttu tvisvar til að opna verkefnið í Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld viðburðir</string>
     <string name="a11y_calendar_nav_next">Næsti mánuður</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Endurstilla á sjálfgefið</string>
     <string name="class_table_rename_title">Endurnefna</string>
     <string name="class_table_rename_with_course">Endurnefna — %1$s</string>
-    <string name="class_table_reset_message">Þetta mun endurstilla stundatöfluna þína til að passa við Moodle-skráninguna þína. Faldir áfangar munu birtast aftur og handvirkt bættir áfangar verða fjarlægðir.</string>
+    <string name="class_table_reset_message">Stundataflan verður endurbyggð út frá Moodle, námsvalskerfinu og einkunnakerfinu. Áfangar sem var bætt við, fjarlægðir eða endurnefndir handvirkt glatast.</string>
     <string name="class_table_reset_title">Endurstilla stundatöflu</string>
+    <string name="class_table_reset_title_with_semester">Endurstilla stundatöflu %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Melden Sie sich an, um Ihre Klassentabelle anzuzeigen</string>
     <string name="class_table_total_credits_value">%1$d einingar</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Innskráning rann út. Skráðu þig inn aftur.</string>
     <string name="score_gpa_cumulative_to">Uppsafnað GPA til %1$s</string>
     <string name="score_gpa_latest">Nýjasta GPA</string>
+    <string name="score_gpa_provisional">Bráðabirgða</string>
     <string name="score_gpa_term_label">GPA misseris (%1$s)</string>
     <string name="score_gpa_trend_title">GPA þróun</string>
     <string name="score_grade_exempted">Undanþegin/n</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Skil</string>
     <string name="settings_analytics_description">Deildu nafnlausum notkunargögnum (heimsóttum síðum, notkun widgets) til að hjálpa til við að bæta TigerDuck</string>
     <string name="settings_analytics_enabled">Notkunargreining</string>
+    <string name="settings_api_endpoint">API-endapunktur</string>
     <string name="settings_assignment_due_reminder">Verkefnaáminningar</string>
     <string name="settings_browser_in_app">Innbyggðum vafra</string>
     <string name="settings_browser_system_default">Sjálfgefinn kerfisvafrinn</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Opinber vefsíða</string>
     <string name="settings_open_source_licenses">Opinn uppspretta leyfi</string>
     <string name="settings_privacy_policy">Persónuverndarstefna</string>
-    <string name="settings_push_server_nav_label">Þjónsendari (tilraunakennt)</string>
+    <string name="settings_push_server_nav_label">Þjónsendari</string>
     <string name="settings_remember_bulletin_filter">Muna síur tilkynninga</string>
     <string name="settings_reset_course_colors">Endurúthluta litum námskeiða</string>
     <string name="settings_reset_course_colors_confirm_message">Hverju námskeiði verður úthlutað nýjum, einstökum lit — fyrst úr fyrirfram skilgreindum litapall, og síðan af handahófi þegar pallinn klárast.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Nota þjón</string>
     <string name="sync_fdroid_unavailable_body">Skýjasamstilling krefst Google Play þjónustu og er ekki í boði í F-Droid útgáfunni.</string>
     <string name="sync_fdroid_unavailable_title">Ekki í boði á F-Droid</string>
+    <string name="sync_status_failed">Mistókst</string>
+    <string name="sync_status_ok">Í lagi</string>
+    <string name="sync_status_syncing">Samstillir…</string>
+    <string name="sync_status_title">Staða samstillingar</string>
     <string name="sync_success_content_description">Samstilling tókst</string>
     <string name="tab_editor_apply_action">Nota</string>
     <string name="tab_editor_drag_reorder">Dragðu til að raða</string>

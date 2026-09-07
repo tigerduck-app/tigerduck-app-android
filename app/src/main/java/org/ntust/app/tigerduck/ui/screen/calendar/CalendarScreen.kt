@@ -62,8 +62,7 @@ import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.ServerKind
-import org.ntust.app.tigerduck.ui.component.ServerStatusIcons
-import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.text.SimpleDateFormat
@@ -81,35 +80,24 @@ fun CalendarScreen(
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val displayedMonth by viewModel.displayedMonth.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val isSyncLocalOnly by viewModel.isSyncLocalOnly.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val dayEvents by viewModel.selectedDateEvents.collectAsStateWithLifecycle()
     val resources = LocalResources.current
 
-    var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(viewModel) { viewModel.load() }
-    LaunchedEffect(viewModel) {
-        viewModel.syncCompleteEvent.collect {
-            showCheckmark = true
-            delay(2000)
-            showCheckmark = false
-        }
-    }
     LaunchedEffect(viewModel) {
         viewModel.noNetworkEvent.collect {
             snackbarHostState.showSnackbar(resources.getString(R.string.error_network_unavailable))
         }
     }
 
-    var pullProgress by remember { mutableFloatStateOf(0f) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         TigerPullToRefresh(
             isRefreshing = isLoading,
             onRefresh = { viewModel.refresh() },
-            onDragProgress = { pullProgress = it },
             modifier = Modifier.fillMaxSize(),
             refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
@@ -119,14 +107,9 @@ fun CalendarScreen(
             ) {
                 item {
                     PageHeader(title = stringResource(R.string.feature_calendar)) {
-                        SyncIndicator(
-                            isLoading = isLoading,
-                            showCheckmark = showCheckmark,
-                            dragProgress = pullProgress,
-                            isLocalOnly = isSyncLocalOnly,
-                        )
-                        ServerStatusIcons(
+                        SyncStatusDot(
                             servers = listOf(ServerKind.MOODLE),
+                            isLoading = isLoading,
                         )
                         Spacer(Modifier.width(8.dp))
                         JumpToNowChip(

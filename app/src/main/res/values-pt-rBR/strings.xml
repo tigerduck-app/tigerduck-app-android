@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Toque duas vezes para abrir a tarefa no Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld eventos</string>
     <string name="a11y_calendar_nav_next">Próximo mês</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Restaurar padrão</string>
     <string name="class_table_rename_title">Renomear</string>
     <string name="class_table_rename_with_course">Renomear — %1$s</string>
-    <string name="class_table_reset_message">Isso vai redefinir sua grade de cursos para corresponder à sua matrícula no Moodle. Cursos ocultos reaparecerão e cursos adicionados manualmente serão removidos.</string>
+    <string name="class_table_reset_message">A grade será reconstruída a partir do Moodle, do sistema de matrícula e do sistema de notas. Disciplinas adicionadas, removidas ou renomeadas manualmente serão perdidas.</string>
     <string name="class_table_reset_title">Redefinir grade de cursos</string>
+    <string name="class_table_reset_title_with_semester">Redefinir grade de %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Faça login para ver sua grade de aulas</string>
     <string name="class_table_total_credits_value">%1$d créditos</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Sessão expirada. Por favor, entre novamente.</string>
     <string name="score_gpa_cumulative_to">GPA acumulado até %1$s</string>
     <string name="score_gpa_latest">GPA mais recente</string>
+    <string name="score_gpa_provisional">Provisório</string>
     <string name="score_gpa_term_label">GPA do semestre (%1$s)</string>
     <string name="score_gpa_trend_title">Tendência do GPA</string>
     <string name="score_grade_exempted">Dispensada</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Entendi</string>
     <string name="settings_analytics_description">Compartilhe dados de uso anônimos (páginas visitadas, uso de widgets) para ajudar a melhorar o TigerDuck</string>
     <string name="settings_analytics_enabled">Análise de uso</string>
+    <string name="settings_api_endpoint">Endpoint da API</string>
     <string name="settings_assignment_due_reminder">Lembretes de prazo de atividades</string>
     <string name="settings_browser_in_app">Navegador interno</string>
     <string name="settings_browser_system_default">Navegador padrão do sistema</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Site oficial</string>
     <string name="settings_open_source_licenses">Licenças de código aberto</string>
     <string name="settings_privacy_policy">Política de privacidade</string>
-    <string name="settings_push_server_nav_label">Push do servidor (Experimental)</string>
+    <string name="settings_push_server_nav_label">Push do servidor</string>
     <string name="settings_remember_bulletin_filter">Lembrar filtros do boletim</string>
     <string name="settings_reset_course_colors">Reatribuir cores dos cursos</string>
     <string name="settings_reset_course_colors_confirm_message">Cada curso receberá uma cor nova e única — primeiro da paleta predefinida, depois aleatoriamente quando esgotada.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Usar servidor</string>
     <string name="sync_fdroid_unavailable_body">A sincronização na nuvem requer os serviços do Google Play e não está disponível na versão F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Não disponível no F-Droid</string>
+    <string name="sync_status_failed">Falhou</string>
+    <string name="sync_status_ok">OK</string>
+    <string name="sync_status_syncing">Sincronizando…</string>
+    <string name="sync_status_title">Status da sincronização</string>
     <string name="sync_success_content_description">Sincronização bem-sucedida</string>
     <string name="tab_editor_apply_action">Aplicar</string>
     <string name="tab_editor_drag_reorder">Arraste para reordenar</string>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Toca dues vegades per obrir la tasca a Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld esdeveniments</string>
     <string name="a11y_calendar_nav_next">Mes següent</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Restablir per defecte</string>
     <string name="class_table_rename_title">Reanomena</string>
     <string name="class_table_rename_with_course">Reanomena — %1$s</string>
-    <string name="class_table_reset_message">Això restablirà el teu horari de cursos perquè coincideixi amb la teva inscripció a Moodle. Els cursos ocults tornaran a aparèixer i els cursos afegits manualment s\'eliminaran.</string>
+    <string name="class_table_reset_message">L\'horari es reconstruirà a partir de Moodle, del sistema de selecció de cursos i del sistema de notes. Els cursos afegits, eliminats o reanomenats manualment es perdran.</string>
     <string name="class_table_reset_title">Restableix l\'horari de cursos</string>
+    <string name="class_table_reset_title_with_semester">Restableix l\'horari de %1$s</string>
     <string name="class_table_semester_picker_label">Semestre</string>
     <string name="class_table_sign_in_required_message">Inicieu la sessió per veure la vostra taula de classe</string>
     <string name="class_table_total_credits_value">%1$d crèdits</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">La sessió ha caducat. Torneu a iniciar la sessió.</string>
     <string name="score_gpa_cumulative_to">GPA acumulat fins a %1$s</string>
     <string name="score_gpa_latest">Darrer GPA</string>
+    <string name="score_gpa_provisional">Provisional</string>
     <string name="score_gpa_term_label">GPA del semestre (%1$s)</string>
     <string name="score_gpa_trend_title">Tendència del GPA</string>
     <string name="score_grade_exempted">Exempt</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Entès</string>
     <string name="settings_analytics_description">Comparteix dades d\'ús anònimes (pàgines visitades, ús de widgets) per ajudar a millorar TigerDuck</string>
     <string name="settings_analytics_enabled">Anàlisi d\'ús</string>
+    <string name="settings_api_endpoint">Punt final de l\'API</string>
     <string name="settings_assignment_due_reminder">Recordatoris de venciment de tasques</string>
     <string name="settings_browser_in_app">Navegador de l\'aplicació</string>
     <string name="settings_browser_system_default">Navegador predeterminat del sistema</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Lloc web oficial</string>
     <string name="settings_open_source_licenses">Llicències de codi obert</string>
     <string name="settings_privacy_policy">Política de privadesa</string>
-    <string name="settings_push_server_nav_label">Push del servidor (experimental)</string>
+    <string name="settings_push_server_nav_label">Push del servidor</string>
     <string name="settings_remember_bulletin_filter">Recordeu els filtres de butlletins</string>
     <string name="settings_reset_course_colors">Reassigna els colors dels cursos</string>
     <string name="settings_reset_course_colors_confirm_message">A cada curs se li assignarà un color nou i únic — primer de la paleta preestablerta i, després, aleatòriament quan s\'esgoti.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Usar servidor</string>
     <string name="sync_fdroid_unavailable_body">La sincronització al núvol requereix els serveis de Google Play i no està disponible a la versió F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">No disponible a F-Droid</string>
+    <string name="sync_status_failed">Ha fallat</string>
+    <string name="sync_status_ok">Correcte</string>
+    <string name="sync_status_syncing">Sincronitzant…</string>
+    <string name="sync_status_title">Estat de la sincronització</string>
     <string name="sync_success_content_description">Sincronització correcta</string>
     <string name="tab_editor_apply_action">Aplicar</string>
     <string name="tab_editor_drag_reorder">Arrossegueu per reordenar</string>

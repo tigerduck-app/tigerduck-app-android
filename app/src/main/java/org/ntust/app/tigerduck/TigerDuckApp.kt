@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.debug.DebugClockController
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.notification.NotificationChannels
@@ -76,6 +77,10 @@ class TigerDuckApp : Application(), Configuration.Provider {
         // deleted. AppState re-reads the cached outcome for the reset prompt.
         dataMigration.run()
         analyticsLogger.setEnabled(appPreferences.analyticsEnabled)
+        // Seeded here so a cold launch with cloud sync off does not show the
+        // status dot's backend row as "unknown" until the first sync guard
+        // runs — which, sync being off, may be never.
+        ServerStatusTracker.setCloudSyncEnabled(appPreferences.cloudSyncEnabled)
         analyticsLogger.setUserProperty("app_version", BuildConfig.VERSION_NAME)
         debugClockController.bootstrap()
         AppLanguageManager.apply(appPreferences.appLanguage)

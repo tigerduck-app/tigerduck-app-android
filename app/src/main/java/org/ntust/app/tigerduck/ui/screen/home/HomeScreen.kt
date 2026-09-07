@@ -62,8 +62,7 @@ import org.ntust.app.tigerduck.ui.component.ComingSoonDialog
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.ServerKind
-import org.ntust.app.tigerduck.ui.component.ServerStatusIcons
-import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.rememberAppClockVersion
 import java.util.Calendar
@@ -105,9 +104,7 @@ fun HomeScreen(
     // 翹課 — see HomeViewModel._skippedDates. Lands after add-friend.
     // val skippedDates by viewModel.skippedDates.collectAsStateWithLifecycle()
     val syncConflicts by viewModel.syncConflicts.collectAsStateWithLifecycle()
-    val isSyncLocalOnly by viewModel.isSyncLocalOnly.collectAsStateWithLifecycle()
     var showComingSoon by remember { mutableStateOf(false) }
-    var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     var isEditing by remember { mutableStateOf(false) }
@@ -158,20 +155,11 @@ fun HomeScreen(
     // collecting on Unit means events emitted while the screen is in the back
     // stack stay attached to a stale collector and can be lost.
     LaunchedEffect(viewModel) {
-        viewModel.syncCompleteEvent.collect {
-            showCheckmark = true
-            delay(2000)
-            showCheckmark = false
-        }
-    }
-
-    LaunchedEffect(viewModel) {
         viewModel.noNetworkEvent.collect {
             snackbarHostState.showSnackbar(resources.getString(R.string.error_network_unavailable))
         }
     }
 
-    var pullProgress by remember { mutableFloatStateOf(0f) }
     // Stable lambda reference: a fresh `viewModel::hasUnfinishedAssignment`
     // bound-method allocation per recomposition would defeat skipping for
     // every HomeSectionContent below.
@@ -183,7 +171,6 @@ fun HomeScreen(
         TigerPullToRefresh(
             isRefreshing = isLoading,
             onRefresh = { viewModel.refresh() },
-            onDragProgress = { pullProgress = it },
             modifier = Modifier.fillMaxSize(),
             refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
@@ -209,14 +196,9 @@ fun HomeScreen(
                                 )
                             }
                         } else {
-                            SyncIndicator(
-                                isLoading = isLoading,
-                                showCheckmark = showCheckmark,
-                                dragProgress = pullProgress,
-                                isLocalOnly = isSyncLocalOnly,
-                            )
-                            ServerStatusIcons(
+                            SyncStatusDot(
                                 servers = listOf(ServerKind.MOODLE, ServerKind.BACKEND),
+                                isLoading = isLoading,
                             )
                         }
                     }

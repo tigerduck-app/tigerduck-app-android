@@ -76,9 +76,6 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
 
     fun setLastSyncSource(source: SyncSource) { _lastSyncSource.value = source }
 
-    val isSyncLocalOnly: Boolean
-        get() = cloudSyncEnabled && _lastSyncSource.value == SyncSource.LOCAL
-
     // Opt-in: must default to false. A true default would silently enable
     // upload for existing users on upgrade (they never see the onboarding
     // sync page, and silent v3 migration logs them in without interaction).

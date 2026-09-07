@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Divreiz pieskarieties, lai atvērtu uzdevumu Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld notikumi</string>
     <string name="a11y_calendar_nav_next">Nākamais mēnesis</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">Atjaunot noklusējumu</string>
     <string name="class_table_rename_title">Pārsaukt</string>
     <string name="class_table_rename_with_course">Pārsaukt — %1$s</string>
-    <string name="class_table_reset_message">Tas atiestatīs jūsu stundu sarakstu atbilstoši Moodle reģistrācijai. Slēptie kursi atkal parādīsies, un manuāli pievienotie kursi tiks noņemti.</string>
+    <string name="class_table_reset_message">Stundu saraksts tiks izveidots no jauna, izmantojot Moodle, kursu izvēles sistēmu un atzīmju sistēmu. Manuāli pievienotie, dzēstie un pārdēvētie kursi tiks zaudēti.</string>
     <string name="class_table_reset_title">Atiestatīt stundu sarakstu</string>
+    <string name="class_table_reset_title_with_semester">Atiestatīt %1$s stundu sarakstu</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Pierakstieties, lai skatītu savu stundu sarakstu</string>
     <string name="class_table_total_credits_value">%1$d kredītpunkti</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">Pieteikšanās ir beigusies. Lūdzu, piesakieties vēlreiz.</string>
     <string name="score_gpa_cumulative_to">Kumulatīvais GPA līdz %1$s</string>
     <string name="score_gpa_latest">Jaunākais GPA</string>
+    <string name="score_gpa_provisional">Provizoriski</string>
     <string name="score_gpa_term_label">Semestra GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA tendence</string>
     <string name="score_grade_exempted">Atbrīvots</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">Sapratu</string>
     <string name="settings_analytics_description">Dalies ar anonīmiem lietošanas datiem (apmeklētās lapas, sīkrīku lietošana), lai palīdzētu uzlabot TigerDuck</string>
     <string name="settings_analytics_enabled">Lietošanas analītika</string>
+    <string name="settings_api_endpoint">API galapunkts</string>
     <string name="settings_assignment_due_reminder">Uzdevumu termiņa atgādinājumi</string>
     <string name="settings_browser_in_app">Pārlūks lietotnē</string>
     <string name="settings_browser_system_default">Sistēmas noklusējuma pārlūks</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">Oficiālā vietne</string>
     <string name="settings_open_source_licenses">Atvērtā koda licences</string>
     <string name="settings_privacy_policy">Privātuma politika</string>
-    <string name="settings_push_server_nav_label">Servera push (eksperimentāls)</string>
+    <string name="settings_push_server_nav_label">Servera push</string>
     <string name="settings_remember_bulletin_filter">Atcerēties biļetenu filtrus</string>
     <string name="settings_reset_course_colors">No jauna piešķirt kursu krāsas</string>
     <string name="settings_reset_course_colors_confirm_message">Katram kursam tiks piešķirta jauna, unikāla krāsa — vispirms no iepriekšiestatītās paletes, pēc tās izsmelšanas — nejauši.</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">Lietot serveri</string>
     <string name="sync_fdroid_unavailable_body">Mākoņsinhronizācijai nepieciešami Google Play pakalpojumi, un tā nav pieejama F-Droid versijā.</string>
     <string name="sync_fdroid_unavailable_title">Nav pieejams F-Droid</string>
+    <string name="sync_status_failed">Neizdevās</string>
+    <string name="sync_status_ok">Labi</string>
+    <string name="sync_status_syncing">Sinhronizē…</string>
+    <string name="sync_status_title">Sinhronizācijas statuss</string>
     <string name="sync_success_content_description">Sinhronizācija veiksmīga</string>
     <string name="tab_editor_apply_action">Lietot</string>
     <string name="tab_editor_drag_reorder">Velciet, lai pārkārtotu</string>

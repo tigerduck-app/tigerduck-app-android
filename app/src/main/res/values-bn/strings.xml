@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Moodle-এ অ্যাসাইনমেন্ট খুলতে দুবার ট্যাপ করুন</string>
     <string name="a11y_calendar_day">%1$@, %2$lld টি ইভেন্ট</string>
     <string name="a11y_calendar_nav_next">পরের মাস</string>
@@ -171,8 +171,9 @@
     <string name="class_table_rename_revert">ডিফল্টে ফিরে যান</string>
     <string name="class_table_rename_title">নাম পরিবর্তন</string>
     <string name="class_table_rename_with_course">নাম পরিবর্তন — %1$s</string>
-    <string name="class_table_reset_message">এটি আপনার কোর্স সময়সূচি Moodle-এ আপনার তালিকাভুক্তির সাথে মিলিয়ে রিসেট করবে। লুকানো কোর্সগুলি আবার দেখা যাবে এবং ম্যানুয়ালি যোগ করা কোর্সগুলি মুছে ফেলা হবে।</string>
+    <string name="class_table_reset_message">কোর্স সময়সূচি Moodle, কোর্স নির্বাচন সিস্টেম ও নম্বর সিস্টেম অনুযায়ী পুনরায় তৈরি করা হবে। ম্যানুয়ালি যোগ, মুছে ফেলা বা নাম পরিবর্তন করা কোর্স হারিয়ে যাবে।</string>
     <string name="class_table_reset_title">কোর্স সময়সূচি রিসেট করুন</string>
+    <string name="class_table_reset_title_with_semester">%1$s কোর্স সময়সূচি রিসেট করুন</string>
     <string name="class_table_semester_picker_label">সেমিস্টার</string>
     <string name="class_table_sign_in_required_message">আপনার ক্লাস টেবিল দেখতে সাইন ইন করুন</string>
     <string name="class_table_total_credits_value">%1$d ক্রেডিট</string>
@@ -610,6 +611,7 @@
     <string name="score_error_sign_in_expired">লগইন মেয়াদ শেষ। আবার সাইন ইন করুন।</string>
     <string name="score_gpa_cumulative_to">%1$s পর্যন্ত সঞ্চিত GPA</string>
     <string name="score_gpa_latest">সর্বশেষ GPA</string>
+    <string name="score_gpa_provisional">অস্থায়ী</string>
     <string name="score_gpa_term_label">সেমিস্টার GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA প্রবণতা</string>
     <string name="score_grade_exempted">ছাড় দেওয়া হয়েছে</string>
@@ -648,6 +650,7 @@
     <string name="settings_acknowledged">বুঝেছি</string>
     <string name="settings_analytics_description">TigerDuck উন্নত করতে সাহায্য করতে বেনামী ব্যবহারের তথ্য (পরিদর্শন করা পেজ, উইজেট ব্যবহার) শেয়ার করুন</string>
     <string name="settings_analytics_enabled">ব্যবহার বিশ্লেষণ</string>
+    <string name="settings_api_endpoint">API এন্ডপয়েন্ট</string>
     <string name="settings_assignment_due_reminder">অ্যাসাইনমেন্টের সময়সীমার স্মরণিকা</string>
     <string name="settings_browser_in_app">অ্যাপ-ইন ব্রাউজার</string>
     <string name="settings_browser_system_default">সিস্টেম ডিফল্ট ব্রাউজার</string>
@@ -690,7 +693,7 @@
     <string name="settings_official_website">অফিসিয়াল ওয়েবসাইট</string>
     <string name="settings_open_source_licenses">ওপেন-সোর্স লাইসেন্স</string>
     <string name="settings_privacy_policy">গোপনীয়তা নীতি</string>
-    <string name="settings_push_server_nav_label">সার্ভার পুশ (পরীক্ষামূলক)</string>
+    <string name="settings_push_server_nav_label">সার্ভার পুশ</string>
     <string name="settings_remember_bulletin_filter">বুলেটিন ফিল্টার মনে রাখবেন</string>
     <string name="settings_reset_course_colors">কোর্স রঙ পুনরায় বরাদ্দ করুন</string>
     <string name="settings_reset_course_colors_confirm_message">প্রতিটি কোর্সকে একটি নতুন এবং অনন্য রঙ দেওয়া হবে — প্রথমে প্রিসেট প্যালেট থেকে, প্যালেট ফুরিয়ে গেলে এলোমেলোভাবে।</string>
@@ -747,6 +750,10 @@
     <string name="sync_conflict_use_server">সার্ভার ব্যবহার করুন</string>
     <string name="sync_fdroid_unavailable_body">ক্লাউড সিঙ্কের জন্য Google Play পরিষেবা প্রয়োজন এবং F-Droid বিল্ডে উপলব্ধ নয়।</string>
     <string name="sync_fdroid_unavailable_title">F-Droid-এ উপলব্ধ নয়</string>
+    <string name="sync_status_failed">ব্যর্থ</string>
+    <string name="sync_status_ok">ঠিক আছে</string>
+    <string name="sync_status_syncing">সিঙ্ক হচ্ছে…</string>
+    <string name="sync_status_title">সিঙ্ক অবস্থা</string>
     <string name="sync_success_content_description">সিঙ্ক সফল</string>
     <string name="tab_editor_apply_action">আবেদন করুন</string>
     <string name="tab_editor_drag_reorder">টেনে পুনর্বিন্যাস করুন</string>
