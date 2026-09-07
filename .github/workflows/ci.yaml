@@ -3,8 +3,9 @@ name: CI
 # Compile + unit-test gate for PRs. Before this existed, the first automated
 # Gradle invocation in the repo's lifecycle was the release workflow itself,
 # so a compile error or failing test could ride a merged PR all the way to
-# release day. Keep this lean: compile both phone flavors + wear, run every
-# JVM unit test. No emulator, no lint baseline churn.
+# release day. Keep this lean: compile both phone flavors + wear, build the
+# wear release artifacts the release workflow ships, run every JVM unit test.
+# No emulator, no lint baseline churn.
 
 on:
   pull_request:
@@ -38,6 +39,18 @@ jobs:
           :app:compilePlayDebugKotlin
           :app:compileFdroidDebugKotlin
           :wear:compileDebugKotlin
+
+      # :wear's release build is minified with its own proguard-rules.pro, and
+      # nothing else in the PR gate runs R8 over it — a keep-rule gap would
+      # otherwise surface for the first time on release day, which is exactly
+      # the failure mode this workflow exists to prevent. Unsigned on purpose:
+      # PRs from forks cannot read KEYSTORE_* secrets, and signing is the
+      # release workflow's job. Output lands as wear-release-unsigned.apk.
+      - name: Build wear release (unsigned)
+        run: >
+          ./gradlew --no-daemon
+          :wear:assembleRelease
+          :wear:bundleRelease
 
       - name: Unit tests
         run: >

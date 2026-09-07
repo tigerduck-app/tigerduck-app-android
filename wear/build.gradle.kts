@@ -21,6 +21,20 @@ android {
         versionName = "2.0.0"
     }
 
+    // Mirrors :app. The watch APK/AAB carries the same applicationId as the
+    // play phone build, so Play requires it to be signed with the same key —
+    // an upload signed with anything else is rejected as a different app. The
+    // release workflow decodes the shared keystore into wear/keystore.jks
+    // alongside app/keystore.jks; see .github/workflows/release-manual.yaml.
+    signingConfigs {
+        create("release") {
+            storeFile = file("keystore.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
+        }
+    }
+
     buildTypes {
         debug { }
         release {
@@ -29,6 +43,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Guarded exactly like :app so a checkout without the keystore
+            // still builds — CI's PR gate compiles this variant unsigned, and
+            // an unsigned build lands as wear-release-unsigned.apk rather than
+            // failing configuration.
+            val keystoreFile = file("keystore.jks")
+            if (keystoreFile.exists() && System.getenv("KEYSTORE_PASSWORD")?.isNotEmpty() == true) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

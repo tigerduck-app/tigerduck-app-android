@@ -5,9 +5,16 @@
 ### `release-manual.yaml` — Release (Manual) — **active**
 
 Manually-dispatched release. Tags `main` (if the tag does not yet exist), builds
-signed `play` and `fdroid` AABs/APKs, pins the F-Droid metadata commit hash, and
-publishes a GitHub Release with the artifacts attached. Does **not** upload to
-Google Play.
+signed `play` and `fdroid` phone AABs/APKs plus the signed `:wear` AAB/APK, pins
+the F-Droid metadata commit hash, and publishes a GitHub Release with the
+artifacts attached. Does **not** upload to Google Play.
+
+Six artifacts: `TigerDuck.{apk,aab}` (play), `TigerDuck-fdroid.{apk,aab}`, and
+`TigerDuck-Wear.{apk,aab}`. The watch is play-only — `:wear` has no product
+flavors because it depends on `play-services-wearable`, so there is no F-Droid
+watch build to ship. It is signed with the same keystore as the phone (same
+`applicationId`), which the workflow decodes into `wear/keystore.jks` as well as
+`app/keystore.jks`.
 
 Inputs:
 
@@ -46,8 +53,14 @@ Currently suspended.
 
 ### `ci.yaml`
 
-Runs on PRs to `main` and `dev`. Compiles both phone flavors plus `:wear` and
-runs every JVM unit test. Lean on purpose: no emulator, no lint baseline.
+Runs on PRs to `main` and `dev`. Compiles both phone flavors plus `:wear`,
+builds the `:wear` release AAB/APK unsigned, and runs every JVM unit test. Lean
+on purpose: no emulator, no lint baseline.
+
+The wear release build is there because `:wear` is minified with its own
+`proguard-rules.pro` and nothing else in the PR gate runs R8 over it — without
+this step a missing keep rule would surface for the first time on release day.
+Unsigned because fork PRs cannot read the `KEYSTORE_*` secrets.
 
 ### `pr-checklist.yaml`
 

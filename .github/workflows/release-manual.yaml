@@ -132,17 +132,25 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5
 
+      # Both modules resolve `keystore.jks` relative to their own project dir,
+      # so the one secret is decoded twice. The watch must be signed with the
+      # phone's key: it ships under the same applicationId, and Play rejects a
+      # companion signed with anything else.
       - name: Decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+          cp app/keystore.jks wear/keystore.jks
 
       - name: Decode google-services.json
         env:
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
         run: echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > app/src/play/google-services.json
 
-      - name: Build release AAB and APK
+      # Root-level task names fan out to every module, so this already covers
+      # :wear:assembleRelease / :wear:bundleRelease.
+      - name: Build release AAB and APK (phone + watch)
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -156,6 +164,12 @@ jobs:
           mv app/build/outputs/apk/fdroid/release/app-fdroid-release.apk "app/build/outputs/apk/fdroid/release/TigerDuck-fdroid.apk"
           mv app/build/outputs/bundle/playRelease/app-play-release.aab "app/build/outputs/bundle/playRelease/TigerDuck.aab"
           mv app/build/outputs/bundle/fdroidRelease/app-fdroid-release.aab "app/build/outputs/bundle/fdroidRelease/TigerDuck-fdroid.aab"
+          # Watch: play-only by construction — :wear has no flavors because it
+          # depends on play-services-wearable, so there is no fdroid counterpart
+          # to ship. An unsigned build would land as wear-release-unsigned.apk
+          # and this mv would fail the job, which is the intended signal.
+          mv wear/build/outputs/apk/release/wear-release.apk "wear/build/outputs/apk/release/TigerDuck-Wear.apk"
+          mv wear/build/outputs/bundle/release/wear-release.aab "wear/build/outputs/bundle/release/TigerDuck-Wear.aab"
 
       - name: Create and push signed tag
         if: steps.resolve.outputs.tag_exists == 'false'
@@ -235,9 +249,12 @@ jobs:
             app/build/outputs/apk/fdroid/release/*.apk
             app/build/outputs/bundle/playRelease/*.aab
             app/build/outputs/bundle/fdroidRelease/*.aab
+            wear/build/outputs/apk/release/*.apk
+            wear/build/outputs/bundle/release/*.aab
 
       - name: Clean up secrets
         if: always()
         run: |
           rm -f app/keystore.jks
+          rm -f wear/keystore.jks
           rm -f app/src/play/google-services.json
