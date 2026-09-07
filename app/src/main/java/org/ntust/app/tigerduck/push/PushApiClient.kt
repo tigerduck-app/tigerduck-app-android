@@ -7,10 +7,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import androidx.compose.ui.graphics.toArgb
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
-import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -263,14 +261,19 @@ class PushApiClient @Inject constructor(
                 "classroom_map" to c.classroomMap,
             )
         }
-        val overrides = courses.map { c ->
-            val hex = TigerDuckTheme.courseColorVibrant(c.courseNo).let {
-                String.format("#%06X", it.toArgb() and 0xFFFFFF)
+        // Only real choices. Sending the auto-computed colour for every course
+        // made the server store all of them as explicit overrides on first
+        // upload — its upsert is create-only (`if override.color_hex is None`),
+        // so whichever generated hex landed first was then pinned server-side
+        // and no later palette change could take effect. The server already
+        // drops null entries; this is the client half of that contract.
+        val overrides = courses.mapNotNull { c ->
+            c.customColorHex?.let { hex ->
+                mapOf(
+                    "course_key" to "client:$semester:${c.courseNo}",
+                    "color_hex" to hex,
+                )
             }
-            mapOf(
-                "course_key" to "client:$semester:${c.courseNo}",
-                "color_hex" to hex,
-            )
         }
         val payload = mutableMapOf<String, Any>("courses" to items, "course_overrides" to overrides)
         if (forceKeys.isNotEmpty()) payload["force_keys"] = forceKeys
