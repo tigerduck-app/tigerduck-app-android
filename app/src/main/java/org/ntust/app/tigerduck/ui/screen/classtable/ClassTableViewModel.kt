@@ -61,6 +61,23 @@ class ClassTableViewModel @Inject constructor(
     private val _courses = MutableStateFlow<List<Course>>(emptyList())
     val courses: StateFlow<List<Course>> = _courses
 
+    /**
+     * The term in session, cached separately, and only while the picker is
+     * showing some *other* term.
+     *
+     * "What do I have today" does not change because the student opened last
+     * year's timetable to look something up, so the carousel has to keep
+     * answering it. Reading today off the selected term instead would surface
+     * a class they took two years ago as though it were happening now,
+     * progress bar and all.
+     *
+     * Empty while the picker is on the live term — [courses] already is that
+     * list, and mirroring it would only go stale the moment a course is
+     * renamed or deleted. [liveCourses] picks between the two.
+     */
+    private val _liveSemesterCourses = MutableStateFlow<List<Course>>(emptyList())
+    val liveSemesterCourses: StateFlow<List<Course>> = _liveSemesterCourses
+
     private val _assignments = MutableStateFlow<List<Assignment>>(emptyList())
     val assignments: StateFlow<List<Assignment>> = _assignments
 
@@ -247,8 +264,13 @@ class ClassTableViewModel @Inject constructor(
      */
     val studentId: String? get() = authService.storedStudentId
 
-    /** The actual live semester code (not whatever the user picked). */
-    val liveSemesterCode: String
+    /**
+     * The actual live semester code (not whatever the user picked).
+     *
+     * Private since the today carousel stopped being gated on "is the picker
+     * on the live term" — the only thing that asks now is [liveCourses].
+     */
+    private val liveSemesterCode: String
         get() = courseService.currentSemesterCode()
 
     /**
@@ -280,6 +302,7 @@ class ClassTableViewModel @Inject constructor(
         val cached = dataCache.loadCourses(newest)
         _courses.value = cached
         TigerDuckTheme.buildCourseColorMap(cached)
+        refreshLiveSemesterCourses()
     }
 
     /** Format semester code for display, e.g. "1142" → "114-2". */
@@ -296,11 +319,20 @@ class ClassTableViewModel @Inject constructor(
             val cached = resolveCustomNames(dataCache.loadCourses(code))
             _courses.value = cached
             TigerDuckTheme.buildCourseColorMap(cached)
+            refreshLiveSemesterCourses()
             fetchData()
         }
     }
 
     val totalCredits: Int get() = _courses.value.sumOf { it.credits }
+
+    /** The live term's roster, wherever it currently lives. */
+    private val liveCourses: List<Course>
+        get() = if (_currentSemester.value == liveSemesterCode) {
+            _courses.value
+        } else {
+            _liveSemesterCourses.value
+        }
 
     val todayCourses: List<Course>
         get() {
@@ -308,8 +340,22 @@ class ClassTableViewModel @Inject constructor(
             // carousel would either be empty or surface a stale day. Empty
             // here also hides the section, which keys off `isNotEmpty()`.
             if (!AppConstants.CurrentTerm.isInSession()) return emptyList()
-            return ClassTableSelection.coursesOn(_courses.value, _currentDayTime.value.weekday)
+            return ClassTableSelection.coursesOn(liveCourses, _currentDayTime.value.weekday)
         }
+
+    /**
+     * Loads the live term's roster when the picker moves off it, and drops it
+     * again when the picker comes back — [liveCourses] reads [courses] then,
+     * so holding a second copy would only be one more thing to keep in sync.
+     */
+    private suspend fun refreshLiveSemesterCourses() {
+        val live = liveSemesterCode
+        _liveSemesterCourses.value = if (_currentSemester.value == live) {
+            emptyList()
+        } else {
+            resolveCustomNames(dataCache.loadCourses(live))
+        }
+    }
 
     val activeWeekdays: List<Int>
         get() = ClassTableCellLayout.activeWeekdays(_courses.value)
@@ -369,7 +415,7 @@ class ClassTableViewModel @Inject constructor(
     val ongoingCourses: List<OngoingCourseInfo>
         get() {
             val dayTime = _currentDayTime.value
-            return computeOngoingCourses(_courses.value, dayTime.weekday, dayTime.minuteOfDay)
+            return computeOngoingCourses(liveCourses, dayTime.weekday, dayTime.minuteOfDay)
         }
 
     fun coursesAt(weekday: Int, period: String): List<Course> =
@@ -590,6 +636,7 @@ class ClassTableViewModel @Inject constructor(
             if (cachedMoodleIds.isNotEmpty()) {
                 _moodleCourseIdByIdnumber.value = cachedMoodleIds
             }
+            refreshLiveSemesterCourses()
             fetchData()
         }
     }

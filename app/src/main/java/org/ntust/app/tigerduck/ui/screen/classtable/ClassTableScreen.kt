@@ -152,8 +152,16 @@ fun ClassTableScreen(
     // condition changes.
     val selectedSemester by viewModel.currentSemester.collectAsStateWithLifecycle()
     val availableSemesters by viewModel.availableSemesters.collectAsStateWithLifecycle()
-    val todayCourses = remember(courses, currentMinute) { viewModel.todayCourses }
-    val ongoingCourses = remember(courses, currentMinute) { viewModel.ongoingCourses }
+    // liveSemesterCourses is what the carousel reads while the picker is on
+    // some other term, so it has to key these too — otherwise the strip stays
+    // empty until something unrelated moves `courses`.
+    val liveSemesterCourses by viewModel.liveSemesterCourses.collectAsStateWithLifecycle()
+    val todayCourses = remember(courses, liveSemesterCourses, currentMinute) {
+        viewModel.todayCourses
+    }
+    val ongoingCourses = remember(courses, liveSemesterCourses, currentMinute) {
+        viewModel.ongoingCourses
+    }
     val activePeriods = remember(courses) { viewModel.activePeriods }
     val activeWeekdays = remember(courses) { viewModel.activeWeekdays }
     var showAddCourse by remember { mutableStateOf(false) }
@@ -250,11 +258,14 @@ fun ClassTableScreen(
                     return@Column
                 }
 
-                // Today's courses carousel — only meaningful when the user is
-                // viewing the live semester. Past semesters are historical
-                // records, so "現在課程 / 今日課程" don't apply there.
-                val isLiveSemester = selectedSemester == viewModel.liveSemesterCode
-                if (isLiveSemester && todayCourses.isNotEmpty()) {
+                // Today's courses carousel. Deliberately not scoped to the
+                // selected semester: "what do I have today" is the same
+                // question whichever term's grid the user opened, so the strip
+                // keeps answering it while they look something up in an old
+                // one. It reads the live term's roster, not the selected one —
+                // see ClassTableViewModel.liveCourses — so an old timetable
+                // can never present a class from two years ago as ongoing.
+                if (todayCourses.isNotEmpty()) {
                     SectionHeader(title = stringResource(R.string.home_section_today_courses))
                     val today =
                         AppClock.calendar().get(java.util.Calendar.DAY_OF_WEEK)
