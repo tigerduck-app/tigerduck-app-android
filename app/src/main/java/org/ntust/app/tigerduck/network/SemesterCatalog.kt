@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.Request
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.model.SemesterInfo
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -38,15 +39,23 @@ import javax.inject.Singleton
 class SemesterCatalog @Inject constructor(
     private val sessionManager: NtustSessionManager,
     private val appPreferences: AppPreferences,
+    private val credentials: CredentialManager,
 ) {
     /**
-     * Terms the picker offers, newest first. Falls back to walking back from
-     * the month heuristic until the first successful [refresh].
+     * Terms the picker offers, newest first: every catalogue term back to the
+     * student's first one. Falls back to walking back from the month heuristic
+     * until the first successful [refresh].
+     *
+     * The student id is read here rather than passed in because every caller
+     * would otherwise have to plumb it through; [termsFrom] takes it as an
+     * argument so the cut-off itself stays testable offline. Logging out
+     * clears the id, which drops the picker back to [PICKER_DEPTH] — the same
+     * thing iOS does when the keychain entry goes away.
      */
     fun availableSemesters(): List<String> {
         val cached = appPreferences.semesterCatalogTerms
         if (cached.isEmpty()) return SemesterCodes.walkBack(FALLBACK_TERM, 4)
-        return cached.take(PICKER_DEPTH)
+        return termsFrom(cached, admissionYear(credentials.ntustStudentId))
     }
 
     /**
@@ -151,10 +160,15 @@ class SemesterCatalog @Inject constructor(
         private const val REFRESH_TTL_MS = 60L * 60L * 1000L
 
         /**
-         * Terms offered by the semester picker. Six rather than the previous
-         * four because the catalogue interleaves 暑期 terms (`114H`) between
-         * the regular ones, so four slots would no longer reach back two full
-         * years.
+         * Picker depth when the student id is unknown — logged out, or an id
+         * that does not parse. Six rather than the previous four because the
+         * catalogue interleaves 暑期 terms (`114H`) between the regular ones,
+         * so four slots would no longer reach back two full years.
+         *
+         * With a known id the picker instead reaches back to the admission
+         * term; see [termsFrom]. A fixed depth is wrong there for the same
+         * reason four was: 114H and 113H eat two of the six slots, so a 113
+         * admit stopped at 113-2 and could not reach their own first term.
          */
         internal const val PICKER_DEPTH = 6
 
@@ -176,6 +190,41 @@ class SemesterCatalog @Inject constructor(
                 // A row can arrive with a null Semester; drop it here so no
                 // caller has to re-check.
                 .filter { !it.semester.isNullOrBlank() }
+        }
+
+        /**
+         * Catalogue terms from the admission year onwards; [PICKER_DEPTH] when
+         * the id is unknown.
+         *
+         * Compared numerically, not as strings. The catalogue pads pre-100
+         * years as `99 1`, and those sort *after* `1131` lexicographically —
+         * which on iOS is how every term back to 95-1 leaked into the picker.
+         *
+         * Deliberately empty for a student admitted after the newest published
+         * term: every catalogue term predates them, so offering any of it is
+         * wrong. `ClassTableViewModel.semesterOptions` keeps the current term
+         * selectable until NTUST publishes theirs, so the picker still renders
+         * one option rather than going blank.
+         */
+        internal fun termsFrom(catalogue: List<String>, admissionYear: Int?): List<String> {
+            if (admissionYear == null) return catalogue.take(PICKER_DEPTH)
+            return catalogue.filter { (academicYear(it) ?: -1) >= admissionYear }
+        }
+
+        /**
+         * `1151` → 115, `114H` → 114, `99 1` → 99. The last character is the
+         * term (1 / 2 / H); everything before it is the ROC academic year.
+         */
+        internal fun academicYear(code: String): Int? =
+            code.dropLast(1).trim().toIntOrNull()
+
+        /**
+         * NTUST ids are one degree letter plus the three-digit admission year
+         * (`B113…` → 113).
+         */
+        internal fun admissionYear(studentId: String?): Int? {
+            if (studentId == null || studentId.length < 4) return null
+            return studentId.drop(1).take(3).toIntOrNull()
         }
 
         internal fun openTerm(list: List<SemesterInfo>): String? =
