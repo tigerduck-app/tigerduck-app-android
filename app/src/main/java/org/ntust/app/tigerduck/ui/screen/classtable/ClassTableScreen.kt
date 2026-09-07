@@ -41,6 +41,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import org.ntust.app.tigerduck.ui.component.CurrentClassCardWidth
+import org.ntust.app.tigerduck.ui.component.CourseCardWidth
+import org.ntust.app.tigerduck.ui.component.CourseCardGap
+import kotlinx.coroutines.flow.first
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -57,6 +63,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -85,6 +92,41 @@ private data class ConflictPickerTarget(
     val weekday: Int,
     val periodId: String,
 )
+
+/** The carousel's start/end inset, inside the scrollable content. */
+private val CAROUSEL_EDGE_INSET = 16.dp
+
+/**
+ * How much of the preceding card stays visible when the row scrolls itself to
+ * the ongoing class. Past the 12dp gap this leaves roughly 24dp of the card
+ * before it — enough to read as "there is more to the left" without stealing
+ * width from the class actually happening.
+ */
+private val CAROUSEL_ONGOING_PEEK = 36.dp
+
+/**
+ * Where the today's-courses row should sit so the ongoing class leads it.
+ *
+ * [isOngoing] is per card, in display order, because a card's width depends on
+ * which kind it is — two classes can overlap, so a wide ongoing card can sit
+ * before the one we are scrolling to.
+ *
+ * Returns 0 when nothing is ongoing ([firstOngoingIndex] < 0) or when the
+ * ongoing class is already first: the day should then be read from its start,
+ * not nudged off the edge.
+ */
+internal fun carouselScrollTarget(isOngoing: List<Boolean>, firstOngoingIndex: Int): Dp {
+    if (firstOngoingIndex <= 0) return 0.dp
+    var x = 0.dp
+    for (i in 0 until firstOngoingIndex) {
+        x += if (isOngoing[i]) CurrentClassCardWidth else CourseCardWidth
+        x += CourseCardGap
+    }
+    // The row's own start inset sits inside the scrollable content, so it
+    // counts toward the card's position.
+    return (CAROUSEL_EDGE_INSET + x - CAROUSEL_ONGOING_PEEK).coerceAtLeast(0.dp)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClassTableScreen(
@@ -223,66 +265,97 @@ fun ClassTableScreen(
                         else -> 7
                     }
                     val rowScroll = rememberScrollState()
+
+                    // The ongoing class is rendered in its own place in the
+                    // day, in the ongoing style, rather than lifted to the
+                    // front of the row. Lifting it showed the same class
+                    // twice — once as the big card, once again further along
+                    // as an ordinary one — and threw away the thing the
+                    // carousel is for: where you are in today's sequence.
+                    val ongoingByNo = remember(ongoingCourses) {
+                        ongoingCourses.associateBy { it.course.courseNo }
+                    }
+                    val firstOngoingIndex = remember(todayCourses, ongoingByNo) {
+                        todayCourses.indexOfFirst { it.courseNo in ongoingByNo }
+                    }
+
+                    // Scroll the ongoing class to the front, leaving a sliver
+                    // of the one before it so the row reads as "you are here"
+                    // rather than as the start of the day. Nothing precedes
+                    // index 0, so it needs no offset — and no ongoing class
+                    // means no scrolling at all, leaving the day from its
+                    // beginning.
+                    val density = LocalDensity.current
+                    LaunchedEffect(firstOngoingIndex) {
+                        if (firstOngoingIndex <= 0) return@LaunchedEffect
+                        val target = with(density) {
+                            carouselScrollTarget(
+                                isOngoing = todayCourses.map { it.courseNo in ongoingByNo },
+                                firstOngoingIndex = firstOngoingIndex,
+                            ).roundToPx()
+                        }
+                        // maxValue is 0 until the row has been measured, and
+                        // animateScrollTo would clamp the target to it.
+                        snapshotFlow { rowScroll.maxValue }.first { it > 0 }
+                        rowScroll.animateScrollTo(target)
+                    }
+
                     Row(
                         modifier = Modifier
                             .padding(bottom = 12.dp)
                             .horizontalScroll(rowScroll)
                             .height(IntrinsicSize.Max)
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = CAROUSEL_EDGE_INSET)
                     ) {
-                        ongoingCourses.forEachIndexed { idx, info ->
-                            CurrentClassCard(
-                                course = info.course,
-                                blockStartMinute = info.startMinute,
-                                blockEndMinute = info.endMinute,
-                                currentMinute = currentMinute,
-                                hasAssignment = info.course.courseNo in courseNosWithAssignments,
-                                weekday = info.weekday,
-                                onClick = {
-                                    viewModel.selectCourse(
-                                        info.course,
-                                        info.weekday,
-                                        info.firstPeriodId
-                                    )
-                                },
-                                modifier = Modifier.fillMaxHeight()
-                            )
-                            if (idx < ongoingCourses.lastIndex) {
-                                Spacer(Modifier.width(12.dp))
-                            }
-                        }
-                        if (ongoingCourses.isNotEmpty()) {
-                            Spacer(Modifier.width(24.dp))
-                        }
                         todayCourses.forEachIndexed { index, course ->
-                            val timeRange = remember(course, dayIndex) {
-                                val periods = course.schedule[dayIndex]
-                                    ?.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
-                                if (!periods.isNullOrEmpty()) {
-                                    val first = AppConstants.PeriodTimes.mapping[periods.first()]
-                                    val last = AppConstants.PeriodTimes.mapping[periods.last()]
-                                    if (first != null && last != null) "${first.first}-${last.second}" else null
-                                } else null
+                            val ongoing = ongoingByNo[course.courseNo]
+                            if (ongoing != null) {
+                                CurrentClassCard(
+                                    course = ongoing.course,
+                                    blockStartMinute = ongoing.startMinute,
+                                    blockEndMinute = ongoing.endMinute,
+                                    currentMinute = currentMinute,
+                                    hasAssignment = course.courseNo in courseNosWithAssignments,
+                                    weekday = ongoing.weekday,
+                                    onClick = {
+                                        viewModel.selectCourse(
+                                            ongoing.course,
+                                            ongoing.weekday,
+                                            ongoing.firstPeriodId
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxHeight()
+                                )
+                            } else {
+                                val timeRange = remember(course, dayIndex) {
+                                    val periods = course.schedule[dayIndex]
+                                        ?.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
+                                    if (!periods.isNullOrEmpty()) {
+                                        val first = AppConstants.PeriodTimes.mapping[periods.first()]
+                                        val last = AppConstants.PeriodTimes.mapping[periods.last()]
+                                        if (first != null && last != null) "${first.first}-${last.second}" else null
+                                    } else null
+                                }
+                                CourseCard(
+                                    course = course,
+                                    timeRange = timeRange,
+                                    hasAssignment = course.courseNo in courseNosWithAssignments,
+                                    isFinished = viewModel.isCourseFinishedToday(course),
+                                    weekday = dayIndex,
+                                    onClick = {
+                                        val firstPeriod = course.schedule[dayIndex]
+                                            ?.minByOrNull {
+                                                AppConstants.Periods.chronologicalOrder.indexOf(
+                                                    it
+                                                )
+                                            } ?: ""
+                                        viewModel.selectCourse(course, dayIndex, firstPeriod)
+                                    },
+                                    modifier = Modifier.fillMaxHeight()
+                                )
                             }
-                            CourseCard(
-                                course = course,
-                                timeRange = timeRange,
-                                hasAssignment = course.courseNo in courseNosWithAssignments,
-                                isFinished = viewModel.isCourseFinishedToday(course),
-                                weekday = dayIndex,
-                                onClick = {
-                                    val firstPeriod = course.schedule[dayIndex]
-                                        ?.minByOrNull {
-                                            AppConstants.Periods.chronologicalOrder.indexOf(
-                                                it
-                                            )
-                                        } ?: ""
-                                    viewModel.selectCourse(course, dayIndex, firstPeriod)
-                                },
-                                modifier = Modifier.fillMaxHeight()
-                            )
                             if (index < todayCourses.lastIndex) {
-                                Spacer(Modifier.width(12.dp))
+                                Spacer(Modifier.width(CourseCardGap))
                             }
                         }
                     }

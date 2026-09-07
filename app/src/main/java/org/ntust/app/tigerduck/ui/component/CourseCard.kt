@@ -36,6 +36,17 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
+/**
+ * Card widths, named because the today's-courses carousel scrolls itself to
+ * the ongoing class and has to know how wide everything before it is. A
+ * literal in each place would drift the moment one card was resized.
+ */
+val CourseCardWidth = 160.dp
+val CurrentClassCardWidth = 220.dp
+
+/** Gap between cards in the carousel. */
+val CourseCardGap = 12.dp
+
 @Composable
 fun CourseCard(
     course: Course,
@@ -61,7 +72,7 @@ fun CourseCard(
     Card(
         onClick = onClick,
         modifier = modifier
-            .width(160.dp),
+            .width(CourseCardWidth),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = cardColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -148,7 +159,7 @@ fun CurrentClassCard(
 
     Card(
         onClick = onClick,
-        modifier = modifier.width(220.dp),
+        modifier = modifier.width(CurrentClassCardWidth),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = cardColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
