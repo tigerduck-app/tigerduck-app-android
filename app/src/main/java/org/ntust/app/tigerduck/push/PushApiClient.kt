@@ -301,10 +301,23 @@ class PushApiClient @Inject constructor(
         }
     }
 
-    suspend fun deleteAllCourses() = withContext(Dispatchers.IO) {
+    /**
+     * Reset the user's courses on the backend.
+     *
+     * [semester] scopes the reset to one term. The backend leaves
+     * `courses_reset_at` alone for a scoped reset, so other devices do not
+     * wipe every term's local overlay — an unscoped reset still stamps it and
+     * still means "wipe everything". Reset is offered per term because the
+     * timetable is now per term; see `DELETE /sync/courses` in the backend's
+     * `routes/sync/courses.py`.
+     */
+    suspend fun deleteAllCourses(semester: String? = null) = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncCourses) return@withContext
+        val url = "$baseUrl/sync/courses".let {
+            if (semester != null) "$it?semester=${java.net.URLEncoder.encode(semester, "UTF-8")}" else it
+        }
         val request = Request.Builder()
-            .url("$baseUrl/sync/courses")
+            .url(url)
             .delete()
             .addAuthHeader()
             .build()

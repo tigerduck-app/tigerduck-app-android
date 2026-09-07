@@ -13,72 +13,160 @@
 
 package org.ntust.app.tigerduck.ui.screen.home
 
+import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.push.CourseOverrideResult
+import org.ntust.app.tigerduck.push.CourseTombstone
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.shared.Course
 
 object CourseSyncReconciler {
 
     /**
-     * The new deleted-course set, given what the server reports.
+     * Whether a server row really belongs to [semester].
      *
-     * Three rules, in order:
-     *  1. A non-manual local course the server does not list was deleted
-     *     elsewhere — tombstone it.
-     *  2. An explicit tombstone from the server counts too.
-     *  3. Anything the server *does* list is alive again, whatever we
-     *     previously believed. This un-delete runs last so a course that
-     *     reappears wins over both rules above.
+     * Between 2026-08-20 and the SemesterCatalog fix, 115-1 course-selection
+     * enrolments were uploaded under the heuristic's 114-2 while carrying a
+     * `1151…` Moodle id. Those rows are not a roster for the term they are
+     * filed under: merging them puts next term's courses in this term's grid,
+     * and counting them as present makes the reconcile think a course the
+     * user deleted is back on the server.
      *
-     * Manual courses are never tombstoned by rule 1. The user typed them in;
-     * the server may simply not have them yet because an earlier upload
-     * failed, and deleting on absence loses data with no way to recover it.
+     * Matches only the exact shape the bug produced: a Moodle id that is a
+     * four-character term code followed by the row's own course number, where
+     * that term differs from the one the row is filed under. Anything else —
+     * a plain numeric id, a shorter id, a term that agrees — is left alone.
+     *
+     * This mirrors the backend's `MISFILED_CLIENT_COURSES_DELETE` predicate
+     * (migration `9c4d1e2f3a5b`), which is deliberately stricter than iOS's
+     * `AppState.isFiled`. iOS judges on "first three characters are digits
+     * and the leading four differ", so a legitimate plain-numeric Moodle id
+     * such as `123456` is read as misfiled and its row silently ignored.
+     * Requiring the id to actually end in the course number cannot produce
+     * that false positive, and still catches every `1151…` row filed as 1142.
      */
-    fun reconcileDeletions(
-        localCourses: List<Course>,
-        serverCourseNos: Set<String>,
-        tombstonedNos: Set<String>,
-        previouslyDeleted: Set<String>,
-    ): Set<String> {
-        val deleted = previouslyDeleted.toMutableSet()
-        for (course in localCourses) {
-            if (!course.isManual && course.courseNo !in serverCourseNos) {
-                deleted.add(course.courseNo)
-            }
-        }
-        deleted.addAll(tombstonedNos - serverCourseNos)
-        deleted.removeAll(serverCourseNos)
-        return deleted
+    fun isFiled(moodleId: String?, courseNo: String, semester: String): Boolean {
+        if (semester.length != 4) return true
+        if (moodleId == null || moodleId.length <= 4) return true
+        if (moodleId != moodleId.take(4) + courseNo) return true
+        return moodleId.take(4) == semester
     }
 
     /**
-     * Courses the caller has decided it wants ([wanted] is normally
-     * server-minus-local-minus-deleted), restricted to the current semester. Marked `isManual` because from this device's point of
-     * view they did not come from an NTUST enrolment fetch, and a later
-     * refresh must not wipe them.
+     * One semester's reconcile against the backend snapshot.
+     *
+     * Mirrors iOS `AppState.reconcileCourses`, which runs this per term over
+     * the server's semesters plus the catalogue rather than guessing a
+     * "current" one. Doing it per term is what lets a retaken course number
+     * be hidden in one semester and visible in another.
+     *
+     * [serverRows] is this term's slice of `/sync/full`'s `courses`;
+     * [tombstoneNos] this term's `course_tombstones`. Returns the new
+     * tombstone set and the rows to merge locally, or null for [merged] when
+     * the caller should skip the cache write.
      */
-    fun coursesToMerge(
-        serverCourses: List<ServerCourse>,
-        wanted: Set<String>,
+    fun reconcileSemester(
         semester: String,
-    ): List<Course> = serverCourses
-        .filter { it.semester == semester && it.courseNo in wanted }
-        .distinctBy { it.courseNo }
-        .map {
-            Course(
-                courseNo = it.courseNo,
-                courseName = it.courseName,
-                instructor = it.instructors.joinToString(", "),
-                credits = it.credits,
-                classroom = it.classroom,
-                enrolledCount = it.enrolledCount,
-                maxCount = it.maxCount,
-                moodleIdNumber = it.moodleId,
-                isManual = true,
-                scheduleJson = it.scheduleJson,
-                classroomMapJson = it.classroomMapJson,
+        localCourses: List<Course>,
+        serverRows: List<ServerCourse>,
+        tombstoneNos: Set<String>,
+        tombstones: Set<String>,
+        graceCourseNos: Set<String> = emptySet(),
+    ): SemesterOutcome {
+        // Misfiled rows are neither a roster nor evidence of presence.
+        val rows = serverRows.filter { isFiled(it.moodleId, it.courseNo, semester) }
+        val serverNos = rows.map { it.courseNo }.toSet()
+
+        // Nothing uploaded for this term yet — first sync, or another device
+        // mid-reset. Push what we have instead of reading the silence as
+        // "every local course was deleted elsewhere".
+        if (serverNos.isEmpty()) {
+            return SemesterOutcome(
+                tombstones = tombstones,
+                merged = emptyList(),
+                uploadLocal = localCourses.isNotEmpty(),
             )
         }
+
+        var updated = tombstones
+
+        // A non-manual local course the server does not list was deleted on
+        // another device. Manual courses are never tombstoned on absence —
+        // the user typed them in and the server may simply not have them yet.
+        for (course in localCourses) {
+            if (!course.isManual && course.courseNo !in serverNos &&
+                !CourseTombstoneKeys.isHidden(course.courseNo, semester, updated)
+            ) {
+                updated = CourseTombstoneKeys.hide(course.courseNo, semester, updated)
+            }
+        }
+        // Explicit tombstones from other devices.
+        for (courseNo in tombstoneNos) {
+            if (courseNo !in serverNos &&
+                !CourseTombstoneKeys.isHidden(courseNo, semester, updated)
+            ) {
+                updated = CourseTombstoneKeys.hide(courseNo, semester, updated)
+            }
+        }
+        // Hidden here but back on the server → un-hide, unless our own delete
+        // is still in flight and the backend has not caught up yet.
+        for (courseNo in serverNos) {
+            if (CourseTombstoneKeys.isHidden(courseNo, semester, updated) &&
+                courseNo !in graceCourseNos
+            ) {
+                updated = CourseTombstoneKeys.unhide(courseNo, semester, updated)
+            }
+        }
+
+        val localNos = localCourses.map { it.courseNo }.toSet()
+        val hidden = CourseTombstoneKeys.hiddenIn(semester, updated)
+        val merged = rows
+            .filter { it.courseNo !in localNos && it.courseNo !in hidden }
+            .distinctBy { it.courseNo }
+            .map(::toCourse)
+
+        return SemesterOutcome(tombstones = updated, merged = merged, uploadLocal = false)
+    }
+
+    data class SemesterOutcome(
+        val tombstones: Set<String>,
+        val merged: List<Course>,
+        /** The server had nothing for this term; push the local roster up. */
+        val uploadLocal: Boolean,
+    )
+
+    /**
+     * Marked `isManual` because from this device's point of view the row did
+     * not come from an NTUST enrolment fetch, and a later refresh must not
+     * wipe it.
+     */
+    private fun toCourse(it: ServerCourse) = Course(
+        courseNo = it.courseNo,
+        courseName = it.courseName,
+        instructor = it.instructors.joinToString(", "),
+        credits = it.credits,
+        classroom = it.classroom,
+        enrolledCount = it.enrolledCount,
+        maxCount = it.maxCount,
+        moodleIdNumber = it.moodleId,
+        isManual = true,
+        scheduleJson = it.scheduleJson,
+        classroomMapJson = it.classroomMapJson,
+    )
+
+    /** This term's tombstone course numbers, from the full-sync payload. */
+    fun tombstoneNosFor(semester: String, tombstones: List<CourseTombstone>): Set<String> =
+        tombstones.filter { it.semester == semester }.mapNotNull { it.courseNo }.toSet()
+
+    /** The terms to reconcile: everything the server knows plus the picker's. */
+    fun semestersToReconcile(
+        serverCourses: List<ServerCourse>,
+        tombstones: List<CourseTombstone>,
+        catalogue: List<String>,
+    ): List<String> = buildSet {
+        serverCourses.mapNotNullTo(this) { it.semester.takeIf(String::isNotBlank) }
+        tombstones.mapNotNullTo(this) { it.semester.takeIf(String::isNotBlank) }
+        addAll(catalogue.filter(String::isNotBlank))
+    }.sorted()
 
     /**
      * Courses with server colours applied, or null when nothing changed —

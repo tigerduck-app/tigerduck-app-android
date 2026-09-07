@@ -35,7 +35,9 @@ import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.network.CourseService
+import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.CourseOverrideResult
@@ -93,6 +95,7 @@ class HomeBackendSync @Inject constructor(
     private val syncApiClient: SyncApiClient,
     private val pushApiClient: PushApiClient,
     private val courseService: CourseService,
+    private val semesterCatalog: SemesterCatalog,
     private val widgetUpdater: WidgetUpdater,
 ) {
 
@@ -304,51 +307,87 @@ class HomeBackendSync @Inject constructor(
     }
 
     /**
-     * Reconcile the course list in whichever direction has data.
+     * Reconcile every semester the app knows about, one term at a time.
      *
-     * When the backend knows courses, it is authoritative for deletions and
-     * we merge down. When it knows none but this device does, we upload —
-     * that is the recovery path for a wiped or newly-provisioned account, and
-     * treating it as "server says you have no courses" would delete them all.
+     * This used to reconcile a single "current" term: it compared the current
+     * semester's cache against `serverCourseNos` flattened across all terms.
+     * Once the clients began uploading every semester (iOS `5403ff3`), that
+     * flattening became actively wrong — a course hidden in 114-2 was
+     * un-hidden because the student was taking it again in 115-1, since the
+     * un-delete rule only asked "is this number anywhere on the server".
+     *
+     * Per term, in whichever direction has data: when the backend knows
+     * courses it is authoritative for deletions and we merge down; when it
+     * knows none for that term but this device does, we upload. Reading an
+     * empty term as "the server says you have no courses" would delete them.
      */
     private suspend fun syncCourseList(result: BackendSyncResult) {
         if (!prefs.syncCourses) return
-        val tombstonedNos = result.tombstones.mapNotNull { it.courseNo }.toSet()
 
-        if (result.serverCourseNos.isNotEmpty()) {
-            val localCourses = dataCache.loadCourses()
-            val localCourseNos = localCourses.map { it.courseNo }.toSet()
-            val previouslyDeleted = dataCache.loadDeletedCourseNos()
-            val deleted = CourseSyncReconciler.reconcileDeletions(
-                localCourses = localCourses,
-                serverCourseNos = result.serverCourseNos,
-                tombstonedNos = tombstonedNos,
-                previouslyDeleted = previouslyDeleted,
-            )
-            Log.i(TAG, "[sync-debug] server=${result.serverCourseNos.sorted()} local=${localCourseNos.sorted()} deleted=${deleted.sorted()}")
-            if (deleted != previouslyDeleted) {
-                dataCache.saveDeletedCourseNos(deleted)
-            }
+        val semesters = CourseSyncReconciler.semestersToReconcile(
+            serverCourses = result.serverCourses,
+            tombstones = result.tombstones,
+            catalogue = semesterCatalog.availableSemesters(),
+        )
+        val rowsBySemester = result.serverCourses.groupBy { it.semester }
+        var tombstones = migratedTombstones(semesters)
+        val tombstonesBefore = tombstones
+        val currentSemester = courseService.currentSemesterCode()
+        var touchedCurrent = false
 
-            val semester = courseService.currentSemesterCode()
-            val merged = CourseSyncReconciler.coursesToMerge(
-                serverCourses = result.serverCourses,
-                wanted = result.serverCourseNos - localCourseNos - deleted,
+        for (semester in semesters) {
+            val localCourses = dataCache.loadCourses(semester)
+            val outcome = CourseSyncReconciler.reconcileSemester(
                 semester = semester,
+                localCourses = localCourses,
+                serverRows = rowsBySemester[semester].orEmpty(),
+                tombstoneNos = CourseSyncReconciler.tombstoneNosFor(semester, result.tombstones),
+                tombstones = tombstones,
             )
-            if (merged.isNotEmpty()) {
-                Log.i(TAG, "[Sync] merged from server: ${merged.map { it.courseNo }}")
-                dataCache.saveCourses(localCourses + merged)
-            }
-        } else {
-            val localCourses = dataCache.loadCourses()
-            if (localCourses.isNotEmpty()) {
-                val semester = courseService.currentSemesterCode()
+            tombstones = outcome.tombstones
+
+            if (outcome.uploadLocal) {
                 runCatching { pushApiClient.uploadCourses(localCourses, semester) }
-                    .onFailure { e -> Log.w(TAG, "[Sync] auto-upload failed", e) }
-                Log.i(TAG, "[Sync] backend empty, auto-uploaded ${localCourses.size} courses")
+                    .onFailure { e -> Log.w(TAG, "[Sync] $semester: auto-upload failed", e) }
+                Log.i(TAG, "[Sync] $semester: server empty, uploaded ${localCourses.size} local courses")
+                continue
+            }
+            if (outcome.merged.isNotEmpty()) {
+                Log.i(TAG, "[Sync] $semester: merged from server ${outcome.merged.map { it.courseNo }}")
+                dataCache.saveCourses(localCourses + outcome.merged, semester)
+                if (semester == currentSemester) touchedCurrent = true
             }
         }
+
+        if (tombstones != tombstonesBefore) {
+            dataCache.saveDeletedCourseNos(tombstones)
+        }
+        if (touchedCurrent) widgetUpdater.requestUpdate()
+    }
+
+    /**
+     * The tombstone store with legacy bare entries pinned to the terms whose
+     * cached roster carries them.
+     *
+     * Bare entries pre-date semester scoping and hide a course number in
+     * every term, so the per-term reconcile would keep flip-flopping them:
+     * one term un-hides on the server's say-so and clears the bare entry for
+     * all the others. Pinning them once, here, is the upgrade path — see
+     * [CourseTombstoneKeys.migrateLegacyEntries], which leaves anything no
+     * roster knows bare rather than guessing.
+     */
+    private suspend fun migratedTombstones(semesters: List<String>): Set<String> {
+        val stored = dataCache.loadDeletedCourseNos()
+        if (stored.none { ':' !in it }) return stored
+        val rosters = semesters.associateWith { semester ->
+            dataCache.loadCourses(semester).map { it.courseNo }.toSet()
+        }
+        val migrated = CourseTombstoneKeys.migrateLegacyEntries(stored, rosters)
+        if (migrated != stored) {
+            dataCache.saveDeletedCourseNos(migrated)
+            Log.i(TAG, "[Sync] pinned ${stored.size - migrated.count { ':' !in it }} legacy tombstones to their terms")
+        }
+        return migrated
     }
 
     private fun markCourseSyncAt() {

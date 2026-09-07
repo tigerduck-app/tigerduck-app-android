@@ -21,6 +21,7 @@ import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
+import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.push.CloudSyncCoordinator
@@ -149,10 +150,20 @@ class SettingsViewModel @Inject constructor(
                 val diffs = mutableListOf<String>()
 
                 if ("courses" in pending) {
+                    val semester = courseService.currentSemesterCode()
                     val allCachedNos = dataCache.loadCourses().map { it.courseNo }.toSet()
-                    val deletedNos = dataCache.loadDeletedCourseNos()
+                    val deletedNos = CourseTombstoneKeys.hiddenIn(
+                        semester, dataCache.loadDeletedCourseNos()
+                    )
                     val localNos = allCachedNos - deletedNos
-                    val serverNos = result.serverCourseNos
+                    // The cache holds one term; the server now holds them all,
+                    // so compare against this term's slice or every other
+                    // semester reads as a server-only difference.
+                    val serverNos = result.serverCourses
+                        .filter { it.semester == semester }
+                        .map { it.courseNo }
+                        .toSet()
+                        .ifEmpty { result.serverCourseNos }
                     Log.i(TAG, "[reenable] courses: cached=${allCachedNos.size} deleted=${deletedNos.size} effective=${localNos.size} server=${serverNos.size}")
                     Log.d(TAG, "[reenable] courses local=${localNos.sorted()}")
                     Log.d(TAG, "[reenable] courses server=${serverNos.sorted()}")
@@ -300,9 +311,22 @@ class SettingsViewModel @Inject constructor(
                 val result = runCatching { syncApiClient.fetchFullSync() }.getOrNull()
                 if (result != null) {
                     if ("courses" in conflict.categories && result.serverCourseNos.isNotEmpty()) {
+                        val semester = courseService.currentSemesterCode()
+                        val serverHere = result.serverCourses
+                            .filter { it.semester == semester }
+                            .map { it.courseNo }
+                            .toSet()
+                            .ifEmpty { result.serverCourseNos }
                         val localCourses = dataCache.loadCourses()
-                        val deleted = localCourses.map { it.courseNo }.toSet() - result.serverCourseNos
-                        if (deleted.isNotEmpty()) {
+                        val missing = localCourses.map { it.courseNo }.toSet() - serverHere
+                        if (missing.isNotEmpty()) {
+                            // Scoped, and added to the store rather than
+                            // replacing it: an unscoped overwrite dropped every
+                            // other term's tombstones on the floor.
+                            var deleted = dataCache.loadDeletedCourseNos()
+                            for (no in missing) {
+                                deleted = CourseTombstoneKeys.hide(no, semester, deleted)
+                            }
                             dataCache.saveDeletedCourseNos(deleted)
                         }
                     }

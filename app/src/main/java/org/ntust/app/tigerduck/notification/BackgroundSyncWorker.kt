@@ -18,6 +18,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.network.CourseService
@@ -98,19 +100,31 @@ class BackgroundSyncWorker @AssistedInject constructor(
             // Hard-delete model: courses removed on the server are absent from
             // the courses array. Compare against local to update deletedCourseNos.
             if (prefs.syncCourses && result.serverCourseNos.isNotEmpty()) {
+                val semester = courseService.currentSemesterCode()
                 val localCourses = dataCache.loadCourses()
-                val deleted = dataCache.loadDeletedCourseNos().toMutableSet()
-                val sizeBefore = deleted.size
+                val stored = dataCache.loadDeletedCourseNos()
+                var deleted = stored
+                // Only this term's server rows may speak for this term. A
+                // flattened set would let a course the student retook next
+                // term un-hide the one they deleted in this one.
+                val serverNosHere = result.serverCourses
+                    .filter { it.semester == semester }
+                    .filter { CourseSyncReconciler.isFiled(it.moodleId, it.courseNo, semester) }
+                    .map { it.courseNo }
+                    .toSet()
+                    .ifEmpty { result.serverCourseNos }
                 for (course in localCourses) {
                     // Manual (user-local) courses absent from the server may just
                     // be pending a prior failed upload — never tombstone them here,
                     // or syncCourses would filter them out of saveCourses permanently.
-                    if (!course.isManual && course.courseNo !in result.serverCourseNos) {
-                        deleted.add(course.courseNo)
+                    if (!course.isManual && course.courseNo !in serverNosHere) {
+                        deleted = CourseTombstoneKeys.hide(course.courseNo, semester, deleted)
                     }
                 }
-                deleted.removeAll { it in result.serverCourseNos }
-                if (deleted.size != sizeBefore || deleted != dataCache.loadDeletedCourseNos()) {
+                for (courseNo in serverNosHere) {
+                    deleted = CourseTombstoneKeys.unhide(courseNo, semester, deleted)
+                }
+                if (deleted != stored) {
                     dataCache.saveDeletedCourseNos(deleted)
                 }
             } else if (prefs.syncCourses) {
@@ -249,7 +263,10 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 // Preserve user-picked tile colors and manually-added courses
                 // across the background refresh.
                 val cached = dataCache.loadCourses()
-                val deletedNos = dataCache.loadDeletedCourseNos()
+                val deletedNos = CourseTombstoneKeys.hiddenIn(
+                    courseService.currentSemesterCode(),
+                    dataCache.loadDeletedCourseNos(),
+                )
                 val cachedByNo = cached.associateBy { it.courseNo }
                 val fetchedWithState = fetched.map { c ->
                     val prior = cachedByNo[c.courseNo]

@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.shared.OngoingCourseInfo
+import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.shared.computeOngoingCourses
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -430,9 +431,12 @@ class ClassTableViewModel @Inject constructor(
         val updated = _courses.value + flagged
         _courses.value = updated
         viewModelScope.launch {
+            val semester = _currentSemester.value
             val deleted = dataCache.loadDeletedCourseNos()
-            if (course.courseNo in deleted) {
-                dataCache.saveDeletedCourseNos(deleted - course.courseNo)
+            if (CourseTombstoneKeys.isHidden(course.courseNo, semester, deleted)) {
+                dataCache.saveDeletedCourseNos(
+                    CourseTombstoneKeys.unhide(course.courseNo, semester, deleted)
+                )
             }
             dataCache.saveCourses(updated, _currentSemester.value)
             val forceKey = "client:${_currentSemester.value}:${course.courseNo}"
@@ -499,7 +503,9 @@ class ClassTableViewModel @Inject constructor(
         _courses.value = updated
         val semester = _currentSemester.value
         viewModelScope.launch {
-            val deleted = dataCache.loadDeletedCourseNos() + courseNo
+            val deleted = CourseTombstoneKeys.hide(
+                courseNo, semester, dataCache.loadDeletedCourseNos()
+            )
             dataCache.saveDeletedCourseNos(deleted)
             dataCache.saveCourses(updated, semester)
             widgetUpdater.requestUpdate()
@@ -582,10 +588,23 @@ class ClassTableViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Reset the timetable for the semester on screen.
+     *
+     * Scoped, because the timetable itself is now per term: an unscoped reset
+     * would drop the other terms' rows on the backend and, through
+     * `courses_reset_at`, tell every other device to wipe its local overlay
+     * for terms the user never asked to touch. The tombstones lifted are this
+     * term's plus any legacy bare ones, which hide in every term and so have
+     * to go for this term to actually come back.
+     */
     fun resetCourses() {
+        val semester = _currentSemester.value
         viewModelScope.launch {
-            dataCache.saveDeletedCourseNos(emptySet())
-            runCatching { pushApiClient.deleteAllCourses() }
+            val stored = dataCache.loadDeletedCourseNos()
+            val lifted = CourseTombstoneKeys.entriesResetting(semester, stored)
+            if (lifted.isNotEmpty()) dataCache.saveDeletedCourseNos(stored - lifted)
+            runCatching { pushApiClient.deleteAllCourses(semester) }
                 .onFailure { Log.w("ClassTableVM", "deleteAllCourses failed (non-fatal)", it) }
             fetchData()
         }
@@ -720,7 +739,9 @@ class ClassTableViewModel @Inject constructor(
                                 cached = dataCache.loadCourses(semester),
                                 names = courseCustomNames,
                                 locale = currentCourseLocale,
-                                deletedNos = dataCache.loadDeletedCourseNos(),
+                                deletedNos = CourseTombstoneKeys.hiddenIn(
+                                    semester, dataCache.loadDeletedCourseNos()
+                                ),
                             )
                             // Only apply if the user hasn't flipped to a
                             // different semester mid-flight.

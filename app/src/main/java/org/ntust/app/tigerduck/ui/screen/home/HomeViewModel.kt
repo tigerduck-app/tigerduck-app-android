@@ -39,6 +39,7 @@ import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.data.CourseColorStore
+import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
@@ -436,10 +437,21 @@ class HomeViewModel @Inject constructor(
      * time it returns. This is the "catch up quietly" path — no Moodle
      * refresh, no spinner — used by the foreground sync and the poller.
      */
+    /**
+     * Course numbers hidden in the term Home is showing.
+     *
+     * The deleted-course store is keyed by semester now, so a bare
+     * `courseNo in store` check would miss every scoped entry and quietly
+     * un-hide courses the user deleted. Home is always the current term.
+     */
+    private suspend fun hiddenNow(): Set<String> = CourseTombstoneKeys.hiddenIn(
+        courseService.currentSemesterCode(),
+        dataCache.loadDeletedCourseNos(),
+    )
+
     private suspend fun syncAndRepublish() {
         backendSync.pull(syncState)
-        val courses = dataCache.loadCourses()
-            .filter { it.courseNo !in dataCache.loadDeletedCourseNos() }
+        val courses = dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }
         val assignments = dataCache.loadAssignments()
         TigerDuckTheme.buildCourseColorMap(courses)
         updateCoursesAndAssignments(courses, assignments)
@@ -459,8 +471,7 @@ class HomeViewModel @Inject constructor(
                 backendSync.pull(syncState)
                 // Re-read after backend sync so server-merged courses and
                 // deletions are reflected even if the Moodle fetch below fails.
-                courses = dataCache.loadCourses()
-                    .filter { it.courseNo !in dataCache.loadDeletedCourseNos() }
+                courses = dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }
 
                 val studentId = authService.storedStudentId
                 val password = authService.storedPassword
@@ -474,7 +485,7 @@ class HomeViewModel @Inject constructor(
                         courses = HomeCourseMerge.mergeRemote(
                             remote = remoteCourses,
                             cached = dataCache.loadCourses(),
-                            deletedNos = dataCache.loadDeletedCourseNos(),
+                            deletedNos = hiddenNow(),
                         )
                         dataCache.saveCourses(courses)
                         widgetUpdater.requestUpdate()
