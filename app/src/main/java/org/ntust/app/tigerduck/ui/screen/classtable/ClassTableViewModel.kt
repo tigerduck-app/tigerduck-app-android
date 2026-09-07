@@ -238,6 +238,15 @@ class ClassTableViewModel @Inject constructor(
     private fun currentDayTime(): ClassTableSelection.DayTime =
         ClassTableSelection.dayTimeFrom(AppClock.calendar())
 
+    /**
+     * The signed-in student's id, for the credits label.
+     *
+     * A plain read rather than a flow: the credits row only renders inside the
+     * logged-in branch, and the id cannot change without a logout taking that
+     * branch away and recomposing anyway.
+     */
+    val studentId: String? get() = authService.storedStudentId
+
     /** The actual live semester code (not whatever the user picked). */
     val liveSemesterCode: String
         get() = courseService.currentSemesterCode()

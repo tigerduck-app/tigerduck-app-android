@@ -302,11 +302,19 @@ fun ClassTableScreen(
                         onPick = { viewModel.setSemester(it) }
                     )
                     Spacer(Modifier.weight(1f))
+                    // "B11315000 · 20 credits" — the id leads so a shared
+                    // screenshot shows whose timetable it is. Both halves keep
+                    // the one secondary tint; the id is dropped rather than
+                    // left as a stray separator when there is none.
+                    val credits = stringResource(
+                        R.string.class_table_total_credits_value,
+                        viewModel.totalCredits
+                    )
                     Text(
-                        text = stringResource(
-                            R.string.class_table_total_credits_value,
-                            viewModel.totalCredits
-                        ),
+                        text = viewModel.studentId
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { "$it · $credits" }
+                            ?: credits,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                     )
