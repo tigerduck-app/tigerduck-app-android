@@ -150,11 +150,67 @@ class SubscriptionSettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Monotonic token per rule id, bumped on every local edit to that rule.
+     *
+     * A PATCH echo may only be written back if no newer edit to the same rule
+     * has been made since it was sent. Without it, two taps in flight together
+     * settle on whichever response happens to land last, which is not
+     * necessarily the later tap.
+     */
+    private val editGeneration = mutableMapOf<Int, Int>()
+
     fun toggleEnabled(index: Int) {
-        val s = _state.value
-        if (index !in s.rules.indices) return
-        val toggled = s.rules[index].copy(enabled = !s.rules[index].enabled)
-        upsertRule(toggled, replacingIndex = index)
+        val before = _state.value
+        if (index !in before.rules.indices) return
+        val previous = before.rules[index]
+        val toggled = previous.copy(enabled = !previous.enabled)
+
+        // Flip locally first. Both taps of a double-tap otherwise read the
+        // same pre-tap value and send the same request, so the switch settles
+        // on the opposite of what the user asked for.
+        _state.update { st ->
+            val rules = st.rules.toMutableList()
+            if (index in rules.indices) rules[index] = toggled
+            st.copy(rules = rules)
+        }
+
+        // Never persisted, so there is nothing to PATCH and no id to key a
+        // generation on — the create path already replaces the row wholesale.
+        val id = toggled.id ?: return upsertRule(toggled, replacingIndex = index)
+
+        val generation = (editGeneration[id] ?: 0) + 1
+        editGeneration[id] = generation
+
+        viewModelScope.launch {
+            _state.update { it.copy(saveState = SaveState.Saving) }
+            try {
+                val saved = api.updateSubscription(id, toggled)
+                // A newer tap is already in flight; its response is the one
+                // that should win, so drop this echo instead of overwriting.
+                if (editGeneration[id] != generation) return@launch
+                _state.update { st -> st.copy(rules = st.replacing(id, saved), saveState = SaveState.Saved) }
+            } catch (e: CancellationException) {
+                _state.update { it.copy(saveState = SaveState.Idle) }
+                throw e
+            } catch (e: Exception) {
+                if (editGeneration[id] != generation) return@launch
+                // Put back what the server last agreed to, so the switch does
+                // not sit on a state that was never persisted.
+                _state.update { st ->
+                    st.copy(
+                        rules = st.replacing(id, previous),
+                        saveState = SaveState.Failed(e.message ?: "error"),
+                    )
+                }
+            }
+        }
+    }
+
+    private fun State.replacing(id: Int, rule: SubscriptionRule): List<SubscriptionRule> {
+        val at = rules.indexOfFirst { it.id == id }
+        if (at < 0) return rules
+        return rules.toMutableList().also { it[at] = rule }
     }
 
     /**
