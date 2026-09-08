@@ -495,6 +495,21 @@ fun SettingsScreen(
                                 onClick = { updateChecker.checkManually() },
                             )
                         }
+                        // Sits under Check for updates because the two answer
+                        // the same question from opposite ends: that row asks
+                        // whether *this app* is current, this one whether the
+                        // services behind it are up. Shown on every flavor —
+                        // an F-Droid build talks to the same backend.
+                        //
+                        // The URL currently 302s to another origin. Custom
+                        // Tabs follows that in place, so the in-app choice
+                        // stays in-app; handing the redirect to an
+                        // ACTION_VIEW intent instead would eject the user
+                        // into their browser mid-hop.
+                        HorizontalDivider()
+                        SettingsLinkRow(stringResource(R.string.settings_check_server_status)) {
+                            openUrl(context, "https://status.tigerduck.app/", browserPreference)
+                        }
                         // What's New — only when an entry is registered for
                         // the resolved locale. During early bring-up of a
                         // release the asset may not yet have an entry; in
