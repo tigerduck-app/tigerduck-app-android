@@ -797,6 +797,9 @@
     <string name="update_available_title">Dostupná aktualizace</string>
     <string name="update_check_failed_message">Nepodařilo se připojit k App Store. Zkuste to prosím později.</string>
     <string name="update_check_failed_title">Kontrola se nezdařila</string>
+    <string name="update_required_action">Aktualizovat</string>
+    <string name="update_required_message">Tato verze aplikace TigerDuck se již nemůže připojit k serveru. Aktualizujte na nejnovější verzi, abyste mohli dál synchronizovat.</string>
+    <string name="update_required_title">Vyžadována aktualizace</string>
     <string name="update_up_to_date_message">Máte nejnovější verzi aplikace %1$@.</string>
     <string name="update_up_to_date_title">Máte nejnovější verzi</string>
     <string name="vibration_settings_motor_warning">Některé telefony mají vibromotorek nižší kvality, který může ignorovat velmi slabé nebo velmi krátké vibrace. Pokud nastavení necítíte, zkuste zvýšit jeho sílu nebo délku. Můžete začít vyzkoušením předvolby \"Střední\".</string>

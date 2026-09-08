@@ -797,6 +797,9 @@
     <string name="update_available_title">Actualització disponible</string>
     <string name="update_check_failed_message">No s\'ha pogut contactar amb l\'App Store. Torna-ho a provar més tard.</string>
     <string name="update_check_failed_title">La comprovació ha fallat</string>
+    <string name="update_required_action">Actualitza</string>
+    <string name="update_required_message">Aquesta versió de TigerDuck ja no es pot connectar al servidor. Actualitza a la darrera versió per continuar sincronitzant.</string>
+    <string name="update_required_title">Cal actualitzar</string>
     <string name="update_up_to_date_message">Tens la darrera versió de %1$@.</string>
     <string name="update_up_to_date_title">Estàs al dia</string>
     <string name="vibration_settings_motor_warning">Alguns telèfons tenen motors de vibració de menor qualitat que poden ignorar vibracions molt febles o molt curtes. Si no podeu sentir una configuració, proveu d\'augmentar-ne la força o la durada. Podeu començar provant primer el preajust \"Mitjà\".</string>

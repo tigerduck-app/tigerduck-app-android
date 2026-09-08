@@ -797,6 +797,9 @@
     <string name="update_available_title">Налична актуализация</string>
     <string name="update_check_failed_message">Не можа да се достигне App Store. Опитайте отново по-късно.</string>
     <string name="update_check_failed_title">Проверката не бе успешна</string>
+    <string name="update_required_action">Обнови</string>
+    <string name="update_required_message">Тази версия на TigerDuck вече не може да се свърже със сървъра. Обновете до най-новата версия, за да продължите синхронизацията.</string>
+    <string name="update_required_title">Необходимо е обновяване</string>
     <string name="update_up_to_date_message">Имате последната версия на %1$@.</string>
     <string name="update_up_to_date_title">Имате последната версия</string>
     <string name="vibration_settings_motor_warning">Някои телефони имат вибромотори с по-ниско качество, които може да игнорират много слаби или много кратки вибрации. Ако не усещате дадена настройка, опитайте да увеличите нейната сила или продължителност. Можете да започнете с пресет \"Среден\".</string>

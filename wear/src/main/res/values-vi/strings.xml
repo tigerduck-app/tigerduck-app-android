@@ -797,6 +797,9 @@
     <string name="update_available_title">Có bản cập nhật</string>
     <string name="update_check_failed_message">Không thể kết nối App Store. Vui lòng thử lại sau.</string>
     <string name="update_check_failed_title">Kiểm tra thất bại</string>
+    <string name="update_required_action">Cập nhật</string>
+    <string name="update_required_message">Phiên bản TigerDuck này không còn kết nối được với máy chủ. Hãy cập nhật lên phiên bản mới nhất để tiếp tục đồng bộ.</string>
+    <string name="update_required_title">Cần cập nhật</string>
     <string name="update_up_to_date_message">Bạn đang dùng phiên bản mới nhất của %1$@.</string>
     <string name="update_up_to_date_title">Bạn đã dùng phiên bản mới nhất</string>
     <string name="vibration_settings_motor_warning">Một số điện thoại có động cơ rung chất lượng thấp hơn có thể bỏ qua những rung động rất yếu hoặc rất ngắn. Nếu bạn không cảm nhận được một cài đặt, hãy thử tăng cường độ hoặc độ dài của nó. Bạn có thể bắt đầu bằng cách thử cài đặt trước \"Vừa\" trước.</string>

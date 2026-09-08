@@ -797,6 +797,9 @@
     <string name="update_available_title">Actualizare disponibilă</string>
     <string name="update_check_failed_message">Nu s-a putut contacta App Store. Încercați din nou mai târziu.</string>
     <string name="update_check_failed_title">Verificare eșuată</string>
+    <string name="update_required_action">Actualizează</string>
+    <string name="update_required_message">Această versiune TigerDuck nu se mai poate conecta la server. Actualizează la cea mai recentă versiune pentru a continua sincronizarea.</string>
+    <string name="update_required_title">Actualizare necesară</string>
     <string name="update_up_to_date_message">Aveți cea mai recentă versiune a %1$@.</string>
     <string name="update_up_to_date_title">Sunteți la zi</string>
     <string name="vibration_settings_motor_warning">Unele telefoane au motoare de vibrație de calitate mai scăzută care pot ignora vibrațiile foarte slabe sau foarte scurte. Dacă nu simțiți o setare, încercați să îi creșteți intensitatea sau durata. Puteți începe încercând mai întâi presetul \"Mediu\".</string>

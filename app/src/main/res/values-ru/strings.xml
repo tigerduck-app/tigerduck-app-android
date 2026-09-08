@@ -797,6 +797,9 @@
     <string name="update_available_title">Доступно обновление</string>
     <string name="update_check_failed_message">Не удалось подключиться к App Store. Попробуйте позже.</string>
     <string name="update_check_failed_title">Проверка не удалась</string>
+    <string name="update_required_action">Обновить</string>
+    <string name="update_required_message">Эта версия TigerDuck больше не может подключиться к серверу. Обновите приложение до последней версии, чтобы синхронизация продолжилась.</string>
+    <string name="update_required_title">Требуется обновление</string>
     <string name="update_up_to_date_message">У вас установлена последняя версия %1$@.</string>
     <string name="update_up_to_date_title">У вас последняя версия</string>
     <string name="vibration_settings_motor_warning">На некоторых телефонах установлены вибромоторы более низкого качества, которые могут игнорировать очень слабые или очень короткие вибрации. Если вы не ощущаете настройку, попробуйте увеличить её силу или длину. Для начала рекомендуем попробовать предустановку «Средняя».</string>

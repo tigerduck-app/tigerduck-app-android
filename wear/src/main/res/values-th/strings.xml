@@ -797,6 +797,9 @@
     <string name="update_available_title">มีการอัปเดต</string>
     <string name="update_check_failed_message">ไม่สามารถเข้าถึง App Store ได้ ลองอีกครั้งในภายหลัง</string>
     <string name="update_check_failed_title">การตรวจสอบล้มเหลว</string>
+    <string name="update_required_action">อัปเดต</string>
+    <string name="update_required_message">TigerDuck เวอร์ชันนี้ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้อีกต่อไป อัปเดตเป็นเวอร์ชันล่าสุดเพื่อซิงค์ต่อ</string>
+    <string name="update_required_title">ต้องอัปเดต</string>
     <string name="update_up_to_date_message">คุณมี %1$@ เวอร์ชันล่าสุดแล้ว</string>
     <string name="update_up_to_date_title">คุณใช้เวอร์ชันล่าสุดแล้ว</string>
     <string name="vibration_settings_motor_warning">โทรศัพท์บางรุ่นมีมอเตอร์สั่นคุณภาพต่ำที่อาจไม่ตอบสนองต่อการสั่นที่อ่อนมากหรือสั้นมาก หากคุณรู้สึกไม่ได้ถึงการตั้งค่า ให้ลองเพิ่มความแรงหรือความยาว คุณสามารถเริ่มต้นด้วยการลองใช้ค่าตั้งต้น \"ปานกลาง\" ก่อน</string>

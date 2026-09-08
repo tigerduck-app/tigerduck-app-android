@@ -797,6 +797,9 @@
     <string name="update_available_title">Update beschikbaar</string>
     <string name="update_check_failed_message">Kon de App Store niet bereiken. Probeer het later opnieuw.</string>
     <string name="update_check_failed_title">Controle mislukt</string>
+    <string name="update_required_action">Bijwerken</string>
+    <string name="update_required_message">Deze versie van TigerDuck kan geen verbinding meer maken met de server. Werk bij naar de nieuwste versie om te blijven synchroniseren.</string>
+    <string name="update_required_title">Update vereist</string>
     <string name="update_up_to_date_message">Je hebt de nieuwste versie van %1$@.</string>
     <string name="update_up_to_date_title">Je bent up-to-date</string>
     <string name="vibration_settings_motor_warning">Sommige telefoons hebben vibratieomoren van lagere kwaliteit die zeer zwakke of zeer korte trillingen kunnen negeren. Als u een instelling niet voelt, probeer dan de sterkte of lengte te verhogen. U kunt beginnen met het uitproberen van de voorinstelling \"Gemiddeld\".</string>

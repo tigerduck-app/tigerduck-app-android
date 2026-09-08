@@ -797,6 +797,9 @@
     <string name="update_available_title">עדכון זמין</string>
     <string name="update_check_failed_message">לא ניתן להגיע ל-App Store. נסה שוב מאוחר יותר.</string>
     <string name="update_check_failed_title">הבדיקה נכשלה</string>
+    <string name="update_required_action">עדכון</string>
+    <string name="update_required_message">גרסה זו של TigerDuck כבר לא יכולה להתחבר לשרת. עדכנו לגרסה האחרונה כדי להמשיך לסנכרן.</string>
+    <string name="update_required_title">נדרש עדכון</string>
     <string name="update_up_to_date_message">יש לך את הגרסה העדכנית ביותר של %1$@.</string>
     <string name="update_up_to_date_title">הגרסה שלך מעודכנת</string>
     <string name="vibration_settings_motor_warning">לחלק מהטלפונים יש מנועי רטט באיכות נמוכה יותר שעלולים להתעלם מרטטים חלשים מאוד או קצרים מאוד. אם אינך מרגיש הגדרה מסוימת, נסה להגביר את עוצמתה או אורכה. תוכל להתחיל בניסוי הקבוע \"בינוני\" תחילה.</string>

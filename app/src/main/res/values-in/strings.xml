@@ -797,6 +797,9 @@
     <string name="update_available_title">Pembaruan tersedia</string>
     <string name="update_check_failed_message">Tidak dapat menjangkau App Store. Coba lagi nanti.</string>
     <string name="update_check_failed_title">Pemeriksaan gagal</string>
+    <string name="update_required_action">Perbarui</string>
+    <string name="update_required_message">Versi TigerDuck ini tidak dapat lagi terhubung ke server. Perbarui ke versi terbaru untuk melanjutkan sinkronisasi.</string>
+    <string name="update_required_title">Pembaruan Diperlukan</string>
     <string name="update_up_to_date_message">Kamu sudah menggunakan versi terbaru %1$@.</string>
     <string name="update_up_to_date_title">Kamu sudah terkini</string>
     <string name="vibration_settings_motor_warning">Beberapa ponsel memiliki motor getar berkualitas lebih rendah yang mungkin mengabaikan getaran yang sangat lemah atau sangat pendek. Jika Anda tidak bisa merasakan suatu pengaturan, coba naikkan kekuatan atau panjangnya. Anda bisa mulai dengan mencoba preset \"Sedang\" terlebih dahulu.</string>

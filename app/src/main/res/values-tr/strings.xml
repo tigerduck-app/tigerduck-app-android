@@ -797,6 +797,9 @@
     <string name="update_available_title">Güncelleme mevcut</string>
     <string name="update_check_failed_message">App Store\'a ulaşılamadı. Lütfen daha sonra tekrar deneyin.</string>
     <string name="update_check_failed_title">Denetim başarısız</string>
+    <string name="update_required_action">Güncelle</string>
+    <string name="update_required_message">TigerDuck\'ın bu sürümü artık sunucuya bağlanamıyor. Eşitlemeye devam etmek için en son sürüme güncelleyin.</string>
+    <string name="update_required_title">Güncelleme gerekli</string>
     <string name="update_up_to_date_message">%1$@\'ın en son sürümüne sahipsiniz.</string>
     <string name="update_up_to_date_title">Güncelsiniz</string>
     <string name="vibration_settings_motor_warning">Bazı telefonlarda çok zayıf veya çok kısa titreşimleri görmezden gelebilecek daha düşük kaliteli titreşim motorları bulunur. Bir ayarı hissedemiyorsanız gücünü veya uzunluğunu artırmayı deneyin. \"Orta\" ön ayarını deneyerek başlayabilirsiniz.</string>

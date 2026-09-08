@@ -797,6 +797,9 @@
     <string name="update_available_title">Frissítés elérhető</string>
     <string name="update_check_failed_message">Az App Store nem érhető el. Próbáld újra később.</string>
     <string name="update_check_failed_title">Az ellenőrzés sikertelen</string>
+    <string name="update_required_action">Frissítés</string>
+    <string name="update_required_message">A TigerDuck ezen verziója már nem tud csatlakozni a szerverhez. Frissíts a legújabb verzióra a szinkronizálás folytatásához.</string>
+    <string name="update_required_title">Frissítés szükséges</string>
     <string name="update_up_to_date_message">A(z) %1$@ legújabb verziója van telepítve.</string>
     <string name="update_up_to_date_title">Naprakész vagy</string>
     <string name="vibration_settings_motor_warning">Egyes telefonokon alacsonyabb minőségű vibrációs motor van, amely figyelmen kívül hagyhatja a nagyon gyenge vagy nagyon rövid rezgéseket. Ha nem érez egy beállítást, próbálja növelni annak erősségét vagy hosszát. Kezdheti a \"Közepes\" előbeállítás kipróbálásával.</string>

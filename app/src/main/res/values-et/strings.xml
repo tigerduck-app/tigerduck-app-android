@@ -797,6 +797,9 @@
     <string name="update_available_title">Uuendus saadaval</string>
     <string name="update_check_failed_message">App Store\'i ei õnnestunud ühendust luua. Proovi hiljem uuesti.</string>
     <string name="update_check_failed_title">Kontrollimine ebaõnnestus</string>
+    <string name="update_required_action">Uuenda</string>
+    <string name="update_required_message">See TigerDucki versioon ei saa enam serveriga ühendust. Uuenda uusimale versioonile, et sünkroonimine jätkuks.</string>
+    <string name="update_required_title">Uuendus on vajalik</string>
     <string name="update_up_to_date_message">Sul on rakenduse %1$@ viimane versioon.</string>
     <string name="update_up_to_date_title">Oled ajakohane</string>
     <string name="vibration_settings_motor_warning">Mõnel telefonil on madalama kvaliteediga vibraatorimootor, mis võib ignoreerida väga nõrku või väga lühikesi vibratsioone. Kui te seadistust ei tunne, proovige suurendada selle tugevust või pikkust. Võite alustada eelseade \"Keskmine\" proovimisest.</string>

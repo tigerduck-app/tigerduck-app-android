@@ -797,6 +797,9 @@
     <string name="update_available_title">അപ്‌ഡേറ്റ് ലഭ്യമാണ്</string>
     <string name="update_check_failed_message">App Store-ലേക്ക് എത്തിച്ചേരാൻ കഴിഞ്ഞില്ല. പിന്നീട് വീണ്ടും ശ്രമിക്കുക.</string>
     <string name="update_check_failed_title">പരിശോധന പരാജയപ്പെട്ടു</string>
+    <string name="update_required_action">അപ്‌ഡേറ്റ്</string>
+    <string name="update_required_message">TigerDuck-ന്റെ ഈ പതിപ്പിന് ഇനി സെർവറുമായി കണക്റ്റ് ചെയ്യാൻ കഴിയില്ല. സമന്വയം തുടരാൻ ഏറ്റവും പുതിയ പതിപ്പിലേക്ക് അപ്‌ഡേറ്റ് ചെയ്യുക.</string>
+    <string name="update_required_title">അപ്‌ഡേറ്റ് ആവശ്യമാണ്</string>
     <string name="update_up_to_date_message">നിങ്ങളുടെ %1$@ ഏറ്റവും പുതിയ പതിപ്പ് ആണ്.</string>
     <string name="update_up_to_date_title">നിങ്ങൾ അപ്‌ഡേറ്റ് ആണ്</string>
     <string name="vibration_settings_motor_warning">ചില ഫോണുകളിൽ നിലവാരം കുറഞ്ഞ വൈബ്രേഷൻ മോട്ടോറുകൾ ഉണ്ട്, അവ വളരെ ദുർബലമോ വളരെ ചെറുതോ ആയ വൈബ്രേഷനുകൾ അവഗണിക്കാം. ഒരു ക്രമീകരണം അനുഭവപ്പെടുന്നില്ലെങ്കിൽ, അതിന്റെ ശക്തി അല്ലെങ്കിൽ ദൈർഘ്യം വർദ്ധിപ്പിക്കാൻ ശ്രമിക്കൂ. ആദ്യം \"ഇടത്തരം\" പ്രീസെറ്റ് പരീക്ഷിക്കുന്നതിൽ നിന്ന് ആരംഭിക്കാം.</string>

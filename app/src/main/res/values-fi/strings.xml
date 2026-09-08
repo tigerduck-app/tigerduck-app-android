@@ -797,6 +797,9 @@
     <string name="update_available_title">Päivitys saatavilla</string>
     <string name="update_check_failed_message">App Storeen ei saatu yhteyttä. Yritä myöhemmin uudelleen.</string>
     <string name="update_check_failed_title">Tarkistus epäonnistui</string>
+    <string name="update_required_action">Päivitä</string>
+    <string name="update_required_message">Tämä TigerDuckin versio ei voi enää muodostaa yhteyttä palvelimeen. Päivitä uusimpaan versioon jatkaaksesi synkronointia.</string>
+    <string name="update_required_title">Päivitys vaaditaan</string>
     <string name="update_up_to_date_message">Sinulla on %1$@:n uusin versio.</string>
     <string name="update_up_to_date_title">Olet ajan tasalla</string>
     <string name="vibration_settings_motor_warning">Joillakin puhelimilla on heikomman laadun värinämoottorit, jotka saattavat jättää huomioimatta hyvin heikot tai hyvin lyhyet värinät. Jos et tunne asetusta, yritä lisätä sen voimakkuutta tai pituutta. Voit aloittaa kokeilemalla esiasetusta \"Keskipitkä\".</string>

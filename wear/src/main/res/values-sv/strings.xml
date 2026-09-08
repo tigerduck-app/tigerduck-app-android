@@ -797,6 +797,9 @@
     <string name="update_available_title">Uppdatering tillgänglig</string>
     <string name="update_check_failed_message">Det gick inte att nå App Store. Försök igen senare.</string>
     <string name="update_check_failed_title">Kontroll misslyckades</string>
+    <string name="update_required_action">Uppdatera</string>
+    <string name="update_required_message">Den här versionen av TigerDuck kan inte längre ansluta till servern. Uppdatera till den senaste versionen för att fortsätta synkronisera.</string>
+    <string name="update_required_title">Uppdatering krävs</string>
     <string name="update_up_to_date_message">Du har den senaste versionen av %1$@.</string>
     <string name="update_up_to_date_title">Du är uppdaterad</string>
     <string name="vibration_settings_motor_warning">Vissa telefoner har vibrationsmotorer av lägre kvalitet som kan ignorera mycket svaga eller mycket korta vibrationer. Om du inte kan känna en inställning, prova att öka dess styrka eller längd. Du kan börja med att prova förinställningen \"Medel\".</string>

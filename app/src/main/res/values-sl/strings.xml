@@ -797,6 +797,9 @@
     <string name="update_available_title">Na voljo je posodobitev</string>
     <string name="update_check_failed_message">App Store ni bil dosegljiv. Poskusite znova pozneje.</string>
     <string name="update_check_failed_title">Preverjanje ni uspelo</string>
+    <string name="update_required_action">Posodobi</string>
+    <string name="update_required_message">Ta različica aplikacije TigerDuck se ne more več povezati s strežnikom. Posodobite na najnovejšo različico za nadaljevanje sinhronizacije.</string>
+    <string name="update_required_title">Potrebna je posodobitev</string>
     <string name="update_up_to_date_message">Imate najnovejšo različico %1$@.</string>
     <string name="update_up_to_date_title">Imate najnovejšo različico</string>
     <string name="vibration_settings_motor_warning">Nekateri telefoni imajo vibromotorje nižje kakovosti, ki lahko ignorirajo zelo šibke ali zelo kratke vibracije. Če ne čutite nastavitve, poskusite povečati njeno moč ali dolžino. Začnete lahko s preizkusom prednastavitve \"Srednje\".</string>

@@ -797,6 +797,9 @@
     <string name="update_available_title">アップデートあり</string>
     <string name="update_check_failed_message">App Store に接続できませんでした。後でもう一度お試しください。</string>
     <string name="update_check_failed_title">確認に失敗</string>
+    <string name="update_required_action">アップデート</string>
+    <string name="update_required_message">このバージョンの TigerDuck はサーバーに接続できなくなりました。同期を続けるには最新バージョンにアップデートしてください。</string>
+    <string name="update_required_title">アップデートが必要です</string>
     <string name="update_up_to_date_message">%1$@ の最新バージョンをお使いです。</string>
     <string name="update_up_to_date_title">最新の状態です</string>
     <string name="vibration_settings_motor_warning">一部のスマートフォンは振動モーターの品質が低く、非常に弱い振動や非常に短い振動を無視することがあります。設定を感じられない場合は、強度や長さを上げてみてください。まず「中間」のプリセットから試してみることをお勧めします。</string>

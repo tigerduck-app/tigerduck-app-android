@@ -797,6 +797,9 @@
     <string name="update_available_title">اپ ڈیٹ دستیاب ہے</string>
     <string name="update_check_failed_message">App Store تک رسائی ممکن نہیں ہوئی۔ بعد میں دوبارہ کوشش کریں۔</string>
     <string name="update_check_failed_title">جانچ ناکام ہوئی</string>
+    <string name="update_required_action">اپ ڈیٹ</string>
+    <string name="update_required_message">TigerDuck کا یہ ورژن اب سرور سے منسلک نہیں ہو سکتا۔ سنک جاری رکھنے کے لیے تازہ ترین ورژن پر اپ ڈیٹ کریں۔</string>
+    <string name="update_required_title">اپ ڈیٹ درکار ہے</string>
     <string name="update_up_to_date_message">آپ کے پاس %1$@ کا تازہ ترین ورژن ہے۔</string>
     <string name="update_up_to_date_title">آپ اپ ٹو ڈیٹ ہیں</string>
     <string name="vibration_settings_motor_warning">کچھ فونوں میں کم معیار کے وائبریشن موٹر ہوتے ہیں جو بہت کمزور یا بہت مختصر وائبریشن کو نظرانداز کر سکتے ہیں۔ اگر آپ کوئی ترتیب محسوس نہیں کر سکتے، تو اس کی طاقت یا لمبائی بڑھانے کی کوشش کریں۔ آپ پہلے \"درمیانہ\" پری سیٹ آزما کر شروع کر سکتے ہیں۔</string>

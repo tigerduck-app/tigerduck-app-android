@@ -797,6 +797,9 @@
     <string name="update_available_title">업데이트 가능</string>
     <string name="update_check_failed_message">App Store에 연결할 수 없습니다. 나중에 다시 시도해 주세요.</string>
     <string name="update_check_failed_title">확인 실패</string>
+    <string name="update_required_action">업데이트</string>
+    <string name="update_required_message">이 버전의 TigerDuck은 더 이상 서버에 연결할 수 없습니다. 동기화를 계속하려면 최신 버전으로 업데이트하세요.</string>
+    <string name="update_required_title">업데이트 필요</string>
     <string name="update_up_to_date_message">%1$@의 최신 버전을 사용 중입니다.</string>
     <string name="update_up_to_date_title">최신 버전입니다</string>
     <string name="vibration_settings_motor_warning">일부 스마트폰은 진동 모터 품질이 낮아 매우 약하거나 짧은 진동을 무시할 수 있습니다. 설정이 느껴지지 않으면 강도나 길이를 높여 보세요. 먼저 \"보통\" 프리셋을 시도해 보는 것을 권장합니다.</string>

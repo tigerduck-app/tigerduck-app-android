@@ -797,6 +797,9 @@
     <string name="update_available_title">புதுப்பிப்பு கிடைக்கிறது</string>
     <string name="update_check_failed_message">App Store-ஐ அணுக முடியவில்லை. பின்னர் மீண்டும் முயற்சிக்கவும்.</string>
     <string name="update_check_failed_title">சரிபார்ப்பு தோல்வி</string>
+    <string name="update_required_action">புதுப்பி</string>
+    <string name="update_required_message">TigerDuck இன் இந்தப் பதிப்பால் இனி சேவையகத்துடன் இணைக்க முடியாது. ஒத்திசைவைத் தொடர சமீபத்திய பதிப்பிற்குப் புதுப்பிக்கவும்.</string>
+    <string name="update_required_title">புதுப்பிப்பு தேவை</string>
     <string name="update_up_to_date_message">நீங்கள் %1$@-ன் சமீபத்திய பதிப்பைப் பயன்படுத்துகிறீர்கள்.</string>
     <string name="update_up_to_date_title">சமீபத்திய பதிப்பில் உள்ளீர்கள்</string>
     <string name="vibration_settings_motor_warning">சில தொலைபேசிகளில் குறைந்த தரமான அதிர்வு மோட்டார்கள் உள்ளன, அவை மிகவும் பலவீனமான அல்லது மிகவும் குறுகிய அதிர்வுகளை புறக்கணிக்கக்கூடும். ஒரு அமைப்பை உணர முடியாவிட்டால், அதன் வலிமை அல்லது நீளத்தை அதிகரிக்க முயற்சிக்கவும். முதலில் \"நடுத்தர\" முன்னமைவை முயற்சிப்பதில் இருந்து தொடங்கலாம்.</string>

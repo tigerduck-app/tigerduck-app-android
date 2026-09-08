@@ -797,6 +797,9 @@
     <string name="update_available_title">有可用更新</string>
     <string name="update_check_failed_message">无法连接到 App Store，请稍后再试。</string>
     <string name="update_check_failed_title">检查失败</string>
+    <string name="update_required_action">更新</string>
+    <string name="update_required_message">此版本的 TigerDuck 已无法连接服务器。请更新到最新版本以继续同步。</string>
+    <string name="update_required_title">需要更新</string>
     <string name="update_up_to_date_message">您使用的已是 %1$@ 最新版本。</string>
     <string name="update_up_to_date_title">已是最新版本</string>
     <string name="vibration_settings_motor_warning">部分手机的震动马达品质较差，过弱或过短的震动可能完全感受不到。若感受不到震动，请试着调高强度或时长。建议先从「中」预设开始试试。</string>

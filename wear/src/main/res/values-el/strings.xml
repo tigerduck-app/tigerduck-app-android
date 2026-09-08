@@ -797,6 +797,9 @@
     <string name="update_available_title">Διαθέσιμη ενημέρωση</string>
     <string name="update_check_failed_message">Δεν ήταν δυνατή η πρόσβαση στο App Store. Δοκιμάστε ξανά αργότερα.</string>
     <string name="update_check_failed_title">Αποτυχία ελέγχου</string>
+    <string name="update_required_action">Ενημέρωση</string>
+    <string name="update_required_message">Αυτή η έκδοση του TigerDuck δεν μπορεί πλέον να συνδεθεί στον διακομιστή. Ενημερώστε στην πιο πρόσφατη έκδοση για να συνεχίσετε τον συγχρονισμό.</string>
+    <string name="update_required_title">Απαιτείται ενημέρωση</string>
     <string name="update_up_to_date_message">Έχετε την τελευταία έκδοση του %1$@.</string>
     <string name="update_up_to_date_title">Είστε ενημερωμένοι</string>
     <string name="vibration_settings_motor_warning">Ορισμένα τηλέφωνα διαθέτουν κινητήρες δόνησης χαμηλότερης ποιότητας που ενδέχεται να αγνοούν πολύ αδύναμες ή πολύ σύντομες δονήσεις. Αν δεν αισθάνεστε μια ρύθμιση, δοκιμάστε να αυξήσετε την ένταση ή τη διάρκειά της. Μπορείτε να ξεκινήσετε δοκιμάζοντας την προεπιλογή \"Μέτριο\".</string>

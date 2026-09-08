@@ -797,6 +797,9 @@
     <string name="update_available_title">Yra atnaujinimas</string>
     <string name="update_check_failed_message">Nepavyko pasiekti App Store. Bandykite vėliau.</string>
     <string name="update_check_failed_title">Patikrinimas nepavyko</string>
+    <string name="update_required_action">Atnaujinti</string>
+    <string name="update_required_message">Ši „TigerDuck“ versija nebegali prisijungti prie serverio. Atnaujinkite į naujausią versiją, kad sinchronizavimas tęstųsi.</string>
+    <string name="update_required_title">Reikia atnaujinti</string>
     <string name="update_up_to_date_message">Turite naujausią %1$@ versiją.</string>
     <string name="update_up_to_date_title">Versija naujausia</string>
     <string name="vibration_settings_motor_warning">Kai kuriuose telefonuose yra žemesnės kokybės vibromotoriai, kurie gali ignoruoti labai silpnas arba labai trumpas vibracijas. Jei negalite pajusti nustatymo, pabandykite padidinti jo stiprumą arba ilgį. Galite pradėti išbandydami \"Vidutinis\" išankstinį nustatymą.</string>

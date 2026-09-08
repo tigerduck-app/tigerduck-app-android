@@ -797,6 +797,9 @@
     <string name="update_available_title">Atualização disponível</string>
     <string name="update_check_failed_message">Não foi possível contactar a App Store. Tente novamente mais tarde.</string>
     <string name="update_check_failed_title">Verificação falhou</string>
+    <string name="update_required_action">Atualizar</string>
+    <string name="update_required_message">Esta versão do TigerDuck já não consegue ligar-se ao servidor. Atualize para a versão mais recente para continuar a sincronizar.</string>
+    <string name="update_required_title">Atualização necessária</string>
     <string name="update_up_to_date_message">Tem a versão mais recente do %1$@.</string>
     <string name="update_up_to_date_title">Está atualizado</string>
     <string name="vibration_settings_motor_warning">Alguns telemóveis têm motores de vibração de menor qualidade que podem ignorar vibrações muito fracas ou muito curtas. Se não conseguir sentir uma definição, tente aumentar a sua intensidade ou duração. Pode começar por experimentar a predefinição \"Médio\" primeiro.</string>

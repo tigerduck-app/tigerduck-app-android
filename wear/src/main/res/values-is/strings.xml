@@ -797,6 +797,9 @@
     <string name="update_available_title">Uppfærsla tiltæk</string>
     <string name="update_check_failed_message">Náðist ekki í App Store. Reyndu aftur síðar.</string>
     <string name="update_check_failed_title">Athugun mistókst</string>
+    <string name="update_required_action">Uppfæra</string>
+    <string name="update_required_message">Þessi útgáfa af TigerDuck getur ekki lengur tengst netþjóninum. Uppfærðu í nýjustu útgáfuna til að halda samstillingu áfram.</string>
+    <string name="update_required_title">Uppfærslu krafist</string>
     <string name="update_up_to_date_message">Þú ert með nýjustu útgáfuna af %1$@.</string>
     <string name="update_up_to_date_title">Þú ert uppfærð/ur</string>
     <string name="vibration_settings_motor_warning">Sumir símar hafa lægri gæða titringsmótor sem gætu hunsað mjög veika eða mjög stuttar titringshreyfingar. Ef þú finnur ekki fyrir stillingu skaltu reyna að auka styrk hennar eða lengd. Þú getur byrjað á að prófa \"Meðal\" forstillinguna fyrst.</string>
