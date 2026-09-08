@@ -20,8 +20,16 @@ class NtustSessionManager @Inject constructor(
     private val cookieStore = ConcurrentHashMap<String, CopyOnWriteArrayList<Cookie>>()
 
     init {
-        // Clear stale SSO timestamp if cookie store is empty after process restart
-        if (cookieStore.isEmpty() && prefs.ssoLoginTimestamp > 0L) {
+        // The jar is in-memory, so on every process start it is empty and any
+        // persisted timestamp describes a session that no longer exists. Drop
+        // it, so loginTimestampMs / cookieExpiryMs cannot report an expiry for
+        // cookies nobody holds.
+        //
+        // Losing the session on restart is by design — these are short-lived
+        // SSO cookies and AuthService.ensureAuthenticated() rebuilds them from
+        // stored credentials on demand. It is NOT a signal that the user is
+        // signed out: that is AuthService.authState, which is durable.
+        if (prefs.ssoLoginTimestamp > 0L) {
             prefs.clearSsoTimestamp()
         }
     }
@@ -99,6 +107,11 @@ class NtustSessionManager @Inject constructor(
             SENSITIVE_PARAM_REGEX.replace(message) { m -> "${m.groupValues[1]}=***" }
     }
 
+    /**
+     * Whether a network call to NTUST can go out right now. Short-lived and
+     * process-local by nature — see the [init] note. Ask
+     * `AuthService.authState` instead for "is the user signed in".
+     */
     val cookiesValid: Boolean
         get() {
             val ts = prefs.ssoLoginTimestamp

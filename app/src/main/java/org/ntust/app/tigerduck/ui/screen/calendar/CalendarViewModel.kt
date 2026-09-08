@@ -202,7 +202,7 @@ class CalendarViewModel @Inject constructor(
             _events.value = withAcademicEvents(dataCache.loadCalendarEvents())
             // The school ICS is public, but the user expects a logged-out
             // calendar to stay completely idle (no spinner, no network).
-            if (authService.isNtustAuthenticated) fetchData()
+            if (authService.authState.value) fetchData()
         }
     }
 
@@ -223,7 +223,7 @@ class CalendarViewModel @Inject constructor(
         // is the one source on this screen that needs no account, so a pull
         // must still refresh it for a signed-out user.
         viewModelScope.launch { academicCalendar.refresh() }
-        if (!authService.isNtustAuthenticated) return
+        if (!authService.authState.value) return
         viewModelScope.launch {
             _isLoading.value = true
             if (!networkChecker.isAvailable()) {

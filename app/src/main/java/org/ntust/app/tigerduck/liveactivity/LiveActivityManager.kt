@@ -81,15 +81,20 @@ class LiveActivityManager @Inject constructor(
     }
 
     private suspend fun refreshInternal() {
-        if (!preferences.isEnabled || !authService.isNtustAuthenticated) {
-            // The other silent way to get no Live Update. Signing out or an
-            // expired NTUST session stops it just as completely as the
-            // feature toggle, and neither says so anywhere.
+        // authState, not a session-liveness check: everything below reads local
+        // JSON and the academic calendar, so what matters is whether a user
+        // is signed in at all — not whether an SSO cookie happens to be warm.
+        // The cookie jar is in-memory, so gating on it stopped the Live Update
+        // after every reboot or background kill until the user signed in again.
+        val signedIn = authService.authState.value
+        if (!preferences.isEnabled || !signedIn) {
+            // The other silent way to get no Live Update. Signing out stops it
+            // just as completely as the feature toggle, and neither says so
+            // anywhere.
             if (BuildConfig.DEBUG) {
                 Log.d(
                     TAG,
-                    "no live update: enabled=${preferences.isEnabled} " +
-                        "ntustAuthenticated=${authService.isNtustAuthenticated}",
+                    "no live update: enabled=${preferences.isEnabled} signedIn=$signedIn",
                 )
             }
             notifier.cancel()

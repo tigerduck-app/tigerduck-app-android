@@ -393,7 +393,9 @@ class AppState @Inject constructor(
         setHapticDurationMs(scenario, scenario.defaultDurationMs)
     }
 
-    val isNtustLoggedIn: Boolean get() = authService.isNtustAuthenticated
+    // authState, matching SettingsViewModel.isNtustLoggedIn — a property with
+    // this name must mean "signed in", not "has a warm SSO cookie".
+    val isNtustLoggedIn: Boolean get() = authService.authState.value
 
     @Suppress("unused")
     val isLibraryLoggedIn: Boolean get() = credentials.isLibraryTokenValid

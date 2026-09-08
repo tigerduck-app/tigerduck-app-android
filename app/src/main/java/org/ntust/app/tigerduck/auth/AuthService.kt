@@ -47,9 +47,21 @@ class AuthService @Inject constructor(
     val loginError: StateFlow<String?> = _loginError
 
     /**
-     * Observable NTUST auth state. Screens and view-models collect this so
-     * they can reactively clear or reload when the user logs in or out —
-     * [isNtustAuthenticated] is a snapshot, this is the live signal.
+     * Observable "is a user signed in" state, backed by the stored NTUST
+     * credentials — so it is **durable**: it survives process death, reboots
+     * and upgrades, and only flips on an actual login or logout.
+     *
+     * This is the signal almost everything wants, including every feature
+     * that only reads the local cache. Session *liveness* — whether an SSO
+     * cookie is currently warm enough to make a network call — is a separate,
+     * much shorter-lived question; ask [NtustSessionManager.cookiesValid] for
+     * it, or better, call [ensureAuthenticated], which re-logs in from stored
+     * credentials rather than merely reporting that it cannot.
+     *
+     * Conflating the two is a live hazard: the cookie jar is in-memory, so a
+     * liveness check reads false after every process restart. Gating the Live
+     * Update on one made it vanish after each reboot or background kill until
+     * the user signed in by hand.
      */
     private val _authState = MutableStateFlow(credentials.ntustStudentId != null)
     val authState: StateFlow<Boolean> = _authState
@@ -98,9 +110,6 @@ class AuthService @Inject constructor(
             false
         }
     }
-
-    val isNtustAuthenticated: Boolean
-        get() = sessionManager.cookiesValid && credentials.ntustStudentId != null
 
     val storedStudentId: String? get() = credentials.ntustStudentId
     internal val storedPassword: String? get() = credentials.ntustPassword

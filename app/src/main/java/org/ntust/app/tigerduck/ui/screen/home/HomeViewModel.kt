@@ -522,7 +522,7 @@ class HomeViewModel @Inject constructor(
             updateCoursesAndAssignments(courses, assignments)
             if (forceRemote) {
                 dataCache.notifyBackgroundSyncComplete()
-                if (authService.isNtustAuthenticated) {
+                if (authService.authState.value) {
                     _syncCompleteEvent.tryEmit(Unit)
                 }
             }
