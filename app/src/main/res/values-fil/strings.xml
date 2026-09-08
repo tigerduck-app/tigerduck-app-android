@@ -656,6 +656,7 @@
     <string name="settings_account_library_system">Sistema ng aklatan</string>
     <string name="settings_account_ntust_system">Sistemang akademiko</string>
     <string name="settings_acknowledged">Naintindihan ko</string>
+    <string name="settings_always_show_periods_abc">Always show class A B and C</string>
     <string name="settings_analytics_description">Ibahagi ang anonymous na datos ng paggamit (mga page na binisita, paggamit ng widget) para mapabuti ang TigerDuck</string>
     <string name="settings_analytics_enabled">Analytics ng paggamit</string>
     <string name="settings_api_endpoint">API endpoint</string>

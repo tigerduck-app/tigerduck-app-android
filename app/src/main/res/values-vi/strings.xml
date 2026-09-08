@@ -656,6 +656,7 @@
     <string name="settings_account_library_system">Hệ thống thư viện</string>
     <string name="settings_account_ntust_system">Hệ thống học vụ</string>
     <string name="settings_acknowledged">Đã hiểu</string>
+    <string name="settings_always_show_periods_abc">Always show class A B and C</string>
     <string name="settings_analytics_description">Chia sẻ dữ liệu sử dụng ẩn danh (trang đã truy cập, sử dụng widget) để giúp cải thiện TigerDuck</string>
     <string name="settings_analytics_enabled">Phân tích sử dụng</string>
     <string name="settings_api_endpoint">Điểm cuối API</string>

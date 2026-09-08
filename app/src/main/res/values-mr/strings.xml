@@ -656,6 +656,7 @@
     <string name="settings_account_library_system">ग्रंथालय प्रणाली</string>
     <string name="settings_account_ntust_system">शैक्षणिक प्रणाली</string>
     <string name="settings_acknowledged">समजले</string>
+    <string name="settings_always_show_periods_abc">Always show class A B and C</string>
     <string name="settings_analytics_description">TigerDuck सुधारण्यास मदत करण्यासाठी अनामिक वापर डेटा (भेट दिलेली पृष्ठे, विजेट वापर) शेअर करा</string>
     <string name="settings_analytics_enabled">वापर विश्लेषण</string>
     <string name="settings_api_endpoint">API एंडपॉइंट</string>

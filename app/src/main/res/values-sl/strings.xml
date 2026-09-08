@@ -656,6 +656,7 @@
     <string name="settings_account_library_system">Sistem knjižnice</string>
     <string name="settings_account_ntust_system">Študijski sistem</string>
     <string name="settings_acknowledged">Razumem</string>
+    <string name="settings_always_show_periods_abc">Always show class A B and C</string>
     <string name="settings_analytics_description">Deli anonimne podatke o uporabi (obiskane strani, uporaba widgetov), da pomagaš izboljšati TigerDuck</string>
     <string name="settings_analytics_enabled">Analitika uporabe</string>
     <string name="settings_api_endpoint">Končna točka API</string>

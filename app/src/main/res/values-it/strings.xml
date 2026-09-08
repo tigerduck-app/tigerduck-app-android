@@ -656,6 +656,7 @@
     <string name="settings_account_library_system">Sistema biblioteca</string>
     <string name="settings_account_ntust_system">Sistema accademico</string>
     <string name="settings_acknowledged">Ho capito</string>
+    <string name="settings_always_show_periods_abc">Always show class A B and C</string>
     <string name="settings_analytics_description">Condividi dati d\'uso anonimi (pagine visitate, utilizzo dei widget) per migliorare TigerDuck</string>
     <string name="settings_analytics_enabled">Analisi dell\'utilizzo</string>
     <string name="settings_api_endpoint">Endpoint API</string>

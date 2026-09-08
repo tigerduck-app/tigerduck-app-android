@@ -656,6 +656,7 @@
     <string name="settings_account_library_system">Система на библиотека</string>
     <string name="settings_account_ntust_system">Академична система</string>
     <string name="settings_acknowledged">Разбрах</string>
+    <string name="settings_always_show_periods_abc">Always show class A B and C</string>
     <string name="settings_analytics_description">Споделяй анонимни данни за използването (посетени страници, използване на виджети), за да помогнеш за подобряването на TigerDuck</string>
     <string name="settings_analytics_enabled">Анализ на използването</string>
     <string name="settings_api_endpoint">Крайна точка на API</string>

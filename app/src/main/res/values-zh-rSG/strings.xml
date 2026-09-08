@@ -656,6 +656,7 @@
     <string name="settings_account_library_system">图书馆系统</string>
     <string name="settings_account_ntust_system">校务系统</string>
     <string name="settings_acknowledged">知道了</string>
+    <string name="settings_always_show_periods_abc">随时显示第 A、B、C 堂课</string>
     <string name="settings_analytics_description">分享匿名使用数据（浏览页面、小组件使用情况），帮助改进 TigerDuck</string>
     <string name="settings_analytics_enabled">使用分析</string>
     <string name="settings_api_endpoint">API 端点</string>

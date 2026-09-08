@@ -656,6 +656,7 @@
     <string name="settings_account_library_system">Bókasafnskerfi</string>
     <string name="settings_account_ntust_system">Námskerfi</string>
     <string name="settings_acknowledged">Skil</string>
+    <string name="settings_always_show_periods_abc">Always show class A B and C</string>
     <string name="settings_analytics_description">Deildu nafnlausum notkunargögnum (heimsóttum síðum, notkun widgets) til að hjálpa til við að bæta TigerDuck</string>
     <string name="settings_analytics_enabled">Notkunargreining</string>
     <string name="settings_api_endpoint">API-endapunktur</string>

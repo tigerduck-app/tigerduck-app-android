@@ -656,6 +656,7 @@
     <string name="settings_account_library_system">Кітапхана жүйесі</string>
     <string name="settings_account_ntust_system">Оқу жүйесі</string>
     <string name="settings_acknowledged">Түсінікті</string>
+    <string name="settings_always_show_periods_abc">Always show class A B and C</string>
     <string name="settings_analytics_description">TigerDuck-ты жақсартуға көмектесу үшін анонимді пайдалану деректерін (қаралған беттер, виджет пайдалануы) бөлісіңіз</string>
     <string name="settings_analytics_enabled">Пайдалану аналитикасы</string>
     <string name="settings_api_endpoint">API соңғы нүктесі</string>
