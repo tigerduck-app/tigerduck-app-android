@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">點擊兩下以在 Moodle 中開啟作業</string>
     <string name="a11y_calendar_day">%1$@，共 %2$lld 個事件</string>
     <string name="a11y_calendar_nav_next">下個月</string>
@@ -29,6 +29,7 @@
     <string name="action_remove">移除</string>
     <string name="action_reset">重設</string>
     <string name="action_retry">重試</string>
+    <string name="action_save">儲存</string>
     <string name="action_search">搜尋</string>
     <string name="action_sign_in">登入</string>
     <string name="action_sign_in_again">重新登入</string>
@@ -150,14 +151,20 @@
     <string name="bulletin_unread_dot_label">未讀</string>
     <string name="bulletin_withdrawn_badge">已撤下</string>
     <string name="calendar_date_today_suffix"> (今日)</string>
+    <string name="calendar_holiday_notify_description">這個假日不會提醒上課。開啟後仍會收到上課提醒。</string>
+    <string name="calendar_holiday_notify_title">還要上課？</string>
     <string name="calendar_month_year">%1$d年%2$d月</string>
     <string name="calendar_next_month">下個月</string>
     <string name="calendar_no_events_on_day">這天沒有活動</string>
     <string name="calendar_no_events_today">今日無事件</string>
     <string name="calendar_previous_month">上個月</string>
+    <string name="calendar_semester_end">%1$s 結束</string>
+    <string name="calendar_semester_start">%1$s 開始</string>
     <string name="calendar_source_exam">考試</string>
+    <string name="calendar_source_holiday">假日</string>
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">學校</string>
+    <string name="calendar_source_semester">學期</string>
     <string name="calendar_today">今天</string>
     <string name="class_table_conflict_add_failed_message">%1$s 的時段（週%2$s 第%3$s節）已有兩堂課程：%4$s 和 %5$s。系統不支援三堂以上衝堂。</string>
     <string name="class_table_conflict_add_failed_title">無法加入</string>
@@ -171,8 +178,9 @@
     <string name="class_table_rename_revert">回復預設</string>
     <string name="class_table_rename_title">重新命名</string>
     <string name="class_table_rename_with_course">重新命名 — %1$s</string>
-    <string name="class_table_reset_message">這會將你的課表重置為 Moodle 選課紀錄。被隱藏的課程會重新出現，手動新增的課程會被移除。</string>
+    <string name="class_table_reset_message">將根據 Moodle、選課系統、成績系統的狀態進行重置，手動新增、刪除與重命名的課都會遺失</string>
     <string name="class_table_reset_title">重置課表</string>
+    <string name="class_table_reset_title_with_semester">重置 %1$s 課表</string>
     <string name="class_table_semester_picker_label">學期</string>
     <string name="class_table_sign_in_required_message">尚未登入，無法查看課表</string>
     <string name="class_table_total_credits_value">%1$d 學分</string>
@@ -282,11 +290,9 @@
     <string name="desktop_settings_moodle_open_in">開啟 Moodle 連結於</string>
     <string name="desktop_settings_moodle_open_in_app">Moodle App</string>
     <string name="desktop_settings_moodle_open_in_browser">瀏覽器</string>
-    <string name="desktop_settings_section_course_display">課程顯示</string>
     <string name="desktop_settings_section_interface">介面</string>
     <string name="desktop_settings_section_links">連結</string>
     <string name="desktop_settings_section_ntust">台科大</string>
-    <string name="desktop_settings_section_schedule">課表</string>
     <string name="desktop_settings_sidebar_available">可用</string>
     <string name="desktop_settings_sidebar_description">選擇要顯示在側邊欄的功能與順序。「設定」永遠顯示在側邊欄底部。</string>
     <string name="desktop_settings_sidebar_empty_available">所有功能都已釘選。</string>
@@ -513,6 +519,7 @@
     <string name="notification_setup_title">重新設定通知</string>
     <string name="onboarding_analytics_description">分享匿名的頁面瀏覽和小工具使用資料，協助改善 TigerDuck。你可以隨時在設定中更改。</string>
     <string name="onboarding_analytics_label">使用分析（選填）</string>
+    <string name="onboarding_custom_endpoint_button">使用其他 API 端點</string>
     <string name="onboarding_flavor_fdroid_description">您安裝的是 F-Droid 版本，由於 F-Droid 商店規範不能使用 Google 所提供的各項服務（Firebase FCM、GMS 等等），所以以下兩項功能將在 F-Droid 版本（你正在使用）中缺失：\n\n1. Wear OS 應用程式\n2. 主動公告通知推送</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid 版本說明</string>
     <string name="onboarding_flavor_play_description">本應用程式提供 Wear OS 應用程式，您可以在手錶查看課堂訊息。手錶 TigerDuck 將同步手機資訊。</string>
@@ -610,6 +617,7 @@
     <string name="score_error_sign_in_expired">登入已失效，請重新登入。</string>
     <string name="score_gpa_cumulative_to">累積 GPA（截至 %1$s）</string>
     <string name="score_gpa_latest">最新 GPA</string>
+    <string name="score_gpa_provisional">暫定</string>
     <string name="score_gpa_term_label">學期 GPA（%1$s）</string>
     <string name="score_gpa_trend_title">GPA 趨勢</string>
     <string name="score_grade_exempted">抵免</string>
@@ -646,12 +654,31 @@
     <string name="settings_account_library_system">圖書館系統</string>
     <string name="settings_account_ntust_system">校務系統</string>
     <string name="settings_acknowledged">知道了</string>
+    <string name="settings_always_show_periods_abc">隨時顯示第 A、B、C 堂課</string>
     <string name="settings_analytics_description">分享匿名使用資料（瀏覽頁面、小工具使用情形）以協助改善 TigerDuck</string>
     <string name="settings_analytics_enabled">使用分析</string>
+    <string name="settings_api_endpoint">API 端點</string>
+    <string name="settings_api_endpoint_change_title">更改端點</string>
+    <string name="settings_api_endpoint_checking">檢查中…</string>
+    <string name="settings_api_endpoint_effective_title">目前端點</string>
+    <string name="settings_api_endpoint_error_insecure">這個位址必須使用 https。</string>
+    <string name="settings_api_endpoint_error_malformed">這不是有效的網址，請包含通訊協定，例如 https://api.example.com/v3</string>
+    <string name="settings_api_endpoint_error_not_backend">該位址有回應，但不是 TigerDuck 後端。</string>
+    <string name="settings_api_endpoint_error_save_failed">端點可以連線，但儲存失敗，請再試一次。</string>
+    <string name="settings_api_endpoint_error_unreachable">無法連線到該端點：%1$s</string>
+    <string name="settings_api_endpoint_https_note">除了私有 IP 範圍，僅允許 HTTPS。</string>
+    <string name="settings_api_endpoint_placeholder">https://api.example.com/v3</string>
+    <string name="settings_api_endpoint_reset_action">重設為預設值</string>
+    <string name="settings_api_endpoint_reset_done">已重設為預設端點。</string>
+    <string name="settings_api_endpoint_saved">已儲存。</string>
+    <string name="settings_api_endpoint_saved_rewritten">已儲存。因為是私有位址，已將 https 改為 http。</string>
+    <string name="settings_api_endpoint_stale_description">它不再符合下方規則，目前使用預設端點。請重新儲存或清除。</string>
+    <string name="settings_api_endpoint_stale_title">已儲存的端點不再有效</string>
     <string name="settings_assignment_due_reminder">作業到期提醒</string>
     <string name="settings_browser_in_app">App 內瀏覽器</string>
     <string name="settings_browser_system_default">系統預設瀏覽器</string>
     <string name="settings_check_for_updates">檢查更新</string>
+    <string name="settings_check_server_status">檢查各伺服器上線狀況</string>
     <string name="settings_classroom_mandarin_display">當教室名稱為中文時</string>
     <string name="settings_classroom_mandarin_display_original">顯示原文</string>
     <string name="settings_classroom_mandarin_display_pinyin">顯示拼音</string>
@@ -690,7 +717,7 @@
     <string name="settings_official_website">官網</string>
     <string name="settings_open_source_licenses">開源授權</string>
     <string name="settings_privacy_policy">隱私權政策</string>
-    <string name="settings_push_server_nav_label">伺服器推播（實驗性）</string>
+    <string name="settings_push_server_nav_label">伺服器推播</string>
     <string name="settings_remember_bulletin_filter">記住公告篩選條件</string>
     <string name="settings_reset_course_colors">重新分配課表顏色</string>
     <string name="settings_reset_course_colors_confirm_message">每門課都會被指派一個全新且不重複的顏色——優先使用預設色盤，色盤用完後隨機產生。</string>
@@ -710,6 +737,7 @@
     <string name="settings_sync_disabled_note">關閉同步後，所有資料僅儲存於本機。</string>
     <string name="settings_sync_status_off">關閉</string>
     <string name="settings_sync_status_on">開啟</string>
+    <string name="settings_system_language">系統語言</string>
     <string name="settings_theme_dark">暗色模式</string>
     <string name="settings_theme_light">亮色模式</string>
     <string name="settings_theme_system">跟隨系統</string>
@@ -747,6 +775,11 @@
     <string name="sync_conflict_use_server">使用伺服器</string>
     <string name="sync_fdroid_unavailable_body">雲端同步需要 Google Play 服務，F-Droid 版本不支援此功能。</string>
     <string name="sync_fdroid_unavailable_title">F-Droid 不支援</string>
+    <string name="sync_status_failed">失敗</string>
+    <string name="sync_status_minimal">最低限度</string>
+    <string name="sync_status_ok">正常</string>
+    <string name="sync_status_syncing">同步中…</string>
+    <string name="sync_status_title">同步狀態</string>
     <string name="sync_success_content_description">同步成功</string>
     <string name="tab_editor_apply_action">套用</string>
     <string name="tab_editor_drag_reorder">拖曳圖示調整順序</string>

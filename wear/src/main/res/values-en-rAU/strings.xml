@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Double tap to open the assignment in Moodle</string>
     <string name="a11y_calendar_day">%1$@, %2$lld events</string>
     <string name="a11y_calendar_nav_next">Next month</string>
@@ -29,6 +29,7 @@
     <string name="action_remove">Remove</string>
     <string name="action_reset">Reset</string>
     <string name="action_retry">Retry</string>
+    <string name="action_save">Save</string>
     <string name="action_search">Search</string>
     <string name="action_sign_in">Sign in</string>
     <string name="action_sign_in_again">Sign in again</string>
@@ -150,14 +151,20 @@
     <string name="bulletin_unread_dot_label">Unread</string>
     <string name="bulletin_withdrawn_badge">Withdrawn</string>
     <string name="calendar_date_today_suffix"> (Today)</string>
+    <string name="calendar_holiday_notify_description">Class reminders are off during this holiday. Turn this on to keep getting them.</string>
+    <string name="calendar_holiday_notify_title">Still have class?</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">Next month</string>
     <string name="calendar_no_events_on_day">No events on this day</string>
     <string name="calendar_no_events_today">No events today</string>
     <string name="calendar_previous_month">Previous month</string>
+    <string name="calendar_semester_end">End of %1$s</string>
+    <string name="calendar_semester_start">Start of %1$s</string>
     <string name="calendar_source_exam">Exam</string>
+    <string name="calendar_source_holiday">Holiday</string>
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">School</string>
+    <string name="calendar_source_semester">Semester</string>
     <string name="calendar_today">Today</string>
     <string name="class_table_conflict_add_failed_message">%1$s already has two classes at this slot (Weekday %2$s, Period %3$s): %4$s and %5$s. The system does not support triple conflicts.</string>
     <string name="class_table_conflict_add_failed_title">Unable to add</string>
@@ -171,8 +178,9 @@
     <string name="class_table_rename_revert">Revert to default</string>
     <string name="class_table_rename_title">Rename</string>
     <string name="class_table_rename_with_course">Rename — %1$s</string>
-    <string name="class_table_reset_message">This will reset your course timetable to match your Moodle enrolment. Hidden courses will reappear and manually added courses will be removed.</string>
+    <string name="class_table_reset_message">This will rebuild the course timetable from Moodle, the course selection system and the grade system. Manually added, deleted and renamed courses will be lost.</string>
     <string name="class_table_reset_title">Reset course timetable</string>
+    <string name="class_table_reset_title_with_semester">Reset %1$s course timetable</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Sign in to view your class table</string>
     <string name="class_table_total_credits_value">%1$d credits</string>
@@ -282,11 +290,9 @@
     <string name="desktop_settings_moodle_open_in">Open Moodle link in</string>
     <string name="desktop_settings_moodle_open_in_app">Moodle app</string>
     <string name="desktop_settings_moodle_open_in_browser">Browser</string>
-    <string name="desktop_settings_section_course_display">Course display</string>
     <string name="desktop_settings_section_interface">Interface</string>
     <string name="desktop_settings_section_links">Links</string>
     <string name="desktop_settings_section_ntust">NTUST</string>
-    <string name="desktop_settings_section_schedule">Schedule</string>
     <string name="desktop_settings_sidebar_available">Available</string>
     <string name="desktop_settings_sidebar_description">Choose which features appear in the sidebar and what order they show in. Settings is always available at the bottom of the sidebar.</string>
     <string name="desktop_settings_sidebar_empty_available">Every feature is already pinned.</string>
@@ -513,6 +519,7 @@
     <string name="notification_setup_title">Reconfigure notifications</string>
     <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymised page visits and widget usage. You can change this anytime in Settings.</string>
     <string name="onboarding_analytics_label">Usage analytics (optional)</string>
+    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
     <string name="onboarding_flavor_fdroid_description">You\'re using the F-Droid build. Because F-Droid policy forbids depending on Google\'s services (Firebase FCM, GMS, etc.), the following two features are unavailable in this build:\n\n1. Wear OS companion app\n2. Real-time push announcements</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid build notice</string>
     <string name="onboarding_flavor_play_description">TigerDuck includes a Wear OS companion. View class messages on your watch — Wear TigerDuck syncs information from your phone.</string>
@@ -610,6 +617,7 @@
     <string name="score_error_sign_in_expired">Login expired. Please sign in again.</string>
     <string name="score_gpa_cumulative_to">Cumulative GPA to %1$s</string>
     <string name="score_gpa_latest">Latest GPA</string>
+    <string name="score_gpa_provisional">Provisional</string>
     <string name="score_gpa_term_label">Semester GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA trend</string>
     <string name="score_grade_exempted">Exempted</string>
@@ -646,12 +654,31 @@
     <string name="settings_account_library_system">Library system</string>
     <string name="settings_account_ntust_system">School system</string>
     <string name="settings_acknowledged">Got it</string>
+    <string name="settings_always_show_periods_abc">Always show class A B and C</string>
     <string name="settings_analytics_description">Share anonymised usage data (pages visited, widget usage) to help improve TigerDuck</string>
     <string name="settings_analytics_enabled">Usage analytics</string>
+    <string name="settings_api_endpoint">API endpoint</string>
+    <string name="settings_api_endpoint_change_title">Change endpoint</string>
+    <string name="settings_api_endpoint_checking">Checking…</string>
+    <string name="settings_api_endpoint_effective_title">Effective endpoint</string>
+    <string name="settings_api_endpoint_error_insecure">This address must use https.</string>
+    <string name="settings_api_endpoint_error_malformed">That isn\'t a valid URL. Include the scheme, for example https://api.example.com/v3</string>
+    <string name="settings_api_endpoint_error_not_backend">Something answered, but it isn\'t a TigerDuck backend.</string>
+    <string name="settings_api_endpoint_error_save_failed">The endpoint works, but couldn\'t be saved. Try again.</string>
+    <string name="settings_api_endpoint_error_unreachable">Couldn\'t reach that endpoint: %1$s</string>
+    <string name="settings_api_endpoint_https_note">For non-private IP range, only HTTPS is allowed.</string>
+    <string name="settings_api_endpoint_placeholder">https://api.example.com/v3</string>
+    <string name="settings_api_endpoint_reset_action">Reset to default</string>
+    <string name="settings_api_endpoint_reset_done">Reset to the default endpoint.</string>
+    <string name="settings_api_endpoint_saved">Saved.</string>
+    <string name="settings_api_endpoint_saved_rewritten">Saved. Private address, so https was switched to http.</string>
+    <string name="settings_api_endpoint_stale_description">It no longer meets the rule below, so the default endpoint is in use. Save a new one or clear it.</string>
+    <string name="settings_api_endpoint_stale_title">Saved endpoint is no longer valid</string>
     <string name="settings_assignment_due_reminder">Assignment due reminders</string>
     <string name="settings_browser_in_app">In-app browser</string>
     <string name="settings_browser_system_default">System default browser</string>
     <string name="settings_check_for_updates">Check for updates</string>
+    <string name="settings_check_server_status">Check server status</string>
     <string name="settings_classroom_mandarin_display">When classroom name is in Mandarin</string>
     <string name="settings_classroom_mandarin_display_original">Display original</string>
     <string name="settings_classroom_mandarin_display_pinyin">Display pinyin</string>
@@ -690,7 +717,7 @@
     <string name="settings_official_website">Official website</string>
     <string name="settings_open_source_licenses">Open-source licences</string>
     <string name="settings_privacy_policy">Privacy policy</string>
-    <string name="settings_push_server_nav_label">Server push (Experimental)</string>
+    <string name="settings_push_server_nav_label">Server push</string>
     <string name="settings_remember_bulletin_filter">Remember bulletin filters</string>
     <string name="settings_reset_course_colors">Reset course colours</string>
     <string name="settings_reset_course_colors_confirm_message">This will randomly reassign class table colours using default presets.</string>
@@ -710,6 +737,7 @@
     <string name="settings_sync_disabled_note">When sync is off, all data stays on this device only.</string>
     <string name="settings_sync_status_off">Off</string>
     <string name="settings_sync_status_on">On</string>
+    <string name="settings_system_language">System Language</string>
     <string name="settings_theme_dark">Dark mode</string>
     <string name="settings_theme_light">Light mode</string>
     <string name="settings_theme_system">Follow system</string>
@@ -747,6 +775,11 @@
     <string name="sync_conflict_use_server">Use Server</string>
     <string name="sync_fdroid_unavailable_body">Cloud Sync requires Google Play Services and is not available in the F-Droid build.</string>
     <string name="sync_fdroid_unavailable_title">Not available on F-Droid</string>
+    <string name="sync_status_failed">Failed</string>
+    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_ok">OK</string>
+    <string name="sync_status_syncing">Syncing…</string>
+    <string name="sync_status_title">Sync status</string>
     <string name="sync_success_content_description">Sync successful</string>
     <string name="tab_editor_apply_action">Apply</string>
     <string name="tab_editor_drag_reorder">Drag to reorder</string>

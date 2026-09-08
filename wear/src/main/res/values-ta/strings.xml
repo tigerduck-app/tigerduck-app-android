@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">Moodle-ல் ஒப்படைப்பைத் திறக்க இருமுறை தட்டவும்</string>
     <string name="a11y_calendar_day">%1$@, %2$lld நிகழ்வுகள்</string>
     <string name="a11y_calendar_nav_next">அடுத்த மாதம்</string>
@@ -29,6 +29,7 @@
     <string name="action_remove">அகற்று</string>
     <string name="action_reset">மீட்டமை</string>
     <string name="action_retry">மீண்டும் முயற்சி செய்யவும்</string>
+    <string name="action_save">Save</string>
     <string name="action_search">தேடு</string>
     <string name="action_sign_in">உள்நுழைவு</string>
     <string name="action_sign_in_again">மீண்டும் உள்நுழைக</string>
@@ -150,14 +151,20 @@
     <string name="bulletin_unread_dot_label">படிக்காதது</string>
     <string name="bulletin_withdrawn_badge">திரும்பப் பெறப்பட்டது</string>
     <string name="calendar_date_today_suffix"> (இன்று)</string>
+    <string name="calendar_holiday_notify_description">இந்த விடுமுறையின்போது வகுப்பு நினைவூட்டல்கள் ஆஃப் செய்யப்பட்டுள்ளன. அவற்றைத் தொடர்ந்து பெற இதை ஆன் செய்யவும்.</string>
+    <string name="calendar_holiday_notify_title">இன்னும் வகுப்பு உள்ளதா?</string>
     <string name="calendar_month_year">%1$d/%2$d</string>
     <string name="calendar_next_month">அடுத்த மாதம்</string>
     <string name="calendar_no_events_on_day">இந்த நாளில் நிகழ்வுகள் இல்லை</string>
     <string name="calendar_no_events_today">இன்று நிகழ்வுகள் இல்லை</string>
     <string name="calendar_previous_month">கடந்த மாதம்</string>
+    <string name="calendar_semester_end">End of %1$s</string>
+    <string name="calendar_semester_start">Start of %1$s</string>
     <string name="calendar_source_exam">தேர்வு</string>
+    <string name="calendar_source_holiday">விடுமுறை</string>
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">பள்ளி</string>
+    <string name="calendar_source_semester">பருவம்</string>
     <string name="calendar_today">இன்று</string>
     <string name="class_table_conflict_add_failed_message">%1$s ஏற்கனவே இந்த இடத்தில் (வாரநாள் %2$s, பீரியட் %3$s) இரண்டு வகுப்புகள் உள்ளன: %4$s மற்றும் %5$s. கணினி மூன்று மடங்கு மோதல்களை ஆதரிக்காது.</string>
     <string name="class_table_conflict_add_failed_title">சேர்க்க முடியவில்லை</string>
@@ -171,8 +178,9 @@
     <string name="class_table_rename_revert">இயல்புநிலைக்கு மீட்டமை</string>
     <string name="class_table_rename_title">மறுபெயரிடு</string>
     <string name="class_table_rename_with_course">மறுபெயரிடு — %1$s</string>
-    <string name="class_table_reset_message">இது உங்கள் பாடநேர அட்டவணையை உங்கள் Moodle பதிவுக்கு ஏற்ப மீட்டமைக்கும். மறைக்கப்பட்ட பாடங்கள் மீண்டும் தோன்றும் மற்றும் கைமுறையாக சேர்க்கப்பட்ட பாடங்கள் நீக்கப்படும்.</string>
+    <string name="class_table_reset_message">Moodle, பாடத் தேர்வு அமைப்பு மற்றும் மதிப்பெண் அமைப்பின் அடிப்படையில் பாடநேர அட்டவணை மீண்டும் உருவாக்கப்படும். கைமுறையாகச் சேர்க்கப்பட்ட, நீக்கப்பட்ட மற்றும் பெயர் மாற்றப்பட்ட பாடங்கள் இழக்கப்படும்.</string>
     <string name="class_table_reset_title">பாடநேர அட்டவணையை மீட்டமைக்கவும்</string>
+    <string name="class_table_reset_title_with_semester">%1$s பாடநேர அட்டவணையை மீட்டமைக்கவும்</string>
     <string name="class_table_semester_picker_label">பருவம்</string>
     <string name="class_table_sign_in_required_message">உங்கள் வகுப்பு அட்டவணையை காண உள்நுழையவும்</string>
     <string name="class_table_total_credits_value">%1$d கிரெடிட்கள்</string>
@@ -282,11 +290,9 @@
     <string name="desktop_settings_moodle_open_in">Moodle இணைப்பைத் திறக்க</string>
     <string name="desktop_settings_moodle_open_in_app">Moodle செயலி</string>
     <string name="desktop_settings_moodle_open_in_browser">உலாவி</string>
-    <string name="desktop_settings_section_course_display">வகுப்பு காட்சி</string>
     <string name="desktop_settings_section_interface">இடைமுகம்</string>
     <string name="desktop_settings_section_links">இணைப்புகள்</string>
     <string name="desktop_settings_section_ntust">NTUST</string>
-    <string name="desktop_settings_section_schedule">வகுப்பு அட்டவணை</string>
     <string name="desktop_settings_sidebar_available">கிடைக்கக்கூடியவை</string>
     <string name="desktop_settings_sidebar_description">பக்கப்பட்டியில் தோன்றும் அம்சங்களையும் அவற்றின் வரிசையையும் தேர்வு செய்யவும். அமைப்புகள் எப்போதும் பக்கப்பட்டியின் கீழே கிடைக்கும்.</string>
     <string name="desktop_settings_sidebar_empty_available">அனைத்து அம்சங்களும் ஏற்கனவே பின் செய்யப்பட்டுள்ளன.</string>
@@ -513,6 +519,7 @@
     <string name="notification_setup_title">அறிவிப்புகளை மீண்டும் கட்டமை</string>
     <string name="onboarding_analytics_description">அநாமதேய பக்க வருகைகள் மற்றும் விட்ஜெட் பயன்பாட்டை பகிர்ந்து TigerDuck-ஐ மேம்படுத்த உதவுங்கள். இதை எப்போது வேண்டுமானாலும் அமைப்புகளில் மாற்றலாம்.</string>
     <string name="onboarding_analytics_label">பயன்பாட்டு பகுப்பாய்வு (விரும்பினால்)</string>
+    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
     <string name="onboarding_flavor_fdroid_description">நீங்கள் F-Droid பதிப்பைப் பயன்படுத்துகிறீர்கள். F-Droid கொள்கை Google சேவைகளை (Firebase FCM, GMS போன்றவை) சார்ந்திருப்பதைத் தடைசெய்வதால், கீழ்க்கண்ட இரண்டு அம்சங்கள் இந்தப் பதிப்பில் கிடைக்கவில்லை:\n\n1. Wear OS துணை ஆப்\n2. நேரடி புஷ் அறிவிப்புகள்</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid பதிப்பு அறிவிப்பு</string>
     <string name="onboarding_flavor_play_description">TigerDuck இல் Wear OS துணை ஆப் உள்ளது. உங்கள் கடிகாரத்தில் வகுப்புச் செய்திகளைப் பாருங்கள் — Wear TigerDuck உங்கள் தொலைபேசியிலிருந்து தகவல்களை ஒத்திசைக்கிறது.</string>
@@ -610,6 +617,7 @@
     <string name="score_error_sign_in_expired">உள்நுழைவு காலாவதியானது. மீண்டும் உள்நுழையவும்.</string>
     <string name="score_gpa_cumulative_to">%1$s வரை ஒட்டுமொத்த GPA</string>
     <string name="score_gpa_latest">சமீபத்திய GPA</string>
+    <string name="score_gpa_provisional">தற்காலிகம்</string>
     <string name="score_gpa_term_label">பருவ GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA போக்கு</string>
     <string name="score_grade_exempted">விலக்கு அளிக்கப்பட்டது</string>
@@ -646,12 +654,31 @@
     <string name="settings_account_library_system">நூலக அமைப்பு</string>
     <string name="settings_account_ntust_system">கல்வி அமைப்பு</string>
     <string name="settings_acknowledged">புரிந்தது</string>
+    <string name="settings_always_show_periods_abc">எப்போதும் A, B, C வகுப்புகளைக் காட்டு</string>
     <string name="settings_analytics_description">TigerDuck-ஐ மேம்படுத்த உதவ அநாமதேய பயன்பாட்டு தரவு (பார்வையிட்ட பக்கங்கள், விட்ஜெட் பயன்பாடு) பகிரவும்</string>
     <string name="settings_analytics_enabled">பயன்பாட்டு பகுப்பாய்வு</string>
+    <string name="settings_api_endpoint">API எண்ட்பாயிண்ட்</string>
+    <string name="settings_api_endpoint_change_title">எண்ட்பாயிண்ட் மாற்று</string>
+    <string name="settings_api_endpoint_checking">சரிபார்க்கிறது…</string>
+    <string name="settings_api_endpoint_effective_title">தற்போதைய எண்ட்பாயிண்ட்</string>
+    <string name="settings_api_endpoint_error_insecure">இந்த முகவரி https ஐப் பயன்படுத்த வேண்டும்.</string>
+    <string name="settings_api_endpoint_error_malformed">இது சரியான URL அல்ல. நெறிமுறையைச் சேர்க்கவும், எடுத்துக்காட்டாக https://api.example.com/v3</string>
+    <string name="settings_api_endpoint_error_not_backend">ஏதோ பதிலளித்தது, ஆனால் அது TigerDuck பின்தளம் அல்ல.</string>
+    <string name="settings_api_endpoint_error_save_failed">எண்ட்பாயிண்ட் வேலை செய்கிறது, ஆனால் சேமிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="settings_api_endpoint_error_unreachable">அந்த எண்ட்பாயிண்டை அடைய முடியவில்லை: %1$s</string>
+    <string name="settings_api_endpoint_https_note">தனியார் அல்லாத IP வரம்பிற்கு, HTTPS மட்டுமே அனுமதிக்கப்படும்.</string>
+    <string name="settings_api_endpoint_placeholder">https://api.example.com/v3</string>
+    <string name="settings_api_endpoint_reset_action">இயல்புநிலைக்கு மீட்டமை</string>
+    <string name="settings_api_endpoint_reset_done">இயல்புநிலை எண்ட்பாயிண்டிற்கு மீட்டமைக்கப்பட்டது.</string>
+    <string name="settings_api_endpoint_saved">சேமிக்கப்பட்டது.</string>
+    <string name="settings_api_endpoint_saved_rewritten">சேமிக்கப்பட்டது. தனியார் முகவரி என்பதால், https, http ஆக மாற்றப்பட்டது.</string>
+    <string name="settings_api_endpoint_stale_description">இது இப்போது கீழே உள்ள விதியை பூர்த்தி செய்யவில்லை, எனவே இயல்புநிலை எண்ட்பாயிண்ட் பயன்பாட்டில் உள்ளது. புதிதாக ஒன்றைச் சேமிக்கவும் அல்லது அதை அழிக்கவும்.</string>
+    <string name="settings_api_endpoint_stale_title">சேமித்த எண்ட்பாயிண்ட் இனி செல்லுபடியாகாது</string>
     <string name="settings_assignment_due_reminder">ஒப்படைப்பு காலக்கெடு நினைவூட்டல்கள்</string>
     <string name="settings_browser_in_app">App உள் உலாவி</string>
     <string name="settings_browser_system_default">கணினி இயல்புநிலை உலாவி</string>
     <string name="settings_check_for_updates">புதுப்பிப்புகளை சரிபார்</string>
+    <string name="settings_check_server_status">சேவையக நிலையைச் சரிபார்</string>
     <string name="settings_classroom_mandarin_display">வகுப்பறையின் பெயர் சீன மொழியில் இருக்கும்போது</string>
     <string name="settings_classroom_mandarin_display_original">மூலத்தைக் காட்டு</string>
     <string name="settings_classroom_mandarin_display_pinyin">பின்யினைக் காட்டு</string>
@@ -690,7 +717,7 @@
     <string name="settings_official_website">அதிகாரப்பூர்வ இணையதளம்</string>
     <string name="settings_open_source_licenses">திறந்த மூல உரிமங்கள்</string>
     <string name="settings_privacy_policy">தனியுரிமை கொள்கை</string>
-    <string name="settings_push_server_nav_label">சேவையக புஷ் (சோதனை முறை)</string>
+    <string name="settings_push_server_nav_label">சேவையக புஷ்</string>
     <string name="settings_remember_bulletin_filter">அறிவிப்பு வடிகட்டிகளை நினைவில் வை</string>
     <string name="settings_reset_course_colors">பாடநெறி வண்ணங்களை மீண்டும் ஒதுக்குங்கள்</string>
     <string name="settings_reset_course_colors_confirm_message">ஒவ்வொரு பாடநெறிக்கும் புதிய, தனித்துவமான வண்ணம் ஒதுக்கப்படும் — முதலில் முன்னமைப்பு வண்ணப்பலகையில் இருந்து, பின்னர் அது தீர்ந்துவிட்டால் எழுந்தாற்போல்.</string>
@@ -710,6 +737,7 @@
     <string name="settings_sync_disabled_note">ஒத்திசைவு முடக்கப்பட்டிருக்கும்போது, எல்லா தரவும் இந்தச் சாதனத்தில் மட்டுமே இருக்கும்.</string>
     <string name="settings_sync_status_off">ஆஃப்</string>
     <string name="settings_sync_status_on">ஆன்</string>
+    <string name="settings_system_language">கணினி மொழி</string>
     <string name="settings_theme_dark">இருண்ட பயன்முறை</string>
     <string name="settings_theme_light">ஒளிரும் பயன்முறை</string>
     <string name="settings_theme_system">கணினியைப் பின்பற்று</string>
@@ -747,6 +775,11 @@
     <string name="sync_conflict_use_server">சேவையகம் பயன்படுத்து</string>
     <string name="sync_fdroid_unavailable_body">கிளவுட் ஒத்திசைவுக்கு Google Play சேவைகள் தேவை, F-Droid பதிப்பில் கிடைக்காது.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid இல் கிடைக்காது</string>
+    <string name="sync_status_failed">தோல்வி</string>
+    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_ok">சரி</string>
+    <string name="sync_status_syncing">ஒத்திசைக்கிறது…</string>
+    <string name="sync_status_title">ஒத்திசைவு நிலை</string>
     <string name="sync_success_content_description">ஒத்திசைவு வெற்றி</string>
     <string name="tab_editor_apply_action">பயன்படுத்து</string>
     <string name="tab_editor_drag_reorder">மறுவரிசைப்படுத்த இழுக்கவும்</string>

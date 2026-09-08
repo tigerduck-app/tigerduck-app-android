@@ -290,11 +290,9 @@
     <string name="desktop_settings_moodle_open_in">開啟 Moodle 連結於</string>
     <string name="desktop_settings_moodle_open_in_app">Moodle App</string>
     <string name="desktop_settings_moodle_open_in_browser">瀏覽器</string>
-    <string name="desktop_settings_section_course_display">課程顯示</string>
     <string name="desktop_settings_section_interface">介面</string>
     <string name="desktop_settings_section_links">連結</string>
     <string name="desktop_settings_section_ntust">台科大</string>
-    <string name="desktop_settings_section_schedule">課表</string>
     <string name="desktop_settings_sidebar_available">可用</string>
     <string name="desktop_settings_sidebar_description">選擇要顯示在側邊欄的功能與順序。「設定」永遠顯示在側邊欄底部。</string>
     <string name="desktop_settings_sidebar_empty_available">所有功能都已釘選。</string>
@@ -739,6 +737,7 @@
     <string name="settings_sync_disabled_note">關閉同步後，所有資料僅儲存於本機。</string>
     <string name="settings_sync_status_off">關閉</string>
     <string name="settings_sync_status_on">開啟</string>
+    <string name="settings_system_language">系統語言</string>
     <string name="settings_theme_dark">暗色模式</string>
     <string name="settings_theme_light">亮色模式</string>
     <string name="settings_theme_system">跟隨系統</string>

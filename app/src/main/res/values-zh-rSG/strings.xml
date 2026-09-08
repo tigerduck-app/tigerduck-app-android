@@ -290,11 +290,9 @@
     <string name="desktop_settings_moodle_open_in">在以下位置打开 Moodle 链接</string>
     <string name="desktop_settings_moodle_open_in_app">Moodle App</string>
     <string name="desktop_settings_moodle_open_in_browser">浏览器</string>
-    <string name="desktop_settings_section_course_display">课程显示</string>
     <string name="desktop_settings_section_interface">界面</string>
     <string name="desktop_settings_section_links">链接</string>
     <string name="desktop_settings_section_ntust">台科大</string>
-    <string name="desktop_settings_section_schedule">课表</string>
     <string name="desktop_settings_sidebar_available">可用</string>
     <string name="desktop_settings_sidebar_description">选择要显示在侧边栏的功能与顺序。「设置」始终显示在侧边栏底部。</string>
     <string name="desktop_settings_sidebar_empty_available">所有功能都已固定。</string>
@@ -686,7 +684,7 @@
     <string name="settings_classroom_mandarin_display_pinyin">显示拼音</string>
     <string name="settings_classroom_mandarin_display_translated">显示翻译</string>
     <string name="settings_color_theme">颜色主题</string>
-    <string name="settings_delete_account">Delete account</string>
+    <string name="settings_delete_account">删除账号</string>
     <string name="settings_feedback_bug_report">回馈/问题回报</string>
     <string name="settings_flip_to_library_summary">将手机屏幕朝下即可打开图书馆 QR。</string>
     <string name="settings_flip_to_library_title">翻转显示图书馆 QR</string>
@@ -739,6 +737,7 @@
     <string name="settings_sync_disabled_note">关闭同步后，所有数据仅保存在此设备上。</string>
     <string name="settings_sync_status_off">关闭</string>
     <string name="settings_sync_status_on">开启</string>
+    <string name="settings_system_language">系统语言</string>
     <string name="settings_theme_dark">暗色模式</string>
     <string name="settings_theme_light">亮色模式</string>
     <string name="settings_theme_system">跟随系统</string>

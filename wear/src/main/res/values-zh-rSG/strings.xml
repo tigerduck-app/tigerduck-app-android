@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Generated from app-translation/source/*.json. Do not edit directly. -->
+    <!-- Generated from localization/source/*.json. Do not edit directly. -->
     <string name="a11y_assignment_open_moodle_hint">双击以在 Moodle 中打开作业</string>
     <string name="a11y_calendar_day">%1$@，共 %2$lld 个事件</string>
     <string name="a11y_calendar_nav_next">下个月</string>
@@ -29,6 +29,7 @@
     <string name="action_remove">移除</string>
     <string name="action_reset">重置</string>
     <string name="action_retry">重试</string>
+    <string name="action_save">保存</string>
     <string name="action_search">搜索</string>
     <string name="action_sign_in">登录</string>
     <string name="action_sign_in_again">重新登录</string>
@@ -150,14 +151,20 @@
     <string name="bulletin_unread_dot_label">未读</string>
     <string name="bulletin_withdrawn_badge">已撤下</string>
     <string name="calendar_date_today_suffix"> (今日)</string>
+    <string name="calendar_holiday_notify_description">这个假日不会提醒上课。开启后仍会收到上课提醒。</string>
+    <string name="calendar_holiday_notify_title">还要上课？</string>
     <string name="calendar_month_year">%1$d年%2$d月</string>
     <string name="calendar_next_month">下个月</string>
     <string name="calendar_no_events_on_day">这天没有活动</string>
     <string name="calendar_no_events_today">今日无事件</string>
     <string name="calendar_previous_month">上个月</string>
+    <string name="calendar_semester_end">%1$s 结束</string>
+    <string name="calendar_semester_start">%1$s 开始</string>
     <string name="calendar_source_exam">考试</string>
+    <string name="calendar_source_holiday">假日</string>
     <string name="calendar_source_moodle">Moodle</string>
     <string name="calendar_source_school">学校</string>
+    <string name="calendar_source_semester">学期</string>
     <string name="calendar_today">今天</string>
     <string name="class_table_conflict_add_failed_message">%1$s 的时段（周%2$s 第%3$s节）已有两堂课程：%4$s 和 %5$s。系统不支持三堂以上冲堂。</string>
     <string name="class_table_conflict_add_failed_title">无法加入</string>
@@ -171,8 +178,9 @@
     <string name="class_table_rename_revert">恢复默认</string>
     <string name="class_table_rename_title">重命名</string>
     <string name="class_table_rename_with_course">重命名 — %1$s</string>
-    <string name="class_table_reset_message">這會將你的課表重置為 Moodle 選課紀錄。被隱藏的課程會重新出現，手動新增的課程會被移除。</string>
+    <string name="class_table_reset_message">将根据 Moodle、选课系统、成绩系统的状态进行重置，手动新增、删除与重命名的课都会丢失</string>
     <string name="class_table_reset_title">重置課表</string>
+    <string name="class_table_reset_title_with_semester">重置 %1$s 课表</string>
     <string name="class_table_semester_picker_label">学期</string>
     <string name="class_table_sign_in_required_message">请登录后查看课程表</string>
     <string name="class_table_total_credits_value">%1$d 学分</string>
@@ -282,11 +290,9 @@
     <string name="desktop_settings_moodle_open_in">在以下位置打开 Moodle 链接</string>
     <string name="desktop_settings_moodle_open_in_app">Moodle App</string>
     <string name="desktop_settings_moodle_open_in_browser">浏览器</string>
-    <string name="desktop_settings_section_course_display">课程显示</string>
     <string name="desktop_settings_section_interface">界面</string>
     <string name="desktop_settings_section_links">链接</string>
     <string name="desktop_settings_section_ntust">台科大</string>
-    <string name="desktop_settings_section_schedule">课表</string>
     <string name="desktop_settings_sidebar_available">可用</string>
     <string name="desktop_settings_sidebar_description">选择要显示在侧边栏的功能与顺序。「设置」始终显示在侧边栏底部。</string>
     <string name="desktop_settings_sidebar_empty_available">所有功能都已固定。</string>
@@ -513,6 +519,7 @@
     <string name="notification_setup_title">重新设置通知</string>
     <string name="onboarding_analytics_description">通过分享匿名的页面浏览和小组件使用数据，帮助改进 TigerDuck。你可以随时在设置中更改。</string>
     <string name="onboarding_analytics_label">使用分析（可选）</string>
+    <string name="onboarding_custom_endpoint_button">使用其他 API 端点</string>
     <string name="onboarding_flavor_fdroid_description">您安装的是 F-Droid 版本，由于 F-Droid 商店规范不能使用 Google 提供的各项服务（Firebase FCM、GMS 等等），所以以下两项功能在 F-Droid 版本（你正在使用）中缺失：\n\n1. Wear OS 应用程序\n2. 主动公告通知推送</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid 版本说明</string>
     <string name="onboarding_flavor_play_description">本应用程序提供 Wear OS 应用程序，您可以在手表查看课堂消息。手表 TigerDuck 会同步手机信息。</string>
@@ -610,6 +617,7 @@
     <string name="score_error_sign_in_expired">登录已失效，请重新登录。</string>
     <string name="score_gpa_cumulative_to">累积 GPA（截至 %1$s）</string>
     <string name="score_gpa_latest">最新 GPA</string>
+    <string name="score_gpa_provisional">暂定</string>
     <string name="score_gpa_term_label">学期 GPA（%1$s）</string>
     <string name="score_gpa_trend_title">GPA 趋势</string>
     <string name="score_grade_exempted">抵免</string>
@@ -646,18 +654,37 @@
     <string name="settings_account_library_system">图书馆系统</string>
     <string name="settings_account_ntust_system">校务系统</string>
     <string name="settings_acknowledged">知道了</string>
+    <string name="settings_always_show_periods_abc">随时显示第 A、B、C 堂课</string>
     <string name="settings_analytics_description">分享匿名使用数据（浏览页面、小组件使用情况），帮助改进 TigerDuck</string>
     <string name="settings_analytics_enabled">使用分析</string>
+    <string name="settings_api_endpoint">API 端点</string>
+    <string name="settings_api_endpoint_change_title">更改端点</string>
+    <string name="settings_api_endpoint_checking">检查中…</string>
+    <string name="settings_api_endpoint_effective_title">当前端点</string>
+    <string name="settings_api_endpoint_error_insecure">这个地址必须使用 https。</string>
+    <string name="settings_api_endpoint_error_malformed">这不是有效的网址，请包含通信协议，例如 https://api.example.com/v3</string>
+    <string name="settings_api_endpoint_error_not_backend">该地址有响应，但不是 TigerDuck 后端。</string>
+    <string name="settings_api_endpoint_error_save_failed">端点可以连接，但保存失败，请再试一次。</string>
+    <string name="settings_api_endpoint_error_unreachable">无法连接到该端点：%1$s</string>
+    <string name="settings_api_endpoint_https_note">除了私有 IP 范围，仅允许 HTTPS。</string>
+    <string name="settings_api_endpoint_placeholder">https://api.example.com/v3</string>
+    <string name="settings_api_endpoint_reset_action">重置为默认值</string>
+    <string name="settings_api_endpoint_reset_done">已重置为默认端点。</string>
+    <string name="settings_api_endpoint_saved">已保存。</string>
+    <string name="settings_api_endpoint_saved_rewritten">已保存。因为是私有地址，已将 https 改为 http。</string>
+    <string name="settings_api_endpoint_stale_description">它不再符合下方规则，当前使用默认端点。请重新保存或清除。</string>
+    <string name="settings_api_endpoint_stale_title">已保存的端点不再有效</string>
     <string name="settings_assignment_due_reminder">作业到期提醒</string>
     <string name="settings_browser_in_app">App 内浏览器</string>
     <string name="settings_browser_system_default">系统默认浏览器</string>
     <string name="settings_check_for_updates">检查更新</string>
+    <string name="settings_check_server_status">检查各服务器在线状况</string>
     <string name="settings_classroom_mandarin_display">当教室名称为中文时</string>
     <string name="settings_classroom_mandarin_display_original">显示原文</string>
     <string name="settings_classroom_mandarin_display_pinyin">显示拼音</string>
     <string name="settings_classroom_mandarin_display_translated">显示翻译</string>
     <string name="settings_color_theme">颜色主题</string>
-    <string name="settings_delete_account">Delete account</string>
+    <string name="settings_delete_account">删除账号</string>
     <string name="settings_feedback_bug_report">回馈/问题回报</string>
     <string name="settings_flip_to_library_summary">将手机屏幕朝下即可打开图书馆 QR。</string>
     <string name="settings_flip_to_library_title">翻转显示图书馆 QR</string>
@@ -690,7 +717,7 @@
     <string name="settings_official_website">官网</string>
     <string name="settings_open_source_licenses">开源授权</string>
     <string name="settings_privacy_policy">隐私权政策</string>
-    <string name="settings_push_server_nav_label">服务器推送（实验性）</string>
+    <string name="settings_push_server_nav_label">服务器推送</string>
     <string name="settings_remember_bulletin_filter">记住公告筛选条件</string>
     <string name="settings_reset_course_colors">重新分配课表颜色</string>
     <string name="settings_reset_course_colors_confirm_message">每门课都会被指派一个全新且不重复的颜色——优先使用预设色盘，色盘用完后随机生成。</string>
@@ -710,6 +737,7 @@
     <string name="settings_sync_disabled_note">关闭同步后，所有数据仅保存在此设备上。</string>
     <string name="settings_sync_status_off">关闭</string>
     <string name="settings_sync_status_on">开启</string>
+    <string name="settings_system_language">系统语言</string>
     <string name="settings_theme_dark">暗色模式</string>
     <string name="settings_theme_light">亮色模式</string>
     <string name="settings_theme_system">跟随系统</string>
@@ -747,6 +775,11 @@
     <string name="sync_conflict_use_server">使用服务器</string>
     <string name="sync_fdroid_unavailable_body">云同步需要 Google Play 服务，F-Droid 版本不支持此功能。</string>
     <string name="sync_fdroid_unavailable_title">F-Droid 不支持</string>
+    <string name="sync_status_failed">失败</string>
+    <string name="sync_status_minimal">最低限度</string>
+    <string name="sync_status_ok">正常</string>
+    <string name="sync_status_syncing">同步中…</string>
+    <string name="sync_status_title">同步状态</string>
     <string name="sync_success_content_description">同步成功</string>
     <string name="tab_editor_apply_action">应用</string>
     <string name="tab_editor_drag_reorder">拖动排序</string>
