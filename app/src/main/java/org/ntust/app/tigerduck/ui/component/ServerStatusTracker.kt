@@ -38,6 +38,28 @@ object ServerStatusTracker {
         _cloudSyncEnabled.value = enabled
     }
 
+    /**
+     * Whether an NTUST account is signed in.
+     *
+     * Mirrored from `AuthService.authState` for the same reason as
+     * [cloudSyncEnabled]: this object is already what the headers read, so
+     * the five screens that draw a dot would otherwise each have to plumb
+     * the flag down from their own ViewModel. `TigerDuckApp` collects the
+     * auth state and keeps this in step, which also makes it impossible for
+     * the two to disagree.
+     *
+     * Starts `false` on purpose. The collector is a StateFlow subscription
+     * set up in `Application.onCreate`, so it delivers the real value before
+     * the first frame, and hiding a dot for that window beats showing one
+     * that claims a sync nobody asked for.
+     */
+    private val _signedIn = MutableStateFlow(false)
+    val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
+
+    fun setSignedIn(signedIn: Boolean) {
+        _signedIn.value = signedIn
+    }
+
     fun set(status: ServerStatus, server: ServerKind) {
         _statuses.update { it + (server to status) }
     }

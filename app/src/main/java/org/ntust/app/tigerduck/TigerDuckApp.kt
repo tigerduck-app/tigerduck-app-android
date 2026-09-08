@@ -96,6 +96,17 @@ class TigerDuckApp : Application(), Configuration.Provider {
         appScope.launch {
             appPreferences.accentColorChanged.collect { wearBridge.publish() }
         }
+        // The dot hides itself while signed out, but the tracker is
+        // process-wide: a status written before logout would still be here
+        // for the next account to inherit, green from the moment the dot
+        // comes back. Clearing on the auth signal rather than inside
+        // AuthService.logout() keeps a UI singleton out of the auth layer.
+        appScope.launch {
+            authService.authState.collect { signedIn ->
+                ServerStatusTracker.setSignedIn(signedIn)
+                if (!signedIn) ServerStatusTracker.reset()
+            }
+        }
         appScope.launch {
             authService.authState.collect {
                 wearBridge.publish()

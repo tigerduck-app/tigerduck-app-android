@@ -12,6 +12,9 @@
 // becomes a spinning ring. Tapping it lists every source with its own state,
 // which is where the detail the three icons used to carry now lives.
 //
+// Signed out there is no dot at all — nothing is syncing, so there is no
+// state to report.
+//
 // On a screen that pulls to refresh, the dot also carries that gesture's
 // progress: a ring closes around it as the finger travels, completing
 // exactly where a release would trigger the refresh, and handing over to
@@ -139,6 +142,15 @@ fun SyncStatusDot(
     isLoading: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val signedIn by ServerStatusTracker.signedIn.collectAsState()
+    // Nothing is syncing without an account, so the header carries no mark
+    // at all rather than a grey one that has to explain itself. Four of the
+    // five screens that draw this already replace their whole content with
+    // "Not signed in"; a dot beside that says nothing the page hasn't. The
+    // fifth is bulletins, which are public and refresh signed out — it
+    // loses the pull ring the dot draws, but keeps the refreshing message.
+    if (!signedIn) return
+
     val statuses by ServerStatusTracker.statuses.collectAsState()
     val cloudSyncEnabled by ServerStatusTracker.cloudSyncEnabled.collectAsState()
     val sources = servers.map { server ->

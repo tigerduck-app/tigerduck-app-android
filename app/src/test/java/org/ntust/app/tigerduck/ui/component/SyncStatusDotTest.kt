@@ -36,4 +36,29 @@ class SyncStatusDotTest {
         assertEquals(ServerStatus.UNKNOWN, summarize(listOf(ServerStatus.UNKNOWN)))
         assertEquals(ServerStatus.UNKNOWN, summarize(emptyList()))
     }
+
+    /**
+     * The dot is hidden until the auth collector in `TigerDuckApp` reports,
+     * which is the safe way round: a `true` default would paint a header on
+     * a signed-out launch using whatever the previous account left behind.
+     */
+    @Test
+    fun `signed-in starts false so a launch cannot flash a stale dot`() {
+        assertEquals(false, ServerStatusTracker.signedIn.value)
+    }
+
+    /**
+     * Logout clears the map, and the tracker is a process-wide singleton —
+     * so a status set before logout has to actually go, not merely stop
+     * being drawn while it waits for the next account to inherit it.
+     */
+    @Test
+    fun `reset drops a status the next account would otherwise inherit`() {
+        ServerStatusTracker.set(ServerStatus.OK, ServerKind.MOODLE)
+        assertEquals(ServerStatus.OK, ServerStatusTracker.status(ServerKind.MOODLE))
+
+        ServerStatusTracker.reset()
+
+        assertEquals(ServerStatus.UNKNOWN, ServerStatusTracker.status(ServerKind.MOODLE))
+    }
 }
