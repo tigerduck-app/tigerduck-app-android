@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Watch
 import androidx.compose.material3.Button
@@ -215,9 +214,8 @@ fun OnboardingScreen(
             userScrollEnabled = false
         ) { page ->
             when (page) {
-                0 -> OnboardingPage(
-                    icon = Icons.Filled.School,
-                    iconTint = MaterialTheme.colorScheme.primary,
+                0 -> OnboardingPageScaffold(
+                    iconContent = { TigerDuckLogoIcon() },
                     title = stringResource(R.string.onboarding_welcome_title),
                     subtitle = stringResource(R.string.onboarding_welcome_subtitle),
                     actions = {

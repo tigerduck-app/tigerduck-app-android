@@ -10,6 +10,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -35,7 +36,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import org.ntust.app.tigerduck.R
+
+/**
+ * Welcome-page hero: the app's own artwork rather than a stand-in glyph.
+ *
+ * Larger than [PulsingIcon]'s 72dp because the logo fills its square edge
+ * to edge, where a Material icon carries its own optical padding — matching
+ * sizes would render it visibly smaller than the glyph it replaced. Drawn
+ * at its own colours (no tint) and unanimated: the pulse reads as a
+ * placeholder shimmer on a glyph, and as a glitch on a finished illustration.
+ */
+@Composable
+internal fun TigerDuckLogoIcon(modifier: Modifier = Modifier) {
+    Image(
+        painter = painterResource(R.drawable.tigerduck_logo),
+        contentDescription = null,
+        modifier = modifier.size(108.dp),
+    )
+}
 
 @Composable
 internal fun PulsingIcon(
