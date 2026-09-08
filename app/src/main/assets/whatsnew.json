@@ -14,5 +14,27 @@
         "After upgrading, this \"What's new\" summary appears on first launch."
       ]
     }
+  },
+  "23": {
+    "zh-Hant": {
+      "title": "2.0.0 有什麼新功能",
+      "highlights": [
+        "跨裝置同步：課表、課程顏色與作業狀態可以在你的裝置之間同步，可在「設定」中關閉。",
+        "課表的節次欄位改為同時顯示上課時間、節數與下課時間。",
+        "今日課程會把正在上的那一堂留在原位，並自動捲動到它。",
+        "標題列改用單一同步狀態圓點，取代原本的轉圈與三個圖示。",
+        "新增來自開發者的公告推播，可在「設定」中關閉。"
+      ]
+    },
+    "en": {
+      "title": "What's new in 2.0.0",
+      "highlights": [
+        "Cross-device sync: your timetable, course colours and assignment state can follow you between devices. Turn it off in Settings.",
+        "The timetable's period column now shows the start time, period number and end time.",
+        "Today's courses keep the ongoing class where it is and scroll to it.",
+        "One sync status dot in the header replaces the spinner and the three icons.",
+        "Announcements from the developers can now arrive as a push. Turn it off in Settings."
+      ]
+    }
   }
 }
