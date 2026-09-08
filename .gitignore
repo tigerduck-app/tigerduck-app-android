@@ -704,6 +704,7 @@ mono_crash.*
 !app/src/main/java/org/ntust/app/tigerduck/debug/
 !app/src/play/java/org/ntust/app/tigerduck/debug/
 !app/src/fdroid/java/org/ntust/app/tigerduck/debug/
+!app/src/debug/java/org/ntust/app/tigerduck/debug/
 !app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/
 # Root-level developer scripts + docs, not a build-output directory.
 !/debug/

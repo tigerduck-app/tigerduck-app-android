@@ -7,6 +7,7 @@
 | `./debug/install-fdroid.sh`       | Build + install `:app:fdroidDebug` to a chosen phone.                                                                                                                                                                           |
 | `./debug/install-play.sh`         | Build + install `:app:playDebug` to a chosen phone; asks if you want `:wear:debug` on a paired watch too.                                                                                                                       |
 | `./debug/install-play-release.sh` | Build + install `:app:playRelease` (and optionally `:wear:release`) APK(s) via `adb install`. Use when you need to test release-mode behavior (R8/ProGuard, signing) without going through Internal Testing.                    |
+| `./debug/set-clock.sh`           | Set or clear the debug clock override over adb, non-interactively. Applies to the running app immediately — no restart, no tapping through Settings. See "Driving the clock from a shell" below.                          |
 | `./debug/sync-localizations.sh`   | Regenerate `app/` and `wear/` `values-*/strings.xml` from the app-translation submodule. Run after `git submodule update --remote app-translation` so committed resources match the new submodule pointer before you build or commit. |
 
 The `install-*` scripts:
@@ -94,6 +95,58 @@ log yourself out by setting fake time to 2099.
 Spec and plan: `docs/superpowers/specs/2026-05-09-debug-clock-override-design.md`
 and `docs/superpowers/plans/2026-05-09-debug-clock-override.md` (both in
 `docs/superpowers/`, gitignored).
+
+### Driving the clock from a shell
+
+The picker in Settings → Developer is fine when a human is holding the
+phone, but everything time-dependent in this app — ongoing-class UI,
+next-class resolution, the Live Update, widgets, every AlarmManager
+notification — was reachable *only* by tapping it. `set-clock.sh`
+broadcasts to `DebugClockReceiver` (debug builds only) instead:
+
+```bash
+./debug/set-clock.sh 2026-09-09 10:44          # freeze at that Taipei time
+./debug/set-clock.sh 2026-09-09T09:20 --tick   # ...and let it advance 1:1
+./debug/set-clock.sh --clear                   # back to real time
+./debug/set-clock.sh 2026-09-09 10:44 -p org.ntust.app.tigerduck.fdroid
+```
+
+Or by hand, without the script:
+
+```bash
+adb shell am broadcast -a org.ntust.app.tigerduck.debug.SET_CLOCK \
+  -p org.ntust.app.tigerduck --es at "2026-09-09T10:44" --ez frozen true
+adb shell am broadcast -a org.ntust.app.tigerduck.debug.CLEAR_CLOCK \
+  -p org.ntust.app.tigerduck
+```
+
+`--es at` takes `YYYY-MM-DDTHH:MM[:SS]`, the same string with a space
+instead of the `T`, or a bare `YYYY-MM-DD` (midnight), always interpreted
+in **Asia/Taipei** — matching what the in-app picker means. `--el instant
+<epochMillis>` is accepted too and wins if both are given.
+
+`am broadcast` reports delivery, not what the receiver decided, so a
+malformed timestamp looks like success on the command line. The script
+reads the receiver's own log line back and fails if it's missing; if you
+broadcast by hand, check it yourself:
+
+```bash
+adb logcat -d -s DebugClock:V | tail -1
+```
+
+**How this differs from `maybe_preset_clock`** (the prompt the `install-*`
+scripts offer): that one writes `shared_prefs/debug_clock.xml` directly and
+force-stops the app, so the override is picked up by
+`DebugClockController.bootstrap()` on the *next* launch. Use it to set a
+clock before the app has ever started. The broadcast goes through
+`DebugClockController.setOverride()` — the same entry point the settings
+screen uses — so it also mirrors to a paired watch and reschedules every
+alarm, widget and Live Update against the new clock, live. Use it for
+anything scripted.
+
+Release builds have no such receiver: the `<receiver>` lives in
+`app/src/debug/AndroidManifest.xml`, which is merged only into
+`playDebug` / `fdroidDebug`.
 
 ## Wireless ADB recipe
 
