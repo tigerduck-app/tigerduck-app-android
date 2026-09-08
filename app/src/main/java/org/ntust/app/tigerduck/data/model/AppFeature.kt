@@ -79,36 +79,67 @@ enum class AppFeature(val id: String) {
     val isLibraryRelated: Boolean
         get() = this == LIBRARY || this == DISCUSSION_ROOM || this == LIBRARY_LECTURE
 
+    /**
+     * Whether this feature has a real screen behind it.
+     *
+     * The single place that decides. Every list below is derived from it, so
+     * shipping a feature is one edit here rather than three lists that can
+     * drift apart — and it matches how iOS/macOS does it (`AppFeature
+     * .isImplemented` in the Apple repo), which is what keeps the two
+     * platforms showing the same set.
+     *
+     * MORE and SETTINGS are false because they are navigation chrome, not
+     * feature pages: they never appear in the ordered lists below, and
+     * nothing routes to them through a feature list.
+     */
+    val isImplemented: Boolean
+        get() = when (this) {
+            HOME, CLASS_TABLE, CALENDAR, ANNOUNCEMENTS, LIBRARY, SCORE -> true
+            else -> false
+        }
+
     companion object {
         val defaultTabs = listOf(HOME, CLASS_TABLE, CALENDAR)
 
-        val pinnableFeatures = listOf(
+        /**
+         * Every feature that could be pinned to the bottom bar, in display
+         * order, *including* ones that have not shipped — [isImplemented] is
+         * what excludes them. Keeping the unshipped names here rather than
+         * commented out means a feature lands in the right position the
+         * moment it flips, instead of at the end of whatever list someone
+         * remembered to uncomment.
+         */
+        private val pinnableOrder = listOf(
             HOME, CLASS_TABLE, CALENDAR, ANNOUNCEMENTS, LIBRARY, SCORE,
-            // TODO: re-enable once these pages are implemented
-            // COURSE_SELECTION, GRADUATION_REQUIREMENTS,
-            // DISCUSSION_ROOM, LIBRARY_LECTURE,
-            // FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
-            // ENGLISH_VOCAB,
-        )
-
-        val moreFeatures = listOf(
-            CLASS_TABLE, CALENDAR, SCORE,
-            LIBRARY, ANNOUNCEMENTS,
-            // TODO: re-enable once these pages are implemented
-            // COURSE_SELECTION, GRADUATION_REQUIREMENTS,
-            // DISCUSSION_ROOM, LIBRARY_LECTURE,
-            // FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
-            // ENGLISH_VOCAB,
-        )
-
-        // TODO: remove once every entry here has a real screen. Used to scrub
-        // obsolete entries from persisted user tab configs on app open.
-        val unfinishedFeatures = setOf(
             COURSE_SELECTION, GRADUATION_REQUIREMENTS,
             DISCUSSION_ROOM, LIBRARY_LECTURE,
             FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
             ENGLISH_VOCAB,
         )
+
+        /** Same contract as [pinnableOrder], for the More screen's own order. */
+        private val moreOrder = listOf(
+            CLASS_TABLE, CALENDAR, SCORE,
+            LIBRARY, ANNOUNCEMENTS,
+            COURSE_SELECTION, GRADUATION_REQUIREMENTS,
+            DISCUSSION_ROOM, LIBRARY_LECTURE,
+            FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
+            ENGLISH_VOCAB,
+        )
+
+        val pinnableFeatures: List<AppFeature> = pinnableOrder.filter { it.isImplemented }
+
+        val moreFeatures: List<AppFeature> = moreOrder.filter { it.isImplemented }
+
+        /**
+         * Features a user may have pinned before they were withdrawn, or that
+         * were pinnable while still routing to a placeholder. Used to scrub
+         * persisted tab configs on app open so the bottom bar never shows a
+         * "coming soon" tab. Derived, so it can never fall out of step with
+         * what actually shipped.
+         */
+        val unfinishedFeatures: Set<AppFeature> =
+            pinnableOrder.filterNot { it.isImplemented }.toSet()
 
         fun fromId(id: String): AppFeature? = entries.firstOrNull { it.id == id }
     }
