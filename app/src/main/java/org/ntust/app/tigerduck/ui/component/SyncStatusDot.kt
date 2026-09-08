@@ -108,10 +108,10 @@ fun SyncStatusDot(
         SyncSourceRow(
             server = server,
             status = statuses[server] ?: ServerStatus.UNKNOWN,
-            offline = server == ServerKind.BACKEND && !cloudSyncEnabled,
+            minimal = server == ServerKind.BACKEND && !cloudSyncEnabled,
         )
     }
-    val summary = summarize(sources.map { if (it.offline) ServerStatus.UNKNOWN else it.status })
+    val summary = summarize(sources.map { if (it.minimal) ServerStatus.UNKNOWN else it.status })
 
     var showDetails by remember { mutableStateOf(false) }
     var dimmed by remember { mutableStateOf(false) }
@@ -182,11 +182,11 @@ fun SyncStatusDot(
                 }
                 sources.forEach { source ->
                     SourceRow(
-                        color = statusColor(if (source.offline) ServerStatus.UNKNOWN else source.status),
+                        color = statusColor(if (source.minimal) ServerStatus.UNKNOWN else source.status),
                         icon = source.server.icon,
                         name = stringResource(source.server.labelRes),
-                        text = if (source.offline) {
-                            stringResource(R.string.settings_sync_status_off)
+                        text = if (source.minimal) {
+                            stringResource(R.string.sync_status_minimal)
                         } else {
                             statusText(source.status)
                         },
@@ -200,8 +200,18 @@ fun SyncStatusDot(
 private data class SyncSourceRow(
     val server: ServerKind,
     val status: ServerStatus,
-    /** Cloud sync switched off — reported as off, not as a failure. */
-    val offline: Boolean,
+    /**
+     * Cloud sync switched off.
+     *
+     * Reported as *minimal* rather than off, and never as a failure: the
+     * backend is still doing work for this device. The academic calendar —
+     * semester dates and holidays — and the bulletin feed are public GETs
+     * that carry no account and are fetched regardless of the sync setting,
+     * so "Off" would tell the user the class table is getting nothing from
+     * the server when it is still getting the dates it silences reminders
+     * by. The colour stays grey, as when it read "Off".
+     */
+    val minimal: Boolean,
 )
 
 @Composable

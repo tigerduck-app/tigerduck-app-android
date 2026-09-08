@@ -76,11 +76,19 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
 
     fun setLastSyncSource(source: SyncSource) { _lastSyncSource.value = source }
 
-    // Opt-in: must default to false. A true default would silently enable
-    // upload for existing users on upgrade (they never see the onboarding
-    // sync page, and silent v3 migration logs them in without interaction).
+    // Default on, matching iOS/macOS (`AppDefaults.cloudSyncEnabled`). One
+    // account's devices are expected to agree without being configured, so
+    // the two platforms have to agree on the default too — a false default
+    // here meant a phone and a Mac on the same account behaved differently
+    // out of the box.
+    //
+    // The cost is that existing users are upgraded into it: they never see
+    // the onboarding sync page, and the silent v3 migration signs them in
+    // without interaction. The 2.0.0 "What's new" entry names cross-device
+    // sync and says where to turn it off, which is what makes that
+    // defensible rather than silent.
     var cloudSyncEnabled: Boolean
-        get() = prefs.getBoolean("cloudSyncEnabled", false)
+        get() = prefs.getBoolean("cloudSyncEnabled", true)
         set(value) = prefs.edit().putBoolean("cloudSyncEnabled", value).apply()
 
     var syncCourses: Boolean
