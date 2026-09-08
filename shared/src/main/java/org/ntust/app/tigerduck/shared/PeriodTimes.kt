@@ -3,6 +3,13 @@ package org.ntust.app.tigerduck.shared
 object Periods {
     val defaultVisible = listOf("1", "2", "3", "4", "6", "7", "8", "9")
     val extended = listOf("5", "10", "A", "B", "C", "D")
+
+    /**
+     * The evening periods the Display toggle pins on. D is left out
+     * deliberately: it ends at 22:00 and is rare enough that pinning it
+     * would cost a row almost nobody needs.
+     */
+    val eveningOptional = listOf("A", "B", "C")
     val chronologicalOrder =
         listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "A", "B", "C", "D")
 }

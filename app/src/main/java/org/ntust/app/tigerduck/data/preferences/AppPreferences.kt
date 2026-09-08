@@ -189,6 +189,31 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getBoolean("showAbsoluteAssignmentTime", false)
         set(value) = prefs.edit().putBoolean("showAbsoluteAssignmentTime", value).apply()
 
+    private val _alwaysShowPeriodsABC =
+        MutableStateFlow(prefs.getBoolean("alwaysShowPeriodsABC", false))
+
+    /**
+     * Observable form of [alwaysShowPeriodsABC], for the class table.
+     *
+     * The grid derives its row list from this, and the toggle lives on a
+     * different screen — a plain getter would leave the timetable showing
+     * the old rows until something else happened to invalidate it.
+     */
+    val alwaysShowPeriodsABCFlow: StateFlow<Boolean> =
+        _alwaysShowPeriodsABC.asStateFlow()
+
+    /**
+     * Keep periods A, B and C on the timetable even when no course uses
+     * them. Off by default: an empty evening is three rows of nothing for
+     * the majority who never have a class there.
+     */
+    var alwaysShowPeriodsABC: Boolean
+        get() = _alwaysShowPeriodsABC.value
+        set(value) {
+            prefs.edit().putBoolean("alwaysShowPeriodsABC", value).apply()
+            _alwaysShowPeriodsABC.value = value
+        }
+
     var rememberAnnouncementFilter: Boolean
         get() = prefs.getBoolean("rememberAnnouncementFilter", false)
         set(value) = prefs.edit().putBoolean("rememberAnnouncementFilter", value).apply()

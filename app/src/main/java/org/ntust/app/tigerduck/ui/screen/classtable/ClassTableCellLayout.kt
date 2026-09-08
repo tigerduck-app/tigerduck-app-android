@@ -80,9 +80,20 @@ object ClassTableCellLayout {
         return result
     }
 
-    /** Visible periods: the default set, widened to cover every period in use. */
-    fun activePeriods(courses: List<Course>): List<TimetablePeriod> {
+    /**
+     * Visible periods: the default set, widened to cover every period in
+     * use, plus A/B/C when [pinEvening] is on.
+     *
+     * Pinned here rather than folded into `defaultVisible` so the widget
+     * keeps its own tighter default — three empty evening rows cost far
+     * more in a widget than they do on a full page.
+     */
+    fun activePeriods(
+        courses: List<Course>,
+        pinEvening: Boolean = false,
+    ): List<TimetablePeriod> {
         val periodIds = AppConstants.Periods.defaultVisible.toMutableSet()
+        if (pinEvening) periodIds.addAll(AppConstants.Periods.eveningOptional)
         courses.forEach { course ->
             course.schedule.values.forEach { periods -> periodIds.addAll(periods) }
         }

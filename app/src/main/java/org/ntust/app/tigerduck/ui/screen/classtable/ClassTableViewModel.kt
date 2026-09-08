@@ -87,6 +87,14 @@ class ClassTableViewModel @Inject constructor(
 
     val isLoggedIn: StateFlow<Boolean> = authService.authState
 
+    /**
+     * Drives the grid's row list; see [AppPreferences.alwaysShowPeriodsABCFlow].
+     *
+     * Declared above `init` with the other stored properties — see
+     * ClassTableViewModelInitOrderTest for why that placement is load-bearing.
+     */
+    val alwaysShowPeriodsABC: StateFlow<Boolean> = appPreferences.alwaysShowPeriodsABCFlow
+
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
 
@@ -364,7 +372,10 @@ class ClassTableViewModel @Inject constructor(
         get() = ClassTableCellLayout.activeWeekdays(_courses.value)
 
     val activePeriods: List<TimetablePeriod>
-        get() = ClassTableCellLayout.activePeriods(_courses.value)
+        get() = ClassTableCellLayout.activePeriods(
+            _courses.value,
+            pinEvening = appPreferences.alwaysShowPeriodsABC,
+        )
 
     /**
      * Title for the course-detail popup. A user-supplied [Course.customCourseName]

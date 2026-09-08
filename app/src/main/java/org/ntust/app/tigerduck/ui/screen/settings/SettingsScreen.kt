@@ -108,6 +108,7 @@ fun SettingsScreen(
 
     val accentColorHex = viewModel.appState.accentColorHex
     val showAbsoluteTime = viewModel.appState.showAbsoluteAssignmentTime
+    val alwaysShowPeriodsABC = viewModel.appState.alwaysShowPeriodsABC
     val rememberAnnouncementFilter = viewModel.appState.rememberAnnouncementFilter
     val browserPreference = viewModel.appState.browserPreference
     val useEnglishCourseAbbreviation = viewModel.appState.useEnglishCourseAbbreviation
@@ -285,6 +286,13 @@ fun SettingsScreen(
                             showAbsoluteTime
                         ) {
                             viewModel.appState.showAbsoluteAssignmentTime = it
+                        }
+                        HorizontalDivider()
+                        SettingsToggleRow(
+                            stringResource(R.string.settings_always_show_periods_abc),
+                            alwaysShowPeriodsABC
+                        ) {
+                            viewModel.appState.alwaysShowPeriodsABC = it
                         }
                         HorizontalDivider()
                         SettingsToggleRow(
