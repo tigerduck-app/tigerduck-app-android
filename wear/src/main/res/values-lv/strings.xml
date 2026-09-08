@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Nav atļauts · Pieskarieties, lai atvērtu iestatījumus</string>
     <string name="permission_notifications_description">Atļaujiet lietotnei rādīt paziņojumus; pretējā gadījumā paziņojumi un reāllaika atjauninājumi netiks rādīti.</string>
     <string name="permission_notifications_name">Paziņojumu atļauja</string>
+    <string name="permission_promoted_notifications_description">Atļaujiet stundas atpakaļskaitīšanai parādīties kā mikroshēmai statusa joslā. Ja izslēgts, tiešraides informācija joprojām redzama, novelkot paziņojumu paneli.</string>
+    <string name="permission_promoted_notifications_name">Statusa joslas mikroshēma</string>
     <string name="permission_warning_action_later">Vēlāk</string>
     <string name="permission_warning_description">Tālāk minētās atļaujas iepriekš bija iespējotas, bet tagad ir atspējotas. Saistītie paziņojumi un reāllaika atjauninājumi var netikt rādīti pareizi.</string>
     <string name="permission_warning_mute_item">Vairs neatgādināt par šo</string>

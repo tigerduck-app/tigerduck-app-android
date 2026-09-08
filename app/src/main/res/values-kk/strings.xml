@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Рұқсат берілмеген · Параметрлерді ашу үшін түртіңіз</string>
     <string name="permission_notifications_description">Қолданбаға хабарландыруларды көрсетуге рұқсат беріңіз; болмаса хабарландырулар мен Live Updates пайда болмайды.</string>
     <string name="permission_notifications_name">Хабарландыру рұқсаты</string>
+    <string name="permission_promoted_notifications_description">Сабақтың кері санағы күй жолағында чип ретінде көрсетілуіне рұқсат етіңіз. Өшірілген болса, хабарландыру панелін төмен тартқанда тікелей ақпарат бәрібір көрінеді.</string>
+    <string name="permission_promoted_notifications_name">Күй жолағындағы чип</string>
     <string name="permission_warning_action_later">Кейінірек</string>
     <string name="permission_warning_description">Төмендегі рұқсаттар бұрын қосылған болатын, бірақ қазір өшірілген. Тиісті хабарландырулар мен Live Updates дұрыс көрсетілмеуі мүмкін.</string>
     <string name="permission_warning_mute_item">Бұл туралы қайтадан еске салма</string>

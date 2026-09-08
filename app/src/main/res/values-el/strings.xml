@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Δεν επιτρέπεται · Πατήστε για ρυθμίσεις</string>
     <string name="permission_notifications_description">Επιτρέψτε στην εφαρμογή να εμφανίζει ειδοποιήσεις· διαφορετικά οι ειδοποιήσεις και οι ενημερώσεις σε πραγματικό χρόνο δεν θα εμφανίζονται.</string>
     <string name="permission_notifications_name">Άδεια ειδοποιήσεων</string>
+    <string name="permission_promoted_notifications_description">Επιτρέψτε στην αντίστροφη μέτρηση του μαθήματος να εμφανίζεται ως τσιπ στη γραμμή κατάστασης. Αν είναι απενεργοποιημένο, η ζωντανή ενημέρωση εξακολουθεί να εμφανίζεται όταν τραβήξετε το πλαίσιο ειδοποιήσεων.</string>
+    <string name="permission_promoted_notifications_name">Τσιπ στη γραμμή κατάστασης</string>
     <string name="permission_warning_action_later">Ίσως αργότερα</string>
     <string name="permission_warning_description">Οι παρακάτω άδειες ήταν προηγουμένως ενεργοποιημένες αλλά τώρα είναι απενεργοποιημένες. Οι σχετικές ειδοποιήσεις και οι ενημερώσεις σε πραγματικό χρόνο ενδέχεται να μην εμφανίζονται σωστά.</string>
     <string name="permission_warning_mute_item">Να μην υπενθυμίζεται ξανά</string>

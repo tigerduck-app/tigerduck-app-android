@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Ei sallittu · Avaa asetukset napauttamalla</string>
     <string name="permission_notifications_description">Salli sovelluksen näyttää ilmoituksia; muussa tapauksessa ilmoitukset ja livepäivitykset eivät näy.</string>
     <string name="permission_notifications_name">Ilmoituslupa</string>
+    <string name="permission_promoted_notifications_description">Salli oppitunnin ajastimen näkyä siruna tilapalkissa. Jos tämä on pois käytöstä, live-tiedot näkyvät edelleen, kun vedät ilmoituspaneelin alas.</string>
+    <string name="permission_promoted_notifications_name">Tilapalkin siru</string>
     <string name="permission_warning_action_later">Ehkä myöhemmin</string>
     <string name="permission_warning_description">Seuraavat luvat olivat aiemmin käytössä, mutta on nyt poistettu. Niihin liittyvät ilmoitukset ja livepäivitykset eivät ehkä näy oikein.</string>
     <string name="permission_warning_mute_item">Älä muistuta tästä enää</string>

@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Nije dopušteno · Dodirnite za otvaranje postavki</string>
     <string name="permission_notifications_description">Dopustite aplikaciji prikazivanje obavijesti; u protivnom obavijesti uživo neće se prikazivati.</string>
     <string name="permission_notifications_name">Dopuštenje za obavijesti</string>
+    <string name="permission_promoted_notifications_description">Dopustite da se odbrojavanje sata prikazuje kao čip na traci stanja. Ako je isključeno, informacije uživo i dalje se vide kad povučete ploču obavijesti.</string>
+    <string name="permission_promoted_notifications_name">Čip na traci stanja</string>
     <string name="permission_warning_action_later">Možda kasnije</string>
     <string name="permission_warning_description">Sljedeća dopuštenja bila su prethodno omogućena, ali su sada onemogućena. Povezane obavijesti uživo možda se neće ispravno prikazivati.</string>
     <string name="permission_warning_mute_item">Ne podsjećaj me više na ovo</string>

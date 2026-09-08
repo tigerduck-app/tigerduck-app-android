@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Nepovolené · Klepnutím otvorte nastavenia</string>
     <string name="permission_notifications_description">Povolte aplikácii zobrazovať notifikácie; inak sa notifikácie a aktuality naživo nebudú zobrazovať.</string>
     <string name="permission_notifications_name">Povolenie notifikácií</string>
+    <string name="permission_promoted_notifications_description">Povoľte, aby sa odpočítavanie hodiny zobrazovalo ako čip v stavovom riadku. Ak je vypnuté, živé informácie sa stále zobrazia po stiahnutí panela upozornení.</string>
+    <string name="permission_promoted_notifications_name">Čip v stavovom riadku</string>
     <string name="permission_warning_action_later">Možno neskôr</string>
     <string name="permission_warning_description">Nasledujúce povolenia boli predtým povolené, ale teraz sú vypnuté. Súvisiace notifikácie a aktuality naživo sa nemusia zobrazovať správne.</string>
     <string name="permission_warning_mute_item">Viac mi to nepripomínať</string>

@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">అనుమతి లేదు · సెట్టింగ్స్ తెరవడానికి నొక్కండి</string>
     <string name="permission_notifications_description">యాప్ నోటిఫికేషన్లు చూపించడానికి అనుమతించండి; లేకపోతే నోటిఫికేషన్లు మరియు Live Updates కనిపించవు.</string>
     <string name="permission_notifications_name">నోటిఫికేషన్ అనుమతి</string>
+    <string name="permission_promoted_notifications_description">తరగతి కౌంట్‌డౌన్ స్టేటస్ బార్‌లో చిప్‌గా కనిపించడానికి అనుమతించండి. ఆఫ్‌లో ఉన్నా నోటిఫికేషన్ ప్యానెల్‌ను కిందికి లాగినప్పుడు లైవ్ అప్‌డేట్ కనిపిస్తుంది.</string>
+    <string name="permission_promoted_notifications_name">స్టేటస్ బార్ చిప్</string>
     <string name="permission_warning_action_later">తర్వాత చూస్తాను</string>
     <string name="permission_warning_description">కింది అనుమతులు మునుపు ఆన్ చేయబడ్డాయి కానీ ఇప్పుడు ఆఫ్ చేయబడ్డాయి. సంబంధిత నోటిఫికేషన్లు మరియు Live Updates సరిగ్గా కనిపించకపోవచ్చు.</string>
     <string name="permission_warning_mute_item">దీని గురించి మళ్ళీ గుర్తు చేయవద్దు</string>

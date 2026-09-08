@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">No permitido · Toca para abrir la configuración</string>
     <string name="permission_notifications_description">Permite que la app muestre notificaciones; de lo contrario, las notificaciones y las novedades en directo no aparecerán.</string>
     <string name="permission_notifications_name">Permiso de notificaciones</string>
+    <string name="permission_promoted_notifications_description">Permite que la cuenta atrás de la clase aparezca como un chip en la barra de estado. Si se desactiva, la información en directo sigue apareciendo al desplegar el panel de notificaciones.</string>
+    <string name="permission_promoted_notifications_name">Chip en la barra de estado</string>
     <string name="permission_warning_action_later">Quizás más tarde</string>
     <string name="permission_warning_description">Los siguientes permisos estaban habilitados anteriormente pero ahora están deshabilitados. Es posible que las notificaciones relacionadas y las novedades en directo no se muestren correctamente.</string>
     <string name="permission_warning_mute_item">No volver a recordármelo</string>

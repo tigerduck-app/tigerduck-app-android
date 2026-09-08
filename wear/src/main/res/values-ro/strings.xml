@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Nepermis · Apasă pentru a deschide setările</string>
     <string name="permission_notifications_description">Permite aplicației să afișeze notificări; altfel notificările și actualizările live nu vor apărea.</string>
     <string name="permission_notifications_name">Permisiune notificări</string>
+    <string name="permission_promoted_notifications_description">Permite ca numărătoarea inversă a orei să apară ca un cip în bara de stare. Dacă este dezactivat, informațiile live rămân vizibile când tragi în jos panoul de notificări.</string>
+    <string name="permission_promoted_notifications_name">Cip în bara de stare</string>
     <string name="permission_warning_action_later">Mai târziu</string>
     <string name="permission_warning_description">Următoarele permisiuni au fost activate anterior, dar acum sunt dezactivate. Notificările și actualizările live asociate pot să nu se afișeze corect.</string>
     <string name="permission_warning_mute_item">Nu mai reaminti despre asta</string>

@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">No permès · Toqueu per obrir la configuració</string>
     <string name="permission_notifications_description">Permet que l\'aplicació mostri notificacions; en cas contrari, les notificacions i les actualitzacions en temps real no apareixeran.</string>
     <string name="permission_notifications_name">Permís de notificacions</string>
+    <string name="permission_promoted_notifications_description">Permet que el compte enrere de la classe aparegui com un xip a la barra d\'estat. Si es desactiva, la informació en directe continua apareixent en desplegar el plafó de notificacions.</string>
+    <string name="permission_promoted_notifications_name">Xip a la barra d\'estat</string>
     <string name="permission_warning_action_later">Potser més tard</string>
     <string name="permission_warning_description">Els permisos següents estaven activats anteriorment però ara estan desactivats. Les notificacions i les actualitzacions en temps real relacionades poden no mostrar-se correctament.</string>
     <string name="permission_warning_mute_item">No em recordis això de nou</string>

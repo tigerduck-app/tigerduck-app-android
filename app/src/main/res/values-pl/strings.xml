@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Nie zezwolono · Stuknij, aby otworzyć ustawienia</string>
     <string name="permission_notifications_description">Pozwolić aplikacji wyświetlać powiadomienia; w przeciwnym razie powiadomienia oraz aktualizacje na żywo nie będą się pojawiać.</string>
     <string name="permission_notifications_name">Uprawnienie do powiadomień</string>
+    <string name="permission_promoted_notifications_description">Zezwól, aby odliczanie zajęć pojawiało się jako element na pasku stanu. Po wyłączeniu informacje na żywo nadal będą widoczne po rozwinięciu panelu powiadomień.</string>
+    <string name="permission_promoted_notifications_name">Element na pasku stanu</string>
     <string name="permission_warning_action_later">Może później</string>
     <string name="permission_warning_description">Następujące uprawnienia były wcześniej włączone, lecz obecnie są wyłączone. Powiązane powiadomienia oraz aktualizacje na żywo mogą nie być wyświetlane prawidłowo.</string>
     <string name="permission_warning_mute_item">Nie przypominaj mi o tym ponownie</string>

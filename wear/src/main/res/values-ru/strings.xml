@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Не разрешено · Нажмите, чтобы открыть настройки</string>
     <string name="permission_notifications_description">Разрешите приложению показывать уведомления, иначе уведомления в реальном времени не будут отображаться.</string>
     <string name="permission_notifications_name">Разрешение на уведомления</string>
+    <string name="permission_promoted_notifications_description">Разрешите показывать обратный отсчёт занятия в виде чипа в строке состояния. Если выключено, сводка в реальном времени всё равно видна при открытии панели уведомлений.</string>
+    <string name="permission_promoted_notifications_name">Чип в строке состояния</string>
     <string name="permission_warning_action_later">Может быть, позже</string>
     <string name="permission_warning_description">Следующие разрешения ранее были включены, но сейчас отключены. Соответствующие уведомления в реальном времени могут отображаться некорректно.</string>
     <string name="permission_warning_mute_item">Больше не напоминать об этом</string>

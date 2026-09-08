@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Non consentito · Tocca per aprire le impostazioni</string>
     <string name="permission_notifications_description">Consenti all\'app di mostrare le notifiche; altrimenti notifiche e aggiornamenti in tempo reale non verranno visualizzati.</string>
     <string name="permission_notifications_name">Autorizzazione notifiche</string>
+    <string name="permission_promoted_notifications_description">Consenti al conto alla rovescia della lezione di apparire come chip nella barra di stato. Se disattivato, l\'aggiornamento in tempo reale resta visibile aprendo il pannello delle notifiche.</string>
+    <string name="permission_promoted_notifications_name">Chip nella barra di stato</string>
     <string name="permission_warning_action_later">Forse più tardi</string>
     <string name="permission_warning_description">Le seguenti autorizzazioni erano abilitate in precedenza ma ora sono disattivate. Le notifiche e gli aggiornamenti in tempo reale correlati potrebbero non essere visualizzati correttamente.</string>
     <string name="permission_warning_mute_item">Non ricordarmelo più</string>

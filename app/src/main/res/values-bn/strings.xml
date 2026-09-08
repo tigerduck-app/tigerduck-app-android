@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">অনুমোদিত নয় · সেটিংস খুলতে ট্যাপ করুন</string>
     <string name="permission_notifications_description">অ্যাপকে বিজ্ঞপ্তি দেখানোর অনুমতি দিন; না হলে বিজ্ঞপ্তি ও লাইভ আপডেট প্রদর্শিত হবে না।</string>
     <string name="permission_notifications_name">বিজ্ঞপ্তির অনুমতি</string>
+    <string name="permission_promoted_notifications_description">ক্লাসের কাউন্টডাউন স্ট্যাটাস বারে চিপ হিসেবে দেখানোর অনুমতি দিন। বন্ধ থাকলেও বিজ্ঞপ্তি প্যানেল নামালে লাইভ আপডেট দেখা যাবে।</string>
+    <string name="permission_promoted_notifications_name">স্ট্যাটাস বারের চিপ</string>
     <string name="permission_warning_action_later">পরে করব</string>
     <string name="permission_warning_description">নিচের অনুমতিগুলি আগে চালু ছিল কিন্তু এখন বন্ধ। সম্পর্কিত বিজ্ঞপ্তি ও লাইভ আপডেট সঠিকভাবে প্রদর্শিত নাও হতে পারে।</string>
     <string name="permission_warning_mute_item">আর এটি মনে করিয়ে দেবেন না</string>

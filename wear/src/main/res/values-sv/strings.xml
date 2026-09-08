@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Ej tillåten · Tryck för att öppna inställningar</string>
     <string name="permission_notifications_description">Tillåt appen att visa aviseringar; annars visas inte aviseringar och liveuppdateringar.</string>
     <string name="permission_notifications_name">Aviseringsbehörighet</string>
+    <string name="permission_promoted_notifications_description">Tillåt att lektionens nedräkning visas som ett chip i statusfältet. Om det är avstängt visas liveinformationen fortfarande när du drar ned aviseringspanelen.</string>
+    <string name="permission_promoted_notifications_name">Chip i statusfältet</string>
     <string name="permission_warning_action_later">Kanske senare</string>
     <string name="permission_warning_description">Följande behörigheter var tidigare aktiverade men är nu inaktiverade. Relaterade aviseringar och liveuppdateringar kanske inte visas korrekt.</string>
     <string name="permission_warning_mute_item">Påminn mig inte om detta igen</string>

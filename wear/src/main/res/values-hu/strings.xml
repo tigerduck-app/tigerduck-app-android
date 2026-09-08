@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Nem engedélyezett · Koppintson a beállítások megnyitásához</string>
     <string name="permission_notifications_description">Engedélyezze az alkalmazásnak az értesítések megjelenítését; ellenkező esetben az értesítések és az élő frissítések nem jelenik meg.</string>
     <string name="permission_notifications_name">Értesítési engedély</string>
+    <string name="permission_promoted_notifications_description">Engedélyezd, hogy az óra visszaszámlálása chipként jelenjen meg az állapotsávban. Kikapcsolva az élő információ továbbra is látszik az értesítési panel lehúzásakor.</string>
+    <string name="permission_promoted_notifications_name">Chip az állapotsávban</string>
     <string name="permission_warning_action_later">Később</string>
     <string name="permission_warning_description">Az alábbi engedélyek korábban engedélyezve voltak, de most le vannak tiltva. A kapcsolódó értesítések és az élő frissítések esetleg nem jelenik meg megfelelően.</string>
     <string name="permission_warning_mute_item">Ne emlékeztessen erre többé</string>

@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Tidak dibenarkan · Ketik untuk buka tetapan</string>
     <string name="permission_notifications_description">Benarkan aplikasi menunjukkan pemberitahuan; jika tidak, pemberitahuan dan Kemaskinian Langsung tidak akan muncul.</string>
     <string name="permission_notifications_name">Kebenaran pemberitahuan</string>
+    <string name="permission_promoted_notifications_description">Benarkan kira detik kelas dipaparkan sebagai cip pada bar status. Jika dimatikan, Kemas Kini Langsung masih muncul apabila panel pemberitahuan ditarik ke bawah.</string>
+    <string name="permission_promoted_notifications_name">Cip pada bar status</string>
     <string name="permission_warning_action_later">Mungkin kemudian</string>
     <string name="permission_warning_description">Kebenaran berikut sebelum ini diaktifkan tetapi kini telah dilumpuhkan. Pemberitahuan dan Kemaskinian Langsung yang berkaitan mungkin tidak dipaparkan dengan betul.</string>
     <string name="permission_warning_mute_item">Jangan ingatkan saya tentang ini lagi</string>

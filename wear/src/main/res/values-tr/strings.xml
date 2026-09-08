@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">İzin verilmedi · Ayarları açmak için dokunun</string>
     <string name="permission_notifications_description">Uygulamanın bildirim göstermesine izin verin; aksi takdirde bildirimler ve canlı güncellemeler görünmez.</string>
     <string name="permission_notifications_name">Bildirim izni</string>
+    <string name="permission_promoted_notifications_description">Ders geri sayımının durum çubuğunda çip olarak görünmesine izin verin. Kapalıyken canlı bilgi, bildirim panelini aşağı çektiğinizde yine görünür.</string>
+    <string name="permission_promoted_notifications_name">Durum çubuğu çipi</string>
     <string name="permission_warning_action_later">Belki sonra</string>
     <string name="permission_warning_description">Aşağıdaki izinler daha önce etkindi ancak şu anda devre dışı. İlgili bildirimler ve canlı güncellemeler düzgün görüntülenmeyebilir.</string>
     <string name="permission_warning_mute_item">Bunu bana bir daha hatırlatma</string>

@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Hindi pinahintulutan · I-tap para buksan ang settings</string>
     <string name="permission_notifications_description">Payagan ang app na magpakita ng mga notification; kung hindi, hindi lalabas ang mga notification at mga live na update.</string>
     <string name="permission_notifications_name">Pahintulot sa notification</string>
+    <string name="permission_promoted_notifications_description">Payagan ang countdown ng klase na lumabas bilang chip sa status bar. Kapag naka-off, makikita pa rin ang Live Update kapag hinila pababa ang notification panel.</string>
+    <string name="permission_promoted_notifications_name">Chip sa status bar</string>
     <string name="permission_warning_action_later">Mamaya na lang</string>
     <string name="permission_warning_description">Ang mga sumusunod na pahintulot ay dati nang pinagana ngunit naka-disable na ngayon. Maaaring hindi wastong maipakita ang mga kaugnay na notification at mga live na update.</string>
     <string name="permission_warning_mute_item">Huwag na akong paalalahanan tungkol dito</string>

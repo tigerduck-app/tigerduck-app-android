@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Ni dovoljeno · Tapnite za odpiranje nastavitev</string>
     <string name="permission_notifications_description">Dovolite aplikaciji prikazovanje obvestil; sicer obvestila in sprotna obvestila ne bodo prikazana.</string>
     <string name="permission_notifications_name">Dovoljenje za obvestila</string>
+    <string name="permission_promoted_notifications_description">Dovolite, da se odštevanje ure prikaže kot ploščica v vrstici stanja. Če je izklopljeno, so informacije v živo še vedno vidne, ko povlečete obvestilno ploščo.</string>
+    <string name="permission_promoted_notifications_name">Ploščica v vrstici stanja</string>
     <string name="permission_warning_action_later">Morda pozneje</string>
     <string name="permission_warning_description">Naslednja dovoljenja so bila prej omogočena, zdaj pa so onemogočena. Povezana obvestila in sprotna obvestila morda ne bodo pravilno prikazana.</string>
     <string name="permission_warning_mute_item">Ne opomni me več za to</string>

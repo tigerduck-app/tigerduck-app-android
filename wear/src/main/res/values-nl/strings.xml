@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Niet toegestaan · Tik om instellingen te openen</string>
     <string name="permission_notifications_description">Sta de app toe meldingen weer te geven; anders verschijnen meldingen en live updates niet.</string>
     <string name="permission_notifications_name">Meldingsmachtiging</string>
+    <string name="permission_promoted_notifications_description">Sta toe dat de aftelling van de les als chip in de statusbalk verschijnt. Staat dit uit, dan blijft de live-update zichtbaar als je het meldingenpaneel omlaag trekt.</string>
+    <string name="permission_promoted_notifications_name">Chip in de statusbalk</string>
     <string name="permission_warning_action_later">Misschien later</string>
     <string name="permission_warning_description">De volgende machtigingen waren eerder ingeschakeld, maar zijn nu uitgeschakeld. Bijbehorende meldingen en live updates worden mogelijk niet correct weergegeven.</string>
     <string name="permission_warning_mute_item">Herinner me hier niet meer aan</string>

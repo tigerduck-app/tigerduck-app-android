@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Pole lubatud · Puudutage seadete avamiseks</string>
     <string name="permission_notifications_description">Lubage rakendusel teavitusi kuvada; muidu ei ilmu teavitused ega reaalajas teavitused.</string>
     <string name="permission_notifications_name">Teavituste luba</string>
+    <string name="permission_promoted_notifications_description">Luba tunni loendur kuvada olekuribal kiibina. Kui see on välja lülitatud, on reaalajas teave endiselt näha teavituspaneeli alla tõmmates.</string>
+    <string name="permission_promoted_notifications_name">Kiip olekuribal</string>
     <string name="permission_warning_action_later">Ehk hiljem</string>
     <string name="permission_warning_description">Järgmised load olid varem lubatud, kuid on nüüd keelatud. Seotud teavitused ja reaalajas teavitused ei pruugi õigesti kuvada.</string>
     <string name="permission_warning_mute_item">Ärge tuletage seda enam meelde</string>

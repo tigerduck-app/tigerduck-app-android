@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">મંજૂર નથી · સેટિંગ્સ ખોલવા ટૅપ કરો</string>
     <string name="permission_notifications_description">App ને નોટિફિકેશન દર્શાવવાની મંજૂરી આપો; અન્યથા નોટિફિકેશન અને Live Updates દેખાશે નહીં.</string>
     <string name="permission_notifications_name">નોટિફિકેશન પરમિશન</string>
+    <string name="permission_promoted_notifications_description">વર્ગના કાઉન્ટડાઉનને સ્ટેટસ બારમાં ચિપ તરીકે બતાવવાની મંજૂરી આપો. બંધ હોય તો પણ સૂચના પેનલ નીચે ખેંચતાં લાઇવ અપડેટ દેખાશે.</string>
+    <string name="permission_promoted_notifications_name">સ્ટેટસ બારમાં ચિપ</string>
     <string name="permission_warning_action_later">પછી</string>
     <string name="permission_warning_description">નીચેની પરમિશન અગાઉ ચાલુ હતી, પરંતુ હવે બંધ છે. સંબંધિત નોટિફિકેશન અને Live Updates યોગ્ય રીતે દેખાશે નહીં.</string>
     <string name="permission_warning_mute_item">આ વિષે ફરી યાદ ન અપાવો</string>

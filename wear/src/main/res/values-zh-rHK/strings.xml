@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">未允許 · 點擊前往設定</string>
     <string name="permission_notifications_description">允許 App 顯示通知，否則所有通知同最新即時資訊都唔會出現。</string>
     <string name="permission_notifications_name">通知權限</string>
+    <string name="permission_promoted_notifications_description">允許上堂倒數喺狀態列以膠囊形式顯示。閂咗之後，拉低通知欄一樣睇到最新即時資訊。</string>
+    <string name="permission_promoted_notifications_name">狀態列膠囊</string>
     <string name="permission_warning_action_later">遲啲先</string>
     <string name="permission_warning_description">以下權限你之前已允許，但而家已被關閉。關閉後相應嘅通知同最新即時資訊可能無法正常顯示。</string>
     <string name="permission_warning_mute_item">以後唔使提醒呢項</string>

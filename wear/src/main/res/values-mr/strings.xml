@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">परवानगी नाही · सेटिंग्ज उघडण्यासाठी टॅप करा</string>
     <string name="permission_notifications_description">ॲपला अधिसूचना दाखवण्याची परवानगी द्या; अन्यथा अधिसूचना आणि Live Updates दिसणार नाहीत.</string>
     <string name="permission_notifications_name">अधिसूचना परवानगी</string>
+    <string name="permission_promoted_notifications_description">वर्गाचे काउंटडाउन स्टेटस बारमध्ये चिप म्हणून दाखवण्याची परवानगी द्या. बंद असले तरी सूचना पॅनेल खाली ओढल्यावर लाइव्ह अपडेट दिसेल.</string>
+    <string name="permission_promoted_notifications_name">स्टेटस बार चिप</string>
     <string name="permission_warning_action_later">कदाचित नंतर</string>
     <string name="permission_warning_description">खालील परवानग्या आधी सक्षम होत्या परंतु आता अक्षम केल्या आहेत. संबंधित अधिसूचना आणि Live Updates योग्यरित्या दिसणार नाहीत.</string>
     <string name="permission_warning_mute_item">याबद्दल पुन्हा स्मरण करून देऊ नका</string>

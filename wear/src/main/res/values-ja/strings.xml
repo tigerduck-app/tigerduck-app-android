@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">未許可 · タップして設定を開く</string>
     <string name="permission_notifications_description">アプリが通知を表示することを許可してください。許可しない場合、通知やライブ情報は表示されません。</string>
     <string name="permission_notifications_name">通知の許可</string>
+    <string name="permission_promoted_notifications_description">授業のカウントダウンをステータスバーにチップとして表示することを許可します。オフの場合も、通知パネルを下げればライブ情報は表示されます。</string>
+    <string name="permission_promoted_notifications_name">ステータスバーのチップ</string>
     <string name="permission_warning_action_later">あとで</string>
     <string name="permission_warning_description">以前は許可されていた以下の権限が現在はオフになっています。これに関連する通知やライブ情報が正しく表示されない場合があります。</string>
     <string name="permission_warning_mute_item">この項目を今後表示しない</string>

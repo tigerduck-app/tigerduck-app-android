@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">ยังไม่ได้อนุญาต · แตะเพื่อเปิดการตั้งค่า</string>
     <string name="permission_notifications_description">อนุญาตให้แอปแสดงการแจ้งเตือน มิฉะนั้นการแจ้งเตือนและข้อมูลอัปเดตแบบเรียลไทม์จะไม่ปรากฏ</string>
     <string name="permission_notifications_name">สิทธิ์การแจ้งเตือน</string>
+    <string name="permission_promoted_notifications_description">อนุญาตให้การนับถอยหลังของคาบเรียนแสดงเป็นชิปบนแถบสถานะ หากปิดอยู่ ข้อมูลสดจะยังคงแสดงเมื่อดึงแผงการแจ้งเตือนลงมา</string>
+    <string name="permission_promoted_notifications_name">ชิปบนแถบสถานะ</string>
     <string name="permission_warning_action_later">ไว้ค่อยทำทีหลัง</string>
     <string name="permission_warning_description">สิทธิ์ต่อไปนี้เคยถูกอนุญาตไว้ก่อนหน้านี้ แต่ปัจจุบันถูกปิดใช้งานแล้ว การแจ้งเตือนและข้อมูลอัปเดตแบบเรียลไทม์ที่เกี่ยวข้องอาจไม่แสดงผลอย่างถูกต้อง</string>
     <string name="permission_warning_mute_item">ไม่ต้องเตือนเรื่องนี้อีก</string>

@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">未允许 · 点击前往设置</string>
     <string name="permission_notifications_description">允许 App 显示通知，否则所有通知与实时动态都不会出现。</string>
     <string name="permission_notifications_name">通知权限</string>
+    <string name="permission_promoted_notifications_description">允许上课倒计时以胶囊形式显示在状态栏。关闭后，下拉通知栏仍然可以看到实时动态。</string>
+    <string name="permission_promoted_notifications_name">状态栏胶囊</string>
     <string name="permission_warning_action_later">稍后再说</string>
     <string name="permission_warning_description">以下权限在您之前已允许，但现在已被关闭。关闭后对应的通知与实时动态可能无法正常显示。</string>
     <string name="permission_warning_mute_item">以后不再提醒此项</string>

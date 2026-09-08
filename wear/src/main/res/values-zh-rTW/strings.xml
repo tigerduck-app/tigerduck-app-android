@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">未允許 · 點擊前往設定</string>
     <string name="permission_notifications_description">允許 App 顯示通知，否則所有通知與最新即時資訊都不會出現。</string>
     <string name="permission_notifications_name">通知權限</string>
+    <string name="permission_promoted_notifications_description">允許上課倒數以膠囊形式顯示在狀態列。關閉後，下拉通知欄仍然可以看到最新即時資訊。</string>
+    <string name="permission_promoted_notifications_name">狀態列膠囊</string>
     <string name="permission_warning_action_later">稍後再說</string>
     <string name="permission_warning_description">以下權限在您之前已允許，但現在已被關閉。關閉後對應的通知與最新即時資訊可能無法正常顯示。</string>
     <string name="permission_warning_mute_item">以後不再提醒此項</string>

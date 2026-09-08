@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Није дозвољено · Додирните да отворите поставке</string>
     <string name="permission_notifications_description">Дозволите апликацији да приказује обавештења; у супротном обавештења и новости уживо неће бити приказане.</string>
     <string name="permission_notifications_name">Дозвола за обавештења</string>
+    <string name="permission_promoted_notifications_description">Дозволите да се одбројавање часа приказује као чип на статусној траци. Ако је искључено, информације уживо и даље се виде када повучете панел обавештења.</string>
+    <string name="permission_promoted_notifications_name">Чип на статусној траци</string>
     <string name="permission_warning_action_later">Можда касније</string>
     <string name="permission_warning_description">Следеће дозволе су раније биле омогућене, али су сада онемогућене. Одговарајућа обавештења и новости уживо можда неће бити исправно приказане.</string>
     <string name="permission_warning_mute_item">Не подсећај ме о овоме поново</string>

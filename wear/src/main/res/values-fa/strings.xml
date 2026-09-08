@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">مجاز نیست · برای باز کردن تنظیمات ضربه بزنید</string>
     <string name="permission_notifications_description">به برنامه اجازه نمایش اعلان بدهید؛ در غیر این صورت اعلان‌ها و به‌روزرسانی‌های زنده نمایش داده نمی‌شوند.</string>
     <string name="permission_notifications_name">مجوز اعلان‌ها</string>
+    <string name="permission_promoted_notifications_description">اجازه دهید شمارش معکوس کلاس به‌صورت تراشه در نوار وضعیت نمایش داده شود. اگر غیرفعال باشد، اطلاعات زنده همچنان با کشیدن پایین پنل اعلان‌ها دیده می‌شود.</string>
+    <string name="permission_promoted_notifications_name">تراشه نوار وضعیت</string>
     <string name="permission_warning_action_later">بعداً</string>
     <string name="permission_warning_description">مجوزهای زیر قبلاً فعال بوده‌اند اما اکنون غیرفعال شده‌اند. ممکن است اعلان‌ها و به‌روزرسانی‌های زنده به‌درستی نمایش داده نشوند.</string>
     <string name="permission_warning_mute_item">دیگر درباره این مورد یادآوری نکن</string>

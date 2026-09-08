@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Neleista · Bakstelėkite, kad atidarytumėte nustatymus</string>
     <string name="permission_notifications_description">Leiskite programai rodyti pranešimus; kitu atveju pranešimai ir tiesioginiai atnaujinimai nebus rodomi.</string>
     <string name="permission_notifications_name">Pranešimų leidimas</string>
+    <string name="permission_promoted_notifications_description">Leiskite pamokos atgalinei atskaitai rodytis kaip lustui būsenos juostoje. Išjungus tiesioginė informacija vis tiek matoma patraukus pranešimų skydelį.</string>
+    <string name="permission_promoted_notifications_name">Būsenos juostos lustas</string>
     <string name="permission_warning_action_later">Galbūt vėliau</string>
     <string name="permission_warning_description">Toliau nurodyti leidimai anksčiau buvo įjungti, tačiau dabar yra išjungti. Susiję pranešimai ir tiesioginiai atnaujinimai gali būti rodomi neteisingai.</string>
     <string name="permission_warning_mute_item">Daugiau nebepriminti apie tai</string>

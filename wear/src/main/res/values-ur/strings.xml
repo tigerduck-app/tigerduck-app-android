@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">اجازت نہیں · ترتیبات کھولنے کے لیے ٹیپ کریں</string>
     <string name="permission_notifications_description">ایپ کو اطلاعات دکھانے کی اجازت دیں؛ ورنہ اطلاعات اور Live Updates ظاہر نہیں ہوں گی۔</string>
     <string name="permission_notifications_name">اطلاع کی اجازت</string>
+    <string name="permission_promoted_notifications_description">کلاس کے کاؤنٹ ڈاؤن کو اسٹیٹس بار میں چِپ کے طور پر دکھانے کی اجازت دیں۔ بند ہونے پر بھی نوٹیفکیشن پینل نیچے کھینچنے پر لائیو اپ ڈیٹ نظر آئے گا۔</string>
+    <string name="permission_promoted_notifications_name">اسٹیٹس بار چِپ</string>
     <string name="permission_warning_action_later">بعد میں شاید</string>
     <string name="permission_warning_description">درج ذیل اجازتیں پہلے فعال تھیں لیکن اب بند ہو گئی ہیں۔ متعلقہ اطلاعات اور Live Updates صحیح طریقے سے ظاہر نہیں ہو سکتیں۔</string>
     <string name="permission_warning_mute_item">دوبارہ اس بارے میں یاد نہ دلائیں</string>

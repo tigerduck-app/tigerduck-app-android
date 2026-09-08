@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Chưa cho phép · Nhấn để mở cài đặt</string>
     <string name="permission_notifications_description">Cho phép ứng dụng hiển thị thông báo; nếu không, thông báo và thông tin cập nhật trực tiếp sẽ không xuất hiện.</string>
     <string name="permission_notifications_name">Quyền thông báo</string>
+    <string name="permission_promoted_notifications_description">Cho phép đồng hồ đếm ngược của tiết học hiển thị dưới dạng chip trên thanh trạng thái. Nếu tắt, thông tin trực tiếp vẫn hiện khi bạn kéo bảng thông báo xuống.</string>
+    <string name="permission_promoted_notifications_name">Chip trên thanh trạng thái</string>
     <string name="permission_warning_action_later">Để sau</string>
     <string name="permission_warning_description">Các quyền sau trước đây đã được bật nhưng hiện đã bị tắt. Thông báo và thông tin cập nhật trực tiếp liên quan có thể không hiển thị đúng.</string>
     <string name="permission_warning_mute_item">Đừng nhắc tôi về điều này nữa</string>

@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Non autorisé · Appuyez pour ouvrir les paramètres</string>
     <string name="permission_notifications_description">Autoriser l\'application à afficher des notifications ; sinon, les notifications et les mises à jour en temps réel n\'apparaîtront pas.</string>
     <string name="permission_notifications_name">Autorisation des notifications</string>
+    <string name="permission_promoted_notifications_description">Autorisez le compte à rebours du cours à s\'afficher sous forme de puce dans la barre d\'état. Si c\'est désactivé, l\'info en direct reste visible en déroulant le volet des notifications.</string>
+    <string name="permission_promoted_notifications_name">Puce dans la barre d\'état</string>
     <string name="permission_warning_action_later">Plus tard</string>
     <string name="permission_warning_description">Les autorisations suivantes étaient précédemment activées mais sont maintenant désactivées. Les notifications et les mises à jour en temps réel associées peuvent ne pas s\'afficher correctement.</string>
     <string name="permission_warning_mute_item">Ne plus me rappeler ceci</string>

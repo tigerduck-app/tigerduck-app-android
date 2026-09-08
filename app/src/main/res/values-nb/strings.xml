@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Ikke tillatt · Trykk for å åpne innstillinger</string>
     <string name="permission_notifications_description">La appen vise varsler; ellers vil ikke varsler og direkteoppdateringer vises.</string>
     <string name="permission_notifications_name">Varslingstillatelse</string>
+    <string name="permission_promoted_notifications_description">Tillat at nedtellingen til timen vises som en brikke i statuslinjen. Er dette av, vises sanntidsoppdateringen fortsatt når du drar ned varselpanelet.</string>
+    <string name="permission_promoted_notifications_name">Brikke i statuslinjen</string>
     <string name="permission_warning_action_later">Kanskje senere</string>
     <string name="permission_warning_description">Følgende tillatelser var tidligere aktivert, men er nå deaktivert. Relaterte varsler og direkteoppdateringer vises kanskje ikke riktig.</string>
     <string name="permission_warning_mute_item">Ikke påminn meg om dette igjen</string>

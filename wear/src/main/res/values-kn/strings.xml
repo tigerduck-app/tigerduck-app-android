@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">ಅನುಮತಿಸಲಾಗಿಲ್ಲ · ಸೆಟ್ಟಿಂಗ್‌ ತೆರೆಯಲು ಟ್ಯಾಪ್ ಮಾಡಿ</string>
     <string name="permission_notifications_description">ಅಪ್ಲಿಕೇಶನ್‌ಗೆ ಅಧಿಸೂಚನೆಗಳನ್ನು ತೋರಿಸಲು ಅನುಮತಿ ನೀಡಿ; ಇಲ್ಲದಿದ್ದರೆ ಎಲ್ಲಾ ಅಧಿಸೂಚನೆಗಳು ಮತ್ತು Live Updates ಕಾಣಿಸುವುದಿಲ್ಲ.</string>
     <string name="permission_notifications_name">ಅಧಿಸೂಚನೆ ಅನುಮತಿ</string>
+    <string name="permission_promoted_notifications_description">ತರಗತಿಯ ಕೌಂಟ್‌ಡೌನ್ ಸ್ಥಿತಿ ಪಟ್ಟಿಯಲ್ಲಿ ಚಿಪ್ ಆಗಿ ಕಾಣಿಸಲು ಅನುಮತಿಸಿ. ಆಫ್ ಆಗಿದ್ದರೂ ಅಧಿಸೂಚನೆ ಫಲಕವನ್ನು ಎಳೆದಾಗ ಲೈವ್ ಅಪ್‌ಡೇಟ್ ಕಾಣಿಸುತ್ತದೆ.</string>
+    <string name="permission_promoted_notifications_name">ಸ್ಥಿತಿ ಪಟ್ಟಿಯ ಚಿಪ್</string>
     <string name="permission_warning_action_later">ನಂತರ ಮಾಡೋಣ</string>
     <string name="permission_warning_description">ಕೆಳಗಿನ ಅನುಮತಿಗಳನ್ನು ಹಿಂದೆ ಸಕ್ರಿಯಗೊಳಿಸಲಾಗಿತ್ತು ಆದರೆ ಈಗ ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಲಾಗಿದೆ. ಸಂಬಂಧಿತ ಅಧಿಸೂಚನೆಗಳು ಮತ್ತು Live Updates ಸರಿಯಾಗಿ ತೋರಿಸದೇ ಇರಬಹುದು.</string>
     <string name="permission_warning_mute_item">ಇನ್ನು ಮೇಲೆ ಇದರ ಬಗ್ಗೆ ನೆನಪಿಸಬೇಡ</string>

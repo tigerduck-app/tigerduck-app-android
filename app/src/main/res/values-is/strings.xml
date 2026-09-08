@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Ekki leyft · Ýttu til að opna stillingar</string>
     <string name="permission_notifications_description">Leyfðu forritinu að sýna tilkynningar; annars munu tilkynningar og Live Updates ekki birtast.</string>
     <string name="permission_notifications_name">Tilkynningaleyfi</string>
+    <string name="permission_promoted_notifications_description">Leyfðu niðurtalningu kennslustundar að birtast sem flaga á stöðustikunni. Sé slökkt á þessu sést rauntímayfirlitið enn þegar tilkynningaspjaldið er dregið niður.</string>
+    <string name="permission_promoted_notifications_name">Flaga á stöðustiku</string>
     <string name="permission_warning_action_later">Kannski seinna</string>
     <string name="permission_warning_description">Eftirfarandi leyfi voru áður virk en eru nú óvirk. Tengdar tilkynningar og Live Updates birtast hugsanlega ekki rétt.</string>
     <string name="permission_warning_mute_item">Ekki minna mig á þetta aftur</string>

@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">غير مسموح · اضغط لفتح الإعدادات</string>
     <string name="permission_notifications_description">اسمح للتطبيق بعرض الإشعارات؛ وإلا فلن تظهر الإشعارات والتحديثات الفورية.</string>
     <string name="permission_notifications_name">إذن الإشعارات</string>
+    <string name="permission_promoted_notifications_description">اسمح بعرض العد التنازلي للحصة كشريحة في شريط الحالة. إذا كان معطلاً، ستظل المعلومات المباشرة تظهر عند سحب لوحة الإشعارات.</string>
+    <string name="permission_promoted_notifications_name">شريحة شريط الحالة</string>
     <string name="permission_warning_action_later">ربما لاحقًا</string>
     <string name="permission_warning_description">الأذونات التالية كانت مفعّلة سابقًا ولكنها معطّلة الآن. قد لا تظهر الإشعارات والتحديثات الفورية بشكل صحيح.</string>
     <string name="permission_warning_mute_item">لا تذكّرني بهذا مرة أخرى</string>

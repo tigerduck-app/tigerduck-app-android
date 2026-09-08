@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Неразрешено · Докоснете, за да отворите настройките</string>
     <string name="permission_notifications_description">Разрешете на приложението да показва известия; в противен случай известията и актуализациите на живо няма да се показват.</string>
     <string name="permission_notifications_name">Разрешение за известия</string>
+    <string name="permission_promoted_notifications_description">Разрешете обратното броене на часа да се показва като чип в лентата на състоянието. Ако е изключено, актуалната информация пак се вижда при издърпване на панела с известия.</string>
+    <string name="permission_promoted_notifications_name">Чип в лентата на състоянието</string>
     <string name="permission_warning_action_later">По-късно</string>
     <string name="permission_warning_description">Следните разрешения са били активирани по-рано, но сега са деактивирани. Свързаните известия и актуализациите на живо може да не се показват правилно.</string>
     <string name="permission_warning_mute_item">Не ми напомняй повече за това</string>

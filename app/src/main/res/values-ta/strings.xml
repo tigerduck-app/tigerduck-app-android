@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">அனுமதிக்கப்படவில்லை · அமைப்புகள் திறக்க தட்டவும்</string>
     <string name="permission_notifications_description">App-ஐ அறிவிப்புகள் காட்ட அனுமதிக்கவும்; இல்லையெனில் அறிவிப்புகள் மற்றும் Live Updates தோன்றாது.</string>
     <string name="permission_notifications_name">அறிவிப்பு அனுமதி</string>
+    <string name="permission_promoted_notifications_description">வகுப்பின் கவுண்ட்டவுன் நிலைப்பட்டியில் சிப்பாகத் தோன்ற அனுமதிக்கவும். அணைக்கப்பட்டிருந்தாலும் அறிவிப்புப் பலகத்தை இழுக்கும்போது நேரலைத் தகவல் தெரியும்.</string>
+    <string name="permission_promoted_notifications_name">நிலைப்பட்டி சிப்</string>
     <string name="permission_warning_action_later">பின்னர் பார்க்கலாம்</string>
     <string name="permission_warning_description">பின்வரும் அனுமதிகள் முன்பு இயக்கப்பட்டிருந்தன, ஆனால் இப்போது முடக்கப்பட்டுள்ளன. தொடர்பான அறிவிப்புகள் மற்றும் Live Updates சரியாக காட்டாமல் போகலாம்.</string>
     <string name="permission_warning_mute_item">இதைப் பற்றி மீண்டும் நினைவூட்டாதே</string>

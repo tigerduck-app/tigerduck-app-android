@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Nicht erlaubt · Tippen, um Einstellungen zu öffnen</string>
     <string name="permission_notifications_description">Erlauben Sie der App, Benachrichtigungen anzuzeigen; andernfalls erscheinen weder Benachrichtigungen noch Livemeldungen.</string>
     <string name="permission_notifications_name">Benachrichtigungsberechtigung</string>
+    <string name="permission_promoted_notifications_description">Erlaube, dass der Countdown der Unterrichtsstunde als Chip in der Statusleiste erscheint. Ohne diese Berechtigung ist die Live-Info weiterhin in der Benachrichtigungsleiste zu sehen.</string>
+    <string name="permission_promoted_notifications_name">Chip in der Statusleiste</string>
     <string name="permission_warning_action_later">Vielleicht später</string>
     <string name="permission_warning_description">Die folgenden Berechtigungen waren zuvor aktiviert, sind jetzt aber deaktiviert. Zugehörige Benachrichtigungen und Livemeldungen werden möglicherweise nicht korrekt angezeigt.</string>
     <string name="permission_warning_mute_item">Nicht mehr daran erinnern</string>

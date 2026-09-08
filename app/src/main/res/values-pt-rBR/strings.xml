@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Não permitido · Toque para abrir as configurações</string>
     <string name="permission_notifications_description">Permita que o app exiba notificações; caso contrário, as notificações e as atualizações em tempo real não aparecerão.</string>
     <string name="permission_notifications_name">Permissão de notificações</string>
+    <string name="permission_promoted_notifications_description">Permita que a contagem regressiva da aula apareça como um chip na barra de status. Se desativado, a atualização ao vivo continua aparecendo ao puxar o painel de notificações.</string>
+    <string name="permission_promoted_notifications_name">Chip na barra de status</string>
     <string name="permission_warning_action_later">Talvez depois</string>
     <string name="permission_warning_description">As permissões a seguir foram autorizadas anteriormente, mas agora estão desativadas. As notificações e as atualizações em tempo real relacionadas podem não ser exibidas corretamente.</string>
     <string name="permission_warning_mute_item">Não me lembrar disso novamente</string>

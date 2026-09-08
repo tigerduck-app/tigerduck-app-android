@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">അനുവദിച്ചിട്ടില്ല · ക്രമീകരണം തുറക്കാൻ ടാപ്പ് ചെയ്യുക</string>
     <string name="permission_notifications_description">ആപ്പിന് അറിയിപ്പുകൾ കാണിക്കാൻ അനുവദിക്കുക; ഇല്ലെങ്കിൽ അറിയിപ്പുകളും Live Updates-ഉം പ്രദർശിപ്പിക്കില്ല.</string>
     <string name="permission_notifications_name">അറിയിപ്പ് അനുമതി</string>
+    <string name="permission_promoted_notifications_description">ക്ലാസിന്റെ കൗണ്ട്ഡൗൺ സ്റ്റാറ്റസ് ബാറിൽ ചിപ്പായി കാണിക്കാൻ അനുവദിക്കുക. ഓഫാണെങ്കിലും അറിയിപ്പ് പാനൽ താഴേക്ക് വലിക്കുമ്പോൾ ലൈവ് അപ്ഡേറ്റ് കാണാം.</string>
+    <string name="permission_promoted_notifications_name">സ്റ്റാറ്റസ് ബാർ ചിപ്പ്</string>
     <string name="permission_warning_action_later">പിന്നീട്</string>
     <string name="permission_warning_description">ഇനിപ്പറയുന്ന അനുമതികൾ മുമ്പ് പ്രവർത്തനക്ഷമമായിരുന്നു, ഇപ്പോൾ അക്ഷമം ചെയ്തിരിക്കുന്നു. ബന്ധപ്പെട്ട അറിയിപ്പുകളും Live Updates-ഉം ശരിയായി പ്രദർശിപ്പിക്കില്ല.</string>
     <string name="permission_warning_mute_item">ഇനി ഇതിനെക്കുറിച്ച് ഓർമ്മപ്പെടുത്തരുത്</string>

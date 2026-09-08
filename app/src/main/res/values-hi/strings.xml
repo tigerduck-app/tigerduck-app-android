@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">अनुमति नहीं · सेटिंग खोलने के लिए टैप करें</string>
     <string name="permission_notifications_description">ऐप को नोटिफिकेशन दिखाने की अनुमति दें; अन्यथा नोटिफिकेशन और लाइव अपडेट दिखाई नहीं देगी।</string>
     <string name="permission_notifications_name">नोटिफिकेशन अनुमति</string>
+    <string name="permission_promoted_notifications_description">क्लास के काउंटडाउन को स्टेटस बार में चिप के रूप में दिखाने की अनुमति दें। बंद होने पर भी नोटिफ़िकेशन पैनल खींचने पर लाइव अपडेट दिखता रहेगा।</string>
+    <string name="permission_promoted_notifications_name">स्टेटस बार चिप</string>
     <string name="permission_warning_action_later">बाद में</string>
     <string name="permission_warning_description">निम्नलिखित अनुमतियाँ पहले सक्षम थीं लेकिन अब अक्षम हैं। संबंधित नोटिफिकेशन और लाइव अपडेट सही तरह से नहीं दिख सकतीं।</string>
     <string name="permission_warning_mute_item">इसके बारे में फिर से याद न दिलाएँ</string>

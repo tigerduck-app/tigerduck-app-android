@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">לא מותר · הקש לפתיחת הגדרות</string>
     <string name="permission_notifications_description">אפשר לאפליקציה להציג התראות; אחרת התראות ועדכונים בזמן אמת לא יוצגו.</string>
     <string name="permission_notifications_name">הרשאת התראות</string>
+    <string name="permission_promoted_notifications_description">אפשר לספירה לאחור של השיעור להופיע כשבב בשורת הסטטוס. אם האפשרות כבויה, המידע החי עדיין יופיע כשמושכים את לוח ההתראות.</string>
+    <string name="permission_promoted_notifications_name">שבב בשורת הסטטוס</string>
     <string name="permission_warning_action_later">אולי מאוחר יותר</string>
     <string name="permission_warning_description">ההרשאות הבאות היו מופעלות בעבר אך כעת מושבתות. התראות ועדכונים בזמן אמת קשורים עלולים שלא להופיע כראוי.</string>
     <string name="permission_warning_mute_item">אל תזכיר לי זאת שוב</string>

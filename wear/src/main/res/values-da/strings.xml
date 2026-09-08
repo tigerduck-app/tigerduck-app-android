@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Ikke tilladt · Tryk for at åbne indstillinger</string>
     <string name="permission_notifications_description">Tillad appen at vise notifikationer; ellers vises notifikationer og liveopdateringer ikke.</string>
     <string name="permission_notifications_name">Notifikationstilladelse</string>
+    <string name="permission_promoted_notifications_description">Tillad, at nedtællingen til timen vises som en chip i statuslinjen. Hvis det er slået fra, vises live-opdateringen stadig, når du trækker notifikationspanelet ned.</string>
+    <string name="permission_promoted_notifications_name">Chip i statuslinjen</string>
     <string name="permission_warning_action_later">Måske senere</string>
     <string name="permission_warning_description">Følgende tilladelser var tidligere aktiveret, men er nu deaktiveret. Relaterede notifikationer og liveopdateringer vises muligvis ikke korrekt.</string>
     <string name="permission_warning_mute_item">Påmind mig ikke om dette igen</string>

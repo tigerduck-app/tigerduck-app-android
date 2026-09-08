@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">허용 안 됨 · 탭하여 설정 열기</string>
     <string name="permission_notifications_description">앱이 알림을 표시할 수 있도록 허용해 주세요. 그렇지 않으면 알림과 실시간 업데이트가 표시되지 않습니다.</string>
     <string name="permission_notifications_name">알림 권한</string>
+    <string name="permission_promoted_notifications_description">수업 카운트다운이 상태 표시줄에 칩으로 표시되도록 허용합니다. 꺼져 있어도 알림 패널을 내리면 실시간 업데이트는 계속 표시됩니다.</string>
+    <string name="permission_promoted_notifications_name">상태 표시줄 칩</string>
     <string name="permission_warning_action_later">나중에</string>
     <string name="permission_warning_description">다음 권한이 이전에 허용되었으나 현재 비활성화되어 있습니다. 관련 알림과 실시간 업데이트가 정상적으로 표시되지 않을 수 있습니다.</string>
     <string name="permission_warning_mute_item">이 항목을 다시 알리지 않기</string>

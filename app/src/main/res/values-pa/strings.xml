@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">ਆਗਿਆ ਨਹੀਂ · ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹਣ ਲਈ ਟੈਪ ਕਰੋ</string>
     <string name="permission_notifications_description">ਐਪ ਨੂੰ ਸੂਚਨਾਵਾਂ ਦਿਖਾਉਣ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ; ਨਹੀਂ ਤਾਂ ਸੂਚਨਾਵਾਂ ਅਤੇ Live Updates ਨਹੀਂ ਦਿਖਾਈ ਦੇਣਗੀਆਂ।</string>
     <string name="permission_notifications_name">ਸੂਚਨਾ ਅਨੁਮਤੀ</string>
+    <string name="permission_promoted_notifications_description">ਕਲਾਸ ਦੀ ਕਾਊਂਟਡਾਊਨ ਨੂੰ ਸਟੇਟਸ ਬਾਰ ਵਿੱਚ ਚਿੱਪ ਵਜੋਂ ਦਿਖਾਉਣ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ। ਬੰਦ ਹੋਣ \'ਤੇ ਵੀ ਸੂਚਨਾ ਪੈਨਲ ਹੇਠਾਂ ਖਿੱਚਣ \'ਤੇ ਲਾਈਵ ਅੱਪਡੇਟ ਦਿਸੇਗਾ।</string>
+    <string name="permission_promoted_notifications_name">ਸਟੇਟਸ ਬਾਰ ਚਿੱਪ</string>
     <string name="permission_warning_action_later">ਬਾਅਦ ਵਿੱਚ ਦੱਸਾਂਗੇ</string>
     <string name="permission_warning_description">ਹੇਠ ਲਿਖੀਆਂ ਅਨੁਮਤੀਆਂ ਪਹਿਲਾਂ ਚਾਲੂ ਸਨ ਪਰ ਹੁਣ ਬੰਦ ਹਨ। ਸੰਬੰਧਿਤ ਸੂਚਨਾਵਾਂ ਅਤੇ Live Updates ਸਹੀ ਤਰ੍ਹਾਂ ਨਹੀਂ ਦਿਖਾਈ ਦੇ ਸਕਦੀਆਂ।</string>
     <string name="permission_warning_mute_item">ਇਸ ਬਾਰੇ ਦੁਬਾਰਾ ਯਾਦ ਨਾ ਦਿਵਾਓ</string>

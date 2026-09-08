@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Not allowed · Tap to open settings</string>
     <string name="permission_notifications_description">Allow the app to show notifications; otherwise notifications and Live Updates will not appear.</string>
     <string name="permission_notifications_name">Notification permission</string>
+    <string name="permission_promoted_notifications_description">Allow the class countdown to show as a chip in the status bar. If disabled, the Live Update still appears when you pull down the notification shade.</string>
+    <string name="permission_promoted_notifications_name">Status bar chip</string>
     <string name="permission_warning_action_later">Maybe later</string>
     <string name="permission_warning_description">The following permissions were previously enabled but are now disabled. Related notifications and Live Updates may not display correctly.</string>
     <string name="permission_warning_mute_item">Don\'t remind me about this again</string>

@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Tidak diizinkan · Ketuk untuk membuka pengaturan</string>
     <string name="permission_notifications_description">Izinkan aplikasi menampilkan notifikasi; jika tidak, notifikasi dan live update tidak akan muncul.</string>
     <string name="permission_notifications_name">Izin notifikasi</string>
+    <string name="permission_promoted_notifications_description">Izinkan hitung mundur kelas tampil sebagai chip di bilah status. Jika dinonaktifkan, Info Langsung tetap muncul saat menarik panel notifikasi.</string>
+    <string name="permission_promoted_notifications_name">Chip di bilah status</string>
     <string name="permission_warning_action_later">Mungkin nanti</string>
     <string name="permission_warning_description">Izin berikut sebelumnya diaktifkan tetapi sekarang dinonaktifkan. Notifikasi dan live update terkait mungkin tidak ditampilkan dengan benar.</string>
     <string name="permission_warning_mute_item">Jangan ingatkan saya tentang ini lagi</string>

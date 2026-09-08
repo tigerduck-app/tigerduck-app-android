@@ -565,6 +565,8 @@
     <string name="permission_not_granted_tap_settings">Не дозволено · Торкніться, щоб відкрити налаштування</string>
     <string name="permission_notifications_description">Дозвольте застосунку показувати сповіщення; інакше сповіщення та новини в реальному часі не з\'являтимуться.</string>
     <string name="permission_notifications_name">Дозвіл на сповіщення</string>
+    <string name="permission_promoted_notifications_description">Дозвольте показувати зворотний відлік заняття як чип у рядку стану. Якщо вимкнено, актуальна інформація все одно видима, коли потягнути панель сповіщень.</string>
+    <string name="permission_promoted_notifications_name">Чип у рядку стану</string>
     <string name="permission_warning_action_later">Можливо, пізніше</string>
     <string name="permission_warning_description">Наведені нижче дозволи раніше були ввімкнені, але зараз вимкнені. Відповідні сповіщення та новини в реальному часі можуть відображатися некоректно.</string>
     <string name="permission_warning_mute_item">Більше не нагадувати про це</string>
