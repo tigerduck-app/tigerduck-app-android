@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
+import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 
 /**
  * Full-screen rule editor. Replaces the prior `AlertDialog`-based editor
@@ -77,6 +78,7 @@ fun SubscriptionRuleEditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                windowInsets = NoTopBarInsets,
                 title = {
                     Text(
                         stringResource(

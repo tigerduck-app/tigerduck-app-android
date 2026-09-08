@@ -60,7 +60,17 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.tigerDuckSwitchColors
 
 internal val SettingRowHeight = 56.dp
-internal val SubSettingsBarHeight = 48.dp
+
+/**
+ * Height of a sub-screen's top bar, below M3's 64dp default so a settings
+ * page leads with its content rather than its chrome.
+ *
+ * It was 48dp while every one of these bars was also paying the status-bar
+ * inset a second time (see [org.ntust.app.tigerduck.ui.component.NoTopBarInsets]),
+ * which padded the title out to something taller than the number said.
+ * With the double inset gone, 48 read as cramped.
+ */
+internal val SubSettingsBarHeight = 56.dp
 /**
  * About section row that swaps a chevron for a spinner while a manual
  * "Check for updates" call is in flight. Disabled while checking so a

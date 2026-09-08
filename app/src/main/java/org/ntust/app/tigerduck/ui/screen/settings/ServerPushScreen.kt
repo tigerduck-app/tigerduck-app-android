@@ -77,6 +77,7 @@ import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.push.PushRegistrationService
 import android.text.format.DateUtils
 import javax.inject.Inject
+import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 
 /**
  * Mirrors iOS PushServerSettingsView: master push toggle (defaults ON),
@@ -178,6 +179,7 @@ fun ServerPushScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                windowInsets = NoTopBarInsets,
                 title = { Text(stringResource(R.string.push_server_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

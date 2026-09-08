@@ -32,6 +32,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.AppState
+import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.update.UpdateChecker
 
 /**
@@ -72,6 +73,7 @@ fun TriggersDebugScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                windowInsets = NoTopBarInsets,
                 title = { Text("Triggers") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

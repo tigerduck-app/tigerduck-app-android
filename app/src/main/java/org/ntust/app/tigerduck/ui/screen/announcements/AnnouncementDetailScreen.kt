@@ -49,6 +49,7 @@ import org.ntust.app.tigerduck.network.model.BulletinSummary
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
 import org.ntust.app.tigerduck.network.model.localizedTagLabel
 import org.ntust.app.tigerduck.network.model.orgLabel
+import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 
 @OptIn(
     ExperimentalLayoutApi::class,
@@ -72,6 +73,7 @@ fun AnnouncementDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                windowInsets = NoTopBarInsets,
                 title = {},
                 navigationIcon = {
                     IconButton(onClick = onBack) {

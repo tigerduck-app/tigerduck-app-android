@@ -26,6 +26,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.notification.NotificationChannels
+import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +54,7 @@ fun NotificationDebugScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
+                windowInsets = NoTopBarInsets,
                 title = { Text("Notification") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

@@ -40,6 +40,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +55,7 @@ fun DebugScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                windowInsets = NoTopBarInsets,
                 title = { Text("Time override") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
