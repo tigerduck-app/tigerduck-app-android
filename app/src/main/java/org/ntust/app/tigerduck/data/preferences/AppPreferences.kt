@@ -474,6 +474,24 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
      * `SharedPreferences` sets are unordered, and this list's whole value is
      * that it is newest-first.
      */
+    /**
+     * Holidays the user asked to keep receiving class reminders on.
+     *
+     * Written whether or not cloud sync is on — the holiday guard itself is
+     * not a sync feature — and additionally uploaded when sync is enabled so
+     * a user's devices agree. Stored as ids rather than dates because a
+     * holiday's range can be edited by an operator after the user opted in,
+     * and the opt-in should follow the holiday.
+     */
+    var holidayNotifyOverrides: Set<Int>
+        get() = prefs.getStringSet("holidayNotifyOverrides", emptySet())
+            ?.mapNotNull(String::toIntOrNull)
+            ?.toSet()
+            ?: emptySet()
+        set(value) = prefs.edit()
+            .putStringSet("holidayNotifyOverrides", value.map(Int::toString).toSet())
+            .apply()
+
     var semesterCatalogTerms: List<String>
         get() = prefs.getString("semesterCatalogTerms", null)
             ?.split(SEMESTER_LIST_DELIMITER)
@@ -486,7 +504,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     /**
      * The term the 選課 system is currently open for (`LoginEnable`). Runs
      * weeks ahead of the term in session, so it is not interchangeable with
-     * [org.ntust.app.tigerduck.AppConstants.CurrentTerm.CODE].
+     * the term in session from the published academic calendar.
      */
     var semesterCatalogSelection: String?
         get() = prefs.getString("semesterCatalogSelection", null)

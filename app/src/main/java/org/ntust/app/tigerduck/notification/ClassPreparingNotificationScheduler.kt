@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.shared.collapseContiguousPeriods
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
@@ -35,10 +36,20 @@ class ClassPreparingNotificationScheduler @Inject constructor(
     // each other's persisted state.
     private val schedulerLock = Any()
 
+    /**
+     * @param calendar the school calendar, used to skip days classes do not
+     *   meet. Defaults to [AcademicCalendar.EMPTY] so a caller that has not
+     *   been given one behaves exactly as this scheduler did before
+     *   holidays existed — nothing suppressed.
+     * @param optedInHolidayIds holidays this user asked to keep hearing
+     *   about, which put their days back in.
+     */
     fun scheduleAll(
         courses: List<Course>,
         skippedDates: Map<String, List<String>>,
         leadTimeSec: Long,
+        calendar: AcademicCalendar = AcademicCalendar.EMPTY,
+        optedInHolidayIds: Set<Int> = emptySet(),
     ) = synchronized(schedulerLock) {
         // Load the persisted slotId→requestCode map BEFORE cancelling so cancel
         // looks up the same code each alarm was originally registered with.
@@ -52,7 +63,10 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         val scheduled = mutableSetOf<String>()
         var nextCode = trackerPrefs.getInt(KEY_NEXT_CODE, 1)
 
-        for (slot in upcomingSlots(courses, skippedDates, daysAhead = DAYS_AHEAD)) {
+        for (slot in upcomingSlots(
+            courses, skippedDates, daysAhead = DAYS_AHEAD,
+            calendar = calendar, optedInHolidayIds = optedInHolidayIds,
+        )) {
             val triggerTime = slot.startMs - leadTimeSec * 1000
             if (triggerTime <= now) continue
 
@@ -177,6 +191,8 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         courses: List<Course>,
         skippedDates: Map<String, List<String>>,
         daysAhead: Int,
+        calendar: AcademicCalendar,
+        optedInHolidayIds: Set<Int>,
     ): List<UpcomingSlot> {
         val today = AppClock.localDateTime().toLocalDate()
         val results = mutableListOf<UpcomingSlot>()
@@ -186,6 +202,11 @@ class ClassPreparingNotificationScheduler @Inject constructor(
                 in 1..7 -> date.dayOfWeek.value // Monday=1 .. Sunday=7
                 else -> continue
             }
+            // Classes do not meet on a school holiday, so nothing should be
+            // scheduled for that day at all. Checked per day rather than at
+            // the call site because this loop reaches ten days ahead and a
+            // holiday can start partway through that window.
+            if (calendar.suppressesClasses(date, optedInHolidayIds)) continue
             val isoDate = date.toString()
             for (course in courses) {
                 val periods = course.schedule[weekdayIdx] ?: continue

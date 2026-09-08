@@ -68,6 +68,9 @@ class MainActivity : AppCompatActivity() {
     lateinit var liveActivityManager: LiveActivityManager
 
     @Inject
+    lateinit var academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore
+
+    @Inject
     lateinit var authService: AuthService
 
     @Inject
@@ -209,10 +212,32 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        refreshAcademicCalendar()
         liveActivityManager.refresh()
         updateChecker.resume(this)
         applyRotationPreference()
         refreshMoodleCredentials()
+    }
+
+    /**
+     * Re-check the school calendar on every resume.
+     *
+     * Cheap by design — the server answers 304 with no body when nothing
+     * changed — and unconditional: this is the one backend call that is not
+     * gated on sign-in, cloud sync or flavour, because suppressing class
+     * reminders on a public holiday should not depend on any of them.
+     *
+     * A successful change re-runs the schedulers, since alarms up to ten
+     * days out may now fall on a newly-published holiday.
+     */
+    private fun refreshAcademicCalendar() {
+        lifecycleScope.launch {
+            val before = academicCalendar.current().revision
+            academicCalendar.refresh()
+            if (academicCalendar.current().revision != before) {
+                liveActivityManager.refresh()
+            }
+        }
     }
 
     private fun refreshMoodleCredentials() {

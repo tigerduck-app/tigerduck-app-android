@@ -5,6 +5,9 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.network.SemesterCodes
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -29,7 +32,10 @@ import javax.inject.Singleton
  * Survives app restarts, cleared when system needs space.
  */
 @Singleton
-class DataCache @Inject constructor(@ApplicationContext context: Context) {
+class DataCache @Inject constructor(
+    @ApplicationContext context: Context,
+    private val academicCalendar: AcademicCalendarStore,
+) {
 
     private val cacheDir: File = File(context.cacheDir, "TigerDuckCache").also { it.mkdirs() }
 
@@ -194,8 +200,17 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
      * else reads. Duplicated rather than injected so DataCache keeps no
      * dependency on the network layer.
      */
+    /**
+     * The term whose cache file the app reads.
+     *
+     * Comes from the school's published calendar; before this feature it was
+     * a constant that needed a store release every semester. Falls back to
+     * the month heuristic while the calendar is unknown — a device that has
+     * never reached the backend still has to open on something.
+     */
     private fun currentSemesterCode(): String =
-        org.ntust.app.tigerduck.AppConstants.CurrentTerm.CODE
+        academicCalendar.current().currentTerm(AppClock.localDateTime().toLocalDate())?.code
+            ?: SemesterCodes.heuristic()
 
     // --- Assignments ---
 

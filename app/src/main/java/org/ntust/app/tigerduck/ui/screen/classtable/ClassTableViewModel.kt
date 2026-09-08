@@ -55,6 +55,7 @@ class ClassTableViewModel @Inject constructor(
     private val semesterCatalog: SemesterCatalog,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
+    private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
 ) : ViewModel() {
 
 
@@ -339,7 +340,9 @@ class ClassTableViewModel @Inject constructor(
             // Outside the term there is no "today" worth showing — the
             // carousel would either be empty or surface a stale day. Empty
             // here also hides the section, which keys off `isNotEmpty()`.
-            if (!AppConstants.CurrentTerm.isInSession()) return emptyList()
+            if (!academicCalendar.current().isInSession(AppClock.localDateTime().toLocalDate())) {
+                return emptyList()
+            }
             return ClassTableSelection.coursesOn(liveCourses, _currentDayTime.value.weekday)
         }
 

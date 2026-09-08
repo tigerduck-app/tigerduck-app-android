@@ -55,6 +55,12 @@ data class BackendSyncResult(
     val currentRevision: Long,
     val coursesResetAt: String? = null,
     val tombstones: List<CourseTombstone> = emptyList(),
+    /**
+     * Holidays the user opted back into on some device. Null means the
+     * server did not send the section at all — an older backend — which is
+     * not the same as "the user has none", so the local set is left alone.
+     */
+    val holidayOverrides: Set<Int>? = null,
 )
 
 @Singleton
@@ -269,7 +275,22 @@ class SyncApiClient @Inject constructor(
             currentRevision = json.optLong("current_revision", 0),
             coursesResetAt = coursesResetAt,
             tombstones = tombstones,
+            holidayOverrides = parseHolidayOverrides(json),
         )
+    }
+
+    /** `notify: false` rows are stored server-side so a device can tell
+     *  "turned it off" from "never set it"; only the true ones belong in the
+     *  opted-in set. */
+    private fun parseHolidayOverrides(json: JSONObject): Set<Int>? {
+        val arr = json.optJSONArray("holiday_overrides") ?: return null
+        val out = mutableSetOf<Int>()
+        for (i in 0 until arr.length()) {
+            val row = arr.optJSONObject(i) ?: continue
+            if (row.optBoolean("notify", false)) out.add(row.optInt("holiday_id", -1))
+        }
+        out.remove(-1)
+        return out
     }
 
     private fun nullStr(obj: JSONObject, key: String): String? {

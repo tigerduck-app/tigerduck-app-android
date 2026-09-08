@@ -147,7 +147,9 @@ class SemesterCatalog @Inject constructor(
          * Matches iOS, whose fallbacks resolve through its own
          * `currentSemesterCode()` — pinned to the same term.
          */
-        private val FALLBACK_TERM: String get() = AppConstants.CurrentTerm.CODE
+        // Used only until the catalogue fetch lands; the published
+        // academic calendar is the source of truth for the live term.
+        private val FALLBACK_TERM: String get() = SemesterCodes.heuristic()
 
         private const val SEMESTERS_API =
             "https://querycourse.ntust.edu.tw/QueryCourse/api/semestersinfo"

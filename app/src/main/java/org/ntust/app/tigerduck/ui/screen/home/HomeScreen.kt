@@ -78,7 +78,7 @@ fun HomeScreen(
     val resources = LocalResources.current
     val sections by viewModel.sections.collectAsStateWithLifecycle()
     // Slow pulse (60s, plus every debug-clock flip) so the term gate below
-    // flips on its own when wall-clock time crosses CurrentTerm.START / .END
+    // flips on its own when wall-clock time crosses a term boundary
     // while Home stays mounted. Both boundaries land at midnight, so a minute
     // of latency is ample.
     val termClockVersion by rememberAppClockVersion()
@@ -88,7 +88,7 @@ fun HomeScreen(
     // this list's indices — and the add-section dialog still sees the full
     // list, so a hidden section can't be added twice.
     val visibleSections = remember(sections, termClockVersion) {
-        if (AppConstants.CurrentTerm.isInSession()) sections
+        if (viewModel.isTermInSession()) sections
         else sections.filterNot { it.type == HomeSection.HomeSectionType.TODAY_COURSES }
     }
     val allCourses by viewModel.allCourses.collectAsStateWithLifecycle()

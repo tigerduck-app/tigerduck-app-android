@@ -61,6 +61,16 @@ data class AnonymousDeviceRequest(
     @SerializedName("server_push_enabled") val serverPushEnabled: Boolean? = null,
 )
 
+/**
+ * "Keep reminding me about classes on this holiday."
+ *
+ * Only sent when cloud sync is on — the guard itself works without it, and
+ * a device with sync off keeps the choice locally.
+ */
+data class HolidayOverrideRequest(
+    @SerializedName("notify") val notify: Boolean,
+)
+
 data class UpdateDevicePreferencesRequest(
     @SerializedName("server_push_enabled") val serverPushEnabled: Boolean? = null,
     @SerializedName("sync_courses") val syncCourses: Boolean? = null,

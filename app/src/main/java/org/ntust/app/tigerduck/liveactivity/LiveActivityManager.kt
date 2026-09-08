@@ -30,6 +30,7 @@ class LiveActivityManager @Inject constructor(
     private val authService: AuthService,
     private val appPrefs: AppPreferences,
     private val classPreparingScheduler: ClassPreparingNotificationScheduler,
+    private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
     private val boundaryScheduler: LiveActivityBoundaryScheduler,
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) {
@@ -85,7 +86,16 @@ class LiveActivityManager @Inject constructor(
             return
         }
         val now = Date(AppClock.nowMillis())
-        val courses = dataCache.loadCourses()
+        // Classes do not meet on a school holiday, so neither the chip nor
+        // the class-preparing alarm should surface one. Read once and used
+        // for both so a holiday starting between the two calls cannot leave
+        // them disagreeing.
+        val calendar = academicCalendar.current()
+        val optedIn = academicCalendar.optedInHolidayIds
+        val onHoliday = calendar.suppressesClasses(
+            AppClock.localDateTime().toLocalDate(), optedIn
+        )
+        val courses = if (onHoliday) emptyList() else dataCache.loadCourses()
         val assignments = dataCache.loadAssignments()
         // 翹課 parked — see DataCache's skipped-dates section. Not read, so
         // pre-v2.0.0 marks can't suppress a class the user can no longer unskip.
@@ -106,10 +116,16 @@ class LiveActivityManager @Inject constructor(
         // course list + lead-time preference so reminders fire even when
         // the app is fully closed.
         if (preferences.showClassPreparing) {
+            // Passes the full course list, not the holiday-emptied one: the
+            // scheduler reaches ten days ahead and does its own per-day
+            // check, so handing it today's emptiness would cancel next
+            // week's reminders too.
             classPreparingScheduler.scheduleAll(
-                courses = courses,
+                courses = dataCache.loadCourses(),
                 skippedDates = skipped,
                 leadTimeSec = preferences.classPreparingLeadTimeSec,
+                calendar = calendar,
+                optedInHolidayIds = optedIn,
             )
         } else {
             classPreparingScheduler.cancelAllTracked()

@@ -40,6 +40,7 @@ class CourseService @Inject constructor(
     private val ssoLoginService: SsoLoginService,
     private val dataCache: DataCache,
     private val appPreferences: AppPreferences,
+    private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
 ) {
     private val client: OkHttpClient get() = sessionManager.client
     private val gson = Gson()
@@ -299,7 +300,7 @@ class CourseService @Inject constructor(
      * widget, the Wear tile, Home's carousel and every current-semester cache
      * key.
      *
-     * Pinned to [org.ntust.app.tigerduck.AppConstants.CurrentTerm]. The month
+     * The month
      * heuristic this replaced still says 114-2 through August, which mislabels
      * the 115-1 term the school opened early. Swap the body for
      * [heuristicSemesterCode] to hand control back — it is left intact, so
@@ -308,11 +309,19 @@ class CourseService @Inject constructor(
      * Not to be confused with [SemesterCatalog.selectionSemesterCode] — 選課
      * opens the *next* term weeks before this one ends.
      */
-    fun currentSemesterCode(): String = org.ntust.app.tigerduck.AppConstants.CurrentTerm.CODE
+    /** The term the app is operating on, from the school's published
+     *  calendar. Falls back to [heuristicSemesterCode] while that is
+     *  unknown. */
+    fun currentSemesterCode(): String =
+        academicCalendar.current()
+            .currentTerm(org.ntust.app.tigerduck.shared.clock.AppClock.localDateTime().toLocalDate())
+            ?.code
+            ?: SemesterCodes.heuristic()
 
     /**
-     * The month-based guess [currentSemesterCode] used before it was pinned.
-     * Kept so lifting the pin is a one-line change.
+     * The month-based guess, used when the published calendar has not been
+     * fetched yet. No longer a "before it was pinned" fallback — the pin is
+     * gone and the calendar is the source of truth.
      */
     fun heuristicSemesterCode(): String = SemesterCodes.heuristic()
 

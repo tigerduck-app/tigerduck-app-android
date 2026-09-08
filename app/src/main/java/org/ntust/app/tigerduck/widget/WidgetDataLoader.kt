@@ -23,6 +23,7 @@ interface WidgetEntryPoint {
     fun dataCache(): DataCache
     fun authService(): AuthService
     fun appPreferences(): AppPreferences
+    fun academicCalendar(): org.ntust.app.tigerduck.academic.AcademicCalendarStore
 }
 
 object WidgetDataLoader {
@@ -44,12 +45,24 @@ object WidgetDataLoader {
         val weekday = cal.toWeekday()
         val minuteOfDay = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
 
-        val ongoingInfos = computeOngoingCourses(courses, weekday, minuteOfDay)
+        // Classes do not meet on a school holiday, so the "now / next"
+        // derivations go quiet — that is what the Next-class widget renders.
+        // `courses` is deliberately left alone: the Today and Week grids show
+        // the timetable itself, which stays useful on a day off.
+        val calendarStore = entry.academicCalendar()
+        val calendar = calendarStore.current()
+        val optedIn = calendarStore.optedInHolidayIds
+        val today = AppClock.localDateTime().toLocalDate()
+        val quietToday = calendar.suppressesClasses(today, optedIn)
+        val quietTomorrow = calendar.suppressesClasses(today.plusDays(1), optedIn)
+
+        val ongoingInfos =
+            if (quietToday) emptyList() else computeOngoingCourses(courses, weekday, minuteOfDay)
         val ongoingNos = ongoingInfos.map { it.course.courseNo }
-        val nextCourseTodayNo = computeNextCourseTodayNo(
+        val nextCourseTodayNo = if (quietToday) null else computeNextCourseTodayNo(
             courses, weekday, minuteOfDay, ongoingNos,
         )
-        val tomorrowFirst = computeTomorrowFirst(courses, weekday)
+        val tomorrowFirst = if (quietTomorrow) null else computeTomorrowFirst(courses, weekday)
 
         val courseColors = buildCourseColorAssignments(courses)
         val customCount = courses.count { it.customColorHex != null }

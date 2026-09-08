@@ -97,6 +97,7 @@ class HomeBackendSync @Inject constructor(
     private val courseService: CourseService,
     private val semesterCatalog: SemesterCatalog,
     private val widgetUpdater: WidgetUpdater,
+    private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
 ) {
 
     /**
@@ -124,6 +125,12 @@ class HomeBackendSync @Inject constructor(
                 applyCourseOverrides(state, result.courseOverrides)
             }
             applyCourseReset(result)
+            // Not gated on any of the per-category sync toggles: a holiday
+            // exception is a notification setting, not course or assignment
+            // data, and the categories the user can turn off do not cover
+            // it. Null means an older backend that does not send the
+            // section, so the local set stands.
+            result.holidayOverrides?.let(academicCalendar::applySyncedOverrides)
             syncCourseList(result)
             markCourseSyncAt()
             state.lastKnownRevision = result.currentRevision

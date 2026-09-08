@@ -70,6 +70,7 @@ class HomeViewModel @Inject constructor(
     private val courseColorStore: CourseColorStore,
     private val semesterCatalog: SemesterCatalog,
     private val liveActivityManager: LiveActivityManager,
+    private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val pushApiClient: PushApiClient,
     private val syncApiClient: SyncApiClient,
@@ -77,6 +78,18 @@ class HomeViewModel @Inject constructor(
     private val backendSync: HomeBackendSync,
 ) : ViewModel() {
 
+
+    /**
+     * Whether classes are in session, from the school's published calendar.
+     *
+     * Exposed here rather than read in the Composable so Home does not have
+     * to hold a store of its own, and so the answer moves with the same
+     * clock version the rest of the screen already recomposes on.
+     */
+    fun isTermInSession(): Boolean =
+        academicCalendar.current().isInSession(
+            org.ntust.app.tigerduck.shared.clock.AppClock.localDateTime().toLocalDate()
+        )
 
     private val _sections = MutableStateFlow(prefs.homeSections)
     val sections: StateFlow<List<HomeSection>> = _sections

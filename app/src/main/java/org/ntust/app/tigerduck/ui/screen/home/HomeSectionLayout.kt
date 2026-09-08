@@ -31,7 +31,7 @@ object HomeSectionLayout {
      *
      * Id-based rather than index-based because Home renders a *filtered*
      * list — the today-courses section drops out of the term window (see
-     * [org.ntust.app.tigerduck.AppConstants.CurrentTerm]) — so a position in
+     * the published academic calendar) — so a position in
      * what the user dragged is not a position in the stored layout.
      * Resolving both ends here keeps the two from drifting.
      *

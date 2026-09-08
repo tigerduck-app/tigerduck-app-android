@@ -51,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.compose.material3.Switch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -77,6 +78,7 @@ fun CalendarScreen(
     onOpenSignInSettings: () -> Unit = {},
 ) {
     val events by viewModel.events.collectAsStateWithLifecycle()
+    val holidayOverrides by viewModel.holidayOverrides.collectAsStateWithLifecycle()
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val displayedMonth by viewModel.displayedMonth.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -108,7 +110,10 @@ fun CalendarScreen(
                 item {
                     PageHeader(title = stringResource(R.string.feature_calendar)) {
                         SyncStatusDot(
-                            servers = listOf(ServerKind.MOODLE),
+                            // The TigerDuck backend publishes the semester
+                            // boundaries and holidays this screen now shows,
+                            // so it belongs in the source list beside Moodle.
+                            servers = listOf(ServerKind.MOODLE, ServerKind.BACKEND),
                             isLoading = isLoading,
                         )
                         Spacer(Modifier.width(8.dp))
@@ -163,7 +168,17 @@ fun CalendarScreen(
                         }
                     } else {
                         items(dayEvents) { event ->
-                            EventRow(event)
+                            val holidayId = viewModel.holidayIdFor(event)
+                            EventRow(
+                                event = event,
+                                // Only a holiday can be opted back into; a
+                                // term boundary is an announcement, not a
+                                // day off, so it gets no toggle.
+                                notifyOnHoliday = holidayId?.let { it in holidayOverrides },
+                                onNotifyOnHolidayChange = holidayId?.let { id ->
+                                    { on: Boolean -> viewModel.setNotifyOnHoliday(id, on) }
+                                },
+                            )
                         }
                     }
                 }
@@ -421,7 +436,11 @@ private fun isSameMonth(a: Date, b: Date): Boolean {
 
 
 @Composable
-private fun EventRow(event: CalendarEvent) {
+private fun EventRow(
+    event: CalendarEvent,
+    notifyOnHoliday: Boolean? = null,
+    onNotifyOnHolidayChange: ((Boolean) -> Unit)? = null,
+) {
     val timeFmt = remember {
         SimpleDateFormat("HH:mm", Locale.TAIWAN).apply {
             timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
@@ -449,11 +468,31 @@ private fun EventRow(event: CalendarEvent) {
                 color = event.source.color
             )
         }
-        Text(
-            timeFmt.format(event.date),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-        )
+        if (notifyOnHoliday != null && onNotifyOnHolidayChange != null) {
+            // Replaces the timestamp rather than joining it: a holiday is an
+            // all-day thing, so "00:00" was never telling the user anything.
+            //
+            // The switch is labelled rather than bare: on its own it asked
+            // the user to guess what it governed, and a screen reader had
+            // only the accessibility string to go on.
+            Text(
+                stringResource(R.string.calendar_holiday_notify_title),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+                maxLines = 1,
+            )
+            Spacer(Modifier.width(8.dp))
+            Switch(
+                checked = notifyOnHoliday,
+                onCheckedChange = onNotifyOnHolidayChange,
+            )
+        } else {
+            Text(
+                timeFmt.format(event.date),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+            )
+        }
     }
 }
 
