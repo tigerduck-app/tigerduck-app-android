@@ -81,6 +81,20 @@ class PushRegistrationService @Inject constructor(
         scheduleRegister()
     }
 
+    /**
+     * Consent has landed — release the registration that [performRegister]
+     * was holding back.
+     *
+     * The FCM token usually arrives during onboarding, so by the time the
+     * user finishes there is a token cached and nothing else that would
+     * re-trigger a register until the next sign-in or token rotation.
+     * Without this the device would stay unannounced for the rest of the
+     * install on a user who never signs in.
+     */
+    suspend fun onOnboardingCompleted() {
+        scheduleRegister()
+    }
+
     private suspend fun scheduleRegister() {
         mutex.withLock {
             if (isUnregistering) return@withLock
@@ -138,6 +152,15 @@ class PushRegistrationService @Inject constructor(
             if (isUnregistering) null else fcmToken
         }
         if (token == null) return false
+        // Nothing identifying leaves the device until the user has been
+        // through onboarding and seen the privacy page. `fcmBootstrap.start()`
+        // runs from Application.onCreate and an FCM token needs no permission,
+        // so without this the very first launch would announce the device id
+        // and token before the user had agreed to anything. Mirrors iOS, where
+        // AppState only calls `pushCoordinator.enable()` once
+        // `hasCompletedOnboarding` is true. `onOnboardingCompleted()` re-fires
+        // this the moment consent lands, so the token is not lost.
+        if (!appPreferences.hasCompletedOnboarding) return false
         val clientDeviceId = identity.uuid()
         // Announce the hardware first, every time, signed in or not. The two
         // registrations answer different questions — "which device is this"
@@ -171,6 +194,7 @@ class PushRegistrationService @Inject constructor(
             api.register(
                 DeviceRegisterRequest(
                     clientDeviceId = clientDeviceId,
+                    deviceClass = identity.deviceClass(),
                     appVersion = BuildConfig.VERSION_NAME,
                     osVersion = "Android ${android.os.Build.VERSION.RELEASE}",
                     pushToken = PushTokenIn(tokenValue = token),
@@ -213,10 +237,14 @@ class PushRegistrationService @Inject constructor(
         if (ok) {
             updateDiagnostic { it.copy(lastSyncAt = System.currentTimeMillis()) }
         } else {
+            // No "not signed in" case: signed out is a supported outcome now
+            // that the announce registers the device on its own, and a failed
+            // announce has already written the real error to the diagnostic —
+            // stamping a reason over it would replace the cause with a
+            // symptom.
             val reason = mutex.withLock {
                 when {
                     isUnregistering -> "Unregister in progress"
-                    !authTokenManager.isLoggedIn -> "Not signed in"
                     fcmToken == null -> "Waiting for FCM token"
                     else -> null
                 }
@@ -280,13 +308,33 @@ class PushRegistrationService @Inject constructor(
         // this critical section to avoid self-deadlock.
         val error: String? = mutex.withLock {
             prefs.edit().putBoolean(KEY_SERVER_PUSH_OPT_OUT, optOut).apply()
+            // Two different rows hold this flag, and which one decides
+            // depends on whether there is an account. Signed in, operator
+            // targeting reads `user_devices` and the PATCH owns it. Signed
+            // out, targeting reads `device_registrations` and the PATCH has
+            // no session to authenticate with — it would 401 and the setting
+            // would never leave the device — so the announce carries it
+            // instead. With no token yet there is no row to correct: the
+            // pref is stored and the first announce will carry it.
+            val token = if (isUnregistering) null else fcmToken
             runCatching {
-                api.updateDevicePreferences(deviceId, serverPushEnabled = !optOut)
+                if (authTokenManager.isLoggedIn) {
+                    api.updateDevicePreferences(deviceId, serverPushEnabled = !optOut)
+                } else if (token != null) {
+                    api.registerAnonymous(
+                        AnonymousDeviceRequest(
+                            deviceId = deviceId,
+                            deviceClass = identity.deviceClass(),
+                            pushToken = token,
+                            serverPushEnabled = !optOut,
+                        )
+                    )
+                }
             }.fold(
                 onSuccess = { null },
                 onFailure = { e ->
                     if (e is CancellationException) throw e
-                    Log.w(TAG, "preferences PATCH failed", e)
+                    Log.w(TAG, "server push preference update failed", e)
                     e.message ?: e::class.java.simpleName
                 },
             )
@@ -308,7 +356,17 @@ class PushRegistrationService @Inject constructor(
     private suspend fun announceDevice(deviceId: String, token: String): Throwable? =
         runCatching {
             api.registerAnonymous(
-                AnonymousDeviceRequest(deviceId = deviceId, pushToken = token)
+                AnonymousDeviceRequest(
+                    deviceId = deviceId,
+                    deviceClass = identity.deviceClass(),
+                    pushToken = token,
+                    // Carried on every announce, not just when it changes.
+                    // This row is what operator targeting filters on, and
+                    // while signed out the preferences PATCH has no session
+                    // to authenticate with — so the announce is the only
+                    // path the opt-out has to the server.
+                    serverPushEnabled = !isServerPushOptedOut(),
+                )
             )
         }.fold(
             onSuccess = { null },

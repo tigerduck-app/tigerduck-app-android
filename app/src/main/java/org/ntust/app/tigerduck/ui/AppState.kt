@@ -46,6 +46,7 @@ class AppState @Inject constructor(
     val systemPermissions: SystemPermissions,
     private val dataMigration: DataMigration,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
+    private val pushRegistration: org.ntust.app.tigerduck.push.PushRegistrationService,
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var syncJob: Job? = null
@@ -388,6 +389,12 @@ class AppState @Inject constructor(
 
     fun completeOnboarding() {
         hasCompletedOnboarding = true
+        // Push registration is held back until this point so no device
+        // identity reaches the backend before the privacy page has been
+        // seen. Consent has landed, so release the token that arrived
+        // during onboarding — nothing else would re-trigger a register for
+        // a user who never signs in.
+        scope.launch { pushRegistration.onOnboardingCompleted() }
     }
 
     /**

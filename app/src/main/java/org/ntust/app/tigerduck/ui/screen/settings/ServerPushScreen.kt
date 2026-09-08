@@ -84,10 +84,11 @@ import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
  * the status card (permission + device registration + last registration
  * + latest error), and the device ID (operator support handle).
  *
- * The toggle wraps [PushRegistrationService.updateServerPushOptOut] so
- * flipping it patches `device_registrations.server_push_enabled` on the
- * backend immediately — same flow the SubscriptionSettings screen used
- * before the row was moved here.
+ * The toggle wraps [PushRegistrationService.updateServerPushOptOut], which
+ * sends the change to whichever row operator targeting will actually read:
+ * `user_devices` via the preferences PATCH when signed in,
+ * `device_registrations` via the anonymous announce when not. Same flow the
+ * SubscriptionSettings screen used before the row was moved here.
  */
 @HiltViewModel
 class ServerPushViewModel @Inject constructor(

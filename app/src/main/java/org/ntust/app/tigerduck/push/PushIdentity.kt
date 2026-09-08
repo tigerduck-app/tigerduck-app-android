@@ -24,6 +24,9 @@ class PushIdentity @Inject constructor(
         private const val KEY_UUID = "push.device_uuid"
         // RFC 4122 "URL" namespace — used as the namespace for UUID v5
         private val NAMESPACE = UUID.fromString("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
+
+        /** Matches the `sw600dp` resource qualifier — see [deviceClass]. */
+        private const val TABLET_SW_DP = 600
     }
 
     /**
@@ -38,6 +41,28 @@ class PushIdentity @Inject constructor(
         ) ?: UUID.randomUUID().toString()
         uuid5(NAMESPACE, "tigerduck:$androidId").toString()
     }
+
+    /**
+     * The form factor an operator targets this device by: `"android"` or
+     * `"android_tablet"`.
+     *
+     * Apple reports iphone / ipad / mac and gets three separate target
+     * classes out of it; Android reported one flat value, so a tablet could
+     * only ever be reached by addressing every Android device at once.
+     *
+     * 600dp of smallest width is the same threshold the resource system uses
+     * to pick `sw600dp` layouts, so "tablet" here means what it means
+     * everywhere else in the app rather than a second, privately-invented
+     * definition. Read from the current configuration rather than cached: a
+     * foldable changes class when it opens, and the next announce should say
+     * so.
+     */
+    fun deviceClass(): String =
+        if (context.resources.configuration.smallestScreenWidthDp >= TABLET_SW_DP) {
+            "android_tablet"
+        } else {
+            "android"
+        }
 
     /**
      * UUID v5 (SHA-1 name-based) per RFC 4122 §4.3.

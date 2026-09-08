@@ -18,6 +18,12 @@ data class PushTokenIn(
 data class DeviceRegisterRequest(
     @SerializedName("client_device_id") val clientDeviceId: String,
     @SerializedName("platform") val platform: String = "android",
+    /**
+     * Form factor, for operator targeting — see [PushIdentity.deviceClass].
+     * `platform` is "android" for phones and tablets alike, so the
+     * distinction has to ride here.
+     */
+    @SerializedName("device_class") val deviceClass: String? = null,
     @SerializedName("app_version") val appVersion: String? = null,
     @SerializedName("os_version") val osVersion: String? = null,
     @SerializedName("push_token") val pushToken: PushTokenIn? = null,
@@ -40,9 +46,19 @@ data class DeviceRegisterResponse(
 data class AnonymousDeviceRequest(
     @SerializedName("device_id") val deviceId: String,
     @SerializedName("platform") val platform: String = "android",
-    @SerializedName("device_class") val deviceClass: String = "android",
+    @SerializedName("device_class") val deviceClass: String,
     @SerializedName("push_token") val pushToken: String? = null,
     @SerializedName("bundle_id") val bundleId: String = "",
+    /**
+     * The signed-out half of the server-push opt-out.
+     *
+     * `PATCH /devices/{id}/preferences` needs a session and writes
+     * `user_devices`, but operator targeting resolves signed-out devices
+     * from `device_registrations` — so without this the toggle had no way
+     * to reach the row that actually decides, and a device that opted out
+     * kept receiving custom push.
+     */
+    @SerializedName("server_push_enabled") val serverPushEnabled: Boolean? = null,
 )
 
 data class UpdateDevicePreferencesRequest(
