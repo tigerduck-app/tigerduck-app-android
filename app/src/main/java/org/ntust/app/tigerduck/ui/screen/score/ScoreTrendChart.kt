@@ -53,7 +53,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.data.model.SemesterRanking
+import org.ntust.app.tigerduck.data.model.GpaTrendPoint
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import kotlin.math.roundToInt
@@ -62,13 +62,13 @@ private val trendAccent = Color(0xFF4ECDC4)
 private val AXIS_LABEL_WIDTH = 28.dp
 @Composable
 internal fun RankingsTrendCard(
-    rankings: List<SemesterRanking>,
+    points: List<GpaTrendPoint>,
     scope: ScoreViewModel.RankingScope,
     onScopeChange: (ScoreViewModel.RankingScope) -> Unit,
 ) {
     // Reset the pinned term when the scope switches so the summary reflects
     // the newly-chosen series instead of carrying over a stale index.
-    var selectedTerm by remember(scope, rankings) { mutableStateOf<String?>(null) }
+    var selectedTerm by remember(scope, points) { mutableStateOf<String?>(null) }
 
     Card(
         modifier = Modifier
@@ -120,7 +120,7 @@ internal fun RankingsTrendCard(
                 }
             }
 
-            if (rankings.isEmpty()) {
+            if (points.isEmpty()) {
                 Text(
                     text = stringResource(R.string.score_no_ranking_data),
                     style = MaterialTheme.typography.bodySmall,
@@ -135,14 +135,14 @@ internal fun RankingsTrendCard(
 
             Spacer(Modifier.height(12.dp))
             TrendChart(
-                rankings = rankings,
+                points = points,
                 scope = scope,
                 selectedTerm = selectedTerm,
                 onSelect = { selectedTerm = it },
             )
             Spacer(Modifier.height(12.dp))
             TrendSummaryRow(
-                rankings = rankings,
+                points = points,
                 scope = scope,
                 selectedTerm = selectedTerm,
             )
@@ -151,7 +151,7 @@ internal fun RankingsTrendCard(
 }
 @Composable
 private fun TrendChart(
-    rankings: List<SemesterRanking>,
+    points: List<GpaTrendPoint>,
     scope: ScoreViewModel.RankingScope,
     selectedTerm: String?,
     onSelect: (String) -> Unit,
@@ -163,9 +163,12 @@ private fun TrendChart(
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val axisStyle = MaterialTheme.typography.labelSmall.copy(color = axisLabelColor)
+    // Punched through the middle of a provisional dot, so it has to be the
+    // card's own fill rather than the page background behind it.
+    val cardColor = MaterialTheme.colorScheme.surface
 
-    val values = remember(rankings, scope) {
-        rankings.map { gpa(it, scope) }
+    val values = remember(points, scope) {
+        points.map { gpa(it, scope) }
     }
     val yDomain = remember(values) { computeYDomain(values) }
 
@@ -173,7 +176,7 @@ private fun TrendChart(
         modifier = Modifier
             .fillMaxWidth()
             .height(160.dp)
-            .pointerInput(rankings, scope) {
+            .pointerInput(points, scope) {
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
@@ -186,9 +189,9 @@ private fun TrendChart(
                             val plotWidth = (plotRight - plotLeft).coerceAtLeast(1f)
                             val ratio = ((change.position.x - plotLeft) / plotWidth)
                                 .coerceIn(0f, 1f)
-                            val idx = ((rankings.size - 1) * ratio).roundToInt()
-                                .coerceIn(0, rankings.lastIndex)
-                            onSelect(rankings[idx].term)
+                            val idx = ((points.size - 1) * ratio).roundToInt()
+                                .coerceIn(0, points.lastIndex)
+                            onSelect(points[idx].term)
                             change.consume()
                         }
                     }
@@ -202,10 +205,10 @@ private fun TrendChart(
         val plotWidth = plotRight - plotLeft
         val plotHeight = plotBottom - plotTop
 
-        fun x(index: Int): Float = if (rankings.size == 1) {
+        fun x(index: Int): Float = if (points.size == 1) {
             plotLeft + plotWidth / 2f
         } else {
-            plotLeft + plotWidth * index / (rankings.size - 1).toFloat()
+            plotLeft + plotWidth * index / (points.size - 1).toFloat()
         }
 
         fun y(value: Double): Float {
@@ -237,36 +240,86 @@ private fun TrendChart(
             )
         }
 
+        // Where each term sits, or null where it has no GPA to plot.
+        val offsets = values.mapIndexed { index, value ->
+            value?.let { Offset(x(index), y(it)) }
+        }
+
+        // Solid stretches cover published terms only: an estimate ends the
+        // run rather than joining it, so the solid stroke never bridges one.
+        val runs = mutableListOf<List<Offset>>()
+        var run = mutableListOf<Offset>()
+        points.forEachIndexed { index, point ->
+            val offset = offsets[index]
+            if (point.isProvisional || offset == null) {
+                if (run.size >= 2) runs.add(run)
+                run = mutableListOf()
+            } else {
+                run.add(offset)
+            }
+        }
+        if (run.size >= 2) runs.add(run)
+
         // Monotone cubic Bezier path connecting successive valid points —
         // same visual as iOS's Chart `.interpolationMethod(.monotone)`.
-        val points = rankings.mapIndexedNotNull { index, _ ->
-            values[index]?.let { v -> Offset(x(index), y(v)) }
-        }
-        if (points.size >= 2) {
+        val lineStroke = Stroke(
+            width = 2.5.dp.toPx(),
+            cap = StrokeCap.Round,
+            join = StrokeJoin.Round
+        )
+        runs.forEach { segment ->
             drawPath(
-                path = monotoneCubicPath(points),
+                path = monotoneCubicPath(segment),
                 color = trendAccent,
-                style = Stroke(
-                    width = 2.5.dp.toPx(),
-                    cap = StrokeCap.Round,
-                    join = StrokeJoin.Round
-                )
+                style = lineStroke
             )
         }
 
-        // Plotted points — enlarged for the selected one
-        val selected = resolvedSelection(rankings, selectedTerm)
-        rankings.forEachIndexed { index, r ->
-            val v = values[index] ?: return@forEachIndexed
-            val center = Offset(x(index), y(v))
-            val isSel = r.term == selected?.term
+        // Each estimate joined back to the term before it, dashed, so the
+        // line carries on into the estimate instead of leaving it floating
+        // — while still reading as a different kind of line.
+        val dash = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
+            floatArrayOf(5.dp.toPx(), 4.dp.toPx())
+        )
+        points.forEachIndexed { index, point ->
+            if (!point.isProvisional || index == 0) return@forEachIndexed
+            val start = offsets[index - 1] ?: return@forEachIndexed
+            val end = offsets[index] ?: return@forEachIndexed
+            drawLine(
+                color = trendAccent,
+                start = start,
+                end = end,
+                strokeWidth = 2.5.dp.toPx(),
+                cap = StrokeCap.Round,
+                pathEffect = dash
+            )
+        }
+
+        // Plotted points — enlarged for the selected one, hollow for an
+        // estimate, so which end of the trend the school has actually
+        // confirmed is legible without reading the summary row.
+        val selected = resolvedSelection(points, selectedTerm)
+        points.forEachIndexed { index, point ->
+            val center = offsets[index] ?: return@forEachIndexed
+            val isSel = point.term == selected?.term
             val radius = if (isSel) 7.dp.toPx() else 3.5.dp.toPx()
-            drawCircle(color = trendAccent, radius = radius, center = center)
+            if (point.isProvisional) {
+                val ring = 2.dp.toPx()
+                drawCircle(color = cardColor, radius = radius, center = center)
+                drawCircle(
+                    color = trendAccent,
+                    radius = radius - ring / 2f,
+                    center = center,
+                    style = Stroke(width = ring)
+                )
+            } else {
+                drawCircle(color = trendAccent, radius = radius, center = center)
+            }
         }
 
         // Crosshair + inner dot on the pinned point
         selected?.let { sel ->
-            val index = rankings.indexOfFirst { it.term == sel.term }
+            val index = points.indexOfFirst { it.term == sel.term }
             if (index < 0) return@let
             val v = values[index] ?: return@let
             val cx = x(index)
@@ -289,11 +342,11 @@ private fun TrendChart(
 }
 @Composable
 private fun TrendSummaryRow(
-    rankings: List<SemesterRanking>,
+    points: List<GpaTrendPoint>,
     scope: ScoreViewModel.RankingScope,
     selectedTerm: String?,
 ) {
-    val source = resolvedSelection(rankings, selectedTerm) ?: return
+    val source = resolvedSelection(points, selectedTerm) ?: return
     val stats = rank(source, scope)
     // Cumulative mode shows a running total, so the label calls out which
     // term the value is accumulated *through* — "累計至 114-上". Semester
@@ -309,6 +362,13 @@ private fun TrendSummaryRow(
 
         else -> stringResource(R.string.score_gpa_latest)
     }
+    // An estimate says so here too: the summary is where the number is read
+    // off, and the hollow dot alone is easy to miss.
+    val gpaLabel = if (source.isProvisional) {
+        gpaTitle + " · " + stringResource(R.string.score_gpa_provisional)
+    } else {
+        gpaTitle
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -317,7 +377,7 @@ private fun TrendSummaryRow(
         verticalAlignment = Alignment.Top
     ) {
         SummaryCell(
-            title = gpaTitle,
+            title = gpaLabel,
             value = stats.gpa?.let { "%.2f".format(it) } ?: "—",
             modifier = Modifier.weight(1f)
         )
@@ -401,10 +461,10 @@ private fun RollingText(
         }
     }
 }
-internal fun gpa(ranking: SemesterRanking, scope: ScoreViewModel.RankingScope): Double? =
-    rank(ranking, scope).gpa
-private fun rank(ranking: SemesterRanking, scope: ScoreViewModel.RankingScope) =
-    if (scope == ScoreViewModel.RankingScope.SEMESTER) ranking.semester else ranking.cumulative
+internal fun gpa(point: GpaTrendPoint, scope: ScoreViewModel.RankingScope): Double? =
+    rank(point, scope).gpa
+private fun rank(point: GpaTrendPoint, scope: ScoreViewModel.RankingScope) =
+    if (scope == ScoreViewModel.RankingScope.SEMESTER) point.semester else point.cumulative
 private fun computeYDomain(values: List<Double?>): Pair<Double, Double> {
     val nonNull = values.filterNotNull()
     if (nonNull.isEmpty()) return 0.0 to 4.3
@@ -418,15 +478,15 @@ private fun computeYDomain(values: List<Double?>): Pair<Double, Double> {
     return lower to upper
 }
 private fun resolvedSelection(
-    rankings: List<SemesterRanking>,
+    points: List<GpaTrendPoint>,
     selectedTerm: String?
-): SemesterRanking? {
-    if (rankings.isEmpty()) return null
+): GpaTrendPoint? {
+    if (points.isEmpty()) return null
     if (selectedTerm != null) {
-        val match = rankings.firstOrNull { it.term == selectedTerm }
+        val match = points.firstOrNull { it.term == selectedTerm }
         if (match != null) return match
     }
-    return rankings.last()
+    return points.last()
 }
 private fun displayTermShort(code: String): String {
     if (code.length != 4) return code

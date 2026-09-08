@@ -16,7 +16,6 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.ScoreReport
-import org.ntust.app.tigerduck.data.model.SemesterRanking
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.network.NtustScoreError
@@ -62,13 +61,6 @@ class ScoreViewModel @Inject constructor(
             .groupBy { it.term }
             .map { (term, list) -> term to list.sortedBy { it.index ?: 0 } }
             .sortedByDescending { it.first }
-
-    /** Rankings in chronological order for trend display. */
-    val rankingTrend: List<SemesterRanking>
-        get() = _report.value.rankings.sortedBy { it.term }
-
-    fun ranking(term: String): SemesterRanking? =
-        _report.value.rankings.firstOrNull { it.term == term }
 
     val hasContent: Boolean
         get() = _report.value.courses.isNotEmpty() || _report.value.rankings.isNotEmpty()

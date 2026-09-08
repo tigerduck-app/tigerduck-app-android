@@ -40,14 +40,14 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.CreditType
 import org.ntust.app.tigerduck.data.model.GradeStatus
-import org.ntust.app.tigerduck.data.model.SemesterRanking
+import org.ntust.app.tigerduck.data.model.GpaTrendPoint
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 @Composable
 internal fun SemesterSection(
     term: String,
     courses: List<CourseGrade>,
-    ranking: SemesterRanking?,
+    gpaPoint: GpaTrendPoint?,
     isCollapsed: Boolean,
     onToggle: () -> Unit,
     onCourseTap: (CourseGrade) -> Unit,
@@ -75,8 +75,22 @@ internal fun SemesterSection(
                     val totalCredits = courses.sumOf { it.credits ?: 0 }
                     val parts = buildList {
                         add(stringResource(R.string.score_semester_total_credits, totalCredits))
-                        ranking?.semester?.gpa?.let { add("GPA %.2f".format(it)) }
-                        ranking?.semester?.let {
+                        // Before the school posts the ranking the GPA here is
+                        // the estimate from the grades in so far, and says so
+                        // — an unlabelled number this close to the official
+                        // one would be read as the official one.
+                        val gpa = gpaPoint?.semester?.gpa
+                        if (gpa != null) {
+                            val estimate = if (gpaPoint.isProvisional) {
+                                " · " + stringResource(R.string.score_gpa_provisional)
+                            } else {
+                                ""
+                            }
+                            add("GPA %.2f".format(gpa) + estimate)
+                        }
+                        // Ranks only ever come from a published ranking, so
+                        // this row simply does not appear on an estimate.
+                        gpaPoint?.semester?.let {
                             if (it.classRank != null && it.deptRank != null) {
                                 add(
                                     stringResource(

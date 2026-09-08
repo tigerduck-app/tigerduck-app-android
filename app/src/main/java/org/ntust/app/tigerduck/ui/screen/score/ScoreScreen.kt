@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.CreditSummary
+import org.ntust.app.tigerduck.data.model.GpaTrendPoint
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.ServerKind
@@ -68,6 +69,12 @@ fun ScoreScreen(
     val collapsedTerms by viewModel.collapsedTerms.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) { viewModel.load() }
+
+    // Published rankings plus a computed point for any term the school has
+    // not posted yet. Derived here rather than in the view model so it is
+    // rebuilt when the report changes and not on every scroll frame.
+    val gpaTrend = remember(report) { GpaTrendPoint.trendFor(report) }
+    val gpaByTerm = remember(gpaTrend) { gpaTrend.associateBy { it.term } }
 
 
     var selectedCourse by remember { mutableStateOf<CourseGrade?>(null) }
@@ -114,10 +121,13 @@ fun ScoreScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                         CreditSummaryCard(summary = report.creditSummary)
-                        if (report.rankings.isNotEmpty()) {
+                        // Not `rankings.isNotEmpty()`: a first-term student
+                        // has no published ranking at all, and the estimate
+                        // is exactly what they came here to see.
+                        if (gpaTrend.isNotEmpty()) {
                             Spacer(Modifier.height(8.dp))
                             RankingsTrendCard(
-                                rankings = viewModel.rankingTrend,
+                                points = gpaTrend,
                                 scope = rankingScope,
                                 onScopeChange = viewModel::setRankingScope,
                             )
@@ -127,7 +137,7 @@ fun ScoreScreen(
                             SemesterSection(
                                 term = term,
                                 courses = courses,
-                                ranking = viewModel.ranking(term),
+                                gpaPoint = gpaByTerm[term],
                                 isCollapsed = term in collapsedTerms,
                                 onToggle = { viewModel.toggleCollapse(term) },
                                 onCourseTap = { selectedCourse = it }
