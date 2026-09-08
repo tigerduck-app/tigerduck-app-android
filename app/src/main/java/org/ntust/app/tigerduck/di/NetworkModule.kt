@@ -9,6 +9,7 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.network.ApiVersionInterceptor
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.shared.LibraryService
 import java.util.concurrent.TimeUnit
@@ -18,13 +19,20 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
+    /**
+     * The [ApiVersionInterceptor] sits on the shared client so every call to
+     * our backend is seen, whichever service made it. It filters by host, so
+     * the NTUST / Moodle / library traffic that shares this client is
+     * unaffected.
+     */
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient =
+    fun provideOkHttpClient(prefs: AppPreferences): OkHttpClient =
         OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
+            .addInterceptor(ApiVersionInterceptor(prefs))
             .build()
 
     /**

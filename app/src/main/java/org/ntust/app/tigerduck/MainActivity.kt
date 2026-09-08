@@ -16,24 +16,36 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.data.model.WhatsNewContent
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
+import org.ntust.app.tigerduck.network.ApiVersionGate
+import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
+import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.serverpush.ServerPopupRequest
 import org.ntust.app.tigerduck.serverpush.ServerPushIntentToken
 import org.ntust.app.tigerduck.serverpush.ServerPushPopupCoordinator
@@ -42,18 +54,13 @@ import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptController
 import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptHost
 import org.ntust.app.tigerduck.ui.navigation.AppNavigation
+import org.ntust.app.tigerduck.ui.screen.update.UpdatePromptDialog
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewDialog
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.update.UpdateChecker
-import org.ntust.app.tigerduck.ui.screen.update.UpdatePromptDialog
-import org.ntust.app.tigerduck.data.model.WhatsNewContent
 import org.ntust.app.tigerduck.update.WhatsNewGate
 import org.ntust.app.tigerduck.update.WhatsNewRepository
-import org.ntust.app.tigerduck.auth.AuthTokenManager
-import org.ntust.app.tigerduck.network.MoodleTokenService
-import org.ntust.app.tigerduck.push.PushApiClient
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -179,6 +186,14 @@ class MainActivity : AppCompatActivity() {
                         // (indefinite per-version suppression). Mounted at
                         // app root so a tab swap can't strand it.
                         UpdatePromptHost(updateChecker)
+
+                        // "Your build is too old" — fires on a 410 from our
+                        // backend, which is how the server retires an API
+                        // version. Separate from UpdatePromptHost above:
+                        // that one is an optional nudge while the app still
+                        // works, this one means every backend call is now
+                        // failing and only a new build fixes it.
+                        UpdateRequiredHost()
 
                         whatsNewContent.value?.let { content ->
                             WhatsNewDialog(
@@ -455,3 +470,43 @@ private fun UpdatePromptHost(updateChecker: UpdateChecker) {
         )
     }
 }
+
+/**
+ * Blocking-ish notice for a build the server no longer answers.
+ *
+ * Not a hard wall: much of the app is local — the class table, the time
+ * machine, cached announcements — and locking a student out of their own
+ * timetable would be worse than letting them read it while sync stays
+ * broken. So there is no Cancel, but it can be dismissed once read, and it
+ * returns on the next launch because [ApiVersionGate] stays latched.
+ */
+@Composable
+private fun UpdateRequiredHost() {
+    val retired by ApiVersionGate.isRetired.collectAsStateWithLifecycle()
+    // Per-composition, not persisted: the gate never un-latches, so without
+    // this the dialog would immediately re-show itself.
+    var acknowledged by rememberSaveable { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
+    if (!retired || acknowledged) return
+
+    AlertDialog(
+        onDismissRequest = { acknowledged = true },
+        title = { Text(stringResource(R.string.update_required_title)) },
+        text = { Text(stringResource(R.string.update_required_message)) },
+        confirmButton = {
+            TextButton(onClick = {
+                uriHandler.openUri(TIGERDUCK_WEBSITE_URL)
+                acknowledged = true
+            }) {
+                Text(stringResource(R.string.update_required_action))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { acknowledged = true }) {
+                Text(stringResource(R.string.action_got_it))
+            }
+        },
+    )
+}
+
+private const val TIGERDUCK_WEBSITE_URL = "https://tigerduck.app"
