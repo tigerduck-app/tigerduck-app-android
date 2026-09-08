@@ -82,6 +82,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.screen.debug.ApiEndpointDebugScreen
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
 import org.ntust.app.tigerduck.ui.component.SecureScreen
@@ -116,6 +117,10 @@ fun OnboardingScreen(
     var deleteAccountAccepted by remember { mutableStateOf(false) }
     var analyticsEnabled by rememberSaveable { mutableStateOf(viewModel.prefs.analyticsEnabled) }
     var syncEnabled by remember { mutableStateOf(viewModel.prefs.cloudSyncEnabled) }
+    // Covers the pager with the API-endpoint editor. Someone running their
+    // own backend has to point the app at it *before* signing in, because
+    // the sign-in round-trip is one of the calls that goes there.
+    var showEndpointEditor by remember { mutableStateOf(false) }
 
     // Track the furthest page the user has reached. The bottom-left forward
     // arrow is enabled only for pages already visited, so per-page gating
@@ -183,6 +188,15 @@ fun OnboardingScreen(
     // Login page index shifts depending on whether the sync page is present.
     val loginPageIndex = if (showSyncPage) 4 else 3
     SecureScreen(secure = passwordVisible && pagerState.currentPage == loginPageIndex)
+
+    if (showEndpointEditor) {
+        // Replaces the pager rather than layering over it: the editor owns a
+        // Scaffold with its own top bar and back affordance, and the
+        // onboarding BackHandler above would otherwise page backwards out
+        // from under it.
+        ApiEndpointDebugScreen(onBack = { showEndpointEditor = false })
+        return
+    }
 
     Box(
         modifier = Modifier
@@ -393,6 +407,9 @@ fun OnboardingScreen(
                         title = stringResource(R.string.onboarding_sign_in_title),
                         subtitle = stringResource(R.string.onboarding_sign_in_subtitle),
                         actions = {
+                            TextButton(onClick = { showEndpointEditor = true }) {
+                                Text(stringResource(R.string.onboarding_custom_endpoint_button))
+                            }
                             TextButton(onClick = { goToPage(permissionsPageIndex) }) {
                                 Text(
                                     stringResource(R.string.onboarding_skip_for_now),

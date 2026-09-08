@@ -45,6 +45,7 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 @Composable
 fun OtherSettingsScreen(
     onBack: () -> Unit,
+    onNavigateToApiEndpoint: () -> Unit,
     onNavigateToNotificationSetup: () -> Unit,
     onNavigateToSourceCode: () -> Unit,
     onNavigateToVibration: () -> Unit,
@@ -128,6 +129,16 @@ fun OtherSettingsScreen(
                             selectedKey = themeMode,
                             onSelect = { viewModel.appState.themeMode = it },
                         )
+                    }
+                }
+            }
+
+            item { Spacer(Modifier.height(24.dp)) }
+
+            item {
+                ContentCard {
+                    SettingsLinkRow(stringResource(R.string.settings_api_endpoint)) {
+                        onNavigateToApiEndpoint()
                     }
                 }
             }

@@ -83,7 +83,6 @@ fun SettingsScreen(
     onNavigateToOtherSettings: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToNotificationDebug: () -> Unit = {},
-    onNavigateToApiEndpointDebug: () -> Unit = {},
     onNavigateToTriggersDebug: () -> Unit = {},
     onNavigateToServerFailureDebug: () -> Unit = {},
 ) {
@@ -524,8 +523,6 @@ fun SettingsScreen(
                             SettingsLinkRow("Time override") { onNavigateToDebug() }
                             HorizontalDivider()
                             SettingsLinkRow("Notification") { onNavigateToNotificationDebug() }
-                            HorizontalDivider()
-                            SettingsLinkRow("API endpoint") { onNavigateToApiEndpointDebug() }
                             HorizontalDivider()
                             SettingsLinkRow("Server failure simulation") { onNavigateToServerFailureDebug() }
                             HorizontalDivider()

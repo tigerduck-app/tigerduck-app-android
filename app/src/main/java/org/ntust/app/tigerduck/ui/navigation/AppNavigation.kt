@@ -430,9 +430,6 @@ fun MainNavigation(
                     onNavigateToNotificationDebug = {
                         if (BuildConfig.DEBUG) navController.navigate(Screen.NotificationDebug.route)
                     },
-                    onNavigateToApiEndpointDebug = {
-                        if (BuildConfig.DEBUG) navController.navigate(Screen.ApiEndpointDebug.route)
-                    },
                     onNavigateToTriggersDebug = {
                         if (BuildConfig.DEBUG) navController.navigate(Screen.TriggersDebug.route)
                     },
@@ -452,11 +449,6 @@ fun MainNavigation(
                         onBack = { navController.popBackStack() },
                     )
                 }
-                composable(Screen.ApiEndpointDebug.route) {
-                    org.ntust.app.tigerduck.ui.screen.debug.ApiEndpointDebugScreen(
-                        onBack = { navController.popBackStack() },
-                    )
-                }
                 composable(Screen.TriggersDebug.route) {
                     org.ntust.app.tigerduck.ui.screen.debug.TriggersDebugScreen(
                         appState = appState,
@@ -469,9 +461,23 @@ fun MainNavigation(
                     )
                 }
             }
+            // Outside the `if (BuildConfig.DEBUG)` block below, unlike its
+            // neighbours: the endpoint override is reachable from Settings →
+            // Other settings in every build, matching iOS. Pointing the app
+            // at a self-hosted backend is a supported setting, so what keeps
+            // a release build honest is `OverrideValidator`'s HTTPS floor
+            // plus the pre-save health probe, not the absence of the screen.
+            composable(Screen.ApiEndpointDebug.route) {
+                org.ntust.app.tigerduck.ui.screen.debug.ApiEndpointDebugScreen(
+                    onBack = { navController.popBackStack() },
+                )
+            }
             composable(Screen.OtherSettings.route) {
                 OtherSettingsScreen(
                     onBack = { navController.popBackStack() },
+                    onNavigateToApiEndpoint = {
+                        navController.navigate(Screen.ApiEndpointDebug.route)
+                    },
                     onNavigateToNotificationSetup = { navController.navigate(Screen.NotificationSetup.route) },
                     onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
                     onNavigateToVibration = { navController.navigate(Screen.VibrationSettings.route) },
