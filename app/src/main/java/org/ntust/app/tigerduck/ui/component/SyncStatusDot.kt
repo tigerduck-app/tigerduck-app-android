@@ -12,6 +12,11 @@
 // becomes a spinning ring. Tapping it lists every source with its own state,
 // which is where the detail the three icons used to carry now lives.
 //
+// On a screen that pulls to refresh, the dot also carries that gesture's
+// progress: a ring closes around it as the finger travels, completing
+// exactly where a release would trigger the refresh, and handing over to
+// the spinning ring once one is running.
+//
 // Ported from iOS SharedUI/SyncStatusDot.swift (a46c27b, ab2261f).
 
 package org.ntust.app.tigerduck.ui.component
@@ -31,6 +36,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Box
@@ -52,7 +58,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,7 +75,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -90,6 +97,36 @@ private const val IDLE_ALPHA = 0.5f
 
 private const val RING_SPIN_MS = 600
 private const val CROSSFADE_MS = 150
+
+/**
+ * Every mark below is drawn into a canvas that fills the whole 28dp target
+ * and is sized off the shared [androidx.compose.ui.graphics.drawscope.DrawScope.center],
+ * rather than being a differently-sized child centred by the parent.
+ *
+ * That is deliberate: `Alignment.Center` rounds each child's offset to whole
+ * pixels *independently*, so at some densities two concentric children land
+ * on centres half a pixel apart. At density 2.75 the 10dp dot rounds to
+ * offset 25 (centre 39.0) while the 22dp ring rounds to offset 8
+ * (centre 38.5) — the dot sits visibly down and to the right inside its own
+ * ring. Sharing one canvas and one centre makes concentricity exact at
+ * every density.
+ */
+private val DOT_SIZE = 10.dp
+
+private val SPINNER_SIZE = 12.dp
+private val SPINNER_STROKE = 2.dp
+
+/**
+ * Outer diameter of the pull ring. A 2dp stroke here puts the ring's inner
+ * edge at radius 9dp against the dot's 5dp, so 4dp of clear space separates
+ * them — enough that they read as two marks rather than one thick blob —
+ * while the whole thing still sits inside the 28dp touch target.
+ */
+private val PULL_RING_SIZE = 22.dp
+private val PULL_RING_STROKE = 2.dp
+
+/** Below this the arc is a speck, and a round cap would draw it as a smudge. */
+private const val PULL_RING_MIN = 0.02f
 
 /**
  * @param isLoading drives the ring. Pass the page's own refresh state; the
@@ -116,12 +153,20 @@ fun SyncStatusDot(
     var showDetails by remember { mutableStateOf(false) }
     var dimmed by remember { mutableStateOf(false) }
 
+    val pullProgress = LocalPullProgress.current
+    // Only the crossing matters up here — the arc reads the float in its own
+    // draw scope, so a pull repaints without recomposing anything.
+    val pulling by remember(pullProgress) {
+        derivedStateOf { pullProgress.value >= PULL_RING_MIN }
+    }
+
     // Any change or interaction brings the dot back to full strength. A
     // running fetch never fades — the ring is the progress indicator, and a
-    // half-faded spinner reads as a rendering bug.
-    LaunchedEffect(summary, isLoading, showDetails) {
+    // half-faded spinner reads as a rendering bug. Nor does a pull in
+    // progress, which the ring is drawn around.
+    LaunchedEffect(summary, isLoading, showDetails, pulling) {
         dimmed = false
-        if (showDetails || isLoading) return@LaunchedEffect
+        if (showDetails || isLoading || pulling) return@LaunchedEffect
         delay(IDLE_DELAY_MS)
         dimmed = true
     }
@@ -155,6 +200,13 @@ fun SyncStatusDot(
             ) { loading ->
                 if (loading) SpinningRing(statusColor(summary)) else Dot(statusColor(summary))
             }
+
+            // Outside the dot rather than in place of it, so the status
+            // colour stays readable while the gesture is in flight. Absent
+            // during a fetch: a second pull cannot trigger anything, and an
+            // arc that fills without doing something is a promise the
+            // gesture does not keep.
+            if (!isLoading) PullRing(statusColor(summary), pullProgress)
         }
 
         DropdownMenu(
@@ -216,7 +268,9 @@ private data class SyncSourceRow(
 
 @Composable
 private fun Dot(color: Color) {
-    Canvas(Modifier.size(10.dp)) { drawCircle(color) }
+    Canvas(Modifier.fillMaxSize()) {
+        drawCircle(color, radius = DOT_SIZE.toPx() / 2f)
+    }
 }
 
 @Composable
@@ -228,9 +282,9 @@ private fun SpinningRing(color: Color) {
         animationSpec = infiniteRepeatable(tween(RING_SPIN_MS, easing = LinearEasing)),
         label = "sync_ring_angle",
     )
-    val strokePx = with(LocalDensity.current) { 2.dp.toPx() }
-    Canvas(Modifier.size(12.dp)) {
-        val inset = strokePx / 2f
+    Canvas(Modifier.fillMaxSize()) {
+        val strokePx = SPINNER_STROKE.toPx()
+        val radius = SPINNER_SIZE.toPx() / 2f - strokePx / 2f
         drawArc(
             color = color,
             // Matches iOS's trim(from: 0.2): a gap is what reads as motion on
@@ -238,8 +292,33 @@ private fun SpinningRing(color: Color) {
             startAngle = angle,
             sweepAngle = 288f,
             useCenter = false,
-            topLeft = Offset(inset, inset),
-            size = Size(size.width - strokePx, size.height - strokePx),
+            topLeft = Offset(center.x - radius, center.y - radius),
+            size = Size(radius * 2f, radius * 2f),
+            style = Stroke(width = strokePx, cap = StrokeCap.Round),
+        )
+    }
+}
+
+/**
+ * The pull-to-refresh gesture, drawn as an arc closing clockwise around the
+ * dot. Full circle lands exactly where releasing would start a refresh, so
+ * the ring is the answer to "have I pulled far enough yet".
+ */
+@Composable
+private fun PullRing(color: Color, progress: State<Float>) {
+    Canvas(Modifier.fillMaxSize()) {
+        val fraction = progress.value
+        if (fraction < PULL_RING_MIN) return@Canvas
+        val strokePx = PULL_RING_STROKE.toPx()
+        val radius = PULL_RING_SIZE.toPx() / 2f - strokePx / 2f
+        drawArc(
+            color = color,
+            // Twelve o'clock, then clockwise — the direction the finger went.
+            startAngle = -90f,
+            sweepAngle = 360f * fraction,
+            useCenter = false,
+            topLeft = Offset(center.x - radius, center.y - radius),
+            size = Size(radius * 2f, radius * 2f),
             style = Stroke(width = strokePx, cap = StrokeCap.Round),
         )
     }
