@@ -18,14 +18,32 @@ import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.roundToInt
 
 /**
  * Renders / updates / ends the single "Live Update" ongoing notification used
  * as the Android analogue of the iOS Dynamic Island live activity.
  *
- * On Android 16+ this notification surfaces in the status bar as a
- * "Live Update" chip; on earlier versions it is shown as a persistent
- * ongoing notification with a chronometer.
+ * On Android 16 QPR1 and newer the system may additionally promote it to a
+ * chip in the status bar. Promotion is not a switch we flip: the platform
+ * runs `Notification.hasPromotableCharacteristics()`, and every one of its
+ * conditions has to hold at once — `setRequestPromotedOngoing(true)`,
+ * `setOngoing(true)`, a non-empty content title, a style it is willing to
+ * promote (none, BigTextStyle, CallStyle, MetricStyle or ProgressStyle),
+ * no group summary, no custom RemoteViews, and **not colorized**.
+ *
+ * That last one is worth naming because it cost us the feature: this class
+ * used to call `setColorized(true)`, which disqualified the notification
+ * silently. It was never doing anything visible either — the platform honours
+ * colorized only for a foreground-service, media, or already-promoted
+ * notification, and this is none of those — so it bought nothing and took
+ * the chip away.
+ *
+ * The user must also grant POST_PROMOTED_NOTIFICATIONS separately; the Live
+ * Activity settings screen surfaces that as its own permission row. Below
+ * Android 16 QPR1 the platform gates the whole feature behind its internal
+ * `ui_rich_ongoing` flag, so no chip appears whatever we send, and this
+ * stays an ordinary ongoing notification with a countdown and a progress bar.
  */
 @Singleton
 class LiveActivityNotifier @Inject constructor(
@@ -86,11 +104,16 @@ class LiveActivityNotifier @Inject constructor(
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setColor(0xFF000000.toInt() or (snapshot.accentHex and 0xFFFFFF))
-            .setColorized(true)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setRequestPromotedOngoing(true)
             .setVisibility(visibility)
             .apply { if (!soundWanted) setSilent(true) }
 
+        // Deliberately no setShortCriticalText: the chip picks its content in
+        // priority order — short critical text, then a metric, then `when` —
+        // and only the last of those ticks. Leaving it unset is what makes the
+        // chip a live counting-down clock instead of a string frozen at
+        // whatever the remaining time was when we last posted.
         val target = snapshot.countdownTarget?.time ?: 0L
         if (target > AppClock.nowMillis()) {
             builder.setUsesChronometer(true)
@@ -98,6 +121,14 @@ class LiveActivityNotifier @Inject constructor(
             builder.setWhen(target)
         } else {
             builder.setShowWhen(false)
+        }
+
+        // The bar does not animate itself; it holds whatever fraction we last
+        // posted. LiveActivityManager re-fires us periodically while a class
+        // is running so it actually advances — see PROGRESS_TICK_MS there.
+        snapshot.progress?.let { fraction ->
+            val filled = (fraction * PROGRESS_MAX).roundToInt().coerceIn(0, PROGRESS_MAX)
+            builder.setProgress(PROGRESS_MAX, filled, false)
         }
 
         val expandedLines = listOfNotNull(
@@ -190,6 +221,8 @@ class LiveActivityNotifier @Inject constructor(
 
     companion object {
         const val CHANNEL_ID = "live_activity_v3"
+        /** Denominator for [NotificationCompat.Builder.setProgress]; percent reads well enough. */
+        private const val PROGRESS_MAX = 100
         private val LEGACY_CHANNEL_IDS = listOf("live_activity", "live_activity_v2")
         const val NOTIFICATION_ID = 42_001
     }

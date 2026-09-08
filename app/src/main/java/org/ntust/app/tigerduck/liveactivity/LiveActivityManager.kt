@@ -144,6 +144,13 @@ class LiveActivityManager @Inject constructor(
         val candidates = mutableListOf<Long>()
         snapshot?.countdownTarget?.time?.let { candidates += it }
 
+        // A progress bar is not self-animating — it holds whatever fraction
+        // the notifier last posted — so while one is on screen this alarm
+        // doubles as its tick. Only a snapshot that actually has progress
+        // asks for it, and the min() below still collapses to the real
+        // boundary once the class has less than a tick left to run.
+        if (snapshot?.progress != null) candidates += now.time + PROGRESS_TICK_MS
+
         val classPrepLead = preferences.classPreparingLeadTimeSec * 1000
         val assignmentLead = preferences.assignmentLeadTimeSec * 1000
 
@@ -184,5 +191,16 @@ class LiveActivityManager @Inject constructor(
             first.start.time.takeIf { it > now.time },
             first.end.time.takeIf { it > now.time },
         )
+    }
+
+    private companion object {
+        /**
+         * How often to redraw a live progress bar. Two minutes puts a 50-minute
+         * period in 4% steps, which reads as movement without spending an exact
+         * alarm a minute on a bar nobody is watching that closely — the exact
+         * remaining time is already on screen as a free system-drawn
+         * chronometer. Doze may stretch this; the bar simply lags a little.
+         */
+        const val PROGRESS_TICK_MS = 2 * 60_000L
     }
 }
