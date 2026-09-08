@@ -1,11 +1,13 @@
 package org.ntust.app.tigerduck.liveactivity
 
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -80,6 +82,16 @@ class LiveActivityManager @Inject constructor(
 
     private suspend fun refreshInternal() {
         if (!preferences.isEnabled || !authService.isNtustAuthenticated) {
+            // The other silent way to get no Live Update. Signing out or an
+            // expired NTUST session stops it just as completely as the
+            // feature toggle, and neither says so anywhere.
+            if (BuildConfig.DEBUG) {
+                Log.d(
+                    TAG,
+                    "no live update: enabled=${preferences.isEnabled} " +
+                        "ntustAuthenticated=${authService.isNtustAuthenticated}",
+                )
+            }
             notifier.cancel()
             classPreparingScheduler.cancelAllTracked()
             boundaryScheduler.cancel()
@@ -110,6 +122,16 @@ class LiveActivityManager @Inject constructor(
             accentHex = appPrefs.accentColorHex,
             now = now,
         )
+        // Distinguishes "the resolver looked and found nothing" from the
+        // bail-outs above, which is the difference between a wrong timetable
+        // and a wrong clock when a simulated class fails to show.
+        if (BuildConfig.DEBUG && snapshot == null) {
+            Log.d(
+                TAG,
+                "no live update at $now: courses=${courses.size} " +
+                    "assignments=${assignments.size} onHoliday=$onHoliday",
+            )
+        }
         notifier.apply(snapshot)
 
         // Keep the class-preparing alarm set in sync with the current
@@ -194,6 +216,8 @@ class LiveActivityManager @Inject constructor(
     }
 
     private companion object {
+        private const val TAG = "LiveActivity"
+
         /**
          * How often to redraw a live progress bar. Two minutes puts a 50-minute
          * period in 4% steps, which reads as movement without spending an exact

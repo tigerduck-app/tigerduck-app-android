@@ -9,9 +9,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
@@ -68,6 +70,15 @@ class LiveActivityNotifier @Inject constructor(
             return
         }
         if (!hasPostPermission()) {
+            // Nothing is posted and nothing throws, so "I am in class and no
+            // notification appeared" looks like a resolver bug rather than a
+            // missing permission. The red dot on the settings permission row
+            // is the only other place this surfaces, and it is easy to miss
+            // while testing. Reaching here means we genuinely had something
+            // to show, so this cannot spam a working install.
+            if (BuildConfig.DEBUG) {
+                Log.w(TAG, "dropping ${snapshot.scenario}: POST_NOTIFICATIONS is denied")
+            }
             lastScenario = null
             return
         }
@@ -220,6 +231,7 @@ class LiveActivityNotifier @Inject constructor(
     }
 
     companion object {
+        private const val TAG = "LiveActivity"
         const val CHANNEL_ID = "live_activity_v3"
         /** Denominator for [NotificationCompat.Builder.setProgress]; percent reads well enough. */
         private const val PROGRESS_MAX = 100
