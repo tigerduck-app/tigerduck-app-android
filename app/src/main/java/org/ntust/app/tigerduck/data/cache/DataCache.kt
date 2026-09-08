@@ -381,6 +381,29 @@ class DataCache @Inject constructor(
      * marks on the UI. School-wide calendar events are rebuilt on the next
      * sync, so it is fine to drop them here too.
      */
+    /**
+     * Delete **every** file in both cache directories, user-scoped or not.
+     *
+     * [clearAllUserData] deliberately keeps device-wide caches (name
+     * abbreviations, the academic calendar, bulletin snapshots) because a
+     * logout is an account change, not a factory reset. The full-reset flow
+     * is the opposite: whatever is left behind is exactly what makes the
+     * "fresh install" it promises not actually fresh, so this takes the
+     * directories wholesale rather than naming files — a named list silently
+     * stops being complete the next time someone adds a cache.
+     */
+    suspend fun clearEverything() {
+        cacheMutex.withLock {
+            userDataMutex.withLock {
+                withContext(Dispatchers.IO) {
+                    listOf(cacheDir, userDataDir).forEach { dir ->
+                        dir.listFiles()?.forEach { runCatching { it.deleteRecursively() } }
+                    }
+                }
+            }
+        }
+    }
+
     suspend fun clearAllUserData() {
         cacheMutex.withLock {
             withContext(Dispatchers.IO) {

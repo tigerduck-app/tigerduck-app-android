@@ -401,11 +401,20 @@ class AppState @Inject constructor(
      * Wipe every piece of on-device user state (prefs, credentials, JSON
      * cache) and return the user to onboarding. Called from the reset
      * dialog after migration returns [DataMigration.Outcome.NeedsUserReset].
+     *
+     * [DataCache.clearEverything], not `clearAllUserData`: a logout keeps
+     * device-wide caches on purpose, but this is a factory reset and a
+     * leftover cache is precisely what makes the "fresh start" it promises
+     * not one. [CredentialManager.clearAll] and [AppPreferences.clearAllPrefs]
+     * both clear their whole store, so the library account and every library
+     * preference (feature toggle, flip-to-open consent) go with them —
+     * neither needs naming here, and neither should be, since a named list
+     * silently stops being complete.
      */
     fun performFullReset() {
         authService.logout()
         scope.launch {
-            runCatching { dataCache.clearAllUserData() }
+            runCatching { dataCache.clearEverything() }
             credentials.clearAll()
             prefs.clearAllPrefs()
             // Re-stamp the schema so the dialog doesn't re-fire on next launch.
