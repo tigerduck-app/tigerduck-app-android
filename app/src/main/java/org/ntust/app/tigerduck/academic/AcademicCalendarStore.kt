@@ -36,7 +36,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class AcademicCalendarStore @Inject constructor(
-    @param:ApplicationContext context: Context,
+    @ApplicationContext context: Context,
     baseClient: OkHttpClient,
     private val appPreferences: AppPreferences,
 ) {
