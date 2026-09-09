@@ -15,10 +15,33 @@
       ]
     }
   },
+  "23": {
+    "zh-Hant": {
+      "title": "2.0.0 有什麼新功能",
+      "highlights": [
+        "跨裝置同步：課表、課程顏色與作業狀態可以在你的裝置之間同步，可在「設定」中關閉。",
+        "新增了 GPA 即時計算，不需要等待學校系統出來。",
+        "修復了許多 bug。",
+        "顯示該頁面使用的伺服器以及其狀態。",
+        "其他許多大改進與變化。"
+      ]
+    },
+    "en": {
+      "title": "What's new in 2.0.0",
+      "highlights": [
+        "Cross-device sync: your timetable, course colours and assignment state can follow you between devices. Turn it off in Settings.",
+        "Added real-time GPA calculation, no need to wait for the school system.",
+        "Many bug fixes.",
+        "Shows which server is used for this page and its status.",
+        "Many other improvements and changes."
+      ]
+    }
+  },
   "24": {
     "zh-Hant": {
-      "title": "2.0.1 有什麼新功能",
+      "title": "2.0.1 有什麼新功能（沿用 v2.0.0 內容）",
       "highlights": [
+        "因為 Play Store 跳過 v2.0.0，故此版本新內容沿用 v2.0.0 內容。",
         "跨裝置同步：課表、課程顏色與作業狀態可以在你的裝置之間同步，可在「設定」中關閉。",
         "新增了 GPA 即時計算，不需要等待學校系統出來。",
         "修復了許多 bug。",
@@ -29,6 +52,7 @@
     "en": {
       "title": "What's new in 2.0.1",
       "highlights": [
+        "Due to Play Store skipping v2.0.0, the new features in this version are the same as v2.0.0.",
         "Cross-device sync: your timetable, course colours and assignment state can follow you between devices. Turn it off in Settings.",
         "Added real-time GPA calculation, no need to wait for the school system.",
         "Many bug fixes.",
