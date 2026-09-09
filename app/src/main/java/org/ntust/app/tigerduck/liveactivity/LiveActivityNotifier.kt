@@ -114,7 +114,13 @@ class LiveActivityNotifier @Inject constructor(
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setColor(0xFF000000.toInt() or (snapshot.accentHex and 0xFFFFFF))
+            // Brand tint, not snapshot.accentHex: every monochrome small icon
+            // in the app now tints duck yellow, so the shade badge and the
+            // Android 16 promoted-ongoing chip stay consistent with the
+            // assignment / bulletin notifications instead of shifting colour
+            // per course. The per-course accent still drives the watch, which
+            // reads it from prefs via WearScheduleBridge, not from here.
+            .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setRequestPromotedOngoing(true)
             .setVisibility(visibility)
