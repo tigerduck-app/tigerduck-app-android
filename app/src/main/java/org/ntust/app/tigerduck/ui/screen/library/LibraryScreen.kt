@@ -8,7 +8,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -47,7 +45,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -72,7 +69,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.component.PageHeader
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.LocalLibrary
 import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
+import org.ntust.app.tigerduck.ui.component.ServerStatus
+import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.SecureScreen
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -164,21 +165,27 @@ fun LibraryScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         PageHeader(title = stringResource(R.string.feature_library)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(if (isLoggedIn) Color(0xFF34C759) else Color.Gray)
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = if (isLoggedIn) stringResource(R.string.library_status_signed_in)
-                    else stringResource(R.string.library_status_not_signed_in),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                )
-            }
+            // The state used to be a hand-drawn circle with the word beside
+            // it. The word is what the dot's own popup says when you tap it,
+            // and every other page's header spends that space on nothing —
+            // so this now draws the shared mark, which also means it can be
+            // tapped, dims when idle and carries the pull ring like the rest.
+            //
+            // A failed refresh outranks being signed in: the session can be
+            // valid while the pass request is the thing that broke, and the
+            // error banner below says which.
+            SyncStatusDot(
+                status = when {
+                    errorMessage != null -> ServerStatus.FAILED
+                    isLoggedIn -> ServerStatus.OK
+                    else -> ServerStatus.UNKNOWN
+                },
+                label = stringResource(R.string.feature_library),
+                icon = Icons.Outlined.LocalLibrary,
+                text = if (isLoggedIn) stringResource(R.string.library_status_signed_in)
+                else stringResource(R.string.library_status_not_signed_in),
+                isLoading = isLoadingQR,
+            )
         }
 
         errorMessage?.let { msg ->

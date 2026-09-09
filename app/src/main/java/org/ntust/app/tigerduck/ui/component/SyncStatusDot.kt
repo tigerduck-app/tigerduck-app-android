@@ -149,18 +149,85 @@ fun SyncStatusDot(
     // "Not signed in"; a dot beside that says nothing the page hasn't. The
     // fifth is bulletins, which are public and refresh signed out — it
     // loses the pull ring the dot draws, but keeps the refreshing message.
+    //
+    // Only this overload is account-gated. The page-local one below tracks
+    // something the page signed into itself, which has its own answer to
+    // "signed in" and nothing to do with the NTUST account.
     if (!signedIn) return
 
     val statuses by ServerStatusTracker.statuses.collectAsState()
     val cloudSyncEnabled by ServerStatusTracker.cloudSyncEnabled.collectAsState()
     val sources = servers.map { server ->
-        SyncSourceRow(
-            server = server,
-            status = statuses[server] ?: ServerStatus.UNKNOWN,
-            minimal = server == ServerKind.BACKEND && !cloudSyncEnabled,
+        /*
+         * Cloud sync switched off is reported as *minimal* rather than off,
+         * and never as a failure: the backend is still doing work for this
+         * device. The academic calendar — semester dates and holidays — and
+         * the bulletin feed are public GETs that carry no account and are
+         * fetched regardless of the sync setting, so "Off" would tell the
+         * user the class table is getting nothing from the server when it is
+         * still getting the dates it silences reminders by. The colour stays
+         * grey, as when it read "Off".
+         */
+        val minimal = server == ServerKind.BACKEND && !cloudSyncEnabled
+        DotSource(
+            status = if (minimal) ServerStatus.UNKNOWN else statuses[server] ?: ServerStatus.UNKNOWN,
+            icon = server.icon,
+            name = stringResource(server.labelRes),
+            text = if (minimal) {
+                stringResource(R.string.sync_status_minimal)
+            } else {
+                statusText(statuses[server] ?: ServerStatus.UNKNOWN)
+            },
         )
     }
-    val summary = summarize(sources.map { if (it.minimal) ServerStatus.UNKNOWN else it.status })
+    SyncStatusDotBody(sources, isLoading, modifier)
+}
+
+/**
+ * One page-local source the page tracks itself — the library session, say,
+ * which is a separate login with a separate server and has no bearing on
+ * whether the NTUST account is signed in.
+ *
+ * Mirrors iOS `SyncStatusDot.init(status:label:icon:text:isLoading:)`. Drawing
+ * it through the same component is the point: the library page used to
+ * hand-roll a coloured circle and spell the state out beside it, which meant a
+ * mark that looked like the others but could not be tapped for detail, faded
+ * on no schedule, drew no pull ring and answered to nobody when the status
+ * vocabulary changed.
+ *
+ * Deliberately not account-gated: this dot reports something the page owns.
+ */
+@Composable
+fun SyncStatusDot(
+    status: ServerStatus,
+    label: String,
+    icon: ImageVector,
+    text: String,
+    isLoading: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    SyncStatusDotBody(
+        sources = listOf(DotSource(status = status, icon = icon, name = label, text = text)),
+        isLoading = isLoading,
+        modifier = modifier,
+    )
+}
+
+/** A row of the detail popup, with its status already resolved. */
+private data class DotSource(
+    val status: ServerStatus,
+    val icon: ImageVector,
+    val name: String,
+    val text: String,
+)
+
+@Composable
+private fun SyncStatusDotBody(
+    sources: List<DotSource>,
+    isLoading: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val summary = summarize(sources.map { it.status })
 
     var showDetails by remember { mutableStateOf(false) }
     var dimmed by remember { mutableStateOf(false) }
@@ -246,37 +313,16 @@ fun SyncStatusDot(
                 }
                 sources.forEach { source ->
                     SourceRow(
-                        color = statusColor(if (source.minimal) ServerStatus.UNKNOWN else source.status),
-                        icon = source.server.icon,
-                        name = stringResource(source.server.labelRes),
-                        text = if (source.minimal) {
-                            stringResource(R.string.sync_status_minimal)
-                        } else {
-                            statusText(source.status)
-                        },
+                        color = statusColor(source.status),
+                        icon = source.icon,
+                        name = source.name,
+                        text = source.text,
                     )
                 }
             }
         }
     }
 }
-
-private data class SyncSourceRow(
-    val server: ServerKind,
-    val status: ServerStatus,
-    /**
-     * Cloud sync switched off.
-     *
-     * Reported as *minimal* rather than off, and never as a failure: the
-     * backend is still doing work for this device. The academic calendar —
-     * semester dates and holidays — and the bulletin feed are public GETs
-     * that carry no account and are fetched regardless of the sync setting,
-     * so "Off" would tell the user the class table is getting nothing from
-     * the server when it is still getting the dates it silences reminders
-     * by. The colour stays grey, as when it read "Off".
-     */
-    val minimal: Boolean,
-)
 
 @Composable
 private fun Dot(color: Color) {
