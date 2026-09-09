@@ -37,7 +37,7 @@ class ClassTableCellLayoutTest {
     @Test
     fun `activePeriods covers the default set when nothing unusual is scheduled`() {
         val ids = ClassTableCellLayout.activePeriods(emptyList()).map { it.id }
-        assertEquals(listOf("1", "2", "3", "4", "6", "7", "8", "9"), ids)
+        assertEquals(listOf("1", "2", "3", "4", "6", "7", "8", "9", "10"), ids)
     }
 
     @Test
@@ -46,7 +46,7 @@ class ClassTableCellLayoutTest {
         // in chronological order rather than appended at the end.
         val c = course("X", mapOf(1 to listOf("5", "A")))
         val ids = ClassTableCellLayout.activePeriods(listOf(c)).map { it.id }
-        assertEquals(listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "A"), ids)
+        assertEquals(listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "A"), ids)
     }
 
     @Test
