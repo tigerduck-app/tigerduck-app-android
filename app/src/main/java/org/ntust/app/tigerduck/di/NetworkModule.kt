@@ -9,6 +9,7 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.debug.DemoModeInterceptor
 import org.ntust.app.tigerduck.network.ApiVersionInterceptor
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.shared.LibraryService
@@ -27,11 +28,18 @@ object NetworkModule {
      */
     @Provides
     @Singleton
-    fun provideOkHttpClient(prefs: AppPreferences): OkHttpClient =
+    fun provideOkHttpClient(
+        prefs: AppPreferences,
+        demoMode: DemoModeInterceptor,
+    ): OkHttpClient =
         OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
+            // First, so a demo session refuses the call before any other
+            // interceptor gets to stamp headers on a request that is not
+            // going anywhere.
+            .addInterceptor(demoMode)
             .addInterceptor(ApiVersionInterceptor(prefs))
             .build()
 
@@ -43,8 +51,14 @@ object NetworkModule {
      */
     @Provides
     @Singleton
-    fun provideLibraryService(credentials: CredentialManager): LibraryService =
-        LibraryService(credentials, isDebugBuild = BuildConfig.DEBUG)
+    fun provideLibraryService(
+        credentials: CredentialManager,
+        demoMode: DemoModeInterceptor,
+    ): LibraryService = LibraryService(
+        credentials,
+        isDebugBuild = BuildConfig.DEBUG,
+        extraInterceptors = listOf(demoMode),
+    )
 
     @Provides
     @Singleton

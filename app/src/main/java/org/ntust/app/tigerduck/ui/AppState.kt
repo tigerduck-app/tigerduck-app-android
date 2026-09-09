@@ -47,7 +47,29 @@ class AppState @Inject constructor(
     private val dataMigration: DataMigration,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val pushRegistration: org.ntust.app.tigerduck.push.PushRegistrationService,
+    debugFixtures: org.ntust.app.tigerduck.debug.DebugFixtureStore,
 ) {
+    /**
+     * Whether this process is a screenshot session running on fixture data.
+     *
+     * Sampled once, here, rather than read where it is used: demo mode
+     * changes what the network layer does and what the app believes about
+     * sign-in, and letting that flip under a running process leaves an
+     * in-flight sync still writing over the fixture. The screenshot script
+     * force-stops the app after loading one, so a fresh process is the only
+     * way it ever turns on.
+     *
+     * Constant false in release builds, where R8 folds every branch below.
+     */
+    private val demoMode =
+        org.ntust.app.tigerduck.BuildConfig.DEBUG && debugFixtures.demoMode
+
+    init {
+        if (demoMode) {
+            org.ntust.app.tigerduck.ui.component.ServerStatusTracker.enterDemoMode()
+        }
+    }
+
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var syncJob: Job? = null
 
@@ -86,8 +108,16 @@ class AppState @Inject constructor(
 
     private var hasCompletedOnboardingState by mutableStateOf(prefs.hasCompletedOnboarding)
 
+    /**
+     * Demo mode reports the wizard as done without writing the preference.
+     * A screenshot device is often signed out, and the wizard is the first
+     * thing it would show; skipping it is also the only way past it, because
+     * with every server refused there is no sign-in for the user to complete.
+     * Not persisting it keeps a device that leaves demo mode showing the
+     * wizard again, which is what a signed-out install should do.
+     */
     var hasCompletedOnboarding: Boolean
-        get() = hasCompletedOnboardingState
+        get() = hasCompletedOnboardingState || demoMode
         set(value) {
             if (hasCompletedOnboardingState == value) return
             hasCompletedOnboardingState = value

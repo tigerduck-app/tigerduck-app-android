@@ -7,6 +7,7 @@ import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.debug.DemoModeInterceptor
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
@@ -15,7 +16,8 @@ import javax.inject.Singleton
 
 @Singleton
 class NtustSessionManager @Inject constructor(
-    private val prefs: AppPreferences
+    private val prefs: AppPreferences,
+    private val demoMode: DemoModeInterceptor,
 ) {
     private val cookieStore = ConcurrentHashMap<String, CopyOnWriteArrayList<Cookie>>()
 
@@ -61,6 +63,9 @@ class NtustSessionManager @Inject constructor(
     }
 
     val client: OkHttpClient = OkHttpClient.Builder()
+        // Before the UA/Accept rewriting below: a demo session has no reason
+        // to dress up a request it is about to refuse.
+        .addInterceptor(demoMode)
         .cookieJar(cookieJar)
         .dispatcher(sharedDispatcher)
         .connectTimeout(15, TimeUnit.SECONDS)

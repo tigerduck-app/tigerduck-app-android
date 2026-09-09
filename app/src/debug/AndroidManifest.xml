@@ -23,6 +23,21 @@
             </intent-filter>
         </receiver>
 
+        <!--
+            Lets `adb shell am broadcast` load a made-up timetable for store
+            screenshots. Exported for the same reason as the clock receiver:
+            the shell uid cannot reach an unexported one.
+        -->
+        <receiver
+            android:name="org.ntust.app.tigerduck.debug.DebugFixtureReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="org.ntust.app.tigerduck.debug.LOAD_FIXTURE" />
+                <action android:name="org.ntust.app.tigerduck.debug.CLEAR_FIXTURE" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

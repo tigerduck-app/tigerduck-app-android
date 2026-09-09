@@ -22,11 +22,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.shared.OngoingCourseInfo
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.shared.computeOngoingCourses
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
@@ -56,6 +58,7 @@ class ClassTableViewModel @Inject constructor(
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
     private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
+    private val debugFixtures: DebugFixtureStore,
 ) : ViewModel() {
 
 
@@ -271,7 +274,9 @@ class ClassTableViewModel @Inject constructor(
      * logged-in branch, and the id cannot change without a logout taking that
      * branch away and recomposing anyway.
      */
-    val studentId: String? get() = authService.storedStudentId
+    val studentId: String?
+        get() = (if (BuildConfig.DEBUG) debugFixtures.studentIdOverride else null)
+            ?: authService.storedStudentId
 
     /**
      * The actual live semester code (not whatever the user picked).

@@ -22,7 +22,9 @@ import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushDiagnostic
@@ -54,6 +56,7 @@ class SettingsViewModel @Inject constructor(
     private val syncApiClient: SyncApiClient,
     private val courseService: CourseService,
     private val dataCache: DataCache,
+    private val debugFixtures: DebugFixtureStore,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -449,7 +452,9 @@ class SettingsViewModel @Inject constructor(
 
     val libraryUsername: String? get() = credentials.libraryUsername
     val libraryTokenExpiry: Long get() = credentials.libraryTokenExpiry
-    val ntustStudentId: String? get() = authService.storedStudentId
+    val ntustStudentId: String?
+        get() = (if (BuildConfig.DEBUG) debugFixtures.studentIdOverride else null)
+            ?: authService.storedStudentId
 
     fun cancelAllAssignmentNotifications() = notificationScheduler.cancelAllTracked()
 

@@ -15,8 +15,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.shared.LibraryQRRenderer
 import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
@@ -27,6 +29,7 @@ class LibraryViewModel @Inject constructor(
     private val libraryService: LibraryService,
     private val credentials: CredentialManager,
     private val wearBridge: WearScheduleBridge,
+    private val debugFixtures: DebugFixtureStore,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -45,8 +48,31 @@ class LibraryViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
-    private val _isLoggedIn = MutableStateFlow(credentials.isLibraryTokenValid)
+    private val _isLoggedIn = MutableStateFlow(resolveSignedIn())
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
+
+    /**
+     * Screenshot override for the QR payload, or null to ask the backend for a
+     * real one. Constant-null in release builds, so R8 folds every branch
+     * below it away. See [DebugFixtureStore].
+     */
+    private val fixtureQr: String?
+        get() = if (BuildConfig.DEBUG) debugFixtures.libraryQrContent else null
+
+    /**
+     * Whether to render the screen as signed in on the strength of the
+     * override alone. Without this the sign-in form shows and the QR — the
+     * thing worth screenshotting — never appears unless a real library
+     * account happens to be signed in on the device.
+     */
+    private val fixtureSignedIn: Boolean
+        get() = if (BuildConfig.DEBUG) fixtureQr != null && debugFixtures.libraryFakeSignedIn else false
+
+    private fun resolveSignedIn(): Boolean = fixtureSignedIn || credentials.isLibraryTokenValid
+
+    private fun resolveUsername(): String? =
+        (if (fixtureSignedIn) debugFixtures.studentIdOverride else null)
+            ?: credentials.libraryUsername
 
     private val _storedUsername = MutableStateFlow(credentials.libraryUsername)
     val storedUsername: StateFlow<String?> = _storedUsername
@@ -56,11 +82,11 @@ class LibraryViewModel @Inject constructor(
 
     /** Suggested pre-fill for the login form — stored library user, or NTUST student ID. */
     val suggestedUsername: String
-        get() = credentials.libraryUsername ?: credentials.ntustStudentId.orEmpty()
+        get() = resolveUsername() ?: credentials.ntustStudentId.orEmpty()
 
     fun load() {
-        _isLoggedIn.value = credentials.isLibraryTokenValid
-        _storedUsername.value = credentials.libraryUsername
+        _isLoggedIn.value = resolveSignedIn()
+        _storedUsername.value = resolveUsername()
         if (_isLoggedIn.value) {
             refreshQR()
         }
@@ -96,7 +122,7 @@ class LibraryViewModel @Inject constructor(
             _isLoadingQR.value = _qrBitmap.value == null
             _errorMessage.value = null
             try {
-                val qrData = libraryService.generateQRCode()
+                val qrData = fixtureQr ?: libraryService.generateQRCode()
                 // QR rendering scans 512*512 pixels — keep it off the main
                 // thread so the countdown animation and any ongoing gestures
                 // don't stutter.
@@ -138,8 +164,8 @@ class LibraryViewModel @Inject constructor(
 
     fun onResume() {
         val wasLoggedIn = _isLoggedIn.value
-        _isLoggedIn.value = credentials.isLibraryTokenValid
-        _storedUsername.value = credentials.libraryUsername
+        _isLoggedIn.value = resolveSignedIn()
+        _storedUsername.value = resolveUsername()
         if (!_isLoggedIn.value) return
         // onPause cancels the countdown, so always kick off a fresh fetch
         // when the screen becomes active again. This also handles the case
