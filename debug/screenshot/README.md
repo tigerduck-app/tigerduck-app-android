@@ -47,15 +47,15 @@ Shots land in `out/<timestamp>/<model>-<size>-<dpi>/`.
 
 | # | Does |
 |---|---|
-| 1 | Capture loop. Enter shoots, `<name>`+Enter names the file, `q` returns to the menu. Files are numbered `01`, `02`, … |
-| 2 | Push `fixture.json` into the app and load it. Asks which language variant. Restarts the app so it takes hold. |
+| 1 | Capture loop. Enter shoots, `<name>`+Enter names the file, `q` returns to the menu. Files are numbered `01`, `02`, … With a watch selected one Enter shoots **both**, under the same number, into each device's own folder. |
+| 2 | Push `fixture.json` into the app and load it, on every selected device. Asks which language variant. Restarts the apps so it takes hold. |
 | 3 | Undo it: demo mode off, overrides dropped, real hand-added courses restored. |
 | 4 | The **app's** clock — ongoing class, next class, Live Update, widgets. Delegates to `../set-clock.sh`. Blank input clears it. |
 | 5 | The **status bar** clock — SystemUI demo mode. Fixed time, full battery and signal, no notification icons. Off again on exit, even if the script is killed. |
 | 6 | The **system** clock. Only offered where `date -s` actually works: a device with `su`, or a userdebug/eng build. Offers to open Settings → Date & time otherwise. |
 | 7 | Wi-Fi and mobile data off, device-wide. A `demoMode` fixture already does this per-app, so you rarely need it. |
 | 8 | Build and install `playDebug` or `fdroidDebug`. |
-| 9 | Switch device. |
+| 9 | Re-pick the phone and the watch. |
 
 ## Three clocks, and only two of them work everywhere
 
@@ -166,8 +166,25 @@ Wear shots go in `wearScreenshots/`.
 
 ## The watch
 
-Pick the watch with menu `9` and load the fixture there too. It is the same
-file, and the watch takes only the `libraryQr` and `studentId` keys from it.
+The script asks for a phone first and then offers whatever watch is also
+attached, so the pair is chosen once at startup. Everything that sets state —
+the fixture, the radios — goes to both, and one Enter in the capture loop
+shoots both under the same number, into a folder per device:
+
+```
+out/20260910-005856/
+├── sdk_gphone16k_arm64-1080x2400-420dpi/01-home.png
+└── sdk_gwear_arm64-480x480-320dpi/01-home.png
+```
+
+Pose the phone on one page and the watch on another, then press Enter once.
+The watch's virtual pass is page 0 of its pager and the app opens on page 1,
+so swipe **right** to reach it.
+
+Declining the watch leaves everything exactly as it was with one device.
+
+It is the same fixture file, and the watch takes only the `libraryQr` and
+`studentId` keys from it.
 
 Everything else the watch draws — the timetable, the accent colour, the
 "logged in" state — is mirrored from the phone over the Wearable Data Layer,
@@ -183,8 +200,11 @@ The pass page is `FLAG_SECURE` by default, so `screencap` returns black. The
 phone's screen-capture toggle turns that off and the setting rides the same
 Data Layer sync.
 
-Demo mode is phone-only. The watch does not talk to a server for anything the
-fixture covers, so there is nothing there to cut off.
+Demo mode and the status bar demo (menu `5`) are phone-only: SystemUI demo
+mode is not implemented on Wear, and the watch does not talk to a server for
+anything the fixture covers, so there is nothing there to cut off. The app
+clock (menu `4`) needs no watch handling either — `DebugClockListener` mirrors
+the phone's override over the Data Layer.
 
 Two gotchas:
 
@@ -192,7 +212,8 @@ Two gotchas:
 - The watch APK carries the **same applicationId** as the play phone build, so
   a bare `./gradlew :wear:installDebug` with both a phone and a watch attached
   installs the watch app over the phone one. Use `ANDROID_SERIAL=<watch>`, or
-  menu `8`, which installs only to the selected device.
+  menu `8`, which builds and installs `:app` to the phone and `:wear` to the
+  watch, each by serial.
 
 ## Troubleshooting
 

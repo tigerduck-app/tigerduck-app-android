@@ -26,15 +26,31 @@ EXAMPLE_FIXTURE="$SCRIPT_DIR/fixture.example.json"
 ACTION_LOAD="org.ntust.app.tigerduck.debug.LOAD_FIXTURE"
 ACTION_CLEAR="org.ntust.app.tigerduck.debug.CLEAR_FIXTURE"
 
+# SERIAL is the phone (or whatever single device is attached); WATCH is the
+# optional companion. Nearly everything worth photographing lives on both --
+# the watch mirrors the phone's timetable, accent and debug clock over the
+# Data Layer -- so driving them as a pair is the normal case, and switching
+# devices to load the same fixture twice was just friction.
 SERIAL=""
+WATCH=""
 PKG="org.ntust.app.tigerduck"
 FLAVOR="play"
+RUN_ROOT=""
 RUN_DIR=""
+WATCH_RUN_DIR=""
 DEMO_ON=false
 NETWORK_OFF=false
 # Probed once per device in choose_device: the check costs two adb round trips
 # and the answer cannot change while a device stays attached.
 CAN_SET_TIME=false
+
+# Every device this session drives: the phone, plus the watch when one was
+# picked. Emitted one per line so callers can `for s in $(targets)`.
+targets() {
+  [[ -n "$SERIAL" ]] && echo "$SERIAL"
+  [[ -n "$WATCH" ]] && echo "$WATCH"
+  return 0
+}
 
 # Undo the two device-wide changes on the way out, however we leave. The
 # fixture and the debug clock are deliberately NOT undone here: you often want
@@ -45,9 +61,12 @@ cleanup() {
     adb -s "$SERIAL" shell am broadcast -a com.android.systemui.demo \
       -e command exit >/dev/null 2>&1 || true
   fi
-  if [[ "$NETWORK_OFF" == true && -n "$SERIAL" ]]; then
-    adb -s "$SERIAL" shell svc wifi enable >/dev/null 2>&1 || true
-    adb -s "$SERIAL" shell svc data enable >/dev/null 2>&1 || true
+  if [[ "$NETWORK_OFF" == true ]]; then
+    local s
+    for s in $(targets); do
+      adb -s "$s" shell svc wifi enable >/dev/null 2>&1 || true
+      adb -s "$s" shell svc data enable >/dev/null 2>&1 || true
+    done
   fi
 }
 trap cleanup EXIT
@@ -72,7 +91,7 @@ device_dir_name() {
 # carries the same applicationId as the play phone build, so the package alone
 # does not say which one is in front of us.
 main_activity() {
-  if is_watch; then
+  if is_watch "${1:-$SERIAL}"; then
     echo "org.ntust.app.tigerduck.wear.MainActivity"
   else
     echo "org.ntust.app.tigerduck.MainActivity"
@@ -80,7 +99,16 @@ main_activity() {
 }
 
 is_watch() {
-  [[ "$(adb -s "$SERIAL" shell getprop ro.build.characteristics </dev/null 2>/dev/null | tr -d '\r')" == *watch* ]]
+  local serial="${1:-$SERIAL}"
+  [[ "$(adb -s "$serial" shell getprop ro.build.characteristics </dev/null 2>/dev/null | tr -d '\r')" == *watch* ]]
+}
+
+# Serials of everything adb currently lists as `device`.
+attached_serials() {
+  adb devices | while IFS= read -r line; do
+    [[ "$line" =~ ^(.+)[[:space:]]+device([[:space:]].*)?$ ]] || continue
+    echo "${BASH_REMATCH[1]}"
+  done
 }
 
 # `adb shell` forwards stdin, and when stdin is a pipe it drains the whole of
@@ -123,14 +151,50 @@ gain_adb_root() {
   adb_shell_is_root
 }
 
-choose_device() {
-  SERIAL="$(pick_device "device")"
-  RUN_DIR="$OUT_ROOT/$(date +%Y%m%d-%H%M%S)/$(device_dir_name "$SERIAL")"
-  echo "==> Using $SERIAL"
+# Pick the phone, then offer whatever watch is also attached.
+#
+# The watch is optional and asked about rather than assumed: a watch left
+# plugged in from some other task should not silently start receiving
+# fixtures. Declining leaves WATCH empty and every command behaves exactly as
+# it did before there was a second device.
+choose_devices() {
+  SERIAL="$(pick_device "phone")"
+  WATCH=""
+
+  local candidates=() s
+  for s in $(attached_serials); do
+    [[ "$s" == "$SERIAL" ]] && continue
+    is_watch "$s" && candidates+=("$s")
+  done
+
+  if [[ ${#candidates[@]} -eq 1 ]]; then
+    prompt_yn "Also drive the watch ${candidates[0]}?" y && WATCH="${candidates[0]}"
+  elif [[ ${#candidates[@]} -gt 1 ]]; then
+    echo "Pick a watch, or blank for none:"
+    local i
+    for i in "${!candidates[@]}"; do
+      echo "  [$i] ${candidates[$i]}"
+    done
+    local choice
+    read -r -p "> " choice || choice=""
+    if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice < ${#candidates[@]} )); then
+      WATCH="${candidates[$choice]}"
+    fi
+  fi
+
+  # One timestamp for the pair, so a phone shot and the watch shot taken
+  # beside it land under the same run.
+  RUN_ROOT="$OUT_ROOT/$(date +%Y%m%d-%H%M%S)"
+  RUN_DIR="$RUN_ROOT/$(device_dir_name "$SERIAL")"
+  WATCH_RUN_DIR=""
+  [[ -n "$WATCH" ]] && WATCH_RUN_DIR="$RUN_ROOT/$(device_dir_name "$WATCH")"
+
+  echo "==> Using $SERIAL${WATCH:+ + watch $WATCH}"
   if can_set_system_time; then CAN_SET_TIME=true; else CAN_SET_TIME=false; fi
-  if is_watch; then
-    echo "    (watch — the fixture loads its library pass; the timetable comes"
-    echo "     from the phone over the Data Layer, and demo mode is phone-only)"
+  if [[ -n "$WATCH" ]] || is_watch; then
+    echo "    The watch takes the fixture's library pass only — its timetable,"
+    echo "    accent and app clock are mirrored from the phone, and neither the"
+    echo "    status bar demo mode nor demo mode itself exists on Wear."
   fi
 }
 
@@ -150,7 +214,19 @@ build_and_install() {
   local apk
   apk="$(resolve_apk "$(module_outputs_dir app)/apk/$FLAVOR/debug/*.apk")" || return 1
   echo "==> Installing $apk → $SERIAL"
-  adb_install "$SERIAL" "$PKG" "$apk"
+  adb_install "$SERIAL" "$PKG" "$apk" || return 1
+
+  # The watch build carries the same applicationId as the play phone build, so
+  # a plain `:wear:installDebug` with both attached puts the watch app over the
+  # phone one. Install to the watch by serial, and only when one was picked.
+  if [[ -n "$WATCH" ]]; then
+    echo "==> ./gradlew :wear:assembleDebug"
+    ./gradlew :wear:assembleDebug || { echo "error: wear build failed" >&2; return 1; }
+    local wapk
+    wapk="$(resolve_apk "$(module_outputs_dir wear)/apk/debug/*.apk")" || return 1
+    echo "==> Installing $wapk → $WATCH"
+    adb_install "$WATCH" "$PKG" "$wapk"
+  fi
 }
 
 # Stage the fixture inside the app's own private files dir and tell the app to
@@ -190,12 +266,6 @@ load_fixture() {
   fi
 
   local remote="/data/user/0/$PKG/files/fixture.json"
-  if ! adb -s "$SERIAL" shell "run-as $PKG sh -c 'cat > $remote'" < "$fixture"; then
-    echo "error: could not write the fixture into $PKG." >&2
-    echo "       run-as needs a debug build — check you installed playDebug," >&2
-    echo "       not a release APK." >&2
-    return 1
-  fi
   # Which of the fixture's language variants to read. The names go into the
   # cache as plain strings, so this is decided now, not at render time —
   # switching the app's language later does not retranslate them. Blank means
@@ -205,21 +275,34 @@ load_fixture() {
   local lang_arg=()
   [[ -n "$lang" ]] && lang_arg=(--es lang "$lang")
 
-  # ${a[@]+"${a[@]}"} rather than "${a[@]}": macOS still ships bash 3.2, where
-  # expanding an empty array under `set -u` aborts the script.
-  adb -s "$SERIAL" shell am broadcast -a "$ACTION_LOAD" -p "$PKG" \
-    --es file "$remote" ${lang_arg[@]+"${lang_arg[@]}"} >/dev/null
+  # The same file goes to every selected device. Each app takes the half it
+  # owns: the phone reads all of it, the watch only the library pass, because
+  # its timetable is already there from the phone's Data Layer push.
+  local dev
+  for dev in $(targets); do
+    if ! adb -s "$dev" shell "run-as $PKG sh -c 'cat > $remote'" < "$fixture"; then
+      echo "error: could not write the fixture into $PKG on $dev." >&2
+      echo "       run-as needs a debug build — check you installed the debug" >&2
+      echo "       APK there, not a release one." >&2
+      return 1
+    fi
 
-  # Restart rather than tell you to go and reopen a screen. The fixture is a
-  # cache write, and the running process is holding the old list in memory; a
-  # demo fixture additionally only arms its network kill switch and its wizard
-  # skip at process start, and restarting is also what guarantees no sync that
-  # was already in flight lands on top of what we just wrote.
-  adb -s "$SERIAL" shell am force-stop "$PKG" >/dev/null 2>&1 || true
-  adb -s "$SERIAL" shell am start -n "$PKG/$(main_activity)" >/dev/null 2>&1 || true
+    # ${a[@]+"${a[@]}"} rather than "${a[@]}": macOS still ships bash 3.2,
+    # where expanding an empty array under `set -u` aborts the script.
+    adb -s "$dev" shell am broadcast -a "$ACTION_LOAD" -p "$PKG" \
+      --es file "$remote" ${lang_arg[@]+"${lang_arg[@]}"} >/dev/null
 
-  echo "==> Sent $fixture → $PKG, restarted the app"
-  echo "    Watch it land:  adb -s $SERIAL logcat -s $(if is_watch; then echo WearFixture; else echo DebugFixture; fi)"
+    # Restart rather than tell you to go and reopen a screen. The fixture is a
+    # cache write, and the running process is holding the old list in memory; a
+    # demo fixture additionally only arms its network kill switch and its wizard
+    # skip at process start, and restarting is also what guarantees no sync that
+    # was already in flight lands on top of what we just wrote.
+    adb -s "$dev" shell am force-stop "$PKG" >/dev/null 2>&1 || true
+    adb -s "$dev" shell am start -n "$PKG/$(main_activity "$dev")" >/dev/null 2>&1 || true
+
+    echo "==> Sent $fixture → $dev, restarted the app"
+    echo "    Watch it land:  adb -s $dev logcat -s $(if is_watch "$dev"; then echo WearFixture; else echo DebugFixture; fi)"
+  done
   echo ""
   if is_watch; then
     echo "    On a watch the fixture only supplies the library pass. The"
@@ -235,9 +318,12 @@ load_fixture() {
 }
 
 clear_fixture() {
-  adb -s "$SERIAL" shell am broadcast -a "$ACTION_CLEAR" -p "$PKG" >/dev/null
-  adb -s "$SERIAL" shell am force-stop "$PKG" >/dev/null 2>&1 || true
-  adb -s "$SERIAL" shell am start -n "$PKG/$(main_activity)" >/dev/null 2>&1 || true
+  local dev
+  for dev in $(targets); do
+    adb -s "$dev" shell am broadcast -a "$ACTION_CLEAR" -p "$PKG" >/dev/null
+    adb -s "$dev" shell am force-stop "$PKG" >/dev/null 2>&1 || true
+    adb -s "$dev" shell am start -n "$PKG/$(main_activity "$dev")" >/dev/null 2>&1 || true
+  done
   echo "==> Cleared demo mode, the student ID and the library QR override,"
   echo "    and put the real hand-added courses back."
   echo "    Fetched courses, bulletins and calendar return on the next sync —"
@@ -386,9 +472,12 @@ drop_adb_root() {
 }
 
 toggle_network() {
+  local dev
   if [[ "$NETWORK_OFF" == true ]]; then
-    adb -s "$SERIAL" shell svc wifi enable >/dev/null 2>&1 || true
-    adb -s "$SERIAL" shell svc data enable >/dev/null 2>&1 || true
+    for dev in $(targets); do
+      adb -s "$dev" shell svc wifi enable >/dev/null 2>&1 || true
+      adb -s "$dev" shell svc data enable >/dev/null 2>&1 || true
+    done
     NETWORK_OFF=false
     echo "==> Wi-Fi and mobile data back on."
     return 0
@@ -398,8 +487,10 @@ toggle_network() {
     echo "      also cut the adb connection. Plug in over USB first." >&2
     prompt_yn "Do it anyway?" n || return 0
   fi
-  adb -s "$SERIAL" shell svc wifi disable >/dev/null 2>&1 || true
-  adb -s "$SERIAL" shell svc data disable >/dev/null 2>&1 || true
+  for dev in $(targets); do
+    adb -s "$dev" shell svc wifi disable >/dev/null 2>&1 || true
+    adb -s "$dev" shell svc data disable >/dev/null 2>&1 || true
+  done
   NETWORK_OFF=true
   echo "==> Wi-Fi and mobile data off, so no sync overwrites the fake timetable."
 }
@@ -410,34 +501,53 @@ toggle_network() {
 # launcher and the watch face carousel, not in the app.
 capture_loop() {
   mkdir -p "$RUN_DIR"
+  [[ -n "$WATCH_RUN_DIR" ]] && mkdir -p "$WATCH_RUN_DIR"
   echo ""
   echo "Capturing from $SERIAL into:"
   echo "  $RUN_DIR"
+  if [[ -n "$WATCH" ]]; then
+    echo "and from $WATCH into:"
+    echo "  $WATCH_RUN_DIR"
+    echo ""
+    echo "One Enter shoots both, under the same number — pose the phone and the"
+    echo "watch on the pages you want, then press it once."
+  fi
   echo ""
   echo "  Enter        capture the current screen"
   echo "  <name>Enter  capture it under that name"
   echo "  q Enter      back to the menu"
   echo ""
 
-  local n=0 name file
+  local n=0 name stem shot ok
   # Continue the numbering if this run already has shots in it.
   n="$(find "$RUN_DIR" -maxdepth 1 -name '*.png' | wc -l | tr -d ' ')"
   while true; do
     read -r -p "capture> " name || break
     [[ "$name" == "q" ]] && break
     n=$((n + 1))
-    if [[ -z "$name" ]]; then
-      file="$RUN_DIR/$(printf '%02d' "$n").png"
+    stem="$(printf '%02d' "$n")"
+    [[ -n "$name" ]] && stem="$stem-$(echo "$name" | tr ' /' '--')"
+
+    # A failure on either device rolls the number back, so the phone and the
+    # watch never end up one shot out of step with each other.
+    ok=true
+    shot="$RUN_DIR/$stem.png"
+    if adb -s "$SERIAL" exec-out screencap -p >"$shot" && [[ -s "$shot" ]]; then
+      echo "    saved $(basename "$RUN_DIR")/$(basename "$shot")"
     else
-      file="$RUN_DIR/$(printf '%02d' "$n")-$(echo "$name" | tr ' /' '--').png"
+      rm -f "$shot"; ok=false
+      echo "    error: screencap failed on $SERIAL" >&2
     fi
-    if adb -s "$SERIAL" exec-out screencap -p >"$file" && [[ -s "$file" ]]; then
-      echo "    saved $(basename "$file")"
-    else
-      rm -f "$file"
-      n=$((n - 1))
-      echo "    error: screencap failed" >&2
+    if [[ -n "$WATCH" ]]; then
+      shot="$WATCH_RUN_DIR/$stem.png"
+      if adb -s "$WATCH" exec-out screencap -p >"$shot" && [[ -s "$shot" ]]; then
+        echo "    saved $(basename "$WATCH_RUN_DIR")/$(basename "$shot")"
+      else
+        rm -f "$shot"; ok=false
+        echo "    error: screencap failed on $WATCH" >&2
+      fi
     fi
+    [[ "$ok" == true ]] || n=$((n - 1))
   done
 }
 
@@ -452,11 +562,11 @@ status_line() {
 }
 
 require adb
-choose_device
+choose_devices
 
 while true; do
   echo ""
-  echo "── $SERIAL — $(status_line)"
+  echo "── $SERIAL${WATCH:+ + $WATCH} — $(status_line)"
   echo "  1) capture screenshots (Enter loop)"
   echo "  2) load fake data (timetable, assignments, bulletins, calendar, ID, QR)"
   echo "  3) clear fake data — demo mode off, real courses back"
@@ -477,16 +587,16 @@ while true; do
     6) set_system_time ;;
     7) toggle_network ;;
     8) build_and_install ;;
-    9) choose_device ;;
+    9) choose_devices ;;
     q|Q) break ;;
     *) echo "pick 1-9 or q" >&2 ;;
   esac
 done
 
-if [[ -n "$RUN_DIR" && -d "$RUN_DIR" ]]; then
+if [[ -n "$RUN_ROOT" && -d "$RUN_ROOT" ]]; then
   echo ""
   echo "==> Screenshots:"
-  find "$RUN_DIR" -name '*.png' | sort | sed 's|^|    |'
+  find "$RUN_ROOT" -name '*.png' | sort | sed 's|^|    |'
   echo ""
   echo "Promote the keepers into:"
   echo "    fastlane/metadata/android/<zh-TW|en-US>/images/<phone|sevenInch|tenInch>Screenshots/"
