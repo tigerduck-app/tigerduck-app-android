@@ -111,9 +111,17 @@ jobs:
             fail=1
           fi
 
-          # Wear ships in lockstep with the phone Play APK — code and name must match exactly.
-          if [ "$new_code" != "$new_wcode" ]; then
-            echo "::error file=$wear_file::wear versionCode must match phone: phone=$new_code wear=$new_wcode"
+          # Wear ships in lockstep with the phone Play release, so the names
+          # match exactly — but the codes must NOT. Play namespaces version
+          # codes per applicationId rather than per artifact, and :wear shares
+          # the phone's applicationId, so uploading both bundles at the same
+          # code fails with "version code has already been used". The watch
+          # takes the phone's code plus a fixed offset, which also keeps it the
+          # higher of the two; see wear/build.gradle.kts for why that matters.
+          wear_code_offset=1000
+          expected_wcode=$((new_code + wear_code_offset))
+          if [ "$new_wcode" != "$expected_wcode" ]; then
+            echo "::error file=$wear_file::wear versionCode must be phone + $wear_code_offset: phone=$new_code expected=$expected_wcode wear=$new_wcode"
             fail=1
           fi
           if [ "$new_name" != "$new_wname" ]; then
