@@ -202,7 +202,11 @@ internal fun AnalyticsOptInCard(
         }
     }
 }
-private fun openUrl(context: Context, url: String) {
+// Internal rather than private: the sign-in page in OnboardingScreen needs
+// it too. Custom Tabs unconditionally, with no browser preference read --
+// during onboarding the user has not been offered that choice yet, and the
+// links here are the same in-app hand-off the welcome page already uses.
+internal fun openUrl(context: Context, url: String) {
     val uri = url.toUri()
     runCatching {
         CustomTabsIntent.Builder().build().launchUrl(context, uri)

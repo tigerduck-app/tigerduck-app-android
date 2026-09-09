@@ -91,6 +91,7 @@ private const val URL_TIGERDUCK_WEBSITE = "https://tigerduck.app"
 private const val URL_TIGERDUCK_GITHUB = "https://github.com/tigerduck-app"
 private const val URL_PRIVACY_POLICY = "https://tigerduck.app/privacy-policy"
 private const val URL_DELETE_ACCOUNT = "https://tigerduck.app/delete-account"
+private const val URL_SERVER_STATUS = "https://status.tigerduck.app/"
 private const val URL_LEARN_MORE_BACKEND = "https://tigerduck.app/learn-more-about-backend"
 private val isFdroidFlavor: Boolean
     get() = BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)
@@ -405,6 +406,14 @@ fun OnboardingScreen(
                         title = stringResource(R.string.onboarding_sign_in_title),
                         subtitle = stringResource(R.string.onboarding_sign_in_subtitle),
                         actions = {
+                            // Ordered least-committal first: look at the
+                            // server, then repoint the app at a different
+                            // one, then give up and skip. A sign-in that
+                            // fails here has no other way to tell the user
+                            // whether the backend is the reason.
+                            TextButton(onClick = { openUrl(context, URL_SERVER_STATUS) }) {
+                                Text(stringResource(R.string.settings_check_server_status))
+                            }
                             TextButton(onClick = { showEndpointEditor = true }) {
                                 Text(stringResource(R.string.onboarding_custom_endpoint_button))
                             }
