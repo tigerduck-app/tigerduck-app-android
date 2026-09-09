@@ -86,7 +86,7 @@ section and that part of the app is left alone.
 
 | Key | Effect |
 |---|---|
-| `demoMode` | Every outbound request is refused, so nothing overwrites the fake data, and onboarding is treated as complete. Read once at process start — hence the restart. |
+| `demoMode` | Every outbound request is refused, so nothing overwrites the fake data; onboarding is treated as complete and the app presents as signed in. Read once at process start — hence the restart. |
 | `studentId` | Shown on the class table and in Settings. Display only. |
 | `libraryQr.content` | Encoded into the library QR. Any string; a URL is the point. |
 | `libraryQr.fakeLoggedIn` | Renders the library screen as signed in, so the QR actually appears. |
@@ -163,6 +163,25 @@ fastlane/metadata/android/<zh-TW|en-US>/images/<phone|sevenInch|tenInch>Screensh
 ```
 
 Wear shots go in `wearScreenshots/`.
+
+## A clean install needs no account
+
+Install, tap through the wizard hitting **Skip for now**, load the fixture.
+The app comes back populated — you never need a real NTUST account on a
+screenshot device.
+
+Two flags do that, both under `demoMode` and neither persisted, so leaving
+demo mode gives a signed-out install its wizard back:
+
+- `AppState.hasCompletedOnboarding` reports true, so the wizard does not open.
+- `AuthService.authState` reports true, which is the load-bearing one.
+  `authState` is what every screen asks, so without it a device that skipped
+  sign-in replaced its whole content with "not signed in" and no fixture could
+  put anything on it — the fake timetable sat on disk and nothing drew it.
+
+It is only safe because demo mode also refuses every request: nothing tries to
+use credentials that are not there, and the screens take the no-network path
+they already had.
 
 ## The watch
 

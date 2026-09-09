@@ -39,7 +39,29 @@ class AuthService @Inject constructor(
     private val bulletinCache: BulletinCache,
     private val bulletinReadStateStore: BulletinReadStateStore,
     @param:ApplicationScope private val appScope: CoroutineScope,
+    debugFixtures: org.ntust.app.tigerduck.debug.DebugFixtureStore,
 ) {
+    /**
+     * A screenshot session presents as signed in without an account.
+     *
+     * `authState` is what every screen asks, so a device that skipped the
+     * wizard replaced its whole content with "not signed in" and no fixture
+     * could put anything on it -- the fake timetable was on disk, and nothing
+     * would draw it. Reporting true here is what lets a clean install be
+     * photographed at all.
+     *
+     * Safe only because demo mode also refuses every request
+     * ([org.ntust.app.tigerduck.debug.DemoModeInterceptor]): nothing tries to
+     * use the credentials that are not there, and the screens take the
+     * no-network path they already had. Nothing lowers the flag behind our
+     * back either -- `logout()` is reached from the settings entry and the
+     * full reset, both of which are the user saying so.
+     *
+     * Sampled once, at process start, like the rest of demo mode.
+     */
+    private val demoMode =
+        org.ntust.app.tigerduck.BuildConfig.DEBUG && debugFixtures.demoMode
+
     private val _isLoggingIn = MutableStateFlow(false)
     val isLoggingIn: StateFlow<Boolean> = _isLoggingIn
 
@@ -63,7 +85,7 @@ class AuthService @Inject constructor(
      * Update on one made it vanish after each reboot or background kill until
      * the user signed in by hand.
      */
-    private val _authState = MutableStateFlow(credentials.ntustStudentId != null)
+    private val _authState = MutableStateFlow(demoMode || credentials.ntustStudentId != null)
     val authState: StateFlow<Boolean> = _authState
 
     private val loginMutex = Mutex()
