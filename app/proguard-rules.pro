@@ -7,24 +7,11 @@
 # and WearScheduleBridge$CourseDto.<init> NPEs from TigerDuckApp.onCreate
 # on the first open after upgrade.
 -keep class org.ntust.app.tigerduck.shared.** { *; }
-# Gson DTOs that live outside the model.** packages. Most fields here lack
-# @SerializedName, so without { *; } R8 renames the JVM fields and Gson
-# silently deserializes nulls — same failure mode as the TypeToken bug.
--keep class org.ntust.app.tigerduck.announcements.BulletinSummary { *; }
--keep class org.ntust.app.tigerduck.announcements.BulletinDetail { *; }
--keep class org.ntust.app.tigerduck.announcements.BulletinListResponse { *; }
--keep class org.ntust.app.tigerduck.announcements.OrgLabel { *; }
--keep class org.ntust.app.tigerduck.announcements.TagLabel { *; }
--keep class org.ntust.app.tigerduck.announcements.TaxonomyResponse { *; }
--keep class org.ntust.app.tigerduck.announcements.SubscriptionRule { *; }
--keep class org.ntust.app.tigerduck.announcements.SubscriptionsResponse { *; }
--keep class org.ntust.app.tigerduck.announcements.SubscriptionsPutRequest { *; }
 -keep class org.ntust.app.tigerduck.data.cache.DataCache$* { *; }
 # Wire DTO Gson-serializes to the watch. Unannotated fields, so R8 must
 # not rename them — otherwise the phone sends obfuscated JSON keys the
 # watch-side CourseWire can't recognize.
 -keep class org.ntust.app.tigerduck.wear.WearScheduleBridge$* { *; }
--dontrepackage
 
 # Gson — TypeToken<List<Course>>() {} anonymous subclasses lose their generic
 # signature under R8 full mode (default since AGP 8.x), which makes

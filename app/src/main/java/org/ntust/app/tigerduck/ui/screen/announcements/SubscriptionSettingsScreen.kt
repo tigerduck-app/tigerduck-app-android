@@ -1,0 +1,522 @@
+package org.ntust.app.tigerduck.ui.screen.announcements
+
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.network.model.SubscriptionRule
+import org.ntust.app.tigerduck.network.model.TaxonomyResponse
+import org.ntust.app.tigerduck.network.model.localizedTagLabel
+import org.ntust.app.tigerduck.network.model.orgLabel
+import org.ntust.app.tigerduck.notification.AppPermission
+import org.ntust.app.tigerduck.notification.SystemPermissions
+import org.ntust.app.tigerduck.ui.component.ContentCard
+import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+
+private data class EditingTarget(
+    val rule: SubscriptionRule,
+    val replacingIndex: Int?,
+)
+
+private val isFdroidFlavor: Boolean
+    get() = BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SubscriptionSettingsScreen(
+    onBack: () -> Unit,
+    viewModel: SubscriptionSettingsViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    var editing by remember { mutableStateOf<EditingTarget?>(null) }
+
+    // Inline editor route — same Composable hosts both the list and the
+    // editor so the editor never has to round-trip through the nav graph or
+    // re-fetch the rule snapshot. Keeps the "Edit rule" page on a real
+    // Scaffold (with its own top bar) without the AlertDialog's overflow
+    // bug that produced the original "toggle overlapping selector" report.
+    editing?.let { target ->
+        // System back must collapse the editor back to the settings page,
+        // not pop the whole route up to the announcements list.
+        BackHandler(enabled = true) { editing = null }
+        SubscriptionRuleEditorScreen(
+            initial = target.rule,
+            isNew = target.replacingIndex == null,
+            taxonomy = state.taxonomy,
+            onCancel = { editing = null },
+            onDone = { rule ->
+                viewModel.upsertRule(rule, target.replacingIndex)
+                editing = null
+            },
+            onDelete = target.replacingIndex?.let { idx ->
+                {
+                    viewModel.deleteRule(idx)
+                    editing = null
+                }
+            },
+        )
+        return
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                windowInsets = NoTopBarInsets,
+                title = { Text(stringResource(R.string.bulletin_notifications_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                // The server-push status card, opt-out toggle, and device ID
+                // live on the dedicated Settings → Notifications → Server push
+                // screen now (see ServerPushScreen). This screen is for
+                // bulletin-subscription rules only.
+                if (isFdroidFlavor) {
+                    item { FdroidNoticeCard() }
+                }
+
+                if (!isFdroidFlavor) {
+                    item {
+                        NotificationPermissionCard(viewModel.systemPermissions)
+                    }
+                }
+
+                if (!isFdroidFlavor) {
+                    item {
+                        Text(
+                            text = stringResource(R.string.bulletin_rules_header),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.outline,
+                        )
+                    }
+
+                    when (val ls = state.loadState) {
+                        SubscriptionSettingsViewModel.LoadState.Loading -> {
+                            item {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.bulletin_rules_load_loading))
+                                }
+                            }
+                        }
+
+                        is SubscriptionSettingsViewModel.LoadState.Failed -> {
+                            item {
+                                Column {
+                                    Text(stringResource(R.string.bulletin_rules_load_failed))
+                                    Spacer(Modifier.height(8.dp))
+                                    TextButton(onClick = viewModel::load) {
+                                        Text(stringResource(R.string.action_retry))
+                                    }
+                                }
+                            }
+                        }
+
+                        SubscriptionSettingsViewModel.LoadState.Loaded -> {
+                            items(state.rules.size) { idx ->
+                                val rule = state.rules[idx]
+                                RuleRow(
+                                    rule = rule,
+                                    taxonomy = state.taxonomy,
+                                    onClick = {
+                                        editing = EditingTarget(rule, replacingIndex = idx)
+                                    },
+                                    onToggle = { viewModel.toggleEnabled(idx) },
+                                    onDelete = { viewModel.deleteRule(idx) },
+                                )
+                            }
+                            // Inline "Add rule" entry, mirrors iOS layout.
+                            // Capped at 32 rules to match server-side ceiling.
+                            val maxRules = 32
+                            if (state.rules.size < maxRules) {
+                                item {
+                                    AddRuleRow(onClick = {
+                                        editing =
+                                            EditingTarget(SubscriptionRule(), replacingIndex = null)
+                                    })
+                                }
+                            }
+                            item {
+                                Text(
+                                    text = stringResource(R.string.bulletin_rules_footer),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    modifier = Modifier.padding(top = 8.dp),
+                                )
+                            }
+                            if (state.rules.isEmpty()) {
+                                item {
+                                    DefaultRulesBanner(
+                                        state.taxonomy,
+                                        viewModel::applyDefaultRules
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            (state.saveState as? SubscriptionSettingsViewModel.SaveState.Failed)?.let {
+                Snackbar(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .align(Alignment.BottomCenter),
+                    action = {
+                        TextButton(onClick = viewModel::clearSaveState) {
+                            Text(stringResource(R.string.settings_acknowledged))
+                        }
+                    },
+                ) {
+                    Text(it.message)
+                }
+            }
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// F-Droid notice — replaces the entire push UI on the FOSS flavor
+// -----------------------------------------------------------------------------
+
+@Composable
+private fun FdroidNoticeCard() {
+    ContentCard(applyOuterPadding = false) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.WarningAmber,
+                    contentDescription = null,
+                    tint = Color(0xFFFF9500),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.bulletin_fdroid_no_push_title),
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.bulletin_fdroid_no_push_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Default-rules opt-in
+// -----------------------------------------------------------------------------
+
+@Composable
+private fun DefaultRulesBanner(
+    taxonomy: TaxonomyResponse?,
+    onApply: () -> Unit,
+) {
+    val canApply = (taxonomy?.defaultTags?.isNotEmpty() == true)
+    ContentCard(applyOuterPadding = false) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = stringResource(R.string.bulletin_default_rules_footer),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (canApply) {
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = onApply,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Filled.AutoFixHigh, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.bulletin_apply_default_rules_action))
+                }
+            }
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Rule list row
+// -----------------------------------------------------------------------------
+
+@Composable
+private fun RuleRow(
+    rule: SubscriptionRule,
+    taxonomy: TaxonomyResponse?,
+    onClick: () -> Unit,
+    onToggle: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = ruleTitle(rule, taxonomy),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                )
+                ruleSubtitle(rule, taxonomy)?.let { subtitle ->
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                }
+                if (!rule.enabled) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.bulletin_rule_disabled_badge),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            Switch(checked = rule.enabled, onCheckedChange = { onToggle() })
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = stringResource(R.string.bulletin_rule_delete_action),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ruleTitle(rule: SubscriptionRule, taxonomy: TaxonomyResponse?): String {
+    rule.name?.takeIf { it.isNotBlank() }?.let { return it }
+    val ctx = LocalContext.current
+    val orgsLabel = rule.orgs.joinToString(", ") { id -> taxonomy?.orgLabel(id) ?: id }
+    // Use localizedTagLabel so the `server_notification` tag matches what the
+    // announcements feed/detail render — bare tagLabel would show whatever
+    // raw label the backend taxonomy ships, diverging cross-screen.
+    val tagsLabel = rule.tags.joinToString(", ") { id -> taxonomy.localizedTagLabel(id, ctx) }
+    val joiner = stringResource(
+        if (rule.mode == "AND") R.string.bulletin_rule_join_and else R.string.bulletin_rule_join_or
+    )
+    return when {
+        rule.orgs.isNotEmpty() && rule.tags.isNotEmpty() -> "$orgsLabel$joiner$tagsLabel"
+        rule.orgs.isNotEmpty() -> orgsLabel
+        rule.tags.isNotEmpty() -> tagsLabel
+        else -> stringResource(R.string.bulletin_rule_all_title)
+    }
+}
+
+@Composable
+private fun ruleSubtitle(rule: SubscriptionRule, taxonomy: TaxonomyResponse?): String? {
+    if (rule.name.isNullOrBlank()) return null
+    val ctx = LocalContext.current
+    val orgsLabel = rule.orgs.joinToString(", ") { id -> taxonomy?.orgLabel(id) ?: id }
+    val tagsLabel = rule.tags.joinToString(", ") { id -> taxonomy.localizedTagLabel(id, ctx) }
+    val joiner = stringResource(
+        if (rule.mode == "AND") R.string.bulletin_rule_join_and else R.string.bulletin_rule_join_or
+    )
+    return when {
+        rule.orgs.isNotEmpty() && rule.tags.isNotEmpty() -> "$orgsLabel$joiner$tagsLabel"
+        rule.orgs.isNotEmpty() -> orgsLabel
+        rule.tags.isNotEmpty() -> tagsLabel
+        else -> stringResource(R.string.bulletin_rule_all_title)
+    }
+}
+
+@Composable
+private fun NotificationPermissionCard(systemPermissions: SystemPermissions) {
+    LocalContext.current
+    var state by remember { mutableStateOf(systemPermissions.state(AppPermission.NOTIFICATIONS)) }
+
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) systemPermissions.recordCurrentGrants()
+        state = systemPermissions.state(AppPermission.NOTIFICATIONS)
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                systemPermissions.recordCurrentGrants()
+                state = systemPermissions.state(AppPermission.NOTIFICATIONS)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    ContentCard(applyOuterPadding = false) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(
+                        when {
+                            !state.applicable -> Color(0xFFB0B0B0)
+                            state.granted -> Color(0xFF34C759)
+                            else -> Color(0xFFFF3B30)
+                        }
+                    )
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(SystemPermissions.displayNameResId(AppPermission.NOTIFICATIONS)),
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                )
+                Text(
+                    text = stringResource(SystemPermissions.descriptionResId(AppPermission.NOTIFICATIONS)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            when {
+                !state.applicable -> Text(
+                    "N/A",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
+
+                state.granted -> Icon(
+                    Icons.Filled.Check,
+                    contentDescription = stringResource(R.string.permission_granted),
+                    tint = Color(0xFF34C759),
+                )
+
+                else -> Button(onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        systemPermissions.openSettings(AppPermission.NOTIFICATIONS)
+                    }
+                }) {
+                    Text(stringResource(R.string.action_allow))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddRuleRow(onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Filled.Add,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.bulletin_rule_add_action),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
+

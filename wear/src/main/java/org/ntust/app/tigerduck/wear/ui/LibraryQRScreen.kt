@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
+import android.view.WindowManager
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -57,18 +58,19 @@ import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import androidx.wear.remote.interactions.RemoteActivityHelper
-import kotlin.math.abs
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.shared.LibraryApi
 import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.wear.BuildConfig
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.LibraryQRController
-import org.ntust.app.tigerduck.wear.data.ScheduleRepository
 import org.ntust.app.tigerduck.wear.data.SchedulePersistence
+import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
 import org.ntust.app.tigerduck.wear.data.WatchLibraryCredentialStore
+import org.ntust.app.tigerduck.wear.debug.WearFixtureStore
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
+import kotlin.math.abs
 
 @Composable
 fun LibraryQRScreen() {
@@ -78,10 +80,17 @@ fun LibraryQRScreen() {
         initial = WatchLibraryCredentialStore.LibrarySnapshot(null, null, 0L)
     )
 
-    if (!snapshot.isLoggedIn) {
+    // A screenshot device has no real library account, and this page is the
+    // one thing the phone's fixture cannot reach — see [WearFixtureStore].
+    val fixture = if (BuildConfig.DEBUG) WearFixtureStore.get(context) else null
+    val fixtureActive = fixture?.isActive == true
+
+    if (!snapshot.isLoggedIn && !fixtureActive) {
         ScreenScaffold {
             Column(
-                modifier = Modifier.fillMaxSize().padding(horizontal = LocalScreenPadding.current),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = LocalScreenPadding.current),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -90,7 +99,7 @@ fun LibraryQRScreen() {
             }
         }
     } else {
-        LoggedInState(username = snapshot.username)
+        LoggedInState(username = fixture?.username?.takeIf { fixtureActive } ?: snapshot.username)
     }
 }
 
@@ -114,7 +123,7 @@ private fun NotLoggedInState() {
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(
-            text = stringResource(R.string.library_login_qr_prompt),
+            text = stringResource(R.string.library_sign_in_qr_prompt),
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -137,7 +146,7 @@ private fun LoggedInState(username: String?) {
 
     var isFullscreen by remember { mutableStateOf(false) }
 
-    val qrPaddingRepo = remember(context) { ScheduleRepository.get(context) }
+    val qrPaddingRepo = remember(context) { SchedulePersistenceHolder.get(context) }
     val qrPaddingDp by qrPaddingRepo.qrPaddingDpFlow.collectAsState(
         initial = SchedulePersistence.DEFAULT_QR_PADDING_DP
     )
@@ -152,7 +161,14 @@ private fun LoggedInState(username: String?) {
     val store = remember(context) { WatchLibraryCredentialStore.get(context) }
     val service = remember(store) { LibraryService(store, isDebugBuild = BuildConfig.DEBUG) }
     val scope = rememberCoroutineScope()
-    val controller = remember(service) { LibraryQRController(service, scope) }
+    val fixtureQr = if (BuildConfig.DEBUG) {
+        WearFixtureStore.get(context).takeIf { it.isActive }?.libraryQrContent
+    } else {
+        null
+    }
+    val controller = remember(service, fixtureQr) {
+        LibraryQRController(service, scope, fixtureQr)
+    }
 
     val bitmap by controller.qrBitmap.collectAsState()
     val patternBounds by controller.qrPatternBounds.collectAsState()
@@ -171,6 +187,11 @@ private fun LoggedInState(username: String?) {
     // mode — librarians' scanners read poorly through the dim default.
     KeepScreenBright(active = bitmap != null)
 
+    // Keep the QR — a credential-equivalent token — out of screenshots and
+    // screen recordings the whole time the logged-in page is on screen
+    // (issue #88).
+    SecureScreen()
+
     if (isFullscreen) {
         FullscreenQR(
             bitmap = bitmap,
@@ -181,7 +202,9 @@ private fun LoggedInState(username: String?) {
     } else {
         ScreenScaffold {
             Column(
-                modifier = Modifier.fillMaxSize().padding(horizontal = LocalScreenPadding.current),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = LocalScreenPadding.current),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -232,7 +255,9 @@ private fun NormalQR(
             bitmap != null -> Image(
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = stringResource(R.string.library_qr_content_description),
-                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(6.dp)),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(6.dp)),
                 contentScale = ContentScale.Fit,
                 filterQuality = FilterQuality.None,
             )
@@ -389,6 +414,37 @@ private fun KeepScreenBright(active: Boolean) {
             window.attributes = window.attributes.apply { screenBrightness = 1.0f }
             onDispose {
                 window.attributes = window.attributes.apply { screenBrightness = previous }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SecureScreen() {
+    val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
+    // Mirror of the phone's Settings → Developer → Disable screen-capture
+    // protection toggle, delivered via the Wear Data Layer (see
+    // WearProtocol.Schedule.KEY_DISABLE_SCREEN_CAPTURE_PROTECTION). The phone
+    // only ever publishes `true` from a DEBUG build, so a release-paired
+    // watch reads false here under normal operation.
+    val repo = remember(context) { SchedulePersistenceHolder.get(context) }
+    val disabled by repo.disableScreenCaptureProtectionFlow.collectAsState(initial = false)
+    DisposableEffect(activity, disabled) {
+        val window = activity?.window
+        // Snapshot whether the window was already secure (set by another owner
+        // or earlier). Only clear FLAG_SECURE on dispose if this composable is
+        // the one that added it — otherwise leaving the logged-in page would
+        // strip protection this helper never owned.
+        val alreadySecure = window != null && (window.attributes.flags and
+                WindowManager.LayoutParams.FLAG_SECURE) != 0
+        val shouldAdd = window != null && !alreadySecure && !disabled
+        if (shouldAdd) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        onDispose {
+            if (shouldAdd) {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             }
         }
     }

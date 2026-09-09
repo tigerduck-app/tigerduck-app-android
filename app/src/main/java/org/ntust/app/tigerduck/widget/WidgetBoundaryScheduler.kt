@@ -7,9 +7,10 @@ import android.content.Intent
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.parseHm
 import org.ntust.app.tigerduck.shared.clock.AppClock
-import org.ntust.app.tigerduck.data.model.Course
-import org.ntust.app.tigerduck.data.parseHm
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,6 +18,7 @@ import javax.inject.Singleton
 @Singleton
 class WidgetBoundaryScheduler @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val academicCalendar: AcademicCalendarStore,
 ) {
     fun scheduleForToday(courses: List<Course>) {
         val alarmManager = context.getSystemService(AlarmManager::class.java)
@@ -43,12 +45,34 @@ class WidgetBoundaryScheduler @Inject constructor(
             firstBoundaryOnOrAfterTomorrow(courses, weekday) ?: return
         }
 
-        val triggerMillis = chooseTriggerMillis(triggerCal.timeInMillis, AppClock.nowMillis())
+        val triggerMillis = chooseTriggerMillis(
+            boundaryMillis = triggerCal.timeInMillis,
+            appNowMillis = AppClock.nowMillis(),
+            termFlips = academicCalendar.current().termFlipMillis(),
+        )
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerMillis), pi)
-        } else {
-            alarmManager.setExactAndAllowWhileIdle(
+        // canScheduleExactAlarms() can race a permission revocation: the user
+        // (or the system, via Doze policy) may revoke SCHEDULE_EXACT_ALARM
+        // between the check and the call, in which case setExactAndAllowWhileIdle
+        // throws SecurityException. Fall back to an inexact alarm — same
+        // pattern as AssignmentNotificationScheduler.
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+                alarmManager.set(
+                    AlarmManager.RTC_WAKEUP,
+                    AppClock.realTimeFor(triggerMillis),
+                    pi
+                )
+            } else {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    AppClock.realTimeFor(triggerMillis),
+                    pi
+                )
+            }
+        } catch (e: SecurityException) {
+            android.util.Log.w("WidgetBoundaryScheduler", "Exact alarm denied, falling back to inexact", e)
+            alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
                 AppClock.realTimeFor(triggerMillis),
                 pi
@@ -97,22 +121,26 @@ class WidgetBoundaryScheduler @Inject constructor(
          * Earlier of the next class boundary and the next 開學 / 結業 flip.
          *
          * A term boundary silently changes what the Today and Next Class
-         * widgets are allowed to show — [AppConstants.CurrentTerm.isInSession]
-         * flips at midnight on START — but nothing announces it. The widgets
-         * only re-read that flag when something asks them to redraw, and the
-         * next thing that does is the *first class boundary of 開學日*. Left
-         * alone they would sit on their pre-term empty state through the whole
-         * first morning of the term, which is the morning students are most
-         * likely to look. Same shape at 結業.
+         * widgets are allowed to show — the calendar's `isInSession` flips at
+         * midnight — but nothing announces it. The widgets only re-read that
+         * flag when something asks them to redraw, and the next thing that
+         * does is the *first class boundary of 開學日*. Left alone they would
+         * sit on their pre-term empty state through the whole first morning of
+         * the term, which is the morning students are most likely to look.
+         * Same shape at 結業.
          *
          * The refresh this triggers re-enters [scheduleForToday], which re-arms
          * the ordinary boundary chain, so a term flip costs one extra alarm per
-         * term and nothing after it.
+         * term and nothing after it. [termFlips] is strictly in the future by
+         * the `>` below, so the flip cannot re-arm on itself.
          */
-        internal fun chooseTriggerMillis(boundaryMillis: Long, appNowMillis: Long): Long {
-            val nextTermFlip = listOf(AppConstants.CurrentTerm.START, AppConstants.CurrentTerm.END)
-                .filter { it > appNowMillis }
-                .minOrNull() ?: return boundaryMillis
+        internal fun chooseTriggerMillis(
+            boundaryMillis: Long,
+            appNowMillis: Long,
+            termFlips: List<Long>,
+        ): Long {
+            val nextTermFlip = termFlips.filter { it > appNowMillis }.minOrNull()
+                ?: return boundaryMillis
             return minOf(nextTermFlip, boundaryMillis)
         }
 

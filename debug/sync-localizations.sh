@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Regenerate Android string resources from the localization submodule.
+# Regenerate Android string resources from the app-translation submodule.
 #
 # The wear and app modules' `values-*/strings.xml` files are checked-in
-# copies of localization/generated/android/values-*/strings.xml. They're
+# copies of app-translation/generated/android/values-*/strings.xml. They're
 # normally only refreshed when you build with `-PsyncLocalizations`, so
 # the committed copies drift when the submodule pointer moves.
 #
-# Run this after `git submodule update --remote localization` (or any
-# change to localization sources) so the resources match before you
+# Run this after `git submodule update --remote app-translation` (or any
+# change to app-translation sources) so the resources match before you
 # `git commit` and push.
 
 set -euo pipefail
@@ -15,7 +15,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-echo "==> Refreshing app + wear localizations from localization/generated/android"
+echo "==> Refreshing app + wear localizations from app-translation/generated/android"
 ./gradlew :app:copyGeneratedAndroidLocalizations :wear:copyGeneratedAndroidLocalizations
 
 echo ""

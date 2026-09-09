@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,6 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material3.LinearProgressIndicator
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
@@ -24,9 +25,9 @@ import androidx.wear.compose.material3.Text
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.NextClassResult
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
-import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
 import org.ntust.app.tigerduck.wear.ui.theme.wearCourseColor
 import java.util.concurrent.TimeUnit
@@ -34,15 +35,19 @@ import java.util.concurrent.TimeUnit
 @Composable
 fun NowNextScreen(snapshot: WatchSnapshot) {
     val pad = LocalScreenPadding.current
-    ScreenScaffold {
+    val listState = rememberScalingLazyListState()
+    ScreenScaffold(scrollState = listState) {
         if (snapshot.syncedAtMs == null) {
-            EmptyStateMessage(text = stringResource(R.string.watch_open_phone_to_sync), openPhoneOnTap = true)
+            EmptyStateMessage(
+                text = stringResource(R.string.watch_open_phone_to_sync),
+                openPhoneOnTap = true
+            )
             return@ScreenScaffold
         }
         if (snapshot.courses.isEmpty()) {
             EmptyStateMessage(
                 text = if (snapshot.loggedIn) stringResource(R.string.watch_no_courses_synced)
-                       else stringResource(R.string.watch_open_phone_to_sync)
+                else stringResource(R.string.watch_open_phone_to_sync)
             )
             return@ScreenScaffold
         }
@@ -50,42 +55,53 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
         val (weekday, minuteOfDay) = currentTaipeiTick()
         val result = NextClassResolver.resolve(snapshot.courses, weekday, minuteOfDay)
 
-        Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = pad),
-            verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+        ScalingLazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = pad),
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            ListHeader { Text(stringResource(R.string.watch_now_next_title)) }
+            item { ListHeader { Text(stringResource(R.string.watch_now_next_title)) } }
             when (result) {
                 is NextClassResult.Ongoing -> {
-                    // iOS NowNextView stacks Now + Next as two separate cards
-                    // when both exist, instead of folding the next-today
-                    // preview into the ongoing card as a single line.
-                    OngoingCard(result, minuteOfDay)
+                    item { OngoingCard(result, minuteOfDay) }
                     result.nextToday?.let { next ->
-                        NextCard(
-                            course = next.course,
-                            weekday = next.weekday,
-                            statusText = nextStatusText(next.startMinute, minuteOfDay),
-                            titleResId = R.string.watch_next,
-                        )
+                        item {
+                            NextCard(
+                                course = next.course,
+                                weekday = next.weekday,
+                                statusText = nextStatusText(next.startMinute, minuteOfDay),
+                                titleResId = R.string.watch_next,
+                            )
+                        }
                     }
                 }
-                is NextClassResult.NextToday -> NextCard(
-                    course = result.course,
-                    weekday = result.weekday,
-                    statusText = nextStatusText(result.startMinute, minuteOfDay),
-                    titleResId = null,
-                )
-                is NextClassResult.NextFuture -> NextCard(
-                    course = result.course,
-                    weekday = result.weekday,
-                    statusText = futureStatusText(result.daysAhead, result.startMinute, weekday),
-                    titleResId = null,
-                )
-                NextClassResult.Empty -> Text(stringResource(R.string.watch_no_upcoming_classes))
+
+                is NextClassResult.NextToday -> item {
+                    NextCard(
+                        course = result.course,
+                        weekday = result.weekday,
+                        statusText = nextStatusText(result.startMinute, minuteOfDay),
+                        titleResId = null,
+                    )
+                }
+
+                is NextClassResult.NextFuture -> item {
+                    NextCard(
+                        course = result.course,
+                        weekday = result.weekday,
+                        statusText = futureStatusText(result.daysAhead, result.startMinute, weekday),
+                        titleResId = null,
+                    )
+                }
+
+                NextClassResult.Empty -> item {
+                    Text(stringResource(R.string.watch_no_upcoming_classes))
+                }
             }
-            StaleBanner(snapshot.syncedAtMs)
+            item { StaleBanner(snapshot.syncedAtMs) }
         }
     }
 }
@@ -225,12 +241,12 @@ private fun formatHm(minuteOfDay: Int): String {
 @Composable
 private fun weekdayShortName(weekday: Int): String = stringResource(
     when (weekday) {
-        1 -> R.string.watch_weekday_mon_short
-        2 -> R.string.watch_weekday_tue_short
-        3 -> R.string.watch_weekday_wed_short
-        4 -> R.string.watch_weekday_thu_short
-        5 -> R.string.watch_weekday_fri_short
-        6 -> R.string.watch_weekday_sat_short
-        else -> R.string.watch_weekday_sun_short
+        1 -> R.string.weekday_mon_short
+        2 -> R.string.weekday_tue_short
+        3 -> R.string.weekday_wed_short
+        4 -> R.string.weekday_thu_short
+        5 -> R.string.weekday_fri_short
+        6 -> R.string.weekday_sat_short
+        else -> R.string.weekday_sun_short
     }
 )

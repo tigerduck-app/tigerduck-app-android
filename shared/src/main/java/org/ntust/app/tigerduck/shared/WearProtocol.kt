@@ -15,6 +15,13 @@ object WearProtocol {
         const val KEY_SYNCED_AT = "syncedAtMs"
         const val KEY_LOGGED_IN = "loggedIn"
         const val KEY_LANGUAGE = "languageTag"
+
+        // Mirrors the phone's `Settings → Developer → Disable screen-capture
+        // protection` toggle. Only ever set to true by a DEBUG-build phone;
+        // release phones publish false unconditionally. The watch's
+        // LibraryQR SecureScreen reads the persisted value to decide whether
+        // to apply FLAG_SECURE to the QR window.
+        const val KEY_DISABLE_SCREEN_CAPTURE_PROTECTION = "disableScreenCaptureProtection"
     }
 
     /** One-shot message watch → phone asking for a fresh [Schedule] publish. */
@@ -35,11 +42,13 @@ object WearProtocol {
         const val KEY_PASSWORD = "libraryPassword"
         const val KEY_TOKEN = "libraryToken"
         const val KEY_TOKEN_EXPIRY = "libraryTokenExpiry"
+
         // Strictly monotonic across phone app restarts (persisted on the
         // phone). The watch rejects pushes with `version <= storedVersion`
         // as replay, so the same constant also defeats DataClient's
         // identical-payload de-dup — both roles in one counter.
         const val KEY_VERSION = "version"
+
         // Wall-clock ms when the phone composed this push. Anchors the
         // watch's 7-day staleness TTL: independent of WC delivery time, so
         // a payload that sits queued for a week still expires correctly.
@@ -53,6 +62,7 @@ object WearProtocol {
         const val KEY_INSTANT = "instant_millis"
         const val KEY_FROZEN = "frozen"
         const val KEY_SAVED_AT = "saved_at_real_millis"
+
         // Bumped on every push so the data layer treats two equal-payload
         // overrides as different items and re-delivers them. Without this,
         // toggling on→off→on with the same instant would silently no-op.

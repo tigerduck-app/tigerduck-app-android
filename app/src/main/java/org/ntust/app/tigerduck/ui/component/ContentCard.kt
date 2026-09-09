@@ -12,12 +12,13 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ContentCard(
     modifier: Modifier = Modifier,
+    applyOuterPadding: Boolean = true,
     content: @Composable () -> Unit
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .let { if (applyOuterPadding) it.padding(horizontal = 16.dp, vertical = 4.dp) else it },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )

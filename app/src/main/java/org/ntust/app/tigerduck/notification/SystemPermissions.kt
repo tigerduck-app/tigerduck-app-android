@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import androidx.annotation.StringRes
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -29,8 +30,17 @@ import javax.inject.Singleton
  * - [BATTERY_OPTIMIZATION]: If the app is still under battery optimization, the
  *   OS may defer alarms and background work — especially on aggressive OEM
  *   skins (Xiaomi/Oppo/Huawei etc.).
+ * - [PROMOTED_NOTIFICATIONS]: User-revocable special access (API 36+). Without
+ *   it the Live Update still posts as an ordinary ongoing notification, but
+ *   the system will not promote it to a status-bar chip. Granted from a
+ *   dedicated settings page, never from a runtime prompt.
  */
-enum class AppPermission { NOTIFICATIONS, EXACT_ALARM, BATTERY_OPTIMIZATION }
+enum class AppPermission {
+    NOTIFICATIONS,
+    EXACT_ALARM,
+    BATTERY_OPTIMIZATION,
+    PROMOTED_NOTIFICATIONS,
+}
 
 data class PermissionState(
     val permission: AppPermission,
@@ -69,6 +79,13 @@ class SystemPermissions @Inject constructor(
                 context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
             activityManager.isBackgroundRestricted.not()
         }
+
+        AppPermission.PROMOTED_NOTIFICATIONS -> {
+            // Returns false on older platforms, which would read as "denied";
+            // isApplicable draws the grey "not on this version" state instead.
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) true
+            else NotificationManagerCompat.from(context).canPostPromotedNotifications()
+        }
     }
 
     /** False if the permission doesn't exist on this API level (treat as granted). */
@@ -76,6 +93,8 @@ class SystemPermissions @Inject constructor(
         AppPermission.NOTIFICATIONS -> Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
         AppPermission.EXACT_ALARM -> Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
         AppPermission.BATTERY_OPTIMIZATION -> true
+        AppPermission.PROMOTED_NOTIFICATIONS ->
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
     }
 
     fun state(p: AppPermission): PermissionState =
@@ -92,7 +111,11 @@ class SystemPermissions @Inject constructor(
     fun recordCurrentGrants() {
         val editor = prefs.edit()
         for (p in AppPermission.entries) {
-            if (isGranted(p)) editor.putBoolean(keyGranted(p), true)
+            // isGranted reports true for a permission this OS version does not
+            // have. Banking that would make a later OS upgrade — where the
+            // permission appears, ungranted — look like the user revoked
+            // something they were never asked about, and fire the warning popup.
+            if (isApplicable(p) && isGranted(p)) editor.putBoolean(keyGranted(p), true)
         }
         editor.apply()
     }
@@ -133,6 +156,16 @@ class SystemPermissions @Inject constructor(
         }
 
         AppPermission.BATTERY_OPTIMIZATION -> batterySettingsIntents().firstOrNull()
+
+        AppPermission.PROMOTED_NOTIFICATIONS -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+                // The platform warns this activity may not exist on every
+                // build; tryStartActivity already swallows the miss.
+                Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                }
+            } else null
+        }
     }
 
     /**
@@ -189,6 +222,8 @@ class SystemPermissions @Inject constructor(
             AppPermission.NOTIFICATIONS -> R.string.permission_notifications_name
             AppPermission.EXACT_ALARM -> R.string.permission_exact_alarm_name
             AppPermission.BATTERY_OPTIMIZATION -> R.string.permission_battery_optimization_name
+            AppPermission.PROMOTED_NOTIFICATIONS ->
+                R.string.permission_promoted_notifications_name
         }
 
         @StringRes
@@ -201,6 +236,9 @@ class SystemPermissions @Inject constructor(
 
             AppPermission.BATTERY_OPTIMIZATION ->
                 R.string.permission_battery_optimization_description
+
+            AppPermission.PROMOTED_NOTIFICATIONS ->
+                R.string.permission_promoted_notifications_description
         }
     }
 }

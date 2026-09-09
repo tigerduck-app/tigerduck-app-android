@@ -26,6 +26,13 @@ import org.ntust.app.tigerduck.shared.LibraryService
 class LibraryQRController(
     private val service: LibraryService,
     private val scope: CoroutineScope,
+    /**
+     * Screenshot override: encode this instead of asking the library server.
+     * Null in a release build, where the caller's `BuildConfig.DEBUG` branch
+     * folds away. The countdown still runs, so the page animates the way it
+     * really does -- it just re-renders the same payload.
+     */
+    private val fixtureQr: String? = null,
 ) {
     private val _qrBitmap = MutableStateFlow<Bitmap?>(null)
     val qrBitmap: StateFlow<Bitmap?> = _qrBitmap.asStateFlow()
@@ -77,7 +84,7 @@ class LibraryQRController(
         _isLoading.value = _qrBitmap.value == null
         _error.value = null
         try {
-            val qrData = service.generateQRCode()
+            val qrData = fixtureQr ?: service.generateQRCode()
             val rendered = withContext(Dispatchers.Default) {
                 val bmp = LibraryQRRenderer.render(qrData, qrSidePx)
                 bmp to LibraryQRRenderer.patternBounds(bmp)
@@ -85,6 +92,10 @@ class LibraryQRController(
             _qrBitmap.value = rendered.first
             _qrPatternBounds.value = rendered.second
             startCountdown(qrSidePx)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            // Never swallow cancellation: doing so breaks structured
+            // concurrency (the scope thinks the job completed normally).
+            throw e
         } catch (e: Exception) {
             // Surface the real reason (network failure, server message, etc.)
             // rather than a generic string — diagnosing a watch-only failure
@@ -92,7 +103,7 @@ class LibraryQRController(
             android.util.Log.w("LibraryQRController", "QR refresh failed", e)
             _error.value = e.message?.takeUnless { it.isBlank() }
                 ?: e::class.simpleName
-                ?: "QR fetch failed"
+                        ?: "QR fetch failed"
             _qrBitmap.value = null
             _qrPatternBounds.value = null
         } finally {

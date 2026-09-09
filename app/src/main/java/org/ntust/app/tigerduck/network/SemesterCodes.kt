@@ -16,7 +16,7 @@ object SemesterCodes {
 
     /**
      * The month-based guess [CourseService.currentSemesterCode] used before it
-     * was pinned to [AppConstants.CurrentTerm]. Kept as the last-resort
+     * was pinned to a constant. Kept as the last-resort
      * fallback for [SemesterCatalog] when the endpoint is unreachable on a
      * fresh install.
      *

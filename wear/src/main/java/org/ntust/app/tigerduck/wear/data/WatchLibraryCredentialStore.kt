@@ -156,8 +156,10 @@ class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
         private const val KEY_PASSWORD = "library_password"
         private const val KEY_TOKEN = "library_token"
         private const val KEY_TOKEN_EXPIRY = "library_token_expiry"
+
         // Phone composed-at timestamp; anchors the 7-day TTL.
         private const val KEY_ISSUED_AT_MS = "library_issued_at_ms"
+
         // Last applied phone-side epoch — anti-replay guard. Survives a
         // `.wipe`-style push so a delayed earlier `.set` can't re-credential
         // the watch after logout.
@@ -198,7 +200,16 @@ class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
             } catch (e: Exception) {
                 Log.w(TAG, "EncryptedSharedPreferences unusable; resetting", e)
                 runCatching { appContext.deleteSharedPreferences(PREFS_NAME) }
-                attempt()
+                try {
+                    attempt()
+                } catch (retry: Exception) {
+                    // Mirror the phone-side CredentialManager: a second failure
+                    // means the keystore itself is unusable — surface a typed,
+                    // logged error instead of whatever raw exception attempt()
+                    // happened to throw.
+                    Log.e(TAG, "EncryptedSharedPreferences retry failed", retry)
+                    throw SecurityException("Cannot create encrypted credential storage", retry)
+                }
             }
         }
 

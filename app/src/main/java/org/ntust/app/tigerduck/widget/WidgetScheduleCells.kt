@@ -1,6 +1,6 @@
 package org.ntust.app.tigerduck.widget
 
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
 
 sealed class ScheduleCell {
     abstract val length: Int
@@ -118,7 +118,9 @@ fun buildScheduleCells(
                 val end = first + span
                 var lane = -1
                 for (j in laneEnds.indices) {
-                    if (laneEnds[j] <= first) { lane = j; break }
+                    if (laneEnds[j] <= first) {
+                        lane = j; break
+                    }
                 }
                 if (lane < 0) {
                     laneEnds.add(end)

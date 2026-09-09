@@ -21,7 +21,7 @@ data class HomeSection(
 
         @Deprecated("Feature temporarily disabled")
         QUICK_WIDGETS("quick-widgets", R.string.home_section_quick_widgets),
-        CUSTOM("custom", R.string.home_section_custom);
+        CUSTOM("custom", R.string.home_custom_section);
     }
 
     companion object {
@@ -40,16 +40,9 @@ data class HomeSection(
                 1,
                 true
             ),
-            // TODO: 快速功能
-//            HomeSection(
-//                "quick-widgets", HomeSectionType.QUICK_WIDGETS, HomeSectionType.QUICK_WIDGETS.defaultTitleKey, 2, true,
-//                widgets = listOf(
-//                    WidgetItem("w1", AppFeature.FREE_LUNCH),
-//                    WidgetItem("w2", AppFeature.EMPTY_CLASSROOM),
-//                    WidgetItem("w3", AppFeature.SCHOLARSHIP),
-//                    WidgetItem("w4", AppFeature.SCORE),
-//                )
-//            )
+            // QUICK_WIDGETS is deliberately absent from the defaults — it is
+            // opt-in through AddSectionDialog, and AppPreferences filters it
+            // out of restored layouts. History has the four-widget default.
         )
     }
 }

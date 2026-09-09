@@ -102,7 +102,11 @@ class AppClockTest {
             java.time.ZoneId.of("Asia/Taipei"),
         ).toInstant().toEpochMilli()
         AppClock.setOverride(
-            ClockOverride(frozenInstant, frozen = true, savedAtRealMillis = System.currentTimeMillis())
+            ClockOverride(
+                frozenInstant,
+                frozen = true,
+                savedAtRealMillis = System.currentTimeMillis()
+            )
         )
         val ldt = AppClock.localDateTime(java.time.ZoneId.of("Asia/Taipei"))
         assertEquals(2026, ldt.year)

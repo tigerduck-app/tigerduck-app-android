@@ -12,8 +12,8 @@
         android:name=".WearApplication"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="TigerDuck"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.TigerDuckWear">
 
@@ -36,7 +36,10 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
-                <data android:scheme="wear" android:host="*" android:pathPrefix="/tigerduck/" />
+                <data
+                    android:host="*"
+                    android:pathPrefix="/tigerduck/"
+                    android:scheme="wear" />
             </intent-filter>
         </service>
 
@@ -45,7 +48,10 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
-                <data android:scheme="wear" android:host="*" android:pathPrefix="/tigerduck/debug-clock" />
+                <data
+                    android:host="*"
+                    android:pathPrefix="/tigerduck/debug-clock"
+                    android:scheme="wear" />
             </intent-filter>
         </service>
 
@@ -65,12 +71,13 @@
         <service
             android:name=".complication.NextClassComplicationService"
             android:exported="true"
-            android:label="Next class"
             android:icon="@android:drawable/sym_def_app_icon"
+            android:label="Next class"
             android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
             <intent-filter>
                 <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
             </intent-filter>
+
             <meta-data
                 android:name="android.support.wearable.complications.SUPPORTED_TYPES"
                 android:value="SHORT_TEXT,LONG_TEXT" />

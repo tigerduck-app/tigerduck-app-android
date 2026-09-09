@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#000000</color>
+    <!-- Brand duck yellow, sampled from the duck face in
+         drawable-nodpi/tigerduck_logo.png. -->
+    <color name="duck_yellow">#FFDB00</color>
 </resources>

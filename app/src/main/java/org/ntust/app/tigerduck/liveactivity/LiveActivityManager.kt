@@ -1,14 +1,15 @@
 package org.ntust.app.tigerduck.liveactivity
 
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationScheduler
@@ -31,10 +32,13 @@ class LiveActivityManager @Inject constructor(
     private val authService: AuthService,
     private val appPrefs: AppPreferences,
     private val classPreparingScheduler: ClassPreparingNotificationScheduler,
+    private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
     private val boundaryScheduler: LiveActivityBoundaryScheduler,
+    @param:ApplicationScope private val appScope: CoroutineScope,
 ) {
     private val resolver = LiveActivityResolver()
-    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val managerJob = SupervisorJob(appScope.coroutineContext[Job])
+    private val scope = appScope + managerJob
     private var refreshJob: Job? = null
 
     // Hold a reference so `stop()` can halt preference-driven refreshes too;
@@ -50,7 +54,7 @@ class LiveActivityManager @Inject constructor(
 
     /** Recompute the scenario and push the result to the notifier. */
     fun refresh() {
-        if (!scope.isActive) return
+        if (!managerJob.isActive) return
         refreshJob?.cancel()
         refreshJob = scope.launch {
             refreshInternal()
@@ -73,23 +77,52 @@ class LiveActivityManager @Inject constructor(
         refreshJob?.cancel()
         notifier.cancel()
         classPreparingScheduler.cancelAllTracked()
-        // Cancel the scope itself so future launch() calls are no-ops; the
-        // SupervisorJob would otherwise outlive any DI/test teardown and
-        // resurrect work via prefs-driven refresh.
-        scope.cancel()
+        managerJob.cancel()
     }
 
     private suspend fun refreshInternal() {
-        if (!preferences.isEnabled || !authService.isNtustAuthenticated) {
+        // authState, not a session-liveness check: everything below reads local
+        // JSON and the academic calendar, so what matters is whether a user
+        // is signed in at all — not whether an SSO cookie happens to be warm.
+        // The cookie jar is in-memory, so gating on it stopped the Live Update
+        // after every reboot or background kill until the user signed in again.
+        val signedIn = authService.authState.value
+        if (!preferences.isEnabled || !signedIn) {
+            // The other silent way to get no Live Update. Signing out stops it
+            // just as completely as the feature toggle, and neither says so
+            // anywhere.
+            if (BuildConfig.DEBUG) {
+                Log.d(
+                    TAG,
+                    "no live update: enabled=${preferences.isEnabled} signedIn=$signedIn",
+                )
+            }
             notifier.cancel()
             classPreparingScheduler.cancelAllTracked()
             boundaryScheduler.cancel()
             return
         }
         val now = Date(AppClock.nowMillis())
-        val courses = dataCache.loadCourses()
+        // Classes do not meet on a school holiday, nor before 開學 — 選課 fills
+        // the timetable weeks ahead of the term, so having courses is not
+        // evidence that classes have started. Neither the chip nor the
+        // class-preparing alarm should surface one on such a day. Read once
+        // and used for both so a flip between the two calls cannot leave them
+        // disagreeing.
+        val calendar = academicCalendar.current()
+        val optedIn = academicCalendar.optedInHolidayIds
+        val today = AppClock.localDateTime().toLocalDate()
+        val quietToday =
+            !calendar.isInSession(today) || calendar.suppressesClasses(today, optedIn)
+        // Emptying the list is what gates the resolver, which is pure and
+        // takes no calendar of its own — and scheduleBoundaryRefresh reads the
+        // same list, so no boundary alarm is armed for a quiet day either.
+        val courses = if (quietToday) emptyList() else dataCache.loadCourses()
         val assignments = dataCache.loadAssignments()
-        val skipped = dataCache.loadSkippedDates()
+        // 翹課 parked — see DataCache's skipped-dates section. Not read, so
+        // pre-v2.0.0 marks can't suppress a class the user can no longer unskip.
+        val skipped = emptyMap<String, List<String>>()
+        // val skipped = dataCache.loadSkippedDates()
 
         val snapshot = resolver.resolve(
             courses = courses,
@@ -99,32 +132,56 @@ class LiveActivityManager @Inject constructor(
             accentHex = appPrefs.accentColorHex,
             now = now,
         )
+        // Distinguishes "the resolver looked and found nothing" from the
+        // bail-outs above, which is the difference between a wrong timetable
+        // and a wrong clock when a simulated class fails to show.
+        if (BuildConfig.DEBUG && snapshot == null) {
+            Log.d(
+                TAG,
+                "no live update at $now: courses=${courses.size} " +
+                    "assignments=${assignments.size} quietToday=$quietToday",
+            )
+        }
         notifier.apply(snapshot)
 
         // Keep the class-preparing alarm set in sync with the current
         // course list + lead-time preference so reminders fire even when
         // the app is fully closed.
         if (preferences.showClassPreparing) {
+            // Passes the full course list, not the holiday-emptied one: the
+            // scheduler reaches ten days ahead and does its own per-day
+            // check, so handing it today's emptiness would cancel next
+            // week's reminders too.
             classPreparingScheduler.scheduleAll(
-                courses = courses,
+                courses = dataCache.loadCourses(),
                 skippedDates = skipped,
                 leadTimeSec = preferences.classPreparingLeadTimeSec,
+                calendar = calendar,
+                optedInHolidayIds = optedIn,
             )
         } else {
             classPreparingScheduler.cancelAllTracked()
         }
 
-        scheduleBoundaryRefresh(snapshot, courses, assignments, now)
+        scheduleBoundaryRefresh(snapshot, courses, assignments, skipped, now)
     }
 
     private fun scheduleBoundaryRefresh(
         snapshot: LiveActivitySnapshot?,
-        courses: List<org.ntust.app.tigerduck.data.model.Course>,
+        courses: List<org.ntust.app.tigerduck.shared.Course>,
         assignments: List<org.ntust.app.tigerduck.data.model.Assignment>,
+        skippedDates: Map<String, List<String>>,
         now: Date,
     ) {
         val candidates = mutableListOf<Long>()
         snapshot?.countdownTarget?.time?.let { candidates += it }
+
+        // A progress bar is not self-animating — it holds whatever fraction
+        // the notifier last posted — so while one is on screen this alarm
+        // doubles as its tick. Only a snapshot that actually has progress
+        // asks for it, and the min() below still collapses to the real
+        // boundary once the class has less than a tick left to run.
+        if (snapshot?.progress != null) candidates += now.time + PROGRESS_TICK_MS
 
         val classPrepLead = preferences.classPreparingLeadTimeSec * 1000
         val assignmentLead = preferences.assignmentLeadTimeSec * 1000
@@ -132,7 +189,7 @@ class LiveActivityManager @Inject constructor(
         // Cover the CLASS_PREPARING → IN_CLASS → (idle) progression for the
         // upcoming class even if it isn't currently the snapshot scenario,
         // so the boundary fires once a class enters the lead-time window.
-        nextClassBoundaries(courses, now, classPrepLead).forEach { candidates += it }
+        nextClassBoundaries(courses, skippedDates, now, classPrepLead).forEach { candidates += it }
 
         assignments.asSequence()
             .filter { !it.isCompleted && it.dueDate.after(now) }
@@ -154,16 +211,30 @@ class LiveActivityManager @Inject constructor(
     }
 
     private fun nextClassBoundaries(
-        courses: List<org.ntust.app.tigerduck.data.model.Course>,
+        courses: List<org.ntust.app.tigerduck.shared.Course>,
+        skippedDates: Map<String, List<String>>,
         now: Date,
         classPrepLeadMs: Long,
     ): List<Long> {
-        val slots = resolver.todaySlotsAfter(courses, now)
+        val slots = resolver.todaySlotsAfter(courses, now, skippedDates)
         val first = slots.firstOrNull() ?: return emptyList()
         return listOfNotNull(
             (first.start.time - classPrepLeadMs).takeIf { it > now.time },
             first.start.time.takeIf { it > now.time },
             first.end.time.takeIf { it > now.time },
         )
+    }
+
+    private companion object {
+        private const val TAG = "LiveActivity"
+
+        /**
+         * How often to redraw a live progress bar. Two minutes puts a 50-minute
+         * period in 4% steps, which reads as movement without spending an exact
+         * alarm a minute on a bar nobody is watching that closely — the exact
+         * remaining time is already on screen as a free system-drawn
+         * chronometer. Doze may stretch this; the bar simply lags a little.
+         */
+        const val PROGRESS_TICK_MS = 2 * 60_000L
     }
 }

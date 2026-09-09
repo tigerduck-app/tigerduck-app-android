@@ -10,14 +10,33 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import java.time.Instant
 import java.time.ZoneId
 
 class ClassPreparingNotificationReceiver : BroadcastReceiver() {
 
-    override fun onReceive(context: Context, intent: Intent) {
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    internal interface Deps {
+        fun academicCalendar(): AcademicCalendarStore
+    }
+
+    override fun onReceive(rawContext: Context, intent: Intent) {
+        // Receiver contexts carry the SYSTEM locale, not the user's in-app
+        // language choice (AppCompat per-app locales don't reach broadcast
+        // contexts when the alarm wakes a dead process). Resolve the chosen
+        // language explicitly so the channel name and notification text match
+        // the rest of the app — same pattern as TigerDuckApp.localizedContext.
+        val context = localizedContext(rawContext)
         val courseName = intent.getStringExtra(EXTRA_COURSE_NAME) ?: return
         val classroom = intent.getStringExtra(EXTRA_CLASSROOM).orEmpty()
         val instructor = intent.getStringExtra(EXTRA_INSTRUCTOR).orEmpty()
@@ -35,11 +54,17 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         // upgrade until the next scheduleAll cancels it — which only happens on
         // the next sync or Live Update refresh. Until then a stale alarm would
         // still land here and post, so re-check at the point of posting rather
-        // than trusting that the alarm should have existed at all.
+        // than trusting that the alarm should have existed at all. An empty
+        // calendar reads as in session, so a device that has never reached the
+        // backend keeps the reminders it had.
         val startDate = runCatching {
             Instant.ofEpochMilli(startMs).atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
-        }.getOrNull()
-        if (startDate == null || !AppConstants.CurrentTerm.containsDate(startDate)) return
+        }.getOrNull() ?: return
+        val calendar = EntryPointAccessors
+            .fromApplication(rawContext.applicationContext, Deps::class.java)
+            .academicCalendar()
+            .current()
+        if (!calendar.isInSession(startDate)) return
         // The lead-time extra lets us auto-cancel the "即將上課" notification when
         // class actually starts: post-time + leadTimeMs ≈ classStart. Without it
         // (older intents from before the field existed) we fall back to manual
@@ -65,6 +90,8 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
+            // Brand tint for the shade badge; the status-bar glyph stays mono.
+            .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
             .setContentTitle(
                 context.getString(R.string.notification_class_preparing_title, courseName)
             )
@@ -94,8 +121,18 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         nm.notify(notificationId, notification)
     }
 
+    private fun localizedContext(context: Context): Context {
+        val language = AppPreferences(context).appLanguage
+        val locale = AppLanguageManager.resolveExplicitLocale(language) ?: return context
+        val config = android.content.res.Configuration(context.resources.configuration)
+        config.setLocale(locale)
+        return context.createConfigurationContext(config)
+    }
+
     private fun ensureChannel(context: Context, nm: NotificationManager) {
-        if (nm.getNotificationChannel(CHANNEL_ID) != null) return
+        // No existence early-return: re-creating with the same id is cheap and
+        // legally updates name/description, so a language change propagates to
+        // the channel instead of freezing it in the locale of first creation.
         val channel = NotificationChannel(
             CHANNEL_ID,
             context.getString(R.string.notification_class_preparing_channel_name),

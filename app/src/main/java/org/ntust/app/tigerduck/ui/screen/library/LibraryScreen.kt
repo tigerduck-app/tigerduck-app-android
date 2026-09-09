@@ -8,16 +8,36 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
@@ -25,7 +45,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -50,7 +69,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.component.PageHeader
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.LocalLibrary
 import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
+import org.ntust.app.tigerduck.ui.component.ServerStatus
+import org.ntust.app.tigerduck.ui.component.SyncStatusDot
+import org.ntust.app.tigerduck.ui.component.SecureScreen
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 @Composable
@@ -105,6 +129,12 @@ fun LibraryScreen(
         }
     }
 
+    // Keep the library QR — a credential-equivalent token — out of screenshots
+    // and screen recordings the whole time it is on screen (issue #88). Keyed
+    // on isLoggedIn rather than the bitmap so the 30 s auto-refresh doesn't
+    // toggle FLAG_SECURE on and off.
+    SecureScreen(secure = isLoggedIn)
+
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             when (event) {
@@ -135,21 +165,27 @@ fun LibraryScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         PageHeader(title = stringResource(R.string.feature_library)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(if (isLoggedIn) Color(0xFF34C759) else Color.Gray)
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = if (isLoggedIn) stringResource(R.string.library_status_logged_in)
-                    else stringResource(R.string.library_status_not_logged_in),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-                )
-            }
+            // The state used to be a hand-drawn circle with the word beside
+            // it. The word is what the dot's own popup says when you tap it,
+            // and every other page's header spends that space on nothing —
+            // so this now draws the shared mark, which also means it can be
+            // tapped, dims when idle and carries the pull ring like the rest.
+            //
+            // A failed refresh outranks being signed in: the session can be
+            // valid while the pass request is the thing that broke, and the
+            // error banner below says which.
+            SyncStatusDot(
+                status = when {
+                    errorMessage != null -> ServerStatus.FAILED
+                    isLoggedIn -> ServerStatus.OK
+                    else -> ServerStatus.UNKNOWN
+                },
+                label = stringResource(R.string.feature_library),
+                icon = Icons.Outlined.LocalLibrary,
+                text = if (isLoggedIn) stringResource(R.string.library_status_signed_in)
+                else stringResource(R.string.library_status_not_signed_in),
+                isLoading = isLoadingQR,
+            )
         }
 
         errorMessage?.let { msg ->
@@ -187,17 +223,9 @@ fun LibraryScreen(
             )
         }
 
-        // 討論小間 / 圖書館講座 — hidden until the backing data sources are
-        // available. Re-enable the row below when ready.
-        // Row(
-        //     modifier = Modifier
-        //         .fillMaxWidth()
-        //         .padding(horizontal = 16.dp),
-        //     horizontalArrangement = Arrangement.spacedBy(12.dp)
-        // ) {
-        //     FeatureCard("討論小間", "即將推出", modifier = Modifier.weight(1f))
-        //     FeatureCard("圖書館講座", "即將推出", modifier = Modifier.weight(1f))
-        // }
+        // 討論小間 / 圖書館講座 would sit here, but neither has a backing data
+        // source yet. The "即將推出" card row and its FeatureCard composable are
+        // in history — restore them rather than rewriting when the APIs land.
 
         Spacer(Modifier.height(16.dp))
     }
@@ -347,6 +375,9 @@ private fun LoginPromptCard(
     val focusManager = LocalFocusManager.current
     val passwordFocusRequester = remember { FocusRequester() }
     var passwordVisible by remember { mutableStateOf(false) }
+    // Block screenshots / screen-recording while the library password is
+    // revealed as plaintext (issue #88).
+    SecureScreen(secure = passwordVisible)
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -359,18 +390,18 @@ private fun LoginPromptCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                stringResource(R.string.library_login_prompt_title),
+                stringResource(R.string.library_sign_in_prompt_title),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
             Text(
-                stringResource(R.string.library_login_prompt_hint),
+                stringResource(R.string.library_sign_in_prompt_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
             )
             OutlinedAccountIdField(
                 value = username,
                 onValueChange = onUsernameChange,
-                label = stringResource(R.string.library_login_username),
+                label = stringResource(R.string.library_sign_in_username),
                 capitalization = KeyboardCapitalization.Sentences,
                 imeAction = ImeAction.Next,
                 onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
@@ -381,7 +412,7 @@ private fun LoginPromptCard(
             OutlinedTextField(
                 value = password,
                 onValueChange = onPasswordChange,
-                label = { Text(stringResource(R.string.library_login_password)) },
+                label = { Text(stringResource(R.string.library_sign_in_password)) },
                 singleLine = true,
                 visualTransformation = if (passwordVisible) VisualTransformation.None
                 else PasswordVisualTransformation(),
@@ -425,33 +456,10 @@ private fun LoginPromptCard(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text(stringResource(R.string.library_login_button))
+                    Text(stringResource(R.string.library_sign_in_button))
                 }
             }
         }
     }
 }
 
-@Composable
-private fun FeatureCard(title: String, subtitle: String, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-            )
-            Text(
-                subtitle, style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-            )
-        }
-    }
-}

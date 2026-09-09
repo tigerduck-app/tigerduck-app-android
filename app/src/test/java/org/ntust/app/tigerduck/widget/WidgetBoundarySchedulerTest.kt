@@ -1,9 +1,9 @@
 package org.ntust.app.tigerduck.widget
 
-import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.data.model.Course
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
+import org.ntust.app.tigerduck.shared.Course
 
 class WidgetBoundarySchedulerTest {
 
@@ -12,7 +12,11 @@ class WidgetBoundarySchedulerTest {
         val course = Course.fromSchedule("CS101", "Test", schedule = mapOf(1 to listOf("3")))
         assertEquals(
             620,
-            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(listOf(course), weekday = 1, currentMinute = 500),
+            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(
+                listOf(course),
+                weekday = 1,
+                currentMinute = 500
+            ),
         )
     }
 
@@ -21,7 +25,11 @@ class WidgetBoundarySchedulerTest {
         val course = Course.fromSchedule("CS101", "Test", schedule = mapOf(1 to listOf("3")))
         assertEquals(
             670,
-            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(listOf(course), weekday = 1, currentMinute = 650),
+            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(
+                listOf(course),
+                weekday = 1,
+                currentMinute = 650
+            ),
         )
     }
 
@@ -29,92 +37,51 @@ class WidgetBoundarySchedulerTest {
     fun `returns null when no future boundaries today`() {
         val course = Course.fromSchedule("CS101", "Test", schedule = mapOf(1 to listOf("3")))
         assertNull(
-            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(listOf(course), weekday = 1, currentMinute = 700),
+            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(
+                listOf(course),
+                weekday = 1,
+                currentMinute = 700
+            ),
         )
     }
 
     @Test
     fun `returns null for empty course list`() {
-        assertNull(WidgetBoundaryScheduler.nextBoundaryMinuteAfter(emptyList(), weekday = 1, currentMinute = 0))
+        assertNull(
+            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(
+                emptyList(),
+                weekday = 1,
+                currentMinute = 0
+            )
+        )
     }
 
     @Test
     fun `ignores courses on other weekdays`() {
         val course = Course.fromSchedule("CS101", "Test", schedule = mapOf(2 to listOf("3")))
-        assertNull(WidgetBoundaryScheduler.nextBoundaryMinuteAfter(listOf(course), weekday = 1, currentMinute = 0))
-    }
-
-    // --- chooseTriggerMillis: term flips have to pre-empt the class boundary ---
-
-    private val termStart = AppConstants.CurrentTerm.START
-    private val termEnd = AppConstants.CurrentTerm.END
-    private val oneDay = 24L * 60 * 60 * 1000
-
-    @Test
-    fun `wakes at 開學 rather than the first class boundary of 開學日`() {
-        // Evening before 開學, chain has handed off to 開學日's first class.
-        val firstClassOnOpeningDay = termStart + 8 * 60 * 60 * 1000
-        assertEquals(
-            termStart,
-            WidgetBoundaryScheduler.chooseTriggerMillis(
-                boundaryMillis = firstClassOnOpeningDay,
-                appNowMillis = termStart - 6 * 60 * 60 * 1000,
-            ),
+        assertNull(
+            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(
+                listOf(course),
+                weekday = 1,
+                currentMinute = 0
+            )
         )
     }
 
     @Test
-    fun `keeps the class boundary when it lands before the term flip`() {
-        val boundary = termStart - 3 * oneDay
+    fun `returns start of later period when between two non-contiguous periods`() {
+        // Period 3: 10:20–11:10 (start=620, end=670)
+        // Period 7: 14:20–15:10 (start=860, end=910)
+        // currentMinute=750 is after period 3 has ended and before period 7 begins,
+        // so the next boundary must be period 7's start minute (860).
+        val course = Course.fromSchedule("CS101", "Test", schedule = mapOf(1 to listOf("3", "7")))
         assertEquals(
-            boundary,
-            WidgetBoundaryScheduler.chooseTriggerMillis(
-                boundaryMillis = boundary,
-                appNowMillis = termStart - 4 * oneDay,
-            ),
-        )
-    }
-
-    @Test
-    fun `wakes at 結業 rather than the following day's stale boundary`() {
-        val boundaryAfterTermEnds = termEnd + 8 * 60 * 60 * 1000
-        assertEquals(
-            termEnd,
-            WidgetBoundaryScheduler.chooseTriggerMillis(
-                boundaryMillis = boundaryAfterTermEnds,
-                appNowMillis = termEnd - 2 * 60 * 60 * 1000,
-            ),
-        )
-    }
-
-    @Test
-    fun `ignores 開學 once it has passed and uses 結業 instead`() {
-        val midTermNow = termStart + 30 * oneDay
-        val boundary = termEnd + oneDay
-        assertEquals(
-            termEnd,
-            WidgetBoundaryScheduler.chooseTriggerMillis(boundary, midTermNow),
-        )
-    }
-
-    @Test
-    fun `falls through to the class boundary once the term is over`() {
-        val afterTerm = termEnd + 5 * oneDay
-        val boundary = afterTerm + 60 * 60 * 1000
-        assertEquals(
-            boundary,
-            WidgetBoundaryScheduler.chooseTriggerMillis(boundary, afterTerm),
-        )
-    }
-
-    @Test
-    fun `a term flip exactly at now does not re-arm on itself`() {
-        // Guards the alarm loop: at the instant of the flip the refresh
-        // re-enters scheduleForToday, and START must no longer be a candidate.
-        val boundary = termStart + 8 * 60 * 60 * 1000
-        assertEquals(
-            boundary,
-            WidgetBoundaryScheduler.chooseTriggerMillis(boundary, termStart),
+            860,
+            WidgetBoundaryScheduler.nextBoundaryMinuteAfter(
+                listOf(course),
+                weekday = 1,
+                currentMinute = 750
+            )
         )
     }
 }

@@ -30,6 +30,7 @@ data class Course(
      */
     val classroomMapJson: String? = "{}",
     val moodleIdNumber: String? = null,
+    val moodleNumericCourseId: Int? = null,
     /** User-picked tile color as "#RRGGBB". Null means hash-based palette assignment. */
     val customColorHex: String? = null,
     /**
@@ -155,6 +156,7 @@ data class Course(
             schedule: Map<Int, List<String>> = emptyMap(),
             classroomMap: Map<String, String> = emptyMap(),
             moodleIdNumber: String? = null,
+            moodleNumericCourseId: Int? = null,
             isManual: Boolean = false,
         ): Course {
             val stringKeyMap = schedule.mapKeys { it.key.toString() }
@@ -171,6 +173,7 @@ data class Course(
                 scheduleJson = json,
                 classroomMapJson = mapJson,
                 moodleIdNumber = moodleIdNumber,
+                moodleNumericCourseId = moodleNumericCourseId,
                 isManual = isManual,
             )
         }

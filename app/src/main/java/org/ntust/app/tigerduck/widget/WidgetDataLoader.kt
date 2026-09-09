@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.widget
 
 import android.content.Context
+import android.util.Log
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -8,10 +9,11 @@ import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.shared.computeOngoingCourses
+import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.parseHm
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.clock.AppClock
-import org.ntust.app.tigerduck.data.computeOngoingCourses
-import org.ntust.app.tigerduck.data.model.Course
-import org.ntust.app.tigerduck.data.parseHm
 import org.ntust.app.tigerduck.ui.theme.buildCourseColorAssignments
 import java.util.Calendar
 
@@ -20,6 +22,8 @@ import java.util.Calendar
 interface WidgetEntryPoint {
     fun dataCache(): DataCache
     fun authService(): AuthService
+    fun appPreferences(): AppPreferences
+    fun academicCalendar(): org.ntust.app.tigerduck.academic.AcademicCalendarStore
 }
 
 object WidgetDataLoader {
@@ -41,21 +45,37 @@ object WidgetDataLoader {
         val weekday = cal.toWeekday()
         val minuteOfDay = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
 
-        // 選課 fills the timetable weeks before classes begin, so having courses
-        // is not evidence the term has started. Every "now"-scoped derivation
-        // below is suppressed outside it: with all three empty, both Next Class
-        // layouts fall through to their "no more classes" branch on their own.
-        // `courses` itself is left alone — the Week grid is a reference
-        // timetable and keeps rendering, matching the class table screen.
-        val inSession = AppConstants.CurrentTerm.isInSession()
+        // Classes do not meet on a school holiday, nor before 開學 — 選課 fills
+        // the timetable weeks ahead of the term, so having courses is not
+        // evidence that classes have started. Either way the "now / next"
+        // derivations go quiet, which is what the Next-class widget renders.
+        // `courses` is deliberately left alone: the Today and Week grids show
+        // the timetable itself, which stays useful on a day off, and Today
+        // does its own term filtering off [WidgetState.isTermInSession].
+        val calendarStore = entry.academicCalendar()
+        val calendar = calendarStore.current()
+        val optedIn = calendarStore.optedInHolidayIds
+        val today = AppClock.localDateTime().toLocalDate()
+        val tomorrow = today.plusDays(1)
+        val inSession = calendar.isInSession(today)
+        val quietToday = !inSession || calendar.suppressesClasses(today, optedIn)
+        val quietTomorrow =
+            !calendar.isInSession(tomorrow) || calendar.suppressesClasses(tomorrow, optedIn)
 
         val ongoingInfos =
-            if (inSession) computeOngoingCourses(courses, weekday, minuteOfDay) else emptyList()
+            if (quietToday) emptyList() else computeOngoingCourses(courses, weekday, minuteOfDay)
         val ongoingNos = ongoingInfos.map { it.course.courseNo }
-        val nextCourseTodayNo = if (inSession) {
-            computeNextCourseTodayNo(courses, weekday, minuteOfDay, ongoingNos)
-        } else null
-        val tomorrowFirst = if (inSession) computeTomorrowFirst(courses, weekday) else null
+        val nextCourseTodayNo = if (quietToday) null else computeNextCourseTodayNo(
+            courses, weekday, minuteOfDay, ongoingNos,
+        )
+        val tomorrowFirst = if (quietTomorrow) null else computeTomorrowFirst(courses, weekday)
+
+        val courseColors = buildCourseColorAssignments(courses)
+        val customCount = courses.count { it.customColorHex != null }
+        Log.d("WidgetData", "[load] ${courses.size} courses, $customCount with customColorHex, ${courseColors.size} color assignments")
+        courses.filter { it.customColorHex != null }.forEach { c ->
+            Log.d("WidgetData", "[load] ${c.courseNo}: customHex=${c.customColorHex} resolved=${courseColors[c.courseNo]}")
+        }
 
         return WidgetState(
             courses = courses,
@@ -70,7 +90,8 @@ object WidgetDataLoader {
             tomorrowFirstCourseNo = tomorrowFirst?.courseNo,
             tomorrowFirstCourseWeekday = tomorrowFirst?.weekday,
             tomorrowFirstCoursePeriodId = tomorrowFirst?.periodId,
-            courseColors = buildCourseColorAssignments(courses),
+            courseColors = courseColors,
+            courseNameScale = entry.appPreferences().courseNameScale,
         )
     }
 
@@ -134,7 +155,8 @@ object WidgetDataLoader {
             val target = ((todayWeekday - 1 + offset) % 7) + 1
             val candidates = courses.mapNotNull { course ->
                 val periods = course.schedule[target] ?: return@mapNotNull null
-                val firstPeriod = periods.minByOrNull { order.indexOf(it) } ?: return@mapNotNull null
+                val firstPeriod =
+                    periods.minByOrNull { order.indexOf(it) } ?: return@mapNotNull null
                 Triple(course, target, firstPeriod)
             }
             val pick = candidates.minByOrNull { order.indexOf(it.third) } ?: continue

@@ -12,8 +12,22 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -21,25 +35,34 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
-import androidx.navigation.compose.*
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.shared.clock.AppClock
-import org.ntust.app.tigerduck.announcements.AnnouncementDetailScreen
-import org.ntust.app.tigerduck.announcements.AnnouncementsScreen
-import org.ntust.app.tigerduck.announcements.SubscriptionSettingsScreen
+import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementDetailScreen
+import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementsScreen
+import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsScreen
 import org.ntust.app.tigerduck.data.model.AppFeature
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
+import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarScreen
@@ -53,14 +76,20 @@ import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
 import org.ntust.app.tigerduck.ui.screen.score.ScoreScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
+import org.ntust.app.tigerduck.ui.screen.settings.AssignmentReminderSettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.CourseNameSizeSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.ClassTableSyncScreen
+import org.ntust.app.tigerduck.ui.screen.settings.CloudSyncSettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.ServerPushScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SourceCodePickerScreen
-import org.ntust.app.tigerduck.ui.screen.settings.VibrationSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
+import org.ntust.app.tigerduck.ui.screen.settings.VibrationSettingsScreen
 import org.ntust.app.tigerduck.widget.LibraryShortcutWidget
+
 sealed class Screen(val route: String) {
     object Home : Screen("home")
     object ClassTable : Screen("classTable")
@@ -78,25 +107,35 @@ sealed class Screen(val route: String) {
     object TabEditor : Screen("tabEditor")
     object LanguagePicker : Screen("languagePicker")
     object LiveActivitySettings : Screen("liveActivitySettings")
+    object AssignmentReminderSettings : Screen("assignmentReminderSettings")
     object NotificationSetup : Screen("notificationSetup")
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
+    object CourseNameSizeSettings : Screen("courseNameSizeSettings")
+    object CloudSync : Screen("cloudSync")
+    object ClassTableSync : Screen("classTableSync")
+    object ServerPush : Screen("serverPush")
     object VibrationSettings : Screen("vibrationSettings")
     object Debug : Screen("debug")
     object NotificationDebug : Screen("notificationDebug")
+    object ApiEndpointDebug : Screen("apiEndpointDebug")
+    object TriggersDebug : Screen("triggersDebug")
+    object ServerFailureDebug : Screen("serverFailureDebug")
 }
 
 @Composable
 fun AppNavigation(
     appState: AppState,
+    analyticsLogger: AnalyticsLogger,
     widgetStartRoute: String? = null,
     onStartRouteConsumed: () -> Unit = {},
 ) {
-    if (!appState.hasCompletedOnboarding) {
+    if (appState.showOnboarding) {
         OnboardingScreen()
     } else {
         MainNavigation(
             appState = appState,
+            analyticsLogger = analyticsLogger,
             widgetStartRoute = widgetStartRoute,
             onStartRouteConsumed = onStartRouteConsumed,
         )
@@ -107,21 +146,13 @@ fun AppNavigation(
     if (needsReset) {
         // Non-dismissable: the app is in an unrecoverable data state, so the
         // only way forward is to reset and walk through onboarding again.
-        AlertDialog(
+        TigerDuckDialog(
             onDismissRequest = {},
-            title = { Text(stringResource(R.string.app_reset_required_title)) },
-            text = {
-                Text(stringResource(R.string.app_reset_required_message))
-            },
-            confirmButton = {
-                TextButton(onClick = { appState.performFullReset() }) {
-                    Text(stringResource(R.string.app_reset_required_action))
-                }
-            },
-            properties = DialogProperties(
-                dismissOnBackPress = false,
-                dismissOnClickOutside = false,
-            ),
+            dismissable = false,
+            title = stringResource(R.string.app_reset_required_title),
+            message = stringResource(R.string.app_reset_required_message),
+            confirmText = stringResource(R.string.app_reset_required_action),
+            onConfirm = { appState.performFullReset() },
         )
     }
 }
@@ -129,10 +160,12 @@ fun AppNavigation(
 @Composable
 fun MainNavigation(
     appState: AppState,
+    analyticsLogger: AnalyticsLogger,
     widgetStartRoute: String? = null,
     onStartRouteConsumed: () -> Unit = {},
 ) {
     val navController = rememberNavController()
+    FlipToLibraryEffect(navController = navController, appState = appState)
     LaunchedEffect(widgetStartRoute) {
         widgetStartRoute ?: return@LaunchedEffect
         // The library-shortcut widget emits a sentinel instead of a direct
@@ -177,6 +210,18 @@ fun MainNavigation(
         classTableViewModel.load()
         calendarViewModel.load()
     }
+    val pollingLifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(pollingLifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                homeViewModel.startRevisionPolling()
+            } else if (event == Lifecycle.Event.ON_PAUSE) {
+                homeViewModel.stopRevisionPolling()
+            }
+        }
+        pollingLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { pollingLifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val configuredTabs by remember {
         derivedStateOf {
             appState.configuredTabs.filter { feature ->
@@ -186,6 +231,11 @@ fun MainNavigation(
     }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    LaunchedEffect(currentRoute) {
+        val route = currentRoute ?: return@LaunchedEffect
+        val screenName = route.replace(Regex("/[{][^}]+[}]"), "")
+        analyticsLogger.log("screen_view", mapOf("screen_name" to screenName))
+    }
     val selectedTabRoute = when (currentRoute) {
         Screen.Settings.route, Screen.TabEditor.route -> Screen.More.route
         else -> currentRoute
@@ -273,6 +323,8 @@ fun MainNavigation(
                                     maxLines = 1,
                                     softWrap = false,
                                     overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.labelSmall
+                                        .copy(fontSize = 11.sp),
                                 )
                             },
                             alwaysShowLabel = true,
@@ -362,9 +414,28 @@ fun MainNavigation(
                     onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
+                    onNavigateToAssignmentReminders = { navController.navigate(Screen.AssignmentReminderSettings.route) },
+                    onNavigateToServerPush = { navController.navigate(Screen.ServerPush.route) },
+                    onNavigateToCloudSync = { navController.navigate(Screen.CloudSync.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
-                    onNavigateToDebug = { navController.navigate(Screen.Debug.route) },
-                    onNavigateToNotificationDebug = { navController.navigate(Screen.NotificationDebug.route) },
+                    // Debug-route navigation is no-op in release builds:
+                    // the composables themselves are registered only inside
+                    // the `if (BuildConfig.DEBUG)` block below, so an
+                    // unguarded call here would throw IllegalArgumentException
+                    // ('destination cannot be found') if the SettingsScreen
+                    // row gating ever drifts.
+                    onNavigateToDebug = {
+                        if (BuildConfig.DEBUG) navController.navigate(Screen.Debug.route)
+                    },
+                    onNavigateToNotificationDebug = {
+                        if (BuildConfig.DEBUG) navController.navigate(Screen.NotificationDebug.route)
+                    },
+                    onNavigateToTriggersDebug = {
+                        if (BuildConfig.DEBUG) navController.navigate(Screen.TriggersDebug.route)
+                    },
+                    onNavigateToServerFailureDebug = {
+                        if (BuildConfig.DEBUG) navController.navigate(Screen.ServerFailureDebug.route)
+                    },
                 )
             }
             if (BuildConfig.DEBUG) {
@@ -378,17 +449,46 @@ fun MainNavigation(
                         onBack = { navController.popBackStack() },
                     )
                 }
+                composable(Screen.TriggersDebug.route) {
+                    org.ntust.app.tigerduck.ui.screen.debug.TriggersDebugScreen(
+                        appState = appState,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(Screen.ServerFailureDebug.route) {
+                    org.ntust.app.tigerduck.ui.screen.debug.ServerFailureDebugScreen(
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+            }
+            // Outside the `if (BuildConfig.DEBUG)` block below, unlike its
+            // neighbours: the endpoint override is reachable from Settings →
+            // Other settings in every build, matching iOS. Pointing the app
+            // at a self-hosted backend is a supported setting, so what keeps
+            // a release build honest is `OverrideValidator`'s HTTPS floor
+            // plus the pre-save health probe, not the absence of the screen.
+            composable(Screen.ApiEndpointDebug.route) {
+                org.ntust.app.tigerduck.ui.screen.debug.ApiEndpointDebugScreen(
+                    onBack = { navController.popBackStack() },
+                )
             }
             composable(Screen.OtherSettings.route) {
                 OtherSettingsScreen(
                     onBack = { navController.popBackStack() },
+                    onNavigateToApiEndpoint = {
+                        navController.navigate(Screen.ApiEndpointDebug.route)
+                    },
                     onNavigateToNotificationSetup = { navController.navigate(Screen.NotificationSetup.route) },
                     onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
                     onNavigateToVibration = { navController.navigate(Screen.VibrationSettings.route) },
+                    onNavigateToCourseNameSize = { navController.navigate(Screen.CourseNameSizeSettings.route) },
                 )
             }
             composable(Screen.VibrationSettings.route) {
                 VibrationSettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.CourseNameSizeSettings.route) {
+                CourseNameSizeSettingsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.LanguagePicker.route) {
                 LanguagePickerScreen(onBack = { navController.popBackStack() })
@@ -404,6 +504,21 @@ fun MainNavigation(
             }
             composable(Screen.LiveActivitySettings.route) {
                 LiveActivitySettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.AssignmentReminderSettings.route) {
+                AssignmentReminderSettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.CloudSync.route) {
+                CloudSyncSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToClassTableSync = { navController.navigate(Screen.ClassTableSync.route) },
+                )
+            }
+            composable(Screen.ClassTableSync.route) {
+                ClassTableSyncScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.ServerPush.route) {
+                ServerPushScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.SourceCodePicker.route) {
                 SourceCodePickerScreen(onBack = { navController.popBackStack() })

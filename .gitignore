@@ -1,7 +1,6 @@
 # AI Tools
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
-.superpowers/
 docs/superpowers/
 .worktrees/
 
@@ -705,7 +704,11 @@ mono_crash.*
 !app/src/main/java/org/ntust/app/tigerduck/debug/
 !app/src/play/java/org/ntust/app/tigerduck/debug/
 !app/src/fdroid/java/org/ntust/app/tigerduck/debug/
+!app/src/debug/java/org/ntust/app/tigerduck/debug/
 !app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/
+!wear/src/debug/
+!wear/src/debug/java/org/ntust/app/tigerduck/wear/debug/
+!wear/src/main/java/org/ntust/app/tigerduck/wear/debug/
 # Root-level developer scripts + docs, not a build-output directory.
 !/debug/
 x64/
@@ -1073,3 +1076,15 @@ FodyWeavers.xsd
 # Additional files built by Visual Studio
 
 # End of https://www.toptal.com/developers/gitignore/api/linux,macos,kotlin,windows,intellij,visualstudio,visualstudiocode,python,pycharm,androidstudio,android,gradle,keystonejs,java
+
+# Screenshot captures (debug/screenshot/screenshot.sh). Shots are promoted into
+# fastlane/metadata by hand; the raw captures are never committed. Spelled out
+# even though the template's blanket `out/` rule above already covers it — the
+# script and fixture JSON living next to it are meant to be tracked, and that
+# distinction is worth stating where someone will look for it.
+debug/screenshot/out/
+
+# Kotlin build-tool session files (KGP 2.x writes these next to the project
+# root). Pure build state — they were briefly committed by an over-broad
+# `git add -A` and are here so that cannot repeat.
+.kotlin/

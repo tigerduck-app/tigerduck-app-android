@@ -29,11 +29,11 @@ import javax.inject.Singleton
  * [run] is called from [org.ntust.app.tigerduck.TigerDuckApp.onCreate], so
  * migrations complete before anything can read or write
  * [org.ntust.app.tigerduck.data.cache.DataCache] — including entry points that
- * never create an Activity, such as `BackgroundSyncWorker` and `BootReceiver`.
- * Running it from `AppState` alone was not enough: WorkManager persists its
- * periodic request across an upgrade and can fire before the user first opens
- * the app, so a cache-clearing step could delete data a sync had just
- * correctly rebuilt.
+ * never create an Activity, such as `BackgroundSyncWorker`, `BootReceiver` and
+ * `WearScheduleBridge`. Running it from `AppState` alone was not enough:
+ * WorkManager persists its periodic request across an upgrade and can fire
+ * before the user first opens the app, so a cache-clearing step could delete
+ * data a sync had just correctly rebuilt.
  *
  * The outcome is cached, so the later call from `AppState` — which needs it to
  * decide whether to show the reset prompt — reuses this result rather than
@@ -130,26 +130,11 @@ class DataMigration @Inject constructor(
         val userDataDir = File(context.filesDir, USER_DATA_SUBDIR)
         sweepCourseFiles(cacheDir) { name ->
             name == LEGACY_COURSES_FILENAME ||
-                (name.startsWith(COURSES_PREFIX) && name.endsWith(".json"))
+                    (name.startsWith(COURSES_PREFIX) && name.endsWith(".json"))
         }
         sweepCourseFiles(userDataDir) { name ->
             name.startsWith(MANUAL_COURSES_PREFIX) && name.endsWith(".json")
         }
-    }
-
-    private fun sweepCourseFiles(dir: File, accept: (String) -> Boolean) {
-        if (!dir.isDirectory) return
-        dir.listFiles()
-            ?.filter { it.isFile && accept(it.name) }
-            ?.forEach { file ->
-                runCatching {
-                    if (!file.readText().contains(COURSE_NO_TOKEN)) {
-                        if (file.delete()) {
-                            Log.i(TAG, "Wiped obfuscated v1.4.0 cache: ${file.name}")
-                        }
-                    }
-                }.onFailure { Log.w(TAG, "Failed to inspect ${file.name}", it) }
-            }
     }
 
     /**
@@ -176,6 +161,24 @@ class DataMigration @Inject constructor(
 
     companion object {
         private const val TAG = "DataMigration"
+
+        // In the companion (not an instance method) so the sentinel sweep —
+        // the recovery path for the v1.4.0 upgrade crash — is unit-testable
+        // against a temp directory without constructing a Context.
+        internal fun sweepCourseFiles(dir: File, accept: (String) -> Boolean) {
+            if (!dir.isDirectory) return
+            dir.listFiles()
+                ?.filter { it.isFile && accept(it.name) }
+                ?.forEach { file ->
+                    runCatching {
+                        if (!file.readText().contains(COURSE_NO_TOKEN)) {
+                            if (file.delete()) {
+                                Log.i(TAG, "Wiped obfuscated v1.4.0 cache: ${file.name}")
+                            }
+                        }
+                    }.onFailure { Log.w(TAG, "Failed to inspect ${file.name}", it) }
+                }
+        }
 
         /**
          * Unconditionally removes every remote course cache in [dir]. Unlike

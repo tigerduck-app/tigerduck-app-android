@@ -8,16 +8,17 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.debug.DebugClockController
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.notification.NotificationChannels
+import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.push.FcmBootstrap
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
@@ -28,22 +29,39 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
+
     @Inject
     lateinit var appPreferences: AppPreferences
+
     @Inject
     lateinit var fcmBootstrap: FcmBootstrap
+
     @Inject
     lateinit var dataMigration: DataMigration
+
     @Inject
     lateinit var dataCache: DataCache
+
     @Inject
     lateinit var authService: AuthService
+
     @Inject
     lateinit var wearBridge: WearScheduleBridge
+
+    @Inject
+    lateinit var analyticsLogger: AnalyticsLogger
+
     @Inject
     lateinit var debugClockController: DebugClockController
 
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // The DI singleton, not a private scope: it carries a logging
+    // CoroutineExceptionHandler (see CoroutineModule) so a failure in the
+    // safety-net publishes below can't crash the process pre-first-frame.
+    // DataCache does its own withContext(Dispatchers.IO) for file I/O, so
+    // the scope's Default dispatcher is fine here.
+    @Inject
+    @ApplicationScope
+    lateinit var appScope: CoroutineScope
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -58,6 +76,12 @@ class TigerDuckApp : Application(), Configuration.Provider {
         // upgrade launch and rebuild caches that a pending migration step then
         // deleted. AppState re-reads the cached outcome for the reset prompt.
         dataMigration.run()
+        analyticsLogger.setEnabled(appPreferences.analyticsEnabled)
+        // Seeded here so a cold launch with cloud sync off does not show the
+        // status dot's backend row as "unknown" until the first sync guard
+        // runs — which, sync being off, may be never.
+        ServerStatusTracker.setCloudSyncEnabled(appPreferences.cloudSyncEnabled)
+        analyticsLogger.setUserProperty("app_version", BuildConfig.VERSION_NAME)
         debugClockController.bootstrap()
         AppLanguageManager.apply(appPreferences.appLanguage)
         createNotificationChannels()
@@ -72,6 +96,17 @@ class TigerDuckApp : Application(), Configuration.Provider {
         appScope.launch {
             appPreferences.accentColorChanged.collect { wearBridge.publish() }
         }
+        // The dot hides itself while signed out, but the tracker is
+        // process-wide: a status written before logout would still be here
+        // for the next account to inherit, green from the moment the dot
+        // comes back. Clearing on the auth signal rather than inside
+        // AuthService.logout() keeps a UI singleton out of the auth layer.
+        appScope.launch {
+            authService.authState.collect { signedIn ->
+                ServerStatusTracker.setSignedIn(signedIn)
+                if (!signedIn) ServerStatusTracker.reset()
+            }
+        }
         appScope.launch {
             authService.authState.collect {
                 wearBridge.publish()
@@ -85,6 +120,15 @@ class TigerDuckApp : Application(), Configuration.Provider {
         // Mirror language changes to the watch so its UI follows the phone.
         appScope.launch {
             appPreferences.appLanguageChanged.collect { wearBridge.publish() }
+        }
+        // Mirror the debug screen-capture override so flipping the toggle
+        // takes effect on the paired watch's LibraryQR window without a
+        // wear-app restart. No-op in release builds (the toggle row is
+        // hidden and the pref can't change).
+        appScope.launch {
+            appPreferences.disableScreenCaptureProtectionChanged.collect {
+                wearBridge.publish()
+            }
         }
         appScope.launch { wearBridge.publish() }  // safety-net publish at launch
         appScope.launch { wearBridge.publishLibraryCredentials() }
@@ -135,6 +179,30 @@ class TigerDuckApp : Application(), Configuration.Provider {
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
                 description = ctx.getString(R.string.notification_bulletin_channel_description)
+            }
+        )
+        // High-importance: heads-up banner + default sound. Used when the
+        // operator picks `force_ring=true` on a custom push.
+        notificationManager.createNotificationChannel(
+            NotificationChannel(
+                NotificationChannels.BULLETINS_SOUND,
+                ctx.getString(R.string.notification_bulletin_sound_channel_name),
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = ctx.getString(R.string.notification_bulletin_sound_channel_description)
+            }
+        )
+        // Default-importance silent: banner shows but no sound or vibration.
+        // Used when the operator picks `force_ring=false`.
+        notificationManager.createNotificationChannel(
+            NotificationChannel(
+                NotificationChannels.BULLETINS_SILENT,
+                ctx.getString(R.string.notification_bulletin_silent_channel_name),
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply {
+                description = ctx.getString(R.string.notification_bulletin_silent_channel_description)
+                setSound(null, null)
+                enableVibration(false)
             }
         )
     }

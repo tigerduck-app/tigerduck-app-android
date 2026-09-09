@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
+<?xml version="1.0" encoding="utf-8"?><!--
     Play-flavor manifest fragment. Merged with src/main/AndroidManifest.xml
     only when building play* variants. Adds the FCM message-receiver service
     and the default-channel hint Firebase uses for system-generated
@@ -35,7 +34,10 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
-                <data android:scheme="wear" android:host="*" android:pathPrefix="/tigerduck/" />
+                <data
+                    android:host="*"
+                    android:pathPrefix="/tigerduck/"
+                    android:scheme="wear" />
             </intent-filter>
         </service>
 

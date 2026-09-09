@@ -48,10 +48,12 @@ import androidx.compose.ui.zIndex
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.ui.AppState
+import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.navigation.icon
 import org.ntust.app.tigerduck.ui.component.ContentCard
+import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
-import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 private const val MAX_CUSTOM_TABS = 4
@@ -87,6 +89,7 @@ fun TabEditorScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
+                windowInsets = NoTopBarInsets,
                 title = { Text(stringResource(R.string.tab_editor_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -100,7 +103,8 @@ fun TabEditorScreen(
                     TextButton(onClick = { save(AppFeature.defaultTabs) }) {
                         Text(stringResource(R.string.tab_editor_reset_default))
                     }
-                }
+                },
+                expandedHeight = SubSettingsBarHeight,
             )
         }
     ) { padding ->

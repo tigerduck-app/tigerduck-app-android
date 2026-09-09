@@ -1,10 +1,12 @@
 package org.ntust.app.tigerduck.network
 
 import android.content.Context
+import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -14,7 +16,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.model.CourseSearchRequest
@@ -38,6 +40,7 @@ class CourseService @Inject constructor(
     private val ssoLoginService: SsoLoginService,
     private val dataCache: DataCache,
     private val appPreferences: AppPreferences,
+    private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
 ) {
     private val client: OkHttpClient get() = sessionManager.client
     private val gson = Gson()
@@ -53,12 +56,16 @@ class CourseService @Inject constructor(
     private val lookupCache = ConcurrentHashMap<String, DataCache.CourseLookupEntry>()
     private val lookupCacheMutex = Mutex()
     private val abbreviationCacheMutex = Mutex()
+
     @Volatile
     private var lookupCacheLoaded = false
+
     @Volatile
     private var abbreviationCacheLoaded = false
+
     @Volatile
     private var courseNameAbbr: Map<String, String> = emptyMap()
+
     @Volatile
     private var classroomNameAbbr: Map<String, ClassroomAbbrEntry> = emptyMap()
 
@@ -233,11 +240,67 @@ class CourseService @Inject constructor(
     }
 
     /**
+     * Resolve one course number into a [Course], from QueryCourse if it knows
+     * the course and from Moodle enrolment metadata if it does not.
+     *
+     * A course legitimately meets in several rooms across several days, and
+     * QueryCourse returns one row per (room x day-set) rather than one row per
+     * course. So the rows are folded together here: schedules merge, the
+     * per-slot classroom map is built across all of them, and [Course.classroom]
+     * carries the de-duplicated union for surfaces that show a single string.
+     * Everything else is read off the first row, which repeats the
+     * course-level fields.
+     *
+     * Returns null only when both sources come up empty. A lookup that throws
+     * degrades to the Moodle fallback rather than failing the whole roster —
+     * one unreachable course must not blank out a timetable.
+     */
+    suspend fun lookupOrFallback(
+        semester: String,
+        courseNo: String,
+        moodle: MoodleEnrolledCourse?,
+    ): Course? = try {
+        val results = lookupCourse(semester, courseNo)
+        if (results.isEmpty()) {
+            fallbackCourseFromMoodle(courseNo, moodle)
+        } else {
+            val first = results.first()
+            val allRooms = LinkedHashSet<String>().apply {
+                for (row in results) {
+                    Course.splitRooms(row.classRoomNo ?: "").forEach { add(it) }
+                }
+            }
+            Course.fromSchedule(
+                courseNo = first.courseNo,
+                courseName = first.courseName,
+                instructor = first.courseTeacher,
+                credits = first.creditPoint.toIntOrNull() ?: 0,
+                classroom = allRooms.joinToString(", "),
+                enrolledCount = first.chooseStudent ?: 0,
+                maxCount = first.maxEnrollment,
+                schedule = mergeSchedules(*results.map { it.node }.toTypedArray()),
+                classroomMap = buildClassroomMap(results),
+                moodleIdNumber = moodle?.idnumber ?: "${first.semester}${first.courseNo}",
+                moodleNumericCourseId = moodle?.id,
+            )
+        }
+    } catch (e: CancellationException) {
+        // ClassTableViewModel cancels its load job on every semester flip, and
+        // each in-flight lookup lands here. Swallowing it would log a failure
+        // per course and hand back a schedule-less fallback Course that a
+        // partially-applied result then renders as a blank timetable row.
+        throw e
+    } catch (e: Exception) {
+        Log.e(TAG_LOOKUP, "Failed to lookup course $courseNo", e)
+        fallbackCourseFromMoodle(courseNo, moodle)
+    }
+
+    /**
      * The term in session right now — what "today's courses" means for the
      * widget, the Wear tile, Home's carousel and every current-semester cache
      * key.
      *
-     * Pinned to [org.ntust.app.tigerduck.AppConstants.CurrentTerm]. The month
+     * The month
      * heuristic this replaced still says 114-2 through August, which mislabels
      * the 115-1 term the school opened early. Swap the body for
      * [heuristicSemesterCode] to hand control back — it is left intact, so
@@ -246,15 +309,27 @@ class CourseService @Inject constructor(
      * Not to be confused with [SemesterCatalog.selectionSemesterCode] — 選課
      * opens the *next* term weeks before this one ends.
      */
-    fun currentSemesterCode(): String = org.ntust.app.tigerduck.AppConstants.CurrentTerm.CODE
+    /** The term the app is operating on, from the school's published
+     *  calendar. Falls back to [heuristicSemesterCode] while that is
+     *  unknown. */
+    fun currentSemesterCode(): String =
+        academicCalendar.current()
+            .currentTerm(org.ntust.app.tigerduck.shared.clock.AppClock.localDateTime().toLocalDate())
+            ?.code
+            ?: SemesterCodes.heuristic()
 
     /**
-     * The month-based guess [currentSemesterCode] used before it was pinned.
-     * Kept so lifting the pin is a one-line change.
+     * The month-based guess, used when the published calendar has not been
+     * fetched yet. No longer a "before it was pinned" fallback — the pin is
+     * gone and the calendar is the source of truth.
      */
     fun heuristicSemesterCode(): String = SemesterCodes.heuristic()
 
     companion object {
+        // Kept as "HomeViewModel" so the existing logcat filter for a failed
+        // course lookup still matches after the lookup moved here.
+        private const val TAG_LOOKUP = "HomeViewModel"
+
         // Course metadata (name, instructor, schedule, caps) is stable within
         // a term; only ChooseStudent drifts. 30 min staleness on the enrolment
         // count is acceptable given the surrounding fields all update live
@@ -272,6 +347,7 @@ class CourseService @Inject constructor(
                 courseNo = courseNo,
                 courseName = (moodle.fullname ?: courseNo).decodeHtmlEntities(),
                 moodleIdNumber = moodle.idnumber,
+                moodleNumericCourseId = moodle.id,
             )
         }
     }

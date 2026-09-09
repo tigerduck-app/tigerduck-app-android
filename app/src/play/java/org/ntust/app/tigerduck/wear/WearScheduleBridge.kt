@@ -7,6 +7,7 @@ import com.google.android.gms.wearable.Wearable
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.tasks.await
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
@@ -28,6 +29,7 @@ class WearScheduleBridge @Inject constructor(
     private val credentials: CredentialManager,
 ) {
     private val gson = Gson()
+
     // Monotonic credential epoch persisted across phone process death so
     // the watch's anti-replay guard (`version <= storedVersion` → reject)
     // sees a strictly increasing version after a phone restart. Kept in a
@@ -74,12 +76,25 @@ class WearScheduleBridge @Inject constructor(
             rawLanguage
         }
 
+        // Mirror the debug-only screen-capture override to the watch. Force
+        // false in release builds so a stale-from-debug pref on disk cannot
+        // weaken watch-side protection — the developer-section toggle that
+        // writes the pref is itself DEBUG-gated, so this is purely a
+        // defense-in-depth for the unlikely "downgrade debug→release with
+        // pref carried over" path.
+        val disableScreenCaptureProtection =
+            BuildConfig.DEBUG && appPreferences.disableScreenCaptureProtection
+
         val request = PutDataMapRequest.create(WearProtocol.Schedule.PATH).apply {
             dataMap.putByteArray(WearProtocol.Schedule.KEY_COURSES, gzipped)
             dataMap.putString(WearProtocol.Schedule.KEY_ACCENT, accentHex)
             dataMap.putLong(WearProtocol.Schedule.KEY_SYNCED_AT, System.currentTimeMillis())
             dataMap.putBoolean(WearProtocol.Schedule.KEY_LOGGED_IN, loggedIn)
             dataMap.putString(WearProtocol.Schedule.KEY_LANGUAGE, languageTag)
+            dataMap.putBoolean(
+                WearProtocol.Schedule.KEY_DISABLE_SCREEN_CAPTURE_PROTECTION,
+                disableScreenCaptureProtection,
+            )
         }.asPutDataRequest().setUrgent()
 
         try {
@@ -137,25 +152,7 @@ class WearScheduleBridge @Inject constructor(
         }
     }
 
-    private fun Course.toDto(): CourseDto = CourseDto(
-        courseNo = courseNo,
-        // Send the resolved label so any user-set customCourseName survives the
-        // round-trip. The watch-side wire schema has no customCourseName field,
-        // so baking the override into courseName is the lightest fix.
-        courseName = displayName,
-        instructor = instructor,
-        credits = credits,
-        classroom = classroom,
-        scheduleJson = scheduleJson,
-        // Coalesce so v1.3.x / v1.4.1 cached Courses (deserialized via
-        // Gson Unsafe with this field absent from JSON) don't pass null
-        // into CourseDto's non-null parameter and NPE the safety-net
-        // publish() launched from TigerDuckApp.onCreate.
-        classroomMapJson = classroomMapJson ?: "{}",
-        moodleIdNumber = moodleIdNumber,
-        customColorHex = customColorHex,
-        isManual = isManual,
-    )
+    private fun Course.toDto(): CourseDto = toWearDto()
 
     /** On-the-wire shape; explicit so we can evolve [Course] without breaking watch JSON. */
     data class CourseDto(
@@ -176,3 +173,16 @@ class WearScheduleBridge @Inject constructor(
         const val KEY_CRED_EPOCH = "libraryCredentialEpoch"
     }
 }
+
+internal fun Course.toWearDto(): WearScheduleBridge.CourseDto = WearScheduleBridge.CourseDto(
+    courseNo = courseNo,
+    courseName = displayName,
+    instructor = instructor,
+    credits = credits,
+    classroom = classroom,
+    scheduleJson = scheduleJson,
+    classroomMapJson = classroomMapJson ?: "{}",
+    moodleIdNumber = moodleIdNumber,
+    customColorHex = customColorHex,
+    isManual = isManual,
+)

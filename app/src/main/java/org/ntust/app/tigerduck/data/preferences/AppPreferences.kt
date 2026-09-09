@@ -7,18 +7,24 @@ import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.data.preferences.AppPreferences.Companion.themeColorsDark
+import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
+class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
+    FirstTriggerSeenStore {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences("tigerduck_prefs", Context.MODE_PRIVATE)
@@ -55,9 +61,109 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     val classroomMandarinDisplayChanged: SharedFlow<Unit> =
         _classroomMandarinDisplayChanged.asSharedFlow()
 
+    // Toggle flips emit so `TigerDuckApp` can mirror the new value to the
+    // paired watch via `WearScheduleBridge.publish()`. Phone-side SecureScreen
+    // reads the AppState mutable state directly and doesn't need this signal.
+    private val _disableScreenCaptureProtectionChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val disableScreenCaptureProtectionChanged: SharedFlow<Unit> =
+        _disableScreenCaptureProtectionChanged.asSharedFlow()
+
+    private val _lastSyncSource = MutableStateFlow(SyncSource.NONE)
+    val lastSyncSource: StateFlow<SyncSource> = _lastSyncSource.asStateFlow()
+
+    fun setLastSyncSource(source: SyncSource) { _lastSyncSource.value = source }
+
+    // Default on, matching iOS/macOS (`AppDefaults.cloudSyncEnabled`). One
+    // account's devices are expected to agree without being configured, so
+    // the two platforms have to agree on the default too — a false default
+    // here meant a phone and a Mac on the same account behaved differently
+    // out of the box.
+    //
+    // The cost is that existing users are upgraded into it: they never see
+    // the onboarding sync page, and the silent v3 migration signs them in
+    // without interaction. The 2.0.0 "What's new" entry names cross-device
+    // sync and says where to turn it off, which is what makes that
+    // defensible rather than silent.
+    var cloudSyncEnabled: Boolean
+        get() = prefs.getBoolean("cloudSyncEnabled", true)
+        set(value) = prefs.edit().putBoolean("cloudSyncEnabled", value).apply()
+
+    var syncCourses: Boolean
+        get() = prefs.getBoolean("syncCourses", true)
+        set(value) = prefs.edit().putBoolean("syncCourses", value).apply()
+
+    var syncCourseColors: Boolean
+        get() = prefs.getBoolean("syncCourseColors", true)
+        set(value) = prefs.edit().putBoolean("syncCourseColors", value).apply()
+
+    var syncCourseNames: Boolean
+        get() = prefs.getBoolean("syncCourseNames", true)
+        set(value) = prefs.edit().putBoolean("syncCourseNames", value).apply()
+
+    var syncAssignments: Boolean
+        get() = prefs.getBoolean("syncAssignments", true)
+        set(value) = prefs.edit().putBoolean("syncAssignments", value).apply()
+
+    var pendingConflictCategories: Set<String>
+        get() = prefs.getStringSet("pendingConflictCategories", emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet("pendingConflictCategories", value).apply()
+
     var hasCompletedOnboarding: Boolean
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
         set(value) = prefs.edit().putBoolean("hasCompletedOnboarding", value).apply()
+
+    /**
+     * Which revision of the wizard this install has actually been through.
+     *
+     * Stamped by [org.ntust.app.tigerduck.ui.AppState.completeOnboarding] with
+     * [ONBOARDING_VERSION]. The default of 0 is every pre-2.0.0 install: they
+     * finished onboarding before this key existed, which means they finished a
+     * wizard that had no TigerSync page and no 2.0.0 privacy copy. Those
+     * installs are walked through it once — still signed in, since nothing
+     * here touches [CredentialManager]. See `AppState.needsOnboardingRerun`.
+     *
+     * Separate from [hasCompletedOnboarding] on purpose: that flag also gates
+     * push registration and the "What's new" fresh-install check, and clearing
+     * it to re-show the wizard would make an upgrading user look like a brand
+     * new one to both.
+     */
+    var onboardingVersion: Int
+        get() = prefs.getInt("onboardingVersion", 0)
+        set(value) = prefs.edit().putInt("onboardingVersion", value).apply()
+
+    // --- Update notification (issue #89) ---
+    // Sentinel for "no update prompt shown yet".
+    var lastUpdatePromptVersionCode: Int
+        get() = prefs.getInt("lastUpdatePromptVersionCode", -1)
+        set(value) = prefs.edit().putInt("lastUpdatePromptVersionCode", value).apply()
+
+    var lastUpdatePromptEpoch: Long
+        get() = prefs.getLong("lastUpdatePromptEpoch", 0L)
+        set(value) = prefs.edit().putLong("lastUpdatePromptEpoch", value).apply()
+
+    // -1 sentinel = no version skipped. Tapping "Skip this version" on the
+    // update prompt writes the offered versionCode here; any future check that
+    // resolves to the same versionCode is suppressed indefinitely. A newer
+    // versionCode re-arms the prompt because the equality check fails.
+    var skippedUpdateVersionCode: Int
+        get() = prefs.getInt("skippedUpdateVersionCode", -1)
+        set(value) = prefs.edit().putInt("skippedUpdateVersionCode", value).apply()
+
+    // --- "What's new" dialog ---
+    // WHATS_NEW_UNSET (-1) means no versionCode has been recorded yet — either
+    // a fresh install or an upgrade from a build that predates this pref.
+    // MainActivity.resolveWhatsNew() tells the two apart via
+    // hasCompletedOnboarding: a fresh install is suppressed, a real upgrade
+    // shows the dialog once.
+    // WHATS_NEW_REPLAY (0) is the debug "Replay What's new" sentinel — it is
+    // not a real versionCode, and tells resolveWhatsNew() to show the newest
+    // authored entry regardless of this build's versionCode.
+    var lastSeenWhatsNewVersionCode: Int
+        get() = prefs.getInt("lastSeenWhatsNewVersionCode", WHATS_NEW_UNSET)
+        set(value) = prefs.edit().putInt("lastSeenWhatsNewVersionCode", value).apply()
 
     private val _accentColorChanged = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
@@ -101,6 +207,31 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     var showAbsoluteAssignmentTime: Boolean
         get() = prefs.getBoolean("showAbsoluteAssignmentTime", false)
         set(value) = prefs.edit().putBoolean("showAbsoluteAssignmentTime", value).apply()
+
+    private val _alwaysShowPeriodsABC =
+        MutableStateFlow(prefs.getBoolean("alwaysShowPeriodsABC", false))
+
+    /**
+     * Observable form of [alwaysShowPeriodsABC], for the class table.
+     *
+     * The grid derives its row list from this, and the toggle lives on a
+     * different screen — a plain getter would leave the timetable showing
+     * the old rows until something else happened to invalidate it.
+     */
+    val alwaysShowPeriodsABCFlow: StateFlow<Boolean> =
+        _alwaysShowPeriodsABC.asStateFlow()
+
+    /**
+     * Keep periods A, B and C on the timetable even when no course uses
+     * them. Off by default: an empty evening is three rows of nothing for
+     * the majority who never have a class there.
+     */
+    var alwaysShowPeriodsABC: Boolean
+        get() = _alwaysShowPeriodsABC.value
+        set(value) {
+            prefs.edit().putBoolean("alwaysShowPeriodsABC", value).apply()
+            _alwaysShowPeriodsABC.value = value
+        }
 
     var rememberAnnouncementFilter: Boolean
         get() = prefs.getBoolean("rememberAnnouncementFilter", false)
@@ -188,6 +319,23 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
         get() = prefs.getBoolean("invertSliderDirection", false)
         set(value) = prefs.edit().putBoolean("invertSliderDirection", value).apply()
 
+    /**
+     * Multiplier (0.8…1.6, step 0.05) applied to the course-name text in
+     * class-table cards. Always normalized on read so a manually-edited
+     * pref or a value persisted by a future range tweak can't escape the
+     * current bounds.
+     */
+    var courseNameScale: Float
+        get() {
+            if (!prefs.contains("courseNameScale")) return CourseNameScale.DEFAULT
+            return CourseNameScale.normalize(
+                prefs.getFloat("courseNameScale", CourseNameScale.DEFAULT)
+            )
+        }
+        set(value) = prefs.edit()
+            .putFloat("courseNameScale", CourseNameScale.normalize(value))
+            .apply()
+
     /** One of "auto", "enabled", "disabled". */
     var rotationMode: String
         get() = prefs.getString("rotationMode", null)
@@ -198,13 +346,60 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
             prefs.edit().putString("rotationMode", normalized).apply()
         }
 
+    var analyticsEnabled: Boolean
+        get() = prefs.getBoolean("analyticsEnabled", false)
+        set(value) = prefs.edit().putBoolean("analyticsEnabled", value).apply()
+
     var libraryFeatureEnabled: Boolean
         get() = prefs.getBoolean("libraryFeatureEnabled", false)
         set(value) = prefs.edit().putBoolean("libraryFeatureEnabled", value).apply()
 
+    // Defaults ON (matching iOS): the user discovers the gesture on their first
+    // accidental flip, where the first-trigger prompt explains it and offers to
+    // turn it off. The sensor still only runs while the parent Library feature
+    // is enabled, so a user with Library off pays no battery cost.
+    var flipToLibraryEnabled: Boolean
+        get() = prefs.getBoolean("flipToLibraryEnabled", true)
+        set(value) = prefs.edit().putBoolean("flipToLibraryEnabled", value).apply()
+
+    // --- First-trigger prompts ---
+    // One-shot "you just did X for the first time — keep it?" prompts, keyed by
+    // a stable storage slug (see FirstTriggerPromptKey). The flag is written
+    // only when the user makes a Keep / Turn-off choice, never on mere display,
+    // so a prompt dismissed by any other path re-arms on the next trigger.
+    override fun hasSeenFirstTriggerPrompt(storageKey: String): Boolean =
+        prefs.getBoolean("firstTriggerPromptSeen.$storageKey", false)
+
+    override fun setFirstTriggerPromptSeen(storageKey: String, seen: Boolean) {
+        prefs.edit().apply {
+            if (seen) putBoolean("firstTriggerPromptSeen.$storageKey", true)
+            else remove("firstTriggerPromptSeen.$storageKey")
+        }.apply()
+    }
+
     var notifyAssignments: Boolean
         get() = prefs.getBoolean("notifyAssignments", true)
         set(value) = prefs.edit().putBoolean("notifyAssignments", value).apply()
+
+    /**
+     * Per-offset opt-in for assignment due reminders. Persisted as raw-value
+     * strings so a freshly-added [AssignmentReminderOffset] entry deserialises
+     * cleanly (unknown rawValues are simply dropped on read).
+     *
+     * Absent key (fresh install or upgrade from <= v1.4.x where only a single
+     * 1h-before reminder existed) → seed with [AssignmentReminderOffset.DEFAULTS].
+     */
+    var notifyAssignmentOffsets: Set<AssignmentReminderOffset>
+        get() {
+            val stored = prefs.getStringSet("notifyAssignmentOffsets", null)
+                ?: return AssignmentReminderOffset.DEFAULTS
+            return stored.mapNotNullTo(mutableSetOf()) { AssignmentReminderOffset.fromRawValue(it) }
+        }
+        set(value) {
+            prefs.edit()
+                .putStringSet("notifyAssignmentOffsets", value.map { it.rawValue }.toSet())
+                .apply()
+        }
 
     var homeSections: List<HomeSection>
         get() {
@@ -214,6 +409,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
                 @Suppress("DEPRECATION")
                 gson.fromJson<List<HomeSection>>(json, type)
                     ?.filter { it.type != HomeSection.HomeSectionType.QUICK_WIDGETS }
+                    // Renumber after the filter: dropping a section out of the
+                    // middle leaves a gap, and HomeSectionLayout.add derives the
+                    // next value from list size, so the gap becomes a duplicate.
+                    ?.mapIndexed { i, s -> s.copy(sortOrder = i) }
                     ?.ifEmpty { HomeSection.defaults() }
                     ?: HomeSection.defaults()
             } catch (e: Exception) {
@@ -231,6 +430,40 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     fun clearSsoTimestamp() {
         prefs.edit().remove("ssoLoginTimestamp").apply()
     }
+
+    /**
+     * Debug-only escape hatch from the Developer section: when true,
+     * [org.ntust.app.tigerduck.ui.component.SecureScreen] skips applying
+     * `WindowManager.LayoutParams.FLAG_SECURE`, allowing screenshots and
+     * screen recordings of normally-protected surfaces (login sheets,
+     * library account screen, onboarding password page). The Developer
+     * row that writes this is gated on `BuildConfig.DEBUG`, and the
+     * SecureScreen reader is gated the same way so a release build can
+     * never honor a stale-from-debug value.
+     */
+    var disableScreenCaptureProtection: Boolean
+        get() = prefs.getBoolean("disableScreenCaptureProtection", false)
+        set(value) {
+            val previous = disableScreenCaptureProtection
+            prefs.edit().putBoolean("disableScreenCaptureProtection", value).apply()
+            if (value != previous) _disableScreenCaptureProtectionChanged.tryEmit(Unit)
+        }
+
+    /**
+     * Debug-only override for the Announcement (bulletin) base URL.
+     * Written from Settings → Developer → API endpoint; read on every
+     * BulletinApiClient call so changes take effect without relaunch.
+     * Null means "use BuildConfig.PUSH_BASE_URL". The writer screen is
+     * DEBUG-gated, so release builds never see a non-null value here.
+     */
+    var announcementApiBaseUrlOverride: String?
+        get() = prefs.getString("announcementApiBaseUrlOverride", null)?.takeIf { it.isNotBlank() }
+        set(value) {
+            val editor = prefs.edit()
+            if (value.isNullOrBlank()) editor.remove("announcementApiBaseUrlOverride")
+            else editor.putString("announcementApiBaseUrlOverride", value)
+            editor.apply()
+        }
 
     /**
      * Monotonic version for on-device user-data layout. Bumped whenever the
@@ -289,6 +522,24 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
      * `SharedPreferences` sets are unordered, and this list's whole value is
      * that it is newest-first.
      */
+    /**
+     * Holidays the user asked to keep receiving class reminders on.
+     *
+     * Written whether or not cloud sync is on — the holiday guard itself is
+     * not a sync feature — and additionally uploaded when sync is enabled so
+     * a user's devices agree. Stored as ids rather than dates because a
+     * holiday's range can be edited by an operator after the user opted in,
+     * and the opt-in should follow the holiday.
+     */
+    var holidayNotifyOverrides: Set<Int>
+        get() = prefs.getStringSet("holidayNotifyOverrides", emptySet())
+            ?.mapNotNull(String::toIntOrNull)
+            ?.toSet()
+            ?: emptySet()
+        set(value) = prefs.edit()
+            .putStringSet("holidayNotifyOverrides", value.map(Int::toString).toSet())
+            .apply()
+
     var semesterCatalogTerms: List<String>
         get() = prefs.getString("semesterCatalogTerms", null)
             ?.split(SEMESTER_LIST_DELIMITER)
@@ -301,7 +552,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     /**
      * The term the 選課 system is currently open for (`LoginEnable`). Runs
      * weeks ahead of the term in session, so it is not interchangeable with
-     * [org.ntust.app.tigerduck.AppConstants.CurrentTerm.CODE].
+     * the term in session from the published academic calendar.
      */
     var semesterCatalogSelection: String?
         get() = prefs.getString("semesterCatalogSelection", null)
@@ -341,6 +592,19 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) {
     }
 
     companion object {
+        const val WHATS_NEW_UNSET = -1
+        const val WHATS_NEW_REPLAY = 0
+
+        /**
+         * Current wizard revision. Bump when the wizard gains a page existing
+         * users have to see; every install below it walks the wizard once more.
+         *
+         * 1 was the pre-2.0.0 wizard. 2 adds the TigerSync page — cross-device
+         * sync defaults to on to match Apple, so an upgrade that never showed
+         * that page would opt the user in without ever asking.
+         */
+        const val ONBOARDING_VERSION = 2
+
         /** Comma is safe: NTUST semester codes are `[0-9]{3}[12H]`. */
         private const val SEMESTER_LIST_DELIMITER = ","
 

@@ -6,17 +6,21 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.ScoreReport
-import org.ntust.app.tigerduck.data.model.SemesterRanking
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.network.NtustScoreError
 import org.ntust.app.tigerduck.network.NtustScoreService
+import org.ntust.app.tigerduck.notification.SyncSource
 import javax.inject.Inject
 
 @HiltViewModel
@@ -25,7 +29,9 @@ class ScoreViewModel @Inject constructor(
     private val authService: AuthService,
     private val scoreService: NtustScoreService,
     private val networkChecker: NetworkChecker,
+    private val prefs: AppPreferences,
 ) : ViewModel() {
+
 
     enum class RankingScope { SEMESTER, CUMULATIVE }
 
@@ -56,13 +62,6 @@ class ScoreViewModel @Inject constructor(
             .map { (term, list) -> term to list.sortedBy { it.index ?: 0 } }
             .sortedByDescending { it.first }
 
-    /** Rankings in chronological order for trend display. */
-    val rankingTrend: List<SemesterRanking>
-        get() = _report.value.rankings.sortedBy { it.term }
-
-    fun ranking(term: String): SemesterRanking? =
-        _report.value.rankings.firstOrNull { it.term == term }
-
     val hasContent: Boolean
         get() = _report.value.courses.isNotEmpty() || _report.value.rankings.isNotEmpty()
 
@@ -73,8 +72,10 @@ class ScoreViewModel @Inject constructor(
 
         viewModelScope.launch {
             val cached = scoreService.cachedScoreReport(studentId)
-            if (cached != null) {
-                _report.value = cached.report
+            // report is nullable (Gson Unsafe defense) — skip the instant
+            // paint on a degraded snapshot and let refresh() repopulate.
+            cached?.report?.let {
+                _report.value = it
                 applyDefaultCollapseRule()
             }
             refresh(force = false)
@@ -102,7 +103,7 @@ class ScoreViewModel @Inject constructor(
         val studentId = authService.storedStudentId
         val password = authService.storedPassword
         if (studentId == null || password == null) {
-            _errorMessage.value = context.getString(R.string.common_not_logged_in)
+            _errorMessage.value = context.getString(R.string.common_not_signed_in)
             return
         }
         if (!networkChecker.isAvailable()) return
@@ -115,8 +116,8 @@ class ScoreViewModel @Inject constructor(
             applyDefaultCollapseRule()
         } catch (e: NtustScoreError) {
             _errorMessage.value = when (e) {
-                is NtustScoreError.NotAuthenticated -> context.getString(R.string.common_not_logged_in)
-                is NtustScoreError.RedirectedToSSO -> context.getString(R.string.score_error_login_expired)
+                is NtustScoreError.NotAuthenticated -> context.getString(R.string.common_not_signed_in)
+                is NtustScoreError.RedirectedToSSO -> context.getString(R.string.score_error_sign_in_expired)
                 is NtustScoreError.InvalidResponse -> context.getString(R.string.score_error_invalid_response)
                 is NtustScoreError.ParseFailed -> context.getString(R.string.score_error_parse_failed)
             }

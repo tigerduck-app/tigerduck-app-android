@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -23,10 +24,11 @@ import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.CourseNameScale
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.CalendarService
-import org.ntust.app.tigerduck.network.LoadingState
 import org.ntust.app.tigerduck.network.NtustSessionManager
+import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
@@ -44,7 +46,30 @@ class AppState @Inject constructor(
     val systemPermissions: SystemPermissions,
     private val dataMigration: DataMigration,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
+    private val pushRegistration: org.ntust.app.tigerduck.push.PushRegistrationService,
+    debugFixtures: org.ntust.app.tigerduck.debug.DebugFixtureStore,
 ) {
+    /**
+     * Whether this process is a screenshot session running on fixture data.
+     *
+     * Sampled once, here, rather than read where it is used: demo mode
+     * changes what the network layer does and what the app believes about
+     * sign-in, and letting that flip under a running process leaves an
+     * in-flight sync still writing over the fixture. The screenshot script
+     * force-stops the app after loading one, so a fresh process is the only
+     * way it ever turns on.
+     *
+     * Constant false in release builds, where R8 folds every branch below.
+     */
+    private val demoMode =
+        org.ntust.app.tigerduck.BuildConfig.DEBUG && debugFixtures.demoMode
+
+    init {
+        if (demoMode) {
+            org.ntust.app.tigerduck.ui.component.ServerStatusTracker.enterDemoMode()
+        }
+    }
+
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var syncJob: Job? = null
 
@@ -83,13 +108,42 @@ class AppState @Inject constructor(
 
     private var hasCompletedOnboardingState by mutableStateOf(prefs.hasCompletedOnboarding)
 
+    /**
+     * Demo mode reports the wizard as done without writing the preference.
+     * A screenshot device is often signed out, and the wizard is the first
+     * thing it would show; skipping it is also the only way past it, because
+     * with every server refused there is no sign-in for the user to complete.
+     * Not persisting it keeps a device that leaves demo mode showing the
+     * wizard again, which is what a signed-out install should do.
+     */
     var hasCompletedOnboarding: Boolean
-        get() = hasCompletedOnboardingState
+        get() = hasCompletedOnboardingState || demoMode
         set(value) {
             if (hasCompletedOnboardingState == value) return
             hasCompletedOnboardingState = value
             prefs.hasCompletedOnboarding = value
         }
+
+    private var onboardingVersionState by mutableIntStateOf(prefs.onboardingVersion)
+
+    /**
+     * True for an install that finished an older wizard than this build ships.
+     *
+     * The user stays signed in throughout: this reads a plain preference and
+     * the wizard's sign-in page recognises a live session, so nothing in the
+     * re-run touches stored credentials. See [AppPreferences.onboardingVersion]
+     * for why this is not done by clearing [hasCompletedOnboarding].
+     *
+     * Demo mode is excluded for the same reason it reports the wizard as done
+     * — a screenshot device must not be interrupted by it.
+     */
+    val needsOnboardingRerun: Boolean
+        get() = hasCompletedOnboardingState && !demoMode &&
+            onboardingVersionState < AppPreferences.ONBOARDING_VERSION
+
+    /** Whether the wizard owns the screen: never seen, or seen too long ago. */
+    val showOnboarding: Boolean
+        get() = !hasCompletedOnboarding || needsOnboardingRerun
 
     private var accentColorHexState by mutableIntStateOf(prefs.accentColorHex)
 
@@ -124,6 +178,17 @@ class AppState @Inject constructor(
             if (showAbsoluteAssignmentTimeState == value) return
             showAbsoluteAssignmentTimeState = value
             prefs.showAbsoluteAssignmentTime = value
+        }
+
+    private var alwaysShowPeriodsABCState by mutableStateOf(prefs.alwaysShowPeriodsABC)
+
+    /** Keep periods A, B and C on the timetable even when empty. */
+    var alwaysShowPeriodsABC: Boolean
+        get() = alwaysShowPeriodsABCState
+        set(value) {
+            if (alwaysShowPeriodsABCState == value) return
+            alwaysShowPeriodsABCState = value
+            prefs.alwaysShowPeriodsABC = value
         }
 
     private var rememberAnnouncementFilterState by mutableStateOf(prefs.rememberAnnouncementFilter)
@@ -219,6 +284,30 @@ class AppState @Inject constructor(
             prefs.invertSliderDirection = value
         }
 
+    private var courseNameScaleState by mutableFloatStateOf(
+        prefs.courseNameScale.also { TigerDuckTheme.setCourseNameScale(it) }
+    )
+
+    /**
+     * Live-observable course-name scale (0.8…1.6×). Reads recompose every
+     * call site that touches it (e.g. `CourseCard`'s name `Text`), so the
+     * slider in `CourseNameSizeSettingsScreen` updates the class table
+     * mid-drag. Always normalized on write so the persisted value never
+     * drifts off the 0.05× ticks. Also mirrored to [TigerDuckTheme] so
+     * unrelated component files can read it without DI, and pushes a widget
+     * refresh so the launcher tiles re-read the new scale on the next render.
+     */
+    var courseNameScale: Float
+        get() = courseNameScaleState
+        set(value) {
+            val normalized = CourseNameScale.normalize(value)
+            if (courseNameScaleState == normalized) return
+            courseNameScaleState = normalized
+            prefs.courseNameScale = normalized
+            TigerDuckTheme.setCourseNameScale(normalized)
+            widgetUpdater.requestUpdate()
+        }
+
     private var rotationModeState by mutableStateOf(prefs.rotationMode)
 
     /** One of "auto", "enabled", "disabled". */
@@ -240,6 +329,16 @@ class AppState @Inject constructor(
             prefs.notifyAssignments = value
         }
 
+    private var notifyAssignmentOffsetsState by mutableStateOf(prefs.notifyAssignmentOffsets)
+
+    var notifyAssignmentOffsets: Set<AssignmentReminderOffset>
+        get() = notifyAssignmentOffsetsState
+        set(value) {
+            if (notifyAssignmentOffsetsState == value) return
+            notifyAssignmentOffsetsState = value
+            prefs.notifyAssignmentOffsets = value
+        }
+
     private var libraryFeatureEnabledState by mutableStateOf(prefs.libraryFeatureEnabled)
 
     var libraryFeatureEnabled: Boolean
@@ -248,6 +347,37 @@ class AppState @Inject constructor(
             if (libraryFeatureEnabledState == value) return
             libraryFeatureEnabledState = value
             prefs.libraryFeatureEnabled = value
+        }
+
+    private var flipToLibraryEnabledState by mutableStateOf(prefs.flipToLibraryEnabled)
+
+    var flipToLibraryEnabled: Boolean
+        get() = flipToLibraryEnabledState
+        set(value) {
+            if (flipToLibraryEnabledState == value) return
+            flipToLibraryEnabledState = value
+            prefs.flipToLibraryEnabled = value
+        }
+
+    private var cloudSyncEnabledState by mutableStateOf(prefs.cloudSyncEnabled)
+
+    var cloudSyncEnabled: Boolean
+        get() = cloudSyncEnabledState
+        set(value) {
+            if (cloudSyncEnabledState == value) return
+            cloudSyncEnabledState = value
+            prefs.cloudSyncEnabled = value
+        }
+
+    private var disableScreenCaptureProtectionState by
+            mutableStateOf(prefs.disableScreenCaptureProtection)
+
+    var disableScreenCaptureProtection: Boolean
+        get() = disableScreenCaptureProtectionState
+        set(value) {
+            if (disableScreenCaptureProtectionState == value) return
+            disableScreenCaptureProtectionState = value
+            prefs.disableScreenCaptureProtection = value
         }
 
     // Transient signal from the library-shortcut widget: when the user taps
@@ -314,23 +444,46 @@ class AppState @Inject constructor(
         setHapticDurationMs(scenario, scenario.defaultDurationMs)
     }
 
-    val isNtustLoggedIn: Boolean get() = authService.isNtustAuthenticated
+    // authState, matching SettingsViewModel.isNtustLoggedIn — a property with
+    // this name must mean "signed in", not "has a warm SSO cookie".
+    val isNtustLoggedIn: Boolean get() = authService.authState.value
 
     @Suppress("unused")
     val isLibraryLoggedIn: Boolean get() = credentials.isLibraryTokenValid
 
     fun completeOnboarding() {
         hasCompletedOnboarding = true
+        // Stamped only on the way out, so a wizard abandoned halfway — killed
+        // from the recents list, say — is offered again on the next launch
+        // rather than being recorded as confirmed.
+        onboardingVersionState = AppPreferences.ONBOARDING_VERSION
+        prefs.onboardingVersion = AppPreferences.ONBOARDING_VERSION
+        // Push registration is held back until this point so no device
+        // identity reaches the backend before the privacy page has been
+        // seen. Consent has landed, so release the token that arrived
+        // during onboarding — nothing else would re-trigger a register for
+        // a user who never signs in.
+        scope.launch { pushRegistration.onOnboardingCompleted() }
     }
 
     /**
      * Wipe every piece of on-device user state (prefs, credentials, JSON
      * cache) and return the user to onboarding. Called from the reset
      * dialog after migration returns [DataMigration.Outcome.NeedsUserReset].
+     *
+     * [DataCache.clearEverything], not `clearAllUserData`: a logout keeps
+     * device-wide caches on purpose, but this is a factory reset and a
+     * leftover cache is precisely what makes the "fresh start" it promises
+     * not one. [CredentialManager.clearAll] and [AppPreferences.clearAllPrefs]
+     * both clear their whole store, so the library account and every library
+     * preference (feature toggle, flip-to-open consent) go with them —
+     * neither needs naming here, and neither should be, since a named list
+     * silently stops being complete.
      */
     fun performFullReset() {
+        authService.logout()
         scope.launch {
-            runCatching { dataCache.clearAllUserData() }
+            runCatching { dataCache.clearEverything() }
             credentials.clearAll()
             prefs.clearAllPrefs()
             // Re-stamp the schema so the dialog doesn't re-fire on next launch.
@@ -340,8 +493,10 @@ class AppState @Inject constructor(
             // time. Re-read so the UI shows defaults instead of ghost values
             // from the wiped store.
             hasCompletedOnboardingState = prefs.hasCompletedOnboarding
+            onboardingVersionState = prefs.onboardingVersion
             accentColorHexState = prefs.accentColorHex
             showAbsoluteAssignmentTimeState = prefs.showAbsoluteAssignmentTime
+            alwaysShowPeriodsABCState = prefs.alwaysShowPeriodsABC
             rememberAnnouncementFilterState = prefs.rememberAnnouncementFilter
             useEnglishCourseAbbreviationState = prefs.useEnglishCourseAbbreviation
             useEnglishClassroomAbbreviationState = prefs.useEnglishClassroomAbbreviation
@@ -350,9 +505,16 @@ class AppState @Inject constructor(
             themeModeState = prefs.themeMode
             appLanguageState = prefs.appLanguage
             invertSliderDirectionState = prefs.invertSliderDirection
+            courseNameScaleState = prefs.courseNameScale.also {
+                TigerDuckTheme.setCourseNameScale(it)
+            }
             rotationModeState = prefs.rotationMode
             notifyAssignmentsState = prefs.notifyAssignments
+            notifyAssignmentOffsetsState = prefs.notifyAssignmentOffsets
             libraryFeatureEnabledState = prefs.libraryFeatureEnabled
+            flipToLibraryEnabledState = prefs.flipToLibraryEnabled
+            cloudSyncEnabledState = prefs.cloudSyncEnabled
+            disableScreenCaptureProtectionState = prefs.disableScreenCaptureProtection
             configuredTabsState = prefs.configuredTabs
             HapticScenario.tunable.forEach { scenario ->
                 hapticStrengthStates[scenario] = prefs.hapticStrength(scenario)
@@ -378,6 +540,19 @@ class AppState @Inject constructor(
             val coursesResult = coursesJob.await()
             val assignmentsResult = assignmentsJob.await()
             val schoolEventsResult = calendarJob.await()
+
+            // Sync degrades gracefully on partial failure, but the reasons
+            // must reach logcat — "sync silently does nothing" was previously
+            // undiagnosable in the field.
+            coursesResult.exceptionOrNull()?.let {
+                android.util.Log.w("AppState", "backgroundSync: courses fetch failed", it)
+            }
+            assignmentsResult.exceptionOrNull()?.let {
+                android.util.Log.w("AppState", "backgroundSync: assignments fetch failed", it)
+            }
+            schoolEventsResult.exceptionOrNull()?.let {
+                android.util.Log.w("AppState", "backgroundSync: calendar fetch failed", it)
+            }
 
             val anySucceeded =
                 coursesResult.isSuccess || assignmentsResult.isSuccess || schoolEventsResult.isSuccess

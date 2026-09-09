@@ -51,7 +51,9 @@ object LibraryQRRenderer {
         var top = -1
         scanTop@ for (y in 0 until h) {
             for (x in 0 until w) {
-                if (pixels[y * w + x] != Color.WHITE) { top = y; break@scanTop }
+                if (pixels[y * w + x] != Color.WHITE) {
+                    top = y; break@scanTop
+                }
             }
         }
         if (top < 0) return Rect(0, 0, w, h)
@@ -59,21 +61,27 @@ object LibraryQRRenderer {
         var bottom = top
         scanBottom@ for (y in h - 1 downTo top) {
             for (x in 0 until w) {
-                if (pixels[y * w + x] != Color.WHITE) { bottom = y; break@scanBottom }
+                if (pixels[y * w + x] != Color.WHITE) {
+                    bottom = y; break@scanBottom
+                }
             }
         }
 
         var left = 0
         scanLeft@ for (x in 0 until w) {
             for (y in top..bottom) {
-                if (pixels[y * w + x] != Color.WHITE) { left = x; break@scanLeft }
+                if (pixels[y * w + x] != Color.WHITE) {
+                    left = x; break@scanLeft
+                }
             }
         }
 
         var right = left
         scanRight@ for (x in w - 1 downTo left) {
             for (y in top..bottom) {
-                if (pixels[y * w + x] != Color.WHITE) { right = x; break@scanRight }
+                if (pixels[y * w + x] != Color.WHITE) {
+                    right = x; break@scanRight
+                }
             }
         }
 

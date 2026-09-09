@@ -5,7 +5,7 @@ import com.google.gson.reflect.TypeToken
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
 
 /**
  * Covers the gap between `COURSE_NO_TOKEN` and an actually-usable row.

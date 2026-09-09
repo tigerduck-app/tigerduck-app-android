@@ -8,13 +8,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -30,6 +34,22 @@ import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
+/**
+ * How far the current pull has come, 0..1, reaching 1 exactly where the
+ * release would trigger a refresh.
+ *
+ * Ambient rather than a parameter because the thing that draws it — the
+ * header's [org.ntust.app.tigerduck.ui.component.SyncStatusDot] — sits
+ * several layers inside the pulled content on every screen that has one,
+ * and threading a float down through each screen's header would be the
+ * same plumbing written five times.
+ *
+ * A [State] rather than a bare `Float` so that a pull only re-runs the draw
+ * of whoever reads it, instead of recomposing the whole content subtree
+ * sixty times a second.
+ */
+val LocalPullProgress = staticCompositionLocalOf<State<Float>> { mutableFloatStateOf(0f) }
+
 private val ThresholdDp = 140.dp
 private val MaxPullDp = 220.dp
 private val RefreshingMessageOffset = 36.dp
@@ -39,8 +59,13 @@ private const val PostThresholdScale = 0.3f
 fun TigerPullToRefresh(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
-    onDragProgress: (Float) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Pull distance, 0..1, for a caller that needs it somewhere the
+     * [LocalPullProgress] ambient cannot reach. The header dot reads the
+     * ambient instead, so most screens leave this alone.
+     */
+    onDragProgress: (Float) -> Unit = {},
     refreshingMessage: String? = null,
     content: @Composable () -> Unit,
 ) {
@@ -49,6 +74,7 @@ fun TigerPullToRefresh(
     val maxPx = with(density) { MaxPullDp.toPx() }
 
     val dragY = remember { Animatable(0f) }
+    val pullProgress = remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -63,7 +89,9 @@ fun TigerPullToRefresh(
 
     LaunchedEffect(Unit) {
         snapshotFlow { dragY.value }.collect { y ->
-            latestOnDragProgress((y / thresholdPx).coerceIn(0f, 1f))
+            val progress = (y / thresholdPx).coerceIn(0f, 1f)
+            pullProgress.floatValue = progress
+            latestOnDragProgress(progress)
         }
     }
 
@@ -151,7 +179,9 @@ fun TigerPullToRefresh(
                     )
                 }
             }
-            content()
+            CompositionLocalProvider(LocalPullProgress provides pullProgress) {
+                content()
+            }
         }
     }
 }

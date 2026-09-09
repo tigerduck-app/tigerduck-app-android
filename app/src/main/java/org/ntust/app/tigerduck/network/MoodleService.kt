@@ -30,6 +30,7 @@ class MoodleService @Inject constructor(
     private val client: OkHttpClient get() = sessionManager.client
     private val gson = Gson()
     private val webserviceUrl = "https://moodle2.ntust.edu.tw/webservice/rest/server.php"
+
     @Volatile
     private var cachedUserId: Int? = null
     private val siteInfoLock = Any()

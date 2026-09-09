@@ -22,16 +22,22 @@ class BootReceiver : BroadcastReceiver() {
 
     @Inject
     lateinit var scheduler: AssignmentNotificationScheduler
+
     @Inject
     lateinit var classPreparingScheduler: ClassPreparingNotificationScheduler
+
     @Inject
     lateinit var liveActivityPreferences: LiveActivityPreferences
+
     @Inject
     lateinit var dataCache: DataCache
+
     @Inject
     lateinit var appPreferences: AppPreferences
+
     @Inject
     lateinit var widgetBoundaryScheduler: WidgetBoundaryScheduler
+
     @Inject
     lateinit var liveActivityManager: LiveActivityManager
 
@@ -48,14 +54,20 @@ class BootReceiver : BroadcastReceiver() {
                         if (assignments.isNotEmpty()) {
                             val ignored = dataCache.loadIgnoredAssignments()
                             val marked = dataCache.loadMarkedCompletedAssignments()
-                            scheduler.scheduleAll(assignments, ignored + marked)
+                            scheduler.scheduleAll(
+                                assignments,
+                                ignored + marked,
+                                appPreferences.notifyAssignmentOffsets,
+                            )
                         }
                     }
                     val courses = dataCache.loadCourses()
                     if (liveActivityPreferences.isEnabled && liveActivityPreferences.showClassPreparing &&
                         courses.isNotEmpty()
                     ) {
-                        val skipped = dataCache.loadSkippedDates()
+                        // 翹課 parked — see DataCache's skipped-dates section.
+                        val skipped = emptyMap<String, List<String>>()
+                        // val skipped = dataCache.loadSkippedDates()
                         classPreparingScheduler.scheduleAll(
                             courses = courses,
                             skippedDates = skipped,

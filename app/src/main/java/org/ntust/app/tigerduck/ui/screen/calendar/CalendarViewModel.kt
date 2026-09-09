@@ -13,8 +13,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -22,7 +24,9 @@ import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.MoodleService
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.NetworkChecker
+import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Calendar
 import java.util.Date
@@ -34,8 +38,14 @@ class CalendarViewModel @Inject constructor(
     private val calendarService: CalendarService,
     private val moodleService: MoodleService,
     private val authService: AuthService,
-    private val dataCache: DataCache
+    private val dataCache: DataCache,
+    private val prefs: AppPreferences,
+    @param:dagger.hilt.android.qualifiers.ApplicationContext
+    private val context: android.content.Context,
+    private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
+    private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
 ) : ViewModel() {
+
 
     private val _events = MutableStateFlow<List<CalendarEvent>>(emptyList())
     val events: StateFlow<List<CalendarEvent>> = _events
@@ -53,12 +63,89 @@ class CalendarViewModel @Inject constructor(
 
     private var hasLoaded = false
 
+    /**
+     * Semester boundaries and school holidays, from the published academic
+     * calendar.
+     *
+     * Rebuilt on every read rather than cached because the holiday name is
+     * locale-dependent and the app language can change under us. Cheap —
+     * a few dozen rows off an in-memory list.
+     *
+     * Kept separate from the fetched sources so it survives the sign-out
+     * path that empties the rest: the school calendar is public information
+     * the user can still use while logged out.
+     */
+    private fun academicEvents(): List<CalendarEvent> =
+        org.ntust.app.tigerduck.academic.AcademicCalendarEvents.eventsFor(
+            calendar = academicCalendar.current(),
+            languageTag = java.util.Locale.getDefault().toLanguageTag(),
+            startTitle = { context.getString(R.string.calendar_semester_start, it) },
+            endTitle = { context.getString(R.string.calendar_semester_end, it) },
+            formatCode = { code ->
+                if (code.length == 4) "${code.take(3)}-${code.drop(3)}" else code
+            },
+            zone = org.ntust.app.tigerduck.AppConstants.TAIPEI_ZONE,
+        )
+
+    /**
+     * The holiday a row belongs to, or null when it is a term boundary or an
+     * ordinary event. Drives whether the "still remind me" toggle appears.
+     */
+    fun holidayIdFor(event: CalendarEvent): Int? =
+        org.ntust.app.tigerduck.academic.AcademicCalendarEvents.holidayIdFor(event)
+
+    private val _holidayOverrides =
+        MutableStateFlow(academicCalendar.optedInHolidayIds)
+
+    /** Holidays the user has opted back into, as a flow so a row redraws the
+     *  moment its own toggle flips. */
+    val holidayOverrides: StateFlow<Set<Int>> = _holidayOverrides
+
+    /**
+     * Flip the exception for one holiday.
+     *
+     * The local write is what makes the guard behave; the upload only makes
+     * the user's other devices agree, so a failure there is logged and
+     * swallowed rather than rolled back — the setting the user just made on
+     * this device should stand either way.
+     */
+    fun setNotifyOnHoliday(holidayId: Int, notify: Boolean) {
+        if (!academicCalendar.setNotifyOnHoliday(holidayId, notify)) return
+        _holidayOverrides.value = academicCalendar.optedInHolidayIds
+        viewModelScope.launch {
+            runCatching { pushApiClient.putHolidayOverride(holidayId, notify) }
+                .onFailure { e ->
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    android.util.Log.w(
+                        "CalendarViewModel", "holiday override upload failed", e
+                    )
+                }
+        }
+    }
+
+    /** Replaces the academic rows in [base] with freshly-built ones. */
+    private fun withAcademicEvents(base: List<CalendarEvent>): List<CalendarEvent> =
+        base.filterNot { it.sourceRaw in ACADEMIC_SOURCES } + academicEvents()
+
     init {
+        viewModelScope.launch {
+            // The published calendar arrives asynchronously: `MainActivity`
+            // starts the fetch on resume, which routinely lands after this
+            // screen has already built its rows from the on-disk copy. A
+            // snapshot read would leave a newly published semester or
+            // holiday invisible until the next cold launch.
+            academicCalendar.calendar.collect {
+                _events.value = withAcademicEvents(_events.value)
+            }
+        }
         viewModelScope.launch {
             // Clear / refresh in sync with auth changes.
             authService.authState.collect { isAuthed ->
                 if (!isAuthed) {
-                    _events.value = emptyList()
+                    // Holidays are public school information, so they stay
+                    // on the calendar after a sign-out; only the account's
+                    // own events go.
+                    _events.value = academicEvents()
                     hasLoaded = false
                 } else {
                     fetchData()
@@ -112,10 +199,10 @@ class CalendarViewModel @Inject constructor(
         if (hasLoaded) return
         hasLoaded = true
         viewModelScope.launch {
-            _events.value = dataCache.loadCalendarEvents()
+            _events.value = withAcademicEvents(dataCache.loadCalendarEvents())
             // The school ICS is public, but the user expects a logged-out
             // calendar to stay completely idle (no spinner, no network).
-            if (authService.isNtustAuthenticated) fetchData()
+            if (authService.authState.value) fetchData()
         }
     }
 
@@ -132,7 +219,11 @@ class CalendarViewModel @Inject constructor(
     val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
     fun refresh() {
-        if (!authService.isNtustAuthenticated) return
+        // Unconditional, and ahead of the auth guard: the academic calendar
+        // is the one source on this screen that needs no account, so a pull
+        // must still refresh it for a signed-out user.
+        viewModelScope.launch { academicCalendar.refresh() }
+        if (!authService.authState.value) return
         viewModelScope.launch {
             _isLoading.value = true
             if (!networkChecker.isAvailable()) {
@@ -164,7 +255,7 @@ class CalendarViewModel @Inject constructor(
                 current.addAll(moodleEvents)
             }
             if (schoolEvents.isNotEmpty() || moodleEvents.isNotEmpty()) {
-                _events.value = current
+                _events.value = withAcademicEvents(current)
                 dataCache.saveCalendarEvents(current)
                 _syncCompleteEvent.tryEmit(Unit)
             }
@@ -190,6 +281,10 @@ class CalendarViewModel @Inject constructor(
             }
             val enrolled = moodleService.fetchEnrolledCourses()
             val assignments = moodleService.fetchAssignments(enrolled)
+            // Same guard as the class table's: an empty answer is upstream
+            // failing quietly, and overwriting with it empties the calendar
+            // on every other screen too.
+            if (assignments.isEmpty()) return dataCache.loadAssignments().toCalendarEvents()
             dataCache.saveAssignments(assignments)
             assignments.toCalendarEvents()
         } catch (_: Exception) {
@@ -207,6 +302,17 @@ class CalendarViewModel @Inject constructor(
                 sourceRaw = EventSource.MOODLE.raw
             )
         }
+
+    /**
+     * Both sources the academic feed produces. Rows carrying either are
+     * rebuilt from the feed on every merge, so a boundary left over from a
+     * build that still filed them under `holiday` is dropped rather than
+     * kept forever from the on-disk cache.
+     */
+    private companion object {
+        val ACADEMIC_SOURCES =
+            setOf(EventSource.HOLIDAY.raw, EventSource.SEMESTER.raw)
+    }
 
     private fun Date.isSameDay(other: Date): Boolean {
         val cal1 = Calendar.getInstance(org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ)

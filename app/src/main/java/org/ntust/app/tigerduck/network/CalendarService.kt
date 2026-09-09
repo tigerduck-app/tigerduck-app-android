@@ -1,12 +1,9 @@
 package org.ntust.app.tigerduck.network
 
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.logging.HttpLoggingInterceptor
-import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import java.text.SimpleDateFormat
@@ -24,16 +21,6 @@ class CalendarService @Inject constructor(
 
     private val calendarPageUrl = "https://r.xinshou.tw/ntust-calender"
 
-    private val loggingInterceptor = HttpLoggingInterceptor { message ->
-        Log.d("TigerDuck-HTTP", message)
-    }.apply {
-        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
-        else HttpLoggingInterceptor.Level.NONE
-    }
-
-    // Share the connection pool/dispatcher/timeouts from NetworkModule's
-    // OkHttpClient instead of spinning up a second client; layer the
-    // calendar-specific UA + logging on top via newBuilder().
     private val browserClient = baseClient.newBuilder()
         .addInterceptor { chain ->
             chain.proceed(
@@ -42,7 +29,6 @@ class CalendarService @Inject constructor(
                     .build()
             )
         }
-        .addInterceptor(loggingInterceptor)
         .build()
 
     suspend fun fetchCalendarUrls(): Map<Int, String> = withContext(Dispatchers.IO) {
@@ -82,6 +68,9 @@ class CalendarService @Inject constructor(
             }
             result
         } catch (e: Exception) {
+            // Degrading to "no calendar" is the right UX, but log it —
+            // otherwise a format drift on the calendar page is invisible.
+            android.util.Log.w("CalendarService", "Failed to fetch calendar URLs", e)
             emptyMap()
         }
     }
@@ -105,6 +94,7 @@ class CalendarService @Inject constructor(
             }
             parseICS(icsString)
         } catch (e: Exception) {
+            android.util.Log.w("CalendarService", "Failed to fetch/parse ICS", e)
             emptyList()
         }
     }

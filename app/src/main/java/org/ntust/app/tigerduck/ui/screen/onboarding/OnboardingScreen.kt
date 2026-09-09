@@ -1,55 +1,69 @@
+// The onboarding pager: page order, the permission and privacy gates,
+// and what 'done' means. Page chrome is in OnboardingComponents.kt, the
+// animated illustrations in OnboardingIcons.kt.
+
 package org.ntust.app.tigerduck.ui.screen.onboarding
 
 import android.app.Activity
-import android.content.Context
-import android.content.Intent
 import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.browser.customtabs.CustomTabsIntent
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.Watch
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -63,42 +77,50 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.screen.debug.ApiEndpointDebugScreen
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
-import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupContent
+import org.ntust.app.tigerduck.ui.component.SecureScreen
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 private const val URL_TIGERDUCK_WEBSITE = "https://tigerduck.app"
 private const val URL_TIGERDUCK_GITHUB = "https://github.com/tigerduck-app"
 private const val URL_PRIVACY_POLICY = "https://tigerduck.app/privacy-policy"
 private const val URL_DELETE_ACCOUNT = "https://tigerduck.app/delete-account"
-
+private const val URL_SERVER_STATUS = "https://status.tigerduck.app/"
+private const val URL_LEARN_MORE_BACKEND = "https://tigerduck.app/learn-more-about-backend"
 private val isFdroidFlavor: Boolean
     get() = BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)
-
 @Composable
 fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
-    // Pages: 0 Welcome → 1 Privacy → 2 Flavor info → 3 Login → 4 Permissions → 5 Ready.
-    // The original "choose features" page is intentionally commented out below.
-    val pageCount = 6
+    // Pages (Play): 0 Welcome → 1 Privacy → 2 Sync → 3 Flavor info → 4 Login → 5 Permissions → 6 Ready.
+    // Pages (fdroid): 0 Welcome → 1 Privacy → 2 Flavor info → 3 Login → 4 Permissions → 5 Ready.
+    // The sync page is only shown on Play — fdroid doesn't have cloud sync.
+    val showSyncPage = !isFdroidFlavor
+    val pageCount = if (showSyncPage) 7 else 6
     val pagerState = rememberPagerState(pageCount = { pageCount })
     val scope = rememberCoroutineScope()
-    val isLoggingIn by viewModel.isLoggingIn.collectAsState()
-    val loginError by viewModel.loginError.collectAsState()
-    val isSignedIn by viewModel.isSignedIn.collectAsState()
+    val isLoggingIn by viewModel.isLoggingIn.collectAsStateWithLifecycle()
+    val loginError by viewModel.loginError.collectAsStateWithLifecycle()
+    val isSignedIn by viewModel.isSignedIn.collectAsStateWithLifecycle()
 
     var studentId by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var privacyPolicyAccepted by remember { mutableStateOf(false) }
     var deleteAccountAccepted by remember { mutableStateOf(false) }
+    var analyticsEnabled by rememberSaveable { mutableStateOf(viewModel.prefs.analyticsEnabled) }
+    var syncEnabled by remember { mutableStateOf(viewModel.prefs.cloudSyncEnabled) }
+    // Covers the pager with the API-endpoint editor. Someone running their
+    // own backend has to point the app at it *before* signing in, because
+    // the sign-in round-trip is one of the calls that goes there.
+    var showEndpointEditor by remember { mutableStateOf(false) }
 
     // Track the furthest page the user has reached. The bottom-left forward
     // arrow is enabled only for pages already visited, so per-page gating
@@ -128,6 +150,13 @@ fun OnboardingScreen(
     }
 
     fun goToPage(page: Int) {
+        // Mask any revealed password before the scroll animation starts.
+        // animateScrollToPage flips pagerState.currentPage while the login
+        // page (3) is still partly visible, so gating FLAG_SECURE on
+        // currentPage alone would clear it mid-transition and expose the
+        // plaintext to a screenshot (issue #88). Hiding the password first
+        // means there is nothing sensitive on screen once the flag drops.
+        passwordVisible = false
         scope.launch { pagerState.animateScrollToPage(page) }
     }
 
@@ -152,18 +181,42 @@ fun OnboardingScreen(
         }
     }
 
-    Box(modifier = Modifier
-        .fillMaxSize()
-        .background(MaterialTheme.colorScheme.background)) {
+    // Block screenshots / screen-recording while the NTUST password is
+    // revealed as plaintext on the login page (issue #88). FLAG_SECURE is
+    // window-wide, so it is only raised while the eye toggle is on AND the
+    // login page is the one on screen.
+    // Login page index shifts depending on whether the sync page is present.
+    val loginPageIndex = if (showSyncPage) 4 else 3
+    SecureScreen(secure = passwordVisible && pagerState.currentPage == loginPageIndex)
+
+    if (showEndpointEditor) {
+        // Replaces the pager rather than layering over it: the editor owns a
+        // Scaffold with its own top bar and back affordance, and the
+        // onboarding BackHandler above would otherwise page backwards out
+        // from under it.
+        ApiEndpointDebugScreen(onBack = { showEndpointEditor = false })
+        return
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // Compute page indices that shift when the sync page is present (Play).
+        val syncPageIndex = if (showSyncPage) 2 else -1
+        val flavorPageIndex = if (showSyncPage) 3 else 2
+        val permissionsPageIndex = if (showSyncPage) 5 else 4
+        val readyPageIndex = if (showSyncPage) 6 else 5
+
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
             userScrollEnabled = false
         ) { page ->
             when (page) {
-                0 -> OnboardingPage(
-                    icon = Icons.Filled.School,
-                    iconTint = MaterialTheme.colorScheme.primary,
+                0 -> OnboardingPageScaffold(
+                    iconContent = { TigerDuckLogoIcon() },
                     title = stringResource(R.string.onboarding_welcome_title),
                     subtitle = stringResource(R.string.onboarding_welcome_subtitle),
                     actions = {
@@ -230,9 +283,93 @@ fun OnboardingScreen(
                             onCheckedChange = { deleteAccountAccepted = it },
                         )
                     }
+                    // Analytics opt-in: hide on fdroid where the logger is a no-op stub.
+                    if (!isFdroidFlavor) {
+                        Spacer(Modifier.height(12.dp))
+                        AnalyticsOptInCard(
+                            checked = analyticsEnabled,
+                            onCheckedChange = {
+                                analyticsEnabled = it
+                                viewModel.setAnalyticsEnabled(it)
+                            },
+                        )
+                    }
                 }
 
-                2 -> OnboardingPageScaffold(
+                syncPageIndex -> {
+                    // Cross-device sync opt-in — Play flavor only.
+                    OnboardingPageScaffold(
+                        iconContent = {
+                            PulsingIcon(
+                                icon = Icons.Filled.Cloud,
+                                tint = onboardingBlue(),
+                            )
+                        },
+                        title = stringResource(R.string.onboarding_sync_title),
+                        subtitle = stringResource(R.string.onboarding_sync_description),
+                        actions = {
+                            Button(
+                                onClick = { goToPage(flavorPageIndex) },
+                                modifier = Modifier.fillMaxWidth(0.6f)
+                            ) { Text(stringResource(R.string.action_next)) }
+                        },
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth(0.9f),
+                        ) {
+                            SyncDataInfoRows()
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.onboarding_sync_toggle_label),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
+                                    Switch(
+                                        checked = syncEnabled,
+                                        onCheckedChange = {
+                                            syncEnabled = it
+                                            viewModel.setSyncEnabled(it)
+                                        },
+                                    )
+                                }
+                            }
+                            Text(
+                                text = stringResource(R.string.onboarding_sync_note),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
+                            )
+                            LinkRow(
+                                icon = Icons.Filled.Info,
+                                label = stringResource(R.string.settings_learn_more_backend),
+                                url = URL_LEARN_MORE_BACKEND,
+                            )
+                            LinkRow(
+                                icon = Icons.Filled.Shield,
+                                label = stringResource(R.string.onboarding_privacy_policy_label),
+                                url = URL_PRIVACY_POLICY,
+                            )
+                            LinkRow(
+                                icon = Icons.Filled.AccountCircle,
+                                label = stringResource(R.string.onboarding_privacy_delete_account_label),
+                                url = URL_DELETE_ACCOUNT,
+                            )
+                        }
+                    }
+                }
+
+                flavorPageIndex -> OnboardingPageScaffold(
                     iconContent = {
                         if (isFdroidFlavor) {
                             PulsingIcon(
@@ -256,44 +393,66 @@ fun OnboardingScreen(
                     ),
                     actions = {
                         Button(
-                            onClick = { goToPage(3) },
+                            onClick = { goToPage(loginPageIndex) },
                             modifier = Modifier.fillMaxWidth(0.6f)
                         ) { Text(stringResource(R.string.action_next)) }
                     },
                 ) {}
 
-                3 -> {
+                loginPageIndex -> {
                     val focusManager = LocalFocusManager.current
                     OnboardingPageScaffold(
                         iconContent = { PersonKeyBadgeIcon(tint = onboardingGreen()) },
-                        title = stringResource(R.string.onboarding_login_title),
-                        subtitle = stringResource(R.string.onboarding_login_subtitle),
+                        title = stringResource(R.string.onboarding_sign_in_title),
+                        subtitle = stringResource(R.string.onboarding_sign_in_subtitle),
                         actions = {
-                            // Order matches iOS: Skip sits above the prominent
-                            // sign-in button so the affirmative action is the
-                            // last thing the eye lands on before tapping.
-                            TextButton(onClick = { goToPage(4) }) {
-                                Text(
-                                    stringResource(R.string.onboarding_skip_for_now),
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY)
-                                )
-                            }
-                            Button(
-                                onClick = {
-                                    focusManager.clearFocus()
-                                    viewModel.login(studentId, password) { goToPage(4) }
-                                },
-                                enabled = studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn,
-                                modifier = Modifier.fillMaxWidth(0.8f),
-                            ) {
-                                if (isLoggingIn) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.onPrimary,
+                            if (isSignedIn) {
+                                // The session survived the upgrade, so this
+                                // page is a confirmation rather than a form —
+                                // an upgrading user is never asked to type a
+                                // password they already gave this install.
+                                Button(
+                                    onClick = { goToPage(permissionsPageIndex) },
+                                    modifier = Modifier.fillMaxWidth(0.6f),
+                                ) { Text(stringResource(R.string.action_next)) }
+                            } else {
+                                // Ordered least-committal first: look at the
+                                // server, then repoint the app at a different
+                                // one, then give up and skip. A sign-in that
+                                // fails here has no other way to tell the user
+                                // whether the backend is the reason.
+                                TextButton(onClick = { openUrl(context, URL_SERVER_STATUS) }) {
+                                    Text(stringResource(R.string.settings_check_server_status))
+                                }
+                                TextButton(onClick = { showEndpointEditor = true }) {
+                                    Text(stringResource(R.string.onboarding_custom_endpoint_button))
+                                }
+                                TextButton(onClick = { goToPage(permissionsPageIndex) }) {
+                                    Text(
+                                        stringResource(R.string.onboarding_skip_for_now),
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY)
                                     )
-                                } else {
-                                    Text(stringResource(R.string.onboarding_login_button))
+                                }
+                                Button(
+                                    onClick = {
+                                        focusManager.clearFocus()
+                                        viewModel.login(studentId, password) {
+                                            password = ""
+                                            goToPage(permissionsPageIndex)
+                                        }
+                                    },
+                                    enabled = studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn,
+                                    modifier = Modifier.fillMaxWidth(0.8f),
+                                ) {
+                                    if (isLoggingIn) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                        )
+                                    } else {
+                                        Text(stringResource(R.string.onboarding_sign_in_button))
+                                    }
                                 }
                             }
                         },
@@ -303,62 +462,74 @@ fun OnboardingScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxWidth(0.8f),
                         ) {
-                            OutlinedAccountIdField(
-                                value = studentId,
-                                onValueChange = { raw ->
-                                    studentId = raw.filter { ch -> !ch.isWhitespace() }.uppercase()
-                                },
-                                label = stringResource(R.string.login_student_id),
-                                capitalization = KeyboardCapitalization.Sentences,
-                                imeAction = ImeAction.Next,
-                                onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
-                                enabled = !isLoggingIn,
-                                autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            OutlinedTextField(
-                                value = password,
-                                onValueChange = { password = it },
-                                label = { Text(stringResource(R.string.login_password)) },
-                                singleLine = true,
-                                visualTransformation = if (passwordVisible) VisualTransformation.None
-                                else PasswordVisualTransformation(),
-                                trailingIcon = if (!isLoggingIn) {
-                                    {
-                                        PasswordTrailingIcons(
-                                            password = password,
-                                            passwordVisible = passwordVisible,
-                                            onClear = { password = ""; passwordVisible = false },
-                                            onToggleVisibility = { passwordVisible = !passwordVisible },
-                                        )
-                                    }
-                                } else null,
-                                enabled = !isLoggingIn,
-                                keyboardOptions = KeyboardOptions(
-                                    autoCorrectEnabled = false,
-                                    keyboardType = KeyboardType.Password,
-                                    imeAction = ImeAction.Done,
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onDone = {
-                                        focusManager.clearFocus()
-                                        if (studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn) {
-                                            viewModel.login(studentId, password) { goToPage(4) }
-                                        }
-                                    }
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .semantics { contentType = ContentType.Password },
-                            )
-                            if (loginError != null) {
-                                Text(
-                                    text = loginError!!,
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall,
+                            if (!isSignedIn) {
+                                OutlinedAccountIdField(
+                                    value = studentId,
+                                    onValueChange = { raw ->
+                                        studentId = raw.filter { ch -> !ch.isWhitespace() }.uppercase()
+                                    },
+                                    label = stringResource(R.string.sign_in_student_id),
+                                    capitalization = KeyboardCapitalization.Sentences,
+                                    imeAction = ImeAction.Next,
+                                    onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+                                    enabled = !isLoggingIn,
+                                    autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
+                                    modifier = Modifier.fillMaxWidth(),
                                 )
-                            }
-                            if (isSignedIn) {
+                                OutlinedTextField(
+                                    value = password,
+                                    onValueChange = { password = it },
+                                    label = { Text(stringResource(R.string.sign_in_password)) },
+                                    singleLine = true,
+                                    visualTransformation = if (passwordVisible) VisualTransformation.None
+                                    else PasswordVisualTransformation(),
+                                    trailingIcon = if (!isLoggingIn) {
+                                        {
+                                            PasswordTrailingIcons(
+                                                password = password,
+                                                passwordVisible = passwordVisible,
+                                                onClear = { password = ""; passwordVisible = false },
+                                                onToggleVisibility = {
+                                                    passwordVisible = !passwordVisible
+                                                },
+                                            )
+                                        }
+                                    } else null,
+                                    enabled = !isLoggingIn,
+                                    keyboardOptions = KeyboardOptions(
+                                        autoCorrectEnabled = false,
+                                        keyboardType = KeyboardType.Password,
+                                        imeAction = ImeAction.Done,
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onDone = {
+                                            focusManager.clearFocus()
+                                            if (studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn) {
+                                                viewModel.login(studentId, password) {
+                                                    password = ""
+                                                    goToPage(permissionsPageIndex)
+                                                }
+                                            }
+                                        }
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .semantics { contentType = ContentType.Password },
+                                )
+                                if (loginError != null) {
+                                    Text(
+                                        text = loginError!!,
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                            } else {
+                                // Named, not just ticked: the account shown is
+                                // the one TigerSync will carry to the other
+                                // devices, and a shared or mis-typed id is
+                                // worth catching here rather than after the
+                                // first sync.
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -370,9 +541,17 @@ fun OnboardingScreen(
                                         modifier = Modifier.size(18.dp),
                                     )
                                     Text(
-                                        text = stringResource(R.string.action_done),
+                                        text = stringResource(R.string.desktop_settings_signed_in_ntust),
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                         color = onboardingGreen(),
+                                    )
+                                }
+                                viewModel.signedInStudentId?.let { id ->
+                                    Text(
+                                        text = id,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                            .copy(alpha = ContentAlpha.SECONDARY),
                                     )
                                 }
                             }
@@ -380,12 +559,12 @@ fun OnboardingScreen(
                     }
                 }
 
-                4 -> PermissionsPage(
+                permissionsPageIndex -> PermissionsPage(
                     systemPermissions = viewModel.systemPermissions,
-                    onContinue = { goToPage(5) },
+                    onContinue = { goToPage(readyPageIndex) },
                 )
 
-                5 -> OnboardingPage(
+                readyPageIndex -> OnboardingPage(
                     icon = Icons.Filled.CheckCircle,
                     iconTint = MaterialTheme.colorScheme.primary,
                     title = stringResource(R.string.onboarding_ready_title),
@@ -399,6 +578,21 @@ fun OnboardingScreen(
                 ) {}
             }
         }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(96.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.background.copy(alpha = 0f),
+                            MaterialTheme.colorScheme.background,
+                        ),
+                    )
+                ),
+        )
 
         // Navigation arrows. Forward is gated to pages already visited so
         // per-page requirements (privacy/login) still apply on first
@@ -449,426 +643,5 @@ fun OnboardingScreen(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun LinkRow(
-    icon: ImageVector,
-    label: String,
-    url: String,
-    modifier: Modifier = Modifier,
-) {
-    val context = LocalContext.current
-    Surface(
-        onClick = { openUrl(context, url) },
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        modifier = modifier.fillMaxWidth(0.9f),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun PrivacyCheckRow(
-    label: String,
-    url: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val context = LocalContext.current
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(end = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Checkbox(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-            )
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { openUrl(context, url) }
-                    .padding(vertical = 8.dp, horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
-    }
-}
-
-private fun openUrl(context: Context, url: String) {
-    val uri = url.toUri()
-    runCatching {
-        CustomTabsIntent.Builder().build().launchUrl(context, uri)
-    }.onFailure {
-        runCatching {
-            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-        }
-    }
-}
-
-@Composable
-private fun PermissionsPage(
-    systemPermissions: org.ntust.app.tigerduck.notification.SystemPermissions,
-    onContinue: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-            .padding(top = 72.dp, bottom = 100.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        BellBadgeIcon(tint = onboardingOrange())
-        Text(
-            stringResource(R.string.onboarding_permissions_title),
-            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-            stringResource(R.string.onboarding_permissions_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
-        Spacer(Modifier.height(8.dp))
-        NotificationSetupContent(
-            systemPermissions = systemPermissions,
-            finishLabel = stringResource(R.string.action_next),
-            onFinish = onContinue,
-            modifier = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-@Composable
-private fun OnboardingPage(
-    icon: ImageVector,
-    iconTint: Color,
-    title: String,
-    subtitle: String,
-    actions: @Composable ColumnScope.() -> Unit = {},
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    OnboardingPageScaffold(
-        iconContent = { PulsingIcon(icon = icon, tint = iconTint) },
-        title = title,
-        subtitle = subtitle,
-        actions = actions,
-        content = content,
-    )
-}
-
-@Composable
-private fun OnboardingPageScaffold(
-    iconContent: @Composable () -> Unit,
-    title: String,
-    subtitle: String,
-    actions: @Composable ColumnScope.() -> Unit = {},
-    content: @Composable ColumnScope.() -> Unit = {},
-) {
-    // Layout: one big scrollable column whose inner content is forced to be
-    // at least the viewport tall. With Arrangement.SpaceBetween, that means
-    //   – short body  → actions sit at the visible bottom
-    //   – long body   → inner column grows past the viewport, actions get
-    //                    pushed below the fold but stay reachable by scroll
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .imePadding(),
-    ) {
-        val viewportHeight = this.maxHeight
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = viewportHeight)
-                    .padding(horizontal = 32.dp)
-                    .padding(top = 64.dp, bottom = 96.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    iconContent()
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY),
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    content()
-                }
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    actions()
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PulsingIcon(
-    icon: ImageVector,
-    tint: Color,
-    modifier: Modifier = Modifier,
-) {
-    val transition = rememberInfiniteTransition(label = "onboarding-pulse")
-    val pulse by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "onboarding-pulse-fraction",
-    )
-    val alpha = 0.45f + 0.55f * pulse
-    val scale = 0.94f + 0.08f * pulse
-    Icon(
-        imageVector = icon,
-        contentDescription = null,
-        tint = tint,
-        modifier = modifier
-            .size(72.dp)
-            .graphicsLayer {
-                this.alpha = alpha
-                scaleX = scale
-                scaleY = scale
-            },
-    )
-}
-
-// iOS system color palette, dark-mode adapted. Used for the per-page accent
-// tints on the onboarding pages so the icons match the iOS app exactly
-// (privacy = blue, watch = red, login = green, notifications = orange).
-@Composable
-private fun onboardingBlue(): Color =
-    if (isSystemInDarkTheme()) Color(0xFF0A84FF) else Color(0xFF007AFF)
-
-@Composable
-private fun onboardingRed(): Color =
-    if (isSystemInDarkTheme()) Color(0xFFFF453A) else Color(0xFFFF3B30)
-
-@Composable
-private fun onboardingGreen(): Color =
-    if (isSystemInDarkTheme()) Color(0xFF32D74B) else Color(0xFF34C759)
-
-@Composable
-private fun onboardingOrange(): Color =
-    if (isSystemInDarkTheme()) Color(0xFFFF9F0A) else Color(0xFFFF9500)
-
-// Layered shield + inner lock: matches the iOS `OnboardingPageView.layerFlash`
-// path. The shield holds steady at the accent color while the inner lock
-// pulses its alpha — reads as a slow "flash" on the lock without disturbing
-// the surrounding shield silhouette.
-@Composable
-private fun FlashingShieldLockIcon(
-    tint: Color,
-    modifier: Modifier = Modifier,
-) {
-    val transition = rememberInfiniteTransition(label = "shield-lock-flash")
-    val pulse by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "shield-lock-flash-fraction",
-    )
-    val lockAlpha = 0.3f + 0.7f * pulse
-    Box(
-        modifier = modifier.size(72.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Shield,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.fillMaxSize(),
-        )
-        Icon(
-            imageVector = Icons.Filled.Lock,
-            contentDescription = null,
-            tint = Color.White.copy(alpha = lockAlpha),
-            modifier = Modifier
-                .size(42.dp)
-                .offset(y = (-2).dp),
-        )
-    }
-}
-
-// Person silhouette with a key badge in the lower-right — Material's closest
-// approximation of iOS `person.badge.key.fill`. Whole composition pulses
-// together (matching the iOS .symbolEffect(.pulse) on the single SF symbol).
-@Composable
-private fun PersonKeyBadgeIcon(
-    tint: Color,
-    modifier: Modifier = Modifier,
-) {
-    val transition = rememberInfiniteTransition(label = "person-key-pulse")
-    val pulse by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "person-key-pulse-fraction",
-    )
-    val alpha = 0.45f + 0.55f * pulse
-    val scale = 0.94f + 0.08f * pulse
-    val background = MaterialTheme.colorScheme.background
-    Box(
-        modifier = modifier
-            .size(72.dp)
-            .graphicsLayer {
-                this.alpha = alpha
-                scaleX = scale
-                scaleY = scale
-            },
-    ) {
-        Icon(
-            imageVector = Icons.Filled.AccountCircle,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.fillMaxSize(),
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .size(30.dp)
-                .clip(CircleShape)
-                .background(background)
-                .padding(2.dp)
-                .clip(CircleShape)
-                .background(tint),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Filled.VpnKey,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-    }
-}
-
-// Bell with a small notification dot in the upper-right — Material's closest
-// approximation of iOS `bell.badge.fill`. Pulses as one composition.
-@Composable
-private fun BellBadgeIcon(
-    tint: Color,
-    modifier: Modifier = Modifier,
-) {
-    val transition = rememberInfiniteTransition(label = "bell-pulse")
-    val pulse by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "bell-pulse-fraction",
-    )
-    val alpha = 0.45f + 0.55f * pulse
-    val scale = 0.94f + 0.08f * pulse
-    val background = MaterialTheme.colorScheme.background
-    Box(
-        modifier = modifier
-            .size(72.dp)
-            .graphicsLayer {
-                this.alpha = alpha
-                scaleX = scale
-                scaleY = scale
-            },
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Notifications,
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.fillMaxSize(),
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 6.dp, end = 10.dp)
-                .size(16.dp)
-                .clip(CircleShape)
-                .background(background)
-                .padding(2.dp)
-                .clip(CircleShape)
-                .background(tint),
-        )
     }
 }

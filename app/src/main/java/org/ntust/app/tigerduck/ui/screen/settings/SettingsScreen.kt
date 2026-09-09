@@ -1,53 +1,74 @@
+// The Settings screen itself: section order, the state it holds, and the
+// navigation out to sub-screens. The row primitives it is built from
+// live in SettingsRows.kt.
+
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.content.Intent
 import androidx.browser.customtabs.CustomTabsIntent
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import kotlinx.coroutines.delay
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.sensor.FlipDetector
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewDialog
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import org.ntust.app.tigerduck.ui.theme.tigerDuckSwitchColors
-import java.text.SimpleDateFormat
-import java.util.Date
+import org.ntust.app.tigerduck.data.model.ManualCheckResult
+import org.ntust.app.tigerduck.update.UpdateChecker
+import org.ntust.app.tigerduck.data.model.WhatsNewContent
+import org.ntust.app.tigerduck.update.WhatsNewRepository
+import org.ntust.app.tigerduck.util.replaceIosArg
 import java.util.Locale
 
 @Composable
@@ -56,17 +77,22 @@ fun SettingsScreen(
     onNavigateToTabEditor: () -> Unit = {},
     onNavigateToLanguagePicker: () -> Unit = {},
     onNavigateToLiveActivity: () -> Unit = {},
+    onNavigateToAssignmentReminders: () -> Unit = {},
+    onNavigateToServerPush: () -> Unit = {},
+    onNavigateToCloudSync: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToNotificationDebug: () -> Unit = {},
+    onNavigateToTriggersDebug: () -> Unit = {},
+    onNavigateToServerFailureDebug: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsState()
-    val ntustLoginError by viewModel.ntustLoginError.collectAsState()
-    val libIsLoggingIn by viewModel.libIsLoggingIn.collectAsState()
-    val libLoginError by viewModel.libLoginError.collectAsState()
-    val isNtustLoggedIn by viewModel.isNtustLoggedIn.collectAsState()
-    val isLibraryLoggedIn by viewModel.isLibraryLoggedIn.collectAsState()
+    val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsStateWithLifecycle()
+    val ntustLoginError by viewModel.ntustLoginError.collectAsStateWithLifecycle()
+    val libIsLoggingIn by viewModel.libIsLoggingIn.collectAsStateWithLifecycle()
+    val libLoginError by viewModel.libLoginError.collectAsStateWithLifecycle()
+    val isNtustLoggedIn by viewModel.isNtustLoggedIn.collectAsStateWithLifecycle()
+    val isLibraryLoggedIn by viewModel.isLibraryLoggedIn.collectAsStateWithLifecycle()
 
     var showNtustLoginSheet by remember { mutableStateOf(false) }
     var showLibraryLoginSheet by remember { mutableStateOf(false) }
@@ -82,12 +108,12 @@ fun SettingsScreen(
 
     val accentColorHex = viewModel.appState.accentColorHex
     val showAbsoluteTime = viewModel.appState.showAbsoluteAssignmentTime
+    val alwaysShowPeriodsABC = viewModel.appState.alwaysShowPeriodsABC
     val rememberAnnouncementFilter = viewModel.appState.rememberAnnouncementFilter
     val browserPreference = viewModel.appState.browserPreference
     val useEnglishCourseAbbreviation = viewModel.appState.useEnglishCourseAbbreviation
     val useEnglishClassroomAbbreviation = viewModel.appState.useEnglishClassroomAbbreviation
     val classroomMandarinDisplay = viewModel.appState.classroomMandarinDisplay
-    val notifyAssignments = viewModel.appState.notifyAssignments
     val libraryEnabled = viewModel.appState.libraryFeatureEnabled
     val appLanguage = viewModel.appState.appLanguage
     val shouldShowEnglishAbbreviationToggle = AppLanguageManager.isCourseApiEnglish(appLanguage)
@@ -95,6 +121,31 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val appVersion = remember { BuildConfig.VERSION_NAME }
+
+    // About section dependencies: UpdateChecker for "Check for updates" and
+    // WhatsNewRepository for the manual What's New entry point. Pulled via
+    // a Hilt entry point so this purely-Compose screen doesn't have to thread
+    // them through the existing SettingsViewModel just to render two rows.
+    val settingsEntryPoint = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            SettingsEntryPoint::class.java,
+        )
+    }
+    val updateChecker = remember(settingsEntryPoint) { settingsEntryPoint.updateChecker() }
+    val whatsNewRepo = remember(settingsEntryPoint) { settingsEntryPoint.whatsNewRepository() }
+    val isCheckingForUpdate by updateChecker.isCheckingForUpdate.collectAsStateWithLifecycle()
+    val manualCheckResult by updateChecker.lastManualCheckResult.collectAsStateWithLifecycle()
+    // Resolve the user's locale once per Settings render — the asset isn't
+    // huge, but re-parsing it for every recomposition would be wasteful. Key
+    // on the resolved tag string (not the live Configuration object) so
+    // unrelated config changes — font scale, screen size, dark-mode flip —
+    // don't pointlessly re-parse the asset.
+    val languageTag = context.resources.configuration.locales[0].toLanguageTag()
+    val latestWhatsNew: WhatsNewContent? = remember(whatsNewRepo, languageTag) {
+        whatsNewRepo.latestEntry(languageTag)
+    }
+    var manualWhatsNewVisible by remember { mutableStateOf(false) }
 
     // Show network error as snackbar; clear after display so navigating
     // away and back doesn't re-surface a stale error.
@@ -137,7 +188,7 @@ fun SettingsScreen(
                 PageHeader(title = stringResource(R.string.feature_settings))
             }
 
-            // MARK: Account section
+            // --- Account section ---
             item { SectionHeader(stringResource(R.string.settings_section_account)) }
             item {
                 val accountButtonMinWidth = rememberAccountButtonMinWidth()
@@ -157,21 +208,10 @@ fun SettingsScreen(
 
                         if (libraryEnabled) {
                             HorizontalDivider()
-                            val expiryMs = viewModel.libraryTokenExpiry
-                            val expirySubtitle = if (isLibraryLoggedIn && expiryMs > 0) {
-                                val fmt = SimpleDateFormat("yyyy/MM/dd", Locale.TAIWAN).apply {
-                                    timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
-                                }
-                                stringResource(
-                                    R.string.settings_token_valid_until,
-                                    fmt.format(Date(expiryMs))
-                                )
-                            } else null
                             AccountRow(
                                 title = stringResource(R.string.settings_account_library_system),
                                 isLoggedIn = isLibraryLoggedIn,
                                 subtitle = if (isLibraryLoggedIn) viewModel.libraryUsername else null,
-                                extraSubtitle = expirySubtitle,
                                 isLoggingIn = libIsLoggingIn,
                                 onLogin = { showLibraryLoginSheet = true },
                                 onLogout = { viewModel.logoutLibrary() },
@@ -182,7 +222,7 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Custom
+            // --- Custom ---
             item { SectionHeader(stringResource(R.string.settings_section_custom)) }
             item {
                 ContentCard {
@@ -236,7 +276,7 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Display
+            // --- Display ---
             item { SectionHeader(stringResource(R.string.settings_section_display)) }
             item {
                 ContentCard {
@@ -246,6 +286,13 @@ fun SettingsScreen(
                             showAbsoluteTime
                         ) {
                             viewModel.appState.showAbsoluteAssignmentTime = it
+                        }
+                        HorizontalDivider()
+                        SettingsToggleRow(
+                            stringResource(R.string.settings_always_show_periods_abc),
+                            alwaysShowPeriodsABC
+                        ) {
+                            viewModel.appState.alwaysShowPeriodsABC = it
                         }
                         HorizontalDivider()
                         SettingsToggleRow(
@@ -274,7 +321,7 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Abbreviations
+            // --- Abbreviations ---
             if (shouldShowEnglishAbbreviationToggle) {
                 item { SectionHeader(stringResource(R.string.settings_section_abbreviation)) }
                 item {
@@ -324,25 +371,101 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Notifications
-            item { SectionHeader(stringResource(R.string.settings_section_notifications)) }
+            // --- Cloud Sync ---
+            item { SectionHeader(stringResource(R.string.cloud_sync_title)) }
             item {
                 ContentCard {
-                    Column {
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_assignment_due_reminder),
-                            notifyAssignments
+                    if (BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            viewModel.appState.notifyAssignments = it
-                            if (!it) viewModel.cancelAllAssignmentNotifications()
+                            Text(
+                                stringResource(R.string.sync_fdroid_unavailable_title),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                            )
+                            Text(
+                                stringResource(R.string.sync_fdroid_unavailable_body),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+                            )
                         }
-                        HorizontalDivider()
-                        SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) { onNavigateToLiveActivity() }
+                    } else {
+                        SettingsLinkRowWithValue(
+                            label = stringResource(R.string.cloud_sync_title),
+                            value = if (viewModel.appState.cloudSyncEnabled)
+                                stringResource(R.string.settings_sync_status_on)
+                            else stringResource(R.string.settings_sync_status_off),
+                            onClick = onNavigateToCloudSync,
+                        )
                     }
                 }
             }
 
-            // MARK: Language
+            // --- Notifications ---
+            item { SectionHeader(stringResource(R.string.settings_section_notifications)) }
+            item {
+                ContentCard {
+                    Column {
+                        SettingsLinkRow(
+                            stringResource(R.string.settings_assignment_due_reminder)
+                        ) { onNavigateToAssignmentReminders() }
+                        HorizontalDivider()
+                        SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) { onNavigateToLiveActivity() }
+                        // Hide on F-Droid flavor since the Server Push pipeline
+                        // (FCM) isn't compiled in there — same rule as
+                        // SubscriptionSettingsScreen's existing toggle gate.
+                        if (!BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                            HorizontalDivider()
+                            SettingsLinkRow(stringResource(R.string.settings_push_server_nav_label)) { onNavigateToServerPush() }
+                        }
+                    }
+                }
+            }
+
+            // --- Other settings ---
+            item { SectionHeader(stringResource(R.string.settings_section_other_settings)) }
+            item {
+                val flipSensorSupported = remember(context) {
+                    FlipDetector.isSupported(context)
+                }
+                ContentCard {
+                    Column {
+                        SettingsToggleRow(
+                            stringResource(R.string.settings_library_related_features),
+                            libraryEnabled,
+                        ) { enabled ->
+                            if (enabled) {
+                                showLibraryWarning = true
+                            } else {
+                                viewModel.appState.libraryFeatureEnabled = false
+                                viewModel.appState.configuredTabs =
+                                    viewModel.appState.configuredTabs.filter { !it.isLibraryRelated }
+                            }
+                        }
+                        if (libraryEnabled) {
+                            HorizontalDivider()
+                            SettingsToggleRow(
+                                label = stringResource(R.string.settings_flip_to_library_title),
+                                checked = viewModel.appState.flipToLibraryEnabled && flipSensorSupported,
+                                enabled = flipSensorSupported,
+                                subtitle = if (flipSensorSupported) {
+                                    stringResource(R.string.settings_flip_to_library_summary)
+                                } else {
+                                    stringResource(R.string.settings_flip_to_library_unsupported)
+                                },
+                                onCheckedChange = { viewModel.appState.flipToLibraryEnabled = it },
+                            )
+                        }
+                        HorizontalDivider()
+                        SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
+                    }
+                }
+            }
+
+            // --- Language ---
             item { SectionHeader(stringResource(R.string.feature_category_language)) }
             item {
                 ContentCard {
@@ -362,35 +485,50 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Other settings
-            item { SectionHeader(stringResource(R.string.settings_section_other_settings)) }
-            item {
-                ContentCard {
-                    Column {
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_library_related_features),
-                            libraryEnabled,
-                        ) { enabled ->
-                            if (enabled) {
-                                showLibraryWarning = true
-                            } else {
-                                viewModel.appState.libraryFeatureEnabled = false
-                                viewModel.appState.configuredTabs =
-                                    viewModel.appState.configuredTabs.filter { !it.isLibraryRelated }
-                            }
-                        }
-                        HorizontalDivider()
-                        SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
-                    }
-                }
-            }
-
-            // MARK: About
+            // --- About ---
             item { SectionHeader(stringResource(R.string.settings_section_about)) }
             item {
                 ContentCard {
                     Column {
                         SettingsRow(stringResource(R.string.settings_version), appVersion)
+                        // Check for updates — Play flavor only. fdroid leaves
+                        // update notifications to the F-Droid client app (the
+                        // UpdateChecker stub is a no-op there), so a row that
+                        // could only ever report "up to date" would just
+                        // confuse users. Mirrors iOS hiding this row on Mac.
+                        if (!BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+                            HorizontalDivider()
+                            CheckForUpdatesRow(
+                                isChecking = isCheckingForUpdate,
+                                onClick = { updateChecker.checkManually() },
+                            )
+                        }
+                        // Sits under Check for updates because the two answer
+                        // the same question from opposite ends: that row asks
+                        // whether *this app* is current, this one whether the
+                        // services behind it are up. Shown on every flavor —
+                        // an F-Droid build talks to the same backend.
+                        //
+                        // The URL currently 302s to another origin. Custom
+                        // Tabs follows that in place, so the in-app choice
+                        // stays in-app; handing the redirect to an
+                        // ACTION_VIEW intent instead would eject the user
+                        // into their browser mid-hop.
+                        HorizontalDivider()
+                        SettingsLinkRow(stringResource(R.string.settings_check_server_status)) {
+                            openUrl(context, "https://status.tigerduck.app/", browserPreference)
+                        }
+                        // What's New — only when an entry is registered for
+                        // the resolved locale. During early bring-up of a
+                        // release the asset may not yet have an entry; in
+                        // that case we hide the row instead of routing the
+                        // user to an empty sheet.
+                        if (latestWhatsNew != null) {
+                            HorizontalDivider()
+                            SettingsLinkRow(stringResource(R.string.settings_whats_new)) {
+                                manualWhatsNewVisible = true
+                            }
+                        }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_official_website)) {
                             openUrl(context, "https://tigerduck.app/", browserPreference)
@@ -399,7 +537,7 @@ fun SettingsScreen(
                 }
             }
 
-            // MARK: Developer (debug builds only)
+            // --- Developer (debug builds only) ---
             if (BuildConfig.DEBUG) {
                 item { SectionHeader("Developer") }
                 item {
@@ -408,6 +546,53 @@ fun SettingsScreen(
                             SettingsLinkRow("Time override") { onNavigateToDebug() }
                             HorizontalDivider()
                             SettingsLinkRow("Notification") { onNavigateToNotificationDebug() }
+                            HorizontalDivider()
+                            SettingsLinkRow("Server failure simulation") { onNavigateToServerFailureDebug() }
+                            HorizontalDivider()
+                            // One-shot UI surfaces (What's new, update prompt,
+                            // flip-to-library first trigger) live behind here so
+                            // they can be re-fired after a single dismissal.
+                            SettingsLinkRow("Triggers") { onNavigateToTriggersDebug() }
+                            HorizontalDivider()
+                            SettingsToggleRow(
+                                label = "Disable screen-capture protection",
+                                checked = viewModel.appState.disableScreenCaptureProtection,
+                                subtitle = "Allows screenshots/recordings of normally-protected surfaces (login sheet, library, onboarding password).",
+                                onCheckedChange = {
+                                    viewModel.appState.disableScreenCaptureProtection = it
+                                },
+                            )
+                            HorizontalDivider()
+                            @OptIn(ExperimentalFoundationApi::class)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .combinedClickable(
+                                        onClick = { },
+                                        onLongClick = {
+                                            Haptics.perform(
+                                                context,
+                                                HapticScenario.ClassTableLongPress,
+                                            )
+                                            viewModel.appState.performFullReset()
+                                        },
+                                    )
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Long press to erase everything and restart",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                    Text(
+                                        text = "Wipes all data, accounts, and preferences",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error.copy(alpha = ContentAlpha.SECONDARY),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -418,8 +603,8 @@ fun SettingsScreen(
     if (showNtustLoginSheet) {
         LoginSheet(
             title = stringResource(R.string.settings_account_ntust_system),
-            usernamePlaceholder = stringResource(R.string.login_student_id),
-            passwordPlaceholder = stringResource(R.string.login_password),
+            usernamePlaceholder = stringResource(R.string.sign_in_student_id),
+            passwordPlaceholder = stringResource(R.string.sign_in_password),
             uppercaseInput = true,
             isLoggingIn = isNtustLoggingIn,
             loginError = ntustLoginError,
@@ -432,8 +617,8 @@ fun SettingsScreen(
         LoginSheet(
             title = stringResource(R.string.settings_account_library_system),
             subtitle = stringResource(R.string.settings_library_account_subtitle),
-            usernamePlaceholder = stringResource(R.string.library_login_username),
-            passwordPlaceholder = stringResource(R.string.library_login_password),
+            usernamePlaceholder = stringResource(R.string.library_sign_in_username),
+            passwordPlaceholder = stringResource(R.string.library_sign_in_password),
             initialUsername = viewModel.ntustStudentId.orEmpty(),
             isLoggingIn = libIsLoggingIn,
             loginError = libLoginError,
@@ -459,361 +644,60 @@ fun SettingsScreen(
     }
 
     if (viewModel.appState.pendingLibraryEnablePrompt) {
-        AlertDialog(
+        TigerDuckDialog(
             onDismissRequest = { viewModel.appState.pendingLibraryEnablePrompt = false },
-            title = { Text(stringResource(R.string.settings_library_feature_disabled_title)) },
-            text = { Text(stringResource(R.string.settings_library_feature_disabled_message)) },
-            confirmButton = {
-                TextButton(onClick = { viewModel.appState.pendingLibraryEnablePrompt = false }) {
-                    Text(stringResource(R.string.settings_acknowledged))
-                }
+            title = stringResource(R.string.settings_library_feature_disabled_title),
+            message = stringResource(R.string.settings_library_feature_disabled_message),
+            confirmText = stringResource(R.string.settings_acknowledged),
+            onConfirm = { viewModel.appState.pendingLibraryEnablePrompt = false },
+        )
+    }
+
+    // Manual "Check for updates" result alert. Only mounts for UpToDate /
+    // Failed — when Play reports an available update the regular
+    // UpdatePromptHost surfaces the three-button dialog instead, and the
+    // ManualCheckResult stays null in that branch by design.
+    manualCheckResult?.let { result ->
+        val appName = stringResource(R.string.app_name)
+        TigerDuckDialog(
+            onDismissRequest = { updateChecker.acknowledgeManualCheckResult() },
+            title = stringResource(
+                when (result) {
+                    ManualCheckResult.UpToDate -> R.string.update_up_to_date_title
+                    ManualCheckResult.Failed -> R.string.update_check_failed_title
+                },
+            ),
+            // update_up_to_date_message carries iOS's `%1$@` placeholder;
+            // see IosPlaceholder.kt for the centralized shim.
+            message = when (result) {
+                ManualCheckResult.UpToDate ->
+                    stringResource(R.string.update_up_to_date_message).replaceIosArg(1, appName)
+                ManualCheckResult.Failed ->
+                    stringResource(R.string.update_check_failed_message)
             },
+            confirmText = stringResource(R.string.action_got_it),
+            onConfirm = { updateChecker.acknowledgeManualCheckResult() },
+        )
+    }
+
+    // Manual "What's New" — always opens the latest authored entry, even
+    // if the auto-launch path already showed it. Does NOT stamp
+    // lastSeenWhatsNewVersionCode: this is a re-visit surface, and stamping
+    // here would silently suppress the next auto-prompt after the user
+    // browsed release notes from Settings.
+    if (manualWhatsNewVisible && latestWhatsNew != null) {
+        WhatsNewDialog(
+            content = latestWhatsNew,
+            onDismiss = { manualWhatsNewVisible = false },
         )
     }
 }
-
-internal val SettingRowHeight = 56.dp
-
-/**
- * Width that fits whichever of "Sign in" / "Sign out" is wider, so the
- * two buttons line up when both are visible (one row logged-in, one not).
- * Adds the M3 button horizontal content padding (24.dp each side).
- */
-@Composable
-private fun rememberAccountButtonMinWidth(): Dp {
-    val loginText = stringResource(R.string.action_login)
-    val logoutText = stringResource(R.string.action_logout)
-    val style = MaterialTheme.typography.labelLarge
-    val measurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    val labelWidthPx = remember(loginText, logoutText, style) {
-        maxOf(
-            measurer.measure(loginText, style).size.width,
-            measurer.measure(logoutText, style).size.width,
-        )
-    }
-    return with(density) { labelWidthPx.toDp() } + 48.dp
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+internal interface SettingsEntryPoint {
+    fun updateChecker(): UpdateChecker
+    fun whatsNewRepository(): WhatsNewRepository
 }
-
-@Composable
-private fun AccountRow(
-    title: String,
-    isLoggedIn: Boolean,
-    subtitle: String?,
-    extraSubtitle: String? = null,
-    isLoggingIn: Boolean,
-    onLogin: () -> Unit,
-    onLogout: () -> Unit,
-    actionMinWidth: Dp,
-    highlight: Boolean = false,
-    onHighlightConsumed: () -> Unit = {},
-) {
-    // Two-pulse attention flash when an off-screen surface (e.g. a
-    // signed-out empty state) deep-links here to surface the "Sign in"
-    // action. Uses keyframes so the row briefly tints with the accent
-    // container, fades, tints again, then settles back — enough motion
-    // to catch the eye without being noisy.
-    val highlightAlpha = remember { Animatable(0f) }
-    LaunchedEffect(highlight) {
-        if (!highlight) return@LaunchedEffect
-        highlightAlpha.snapTo(0f)
-        highlightAlpha.animateTo(
-            targetValue = 0f,
-            animationSpec = keyframes {
-                durationMillis = 2200
-                0f at 0
-                1f at 250
-                0f at 900
-                1f at 1200
-                0f at 1900
-            },
-        )
-        onHighlightConsumed()
-    }
-    val highlightColor = MaterialTheme.colorScheme.primaryContainer
-        .copy(alpha = 0.55f * highlightAlpha.value)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(highlightColor)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .clip(CircleShape)
-                .background(if (isLoggedIn) Color(0xFF34C759) else Color(0xFFFF3B30))
-        )
-        Spacer(Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-            )
-            if (!subtitle.isNullOrBlank()) {
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                )
-            }
-            if (!extraSubtitle.isNullOrBlank()) {
-                Text(
-                    extraSubtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                )
-            }
-        }
-        if (isLoggingIn) {
-            Box(
-                modifier = Modifier
-                    .widthIn(min = actionMinWidth)
-                    .height(ButtonDefaults.MinHeight),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                )
-            }
-        } else if (isLoggedIn) {
-            OutlinedButton(
-                onClick = onLogout,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error,
-                ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
-                modifier = Modifier.widthIn(min = actionMinWidth),
-            ) { Text(stringResource(R.string.action_logout)) }
-        } else {
-            Button(
-                onClick = onLogin,
-                modifier = Modifier.widthIn(min = actionMinWidth),
-            ) { Text(stringResource(R.string.action_login)) }
-        }
-    }
-}
-
-@Composable
-private fun SettingsRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(SettingRowHeight)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Text(
-            value, style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-        )
-    }
-}
-
-@Composable
-internal fun SettingsToggleRow(
-    label: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(SettingRowHeight)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = tigerDuckSwitchColors(),
-        )
-    }
-}
-
-@Composable
-internal fun SettingsPickerRow(
-    label: String,
-    value: String,
-    options: List<Pair<String, String>>,
-    selectedKey: String,
-    onSelect: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(SettingRowHeight)
-            .clickable { expanded = true }
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Box {
-            Text(
-                value, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-            )
-
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                options.forEach { (key, display) ->
-                    DropdownMenuItem(
-                        text = { Text(display) },
-                        onClick = {
-                            onSelect(key)
-                            expanded = false
-                        },
-                        leadingIcon = {
-                            RadioButton(
-                                selected = selectedKey == key,
-                                onClick = null
-                            )
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-internal fun SettingsLinkRow(label: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(SettingRowHeight)
-            .semantics(mergeDescendants = true) { role = Role.Button }
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Icon(
-            Icons.Filled.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
-            modifier = Modifier.size(18.dp)
-        )
-    }
-}
-
-@Composable
-private fun SettingsLinkRowWithValue(label: String, value: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(SettingRowHeight)
-            .semantics(mergeDescendants = true) { role = Role.Button }
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Text(
-            value,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-            maxLines = 1,
-        )
-        Spacer(Modifier.width(8.dp))
-        Icon(
-            Icons.Filled.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
-            modifier = Modifier.size(18.dp)
-        )
-    }
-}
-
-@Composable
-internal fun LibraryWarningDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    var countdown by remember { mutableIntStateOf(5) }
-    var confirmEnabled by remember { mutableStateOf(false) }
-    val view = LocalView.current
-
-    LaunchedEffect(Unit) {
-        Haptics.perform(
-            view.context,
-            HapticScenario.LibraryWarning,
-        )
-
-        for (i in 4 downTo 0) {
-            delay(1000)
-            countdown = i
-        }
-        confirmEnabled = true
-    }
-
-    val infiniteTransition = rememberInfiniteTransition(label = "flash")
-    val flashAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.15f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "flash_alpha"
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Filled.Warning,
-                    contentDescription = null,
-                    tint = Color.Red.copy(alpha = flashAlpha),
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    stringResource(R.string.settings_library_warning_title),
-                    color = Color.Red.copy(alpha = flashAlpha),
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        },
-        text = {
-            Text(stringResource(R.string.settings_library_warning_message))
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                enabled = confirmEnabled,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Red,
-                    disabledContainerColor = Color.Red.copy(alpha = 0.35f)
-                )
-            ) {
-                Text(
-                    if (confirmEnabled) stringResource(R.string.settings_library_warning_confirm)
-                    else stringResource(
-                        R.string.settings_library_warning_confirm_countdown,
-                        countdown
-                    )
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.settings_library_warning_dismiss))
-            }
-        }
-    )
-}
-
 private fun openUrl(context: android.content.Context, url: String, browserPreference: String) {
     val uri = url.toUri()
     if (browserPreference == "inApp") {

@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "org.ntust.app.tigerduck.wear"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         // The wear app is shipped only alongside the play distribution of
@@ -17,8 +17,22 @@ android {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 30
         targetSdk = 36
-        versionCode = 22
-        versionName = "1.4.4"
+        versionCode = 23
+        versionName = "2.0.0"
+    }
+
+    // Mirrors :app. The watch APK/AAB carries the same applicationId as the
+    // play phone build, so Play requires it to be signed with the same key —
+    // an upload signed with anything else is rejected as a different app. The
+    // release workflow decodes the shared keystore into wear/keystore.jks
+    // alongside app/keystore.jks; see .github/workflows/release-manual.yaml.
+    signingConfigs {
+        create("release") {
+            storeFile = file("keystore.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
+        }
     }
 
     buildTypes {
@@ -29,6 +43,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Guarded exactly like :app so a checkout without the keystore
+            // still builds — CI's PR gate compiles this variant unsigned, and
+            // an unsigned build lands as wear-release-unsigned.apk rather than
+            // failing configuration.
+            val keystoreFile = file("keystore.jks")
+            if (keystoreFile.exists() && System.getenv("KEYSTORE_PASSWORD")?.isNotEmpty() == true) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
@@ -48,11 +70,11 @@ android {
 // Wear strings live alongside phone strings in the `~/app-translation`
 // submodule's source/*.json files (under the `shared` group, since they're
 // reused on Apple Watch). The submodule's Python generator emits per-locale
-// strings.xml under localization/generated/android/values-*/, and this opt-in
+// strings.xml under app-translation/generated/android/values-*/, and this opt-in
 // task copies them into wear/src/main/res/. Run with `-PsyncLocalizations` to
 // regenerate; otherwise builds use the committed copies.
 
-val syncLocalizations by tasks.registering(Exec::class) {
+val syncLocalizations = tasks.register<Exec>("syncLocalizations") {
     group = "localization"
     description = "Generate Android localization files from shared JSON sources."
     workingDir = rootProject.projectDir
@@ -74,12 +96,12 @@ val syncLocalizations by tasks.registering(Exec::class) {
     }
 }
 
-val copyGeneratedAndroidLocalizations by tasks.registering(Copy::class) {
+val copyGeneratedAndroidLocalizations = tasks.register<Copy>("copyGeneratedAndroidLocalizations") {
     group = "localization"
-    description = "Copy localization/generated/android values-* resources into wear/src/main/res."
+    description = "Copy app-translation/generated/android values-* resources into wear/src/main/res."
     dependsOn(syncLocalizations)
 
-    val sourceDir = rootProject.layout.projectDirectory.dir("localization/generated/android")
+    val sourceDir = rootProject.layout.projectDirectory.dir("app-translation/generated/android")
     val destDir = layout.projectDirectory.dir("src/main/res")
 
     from(sourceDir) {

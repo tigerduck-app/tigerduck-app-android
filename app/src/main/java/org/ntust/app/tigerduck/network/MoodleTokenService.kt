@@ -242,13 +242,14 @@ class MoodleTokenService @Inject constructor(
         // values that ride hidden form fields between hops.
         val safePreview = html.take(300)
             .replace(Regex("value=\"[^\"]{8,}\""), "value=\"***\"")
+            .replace(Regex("value='[^']{8,}'"), "value=\"***\"")
             .replace("\n", " ")
         throw MoodleWebserviceError.MalformedResponse(
             "Unexpected OIDC page: ${responseUrl.redactForLog()} — body preview=$safePreview"
         )
     }
 
-    // MARK: - HTTP helpers
+    // --- HTTP helpers ---
 
     private fun getPage(url: HttpUrl): Pair<String, HttpUrl> {
         val req = Request.Builder().url(url).get().build()
@@ -287,7 +288,7 @@ class MoodleTokenService @Inject constructor(
         }
     }
 
-    // MARK: - HTML parsing
+    // --- HTML parsing ---
 
     private data class SSOLoginFields(
         val action: String,

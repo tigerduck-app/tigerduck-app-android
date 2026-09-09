@@ -9,13 +9,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -79,20 +76,17 @@ fun PermissionWarningDialogHost(systemPermissions: SystemPermissions) {
 
     if (revoked.isEmpty()) return
 
-    AlertDialog(
+    TigerDuckDialog(
         onDismissRequest = { revoked = emptyList() },
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Warning, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    stringResource(R.string.permission_warning_title),
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        icon = { Icon(Icons.Filled.Warning, contentDescription = null) },
+        title = stringResource(R.string.permission_warning_title),
+        confirmText = stringResource(R.string.permission_warning_action_later),
+        onConfirm = { revoked = emptyList() },
+        content = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Text(
                     stringResource(R.string.permission_warning_description),
                     style = MaterialTheme.typography.bodyMedium,
@@ -117,11 +111,6 @@ fun PermissionWarningDialogHost(systemPermissions: SystemPermissions) {
                         },
                     )
                 }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { revoked = emptyList() }) {
-                Text(stringResource(R.string.permission_warning_action_later))
             }
         },
     )

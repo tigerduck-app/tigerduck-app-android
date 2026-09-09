@@ -9,34 +9,40 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
-import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.data.CourseColorStore
-import org.ntust.app.tigerduck.data.OngoingCourseInfo
+import org.ntust.app.tigerduck.shared.OngoingCourseInfo
+import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.computeOngoingCourses
+import org.ntust.app.tigerduck.debug.DebugFixtureStore
+import org.ntust.app.tigerduck.shared.computeOngoingCourses
 import org.ntust.app.tigerduck.data.model.Assignment
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.model.TimetablePeriod
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.network.SemesterCatalog
-import org.ntust.app.tigerduck.network.decodeHtmlEntities
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import java.util.Calendar
 import javax.inject.Inject
 
 @HiltViewModel
@@ -50,10 +56,31 @@ class ClassTableViewModel @Inject constructor(
     private val appPreferences: AppPreferences,
     private val semesterCatalog: SemesterCatalog,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
+    private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
+    private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
+    private val debugFixtures: DebugFixtureStore,
 ) : ViewModel() {
+
 
     private val _courses = MutableStateFlow<List<Course>>(emptyList())
     val courses: StateFlow<List<Course>> = _courses
+
+    /**
+     * The term in session, cached separately, and only while the picker is
+     * showing some *other* term.
+     *
+     * "What do I have today" does not change because the student opened last
+     * year's timetable to look something up, so the carousel has to keep
+     * answering it. Reading today off the selected term instead would surface
+     * a class they took two years ago as though it were happening now,
+     * progress bar and all.
+     *
+     * Empty while the picker is on the live term — [courses] already is that
+     * list, and mirroring it would only go stale the moment a course is
+     * renamed or deleted. [liveCourses] picks between the two.
+     */
+    private val _liveSemesterCourses = MutableStateFlow<List<Course>>(emptyList())
+    val liveSemesterCourses: StateFlow<List<Course>> = _liveSemesterCourses
 
     private val _assignments = MutableStateFlow<List<Assignment>>(emptyList())
     val assignments: StateFlow<List<Assignment>> = _assignments
@@ -62,6 +89,14 @@ class ClassTableViewModel @Inject constructor(
     val isLoading: StateFlow<Boolean> = _isLoading
 
     val isLoggedIn: StateFlow<Boolean> = authService.authState
+
+    /**
+     * Drives the grid's row list; see [AppPreferences.alwaysShowPeriodsABCFlow].
+     *
+     * Declared above `init` with the other stored properties — see
+     * ClassTableViewModelInitOrderTest for why that placement is load-bearing.
+     */
+    val alwaysShowPeriodsABC: StateFlow<Boolean> = appPreferences.alwaysShowPeriodsABCFlow
 
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
@@ -75,6 +110,19 @@ class ClassTableViewModel @Inject constructor(
     // it on logout so a stale map can't survive an account switch.
     private val _moodleCourseIdByIdnumber = MutableStateFlow<Map<String, Int>>(emptyMap())
 
+    // Per-locale custom course names: courseNo → locale ("zh"/"en") → display name.
+    // Loaded from DataCache.courseCustomNames on init; written on every rename.
+    // The resolved value for the current locale is stamped onto
+    // Course.customCourseName when building the in-memory course list.
+    private var courseCustomNames: CustomNameMap = emptyMap()
+
+    /** Current course-API locale ("zh" or "en"), derived from the user's app language. */
+    private val currentCourseLocale: String
+        get() = AppLanguageManager.resolvedCourseApiLanguage(appPreferences.appLanguage)
+
+    private fun resolveCustomNames(courses: List<Course>): List<Course> =
+        CourseNameOverrides.resolve(courses, courseCustomNames, currentCourseLocale)
+
     private val _selectedWeekday = MutableStateFlow<Int?>(null)
     private val _selectedPeriodId = MutableStateFlow<String?>(null)
 
@@ -86,19 +134,6 @@ class ClassTableViewModel @Inject constructor(
     )
     val currentSemester: StateFlow<String> = _currentSemester
 
-    data class DayTime(val weekday: Int, val minuteOfDay: Int)
-
-    private val _currentDayTime = MutableStateFlow(currentDayTime())
-    val currentMinute: StateFlow<Int> = _currentDayTime
-        .map { it.minuteOfDay }
-        .stateIn(
-            viewModelScope,
-            kotlinx.coroutines.flow.SharingStarted.Eagerly,
-            currentDayTime().minuteOfDay
-        )
-
-    private var hasLoaded = false
-
     /**
      * Terms the picker offers, newest first, as published by NTUST — see
      * [SemesterCatalog]. A `StateFlow` rather than a computed getter so a term
@@ -109,6 +144,19 @@ class ClassTableViewModel @Inject constructor(
     private val _availableSemesters = MutableStateFlow(semesterOptions(_currentSemester.value))
     val availableSemesters: StateFlow<List<String>> = _availableSemesters
 
+    private val _currentDayTime = MutableStateFlow(currentDayTime())
+    val currentMinute: StateFlow<Int> = _currentDayTime
+        .map { it.minuteOfDay }
+        .stateIn(
+            viewModelScope,
+            kotlinx.coroutines.flow.SharingStarted.Eagerly,
+            currentDayTime().minuteOfDay
+        )
+
+    // One-shot UI events. These live above `init` with the rest of the
+    // state for the same reason every other field does: init's collectors
+    // run synchronously during construction under Main.immediate, so a
+    // field declared below it is still null when they reach it.
     private val _tripleConflictEvent = MutableSharedFlow<TripleConflictError>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -127,21 +175,8 @@ class ClassTableViewModel @Inject constructor(
     )
     val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
-    // EVERY property this class touches must be declared ABOVE this block.
-    //
-    // Kotlin runs property initializers and init blocks in declaration order,
-    // and the collectors below do not reliably reach a suspension point before
-    // touching ViewModel state: `viewModelScope` dispatches on
-    // Dispatchers.Main.immediate, the ViewModel is constructed on the main
-    // thread, so `launch` runs its body inline rather than posting it. The
-    // authState collector below then sees the StateFlow's current value
-    // immediately — for an already-logged-in user that means fetchData() runs
-    // to completion inside this constructor.
-    //
-    // v1.4.3 shipped `_availableSemesters` declared *after* here and assigned
-    // from fetchData, so it was still null on that inline path and every
-    // launch crashed with "MutableStateFlow.setValue on a null object
-    // reference". Declaring state below this block re-arms that.
+    private var hasLoaded = false
+
     init {
         viewModelScope.launch {
             // Tick at 5s so transitions land within at most a few seconds of
@@ -162,13 +197,25 @@ class ClassTableViewModel @Inject constructor(
             // so picking a past term doesn't get snapped back to the
             // current semester on a color reset.
             courseColorStore.changeEvent.collect {
-                val fresh = dataCache.loadCourses(_currentSemester.value)
+                val fresh = resolveCustomNames(dataCache.loadCourses(_currentSemester.value))
                 if (fresh.isNotEmpty()) {
                     _courses.value = fresh
                     TigerDuckTheme.buildCourseColorMap(fresh)
                     // Widget refresh is driven by CourseColorStore itself, so
                     // subscribers don't need to re-trigger it.
                 }
+            }
+        }
+        viewModelScope.launch {
+            dataCache.backgroundSyncVersion.drop(1).collect {
+                val semester = _currentSemester.value
+                // Taken as-is, empty included: a sync can now prune the
+                // whole term (a reset made elsewhere), and holding on to
+                // the old list would keep showing courses that are gone.
+                val fresh = resolveCustomNames(dataCache.loadCourses(semester))
+                _courses.value = fresh
+                TigerDuckTheme.buildCourseColorMap(fresh)
+                _assignments.value = dataCache.loadAssignments()
             }
         }
         viewModelScope.launch {
@@ -179,8 +226,9 @@ class ClassTableViewModel @Inject constructor(
                     _assignments.value = emptyList()
                     _selectedCourse.value = null
                     _moodleCourseIdByIdnumber.value = emptyMap()
+                    courseCustomNames = emptyMap()
                     hasLoaded = false
-                    TigerDuckTheme.buildCourseColorMap(emptyList())
+                    TigerDuckTheme.clearCourseColorMap()
                 } else {
                     fetchData()
                 }
@@ -217,18 +265,27 @@ class ClassTableViewModel @Inject constructor(
         }
     }
 
-    private fun currentDayTime(): DayTime {
-        val c = AppClock.calendar()
-        val wd = when (c.get(Calendar.DAY_OF_WEEK)) {
-            Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
-            Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
-            else -> 7
-        }
-        return DayTime(wd, c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE))
-    }
+    private fun currentDayTime(): ClassTableSelection.DayTime =
+        ClassTableSelection.dayTimeFrom(AppClock.calendar())
 
-    /** The actual live semester code (not whatever the user picked). */
-    val liveSemesterCode: String
+    /**
+     * The signed-in student's id, for the credits label.
+     *
+     * A plain read rather than a flow: the credits row only renders inside the
+     * logged-in branch, and the id cannot change without a logout taking that
+     * branch away and recomposing anyway.
+     */
+    val studentId: String?
+        get() = (if (BuildConfig.DEBUG) debugFixtures.studentIdOverride else null)
+            ?: authService.storedStudentId
+
+    /**
+     * The actual live semester code (not whatever the user picked).
+     *
+     * Private since the today carousel stopped being gated on "is the picker
+     * on the live term" — the only thing that asks now is [liveCourses].
+     */
+    private val liveSemesterCode: String
         get() = courseService.currentSemesterCode()
 
     /**
@@ -260,6 +317,7 @@ class ClassTableViewModel @Inject constructor(
         val cached = dataCache.loadCourses(newest)
         _courses.value = cached
         TigerDuckTheme.buildCourseColorMap(cached)
+        refreshLiveSemesterCourses()
     }
 
     /** Format semester code for display, e.g. "1142" → "114-2". */
@@ -273,50 +331,57 @@ class ClassTableViewModel @Inject constructor(
         appPreferences.classTableSelectedSemester = code
         _currentSemester.value = code
         viewModelScope.launch {
-            val cached = dataCache.loadCourses(code)
+            val cached = resolveCustomNames(dataCache.loadCourses(code))
             _courses.value = cached
             TigerDuckTheme.buildCourseColorMap(cached)
+            refreshLiveSemesterCourses()
             fetchData()
         }
     }
 
     val totalCredits: Int get() = _courses.value.sumOf { it.credits }
 
+    /** The live term's roster, wherever it currently lives. */
+    private val liveCourses: List<Course>
+        get() = if (_currentSemester.value == liveSemesterCode) {
+            _courses.value
+        } else {
+            _liveSemesterCourses.value
+        }
+
     val todayCourses: List<Course>
         get() {
             // Outside the term there is no "today" worth showing — the
             // carousel would either be empty or surface a stale day. Empty
             // here also hides the section, which keys off `isNotEmpty()`.
-            if (!AppConstants.CurrentTerm.isInSession()) return emptyList()
-            val today = _currentDayTime.value.weekday
-            return _courses.value
-                .filter { it.schedule.containsKey(today) }
-                .sortedBy { course ->
-                    val firstPeriod = course.schedule[today]
-                        ?.minByOrNull { AppConstants.Periods.chronologicalOrder.indexOf(it) }
-                    firstPeriod?.let { AppConstants.Periods.chronologicalOrder.indexOf(it) }
-                        ?: Int.MAX_VALUE
-                }
+            if (!academicCalendar.current().isInSession(AppClock.localDateTime().toLocalDate())) {
+                return emptyList()
+            }
+            return ClassTableSelection.coursesOn(liveCourses, _currentDayTime.value.weekday)
         }
+
+    /**
+     * Loads the live term's roster when the picker moves off it, and drops it
+     * again when the picker comes back — [liveCourses] reads [courses] then,
+     * so holding a second copy would only be one more thing to keep in sync.
+     */
+    private suspend fun refreshLiveSemesterCourses() {
+        val live = liveSemesterCode
+        _liveSemesterCourses.value = if (_currentSemester.value == live) {
+            emptyList()
+        } else {
+            resolveCustomNames(dataCache.loadCourses(live))
+        }
+    }
 
     val activeWeekdays: List<Int>
-        get() {
-            val days = _courses.value.flatMap { it.schedule.keys }.toMutableSet()
-            val result = (1..5).toMutableList()
-            if (6 in days) result.add(6)
-            if (7 in days) result.add(7)
-            return result
-        }
+        get() = ClassTableCellLayout.activeWeekdays(_courses.value)
 
     val activePeriods: List<TimetablePeriod>
-        get() {
-            val periodIds = AppConstants.Periods.defaultVisible.toMutableSet()
-            _courses.value.forEach { course ->
-                course.schedule.values.forEach { periods -> periodIds.addAll(periods) }
-            }
-            val order = AppConstants.Periods.chronologicalOrder
-            return order.filter { it in periodIds }.mapNotNull { TimetablePeriod.byId[it] }
-        }
+        get() = ClassTableCellLayout.activePeriods(
+            _courses.value,
+            pinEvening = appPreferences.alwaysShowPeriodsABC,
+        )
 
     /**
      * Title for the course-detail popup. A user-supplied [Course.customCourseName]
@@ -346,13 +411,7 @@ class ClassTableViewModel @Inject constructor(
         get() {
             val course = _selectedCourse.value ?: return null
             val weekday = _selectedWeekday.value ?: return null
-            val periods = course.schedule[weekday]?.sortedBy {
-                AppConstants.Periods.chronologicalOrder.indexOf(it)
-            } ?: return null
-            if (periods.isEmpty()) return null
-            val first = AppConstants.PeriodTimes.mapping[periods.first()] ?: return null
-            val last = AppConstants.PeriodTimes.mapping[periods.last()] ?: return null
-            return "${first.first} - ${last.second}"
+            return ClassTableSelection.timeRange(course, weekday)
         }
 
     /**
@@ -365,37 +424,50 @@ class ClassTableViewModel @Inject constructor(
     val selectedCourseClassroom: String
         get() {
             val course = _selectedCourse.value ?: return ""
-            val weekday = _selectedWeekday.value ?: return Course.dedupRooms(course.classroom)
-            val periodId = _selectedPeriodId.value ?: return course.classroom(weekday)
-            return course.classroom(weekday, periodId)
+            return ClassTableSelection.classroom(
+                course, _selectedWeekday.value, _selectedPeriodId.value,
+            )
         }
 
-    fun isCourseFinishedToday(course: Course): Boolean {
-        val dayTime = _currentDayTime.value
-        val periods = course.schedule[dayTime.weekday]
-            ?.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
-        val lastPeriodId = periods?.lastOrNull() ?: return false
-        val endTimeStr = AppConstants.PeriodTimes.mapping[lastPeriodId]?.second ?: return false
-        val parts = endTimeStr.split(":")
-        val endMinutes = (parts.getOrNull(0)?.toIntOrNull() ?: return false) * 60 +
-                (parts.getOrNull(1)?.toIntOrNull() ?: return false)
-        return dayTime.minuteOfDay > endMinutes
-    }
+    fun isCourseFinishedToday(course: Course): Boolean =
+        ClassTableSelection.isFinishedAt(course, _currentDayTime.value)
 
     val ongoingCourses: List<OngoingCourseInfo>
         get() {
             val dayTime = _currentDayTime.value
-            return computeOngoingCourses(_courses.value, dayTime.weekday, dayTime.minuteOfDay)
+            return computeOngoingCourses(liveCourses, dayTime.weekday, dayTime.minuteOfDay)
         }
 
     fun coursesAt(weekday: Int, period: String): List<Course> =
-        _courses.value.filter { it.schedule[weekday]?.contains(period) == true }
+        ClassTableCellLayout.coursesAt(_courses.value, weekday, period)
 
-    fun hasAssignment(courseNo: String): Boolean =
-        _assignments.value.any { it.courseNo == courseNo && !it.isCompleted }
+    /** Grid geometry lives in [ClassTableCellLayout]; these bind it to state. */
+    fun cellRole(weekday: Int, periodIndex: Int): CellRole =
+        ClassTableCellLayout.roleAt(_courses.value, activePeriods, weekday, periodIndex)
 
-    fun assignmentsFor(courseNo: String): List<Assignment> =
-        _assignments.value.filter { it.courseNo == courseNo && !it.isCompleted }
+    /**
+     * [cellRole] for callers that already hold the period list.
+     *
+     * The no-[periods] overload reads the `activePeriods` getter, which walks
+     * every course's schedule, builds a period-id set and filters the
+     * chronological order — per call. The grid asks for a role once per cell,
+     * so roughly seven weekdays x fourteen periods rebuild the same list a
+     * hundred times per recomposition. TimetableGrid is already handed the
+     * memoized list as `periods`; passing it back through skips all of that.
+     */
+    fun cellRole(
+        periods: List<TimetablePeriod>,
+        weekday: Int,
+        periodIndex: Int,
+    ): CellRole = ClassTableCellLayout.roleAt(_courses.value, periods, weekday, periodIndex)
+
+    fun wouldCauseTripleConflict(candidate: Course): TripleConflictError? =
+        ClassTableCellLayout.findTripleConflict(_courses.value, candidate)
+
+    // hasAssignment / assignmentsFor were removed: they read _assignments.value
+    // outside the snapshot system, so composables calling them never recomposed
+    // when the assignments fetch landed. The screen now collects [assignments]
+    // and derives badge state itself.
 
     fun selectCourse(course: Course, weekday: Int, periodId: String) {
         _selectedWeekday.value = weekday
@@ -431,7 +503,16 @@ class ClassTableViewModel @Inject constructor(
         val updated = _courses.value + flagged
         _courses.value = updated
         viewModelScope.launch {
+            val semester = _currentSemester.value
+            val deleted = dataCache.loadDeletedCourseNos()
+            if (CourseTombstoneKeys.isHidden(course.courseNo, semester, deleted)) {
+                dataCache.saveDeletedCourseNos(
+                    CourseTombstoneKeys.unhide(course.courseNo, semester, deleted)
+                )
+            }
             dataCache.saveCourses(updated, _currentSemester.value)
+            val forceKey = "client:${_currentSemester.value}:${course.courseNo}"
+            runCatching { pushApiClient.uploadCourses(updated, _currentSemester.value, forceKeys = listOf(forceKey)) }
             widgetUpdater.requestUpdate()
         }
         TigerDuckTheme.buildCourseColorMap(updated)
@@ -446,39 +527,65 @@ class ClassTableViewModel @Inject constructor(
      */
     fun setCustomCourseName(courseNo: String, newName: String) {
         val trimmed = newName.trim()
+        val locale = currentCourseLocale
         val updated = _courses.value.map { course ->
             if (course.courseNo != courseNo) return@map course
             val defaultName = defaultNameFor(course)
             val override = trimmed.takeIf {
                 it.isNotEmpty() && it != course.courseName && it != defaultName
             }
+            courseCustomNames =
+                CourseNameOverrides.withOverride(courseCustomNames, courseNo, locale, override)
             course.copy(customCourseName = override)
         }
         _courses.value = updated
         viewModelScope.launch {
+            dataCache.saveCourseCustomNames(courseCustomNames)
             dataCache.saveCourses(updated, _currentSemester.value)
             widgetUpdater.requestUpdate()
         }
+        syncCourseOverride(courseNo, customName = trimmed.ifEmpty { "" }, locale = locale)
     }
 
     /** Clears any user override for [courseNo], restoring the default name. */
     fun revertCourseName(courseNo: String) {
+        val locale = currentCourseLocale
+        courseCustomNames =
+            CourseNameOverrides.withOverride(courseCustomNames, courseNo, locale, null)
         val updated = _courses.value.map { course ->
             if (course.courseNo == courseNo) course.copy(customCourseName = null) else course
         }
         _courses.value = updated
         viewModelScope.launch {
+            dataCache.saveCourseCustomNames(courseCustomNames)
             dataCache.saveCourses(updated, _currentSemester.value)
             widgetUpdater.requestUpdate()
         }
+        syncCourseOverride(courseNo, customName = "", locale = locale)
+    }
+
+    private fun resolveMoodleNumericId(course: Course): Int? {
+        course.moodleNumericCourseId?.let { return it }
+        val idnumber = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: return null
+        return _moodleCourseIdByIdnumber.value[idnumber]
     }
 
     fun deleteCourse(courseNo: String) {
         val updated = _courses.value.filter { it.courseNo != courseNo }
         _courses.value = updated
+        val semester = _currentSemester.value
         viewModelScope.launch {
-            dataCache.saveCourses(updated, _currentSemester.value)
+            val deleted = CourseTombstoneKeys.hide(
+                courseNo, semester, dataCache.loadDeletedCourseNos()
+            )
+            dataCache.saveDeletedCourseNos(deleted)
+            dataCache.saveCourses(updated, semester)
             widgetUpdater.requestUpdate()
+            val courseKey = "client:$semester:$courseNo"
+            runCatching { pushApiClient.deleteCourse(courseKey) }
+                .onFailure { e -> Log.w("ClassTable", "deleteCourse backend failed", e) }
+            runCatching { pushApiClient.uploadCourses(updated, semester) }
+                .onFailure { e -> Log.w("ClassTable", "uploadCourses after delete failed", e) }
         }
         TigerDuckTheme.buildCourseColorMap(updated)
     }
@@ -506,199 +613,29 @@ class ClassTableViewModel @Inject constructor(
             dataCache.saveCourses(updated, _currentSemester.value)
             widgetUpdater.requestUpdate()
         }
+        syncCourseOverride(courseNo, colorHex = normalized)
     }
 
-    sealed class CellRole {
-        object Empty : CellRole()
-        data class SoloStart(val course: Course, val spanCount: Int) : CellRole()
-
-        /**
-         * Two overlapping courses occupying (possibly partially) this cluster.
-         * [combinedSpan] is the total row count of the union. [offsetA]/[offsetB]
-         * are 0-indexed row positions within the cluster where each course's
-         * block begins. [spanA]/[spanB] are each course's own contiguous block
-         * length. The L-split is drawn only on rows where both appear.
-         */
-        data class ConflictStart(
-            val courseA: Course, val spanA: Int, val offsetA: Int,
-            val courseB: Course, val spanB: Int, val offsetB: Int,
-            val combinedSpan: Int
-        ) : CellRole()
-
-        /**
-         * 3+ courses transitively connected by overlap — e.g. A on periods 6-7,
-         * B on 6-8, C on 8-9: A and C don't share a period but B bridges them.
-         * The L-split tile of [ConflictStart] only fits 2 courses, so callers
-         * render this variant as vertical lanes (greedy interval-graph coloring
-         * by [Member.lane] within [laneCount], same approach as the home
-         * slider's 衝堂 stacking).
-         */
-        data class MultiConflictStart(
-            val members: List<Member>,
-            val combinedSpan: Int,
-            val laneCount: Int,
-        ) : CellRole() {
-            data class Member(
-                val course: Course,
-                val span: Int,
-                val offset: Int,
-                val lane: Int,
-                /** First period this course occupies — needed so the detail
-                 *  popup resolves the correct per-(weekday, period) room. */
-                val firstPeriodId: String,
-            )
-        }
-
-        object Skip : CellRole()
-    }
-
-    /**
-     * Contiguous block within [weekday] that contains [startIndex], for [course].
-     * Returns (firstIndex, span). Adjacent periods in
-     * [AppConstants.Periods.chronologicalOrder] count as contiguous.
-     */
-    private fun blockFor(weekday: Int, startIndex: Int, course: Course): Pair<Int, Int> {
-        val periods = activePeriods
-        val courseNo = course.courseNo
-        // Walk backward to find the block start
-        var first = startIndex
-        while (first - 1 >= 0) {
-            val prev = periods[first - 1]
-            val prevPresent = _courses.value.any {
-                it.courseNo == courseNo && it.schedule[weekday]?.contains(prev.id) == true
-            }
-            if (prevPresent) first-- else break
-        }
-        // Walk forward to find the block end
-        var last = startIndex
-        while (last + 1 < periods.size) {
-            val next = periods[last + 1]
-            val nextPresent = _courses.value.any {
-                it.courseNo == courseNo && it.schedule[weekday]?.contains(next.id) == true
-            }
-            if (nextPresent) last++ else break
-        }
-        return first to (last - first + 1)
-    }
-
-    fun cellRole(weekday: Int, periodIndex: Int): CellRole {
-        val periods = activePeriods
-        if (periodIndex < 0 || periodIndex >= periods.size) return CellRole.Empty
-        val period = periods[periodIndex]
-        val coursesHere = coursesAt(weekday, period.id)
-        if (coursesHere.isEmpty()) return CellRole.Empty
-
-        // Build transitive closure of courses whose blocks overlap with any
-        // course already in the cluster, rooted at the courses present in this
-        // cell. This guarantees we emit a ConflictStart at the earliest row
-        // of the union and Skip thereafter.
-        val closure =
-            LinkedHashMap<String, Triple<Course, Int, Int>>() // courseNo -> (course, firstIndex, span)
-
-        fun addCourse(c: Course, seedIndex: Int) {
-            if (closure.containsKey(c.courseNo)) return
-            val (first, span) = blockFor(weekday, seedIndex, c)
-            closure[c.courseNo] = Triple(c, first, span)
-            // Expand: any other course touching any row in [first, first+span)
-            for (i in first until first + span) {
-                val pid = periods.getOrNull(i)?.id ?: continue
-                for (other in coursesAt(weekday, pid)) {
-                    if (!closure.containsKey(other.courseNo)) addCourse(other, i)
-                }
+    private fun syncCourseOverride(
+        courseNo: String,
+        colorHex: String? = null,
+        customName: String? = null,
+        locale: String? = null,
+    ) {
+        val course = _courses.value.find { it.courseNo == courseNo } ?: return
+        val moodleId = course.moodleIdNumber ?: return
+        viewModelScope.launch {
+            try {
+                pushApiClient.patchCourseOverride(
+                    moodleId,
+                    colorHex = colorHex,
+                    customName = customName,
+                    locale = locale,
+                )
+            } catch (e: Exception) {
+                Log.w("ClassTableVM", "course override FAILED: $courseNo", e)
             }
         }
-        coursesHere.forEach { addCourse(it, periodIndex) }
-
-        val clusterStart = closure.values.minOf { it.second }
-        if (clusterStart < periodIndex) return CellRole.Skip
-
-        if (closure.size == 1) {
-            val (course, _, span) = closure.values.first()
-            return CellRole.SoloStart(course, span)
-        }
-
-        val entries = closure.values.toList()
-        val clusterEnd = entries.maxOf { it.second + it.third }
-        val combined = clusterEnd - clusterStart
-
-        if (entries.size == 2) {
-            val (courseA, firstA, spanA) = entries[0]
-            val (courseB, firstB, spanB) = entries[1]
-            return CellRole.ConflictStart(
-                courseA = courseA, spanA = spanA, offsetA = firstA - clusterStart,
-                courseB = courseB, spanB = spanB, offsetB = firstB - clusterStart,
-                combinedSpan = combined,
-            )
-        }
-
-        // 3+ courses: lay out as vertical lanes via greedy interval-graph
-        // coloring (each course takes the lowest-indexed lane whose previous
-        // occupant has ended). Mirrors TimeSliderViewModel.computeSlotLayouts.
-        val sortedByStart = entries.sortedBy { it.second }
-        val laneEnds = mutableListOf<Int>()
-        val laneAssignments = IntArray(sortedByStart.size)
-        for ((i, e) in sortedByStart.withIndex()) {
-            val (_, first, span) = e
-            val end = first + span
-            var lane = -1
-            for (j in laneEnds.indices) {
-                if (laneEnds[j] <= first) { lane = j; break }
-            }
-            if (lane < 0) {
-                laneEnds.add(end)
-                lane = laneEnds.size - 1
-            } else {
-                laneEnds[lane] = end
-            }
-            laneAssignments[i] = lane
-        }
-        val members = sortedByStart.mapIndexed { i, e ->
-            val (course, first, span) = e
-            val firstPeriodId = periods.getOrNull(first)?.id ?: period.id
-            CellRole.MultiConflictStart.Member(
-                course = course,
-                span = span,
-                offset = first - clusterStart,
-                lane = laneAssignments[i],
-                firstPeriodId = firstPeriodId,
-            )
-        }
-        return CellRole.MultiConflictStart(
-            members = members,
-            combinedSpan = combined,
-            laneCount = laneEnds.size,
-        )
-    }
-
-    data class TripleConflictError(
-        val weekday: Int,
-        val periodId: String,
-        val newCourseName: String,
-        val existingA: Course,
-        val existingB: Course,
-    )
-
-    /**
-     * Scans every (weekday, period) the candidate course would occupy and
-     * returns the first slot that already has two courses — i.e. adding the
-     * candidate would push that slot to three. Null if the add is safe.
-     */
-    fun wouldCauseTripleConflict(candidate: Course): TripleConflictError? {
-        for ((weekday, periodIds) in candidate.schedule) {
-            for (pid in periodIds) {
-                val existing = coursesAt(weekday, pid)
-                if (existing.size >= 2) {
-                    return TripleConflictError(
-                        weekday = weekday,
-                        periodId = pid,
-                        newCourseName = candidate.courseName,
-                        existingA = existing[0],
-                        existingB = existing[1],
-                    )
-                }
-            }
-        }
-        return null
     }
 
     fun load() {
@@ -708,13 +645,73 @@ class ClassTableViewModel @Inject constructor(
             val cached = dataCache.loadCourses(_currentSemester.value)
             val cachedA = dataCache.loadAssignments()
             val cachedMoodleIds = dataCache.loadMoodleCourseIds()
+            courseCustomNames = dataCache.loadCourseCustomNames()
+                .mapValues { it.value.toMutableMap() }
+                .toMutableMap()
             if (cached.isNotEmpty()) {
-                _courses.value = cached
+                _courses.value = resolveCustomNames(cached)
                 _assignments.value = cachedA
-                TigerDuckTheme.buildCourseColorMap(cached)
+                TigerDuckTheme.buildCourseColorMap(_courses.value)
             }
             if (cachedMoodleIds.isNotEmpty()) {
                 _moodleCourseIdByIdnumber.value = cachedMoodleIds
+            }
+            refreshLiveSemesterCourses()
+            fetchData()
+        }
+    }
+
+    /**
+     * Reset the timetable for the semester on screen.
+     *
+     * Scoped, because the timetable itself is now per term: an unscoped reset
+     * would drop the other terms' rows on the backend and, through
+     * `courses_reset_at`, tell every other device to wipe its local overlay
+     * for terms the user never asked to touch. The tombstones lifted are this
+     * term's plus any legacy bare ones, which hide in every term and so have
+     * to go for this term to actually come back.
+     */
+    fun resetCourses() {
+        val semester = _currentSemester.value
+        // One at a time per term, and latched for the syncs that can run
+        // in the middle — see DataCache.beginReset.
+        if (!dataCache.beginReset(semester)) return
+        viewModelScope.launch {
+            try {
+                val stored = dataCache.loadDeletedCourseNos()
+                val lifted = CourseTombstoneKeys.entriesResetting(semester, stored)
+                if (lifted.isNotEmpty()) dataCache.saveDeletedCourseNos(stored - lifted)
+                val deleted = runCatching { pushApiClient.deleteAllCourses(semester) }
+                    .onFailure { Log.w("ClassTableVM", "deleteAllCourses failed (non-fatal)", it) }
+                    .isSuccess
+                if (deleted) {
+                    // Only once the server has forgotten the term. Wiping
+                    // first and then failing the DELETE would leave an
+                    // empty grid with the server still full, to be merged
+                    // back as hand-added rows.
+                    //
+                    // The stamp is taken after the DELETE landed: a
+                    // snapshot fetched before this instant still carries
+                    // the pre-reset roster — see DataCache.saveSemesterResetAt.
+                    dataCache.saveSemesterResetAt(semester, System.currentTimeMillis())
+                    // The server has forgotten every number in this term,
+                    // so a hand-typed course re-added later is unknown to
+                    // it again — see CourseSyncReconciler.reconcileSemester.
+                    dataCache.saveServerKnownNos(dataCache.loadServerKnownNos() - semester)
+                    // The term's cache goes too, hand-typed courses
+                    // included: a reset means "start this term over", and
+                    // the roster the portal returns next is the whole of
+                    // it. Load-bearing for sync as well — with the old
+                    // roster still on disk next to an empty server term, a
+                    // sync would push it back up, and this device's upload
+                    // releases its own reset tombstones, so the reset would
+                    // undo itself.
+                    dataCache.saveCourses(emptyList(), semester)
+                    if (_currentSemester.value == semester) _courses.value = emptyList()
+                    widgetUpdater.requestUpdate()
+                }
+            } finally {
+                dataCache.endReset(semester)
             }
             fetchData()
         }
@@ -793,6 +790,9 @@ class ClassTableViewModel @Inject constructor(
                 selectionDef.await() to moodleDef.await()
             }
             Log.i("ClassTableVM", "selectionNos=${selectionNos.size} -> $selectionNos")
+            // Before the merge below rewrites the cache — see
+            // DataCache.recordSelectionRoster.
+            dataCache.recordSelectionRoster(semester, selectionNos)
             Log.i(
                 "ClassTableVM",
                 "moodleAll=${moodleAll.size} sampleIdnums=${
@@ -815,20 +815,14 @@ class ClassTableViewModel @Inject constructor(
                 dataCache.saveMoodleCourseIds(fresh)
             }
 
-            val moodleForSem =
-                moodleAll.filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }
+            val moodleForSem = CourseRosterMerge.moodleCoursesFor(semester, moodleAll)
             val moodleByNo = moodleForSem.associateBy { it.courseNo }
             Log.i(
                 "ClassTableVM",
                 "moodleForSem[$semester]=${moodleForSem.size} -> ${moodleForSem.map { it.courseNo }}"
             )
 
-            // Dedup while preserving order: selection first, then whatever
-            // Moodle adds.
-            val seen = LinkedHashSet<String>()
-            selectionNos.forEach { seen.add(it) }
-            moodleForSem.forEach { seen.add(it.courseNo) }
-            val orderedCourseNos = seen.toList()
+            val orderedCourseNos = CourseRosterMerge.rosterOrder(selectionNos, moodleForSem)
             Log.i("ClassTableVM", "orderedCourseNos=${orderedCourseNos.size} -> $orderedCourseNos")
 
             // Course detail lookups and assignment fetching are fully
@@ -837,81 +831,28 @@ class ClassTableViewModel @Inject constructor(
             coroutineScope {
                 val coursesJob = if (orderedCourseNos.isNotEmpty()) {
                     launch {
+                        // QueryCourse only indexes the latest term or two;
+                        // lookupOrFallback drops to Moodle metadata for
+                        // historical courses so they still render, with the
+                        // name and credits but no schedule.
                         val courses = orderedCourseNos.map { courseNo ->
                             async {
-                                try {
-                                    val results = courseService.lookupCourse(semester, courseNo)
-                                    if (results.isNotEmpty()) {
-                                        val r = results.first()
-                                        val schedule = courseService.mergeSchedules(
-                                            *results.map { it.node }.toTypedArray()
-                                        )
-                                        val classroomMap = courseService.buildClassroomMap(results)
-                                        val allRooms = LinkedHashSet<String>().apply {
-                                            for (row in results) {
-                                                Course.splitRooms(row.classRoomNo ?: "")
-                                                    .forEach { add(it) }
-                                            }
-                                        }
-                                        Course.fromSchedule(
-                                            courseNo = r.courseNo,
-                                            courseName = r.courseName,
-                                            instructor = r.courseTeacher,
-                                            credits = r.creditPoint.toIntOrNull() ?: 0,
-                                            classroom = allRooms.joinToString(", "),
-                                            enrolledCount = r.chooseStudent ?: 0,
-                                            maxCount = r.maxEnrollment,
-                                            schedule = schedule,
-                                            classroomMap = classroomMap,
-                                            moodleIdNumber = "${r.semester}${r.courseNo}"
-                                        )
-                                    } else {
-                                        // QueryCourse only indexes the latest
-                                        // term or two; fall back to Moodle
-                                        // metadata so historical courses still
-                                        // render (no schedule, but at least the
-                                        // name and credits).
-                                        moodleByNo[courseNo]?.let { m ->
-                                            Course.fromSchedule(
-                                                courseNo = courseNo,
-                                                courseName = (m.fullname ?: courseNo).decodeHtmlEntities(),
-                                                moodleIdNumber = m.idnumber
-                                            )
-                                        }
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("ClassTableVM", "Failed to lookup course $courseNo", e)
-                                    moodleByNo[courseNo]?.let { m ->
-                                        Course.fromSchedule(
-                                            courseNo = courseNo,
-                                            courseName = (m.fullname ?: courseNo).decodeHtmlEntities(),
-                                            moodleIdNumber = m.idnumber
-                                        )
-                                    }
-                                }
+                                courseService.lookupOrFallback(
+                                    semester, courseNo, moodleByNo[courseNo],
+                                )
                             }
                         }.awaitAll().filterNotNull()
 
                         if (courses.isNotEmpty()) {
-                            val cached = dataCache.loadCourses(semester)
-                            val cachedByNo = cached.associateBy { it.courseNo }
-                            // Carry forward both the user's color pick AND the
-                            // `isManual` flag. If the user manually added a
-                            // course that later appears in the remote feed,
-                            // keep it marked manual so subsequent refreshes
-                            // still rescue it when it drops off the feed.
-                            val fetched = courses.map { c ->
-                                val prior = cachedByNo[c.courseNo]
-                                c.copy(
-                                    customColorHex = prior?.customColorHex,
-                                    isManual = prior?.isManual == true,
-                                    customCourseName = prior?.customCourseName,
-                                )
-                            }
-                            val fetchedNos = fetched.map { it.courseNo }.toSet()
-                            val manualLeftovers =
-                                cached.filter { it.isManual && it.courseNo !in fetchedNos }
-                            val merged = fetched + manualLeftovers
+                            val merged = ClassTableCourseMerge.mergeFetched(
+                                fetched = courses,
+                                cached = dataCache.loadCourses(semester),
+                                names = courseCustomNames,
+                                locale = currentCourseLocale,
+                                deletedNos = CourseTombstoneKeys.hiddenIn(
+                                    semester, dataCache.loadDeletedCourseNos()
+                                ),
+                            )
                             // Only apply if the user hasn't flipped to a
                             // different semester mid-flight.
                             if (_currentSemester.value == semester) {
@@ -919,6 +860,8 @@ class ClassTableViewModel @Inject constructor(
                                 TigerDuckTheme.buildCourseColorMap(merged)
                             }
                             dataCache.saveCourses(merged, semester)
+                            runCatching { pushApiClient.uploadCourses(merged, semester) }
+                                .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal)", it) }
                             widgetUpdater.requestUpdate()
                         }
                     }
@@ -935,17 +878,22 @@ class ClassTableViewModel @Inject constructor(
                                 enrolledCourses = moodleAll,
                                 rosterCourseNos = orderedCourseNos.toSet()
                             )
-                            val existingCompleted = _assignments.value
-                                .filter { it.isCompleted }
-                                .map { it.assignmentId }
-                                .toSet()
-                            val merged = remoteAssignments.map { assignment ->
-                                if (assignment.assignmentId in existingCompleted) {
-                                    assignment.copy(isCompleted = true)
-                                } else assignment
+                            val merged = CourseRosterMerge.preserveConfirmedSubmissions(
+                                remote = remoteAssignments,
+                                previouslyCompleted =
+                                    CourseRosterMerge.completedIds(_assignments.value),
+                            )
+                            // Empty means "upstream returned nothing useful",
+                            // not "you have no assignments" — the enrolment
+                            // fetch failing produces the same empty list as a
+                            // clear week. HomeViewModel has guarded this since
+                            // it was written; this path and the background
+                            // worker did not, so a NetScaler challenge or a
+                            // token-rotation race silently emptied the cache.
+                            if (merged.isNotEmpty()) {
+                                _assignments.value = merged
+                                dataCache.saveAssignments(merged)
                             }
-                            _assignments.value = merged
-                            dataCache.saveAssignments(merged)
                         } catch (e: Exception) {
                             Log.e("ClassTableVM", "Failed to fetch assignments", e)
                         }

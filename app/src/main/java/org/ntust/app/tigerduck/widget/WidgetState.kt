@@ -2,7 +2,7 @@ package org.ntust.app.tigerduck.widget
 
 import androidx.compose.ui.graphics.Color
 import androidx.datastore.preferences.core.longPreferencesKey
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.shared.Course
 
 data class WidgetState(
     val courses: List<Course>,
@@ -12,7 +12,8 @@ data class WidgetState(
     val currentMinuteOfDay: Int,
     val isLoggedIn: Boolean,
     /**
-     * Whether [org.ntust.app.tigerduck.AppConstants.CurrentTerm] is in session.
+     * Whether the school calendar says classes are in session today — see
+     * [org.ntust.app.tigerduck.academic.AcademicCalendar.isInSession].
      *
      * Gates the "today"-scoped widgets — Next Class and Today — which would
      * otherwise announce classes for a term that has not started, since 選課
@@ -40,6 +41,15 @@ data class WidgetState(
      * hash-based palette color inside [widgetCourseColor].
      */
     val courseColors: Map<String, Color>,
+    /**
+     * User-tunable multiplier (0.8…1.6, default 1.0) applied to course-name
+     * `fontSize` in every widget. Pulled from
+     * [org.ntust.app.tigerduck.data.preferences.AppPreferences.courseNameScale]
+     * at load time so the widget render and the in-app class table stay in
+     * sync — [org.ntust.app.tigerduck.ui.AppState] requests a widget refresh
+     * whenever the slider moves.
+     */
+    val courseNameScale: Float,
 ) {
     companion object {
         /**

@@ -5,13 +5,22 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.data.CourseRosterMerge
+import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.network.SemesterCodes
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
-import org.ntust.app.tigerduck.data.model.Course
+import org.ntust.app.tigerduck.data.model.SyncConflict
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import java.io.File
@@ -24,13 +33,33 @@ import javax.inject.Singleton
  * Survives app restarts, cleared when system needs space.
  */
 @Singleton
-class DataCache @Inject constructor(@ApplicationContext context: Context) {
+class DataCache @Inject constructor(
+    @ApplicationContext context: Context,
+    private val academicCalendar: AcademicCalendarStore,
+) {
 
     private val cacheDir: File = File(context.cacheDir, "TigerDuckCache").also { it.mkdirs() }
 
     // User-generated state that has no remote source — stored in filesDir so the OS never evicts it.
     private val userDataDir: File = File(context.filesDir, "TigerDuckData").also { it.mkdirs() }
     private val cacheMutex = Mutex()
+
+    private val _syncConflict = MutableStateFlow<SyncConflict?>(null)
+    val syncConflict: StateFlow<SyncConflict?> = _syncConflict.asStateFlow()
+
+    fun setSyncConflict(conflict: SyncConflict?) { _syncConflict.value = conflict }
+
+    private val _backgroundSyncVersion = MutableStateFlow(0)
+    val backgroundSyncVersion: StateFlow<Int> = _backgroundSyncVersion.asStateFlow()
+    fun notifyBackgroundSyncComplete() { _backgroundSyncVersion.update { it + 1 } }
+
+    suspend fun replaceIgnoredAssignments(ids: Set<String>) {
+        saveToUserData(ids.toList(), "ignored_assignments.json")
+    }
+
+    suspend fun replaceMarkedCompletedAssignments(ids: Set<String>) {
+        saveToUserData(ids.toList(), "marked_completed_assignments.json")
+    }
     private val userDataMutex = Mutex()
     private val gson: Gson = GsonBuilder()
         .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
@@ -49,7 +78,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         onCoursesSaved = listener
     }
 
-    // MARK: - Courses (semester-scoped)
+    // --- Courses (semester-scoped) ---
 
     /**
      * Save courses for a specific semester. Splits the list: remote-fetched
@@ -129,7 +158,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         saveToUserData(manual, manualCoursesFilename(semester))
     }
 
-    // MARK: - Courses (current-semester aliases)
+    // --- Courses (current-semester aliases) ---
     // Home, BackgroundSyncWorker, LiveActivity, etc. operate on "whatever
     // the user is studying right now" so we keep a no-arg convenience that
     // always maps to the actual current semester.
@@ -172,10 +201,19 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
      * else reads. Duplicated rather than injected so DataCache keeps no
      * dependency on the network layer.
      */
+    /**
+     * The term whose cache file the app reads.
+     *
+     * Comes from the school's published calendar; before this feature it was
+     * a constant that needed a store release every semester. Falls back to
+     * the month heuristic while the calendar is unknown — a device that has
+     * never reached the backend still has to open on something.
+     */
     private fun currentSemesterCode(): String =
-        org.ntust.app.tigerduck.AppConstants.CurrentTerm.CODE
+        academicCalendar.current().currentTerm(AppClock.localDateTime().toLocalDate())?.code
+            ?: SemesterCodes.heuristic()
 
-    // MARK: - Assignments
+    // --- Assignments ---
 
     suspend fun saveAssignments(assignments: List<Assignment>) =
         save(assignments, "assignments.json")
@@ -185,8 +223,20 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return load(type, "assignments.json") ?: emptyList()
     }
 
-    // MARK: - Skipped Dates (courseNo -> list of ISO date strings "yyyy-MM-dd")
+    // --- Skipped Dates (courseNo -> list of ISO date strings "yyyy-MM-dd") ---
     // Stored in filesDir — never cleared by the OS, unlike cacheDir.
+    //
+    // 翹課 is parked until after the add-friend feature, so nothing reads this
+    // file today: every caller passes emptyMap() instead, and the reads are
+    // commented out beside them. Read/write stay here on purpose — the file is
+    // NOT deleted, so a user who marked classes before v2.0.0 gets their marks
+    // back the day the feature is switched on.
+    //
+    // Do not "reconnect" a caller in isolation. Skipping suppresses class-prep
+    // notifications and Live Activity slots, and the UI that undoes a skip
+    // (the left-swipe on the Home tile) is commented out — so a live read with
+    // a dead toggle means classes silently vanish with no way to get them back.
+    // Turn the UI on first. See HomeViewModel._skippedDates.
 
     suspend fun saveSkippedDates(data: Map<String, List<String>>) =
         saveToUserData(data, "skipped_dates.json")
@@ -196,7 +246,146 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return loadFromUserData(type, "skipped_dates.json") ?: emptyMap()
     }
 
-    // MARK: - Ignored Assignments (set of assignmentIds)
+    // --- Course Custom Names (per-locale overrides) ---
+    // courseNo → locale → name. Stored in filesDir so user renames survive
+    // cache eviction. The ClassTableViewModel resolves the current locale's
+    // entry into Course.customCourseName at load/display time.
+
+    suspend fun saveCourseCustomNames(names: Map<String, Map<String, String>>) =
+        saveToUserData(names, "course_custom_names.json")
+
+    suspend fun loadCourseCustomNames(): Map<String, Map<String, String>> {
+        val type = object : TypeToken<Map<String, Map<String, String>>>() {}.type
+        return loadFromUserData(type, "course_custom_names.json") ?: emptyMap()
+    }
+
+    // --- Courses 選課 stopped listing (semester → courseNos) ---
+    // Written when a successful, non-empty 選課 answer no longer names a
+    // course this device holds — a 加退選 drop. Read by the sync reconcile,
+    // which would otherwise merge the row the backend still carries straight
+    // back onto the timetable, since an upload never prunes and only an
+    // explicit DELETE writes a tombstone.
+    //
+    // Deliberately NOT the deleted_courses.json tombstone set: that one is
+    // driven by the server ("absent there → hide, present there → un-hide"),
+    // so a 選課-driven entry would be un-hidden by the next sync. This one
+    // answers a different question and only 選課 may add to or clear it.
+    // Stored in filesDir so a drop survives cache eviction.
+
+    /**
+     * Fold one successful 選課 answer for [semester] into the dropped set.
+     *
+     * Must be called *before* the fetch overwrites the course cache: the
+     * courses on disk right now are what the answer is diffed against, and
+     * once they are replaced the drop is no longer visible to anyone.
+     *
+     * Lives here rather than in the three fetch paths that call it — Home,
+     * the class table and the background worker — because those three have
+     * already grown one duplicated roster merge between them, and this is
+     * load and save either side of one line of rule.
+     */
+    suspend fun recordSelectionRoster(semester: String, roster: List<String>) {
+        if (roster.isEmpty()) return
+        val stored = loadSelectionDroppedNos()
+        val updated = CourseRosterMerge.selectionDrops(
+            previous = stored[semester].orEmpty().toSet(),
+            localPortalNos = loadCourses(semester).filterNot { it.isManual }.map { it.courseNo },
+            roster = roster,
+        )
+        if (updated == stored[semester].orEmpty().toSet()) return
+        saveSelectionDroppedNos(
+            if (updated.isEmpty()) stored - semester else stored + (semester to updated.toList())
+        )
+    }
+
+    suspend fun saveSelectionDroppedNos(dropped: Map<String, List<String>>) =
+        saveToUserData(dropped, "selection_dropped.json")
+
+    // --- Server-Known Course Nos ---
+    // Per semester, every course number a `/sync/full` snapshot has carried.
+    //
+    // A manual course is exempt from "absent from the server means deleted
+    // elsewhere" only until the server has actually seen it — before that,
+    // absence means our upload has not landed. This is the record of what it
+    // has seen. Grows only; a number stays known after the course is deleted,
+    // which is what keeps the deletion from being undone on the next sync.
+    //
+    // In filesDir rather than cacheDir for the same reason as the tombstones:
+    // if eviction could drop it, an evicted device would re-arm immunity for
+    // every course it holds and upload a term someone else had reset.
+
+    suspend fun saveServerKnownNos(known: Map<String, List<String>>) =
+        saveToUserData(known, "server_known_courses.json")
+
+    suspend fun loadServerKnownNos(): Map<String, List<String>> {
+        val type = object : TypeToken<Map<String, List<String>>>() {}.type
+        return loadFromUserData(type, "server_known_courses.json") ?: emptyMap()
+    }
+
+    suspend fun loadSelectionDroppedNos(): Map<String, List<String>> {
+        val type = object : TypeToken<Map<String, List<String>>>() {}.type
+        return loadFromUserData(type, "selection_dropped.json") ?: emptyMap()
+    }
+
+    // --- Semester Reset ---
+    // A reset is: backend DELETE, then wipe the term locally, then refetch
+    // and upload the fresh roster. Two things guard the syncs that can run
+    // in the middle (the 10-second revision poll, the hourly worker):
+    //
+    // [resettingSemesters] holds the term from before the DELETE goes out
+    // until the local wipe is done. A snapshot reconciled in that window
+    // sees the server either still full or just emptied and the cache
+    // either still full or just emptied, and every combination but the
+    // right one puts the old roster somewhere it gets uploaded from. The
+    // reconcile skips the term. In memory: it only has to outlive one
+    // round trip.
+    //
+    // `semester_reset_at.json` records, per term, when the DELETE landed.
+    // A snapshot is fetched, then reconciled some time later — after the
+    // assignment overrides and their PATCHes — so one fetched before the
+    // DELETE can be reconciled after the latch is gone, still carrying the
+    // pre-reset roster. The reconcile leaves a term alone when the snapshot
+    // predates its reset (CourseSyncReconciler.termsResetAfter), and drops
+    // the stamp once a snapshot clearly newer has been reconciled. In
+    // filesDir so eviction cannot lose it.
+
+    private val resetting = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /** Latches [semester] as mid-reset; false when it already is. */
+    fun beginReset(semester: String): Boolean = resetting.add(semester)
+
+    fun endReset(semester: String) { resetting.remove(semester) }
+
+    fun resettingSemesters(): Set<String> = resetting.toSet()
+
+    suspend fun saveSemesterResetAt(semester: String, atMs: Long) =
+        saveToUserData(loadSemesterResetAt() + (semester to atMs), "semester_reset_at.json")
+
+    /** Drops stamps a newer snapshot has outlived — see [CourseSyncReconciler.resetStampsOutlived]. */
+    suspend fun clearSemesterResetAt(semesters: Set<String>) {
+        if (semesters.isEmpty()) return
+        saveToUserData(loadSemesterResetAt() - semesters, "semester_reset_at.json")
+    }
+
+    suspend fun loadSemesterResetAt(): Map<String, Long> {
+        val type = object : TypeToken<Map<String, Long>>() {}.type
+        return loadFromUserData(type, "semester_reset_at.json") ?: emptyMap()
+    }
+
+    // --- Deleted Course Nos (hidden by user or server) ---
+    // Stored in filesDir so courses hidden via sync or the delete gesture
+    // stay gone even when Moodle/NTUST re-fetches re-add them.
+
+    suspend fun saveDeletedCourseNos(nos: Set<String>) =
+        saveToUserData(nos.toList(), "deleted_courses.json")
+
+    suspend fun loadDeletedCourseNos(): Set<String> {
+        val type = object : TypeToken<List<String>>() {}.type
+        return loadFromUserData<List<String>>(type, "deleted_courses.json")?.toSet()
+            ?: emptySet()
+    }
+
+    // --- Ignored Assignments (set of assignmentIds) ---
     // Stored in filesDir so the user's ignore decisions survive OS cache eviction
     // and remote re-fetches, mirroring skipped_dates.json handling.
 
@@ -209,7 +398,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
             ?: emptySet()
     }
 
-    // MARK: - Marked-Completed Assignments (set of assignmentIds)
+    // --- Marked-Completed Assignments (set of assignmentIds) ---
     // Independent from Moodle's `isCompleted`: lets the user manually flag a
     // homework as done from the swipe gesture even when Moodle hasn't (or
     // won't) record a submission. Persisted in filesDir alongside the ignore
@@ -224,9 +413,16 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
             ?: emptySet()
     }
 
-    // MARK: - Score Report (per studentId)
+    // --- Score Report (per studentId) ---
 
-    data class ScoreReportSnapshot(val report: ScoreReport, val cachedAt: Date)
+    /**
+     * Fields are nullable as Gson-Unsafe defense (see CLAUDE.md): this class
+     * is deserialized from score_<id>.json across upgrades, and Gson bypasses
+     * the constructor, so a cache file written before a future field/shape
+     * change would leave non-null fields silently null. Readers must
+     * null-check both fields.
+     */
+    data class ScoreReportSnapshot(val report: ScoreReport?, val cachedAt: Date?)
 
     suspend fun saveScoreReport(report: ScoreReport, studentId: String) =
         save(ScoreReportSnapshot(report, Date()), scoreReportFilename(studentId))
@@ -245,7 +441,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     private fun scoreReportFilename(studentId: String): String = "score_$studentId.json"
 
-    // MARK: - Course lookup (querycourse.ntust.edu.tw responses)
+    // --- Course lookup (querycourse.ntust.edu.tw responses) ---
     // Course metadata (name, instructor, schedule, caps) is static within a
     // semester; only ChooseStudent drifts, and drifting by a few minutes is
     // tolerable for a pull-to-refresh UX. Caching the raw CourseSearchResult
@@ -264,7 +460,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return load<Map<String, CourseLookupEntry>>(type, "course_lookups.json") ?: emptyMap()
     }
 
-    // MARK: - Moodle course id map (idnumber → numeric id)
+    // --- Moodle course id map (idnumber → numeric id) ---
     // Powers the course-detail "Open in Moodle" deep link, which needs the
     // numeric id (Moodle's web endpoint won't accept the idnumber). The map
     // is harvested from `fetchEnrolledCourses` across ALL semesters so
@@ -281,7 +477,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return load<Map<String, Int>>(type, "moodle_course_ids.json") ?: emptyMap()
     }
 
-    // MARK: - Calendar Events
+    // --- Calendar Events ---
 
     suspend fun saveCalendarEvents(events: List<CalendarEvent>) =
         save(events, "calendar_events.json")
@@ -291,7 +487,7 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         return load(type, "calendar_events.json") ?: emptyList()
     }
 
-    // MARK: - Logout cleanup
+    // --- Logout cleanup ---
 
     /**
      * Wipe every piece of user-scoped data so the next login does not inherit
@@ -299,6 +495,29 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
      * marks on the UI. School-wide calendar events are rebuilt on the next
      * sync, so it is fine to drop them here too.
      */
+    /**
+     * Delete **every** file in both cache directories, user-scoped or not.
+     *
+     * [clearAllUserData] deliberately keeps device-wide caches (name
+     * abbreviations, the academic calendar, bulletin snapshots) because a
+     * logout is an account change, not a factory reset. The full-reset flow
+     * is the opposite: whatever is left behind is exactly what makes the
+     * "fresh install" it promises not actually fresh, so this takes the
+     * directories wholesale rather than naming files — a named list silently
+     * stops being complete the next time someone adds a cache.
+     */
+    suspend fun clearEverything() {
+        cacheMutex.withLock {
+            userDataMutex.withLock {
+                withContext(Dispatchers.IO) {
+                    listOf(cacheDir, userDataDir).forEach { dir ->
+                        dir.listFiles()?.forEach { runCatching { it.deleteRecursively() } }
+                    }
+                }
+            }
+        }
+    }
+
     suspend fun clearAllUserData() {
         cacheMutex.withLock {
             withContext(Dispatchers.IO) {
@@ -329,6 +548,11 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
                     "skipped_dates.json",
                     "ignored_assignments.json",
                     "marked_completed_assignments.json",
+                    "deleted_courses.json",
+                    "course_custom_names.json",
+                    "selection_dropped.json",
+                    "server_known_courses.json",
+                    "semester_reset_at.json",
                 ).forEach { name ->
                     runCatching { File(userDataDir, name).delete() }
                 }
@@ -344,15 +568,11 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    // MARK: - Private helpers
+    // --- Private helpers ---
 
     private suspend fun <T> save(value: T, filename: String) = cacheMutex.withLock {
         withContext(Dispatchers.IO) {
-            try {
-                File(cacheDir, filename).writeText(gson.toJson(value))
-            } catch (e: Exception) {
-                // Ignore write errors
-            }
+            atomicWrite(File(cacheDir, filename), gson.toJson(value))
         }
     }
 
@@ -367,11 +587,8 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
                     val file = File(cacheDir, filename)
                     if (!file.exists()) return@withContext null
                     val text = file.readText()
-                    if (requireContent != null && !text.contains(requireContent)) {
-                        return@withContext null
-                    }
-                    gson.fromJson(text, type)
-                } catch (e: Exception) {
+                    parseJsonIfContains(text, requireContent, gson, type)
+                } catch (_: Exception) {
                     null
                 }
             }
@@ -379,10 +596,40 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
 
     private suspend fun <T> saveToUserData(value: T, filename: String) = userDataMutex.withLock {
         withContext(Dispatchers.IO) {
-            try {
-                File(userDataDir, filename).writeText(gson.toJson(value))
-            } catch (e: Exception) {
+            atomicWrite(File(userDataDir, filename), gson.toJson(value))
+        }
+    }
+
+    /**
+     * Write-to-temp + rename so a crash or full disk mid-write can't leave a
+     * truncated JSON file behind. This matters most for userDataDir: a
+     * truncated `manual_courses_*.json` loses data that has no remote source
+     * to re-fetch from. rename() within the same directory is atomic on the
+     * filesystems Android uses. Failures are swallowed (callers can't do
+     * anything useful with them) but logged — durable user data silently
+     * failing to persist is otherwise undiagnosable in the field.
+     */
+    private fun atomicWrite(target: File, content: String) {
+        val tmp = File(target.parentFile, target.name + ".tmp")
+        try {
+            tmp.writeText(content)
+            if (!tmp.renameTo(target)) {
+                // Rename-over-existing can fail on some filesystems; delete
+                // the target only after the temp file write has succeeded so
+                // we never lose existing data if the write itself fails.
+                target.delete()
+                if (!tmp.renameTo(target)) {
+                    // Both renames failed — fall back to direct write so
+                    // data isn't lost entirely. The temp file still holds
+                    // the content so the write is safe to attempt.
+                    target.writeText(content)
+                    runCatching { tmp.delete() }
+                    return
+                }
             }
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to write ${target.name}", e)
+            runCatching { tmp.delete() }
         }
     }
 
@@ -397,17 +644,16 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
                     val file = File(userDataDir, filename)
                     if (!file.exists()) return@withContext null
                     val text = file.readText()
-                    if (requireContent != null && !text.contains(requireContent)) {
-                        return@withContext null
-                    }
-                    gson.fromJson(text, type)
-                } catch (e: Exception) {
+                    parseJsonIfContains(text, requireContent, gson, type)
+                } catch (_: Exception) {
                     null
                 }
             }
         }
 
     internal companion object {
+        private const val TAG = "DataCache"
+
         // Sentinel literal present in any course JSON written by a build
         // with un-obfuscated field names. Used by loadCourses to reject
         // R8-obfuscated v1.4.0 cache files before they reach Gson.
@@ -415,7 +661,21 @@ class DataCache @Inject constructor(@ApplicationContext context: Context) {
         // string value that contains the substring `courseNo` would not
         // include an unescaped quote+colon pair, so it can't satisfy the
         // check and slip past as if the keys were un-obfuscated.
-        const val COURSE_NO_TOKEN = "\"courseNo\":"
+        internal const val COURSE_NO_TOKEN = "\"courseNo\":"
+
+        internal fun <T> parseJsonIfContains(
+            text: String,
+            requiredToken: String?,
+            gson: Gson,
+            type: java.lang.reflect.Type,
+        ): T? {
+            if (requiredToken != null && !text.contains(requiredToken)) return null
+            return try {
+                gson.fromJson(text, type)
+            } catch (_: Exception) {
+                null
+            }
+        }
 
         /**
          * Drops rows Gson left un-populated.

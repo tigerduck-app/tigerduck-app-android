@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
@@ -13,34 +14,101 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.data.model.WhatsNewContent
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
+import org.ntust.app.tigerduck.network.ApiVersionGate
+import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
+import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.serverpush.ServerPopupRequest
+import org.ntust.app.tigerduck.serverpush.ServerPushIntentToken
+import org.ntust.app.tigerduck.serverpush.ServerPushPopupCoordinator
 import org.ntust.app.tigerduck.ui.AppState
+import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
+import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptController
+import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptHost
 import org.ntust.app.tigerduck.ui.navigation.AppNavigation
+import org.ntust.app.tigerduck.ui.screen.update.UpdatePromptDialog
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewDialog
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import javax.inject.Inject
+import org.ntust.app.tigerduck.update.UpdateChecker
+import org.ntust.app.tigerduck.update.WhatsNewGate
+import org.ntust.app.tigerduck.update.WhatsNewRepository
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
     @Inject
+    lateinit var analyticsLogger: AnalyticsLogger
+
+    @Inject
     lateinit var appState: AppState
+
     @Inject
     lateinit var liveActivityManager: LiveActivityManager
+
+    @Inject
+    lateinit var academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore
+
     @Inject
     lateinit var authService: AuthService
 
+    @Inject
+    lateinit var updateChecker: UpdateChecker
+
+    @Inject
+    lateinit var whatsNewRepository: WhatsNewRepository
+
+    @Inject
+    lateinit var appPreferences: AppPreferences
+
+    @Inject
+    lateinit var serverPushPopupCoordinator: ServerPushPopupCoordinator
+
+    @Inject
+    lateinit var serverPushIntentToken: ServerPushIntentToken
+
+    @Inject
+    lateinit var firstTriggerPromptController: FirstTriggerPromptController
+
+    @Inject
+    lateinit var moodleTokenService: MoodleTokenService
+
+    @Inject
+    lateinit var pushApiClient: PushApiClient
+
+    @Inject
+    lateinit var authTokenManager: AuthTokenManager
+
     private val widgetStartRoute = mutableStateOf<String?>(null)
+    private val whatsNewContent = mutableStateOf<WhatsNewContent?>(null)
 
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -59,9 +127,24 @@ class MainActivity : AppCompatActivity() {
         // wasted work (and thrashes WorkManager's internal bookkeeping DB).
         if (savedInstanceState == null && authService.storedStudentId != null) {
             BackgroundSyncWorker.schedule(applicationContext)
+            lifecycleScope.launch { authService.migrateToV3IfNeeded() }
         }
 
         widgetStartRoute.value = resolveStartRoute(intent)
+        handleServerPushIntent(intent)
+
+        // Re-prompt for app updates only on a genuine fresh start, never on a
+        // rotation/config-change recreation (issue #89).
+        if (savedInstanceState == null) {
+            updateChecker.maybePromptForUpdate()
+        }
+        // Resolve "What's new" on every onCreate, including config-change
+        // recreations: the dialog's versionCode is recorded only once the user
+        // dismisses it (see resolveWhatsNew), so re-deriving here re-shows a
+        // dialog the user had not yet dismissed instead of dropping it
+        // permanently on rotation (issue #89). freshStart keeps the debug
+        // "Replay" sentinel from being consumed by a mere recreation.
+        resolveWhatsNew(freshStart = savedInstanceState == null)
 
         setContent {
             // Re-apply orientation whenever the user changes the setting
@@ -79,21 +162,69 @@ class MainActivity : AppCompatActivity() {
 
             TigerDuckAppTheme(darkTheme = dark, accentColor = appState.accentColor(dark)) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    AppNavigation(
-                        appState = appState,
-                        widgetStartRoute = widgetStartRoute.value,
-                        onStartRouteConsumed = {
-                            widgetStartRoute.value = null
-                            // Clear the deep-link payload so a later onCreate
-                            // (e.g. after rotation) doesn't re-navigate to the
-                            // route the user already consumed.
-                            intent?.let {
-                                it.data = null
-                                it.removeExtra("start_route")
-                                intent = it
-                            }
-                        },
-                    )
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AppNavigation(
+                            appState = appState,
+                            analyticsLogger = analyticsLogger,
+                            widgetStartRoute = widgetStartRoute.value,
+                            onStartRouteConsumed = {
+                                widgetStartRoute.value = null
+                                // Clear the deep-link payload so a later onCreate
+                                // (e.g. after rotation) doesn't re-navigate to the
+                                // route the user already consumed.
+                                intent?.let {
+                                    it.data = null
+                                    it.removeExtra("start_route")
+                                    intent = it
+                                }
+                            },
+                        )
+
+                        // "An update is available" prompt — three actions:
+                        // Update now (Play Store deep link), Later (7-day
+                        // same-version cooldown), Skip this version
+                        // (indefinite per-version suppression). Mounted at
+                        // app root so a tab swap can't strand it.
+                        UpdatePromptHost(updateChecker)
+
+                        // "Your build is too old" — fires on a 410 from our
+                        // backend, which is how the server retires an API
+                        // version. Separate from UpdatePromptHost above:
+                        // that one is an optional nudge while the app still
+                        // works, this one means every backend call is now
+                        // failing and only a new build fixes it.
+                        UpdateRequiredHost()
+
+                        // Held back while the wizard owns the screen — an
+                        // upgrade re-runs it, and a dialog stacked on top of
+                        // page 1 would be the first thing that user sees. The
+                        // state stays set, so it opens the moment the wizard
+                        // is done, which is also the better place for it.
+                        whatsNewContent.value?.takeIf { !appState.showOnboarding }?.let { content ->
+                            WhatsNewDialog(
+                                content = content,
+                                onDismiss = {
+                                    whatsNewContent.value = null
+                                    // Record the seen versionCode only now: a
+                                    // dialog dropped by a config-change
+                                    // recreation before this runs is re-shown
+                                    // on the next onCreate (issue #89).
+                                    appPreferences.lastSeenWhatsNewVersionCode =
+                                        BuildConfig.VERSION_CODE
+                                },
+                            )
+                        }
+
+                        // First-trigger opt-in prompts (e.g. flip-to-library):
+                        // root-level so the prompt can surface over any tab the
+                        // gesture fires from, independent of the nav back stack.
+                        FirstTriggerPromptHost(firstTriggerPromptController)
+
+                        // Operator-issued popup: rendered over whatever screen
+                        // the user lands on after tapping the notification.
+                        // Coordinator's dedupe set short-circuits replays.
+                        ServerPushPopupHost(serverPushPopupCoordinator)
+                    }
                 }
             }
         }
@@ -101,11 +232,40 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        refreshAcademicCalendar()
         liveActivityManager.refresh()
-        // Pref may have changed in Settings (which itself can run while
-        // landscape-locked). Re-apply on every resume so the new choice
-        // takes effect without needing an Activity recreate.
+        updateChecker.resume(this)
         applyRotationPreference()
+        refreshMoodleCredentials()
+    }
+
+    /**
+     * Re-check the school calendar on every resume.
+     *
+     * Cheap by design — the server answers 304 with no body when nothing
+     * changed — and unconditional: this is the one backend call that is not
+     * gated on sign-in, cloud sync or flavour, because suppressing class
+     * reminders on a public holiday should not depend on any of them.
+     *
+     * A successful change re-runs the schedulers, since alarms up to ten
+     * days out may now fall on a newly-published holiday.
+     */
+    private fun refreshAcademicCalendar() {
+        lifecycleScope.launch {
+            val before = academicCalendar.current().revision
+            academicCalendar.refresh()
+            if (academicCalendar.current().revision != before) {
+                liveActivityManager.refresh()
+            }
+        }
+    }
+
+    private fun refreshMoodleCredentials() {
+        if (!authTokenManager.isLoggedIn) return
+        val token = moodleTokenService.currentToken() ?: return
+        lifecycleScope.launch {
+            runCatching { pushApiClient.updateCredentials(token) }
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -139,6 +299,50 @@ class MainActivity : AppCompatActivity() {
         // the deep-link URI rather than the launcher MAIN intent.
         setIntent(intent)
         widgetStartRoute.value = resolveStartRoute(intent)
+        handleServerPushIntent(intent)
+    }
+
+    /**
+     * Branches `tigerduck://server-push/<nid>?title=...&body=...` deep links
+     * (built by [org.ntust.app.tigerduck.push.FcmService.showServerPopupNotification])
+     * into the popup coordinator instead of the NavHost. Unlike the
+     * `announcement` host, server-push has no destination route — it pops an
+     * AlertDialog over whatever screen the user lands on. The coordinator's
+     * dedupe set guarantees a re-delivered intent (rotation, Recents tap)
+     * doesn't re-show the same dialog.
+     */
+    private fun handleServerPushIntent(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme != "tigerduck" || data.authority != "server-push") return
+        // MainActivity is exported (it's the launcher), so any installed app
+        // can fire an explicit intent at this deep-link path. The token is a
+        // per-install secret embedded by FcmService into the PendingIntent's
+        // extras; an external intent will lack it and is dropped silently.
+        val token = intent.getStringExtra(ServerPushIntentToken.EXTRA_NAME)
+        if (token != serverPushIntentToken.value) {
+            intent.data = null
+            setIntent(intent)
+            return
+        }
+        val nid = data.pathSegments.firstOrNull() ?: return
+        val title = data.getQueryParameter("title").orEmpty()
+        val body = data.getQueryParameter("body").orEmpty()
+        // Null the data immediately so a rotation/recreate (which re-runs
+        // onCreate with the original intent) doesn't re-dispatch the same
+        // payload — the coordinator's dedupe set absorbs the duplicate, but
+        // its DataStore write isn't synchronous with this method, so a
+        // fast recreate could race it. Belt-and-suspenders.
+        intent.data = null
+        setIntent(intent)
+        lifecycleScope.launch {
+            serverPushPopupCoordinator.request(
+                ServerPopupRequest(
+                    notificationId = nid,
+                    title = title,
+                    body = body,
+                ),
+            )
+        }
     }
 
     /**
@@ -157,11 +361,74 @@ class MainActivity : AppCompatActivity() {
         return null
     }
 
+    /**
+     * Decides whether to show the "What's new" dialog. A fresh install records
+     * the current version and shows nothing; upgrades show the dialog if
+     * `whatsnew.json` has an entry. A user upgrading from a build that predates
+     * the last-seen pref has no recorded versionCode either, but — unlike a
+     * fresh install — has completed onboarding; that distinguishes the two so
+     * real upgrades still get the dialog once. The debug "Replay What's new"
+     * sentinel forces the newest authored entry.
+     *
+     * Safe to call on every onCreate: when a dialog is shown the last-seen
+     * versionCode is recorded on dismiss (not here), so a config-change
+     * recreation re-runs this and re-shows a still-pending dialog instead of
+     * dropping it permanently (issue #89). [freshStart] is false for such
+     * recreations; the debug replay sentinel is only consumed when it is true,
+     * so rotating after tapping the debug row can't pop the dialog mid-session.
+     */
+    private fun resolveWhatsNew(freshStart: Boolean) {
+        val current = BuildConfig.VERSION_CODE
+        val lastSeen = appPreferences.lastSeenWhatsNewVersionCode
+        val languageTag = resources.configuration.locales[0].toLanguageTag()
+
+        // Debug "Replay What's new": show the newest authored entry even if
+        // this build's versionCode predates it — whatsnew.json is usually
+        // written ahead of the version bump. Only consume the sentinel on a
+        // genuine process start; on a rotation/config-change recreation leave
+        // it set so the replay fires on the *next* launch as the Settings row
+        // promises, instead of popping the dialog the instant the device turns.
+        if (lastSeen == AppPreferences.WHATS_NEW_REPLAY) {
+            if (!freshStart) return
+            val replay = whatsNewRepository.latestEntry(languageTag)
+            whatsNewContent.value = replay
+            if (replay == null) appPreferences.lastSeenWhatsNewVersionCode = current
+            return
+        }
+
+        // No versionCode on record. A genuine fresh install shows nothing — a
+        // new user has missed nothing. A user upgrading from a build that
+        // predates this pref also has no record, but has completed onboarding;
+        // fall through and show the current version's entry once.
+        if (lastSeen == AppPreferences.WHATS_NEW_UNSET && !appPreferences.hasCompletedOnboarding) {
+            appPreferences.lastSeenWhatsNewVersionCode = current
+            return
+        }
+
+        val content = when {
+            // UNSET here means a pre-feature upgrade (onboarding already done);
+            // the normal gate only fires for a recorded older versionCode.
+            lastSeen == AppPreferences.WHATS_NEW_UNSET ||
+                    WhatsNewGate.shouldShow(lastSeen, current) ->
+                whatsNewRepository.entryFor(current, languageTag)
+
+            else -> null
+        }
+        whatsNewContent.value = content
+        if (content == null) {
+            // Nothing to show — record now so a missing entry does not
+            // re-trigger the lookup on every launch. When a dialog *is* shown,
+            // its onDismiss records the versionCode instead.
+            appPreferences.lastSeenWhatsNewVersionCode = current
+        }
+    }
+
     private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         // During onboarding, the dedicated permission page triggers the prompt
-        // with context. Skip the bare auto-prompt on cold start until that's done.
-        if (!appState.hasCompletedOnboarding) return
+        // with context. Skip the bare auto-prompt on cold start until that's
+        // done — including an upgrade re-run, which shows that page again.
+        if (appState.showOnboarding) return
         val granted = ContextCompat.checkSelfPermission(
             this, Manifest.permission.POST_NOTIFICATIONS,
         ) == PackageManager.PERMISSION_GRANTED
@@ -170,3 +437,82 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+
+@Composable
+private fun ServerPushPopupHost(coordinator: ServerPushPopupCoordinator) {
+    val popup by coordinator.pending.collectAsStateWithLifecycle()
+    popup?.let { req ->
+        TigerDuckDialog(
+            onDismissRequest = { coordinator.acknowledge() },
+            title = req.title,
+            message = req.body,
+            confirmText = stringResource(android.R.string.ok),
+            onConfirm = { coordinator.acknowledge() },
+        )
+    }
+}
+
+/**
+ * Observes [UpdateChecker.pendingUpdate] and renders [UpdatePromptDialog]
+ * when an update is awaiting the user's choice. Flavor-safe: on fdroid the
+ * flow is permanently null, so the dialog never mounts.
+ *
+ * Pulls the hosting Activity from `LocalContext` because the "Update Now"
+ * deep link needs an Activity context (FLAG_ACTIVITY_NEW_TASK is required
+ * for the Play Store intent, and using the application context for that
+ * silently no-ops on some OEM launchers).
+ */
+@Composable
+private fun UpdatePromptHost(updateChecker: UpdateChecker) {
+    val pending by updateChecker.pendingUpdate.collectAsStateWithLifecycle()
+    val activity = LocalContext.current as? Activity ?: return
+    pending?.let { p ->
+        UpdatePromptDialog(
+            pending = p,
+            onUpdateNow = { updateChecker.onUpdateNow(activity) },
+            onLater = { updateChecker.onLater() },
+            onSkipThisVersion = { updateChecker.onSkipThisVersion() },
+            onDismissRequest = { updateChecker.dismissPrompt() },
+        )
+    }
+}
+
+/**
+ * Blocking-ish notice for a build the server no longer answers.
+ *
+ * Not a hard wall: much of the app is local — the class table, the time
+ * machine, cached announcements — and locking a student out of their own
+ * timetable would be worse than letting them read it while sync stays
+ * broken. So there is no Cancel, but it can be dismissed once read, and it
+ * returns on the next launch because [ApiVersionGate] stays latched.
+ */
+@Composable
+private fun UpdateRequiredHost() {
+    val retired by ApiVersionGate.isRetired.collectAsStateWithLifecycle()
+    // Per-composition, not persisted: the gate never un-latches, so without
+    // this the dialog would immediately re-show itself.
+    var acknowledged by rememberSaveable { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
+    if (!retired || acknowledged) return
+
+    AlertDialog(
+        onDismissRequest = { acknowledged = true },
+        title = { Text(stringResource(R.string.update_required_title)) },
+        text = { Text(stringResource(R.string.update_required_message)) },
+        confirmButton = {
+            TextButton(onClick = {
+                uriHandler.openUri(TIGERDUCK_WEBSITE_URL)
+                acknowledged = true
+            }) {
+                Text(stringResource(R.string.update_required_action))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { acknowledged = true }) {
+                Text(stringResource(R.string.action_got_it))
+            }
+        },
+    )
+}
+
+private const val TIGERDUCK_WEBSITE_URL = "https://tigerduck.app"

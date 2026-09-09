@@ -27,7 +27,7 @@ class NextClassResolverTest {
         assertTrue(r is NextClassResult.Ongoing)
         r as NextClassResult.Ongoing
         assertEquals("CN", r.course.courseNo)
-        assertEquals(9 * 60, r.endMinute)
+        assertEquals(10 * 60, r.endMinute)   // full block end (periods 1+2)
         assertEquals("AI", r.nextToday?.course?.courseNo)
         assertEquals(14 * 60 + 20, r.nextToday?.startMinute)
     }
@@ -95,5 +95,41 @@ class NextClassResolverTest {
         val courses = listOf(mondayMorningCourse)
         val today = NextClassResolver.todaysClasses(courses, weekday = 1, minuteOfDay = 8 * 60 + 30)
         assertEquals(TodayClassStatus.Ongoing, today.single().status)
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Block-level bounds tests
+    //
+    // mondayMorningCourse has periods ["1","2"] on Monday:
+    //   period "1": 08:10–09:00  (490–540)
+    //   period "2": 09:10–10:00  (550–600)
+    //
+    // Ongoing always uses the full contiguous block bounds (490–600) regardless
+    // of which individual period the current minute falls in. This gives one
+    // smooth 0→100% progress arc and a stable "Ends at" display.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `Ongoing mid-block uses full block bounds for smooth progress`() {
+        val courses = listOf(mondayMorningCourse)
+        // 09:30 on Monday — inside period "2" (09:10–10:00).
+        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 9 * 60 + 30)
+        assertTrue(r is NextClassResult.Ongoing)
+        r as NextClassResult.Ongoing
+        assertEquals("CN", r.course.courseNo)
+        assertEquals(8 * 60 + 10, r.startMinute)   // block start = 08:10 = 490
+        assertEquals(10 * 60, r.endMinute)          // block end   = 10:00 = 600
+    }
+
+    @Test
+    fun `Ongoing during intra-block break uses full block bounds`() {
+        val courses = listOf(mondayMorningCourse)
+        // 09:05 on Monday — 5 min AFTER period "1" ends (09:00), BEFORE period "2" starts (09:10).
+        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 9 * 60 + 5)
+        assertTrue(r is NextClassResult.Ongoing)
+        r as NextClassResult.Ongoing
+        assertEquals("CN", r.course.courseNo)
+        assertEquals(8 * 60 + 10, r.startMinute)   // block start = 08:10 = 490
+        assertEquals(10 * 60, r.endMinute)          // block end   = 10:00 = 600
     }
 }

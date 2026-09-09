@@ -59,6 +59,7 @@ import androidx.compose.ui.window.DialogProperties
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
+import org.ntust.app.tigerduck.ui.component.SecureScreen
 
 /**
  * Login prompt rendered as a custom Dialog wrapping a Material 3 Surface so the
@@ -129,6 +130,11 @@ fun LoginSheet(
                     .padding(horizontal = 24.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                // Block screenshots / screen-recording of THIS dialog's window
+                // while the password is revealed as plaintext (issue #88). The
+                // dialog has its own window, so FLAG_SECURE on the Activity
+                // window behind it would not cover this content.
+                SecureScreen(secure = passwordVisible)
                 Text(
                     text = title,
                     style = MaterialTheme.typography.headlineSmall,
@@ -183,7 +189,10 @@ fun LoginSheet(
                     )
 
                     if (subtitle != null) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.Top,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
                             Icon(
                                 Icons.Filled.Info,
                                 contentDescription = null,
@@ -195,16 +204,19 @@ fun LoginSheet(
                                 subtitle,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
                             )
                         }
                     }
 
                     if (loginError != null) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.semantics(mergeDescendants = true) {
-                                liveRegion = LiveRegionMode.Assertive
-                            },
+                            verticalAlignment = Alignment.Top,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .semantics(mergeDescendants = true) {
+                                    liveRegion = LiveRegionMode.Assertive
+                                },
                         ) {
                             Icon(
                                 Icons.Filled.ErrorOutline,
@@ -217,6 +229,7 @@ fun LoginSheet(
                                 loginError,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.weight(1f),
                             )
                         }
                     }
@@ -278,7 +291,7 @@ fun LoginSheet(
                             )
                             Spacer(Modifier.width(6.dp))
                         }
-                        Text(stringResource(R.string.action_login))
+                        Text(stringResource(R.string.action_sign_in))
                     }
                 }
             }

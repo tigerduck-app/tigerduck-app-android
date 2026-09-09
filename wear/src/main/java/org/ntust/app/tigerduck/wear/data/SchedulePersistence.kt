@@ -32,7 +32,18 @@ class SchedulePersistence(private val context: Context) {
         context.getSharedPreferences("wear_schedule_bootstrap", Context.MODE_PRIVATE)
     }
 
-    val flow: Flow<WatchSnapshot> = context.scheduleDataStore.data.map { prefs -> readSnapshot(prefs) }
+    val flow: Flow<WatchSnapshot> =
+        context.scheduleDataStore.data.map { prefs -> readSnapshot(prefs) }
+
+    /**
+     * Dedicated flow for the screen-capture override so `LibraryQRScreen.
+     * SecureScreen` doesn't have to depend on the full snapshot (and
+     * recompose on every accent / course list change just to read a bool).
+     */
+    val disableScreenCaptureProtectionFlow: Flow<Boolean> =
+        context.scheduleDataStore.data.map { prefs ->
+            prefs[KEY_DISABLE_SCREEN_CAPTURE_PROTECTION] ?: false
+        }
 
     suspend fun write(
         coursesGzipped: ByteArray,
@@ -40,6 +51,7 @@ class SchedulePersistence(private val context: Context) {
         syncedAtMs: Long,
         loggedIn: Boolean,
         languageTag: String?,
+        disableScreenCaptureProtection: Boolean,
     ) {
         val coursesJson = decompress(coursesGzipped)
         context.scheduleDataStore.edit { prefs ->
@@ -48,6 +60,7 @@ class SchedulePersistence(private val context: Context) {
             prefs[KEY_SYNCED_AT] = syncedAtMs
             prefs[KEY_LOGGED_IN] = loggedIn
             if (languageTag != null) prefs[KEY_LANGUAGE] = languageTag
+            prefs[KEY_DISABLE_SCREEN_CAPTURE_PROTECTION] = disableScreenCaptureProtection
         }
         if (languageTag != null) {
             bootstrapPrefs.edit().putString(BOOTSTRAP_KEY_LANGUAGE, languageTag).apply()
@@ -152,12 +165,14 @@ class SchedulePersistence(private val context: Context) {
         const val DEFAULT_PADDING_DP = 12
         const val MIN_PADDING_DP = 0
         const val MAX_PADDING_DP = 24
+
         // QR padding is its own setting (fullscreen library QR only). Default
         // 0 — the QR fills the chassis-inscribed limit unless the user pulls
         // it in. Range matches the screen padding for UX consistency.
         const val DEFAULT_QR_PADDING_DP = 0
         const val MIN_QR_PADDING_DP = 0
         const val MAX_QR_PADDING_DP = 24
+
         // Sentinel for detecting un-obfuscated wire format; see parseCourses.
         // Trailing `:` proves this is an object key rather than a string
         // value that incidentally spells `courseNo` (Gson default emits
@@ -170,9 +185,12 @@ class SchedulePersistence(private val context: Context) {
         private val KEY_SYNCED_AT = longPreferencesKey("synced_at_ms")
         private val KEY_LOGGED_IN = booleanPreferencesKey("logged_in")
         private val KEY_LANGUAGE = stringPreferencesKey("language_tag")
-        private val KEY_PADDING_DP = androidx.datastore.preferences.core.intPreferencesKey("padding_dp")
+        private val KEY_PADDING_DP =
+            androidx.datastore.preferences.core.intPreferencesKey("padding_dp")
         private val KEY_QR_PADDING_DP =
             androidx.datastore.preferences.core.intPreferencesKey("qr_padding_dp")
+        private val KEY_DISABLE_SCREEN_CAPTURE_PROTECTION =
+            booleanPreferencesKey("disable_screen_capture_protection")
         private const val BOOTSTRAP_KEY_LANGUAGE = "language_tag"
     }
 }

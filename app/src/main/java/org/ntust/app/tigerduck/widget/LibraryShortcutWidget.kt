@@ -20,6 +20,7 @@ import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -51,13 +52,20 @@ class LibraryShortcutWidget : GlanceAppWidget() {
         val prefs = EntryPointAccessors
             .fromApplication(context.applicationContext, WidgetThemeEntryPoint::class.java)
             .appPreferences()
-        val isDark = resolveWidgetIsDark(prefs, context)
-        val accent = resolveWidgetAccentColor(prefs, isDark)
         val tapIntent = Intent(context, MainActivity::class.java)
             .putExtra("start_route", ROUTE_SENTINEL)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         val tapAction = actionStartActivity(tapIntent)
         provideContent {
+            // Same pattern as BaseClassTableWidget: provideGlance runs once
+            // per Glance session, so theme/accent must be derived inside
+            // provideContent, keyed by the TickKey state WidgetUpdater bumps —
+            // otherwise theme and accent changes are never reflected until
+            // the widget is removed and re-added.
+            @Suppress("UNUSED_VARIABLE")
+            val tick = currentState(WidgetState.TickKey) ?: 0L
+            val isDark = resolveWidgetIsDark(prefs, context)
+            val accent = resolveWidgetAccentColor(prefs, isDark)
             LibraryShortcutContent(isDark = isDark, accent = accent, onTap = tapAction)
         }
     }

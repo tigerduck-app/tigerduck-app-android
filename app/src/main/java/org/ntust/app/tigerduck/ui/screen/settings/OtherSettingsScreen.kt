@@ -4,12 +4,30 @@ import android.content.Context
 import android.content.Intent
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -19,27 +37,35 @@ import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.ContentCard
+import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OtherSettingsScreen(
     onBack: () -> Unit,
+    onNavigateToApiEndpoint: () -> Unit,
     onNavigateToNotificationSetup: () -> Unit,
     onNavigateToSourceCode: () -> Unit,
     onNavigateToVibration: () -> Unit,
+    onNavigateToCourseNameSize: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    var analyticsEnabled by remember { mutableStateOf(viewModel.prefs.analyticsEnabled) }
     val invertSlider = viewModel.appState.invertSliderDirection
     val themeMode = viewModel.appState.themeMode
     val browserPreference = viewModel.appState.browserPreference
     val rotationMode = viewModel.appState.rotationMode
+    val courseNameScale = viewModel.appState.courseNameScale
 
     var showResetColorsConfirm by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
+                windowInsets = NoTopBarInsets,
                 title = { Text(stringResource(R.string.settings_section_other_settings)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -49,6 +75,7 @@ fun OtherSettingsScreen(
                         )
                     }
                 },
+                expandedHeight = SubSettingsBarHeight,
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -110,6 +137,37 @@ fun OtherSettingsScreen(
 
             item {
                 ContentCard {
+                    SettingsLinkRow(stringResource(R.string.settings_api_endpoint)) {
+                        onNavigateToApiEndpoint()
+                    }
+                }
+            }
+
+            item { Spacer(Modifier.height(24.dp)) }
+
+            item {
+                ContentCard {
+                    SettingsLinkRowWithValue(
+                        label = stringResource(R.string.settings_font_size_title),
+                        value = "%.2f×".format(courseNameScale),
+                        onClick = onNavigateToCourseNameSize,
+                    )
+                }
+            }
+            item {
+                Text(
+                    stringResource(R.string.settings_font_size_summary),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                        .copy(alpha = ContentAlpha.SECONDARY),
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                )
+            }
+
+            item { Spacer(Modifier.height(8.dp)) }
+
+            item {
+                ContentCard {
                     SettingsLinkRow(stringResource(R.string.notification_setup_title)) {
                         onNavigateToNotificationSetup()
                     }
@@ -155,6 +213,29 @@ fun OtherSettingsScreen(
 
             item {
                 ContentCard {
+                    SettingsToggleRow(
+                        stringResource(R.string.settings_analytics_enabled),
+                        analyticsEnabled,
+                    ) {
+                        analyticsEnabled = it
+                        viewModel.setAnalyticsEnabled(it)
+                    }
+                }
+            }
+            item {
+                Text(
+                    stringResource(R.string.settings_analytics_description),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                        .copy(alpha = ContentAlpha.SECONDARY),
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                )
+            }
+
+            item { Spacer(Modifier.height(8.dp)) }
+
+            item {
+                ContentCard {
                     Column {
                         SettingsLinkRow(stringResource(R.string.settings_feedback_bug_report)) {
                             openUrl(
@@ -168,6 +249,14 @@ fun OtherSettingsScreen(
                             openUrl(
                                 context,
                                 "https://app.ntust.org/tigerduck/privacy",
+                                browserPreference,
+                            )
+                        }
+                        HorizontalDivider()
+                        SettingsLinkRow(stringResource(R.string.settings_delete_account)) {
+                            openUrl(
+                                context,
+                                "https://tigerduck.app/delete-account",
                                 browserPreference,
                             )
                         }
@@ -190,21 +279,17 @@ fun OtherSettingsScreen(
     }
 
     if (showResetColorsConfirm) {
-        AlertDialog(
+        TigerDuckDialog(
             onDismissRequest = { showResetColorsConfirm = false },
-            title = { Text(stringResource(R.string.settings_reset_course_colors_confirm_title)) },
-            text = { Text(stringResource(R.string.settings_reset_course_colors_confirm_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.resetCourseColors()
-                    showResetColorsConfirm = false
-                }) { Text(stringResource(R.string.action_confirm)) }
+            title = stringResource(R.string.settings_reset_course_colors_confirm_title),
+            message = stringResource(R.string.settings_reset_course_colors_confirm_message),
+            confirmText = stringResource(R.string.action_confirm),
+            onConfirm = {
+                viewModel.resetCourseColors()
+                showResetColorsConfirm = false
             },
-            dismissButton = {
-                TextButton(onClick = { showResetColorsConfirm = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
+            dismissText = stringResource(R.string.action_cancel),
+            onDismiss = { showResetColorsConfirm = false },
         )
     }
 }

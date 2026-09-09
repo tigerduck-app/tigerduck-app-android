@@ -7,6 +7,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -23,6 +24,13 @@ class LibraryService(
     private val credentials: LibraryCredentialStore,
     /** True only in debug builds — gates the OkHttp body logging. */
     private val isDebugBuild: Boolean = false,
+    /**
+     * Interceptors the host app wants on this client. It builds its own
+     * rather than taking one from DI so the watch can construct it with no
+     * Hilt graph, which also puts it outside anything the phone installs
+     * globally — the phone passes its demo-mode kill switch through here.
+     */
+    extraInterceptors: List<Interceptor> = emptyList(),
 ) {
     private val loggingInterceptor = HttpLoggingInterceptor { message ->
         Log.d("TigerDuck-HTTP", LibraryApi.redactSensitive(message))
@@ -34,6 +42,7 @@ class LibraryService(
     }
 
     private val client = OkHttpClient.Builder()
+        .apply { extraInterceptors.forEach(::addInterceptor) }
         .addInterceptor(loggingInterceptor)
         .build()
     private val gson = Gson()

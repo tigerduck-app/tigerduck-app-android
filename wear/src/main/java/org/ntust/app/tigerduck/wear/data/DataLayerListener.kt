@@ -36,13 +36,18 @@ class DataLayerListener : WearableListenerService() {
     private suspend fun handleSchedule(item: com.google.android.gms.wearable.DataItem) {
         val map = DataMapItem.fromDataItem(item).dataMap
         val courses = map.getByteArray(WearProtocol.Schedule.KEY_COURSES) ?: return
-        val accent = map.getString(WearProtocol.Schedule.KEY_ACCENT) ?: SchedulePersistence.DEFAULT_ACCENT
+        val accent =
+            map.getString(WearProtocol.Schedule.KEY_ACCENT) ?: SchedulePersistence.DEFAULT_ACCENT
         val syncedAt = map.getLong(WearProtocol.Schedule.KEY_SYNCED_AT)
         val loggedIn = map.getBoolean(WearProtocol.Schedule.KEY_LOGGED_IN)
         val language = map.getString(WearProtocol.Schedule.KEY_LANGUAGE)
+        // Older phones predate this key — DataMap.getBoolean defaults to
+        // false in that case, which matches the safe "protection on" path.
+        val disableScreenCaptureProtection =
+            map.getBoolean(WearProtocol.Schedule.KEY_DISABLE_SCREEN_CAPTURE_PROTECTION)
         try {
-            ScheduleRepository.get(this@DataLayerListener)
-                .write(courses, accent, syncedAt, loggedIn, language)
+            SchedulePersistenceHolder.get(this@DataLayerListener)
+                .write(courses, accent, syncedAt, loggedIn, language, disableScreenCaptureProtection)
         } catch (e: Exception) {
             // Most likely a malformed/truncated gzip payload from the Data Layer
             // (decompress() throws ZipException). Skip this packet rather than

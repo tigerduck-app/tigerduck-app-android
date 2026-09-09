@@ -26,6 +26,13 @@ class FcmBootstrap @Inject constructor(
     private val registration: PushRegistrationService,
     @param:ApplicationScope private val scope: CoroutineScope,
 ) {
+    // firebase-messaging 25.1.2 (BOM 34.18.0) deprecated most of the token
+    // surface at once — getInstance(), getToken(), deleteToken(), and
+    // FirebaseMessagingService.onNewToken() — without shipping a replacement
+    // in the same artifact. There is nothing to migrate to yet, so this is
+    // suppressed rather than rewritten. Revisit when Firebase publishes the
+    // successor API; the paired suppression is on FcmService.onNewToken.
+    @Suppress("DEPRECATION")
     fun start() {
         if (FirebaseApp.getApps(context).isEmpty()) return
         FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->

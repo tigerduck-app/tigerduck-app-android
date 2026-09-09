@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Debug-only components. This manifest is merged into playDebug and
+        fdroidDebug only, so nothing declared here reaches a release build.
+    -->
+    <application>
+
+        <!--
+            Lets `adb shell am broadcast` drive the debug clock override.
+            Exported because a broadcast sent from the shell uid cannot reach
+            an unexported receiver. See DebugClockReceiver's KDoc for why the
+            exposure is acceptable in a debug build.
+        -->
+        <receiver
+            android:name="org.ntust.app.tigerduck.debug.DebugClockReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="org.ntust.app.tigerduck.debug.SET_CLOCK" />
+                <action android:name="org.ntust.app.tigerduck.debug.CLEAR_CLOCK" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+            Lets `adb shell am broadcast` load a made-up timetable for store
+            screenshots. Exported for the same reason as the clock receiver:
+            the shell uid cannot reach an unexported one.
+        -->
+        <receiver
+            android:name="org.ntust.app.tigerduck.debug.DebugFixtureReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="org.ntust.app.tigerduck.debug.LOAD_FIXTURE" />
+                <action android:name="org.ntust.app.tigerduck.debug.CLEAR_FIXTURE" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>

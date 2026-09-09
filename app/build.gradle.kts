@@ -15,7 +15,7 @@ plugins {
 // project level, which we gate on the JSON's presence so a fresh checkout
 // without it (e.g. the F-Droid buildserver) is buildable end-to-end.
 val hasGoogleServices = file("src/play/google-services.json").exists() ||
-    file("google-services.json").exists()
+        file("google-services.json").exists()
 if (hasGoogleServices) {
     apply(plugin = libs.plugins.google.services.get().pluginId)
     // Without this, building the fdroid flavor fails because the plugin
@@ -28,26 +28,27 @@ if (hasGoogleServices) {
     }
 }
 
-// Pull dev push-server config out of root-level local.properties so the URL
-// + shared secret never end up in VCS. project.findProperty() only reads
-// gradle.properties, so do it manually here.
+// Pull dev push-server URL out of root-level local.properties so it never
+// ends up in VCS. project.findProperty() only reads gradle.properties,
+// so do it manually here.
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
+
 fun localProp(key: String, default: String = ""): String =
     localProps.getProperty(key) ?: (project.findProperty(key) as? String) ?: default
 
 android {
     namespace = "org.ntust.app.tigerduck"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 29
         targetSdk = 36
-        versionCode = 22
-        versionName = "1.4.4"
+        versionCode = 23
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -70,15 +71,16 @@ android {
 
     buildTypes {
         debug {
+            // Default to the local backend, NOT production — a debug build must
+            // never silently hit api.tigerduck.app (mirrors the iOS Debug
+            // resolver, which defaults to localhost). 10.0.2.2 is the Android
+            // emulator's host-loopback (the Mac running the backend); physical
+            // devices override `pushBaseUrl` in local.properties with the Mac's
+            // LAN IP. Cleartext to this host is permitted in network_security_config.
             buildConfigField(
                 "String",
                 "PUSH_BASE_URL",
-                "\"${localProp("pushBaseUrl", "https://api.tigerduck.app/v2")}\"",
-            )
-            buildConfigField(
-                "String",
-                "PUSH_SHARED_SECRET",
-                "\"${localProp("pushSharedSecret")}\"",
+                "\"${localProp("pushBaseUrl", "http://10.0.2.2:40000/v3")}\"",
             )
         }
         release {
@@ -98,13 +100,10 @@ android {
             buildConfigField(
                 "String",
                 "PUSH_BASE_URL",
-                "\"${System.getenv("PUSH_BASE_URL")
-                    ?: localProp("pushBaseUrlRelease", "https://api.tigerduck.app/v2")}\"",
-            )
-            buildConfigField(
-                "String",
-                "PUSH_SHARED_SECRET",
-                "\"${System.getenv("PUSH_SHARED_SECRET") ?: ""}\"",
+                "\"${
+                    System.getenv("PUSH_BASE_URL")
+                        ?: localProp("pushBaseUrlRelease", "https://api.tigerduck.app/v3")
+                }\"",
             )
         }
     }
@@ -120,10 +119,12 @@ android {
     }
 
     testOptions {
-        // Matches :shared. Without it any JVM unit test that reaches a real
-        // android.util.Log call throws "not mocked" — which meant migration
-        // and cache code could only be covered by stripping its logging.
-        unitTests.isReturnDefaultValues = true
+        unitTests {
+            // Matches :shared. Without it any JVM unit test that reaches a
+            // real android.util.Log call throws "not mocked", which would
+            // limit migration and cache coverage to log-free code paths.
+            isReturnDefaultValues = true
+        }
     }
 
     // Two distribution channels:
@@ -170,13 +171,14 @@ android {
 // FileNotFoundException and returns an empty map). v1.3.2 hit Play Store
 // in exactly this state because the release workflows were missing
 // `submodules: true` on actions/checkout.
-val verifyNameAbbrSubmodule by tasks.registering {
+val verifyNameAbbrSubmodule = tasks.register("verifyNameAbbrSubmodule") {
     val nameAbbrDir = rootProject.file("name-abbr")
     // Explicit contract: files the runtime loader requires by name. Update
     // this list when CourseService starts loading additional JSONs.
     val requiredFiles = listOf("class-name-abbr.json", "classroom-name-abbr.json")
     doLast {
-        val hint = "Run `git submodule update --init` (or pass submodules: true to actions/checkout in CI)."
+        val hint =
+            "Run `git submodule update --init` (or pass submodules: true to actions/checkout in CI)."
         val jsonFiles = nameAbbrDir.listFiles { f -> f.isFile && f.extension == "json" }.orEmpty()
         if (jsonFiles.isEmpty()) {
             throw GradleException("name-abbr submodule is empty (no JSON files in $nameAbbrDir). $hint")
@@ -194,6 +196,10 @@ tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }
 dependencies {
     implementation(project(":shared"))
     "playImplementation"(libs.play.services.wearable)
+    "playImplementation"(libs.play.app.update.ktx)
+    // WearScheduleBridge / WearDebugClockBridge use kotlinx.coroutines.tasks.await();
+    // declare it directly instead of leaning on firebase-messaging's transitive edge.
+    "playImplementation"(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -250,6 +256,9 @@ dependencies {
     // Markdown rendering for announcement bodies
     implementation(libs.markdown.renderer.m3)
 
+    // DataStore Preferences (server-push popup dedupe set)
+    implementation(libs.androidx.datastore.preferences)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -260,7 +269,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 }
 
-val syncLocalizations by tasks.registering(Exec::class) {
+val syncLocalizations = tasks.register<Exec>("syncLocalizations") {
     group = "localization"
     description = "Generate Android localization files from shared JSON sources."
     workingDir = rootProject.projectDir
@@ -280,20 +289,20 @@ val syncLocalizations by tasks.registering(Exec::class) {
             }.getOrDefault(false)
         } ?: throw GradleException(
             "syncLocalizations requires Python 3 on PATH (tried python3, python, py). " +
-                "Install Python 3 from https://www.python.org/ and re-run."
+                    "Install Python 3 from https://www.python.org/ and re-run."
         )
         commandLine(python, script)
     }
 }
 
-val copyGeneratedAndroidLocalizations by tasks.registering(Copy::class) {
+val copyGeneratedAndroidLocalizations = tasks.register<Copy>("copyGeneratedAndroidLocalizations") {
     group = "localization"
-    description = "Copy localization/generated/android values-* resources into app/src/main/res."
+    description = "Copy app-translation/generated/android values-* resources into app/src/main/res."
 
     // Ensure the generator ran first.
     dependsOn(syncLocalizations)
 
-    val sourceDir = rootProject.layout.projectDirectory.dir("localization/generated/android")
+    val sourceDir = rootProject.layout.projectDirectory.dir("app-translation/generated/android")
     val destDir = layout.projectDirectory.dir("src/main/res")
 
     // Only copy valid Android resource qualifier directories.

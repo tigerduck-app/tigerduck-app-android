@@ -8,7 +8,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import java.util.concurrent.TimeUnit
 
-class ComplicationUpdateWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
+class ComplicationUpdateWorker(ctx: Context, params: WorkerParameters) :
+    CoroutineWorker(ctx, params) {
     override suspend fun doWork(): Result {
         NextClassComplicationService.requestUpdate(applicationContext)
         return Result.success()
@@ -23,7 +24,8 @@ class ComplicationUpdateWorker(ctx: Context, params: WorkerParameters) : Corouti
         // schedule changes — this worker is just a backstop for wall-clock
         // transitions (class start/end times).
         fun ensureScheduled(context: Context) {
-            val req = PeriodicWorkRequestBuilder<ComplicationUpdateWorker>(15, TimeUnit.MINUTES).build()
+            val req =
+                PeriodicWorkRequestBuilder<ComplicationUpdateWorker>(15, TimeUnit.MINUTES).build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 NAME, ExistingPeriodicWorkPolicy.KEEP, req,
             )

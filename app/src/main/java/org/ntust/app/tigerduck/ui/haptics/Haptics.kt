@@ -40,7 +40,12 @@ object Haptics {
         vibrate(context, strengthPct, durationMs, forceOneShot = true)
     }
 
-    private fun vibrate(context: Context, strengthPct: Int, durationMs: Int, forceOneShot: Boolean) {
+    private fun vibrate(
+        context: Context,
+        strengthPct: Int,
+        durationMs: Int,
+        forceOneShot: Boolean
+    ) {
         if (strengthPct <= 0) return
         if (!systemHapticsEnabled(context)) return
 
@@ -62,6 +67,10 @@ object Haptics {
             context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
         }
 
+    // Deprecated in API 35 with no direct replacement: View.performHapticFeedback
+    // auto-respects this setting, but we call Vibrator.vibrate() directly with
+    // custom amplitudes, so we still need to gate on the user preference manually.
+    @Suppress("DEPRECATION")
     private fun systemHapticsEnabled(context: Context): Boolean = try {
         Settings.System.getInt(
             context.contentResolver,

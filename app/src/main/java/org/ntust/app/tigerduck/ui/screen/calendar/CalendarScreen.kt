@@ -2,7 +2,17 @@ package org.ntust.app.tigerduck.ui.screen.calendar
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -13,8 +23,24 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,18 +51,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.compose.material3.Switch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.CalendarEvent
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.PageHeader
-import org.ntust.app.tigerduck.ui.component.SyncIndicator
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
-import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -50,6 +78,7 @@ fun CalendarScreen(
     onOpenSignInSettings: () -> Unit = {},
 ) {
     val events by viewModel.events.collectAsStateWithLifecycle()
+    val holidayOverrides by viewModel.holidayOverrides.collectAsStateWithLifecycle()
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val displayedMonth by viewModel.displayedMonth.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -57,30 +86,20 @@ fun CalendarScreen(
     val dayEvents by viewModel.selectedDateEvents.collectAsStateWithLifecycle()
     val resources = LocalResources.current
 
-    var showCheckmark by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(viewModel) { viewModel.load() }
-    LaunchedEffect(viewModel) {
-        viewModel.syncCompleteEvent.collect {
-            showCheckmark = true
-            delay(2000)
-            showCheckmark = false
-        }
-    }
     LaunchedEffect(viewModel) {
         viewModel.noNetworkEvent.collect {
             snackbarHostState.showSnackbar(resources.getString(R.string.error_network_unavailable))
         }
     }
 
-    var pullProgress by remember { mutableFloatStateOf(0f) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         TigerPullToRefresh(
             isRefreshing = isLoading,
             onRefresh = { viewModel.refresh() },
-            onDragProgress = { pullProgress = it },
             modifier = Modifier.fillMaxSize(),
             refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
@@ -90,10 +109,12 @@ fun CalendarScreen(
             ) {
                 item {
                     PageHeader(title = stringResource(R.string.feature_calendar)) {
-                        SyncIndicator(
+                        SyncStatusDot(
+                            // The TigerDuck backend publishes the semester
+                            // boundaries and holidays this screen now shows,
+                            // so it belongs in the source list beside Moodle.
+                            servers = listOf(ServerKind.MOODLE, ServerKind.BACKEND),
                             isLoading = isLoading,
-                            showCheckmark = showCheckmark,
-                            dragProgress = pullProgress,
                         )
                         Spacer(Modifier.width(8.dp))
                         JumpToNowChip(
@@ -106,8 +127,8 @@ fun CalendarScreen(
                     item {
                         EmptyStateView(
                             icon = Icons.Filled.Lock,
-                            title = stringResource(R.string.common_not_logged_in),
-                            message = stringResource(R.string.common_login_required_feature),
+                            title = stringResource(R.string.common_not_signed_in),
+                            message = stringResource(R.string.common_sign_in_required_feature),
                             onIconClick = onOpenSignInSettings,
                         )
                     }
@@ -147,7 +168,17 @@ fun CalendarScreen(
                         }
                     } else {
                         items(dayEvents) { event ->
-                            EventRow(event)
+                            val holidayId = viewModel.holidayIdFor(event)
+                            EventRow(
+                                event = event,
+                                // Only a holiday can be opted back into; a
+                                // term boundary is an announcement, not a
+                                // day off, so it gets no toggle.
+                                notifyOnHoliday = holidayId?.let { it in holidayOverrides },
+                                onNotifyOnHolidayChange = holidayId?.let { id ->
+                                    { on: Boolean -> viewModel.setNotifyOnHoliday(id, on) }
+                                },
+                            )
                         }
                     }
                 }
@@ -213,9 +244,11 @@ private fun MonthCalendar(
     val month = cal.get(Calendar.MONTH)
     val monthLabel = stringResource(R.string.calendar_month_year, year, month + 1)
 
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
         // Month nav
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = {
@@ -310,9 +343,11 @@ private fun CalendarGrid(
                     val dayNum = cellIndex - startDow + 1
 
                     if (dayNum < 1 || dayNum > daysInMonth) {
-                        Box(modifier = Modifier
-                            .weight(1f)
-                            .height(40.dp))
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp)
+                        )
                     } else {
                         val dayDate = Calendar.getInstance(taipeiTz).apply {
                             set(year, month, dayNum, 0, 0, 0)
@@ -401,7 +436,11 @@ private fun isSameMonth(a: Date, b: Date): Boolean {
 
 
 @Composable
-private fun EventRow(event: CalendarEvent) {
+private fun EventRow(
+    event: CalendarEvent,
+    notifyOnHoliday: Boolean? = null,
+    onNotifyOnHolidayChange: ((Boolean) -> Unit)? = null,
+) {
     val timeFmt = remember {
         SimpleDateFormat("HH:mm", Locale.TAIWAN).apply {
             timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ
@@ -429,11 +468,31 @@ private fun EventRow(event: CalendarEvent) {
                 color = event.source.color
             )
         }
-        Text(
-            timeFmt.format(event.date),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-        )
+        if (notifyOnHoliday != null && onNotifyOnHolidayChange != null) {
+            // Replaces the timestamp rather than joining it: a holiday is an
+            // all-day thing, so "00:00" was never telling the user anything.
+            //
+            // The switch is labelled rather than bare: on its own it asked
+            // the user to guess what it governed, and a screen reader had
+            // only the accessibility string to go on.
+            Text(
+                stringResource(R.string.calendar_holiday_notify_title),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+                maxLines = 1,
+            )
+            Spacer(Modifier.width(8.dp))
+            Switch(
+                checked = notifyOnHoliday,
+                onCheckedChange = onNotifyOnHolidayChange,
+            )
+        } else {
+            Text(
+                timeFmt.format(event.date),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+            )
+        }
     }
 }
 

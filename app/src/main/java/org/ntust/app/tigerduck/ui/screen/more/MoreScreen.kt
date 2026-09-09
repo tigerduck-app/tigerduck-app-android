@@ -42,6 +42,7 @@ import org.ntust.app.tigerduck.ui.component.ComingSoonDialog
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.navigation.Screen
+import org.ntust.app.tigerduck.ui.navigation.icon
 import org.ntust.app.tigerduck.ui.navigation.toRoute
 
 private val implementedFeatures = setOf(

@@ -7,10 +7,10 @@ import android.content.Intent
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.academic.AcademicCalendar
+import org.ntust.app.tigerduck.shared.collapseContiguousPeriods
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
-import org.ntust.app.tigerduck.data.collapseContiguousPeriods
-import org.ntust.app.tigerduck.data.model.Course
-import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZonedDateTime
 import javax.inject.Inject
@@ -36,10 +36,20 @@ class ClassPreparingNotificationScheduler @Inject constructor(
     // each other's persisted state.
     private val schedulerLock = Any()
 
+    /**
+     * @param calendar the school calendar, used to skip days classes do not
+     *   meet. Defaults to [AcademicCalendar.EMPTY] so a caller that has not
+     *   been given one behaves exactly as this scheduler did before
+     *   holidays existed — nothing suppressed.
+     * @param optedInHolidayIds holidays this user asked to keep hearing
+     *   about, which put their days back in.
+     */
     fun scheduleAll(
         courses: List<Course>,
         skippedDates: Map<String, List<String>>,
         leadTimeSec: Long,
+        calendar: AcademicCalendar = AcademicCalendar.EMPTY,
+        optedInHolidayIds: Set<Int> = emptySet(),
     ) = synchronized(schedulerLock) {
         // Load the persisted slotId→requestCode map BEFORE cancelling so cancel
         // looks up the same code each alarm was originally registered with.
@@ -53,7 +63,10 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         val scheduled = mutableSetOf<String>()
         var nextCode = trackerPrefs.getInt(KEY_NEXT_CODE, 1)
 
-        for (slot in upcomingSlots(courses, skippedDates, daysAhead = DAYS_AHEAD)) {
+        for (slot in upcomingSlots(
+            courses, skippedDates, daysAhead = DAYS_AHEAD,
+            calendar = calendar, optedInHolidayIds = optedInHolidayIds,
+        )) {
             val triggerTime = slot.startMs - leadTimeSec * 1000
             if (triggerTime <= now) continue
 
@@ -90,7 +103,11 @@ class ClassPreparingNotificationScheduler @Inject constructor(
 
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerTime), pendingIntent)
+                    alarmManager.set(
+                        AlarmManager.RTC_WAKEUP,
+                        AppClock.realTimeFor(triggerTime),
+                        pendingIntent
+                    )
                 } else {
                     alarmManager.setExactAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP,
@@ -99,7 +116,11 @@ class ClassPreparingNotificationScheduler @Inject constructor(
                     )
                 }
             } catch (_: SecurityException) {
-                alarmManager.set(AlarmManager.RTC_WAKEUP, AppClock.realTimeFor(triggerTime), pendingIntent)
+                alarmManager.set(
+                    AlarmManager.RTC_WAKEUP,
+                    AppClock.realTimeFor(triggerTime),
+                    pendingIntent
+                )
             }
             scheduled.add(slot.id)
         }
@@ -170,20 +191,27 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         courses: List<Course>,
         skippedDates: Map<String, List<String>>,
         daysAhead: Int,
+        calendar: AcademicCalendar,
+        optedInHolidayIds: Set<Int>,
     ): List<UpcomingSlot> {
         val today = AppClock.localDateTime().toLocalDate()
         val results = mutableListOf<UpcomingSlot>()
         for (dayOffset in 0 until daysAhead) {
             val date = today.plusDays(dayOffset.toLong())
-            // No 即將上課 alarms outside the term. The timetable is populated
-            // weeks before 開學 (選課 opens ahead of the term), and this loop
-            // looks DAYS_AHEAD days out, so an install in late August would
-            // otherwise arm notifications for classes that have not started.
-            if (!AppConstants.CurrentTerm.containsDate(date)) continue
             val weekdayIdx = when (date.dayOfWeek.value) {
                 in 1..7 -> date.dayOfWeek.value // Monday=1 .. Sunday=7
                 else -> continue
             }
+            // No 即將上課 alarms outside the term. The timetable is populated
+            // weeks before 開學 (選課 opens ahead of the term), so an install in
+            // late August would otherwise arm reminders for classes that have
+            // not started.
+            if (!calendar.isInSession(date)) continue
+            // Classes do not meet on a school holiday, so nothing should be
+            // scheduled for that day at all. Both checks are per day rather
+            // than at the call site because this loop reaches ten days ahead
+            // and either 開學 or a holiday can land partway through that window.
+            if (calendar.suppressesClasses(date, optedInHolidayIds)) continue
             val isoDate = date.toString()
             for (course in courses) {
                 val periods = course.schedule[weekdayIdx] ?: continue

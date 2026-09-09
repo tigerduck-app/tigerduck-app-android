@@ -16,6 +16,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,6 +31,7 @@ data class PushDiagnostic(
     val hasFcmToken: Boolean,
     val isRegistered: Boolean,
     val lastRegistrationAt: Long?,
+    val lastSyncAt: Long?,
     val lastError: String?,
 )
 
@@ -41,6 +45,8 @@ class PushRegistrationService @Inject constructor(
     @ApplicationContext context: Context,
     private val identity: PushIdentity,
     private val api: PushApiClient,
+    private val authTokenManager: AuthTokenManager,
+    private val appPreferences: AppPreferences,
     @param:ApplicationScope private val scope: CoroutineScope,
 ) {
     private val mutex = Mutex()
@@ -71,8 +77,21 @@ class PushRegistrationService @Inject constructor(
         }
     }
 
-    suspend fun onSignedIn(userId: String) {
-        identity.setUserId(userId)
+    suspend fun onSignedIn() {
+        scheduleRegister()
+    }
+
+    /**
+     * Consent has landed — release the registration that [performRegister]
+     * was holding back.
+     *
+     * The FCM token usually arrives during onboarding, so by the time the
+     * user finishes there is a token cached and nothing else that would
+     * re-trigger a register until the next sign-in or token rotation.
+     * Without this the device would stay unannounced for the rest of the
+     * install on a user who never signs in.
+     */
+    suspend fun onOnboardingCompleted() {
         scheduleRegister()
     }
 
@@ -88,7 +107,7 @@ class PushRegistrationService @Inject constructor(
         }
     }
 
-    fun unregister() {
+    fun unregister(authHeaderOverride: String? = null) {
         scope.launch {
             // Clear fcmToken and latch isUnregistering in the same critical
             // section that cancels the debounce so a token rotation or
@@ -99,9 +118,9 @@ class PushRegistrationService @Inject constructor(
                 fcmToken = null
                 isUnregistering = true
             }
-            val deviceId = identity.deviceId()
+            val deviceId = identity.uuid()
             try {
-                runCatching { api.unregister(deviceId) }
+                runCatching { api.unregister(deviceId, authHeaderOverride) }
                     .onFailure { e ->
                         if (e is CancellationException) throw e
                         Log.w(TAG, "unregister failed", e)
@@ -110,7 +129,6 @@ class PushRegistrationService @Inject constructor(
                 // Always reset state so a cancelled coroutine (e.g. test scope
                 // cancellation) can't leave isUnregistering latched true and
                 // block all future scheduleRegister() calls.
-                identity.clearUserId()
                 withContext(NonCancellable) {
                     mutex.withLock { isUnregistering = false }
                 }
@@ -120,41 +138,124 @@ class PushRegistrationService @Inject constructor(
                     hasFcmToken = false,
                     isRegistered = false,
                     lastRegistrationAt = null,
+                    lastSyncAt = null,
                     lastError = null,
                 )
             }
         }
     }
 
-    private suspend fun performRegister() {
-        val token = mutex.withLock { if (isUnregistering) null else fcmToken } ?: return
-        val deviceId = identity.deviceId()
-        // Bulletin push is opt-in via subscriptions, not gated on sign-in.
-        // Without a signed-in user we register under an anonymous user_id
-        // so the device row exists and subscriptions PUT doesn't 404.
-        val userId = identity.userId() ?: "anon-$deviceId"
-        runCatching {
-            api.register(
-                DeviceRegisterRequest(
-                    userId = userId,
-                    deviceId = deviceId,
-                    ptsTokenHex = token,
-                )
-            )
-        }.onSuccess {
+    private suspend fun performRegister(): Boolean {
+        // Snapshot token under the mutex so a concurrent token rotation or
+        // updateServerPushOptOut can't flip state between read and POST.
+        val token = mutex.withLock {
+            if (isUnregistering) null else fcmToken
+        }
+        if (token == null) return false
+        // Nothing identifying leaves the device until the user has been
+        // through onboarding and seen the privacy page. `fcmBootstrap.start()`
+        // runs from Application.onCreate and an FCM token needs no permission,
+        // so without this the very first launch would announce the device id
+        // and token before the user had agreed to anything. Mirrors iOS, where
+        // AppState only calls `pushCoordinator.enable()` once
+        // `hasCompletedOnboarding` is true. `onOnboardingCompleted()` re-fires
+        // this the moment consent lands, so the token is not lost.
+        if (!appPreferences.hasCompletedOnboarding) return false
+        val clientDeviceId = identity.uuid()
+        // Announce the hardware first, every time, signed in or not. The two
+        // registrations answer different questions — "which device is this"
+        // and "whose account is on it" — and only the device one puts a row in
+        // the table custom-push targeting reads. Gating it on sign-in would
+        // leave a device that signs in immediately just as unreachable as one
+        // that never signs in at all.
+        val announceError = announceDevice(clientDeviceId, token)
+
+        // Without an account there is no second registration to make. The
+        // backend links the two rows on sign-in and unlinks them on sign-out,
+        // so nothing is delivered twice either way.
+        if (!authTokenManager.isLoggedIn) {
             updateDiagnostic {
                 it.copy(
                     hasFcmToken = true,
-                    isRegistered = true,
-                    lastRegistrationAt = System.currentTimeMillis(),
-                    lastError = null,
+                    // Not isRegistered: no account row exists, and the settings
+                    // screen reads that flag to mean cloud sync is live. Custom
+                    // push reaches this device; user-scoped push does not.
+                    lastRegistrationAt = if (announceError == null) {
+                        System.currentTimeMillis()
+                    } else {
+                        it.lastRegistrationAt
+                    },
+                    lastError = announceError?.let { e -> e.message ?: e::class.java.simpleName },
                 )
             }
-        }.onFailure { e ->
-            if (e is CancellationException) throw e
-            Log.w(TAG, "register failed", e)
-            updateDiagnostic { it.copy(lastError = e.message ?: e::class.java.simpleName) }
+            return announceError == null
         }
+        return runCatching {
+            api.register(
+                DeviceRegisterRequest(
+                    clientDeviceId = clientDeviceId,
+                    deviceClass = identity.deviceClass(),
+                    appVersion = BuildConfig.VERSION_NAME,
+                    osVersion = "Android ${android.os.Build.VERSION.RELEASE}",
+                    pushToken = PushTokenIn(tokenValue = token),
+                    cloudSyncEnabled = appPreferences.cloudSyncEnabled,
+                )
+            )
+        }.fold(
+            onSuccess = {
+                updateDiagnostic {
+                    it.copy(
+                        hasFcmToken = true,
+                        isRegistered = true,
+                        lastRegistrationAt = System.currentTimeMillis(),
+                        lastError = null,
+                    )
+                }
+                true
+            },
+            onFailure = { e ->
+                if (e is CancellationException) throw e
+                Log.w(TAG, "register failed", e)
+                updateDiagnostic { it.copy(lastError = e.message ?: e::class.java.simpleName) }
+                false
+            },
+        )
+    }
+
+    /**
+     * User-triggered re-registration from the Server Push settings screen.
+     * Bumps `lastSyncAt` on success so the operator can see a "last sync"
+     * timestamp separate from the FCM-token / sign-in driven registrations
+     * — mirrors iOS PushServerSettingsView's "Sync now" button.
+     *
+     * On a no-op return (no FCM token yet, or unregister in flight)
+     * surfaces the reason via `lastError` so the UI's spinner-stops-without-
+     * feedback doesn't silently lie about success.
+     */
+    suspend fun syncNow(): Boolean {
+        val ok = performRegister()
+        if (ok) {
+            updateDiagnostic { it.copy(lastSyncAt = System.currentTimeMillis()) }
+        } else {
+            // No "not signed in" case: signed out is a supported outcome now
+            // that the announce registers the device on its own, and a failed
+            // announce has already written the real error to the diagnostic —
+            // stamping a reason over it would replace the cause with a
+            // symptom.
+            val reason = mutex.withLock {
+                when {
+                    isUnregistering -> "Unregister in progress"
+                    fcmToken == null -> "Waiting for FCM token"
+                    else -> null
+                }
+            }
+            // Only stamp a reason when performRegister bailed *before* the API
+            // call — register-API failures already set lastError themselves.
+            if (reason != null) {
+                updateDiagnostic { it.copy(lastError = reason) }
+            }
+        }
+        return ok
     }
 
     /**
@@ -171,6 +272,8 @@ class PushRegistrationService @Inject constructor(
                 .putBoolean(KEY_REGISTERED, next.isRegistered)
             if (next.lastRegistrationAt == null) editor.remove(KEY_LAST_REG)
             else editor.putLong(KEY_LAST_REG, next.lastRegistrationAt)
+            if (next.lastSyncAt == null) editor.remove(KEY_LAST_SYNC)
+            else editor.putLong(KEY_LAST_SYNC, next.lastSyncAt)
             if (next.lastError == null) editor.remove(KEY_LAST_ERR)
             else editor.putString(KEY_LAST_ERR, next.lastError)
             editor.apply()
@@ -181,8 +284,124 @@ class PushRegistrationService @Inject constructor(
         hasFcmToken = prefs.getBoolean(KEY_HAS_TOKEN, false),
         isRegistered = prefs.getBoolean(KEY_REGISTERED, false),
         lastRegistrationAt = prefs.getLong(KEY_LAST_REG, 0L).takeIf { it > 0 },
+        lastSyncAt = prefs.getLong(KEY_LAST_SYNC, 0L).takeIf { it > 0 },
         lastError = prefs.getString(KEY_LAST_ERR, null),
     )
+
+    /** Current value of the user-facing server-push opt-out. Default `false`
+     *  (i.e. opted in). Reads SharedPreferences synchronously — safe for
+     *  initial UI hydration in the settings screen. */
+    fun isServerPushOptedOut(): Boolean = prefs.getBoolean(KEY_SERVER_PUSH_OPT_OUT, false)
+
+    /** Persist the opt-out and PATCH the backend so the change takes effect
+     *  before the next register() rolls around. Returns `true` on full success
+     *  (local + backend), `false` if the PATCH failed. On failure the local
+     *  pref is still flipped so the next `performRegister` reconciles, and
+     *  `lastError` is surfaced via the diagnostic for the status card. */
+    suspend fun updateServerPushOptOut(optOut: Boolean): Boolean {
+        val deviceId = identity.uuid()
+        // Hold the mutex across the pref write AND the PATCH so a concurrent
+        // performRegister (which snapshots under the same mutex) can't read
+        // an in-flight value, and so rapid toggle taps serialize their
+        // PATCH calls on the wire instead of racing to last-write-wins.
+        // updateDiagnostic also acquires the mutex, so it has to run outside
+        // this critical section to avoid self-deadlock.
+        val error: String? = mutex.withLock {
+            prefs.edit().putBoolean(KEY_SERVER_PUSH_OPT_OUT, optOut).apply()
+            // Two different rows hold this flag, and which one decides
+            // depends on whether there is an account. Signed in, operator
+            // targeting reads `user_devices` and the PATCH owns it. Signed
+            // out, targeting reads `device_registrations` and the PATCH has
+            // no session to authenticate with — it would 401 and the setting
+            // would never leave the device — so the announce carries it
+            // instead. With no token yet there is no row to correct: the
+            // pref is stored and the first announce will carry it.
+            val token = if (isUnregistering) null else fcmToken
+            runCatching {
+                if (authTokenManager.isLoggedIn) {
+                    api.updateDevicePreferences(deviceId, serverPushEnabled = !optOut)
+                } else if (token != null) {
+                    api.registerAnonymous(
+                        AnonymousDeviceRequest(
+                            deviceId = deviceId,
+                            deviceClass = identity.deviceClass(),
+                            pushToken = token,
+                            serverPushEnabled = !optOut,
+                        )
+                    )
+                }
+            }.fold(
+                onSuccess = { null },
+                onFailure = { e ->
+                    if (e is CancellationException) throw e
+                    Log.w(TAG, "server push preference update failed", e)
+                    e.message ?: e::class.java.simpleName
+                },
+            )
+        }
+        // Clear stale errors on success, set them on failure — either way the
+        // status card now reflects backend reachability for this PATCH.
+        updateDiagnostic { it.copy(lastError = error) }
+        return error == null
+    }
+
+    /**
+     * Register the physical device, with no account attached.
+     *
+     * Returns the failure rather than throwing, and never writes the
+     * diagnostic: the caller decides what a failure here means. Signed in it
+     * is a background detail — cloud sync still works — while signed out it
+     * is the only registration there was, so it is the thing to report.
+     */
+    private suspend fun announceDevice(deviceId: String, token: String): Throwable? =
+        runCatching {
+            api.registerAnonymous(
+                AnonymousDeviceRequest(
+                    deviceId = deviceId,
+                    deviceClass = identity.deviceClass(),
+                    pushToken = token,
+                    // Carried on every announce, not just when it changes.
+                    // This row is what operator targeting filters on, and
+                    // while signed out the preferences PATCH has no session
+                    // to authenticate with — so the announce is the only
+                    // path the opt-out has to the server.
+                    serverPushEnabled = !isServerPushOptedOut(),
+                )
+            )
+        }.fold(
+            onSuccess = { null },
+            onFailure = { e ->
+                if (e is CancellationException) throw e
+                Log.w(TAG, "device announce failed", e)
+                e
+            },
+        )
+
+    suspend fun updateCloudSyncEnabled(enabled: Boolean) {
+        val deviceId = identity.uuid()
+        api.updateDevicePreferences(deviceId, cloudSyncEnabled = enabled)
+    }
+
+    suspend fun updateSyncPreferences(
+        syncCourses: Boolean,
+        syncCourseColors: Boolean,
+        syncCourseNames: Boolean,
+        syncAssignments: Boolean,
+    ) {
+        val deviceId = identity.uuid()
+        runCatching {
+            api.updateDevicePreferences(
+                deviceId,
+                syncCourses = syncCourses,
+                syncCourseColors = syncCourseColors,
+                syncCourseNames = syncCourseNames,
+                syncAssignments = syncAssignments,
+            )
+        }.onFailure { e ->
+            if (e is CancellationException) throw e
+            Log.w(TAG, "sync preferences PATCH failed", e)
+        }
+    }
 
     private companion object {
         const val TAG = "Push.Register"
@@ -190,6 +409,8 @@ class PushRegistrationService @Inject constructor(
         const val KEY_HAS_TOKEN = "has_token"
         const val KEY_REGISTERED = "registered"
         const val KEY_LAST_REG = "last_registration_at"
+        const val KEY_LAST_SYNC = "last_sync_at"
         const val KEY_LAST_ERR = "last_error"
+        const val KEY_SERVER_PUSH_OPT_OUT = "server_push_user_opt_out"
     }
 }

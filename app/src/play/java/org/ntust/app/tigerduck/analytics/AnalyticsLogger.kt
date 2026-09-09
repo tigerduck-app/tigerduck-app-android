@@ -6,6 +6,7 @@ import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,28 +24,28 @@ import javax.inject.Singleton
  * The fdroid variant ships a stub at the same FQN so callers in `main/` need
  * no conditional code.
  *
- * TODO: no caller wires `setEnabled(true)` yet. Until a consent UI flips it on,
- * the play flavor remains in the off-by-default state from the manifest. Add a
- * preference + Settings toggle (or onboarding consent step) to actually enable
- * collection.
  */
 @Singleton
 class AnalyticsLogger @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val prefs: AppPreferences,
 ) {
     private val analytics: FirebaseAnalytics? by lazy {
         if (FirebaseApp.getApps(context).isEmpty()) null
         else FirebaseAnalytics.getInstance(context)
     }
+    private var previouslyEnabled: Boolean? = null
 
     fun log(event: String, params: Map<String, Any?> = emptyMap()) {
+        if (!prefs.analyticsEnabled) return
         val fa = analytics ?: return
         if (!validateName("event name", event, MAX_NAME_CHARS)) return
-        val entries = if (validate("event '$event' has ${params.size} params (max $MAX_PARAMS)") { params.size <= MAX_PARAMS }) {
-            params.entries
-        } else {
-            params.entries.take(MAX_PARAMS)
-        }
+        val entries =
+            if (validate("event '$event' has ${params.size} params (max $MAX_PARAMS)") { params.size <= MAX_PARAMS }) {
+                params.entries
+            } else {
+                params.entries.take(MAX_PARAMS)
+            }
         val bundle = Bundle().apply {
             entries.forEach { (key, value) ->
                 if (!validateName("param key on '$event'", key, MAX_NAME_CHARS)) return@forEach
@@ -68,28 +69,35 @@ class AnalyticsLogger @Inject constructor(
         if (!validateName("user property name", name, MAX_USER_PROPERTY_NAME_CHARS)) return
         val truncated = value?.let { safeTruncate(it, MAX_USER_PROPERTY_VALUE_CHARS) }
         if (value != null && value.length > MAX_USER_PROPERTY_VALUE_CHARS) {
-            Log.w(TAG, "user property '$name' value of ${value.length} chars exceeds $MAX_USER_PROPERTY_VALUE_CHARS")
+            Log.w(
+                TAG,
+                "user property '$name' value of ${value.length} chars exceeds $MAX_USER_PROPERTY_VALUE_CHARS"
+            )
         }
         fa.setUserProperty(name, truncated)
     }
 
     /**
-     * Toggles Firebase Analytics collection. When disabling, also resets local
-     * analytics state (clears on-device cached data and generates a new App
-     * Instance ID) so future events cannot be linked to the prior identifier.
-     * Note: events already transmitted to Firebase servers are not deleted by
-     * this call — server-side erasure requires a separate User Data Deletion
-     * request.
+     * Toggles Firebase Analytics collection. On a true→false transition, also
+     * resets local analytics state (clears on-device cached data and generates
+     * a new App Instance ID) so future events cannot be linked to the prior
+     * identifier. The reset is skipped on cold-start confirmation of a
+     * pre-existing opt-out to avoid unnecessary I/O and App Instance ID churn.
      */
     fun setEnabled(enabled: Boolean) {
         val fa = analytics ?: return
+        val wasEnabled = previouslyEnabled
+        previouslyEnabled = enabled
         fa.setAnalyticsCollectionEnabled(enabled)
-        if (!enabled) fa.resetAnalyticsData()
+        if (!enabled && wasEnabled == true) fa.resetAnalyticsData()
     }
 
     private fun truncateValue(event: String, key: String, value: String): String {
         if (value.length <= MAX_VALUE_CHARS) return value
-        Log.w(TAG, "param '$key' on '$event' value of ${value.length} chars exceeds $MAX_VALUE_CHARS")
+        Log.w(
+            TAG,
+            "param '$key' on '$event' value of ${value.length} chars exceeds $MAX_VALUE_CHARS"
+        )
         return safeTruncate(value, MAX_VALUE_CHARS)
     }
 
@@ -143,10 +151,12 @@ class AnalyticsLogger @Inject constructor(
 
     private companion object {
         const val TAG = "AnalyticsLogger"
+
         // Firebase Analytics hard limits — silently dropped/truncated upstream.
         const val MAX_NAME_CHARS = 40
         const val MAX_VALUE_CHARS = 100
         const val MAX_PARAMS = 25
+
         // User properties have stricter limits than events.
         const val MAX_USER_PROPERTY_NAME_CHARS = 24
         const val MAX_USER_PROPERTY_VALUE_CHARS = 36

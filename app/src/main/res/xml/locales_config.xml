@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Generated from localization/source/*.json. Do not edit directly. -->
+<!-- Generated from app-translation/source/*.json. Do not edit directly. -->
 <locale-config xmlns:android="http://schemas.android.com/apk/res/android">
     <locale android:name="ar" />
     <locale android:name="bg" />

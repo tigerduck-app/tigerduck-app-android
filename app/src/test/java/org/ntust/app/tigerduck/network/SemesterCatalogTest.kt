@@ -65,18 +65,71 @@ class SemesterCatalogTest {
     }
 
     @Test
-    fun `picker depth reaches back two years across interleaved summer terms`() {
-        // 1151, 114H, 1142, 1141, 113H, 1132 — four slots would stop at 1141.
-        val list = SemesterCatalog.decodeSemesters(
-            """
-            [{"Semester":"1151","LoginEnable":true},{"Semester":"114H","LoginEnable":false},
-             {"Semester":"1142","LoginEnable":false},{"Semester":"1141","LoginEnable":false},
-             {"Semester":"113H","LoginEnable":false},{"Semester":"1132","LoginEnable":false},
-             {"Semester":"1131","LoginEnable":false}]
-            """.trimIndent()
+    fun `picker reaches back to the admission term, summer terms included`() {
+        // The case a fixed depth of six gets wrong: 114H and 113H eat two
+        // slots, so a 113 admit stopped at 1132 and could not reach 1131.
+        val catalogue =
+            listOf("1151", "114H", "1142", "1141", "113H", "1132", "1131", "112H", "1122")
+        assertEquals(
+            listOf("1151", "114H", "1142", "1141", "113H", "1132", "1131"),
+            SemesterCatalog.termsFrom(catalogue, admissionYear = 113),
         )
-        val offered = list.mapNotNull { it.semester }.take(SemesterCatalog.PICKER_DEPTH)
-        assertTrue("1132" in offered)
-        assertEquals(SemesterCatalog.PICKER_DEPTH, offered.size)
+    }
+
+    @Test
+    fun `space-padded pre-100 terms never leak past the admission year`() {
+        // The reason the cut-off compares numbers, not strings: "99 1" sorts
+        // after "1131" lexicographically, which is how terms back to 95-1
+        // leaked into the picker on iOS.
+        val catalogue = listOf(
+            "1151", "114H", "1142", "1141", "113H", "1132", "1131", "112H",
+            "1001", "99 H", "99 2", "99 1", "95 1",
+        )
+        assertEquals(
+            listOf("1151", "114H", "1142", "1141", "113H", "1132", "1131"),
+            SemesterCatalog.termsFrom(catalogue, admissionYear = 113),
+        )
+        assertEquals(
+            listOf(
+                "1151", "114H", "1142", "1141", "113H", "1132", "1131", "112H",
+                "1001", "99 H", "99 2", "99 1",
+            ),
+            SemesterCatalog.termsFrom(catalogue, admissionYear = 99),
+        )
+    }
+
+    @Test
+    fun `academic year is everything before the term character, whitespace tolerant`() {
+        assertEquals(115, SemesterCatalog.academicYear("1151"))
+        assertEquals(114, SemesterCatalog.academicYear("114H"))
+        assertEquals(99, SemesterCatalog.academicYear("99 1"))
+        assertNull(SemesterCatalog.academicYear(""))
+        assertNull(SemesterCatalog.academicYear("H"))
+    }
+
+    @Test
+    fun `unknown student id keeps the fixed depth`() {
+        val catalogue = listOf("1151", "114H", "1142", "1141", "113H", "1132", "1131", "112H")
+        assertEquals(
+            SemesterCatalog.PICKER_DEPTH,
+            SemesterCatalog.termsFrom(catalogue, admissionYear = null).size,
+        )
+    }
+
+    @Test
+    fun `admission after the newest published term offers nothing, not older terms`() {
+        // Not a fallback to six: every catalogue term predates this student, so
+        // offering any of it is wrong. ClassTableViewModel.semesterOptions
+        // keeps the current term selectable, so the picker still renders one.
+        val catalogue = listOf("1151", "114H", "1142", "1141", "113H", "1132", "1131", "112H")
+        assertTrue(SemesterCatalog.termsFrom(catalogue, admissionYear = 116).isEmpty())
+    }
+
+    @Test
+    fun `admission year is the three digits after the degree letter`() {
+        assertEquals(113, SemesterCatalog.admissionYear("B11315000"))
+        assertEquals(110, SemesterCatalog.admissionYear("M11000001"))
+        assertNull(SemesterCatalog.admissionYear("abc"))
+        assertNull(SemesterCatalog.admissionYear(null))
     }
 }

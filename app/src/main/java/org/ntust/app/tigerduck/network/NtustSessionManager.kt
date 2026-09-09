@@ -1,31 +1,37 @@
 package org.ntust.app.tigerduck.network
 
-import android.util.Log
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.Dispatcher
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.debug.DemoModeInterceptor
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-enum class LoadingState { IDLE, LOADING, LOADED, ERROR }
-
 @Singleton
 class NtustSessionManager @Inject constructor(
-    private val prefs: AppPreferences
+    private val prefs: AppPreferences,
+    private val demoMode: DemoModeInterceptor,
 ) {
     private val cookieStore = ConcurrentHashMap<String, CopyOnWriteArrayList<Cookie>>()
 
     init {
-        // Clear stale SSO timestamp if cookie store is empty after process restart
-        if (cookieStore.isEmpty() && prefs.ssoLoginTimestamp > 0L) {
+        // The jar is in-memory, so on every process start it is empty and any
+        // persisted timestamp describes a session that no longer exists. Drop
+        // it, so loginTimestampMs / cookieExpiryMs cannot report an expiry for
+        // cookies nobody holds.
+        //
+        // Losing the session on restart is by design — these are short-lived
+        // SSO cookies and AuthService.ensureAuthenticated() rebuilds them from
+        // stored credentials on demand. It is NOT a signal that the user is
+        // signed out: that is AuthService.authState, which is durable.
+        if (prefs.ssoLoginTimestamp > 0L) {
             prefs.clearSsoTimestamp()
         }
     }
@@ -47,18 +53,6 @@ class NtustSessionManager @Inject constructor(
             cookieStore[url.host]?.toList() ?: emptyList()
     }
 
-    private val loggingInterceptor = HttpLoggingInterceptor { message ->
-        Log.d("TigerDuck-HTTP", redactSensitive(message))
-    }.apply {
-        level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS
-        else HttpLoggingInterceptor.Level.NONE
-        // Session cookies and wstoken can appear in these headers; mask them
-        // even in debug so logcat doesn't carry long-lived credentials.
-        redactHeader("Cookie")
-        redactHeader("Set-Cookie")
-        redactHeader("Authorization")
-    }
-
     // Default OkHttp caps parallelism at 5 requests per host, which
     // serialized the tail of lookupCourse (typical 7–10 enrolled courses)
     // and get_submission_status fan-outs on first load. Raise the ceiling so
@@ -69,6 +63,9 @@ class NtustSessionManager @Inject constructor(
     }
 
     val client: OkHttpClient = OkHttpClient.Builder()
+        // Before the UA/Accept rewriting below: a demo session has no reason
+        // to dress up a request it is about to refuse.
+        .addInterceptor(demoMode)
         .cookieJar(cookieJar)
         .dispatcher(sharedDispatcher)
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -103,7 +100,6 @@ class NtustSessionManager @Inject constructor(
                 .build()
             chain.proceed(request)
         }
-        .addInterceptor(loggingInterceptor)
         .build()
 
     companion object {
@@ -116,6 +112,11 @@ class NtustSessionManager @Inject constructor(
             SENSITIVE_PARAM_REGEX.replace(message) { m -> "${m.groupValues[1]}=***" }
     }
 
+    /**
+     * Whether a network call to NTUST can go out right now. Short-lived and
+     * process-local by nature — see the [init] note. Ask
+     * `AuthService.authState` instead for "is the user signed in".
+     */
     val cookiesValid: Boolean
         get() {
             val ts = prefs.ssoLoginTimestamp

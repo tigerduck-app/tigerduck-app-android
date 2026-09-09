@@ -49,7 +49,7 @@ class SemesterCodesTest {
         // not on the month heuristic. Anchoring on the heuristic in August
         // 2026 would produce 1142, 1141, 1132, 1131 — dropping the 115-1 term
         // NTUST had already opened, which is the bug this hotfix fixes.
-        val offered = SemesterCodes.walkBack(org.ntust.app.tigerduck.AppConstants.CurrentTerm.CODE, 4)
+        val offered = SemesterCodes.walkBack("1151", 4)
         assertEquals(listOf("1151", "1142", "1141", "1132"), offered)
     }
 
