@@ -293,39 +293,7 @@ class PushApiClient @Inject constructor(
         forceKeys: List<String> = emptyList(),
     ) = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncCourses) return@withContext
-        val items = courses.map { c ->
-            mapOf(
-                "semester" to semester,
-                "course_no" to c.courseNo,
-                "course_name" to c.displayName,
-                "course_name_en" to null,
-                "moodle_id" to c.moodleIdNumber,
-                "credits" to c.credits.toDouble(),
-                "classroom" to c.classroom,
-                "instructors" to c.instructor
-                    .split(",", "，", "、")
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() },
-                "schedule_json" to c.schedule.mapKeys { it.key.toString() },
-                "classroom_map" to c.classroomMap,
-            )
-        }
-        // Only real choices. Sending the auto-computed colour for every course
-        // made the server store all of them as explicit overrides on first
-        // upload — its upsert is create-only (`if override.color_hex is None`),
-        // so whichever generated hex landed first was then pinned server-side
-        // and no later palette change could take effect. The server already
-        // drops null entries; this is the client half of that contract.
-        val overrides = courses.mapNotNull { c ->
-            c.customColorHex?.let { hex ->
-                mapOf(
-                    "course_key" to "client:$semester:${c.courseNo}",
-                    "color_hex" to hex,
-                )
-            }
-        }
-        val payload = mutableMapOf<String, Any>("courses" to items, "course_overrides" to overrides)
-        if (forceKeys.isNotEmpty()) payload["force_keys"] = forceKeys
+        val payload = CourseUploadPayload.build(courses, semester, forceKeys)
         val body = gson.toJson(payload).toRequestBody(jsonType)
         val request = Request.Builder()
             .url("$baseUrl/sync/courses/upload")
