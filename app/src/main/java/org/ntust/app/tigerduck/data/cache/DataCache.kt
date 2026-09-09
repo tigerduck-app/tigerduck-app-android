@@ -229,7 +229,7 @@ class DataCache @Inject constructor(
     // 翹課 is parked until after the add-friend feature, so nothing reads this
     // file today: every caller passes emptyMap() instead, and the reads are
     // commented out beside them. Read/write stay here on purpose — the file is
-    // NOT deleted, so a user who marked classes before v2.0.0 gets their marks
+    // NOT deleted, so a user who marked classes before v2.0.1 gets their marks
     // back the day the feature is switched on.
     //
     // Do not "reconnect" a caller in isolation. Skipping suppresses class-prep

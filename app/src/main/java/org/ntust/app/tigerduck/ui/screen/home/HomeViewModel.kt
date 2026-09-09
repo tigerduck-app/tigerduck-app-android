@@ -238,7 +238,7 @@ class HomeViewModel @Inject constructor(
     // the left-swipe that undoes a skip is commented out as well.
     //
     // Keep DataCache.saveSkippedDates / loadSkippedDates anyway. The file is
-    // not deleted, so marks made before v2.0.0 come back the day the feature
+    // not deleted, so marks made before v2.0.1 come back the day the feature
     // is switched on. Turn the UI on first, then the readers — not the other
     // way round.
     //

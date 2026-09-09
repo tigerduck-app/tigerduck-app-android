@@ -15,9 +15,9 @@
       ]
     }
   },
-  "24": {
+  "25": {
     "zh-Hant": {
-      "title": "2.0.0 有什麼新功能",
+      "title": "2.0.1 有什麼新功能",
       "highlights": [
         "跨裝置同步：課表、課程顏色與作業狀態可以在你的裝置之間同步，可在「設定」中關閉。",
         "新增了 GPA 即時計算，不需要等待學校系統出來。",
@@ -27,7 +27,7 @@
       ]
     },
     "en": {
-      "title": "What's new in 2.0.0",
+      "title": "What's new in 2.0.1",
       "highlights": [
         "Cross-device sync: your timetable, course colours and assignment state can follow you between devices. Turn it off in Settings.",
         "Added real-time GPA calculation, no need to wait for the school system.",

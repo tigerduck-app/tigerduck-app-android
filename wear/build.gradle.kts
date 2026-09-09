@@ -25,8 +25,8 @@ android {
         // highest version code, and only the watch bundle requires
         // android.hardware.type.watch. versionName still tracks the phone
         // exactly; version-bumped.yaml enforces both halves of that.
-        versionCode = 1024
-        versionName = "2.0.0"
+        versionCode = 1025
+        versionName = "2.0.1"
     }
 
     // Mirrors :app. The watch APK/AAB carries the same applicationId as the

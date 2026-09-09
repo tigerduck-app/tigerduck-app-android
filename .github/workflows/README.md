@@ -99,7 +99,7 @@ It also enforces cross-file consistency, which is the part that bites:
 That last rule is load-bearing to know about. `:wear` ships under the phone's
 `applicationId`, and Play namespaces version codes per package rather than per
 artifact, so the two bundles cannot share a code: the second upload is rejected
-with "Version code N has already been used". 2.0.0 hit exactly that with both
+with "Version code N has already been used". The first 2.0 upload hit that with both
 modules declaring 23. The offset keeps them distinct release after release, and
 keeps the watch code the higher of the two — where a device matches both
 artifacts Play serves the highest code, and only the watch bundle requires
@@ -107,7 +107,7 @@ artifacts Play serves the highest code, and only the watch bundle requires
 
 Note that uploading a bundle consumes its version code permanently; discarding
 the draft release does not hand it back. 23 belongs to the watch bundle for
-good, so 2.0.0 ships as phone 24 / watch 1024.
+good, so 2.0.1 ships as phone 25 / watch 1025.
 
 ### `whatsnew-has-version.yaml`
 
