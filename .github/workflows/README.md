@@ -94,7 +94,7 @@ It also enforces cross-file consistency, which is the part that bites:
 - The F-Droid metadata `versionCode` must **equal** the Gradle one, and its
   `versionName` must be exactly `<gradle versionName>-fdroid`.
 - The watch `versionName` must **match the phone exactly**, but its
-  `versionCode` must be exactly **phone + 1000**.
+  `versionCode` must be exactly **phone + 10000**.
 
 That last rule is load-bearing to know about. `:wear` ships under the phone's
 `applicationId`, and Play namespaces version codes per package rather than per
@@ -105,9 +105,14 @@ keeps the watch code the higher of the two — where a device matches both
 artifacts Play serves the highest code, and only the watch bundle requires
 `android.hardware.type.watch`.
 
+The offset is additive, so it separates the two ranges only while the phone code
+stays below it. The check asserts that too: a phone `versionCode` that reaches
+10000 fails the build with a note to pick a new allocation scheme, rather than
+silently reusing a code the watch already spent.
+
 Note that uploading a bundle consumes its version code permanently; discarding
 the draft release does not hand it back. 23 belongs to the watch bundle for
-good, so 2.0.1 ships as phone 25 / watch 1025.
+good, so 2.0.1 ships as phone 25 / watch 10025.
 
 ### `whatsnew-has-version.yaml`
 

@@ -17,15 +17,16 @@ android {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 30
         targetSdk = 36
-        // Phone versionCode + 1000. Play namespaces version codes per
+        // Phone versionCode + 10000. Play namespaces version codes per
         // applicationId, not per artifact, so the watch bundle cannot reuse
         // the phone's — the second upload is rejected with "version code
         // already used". The offset also keeps the watch code the *higher*
         // of the two: where both artifacts match a device, Play serves the
         // highest version code, and only the watch bundle requires
-        // android.hardware.type.watch. versionName still tracks the phone
-        // exactly; version-bumped.yaml enforces both halves of that.
-        versionCode = 1025
+        // android.hardware.type.watch. It separates the ranges only while the
+        // phone stays under 10000, which version-bumped.yaml asserts rather
+        // than leaves to chance. versionName still tracks the phone exactly.
+        versionCode = 10025
         versionName = "2.0.1"
     }
 
