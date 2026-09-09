@@ -84,7 +84,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     //
     // The cost is that existing users are upgraded into it: they never see
     // the onboarding sync page, and the silent v3 migration signs them in
-    // without interaction. The 2.0.0 "What's new" entry names cross-device
+    // without interaction. The 2.0.1 "What's new" entry names cross-device
     // sync and says where to turn it off, which is what makes that
     // defensible rather than silent.
     var cloudSyncEnabled: Boolean
@@ -119,9 +119,9 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
      * Which revision of the wizard this install has actually been through.
      *
      * Stamped by [org.ntust.app.tigerduck.ui.AppState.completeOnboarding] with
-     * [ONBOARDING_VERSION]. The default of 0 is every pre-2.0.0 install: they
+     * [ONBOARDING_VERSION]. The default of 0 is every pre-2.0.1 install: they
      * finished onboarding before this key existed, which means they finished a
-     * wizard that had no TigerSync page and no 2.0.0 privacy copy. Those
+     * wizard that had no TigerSync page and no 2.0.1 privacy copy. Those
      * installs are walked through it once — still signed in, since nothing
      * here touches [CredentialManager]. See `AppState.needsOnboardingRerun`.
      *
@@ -599,7 +599,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
          * Current wizard revision. Bump when the wizard gains a page existing
          * users have to see; every install below it walks the wizard once more.
          *
-         * 1 was the pre-2.0.0 wizard. 2 adds the TigerSync page — cross-device
+         * 1 was the pre-2.0.1 wizard. 2 adds the TigerSync page — cross-device
          * sync defaults to on to match Apple, so an upgrade that never showed
          * that page would opt the user in without ever asking.
          */

@@ -93,13 +93,26 @@ It also enforces cross-file consistency, which is the part that bites:
 
 - The F-Droid metadata `versionCode` must **equal** the Gradle one, and its
   `versionName` must be exactly `<gradle versionName>-fdroid`.
-- The watch `versionCode` and `versionName` must **match the phone exactly**
-  ("wear ships in lockstep with the phone Play APK").
+- The watch `versionName` must **match the phone exactly**, but its
+  `versionCode` must be exactly **phone + 10000**.
 
-That last rule is load-bearing to know about: Google Play requires every
-artifact under one package name to carry a *distinct* `versionCode`, so shipping
-the wear AAB alongside the phone AAB in a single Play release means relaxing
-this equality check first. Both modules currently declare `versionCode = 23`.
+That last rule is load-bearing to know about. `:wear` ships under the phone's
+`applicationId`, and Play namespaces version codes per package rather than per
+artifact, so the two bundles cannot share a code: the second upload is rejected
+with "Version code N has already been used". The first 2.0 upload hit that with both
+modules declaring 23. The offset keeps them distinct release after release, and
+keeps the watch code the higher of the two — where a device matches both
+artifacts Play serves the highest code, and only the watch bundle requires
+`android.hardware.type.watch`.
+
+The offset is additive, so it separates the two ranges only while the phone code
+stays below it. The check asserts that too: a phone `versionCode` that reaches
+10000 fails the build with a note to pick a new allocation scheme, rather than
+silently reusing a code the watch already spent.
+
+Note that uploading a bundle consumes its version code permanently; discarding
+the draft release does not hand it back. 23 belongs to the watch bundle for
+good, so 2.0.1 ships as phone 24 / watch 10024.
 
 ### `whatsnew-has-version.yaml`
 
