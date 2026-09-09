@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Tidak dapat ditambah</string>
     <string name="class_table_course_name">Nama kursus</string>
     <string name="class_table_delete">Padam</string>
-    <string name="class_table_delete_with_course">Padam — %1$s</string>
     <string name="class_table_empty_message">Tarik untuk menyegarkan, ketik + untuk menambah kursus, atau tukar ke semester lain</string>
     <string name="class_table_pick_color">Pilih warna</string>
-    <string name="class_table_pick_color_with_course">Pilih warna — %1$s</string>
     <string name="class_table_rename_default_label">Lalai: %1$s</string>
     <string name="class_table_rename_revert">Kembalikan ke lalai</string>
     <string name="class_table_rename_title">Namakan semula</string>
-    <string name="class_table_rename_with_course">Namakan semula — %1$s</string>
     <string name="class_table_reset_message">Jadual kursus akan dibina semula berdasarkan Moodle, sistem pemilihan kursus dan sistem markah. Kursus yang ditambah, dipadam atau dinamakan semula secara manual akan hilang.</string>
     <string name="class_table_reset_title">Tetapkan semula jadual kursus</string>
     <string name="class_table_reset_title_with_semester">Tetapkan semula jadual %1$s</string>

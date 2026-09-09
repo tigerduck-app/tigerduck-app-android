@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Unable to add</string>
     <string name="class_table_course_name">Course name</string>
     <string name="class_table_delete">Delete</string>
-    <string name="class_table_delete_with_course">Delete — %1$s</string>
     <string name="class_table_empty_message">Pull to refresh, tap + to add a course, or switch to another semester</string>
     <string name="class_table_pick_color">Pick color</string>
-    <string name="class_table_pick_color_with_course">Pick color — %1$s</string>
     <string name="class_table_rename_default_label">Default: %1$s</string>
     <string name="class_table_rename_revert">Revert to default</string>
     <string name="class_table_rename_title">Rename</string>
-    <string name="class_table_rename_with_course">Rename — %1$s</string>
     <string name="class_table_reset_message">This will rebuild the class table from Moodle, the course selection system and the grade system. Manually added, deleted and renamed courses will be lost.</string>
     <string name="class_table_reset_title">Reset class table</string>
     <string name="class_table_reset_title_with_semester">Reset %1$s class table</string>

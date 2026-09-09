@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Ekki hægt að bæta við</string>
     <string name="class_table_course_name">Nafn námskeiðs</string>
     <string name="class_table_delete">Eyða</string>
-    <string name="class_table_delete_with_course">Eyða — %1$s</string>
     <string name="class_table_empty_message">Dragðu til að uppfæra, ýttu á + til að bæta við námskeiði, eða skiptu í annað semester</string>
     <string name="class_table_pick_color">Velja lit</string>
-    <string name="class_table_pick_color_with_course">Velja lit — %1$s</string>
     <string name="class_table_rename_default_label">Sjálfgefið: %1$s</string>
     <string name="class_table_rename_revert">Endurstilla á sjálfgefið</string>
     <string name="class_table_rename_title">Endurnefna</string>
-    <string name="class_table_rename_with_course">Endurnefna — %1$s</string>
     <string name="class_table_reset_message">Stundataflan verður endurbyggð út frá Moodle, námsvalskerfinu og einkunnakerfinu. Áfangar sem var bætt við, fjarlægðir eða endurnefndir handvirkt glatast.</string>
     <string name="class_table_reset_title">Endurstilla stundatöflu</string>
     <string name="class_table_reset_title_with_semester">Endurstilla stundatöflu %1$s</string>

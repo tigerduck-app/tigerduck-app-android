@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Kan ikke legge til</string>
     <string name="class_table_course_name">Fagnavn</string>
     <string name="class_table_delete">Slett</string>
-    <string name="class_table_delete_with_course">Slett — %1$s</string>
     <string name="class_table_empty_message">Dra ned for å oppdatere, trykk på + for å legge til et fag, eller bytt til et annet semester</string>
     <string name="class_table_pick_color">Velg farge</string>
-    <string name="class_table_pick_color_with_course">Velg farge — %1$s</string>
     <string name="class_table_rename_default_label">Standard: %1$s</string>
     <string name="class_table_rename_revert">Tilbakestill til standard</string>
     <string name="class_table_rename_title">Gi nytt navn</string>
-    <string name="class_table_rename_with_course">Gi nytt navn — %1$s</string>
     <string name="class_table_reset_message">Timeplanen bygges opp på nytt fra Moodle, fagvalgsystemet og karaktersystemet. Manuelt lagt til, slettede og omdøpte emner går tapt.</string>
     <string name="class_table_reset_title">Tilbakestill timeplan</string>
     <string name="class_table_reset_title_with_semester">Tilbakestill timeplan for %1$s</string>

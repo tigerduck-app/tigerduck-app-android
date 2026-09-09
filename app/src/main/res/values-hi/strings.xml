@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">जोड़ने में असमर्थ</string>
     <string name="class_table_course_name">कोर्स का नाम</string>
     <string name="class_table_delete">हटाएँ</string>
-    <string name="class_table_delete_with_course">हटाएँ — %1$s</string>
     <string name="class_table_empty_message">रीफ़्रेश करने के लिए खींचें, कोर्स जोड़ने के लिए + दबाएँ, या किसी अन्य सेमेस्टर पर स्विच करें</string>
     <string name="class_table_pick_color">रंग चुनें</string>
-    <string name="class_table_pick_color_with_course">रंग चुनें — %1$s</string>
     <string name="class_table_rename_default_label">डिफ़ॉल्ट: %1$s</string>
     <string name="class_table_rename_revert">डिफ़ॉल्ट पर लौटें</string>
     <string name="class_table_rename_title">नाम बदलें</string>
-    <string name="class_table_rename_with_course">नाम बदलें — %1$s</string>
     <string name="class_table_reset_message">कोर्स टेबल को Moodle, कोर्स चयन सिस्टम और अंक सिस्टम के अनुसार फिर से बनाया जाएगा। मैन्युअल रूप से जोड़े, हटाए या नाम बदले गए कोर्स खो जाएँगे।</string>
     <string name="class_table_reset_title">कोर्स टेबल रीसेट करें</string>
     <string name="class_table_reset_title_with_semester">%1$s कोर्स टेबल रीसेट करें</string>

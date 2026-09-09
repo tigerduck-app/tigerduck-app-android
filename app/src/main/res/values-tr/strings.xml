@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Eklenemiyor</string>
     <string name="class_table_course_name">Ders adı</string>
     <string name="class_table_delete">Sil</string>
-    <string name="class_table_delete_with_course">Sil — %1$s</string>
     <string name="class_table_empty_message">Yenilemek için çekin, ders eklemek için + öğesine dokunun veya başka bir döneme geçin</string>
     <string name="class_table_pick_color">Renk seç</string>
-    <string name="class_table_pick_color_with_course">Renk seç — %1$s</string>
     <string name="class_table_rename_default_label">Varsayılan: %1$s</string>
     <string name="class_table_rename_revert">Varsayılana döndür</string>
     <string name="class_table_rename_title">Yeniden adlandır</string>
-    <string name="class_table_rename_with_course">Yeniden adlandır — %1$s</string>
     <string name="class_table_reset_message">Ders programı Moodle, ders seçim sistemi ve not sistemine göre yeniden oluşturulacak. Elle eklenen, silinen ve yeniden adlandırılan dersler kaybolacak.</string>
     <string name="class_table_reset_title">Ders programını sıfırla</string>
     <string name="class_table_reset_title_with_semester">%1$s ders programını sıfırla</string>

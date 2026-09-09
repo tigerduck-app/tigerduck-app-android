@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Қосу мүмкін емес</string>
     <string name="class_table_course_name">Курс атауы</string>
     <string name="class_table_delete">Жою</string>
-    <string name="class_table_delete_with_course">Жою — %1$s</string>
     <string name="class_table_empty_message">Жаңарту үшін төмен тартыңыз, курс қосу үшін + түймесін түртіңіз немесе басқа семестрге ауысыңыз</string>
     <string name="class_table_pick_color">Түс таңдау</string>
-    <string name="class_table_pick_color_with_course">Түс таңдау — %1$s</string>
     <string name="class_table_rename_default_label">Әдепкі: %1$s</string>
     <string name="class_table_rename_revert">Әдепкіге қайтару</string>
     <string name="class_table_rename_title">Атауын өзгерту</string>
-    <string name="class_table_rename_with_course">Атауын өзгерту — %1$s</string>
     <string name="class_table_reset_message">Сабақ кестесі Moodle, курс таңдау жүйесі және бағалар жүйесі негізінде қайта құрылады. Қолмен қосылған, жойылған және атауы өзгертілген пәндер жоғалады.</string>
     <string name="class_table_reset_title">Сабақ кестесін қалпына келтіру</string>
     <string name="class_table_reset_title_with_semester">%1$s сабақ кестесін қалпына келтіру</string>

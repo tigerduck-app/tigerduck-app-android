@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">امکان افزودن نیست</string>
     <string name="class_table_course_name">نام درس</string>
     <string name="class_table_delete">حذف</string>
-    <string name="class_table_delete_with_course">حذف — %1$s</string>
     <string name="class_table_empty_message">برای بازخوانی بکشید، برای افزودن درس روی + ضربه بزنید، یا به ترم دیگری تغییر دهید</string>
     <string name="class_table_pick_color">انتخاب رنگ</string>
-    <string name="class_table_pick_color_with_course">انتخاب رنگ — %1$s</string>
     <string name="class_table_rename_default_label">پیش‌فرض: %1$s</string>
     <string name="class_table_rename_revert">بازگرداندن به پیش‌فرض</string>
     <string name="class_table_rename_title">تغییر نام</string>
-    <string name="class_table_rename_with_course">تغییر نام — %1$s</string>
     <string name="class_table_reset_message">جدول دروس بر اساس Moodle، سامانه انتخاب واحد و سامانه نمرات دوباره ساخته می‌شود. دروسی که به‌صورت دستی افزوده، حذف یا تغییر نام داده شده‌اند از بین می‌روند.</string>
     <string name="class_table_reset_title">بازنشانی جدول دروس</string>
     <string name="class_table_reset_title_with_semester">بازنشانی جدول دروس %1$s</string>

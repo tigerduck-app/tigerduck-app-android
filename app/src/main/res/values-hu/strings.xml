@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Nem adható hozzá</string>
     <string name="class_table_course_name">Kurzus neve</string>
     <string name="class_table_delete">Törlés</string>
-    <string name="class_table_delete_with_course">Törlés — %1$s</string>
     <string name="class_table_empty_message">Húzza le a frissítéshez, koppintson a + gombra kurzus hozzáadásához, vagy váltson másik félévre</string>
     <string name="class_table_pick_color">Szín kiválasztása</string>
-    <string name="class_table_pick_color_with_course">Szín kiválasztása — %1$s</string>
     <string name="class_table_rename_default_label">Alapértelmezett: %1$s</string>
     <string name="class_table_rename_revert">Alapértelmezett visszaállítása</string>
     <string name="class_table_rename_title">Átnevezés</string>
-    <string name="class_table_rename_with_course">Átnevezés — %1$s</string>
     <string name="class_table_reset_message">Az órarend a Moodle, a kurzusválasztó rendszer és az osztályzatrendszer alapján újraépül. A kézzel hozzáadott, törölt és átnevezett kurzusok elvesznek.</string>
     <string name="class_table_reset_title">Órarend visszaállítása</string>
     <string name="class_table_reset_title_with_semester">%1$s órarend visszaállítása</string>

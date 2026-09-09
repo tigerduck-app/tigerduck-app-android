@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Kan niet toevoegen</string>
     <string name="class_table_course_name">Vaknaam</string>
     <string name="class_table_delete">Verwijderen</string>
-    <string name="class_table_delete_with_course">Verwijderen — %1$s</string>
     <string name="class_table_empty_message">Trek om te vernieuwen, tik op + om een vak toe te voegen, of wissel naar een ander semester</string>
     <string name="class_table_pick_color">Kleur kiezen</string>
-    <string name="class_table_pick_color_with_course">Kleur kiezen — %1$s</string>
     <string name="class_table_rename_default_label">Standaard: %1$s</string>
     <string name="class_table_rename_revert">Standaard herstellen</string>
     <string name="class_table_rename_title">Naam wijzigen</string>
-    <string name="class_table_rename_with_course">Naam wijzigen — %1$s</string>
     <string name="class_table_reset_message">Het lesrooster wordt opnieuw opgebouwd op basis van Moodle, de vakkeuze en het cijfersysteem. Handmatig toegevoegde, verwijderde en hernoemde vakken gaan verloren.</string>
     <string name="class_table_reset_title">Lesrooster herstellen</string>
     <string name="class_table_reset_title_with_semester">Lesrooster %1$s herstellen</string>

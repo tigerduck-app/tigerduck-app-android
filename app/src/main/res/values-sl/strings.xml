@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Dodajanje ni mogoče</string>
     <string name="class_table_course_name">Ime predmeta</string>
     <string name="class_table_delete">Izbriši</string>
-    <string name="class_table_delete_with_course">Izbriši — %1$s</string>
     <string name="class_table_empty_message">Povlecite za osvežitev, tapnite +, da dodate predmet, ali preklopite na drug semester</string>
     <string name="class_table_pick_color">Izberi barvo</string>
-    <string name="class_table_pick_color_with_course">Izberi barvo — %1$s</string>
     <string name="class_table_rename_default_label">Privzeto: %1$s</string>
     <string name="class_table_rename_revert">Obnovi privzeto</string>
     <string name="class_table_rename_title">Preimenuj</string>
-    <string name="class_table_rename_with_course">Preimenuj — %1$s</string>
     <string name="class_table_reset_message">Urnik bo znova zgrajen iz Moodla, sistema za izbiro predmetov in sistema ocen. Ročno dodani, izbrisani in preimenovani predmeti bodo izgubljeni.</string>
     <string name="class_table_reset_title">Ponastavi urnik predmetov</string>
     <string name="class_table_reset_title_with_semester">Ponastavi urnik %1$s</string>

@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Nevar pievienot</string>
     <string name="class_table_course_name">Kursa nosaukums</string>
     <string name="class_table_delete">Dzēst</string>
-    <string name="class_table_delete_with_course">Dzēst — %1$s</string>
     <string name="class_table_empty_message">Velciet, lai atjauninātu, pieskarieties +, lai pievienotu kursu, vai pārslēdzieties uz citu semestri</string>
     <string name="class_table_pick_color">Izvēlēties krāsu</string>
-    <string name="class_table_pick_color_with_course">Izvēlēties krāsu — %1$s</string>
     <string name="class_table_rename_default_label">Noklusējums: %1$s</string>
     <string name="class_table_rename_revert">Atjaunot noklusējumu</string>
     <string name="class_table_rename_title">Pārsaukt</string>
-    <string name="class_table_rename_with_course">Pārsaukt — %1$s</string>
     <string name="class_table_reset_message">Stundu saraksts tiks izveidots no jauna, izmantojot Moodle, kursu izvēles sistēmu un atzīmju sistēmu. Manuāli pievienotie, dzēstie un pārdēvētie kursi tiks zaudēti.</string>
     <string name="class_table_reset_title">Atiestatīt stundu sarakstu</string>
     <string name="class_table_reset_title_with_semester">Atiestatīt %1$s stundu sarakstu</string>

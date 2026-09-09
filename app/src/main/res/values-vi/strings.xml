@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Không thể thêm</string>
     <string name="class_table_course_name">Tên môn học</string>
     <string name="class_table_delete">Xóa</string>
-    <string name="class_table_delete_with_course">Xóa — %1$s</string>
     <string name="class_table_empty_message">Kéo để làm mới, nhấn + để thêm môn học, hoặc chuyển sang học kỳ khác</string>
     <string name="class_table_pick_color">Chọn màu</string>
-    <string name="class_table_pick_color_with_course">Chọn màu — %1$s</string>
     <string name="class_table_rename_default_label">Mặc định: %1$s</string>
     <string name="class_table_rename_revert">Khôi phục mặc định</string>
     <string name="class_table_rename_title">Đổi tên</string>
-    <string name="class_table_rename_with_course">Đổi tên — %1$s</string>
     <string name="class_table_reset_message">Lịch học sẽ được dựng lại từ Moodle, hệ thống đăng ký môn học và hệ thống điểm. Các môn được thêm, xoá hoặc đổi tên thủ công sẽ bị mất.</string>
     <string name="class_table_reset_title">Đặt lại lịch học</string>
     <string name="class_table_reset_title_with_semester">Đặt lại lịch học %1$s</string>

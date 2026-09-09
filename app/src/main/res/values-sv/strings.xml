@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Kan inte lägga till</string>
     <string name="class_table_course_name">Kursnamn</string>
     <string name="class_table_delete">Ta bort</string>
-    <string name="class_table_delete_with_course">Ta bort — %1$s</string>
     <string name="class_table_empty_message">Dra för att uppdatera, tryck på + för att lägga till en kurs, eller byt till en annan semester</string>
     <string name="class_table_pick_color">Välj färg</string>
-    <string name="class_table_pick_color_with_course">Välj färg — %1$s</string>
     <string name="class_table_rename_default_label">Standard: %1$s</string>
     <string name="class_table_rename_revert">Återställ till standard</string>
     <string name="class_table_rename_title">Byt namn</string>
-    <string name="class_table_rename_with_course">Byt namn — %1$s</string>
     <string name="class_table_reset_message">Schemat byggs om utifrån Moodle, kursvalssystemet och betygssystemet. Manuellt tillagda, borttagna och omdöpta kurser går förlorade.</string>
     <string name="class_table_reset_title">Återställ kursschema</string>
     <string name="class_table_reset_title_with_semester">Återställ schemat för %1$s</string>

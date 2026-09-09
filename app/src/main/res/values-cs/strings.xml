@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Nelze přidat</string>
     <string name="class_table_course_name">Název kurzu</string>
     <string name="class_table_delete">Smazat</string>
-    <string name="class_table_delete_with_course">Smazat — %1$s</string>
     <string name="class_table_empty_message">Zatažením obnovte, klepnutím na + přidejte kurz nebo přepněte na jiný semestr</string>
     <string name="class_table_pick_color">Vybrat barvu</string>
-    <string name="class_table_pick_color_with_course">Vybrat barvu — %1$s</string>
     <string name="class_table_rename_default_label">Výchozí: %1$s</string>
     <string name="class_table_rename_revert">Obnovit výchozí</string>
     <string name="class_table_rename_title">Přejmenovat</string>
-    <string name="class_table_rename_with_course">Přejmenovat — %1$s</string>
     <string name="class_table_reset_message">Rozvrh bude znovu sestaven podle Moodle, systému výběru kurzů a systému známek. Ručně přidané, odstraněné a přejmenované předměty budou ztraceny.</string>
     <string name="class_table_reset_title">Obnovit rozvrh předmětů</string>
     <string name="class_table_reset_title_with_semester">Obnovit rozvrh %1$s</string>

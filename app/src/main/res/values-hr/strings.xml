@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Nije moguće dodati</string>
     <string name="class_table_course_name">Naziv kolegija</string>
     <string name="class_table_delete">Obriši</string>
-    <string name="class_table_delete_with_course">Obriši — %1$s</string>
     <string name="class_table_empty_message">Povucite za osvježavanje, dodirnite + za dodavanje kolegija ili prijeđite na drugi semestar</string>
     <string name="class_table_pick_color">Odaberi boju</string>
-    <string name="class_table_pick_color_with_course">Odaberi boju — %1$s</string>
     <string name="class_table_rename_default_label">Zadano: %1$s</string>
     <string name="class_table_rename_revert">Vrati na zadano</string>
     <string name="class_table_rename_title">Preimenovanje</string>
-    <string name="class_table_rename_with_course">Preimenovanje — %1$s</string>
     <string name="class_table_reset_message">Raspored će se ponovno izgraditi prema Moodleu, sustavu odabira kolegija i sustavu ocjena. Ručno dodani, obrisani i preimenovani kolegiji bit će izgubljeni.</string>
     <string name="class_table_reset_title">Poništi raspored kolegija</string>
     <string name="class_table_reset_title_with_semester">Poništi raspored %1$s</string>

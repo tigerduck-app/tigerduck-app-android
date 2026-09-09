@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -48,6 +51,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.component.ConflictLOrientation
 import org.ntust.app.tigerduck.ui.component.ConflictLShape
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -274,39 +278,12 @@ internal fun ConflictCourseCell(
             ) {
                 listOf(cellRole.courseA, cellRole.courseB).forEachIndexed { idx, course ->
                     if (idx > 0) HorizontalDivider()
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.class_table_rename_with_course,
-                                    course.displayName,
-                                )
-                            )
-                        },
-                        onClick = { showMenu = false; onRename(course) },
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.class_table_pick_color_with_course,
-                                    course.displayName,
-                                )
-                            )
-                        },
-                        onClick = { showMenu = false; onPickColor(course) },
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.class_table_delete_with_course,
-                                    course.displayName,
-                                ),
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        },
-                        onClick = { showMenu = false; onDelete(course) },
+                    CourseActionSection(
+                        course = course,
+                        swatch = bgFor(course),
+                        onRename = { showMenu = false; onRename(course) },
+                        onPickColor = { showMenu = false; onPickColor(course) },
+                        onDelete = { showMenu = false; onDelete(course) },
                     )
                 }
             }
@@ -431,42 +408,77 @@ internal fun MultiConflictCourseCell(
                     onDismissRequest = { menuForCourse = null },
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.class_table_rename_with_course,
-                                    course.displayName,
-                                )
-                            )
-                        },
-                        onClick = { menuForCourse = null; onRename(course) },
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.class_table_pick_color_with_course,
-                                    course.displayName,
-                                )
-                            )
-                        },
-                        onClick = { menuForCourse = null; onPickColor(course) },
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.class_table_delete_with_course,
-                                    course.displayName,
-                                ),
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        },
-                        onClick = { menuForCourse = null; onDelete(course) },
+                    CourseActionSection(
+                        course = course,
+                        swatch = bgFor(course),
+                        onRename = { menuForCourse = null; onRename(course) },
+                        onPickColor = { menuForCourse = null; onPickColor(course) },
+                        onDelete = { menuForCourse = null; onDelete(course) },
                     )
                 }
             }
         }
     }
+}
+
+
+/**
+ * One course's actions, under a header that names it and shows its colour.
+ *
+ * The actions used to carry the name themselves -- "Rename — Calculus" --
+ * which reads fine right up until the two courses in the conflict share a
+ * name. Two sections of the same course colliding is an ordinary reason to
+ * be in this menu, not an edge case, and there the old labels gave the user
+ * two identical sets to choose between with nothing to tell them apart.
+ *
+ * The swatch is that something. It is [swatch], the colour the cell behind
+ * the menu is already drawn in, so the choice is made by matching what is
+ * on screen rather than by guessing which half of the cell was tapped.
+ *
+ * The header is deliberately not a [DropdownMenuItem]: it is a label, and
+ * making it clickable would put a fourth, meaningless target in a menu
+ * whose whole problem was ambiguity.
+ */
+@Composable
+private fun CourseActionSection(
+    course: Course,
+    swatch: Color,
+    onRename: () -> Unit,
+    onPickColor: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(swatch),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            course.displayName,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+        )
+    }
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.class_table_rename_title)) },
+        onClick = onRename,
+    )
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.class_table_pick_color)) },
+        onClick = onPickColor,
+    )
+    DropdownMenuItem(
+        text = {
+            Text(
+                stringResource(R.string.class_table_delete),
+                color = MaterialTheme.colorScheme.error,
+            )
+        },
+        onClick = onDelete,
+    )
 }

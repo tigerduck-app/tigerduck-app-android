@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">జోడించడం సాధ్యం కాలేదు</string>
     <string name="class_table_course_name">కోర్సు పేరు</string>
     <string name="class_table_delete">తొలగించు</string>
-    <string name="class_table_delete_with_course">తొలగించు — %1$s</string>
     <string name="class_table_empty_message">రిఫ్రెష్ చేయడానికి లాగండి, కోర్సు జోడించడానికి + నొక్కండి, లేదా వేరే సెమిస్టర్‌కు మారండి</string>
     <string name="class_table_pick_color">రంగు ఎంచుకోండి</string>
-    <string name="class_table_pick_color_with_course">రంగు ఎంచుకోండి — %1$s</string>
     <string name="class_table_rename_default_label">డిఫాల్ట్: %1$s</string>
     <string name="class_table_rename_revert">డిఫాల్ట్‌కు తిరిగి వెళ్ళు</string>
     <string name="class_table_rename_title">పేరు మార్చండి</string>
-    <string name="class_table_rename_with_course">పేరు మార్చండి — %1$s</string>
     <string name="class_table_reset_message">Moodle, కోర్సు ఎంపిక వ్యవస్థ మరియు మార్కుల వ్యవస్థ ఆధారంగా కోర్సు టేబుల్ మళ్లీ రూపొందించబడుతుంది. మాన్యువల్‌గా జోడించిన, తొలగించిన మరియు పేరు మార్చిన కోర్సులు పోతాయి.</string>
     <string name="class_table_reset_title">కోర్సు టేబుల్ రీసెట్ చేయండి</string>
     <string name="class_table_reset_title_with_semester">%1$s కోర్సు టేబుల్ రీసెట్ చేయండి</string>

@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Impossibile aggiungere</string>
     <string name="class_table_course_name">Nome corso</string>
     <string name="class_table_delete">Elimina</string>
-    <string name="class_table_delete_with_course">Elimina — %1$s</string>
     <string name="class_table_empty_message">Trascina per aggiornare, tocca + per aggiungere un corso, o cambia semestre</string>
     <string name="class_table_pick_color">Scegli colore</string>
-    <string name="class_table_pick_color_with_course">Scegli colore — %1$s</string>
     <string name="class_table_rename_default_label">Predefinito: %1$s</string>
     <string name="class_table_rename_revert">Ripristina predefinito</string>
     <string name="class_table_rename_title">Rinomina</string>
-    <string name="class_table_rename_with_course">Rinomina — %1$s</string>
     <string name="class_table_reset_message">L\'orario verrà ricostruito da Moodle, dal sistema di selezione corsi e dal sistema dei voti. I corsi aggiunti, eliminati o rinominati manualmente andranno persi.</string>
     <string name="class_table_reset_title">Reimposta l\'orario dei corsi</string>
     <string name="class_table_reset_title_with_semester">Reimposta l\'orario %1$s</string>

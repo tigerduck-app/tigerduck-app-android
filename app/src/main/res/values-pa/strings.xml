@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">ਜੋੜਨ ਵਿੱਚ ਅਸਮਰੱਥ</string>
     <string name="class_table_course_name">ਕੋਰਸ ਦਾ ਨਾਂ</string>
     <string name="class_table_delete">ਮਿਟਾਓ</string>
-    <string name="class_table_delete_with_course">ਮਿਟਾਓ — %1$s</string>
     <string name="class_table_empty_message">ਰਿਫ੍ਰੈਸ਼ ਕਰਨ ਲਈ ਖਿੱਚੋ, ਕੋਰਸ ਜੋੜਨ ਲਈ + ਟੈਪ ਕਰੋ, ਜਾਂ ਕਿਸੇ ਹੋਰ ਸਮੈਸਟਰ \'ਤੇ ਸਵਿੱਚ ਕਰੋ</string>
     <string name="class_table_pick_color">ਰੰਗ ਚੁਣੋ</string>
-    <string name="class_table_pick_color_with_course">ਰੰਗ ਚੁਣੋ — %1$s</string>
     <string name="class_table_rename_default_label">ਡਿਫਾਲਟ: %1$s</string>
     <string name="class_table_rename_revert">ਡਿਫਾਲਟ \'ਤੇ ਵਾਪਸ ਜਾਓ</string>
     <string name="class_table_rename_title">ਨਾਂ ਬਦਲੋ</string>
-    <string name="class_table_rename_with_course">ਨਾਂ ਬਦਲੋ — %1$s</string>
     <string name="class_table_reset_message">ਕੋਰਸ ਟੇਬਲ Moodle, ਕੋਰਸ ਚੋਣ ਸਿਸਟਮ ਅਤੇ ਅੰਕ ਸਿਸਟਮ ਦੇ ਅਨੁਸਾਰ ਦੁਬਾਰਾ ਬਣਾਇਆ ਜਾਵੇਗਾ। ਹੱਥੀਂ ਜੋੜੇ, ਹਟਾਏ ਅਤੇ ਨਾਂ ਬਦਲੇ ਗਏ ਕੋਰਸ ਗੁਆਚ ਜਾਣਗੇ।</string>
     <string name="class_table_reset_title">ਕੋਰਸ ਟੇਬਲ ਰੀਸੈੱਟ ਕਰੋ</string>
     <string name="class_table_reset_title_with_semester">%1$s ਕੋਰਸ ਟੇਬਲ ਰੀਸੈੱਟ ਕਰੋ</string>

@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Não é possível adicionar</string>
     <string name="class_table_course_name">Nome da cadeira</string>
     <string name="class_table_delete">Eliminar</string>
-    <string name="class_table_delete_with_course">Eliminar — %1$s</string>
     <string name="class_table_empty_message">Puxa para atualizar, toca em + para adicionar uma cadeira ou muda de semestre</string>
     <string name="class_table_pick_color">Escolher cor</string>
-    <string name="class_table_pick_color_with_course">Escolher cor — %1$s</string>
     <string name="class_table_rename_default_label">Predefinição: %1$s</string>
     <string name="class_table_rename_revert">Restaurar predefinição</string>
     <string name="class_table_rename_title">Mudar o nome</string>
-    <string name="class_table_rename_with_course">Mudar o nome — %1$s</string>
     <string name="class_table_reset_message">O horário será reconstruído a partir do Moodle, do sistema de inscrição e do sistema de notas. As cadeiras adicionadas, removidas ou renomeadas manualmente serão perdidas.</string>
     <string name="class_table_reset_title">Repor horário de cursos</string>
     <string name="class_table_reset_title_with_semester">Repor horário de %1$s</string>

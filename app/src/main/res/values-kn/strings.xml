@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">ಸೇರಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ</string>
     <string name="class_table_course_name">ಕೋರ್ಸ್ ಹೆಸರು</string>
     <string name="class_table_delete">ಅಳಿಸಿ</string>
-    <string name="class_table_delete_with_course">ಅಳಿಸಿ — %1$s</string>
     <string name="class_table_empty_message">ರಿಫ್ರೆಶ್ ಮಾಡಲು ಎಳೆಯಿರಿ, ಕೋರ್ಸ್ ಸೇರಿಸಲು + ಟ್ಯಾಪ್ ಮಾಡಿ, ಅಥವಾ ಬೇರೆ ಸೆಮಿಸ್ಟರ್‌ಗೆ ಬದಲಿಸಿ</string>
     <string name="class_table_pick_color">ಬಣ್ಣ ಆರಿಸಿ</string>
-    <string name="class_table_pick_color_with_course">ಬಣ್ಣ ಆರಿಸಿ — %1$s</string>
     <string name="class_table_rename_default_label">ಡೀಫಾಲ್ಟ್: %1$s</string>
     <string name="class_table_rename_revert">ಡೀಫಾಲ್ಟ್‌ಗೆ ಮರಳಿಸಿ</string>
     <string name="class_table_rename_title">ಮರುಹೆಸರಿಸಿ</string>
-    <string name="class_table_rename_with_course">ಮರುಹೆಸರಿಸಿ — %1$s</string>
     <string name="class_table_reset_message">ಕೋರ್ಸ್ ಟೇಬಲ್ ಅನ್ನು Moodle, ಕೋರ್ಸ್ ಆಯ್ಕೆ ವ್ಯವಸ್ಥೆ ಮತ್ತು ಅಂಕಗಳ ವ್ಯವಸ್ಥೆಯ ಆಧಾರದಲ್ಲಿ ಮತ್ತೆ ರಚಿಸಲಾಗುತ್ತದೆ. ಹಸ್ತಚಾಲಿತವಾಗಿ ಸೇರಿಸಿದ, ಅಳಿಸಿದ ಮತ್ತು ಮರುಹೆಸರಿಸಿದ ಕೋರ್ಸ್‌ಗಳು ಕಳೆದುಹೋಗುತ್ತವೆ.</string>
     <string name="class_table_reset_title">ಕೋರ್ಸ್ ಟೇಬಲ್ ಮರುಹೊಂದಿಸಿ</string>
     <string name="class_table_reset_title_with_semester">%1$s ಕೋರ್ಸ್ ಟೇಬಲ್ ಮರುಹೊಂದಿಸಿ</string>

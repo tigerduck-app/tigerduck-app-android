@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Αδύνατη η προσθήκη</string>
     <string name="class_table_course_name">Όνομα μαθήματος</string>
     <string name="class_table_delete">Διαγραφή</string>
-    <string name="class_table_delete_with_course">Διαγραφή — %1$s</string>
     <string name="class_table_empty_message">Τραβήξτε για ανανέωση, πατήστε το + για προσθήκη μαθήματος ή αλλάξτε σε άλλο εξάμηνο</string>
     <string name="class_table_pick_color">Επιλογή χρώματος</string>
-    <string name="class_table_pick_color_with_course">Επιλογή χρώματος — %1$s</string>
     <string name="class_table_rename_default_label">Προεπιλογή: %1$s</string>
     <string name="class_table_rename_revert">Επαναφορά προεπιλογής</string>
     <string name="class_table_rename_title">Μετονομασία</string>
-    <string name="class_table_rename_with_course">Μετονομασία — %1$s</string>
     <string name="class_table_reset_message">Το πρόγραμμα θα αναδημιουργηθεί από το Moodle, το σύστημα επιλογής μαθημάτων και το σύστημα βαθμών. Τα μαθήματα που προστέθηκαν, διαγράφηκαν ή μετονομάστηκαν χειροκίνητα θα χαθούν.</string>
     <string name="class_table_reset_title">Επαναφορά προγράμματος μαθημάτων</string>
     <string name="class_table_reset_title_with_semester">Επαναφορά προγράμματος %1$s</string>

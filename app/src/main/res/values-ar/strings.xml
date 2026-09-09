@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">تعذّرت الإضافة</string>
     <string name="class_table_course_name">اسم المقرر</string>
     <string name="class_table_delete">حذف</string>
-    <string name="class_table_delete_with_course">حذف — %1$s</string>
     <string name="class_table_empty_message">اسحب للتحديث، انقر على + لإضافة مقرر، أو بدّل إلى فصل دراسي آخر</string>
     <string name="class_table_pick_color">اختر لونًا</string>
-    <string name="class_table_pick_color_with_course">اختر لونًا — %1$s</string>
     <string name="class_table_rename_default_label">الافتراضي: %1$s</string>
     <string name="class_table_rename_revert">العودة إلى الافتراضي</string>
     <string name="class_table_rename_title">إعادة التسمية</string>
-    <string name="class_table_rename_with_course">إعادة التسمية — %1$s</string>
     <string name="class_table_reset_message">سيُعاد بناء الجدول وفق Moodle ونظام تسجيل المقررات ونظام الدرجات. ستُفقد المقررات المضافة أو المحذوفة أو المُعاد تسميتها يدويًا.</string>
     <string name="class_table_reset_title">إعادة تعيين جدول المواد</string>
     <string name="class_table_reset_title_with_semester">إعادة تعيين جدول %1$s</string>

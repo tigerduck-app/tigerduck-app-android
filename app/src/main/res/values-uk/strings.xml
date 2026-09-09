@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Не вдалося додати</string>
     <string name="class_table_course_name">Назва курсу</string>
     <string name="class_table_delete">Видалити</string>
-    <string name="class_table_delete_with_course">Видалити — %1$s</string>
     <string name="class_table_empty_message">Потягніть для оновлення, торкніться +, щоб додати курс, або перемкніться на інший семестр</string>
     <string name="class_table_pick_color">Вибрати колір</string>
-    <string name="class_table_pick_color_with_course">Вибрати колір — %1$s</string>
     <string name="class_table_rename_default_label">За замовчуванням: %1$s</string>
     <string name="class_table_rename_revert">Повернути до типового</string>
     <string name="class_table_rename_title">Перейменувати</string>
-    <string name="class_table_rename_with_course">Перейменувати — %1$s</string>
     <string name="class_table_reset_message">Розклад буде перебудовано за даними Moodle, системи вибору курсів і системи оцінок. Курси, додані, видалені або перейменовані вручну, буде втрачено.</string>
     <string name="class_table_reset_title">Скинути розклад</string>
     <string name="class_table_reset_title_with_semester">Скинути розклад %1$s</string>

@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">ไม่สามารถเพิ่มได้</string>
     <string name="class_table_course_name">ชื่อวิชา</string>
     <string name="class_table_delete">ลบ</string>
-    <string name="class_table_delete_with_course">ลบ — %1$s</string>
     <string name="class_table_empty_message">ดึงลงเพื่อรีเฟรช แตะ + เพื่อเพิ่มวิชา หรือสลับไปยังภาคการศึกษาอื่น</string>
     <string name="class_table_pick_color">เลือกสี</string>
-    <string name="class_table_pick_color_with_course">เลือกสี — %1$s</string>
     <string name="class_table_rename_default_label">ค่าเริ่มต้น: %1$s</string>
     <string name="class_table_rename_revert">คืนค่าเริ่มต้น</string>
     <string name="class_table_rename_title">เปลี่ยนชื่อ</string>
-    <string name="class_table_rename_with_course">เปลี่ยนชื่อ — %1$s</string>
     <string name="class_table_reset_message">ตารางเรียนจะถูกสร้างใหม่ตามข้อมูลจาก Moodle ระบบลงทะเบียนเรียน และระบบผลการเรียน วิชาที่เพิ่ม ลบ หรือเปลี่ยนชื่อด้วยตนเองจะหายไป</string>
     <string name="class_table_reset_title">รีเซ็ตตารางเรียน</string>
     <string name="class_table_reset_title_with_semester">รีเซ็ตตารางเรียน %1$s</string>

@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">ઉમેરી શકાતું નથી</string>
     <string name="class_table_course_name">કોર્સ નામ</string>
     <string name="class_table_delete">ડિલીટ</string>
-    <string name="class_table_delete_with_course">ડિલીટ — %1$s</string>
     <string name="class_table_empty_message">રિફ્રેશ કરવા ખેંચો, કોર્સ ઉમેરવા + ટેપ કરો, અથવા બીજા સેમેસ્ટર પર સ્વિચ કરો</string>
     <string name="class_table_pick_color">રંગ પસંદ કરો</string>
-    <string name="class_table_pick_color_with_course">રંગ પસંદ કરો — %1$s</string>
     <string name="class_table_rename_default_label">ડિફૉલ્ટ: %1$s</string>
     <string name="class_table_rename_revert">ડિફૉલ્ટ પર પાછા ફરો</string>
     <string name="class_table_rename_title">નામ બદલો</string>
-    <string name="class_table_rename_with_course">નામ બદલો — %1$s</string>
     <string name="class_table_reset_message">કોર્સ ટેબલ Moodle, કોર્સ સિલેક્શન સિસ્ટમ અને ગુણ સિસ્ટમ પ્રમાણે ફરીથી બનાવવામાં આવશે. મેન્યુઅલી ઉમેરેલા, દૂર કરેલા અને નામ બદલેલા કોર્સ ખોવાઈ જશે.</string>
     <string name="class_table_reset_title">કોર્સ ટેબલ રીસેટ કરો</string>
     <string name="class_table_reset_title_with_semester">%1$s કોર્સ ટેબલ રીસેટ કરો</string>

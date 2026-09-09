@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Lisamine ebaõnnestus</string>
     <string name="class_table_course_name">Kursuse nimi</string>
     <string name="class_table_delete">Kustuta</string>
-    <string name="class_table_delete_with_course">Kustuta — %1$s</string>
     <string name="class_table_empty_message">Tõmmake värskendamiseks, puudutage + kursuse lisamiseks või vahetage semestrit</string>
     <string name="class_table_pick_color">Vali värv</string>
-    <string name="class_table_pick_color_with_course">Vali värv — %1$s</string>
     <string name="class_table_rename_default_label">Vaikimisi: %1$s</string>
     <string name="class_table_rename_revert">Lähtesta vaikimisi</string>
     <string name="class_table_rename_title">Nimeta ümber</string>
-    <string name="class_table_rename_with_course">Nimeta ümber — %1$s</string>
     <string name="class_table_reset_message">Tunniplaan koostatakse uuesti Moodle\'i, ainete valimise süsteemi ja hinnete süsteemi põhjal. Käsitsi lisatud, kustutatud ja ümbernimetatud kursused lähevad kaduma.</string>
     <string name="class_table_reset_title">Lähtesta tunniplaan</string>
     <string name="class_table_reset_title_with_semester">Lähtesta %1$s tunniplaan</string>

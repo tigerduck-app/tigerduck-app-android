@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Не може да се добави</string>
     <string name="class_table_course_name">Наименование на курса</string>
     <string name="class_table_delete">Изтриване</string>
-    <string name="class_table_delete_with_course">Изтриване — %1$s</string>
     <string name="class_table_empty_message">Издърпайте, за да опресните, докоснете +, за да добавите курс, или превключете на друг семестър</string>
     <string name="class_table_pick_color">Избор на цвят</string>
-    <string name="class_table_pick_color_with_course">Избор на цвят — %1$s</string>
     <string name="class_table_rename_default_label">По подразбиране: %1$s</string>
     <string name="class_table_rename_revert">Връщане към подразбиране</string>
     <string name="class_table_rename_title">Преименуване</string>
-    <string name="class_table_rename_with_course">Преименуване — %1$s</string>
     <string name="class_table_reset_message">Разписанието ще бъде изградено наново от Moodle, системата за избор на курсове и системата за оценки. Ръчно добавените, изтритите и преименуваните курсове ще бъдат загубени.</string>
     <string name="class_table_reset_title">Нулиране на учебното разписание</string>
     <string name="class_table_reset_title_with_semester">Нулиране на разписанието за %1$s</string>

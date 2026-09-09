@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">לא ניתן להוסיף</string>
     <string name="class_table_course_name">שם קורס</string>
     <string name="class_table_delete">מחק</string>
-    <string name="class_table_delete_with_course">מחק — %1$s</string>
     <string name="class_table_empty_message">יש למשוך כדי לרענן, להקיש על + כדי להוסיף קורס, או לעבור לסמסטר אחר</string>
     <string name="class_table_pick_color">בחר צבע</string>
-    <string name="class_table_pick_color_with_course">בחר צבע — %1$s</string>
     <string name="class_table_rename_default_label">ברירת מחדל: %1$s</string>
     <string name="class_table_rename_revert">חזור לברירת המחדל</string>
     <string name="class_table_rename_title">שנה שם</string>
-    <string name="class_table_rename_with_course">שנה שם — %1$s</string>
     <string name="class_table_reset_message">מערכת השעות תיבנה מחדש לפי Moodle, מערכת בחירת הקורסים ומערכת הציונים. קורסים שנוספו, נמחקו או ששמם שונה ידנית יאבדו.</string>
     <string name="class_table_reset_title">איפוס מערכת שעות</string>
     <string name="class_table_reset_title_with_semester">איפוס מערכת השעות של %1$s</string>

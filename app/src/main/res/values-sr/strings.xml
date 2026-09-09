@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Није могуће додати</string>
     <string name="class_table_course_name">Назив курса</string>
     <string name="class_table_delete">Обриши</string>
-    <string name="class_table_delete_with_course">Обриши — %1$s</string>
     <string name="class_table_empty_message">Повуците да освежите, додирните + да додате курс или пребаците се на други семестар</string>
     <string name="class_table_pick_color">Одабери боју</string>
-    <string name="class_table_pick_color_with_course">Одабери боју — %1$s</string>
     <string name="class_table_rename_default_label">Подразумевано: %1$s</string>
     <string name="class_table_rename_revert">Врати на подразумевано</string>
     <string name="class_table_rename_title">Преименуј</string>
-    <string name="class_table_rename_with_course">Преименуј — %1$s</string>
     <string name="class_table_reset_message">Распоред ће бити поново изграђен на основу Moodle-а, система за избор курсева и система оцена. Ручно додати, обрисани и преименовани курсеви биће изгубљени.</string>
     <string name="class_table_reset_title">Ресетуј распоред предмета</string>
     <string name="class_table_reset_title_with_semester">Ресетуј распоред %1$s</string>

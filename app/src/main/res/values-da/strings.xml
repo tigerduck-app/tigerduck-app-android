@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Kan ikke tilføje</string>
     <string name="class_table_course_name">Kursusnavn</string>
     <string name="class_table_delete">Slet</string>
-    <string name="class_table_delete_with_course">Slet — %1$s</string>
     <string name="class_table_empty_message">Træk for at opdatere, tryk på + for at tilføje et kursus, eller skift til et andet semester</string>
     <string name="class_table_pick_color">Vælg farve</string>
-    <string name="class_table_pick_color_with_course">Vælg farve — %1$s</string>
     <string name="class_table_rename_default_label">Standard: %1$s</string>
     <string name="class_table_rename_revert">Gendan standard</string>
     <string name="class_table_rename_title">Omdøb</string>
-    <string name="class_table_rename_with_course">Omdøb — %1$s</string>
     <string name="class_table_reset_message">Skemaet genopbygges ud fra Moodle, kursusvalgssystemet og karaktersystemet. Manuelt tilføjede, slettede og omdøbte kurser går tabt.</string>
     <string name="class_table_reset_title">Nulstil skema</string>
     <string name="class_table_reset_title_with_semester">Nulstil skema for %1$s</string>

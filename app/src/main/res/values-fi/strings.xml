@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Ei voi lisätä</string>
     <string name="class_table_course_name">Kurssin nimi</string>
     <string name="class_table_delete">Poista</string>
-    <string name="class_table_delete_with_course">Poista — %1$s</string>
     <string name="class_table_empty_message">Päivitä vetämällä, lisää kurssi napauttamalla + tai vaihda lukukautta</string>
     <string name="class_table_pick_color">Valitse väri</string>
-    <string name="class_table_pick_color_with_course">Valitse väri — %1$s</string>
     <string name="class_table_rename_default_label">Oletus: %1$s</string>
     <string name="class_table_rename_revert">Palauta oletus</string>
     <string name="class_table_rename_title">Nimeä uudelleen</string>
-    <string name="class_table_rename_with_course">Nimeä uudelleen — %1$s</string>
     <string name="class_table_reset_message">Lukujärjestys rakennetaan uudelleen Moodlen, kurssivalintajärjestelmän ja arvosanajärjestelmän perusteella. Käsin lisätyt, poistetut ja uudelleennimetyt kurssit menetetään.</string>
     <string name="class_table_reset_title">Palauta lukujärjestys</string>
     <string name="class_table_reset_title_with_semester">Palauta lukujärjestys %1$s</string>

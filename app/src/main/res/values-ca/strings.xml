@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">No s\'ha pogut afegir</string>
     <string name="class_table_course_name">Nom del curs</string>
     <string name="class_table_delete">Elimina</string>
-    <string name="class_table_delete_with_course">Elimina — %1$s</string>
     <string name="class_table_empty_message">Estira per actualitzar, toca + per afegir un curs, o canvia a un altre semestre</string>
     <string name="class_table_pick_color">Tria un color</string>
-    <string name="class_table_pick_color_with_course">Tria un color — %1$s</string>
     <string name="class_table_rename_default_label">Per defecte: %1$s</string>
     <string name="class_table_rename_revert">Restablir per defecte</string>
     <string name="class_table_rename_title">Reanomena</string>
-    <string name="class_table_rename_with_course">Reanomena — %1$s</string>
     <string name="class_table_reset_message">L\'horari es reconstruirà a partir de Moodle, del sistema de selecció de cursos i del sistema de notes. Els cursos afegits, eliminats o reanomenats manualment es perdran.</string>
     <string name="class_table_reset_title">Restableix l\'horari de cursos</string>
     <string name="class_table_reset_title_with_semester">Restableix l\'horari de %1$s</string>

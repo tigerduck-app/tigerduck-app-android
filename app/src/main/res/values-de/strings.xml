@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Hinzufügen nicht möglich</string>
     <string name="class_table_course_name">Kursname</string>
     <string name="class_table_delete">Löschen</string>
-    <string name="class_table_delete_with_course">Löschen — %1$s</string>
     <string name="class_table_empty_message">Ziehen Sie zum Aktualisieren, tippen Sie auf +, um einen Kurs hinzuzufügen, oder wechseln Sie zu einem anderen Semester</string>
     <string name="class_table_pick_color">Farbe wählen</string>
-    <string name="class_table_pick_color_with_course">Farbe wählen — %1$s</string>
     <string name="class_table_rename_default_label">Standard: %1$s</string>
     <string name="class_table_rename_revert">Auf Standard zurücksetzen</string>
     <string name="class_table_rename_title">Umbenennen</string>
-    <string name="class_table_rename_with_course">Umbenennen — %1$s</string>
     <string name="class_table_reset_message">Der Stundenplan wird anhand von Moodle, der Kursanmeldung und dem Notensystem neu aufgebaut. Manuell hinzugefügte, gelöschte und umbenannte Kurse gehen verloren.</string>
     <string name="class_table_reset_title">Stundenplan zurücksetzen</string>
     <string name="class_table_reset_title_with_semester">Stundenplan %1$s zurücksetzen</string>

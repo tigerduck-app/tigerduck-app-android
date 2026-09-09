@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Nu se poate adăuga</string>
     <string name="class_table_course_name">Denumire curs</string>
     <string name="class_table_delete">Șterge</string>
-    <string name="class_table_delete_with_course">Șterge — %1$s</string>
     <string name="class_table_empty_message">Trage pentru reîmprospătare, atinge + pentru a adăuga un curs sau schimbă semestrul</string>
     <string name="class_table_pick_color">Alege culoare</string>
-    <string name="class_table_pick_color_with_course">Alege culoare — %1$s</string>
     <string name="class_table_rename_default_label">Implicit: %1$s</string>
     <string name="class_table_rename_revert">Revenire la implicit</string>
     <string name="class_table_rename_title">Redenumire</string>
-    <string name="class_table_rename_with_course">Redenumire — %1$s</string>
     <string name="class_table_reset_message">Orarul va fi reconstruit din Moodle, sistemul de selecție a cursurilor și sistemul de note. Cursurile adăugate, șterse sau redenumite manual se vor pierde.</string>
     <string name="class_table_reset_title">Resetează orarul cursurilor</string>
     <string name="class_table_reset_title_with_semester">Resetează orarul %1$s</string>

@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">追加できません</string>
     <string name="class_table_course_name">授業名</string>
     <string name="class_table_delete">削除</string>
-    <string name="class_table_delete_with_course">削除 — %1$s</string>
     <string name="class_table_empty_message">下に引っ張って更新するか、+ をタップして授業を追加するか、別の学期に切り替えてください</string>
     <string name="class_table_pick_color">色を選択</string>
-    <string name="class_table_pick_color_with_course">色を選択 — %1$s</string>
     <string name="class_table_rename_default_label">デフォルト：%1$s</string>
     <string name="class_table_rename_revert">デフォルトに戻す</string>
     <string name="class_table_rename_title">名前を変更</string>
-    <string name="class_table_rename_with_course">名前を変更 — %1$s</string>
     <string name="class_table_reset_message">Moodle、履修登録システム、成績システムの状態に基づいて時間割をリセットします。手動で追加・削除・名前変更した科目は失われます。</string>
     <string name="class_table_reset_title">時間割をリセット</string>
     <string name="class_table_reset_title_with_semester">%1$s の時間割をリセット</string>

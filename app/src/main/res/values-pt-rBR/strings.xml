@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Não foi possível adicionar</string>
     <string name="class_table_course_name">Nome da disciplina</string>
     <string name="class_table_delete">Excluir</string>
-    <string name="class_table_delete_with_course">Excluir — %1$s</string>
     <string name="class_table_empty_message">Puxe para atualizar, toque em + para adicionar uma disciplina ou mude de semestre</string>
     <string name="class_table_pick_color">Escolher cor</string>
-    <string name="class_table_pick_color_with_course">Escolher cor — %1$s</string>
     <string name="class_table_rename_default_label">Padrão: %1$s</string>
     <string name="class_table_rename_revert">Restaurar padrão</string>
     <string name="class_table_rename_title">Renomear</string>
-    <string name="class_table_rename_with_course">Renomear — %1$s</string>
     <string name="class_table_reset_message">A grade será reconstruída a partir do Moodle, do sistema de matrícula e do sistema de notas. Disciplinas adicionadas, removidas ou renomeadas manualmente serão perdidas.</string>
     <string name="class_table_reset_title">Redefinir grade de cursos</string>
     <string name="class_table_reset_title_with_semester">Redefinir grade de %1$s</string>

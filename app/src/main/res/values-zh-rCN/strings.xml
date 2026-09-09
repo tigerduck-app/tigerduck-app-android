@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">无法加入</string>
     <string name="class_table_course_name">课程名称</string>
     <string name="class_table_delete">删除</string>
-    <string name="class_table_delete_with_course">删除 — %1$s</string>
     <string name="class_table_empty_message">下拉以刷新，或使用右上角的 + 添加课程，或切换到其他学期</string>
     <string name="class_table_pick_color">选择颜色</string>
-    <string name="class_table_pick_color_with_course">选择颜色 — %1$s</string>
     <string name="class_table_rename_default_label">默认：%1$s</string>
     <string name="class_table_rename_revert">恢复默认</string>
     <string name="class_table_rename_title">重命名</string>
-    <string name="class_table_rename_with_course">重命名 — %1$s</string>
     <string name="class_table_reset_message">将根据 Moodle、选课系统、成绩系统的状态进行重置，手动新增、删除与重命名的课都会丢失</string>
     <string name="class_table_reset_title">重置課表</string>
     <string name="class_table_reset_title_with_semester">重置 %1$s 课表</string>

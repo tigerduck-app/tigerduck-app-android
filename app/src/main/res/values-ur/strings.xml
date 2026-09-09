@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">شامل نہیں کیا جا سکتا</string>
     <string name="class_table_course_name">کورس کا نام</string>
     <string name="class_table_delete">حذف کریں</string>
-    <string name="class_table_delete_with_course">حذف کریں — %1$s</string>
     <string name="class_table_empty_message">ریفریش کے لیے کھینچیں، کورس شامل کرنے کے لیے + پر ٹیپ کریں، یا کسی اور سمسٹر میں تبدیل کریں</string>
     <string name="class_table_pick_color">رنگ چنیں</string>
-    <string name="class_table_pick_color_with_course">رنگ چنیں — %1$s</string>
     <string name="class_table_rename_default_label">ڈیفالٹ: %1$s</string>
     <string name="class_table_rename_revert">ڈیفالٹ پر واپس جائیں</string>
     <string name="class_table_rename_title">نام تبدیل کریں</string>
-    <string name="class_table_rename_with_course">نام تبدیل کریں — %1$s</string>
     <string name="class_table_reset_message">کورس ٹیبل Moodle، کورس انتخاب سسٹم اور گریڈ سسٹم کے مطابق دوبارہ بنایا جائے گا۔ دستی طور پر شامل، حذف یا نام تبدیل کیے گئے کورسز ضائع ہو جائیں گے۔</string>
     <string name="class_table_reset_title">کورس ٹیبل ری سیٹ کریں</string>
     <string name="class_table_reset_title_with_semester">%1$s کورس ٹیبل ری سیٹ کریں</string>

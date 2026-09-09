@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Nepavyksta pridėti</string>
     <string name="class_table_course_name">Kurso pavadinimas</string>
     <string name="class_table_delete">Ištrinti</string>
-    <string name="class_table_delete_with_course">Ištrinti — %1$s</string>
     <string name="class_table_empty_message">Atnaujinkite tempiant žemyn, bakstelėkite + kad pridėtumėte kursą, arba pasirinkite kitą semestrą</string>
     <string name="class_table_pick_color">Pasirinkti spalvą</string>
-    <string name="class_table_pick_color_with_course">Pasirinkti spalvą — %1$s</string>
     <string name="class_table_rename_default_label">Numatytasis: %1$s</string>
     <string name="class_table_rename_revert">Atkurti numatytąjį</string>
     <string name="class_table_rename_title">Pervadinti</string>
-    <string name="class_table_rename_with_course">Pervadinti — %1$s</string>
     <string name="class_table_reset_message">Tvarkaraštis bus iš naujo sudarytas pagal Moodle, kursų pasirinkimo sistemą ir pažymių sistemą. Rankiniu būdu pridėti, pašalinti ir pervadinti dalykai bus prarasti.</string>
     <string name="class_table_reset_title">Atstatyti tvarkaraštį</string>
     <string name="class_table_reset_title_with_semester">Atstatyti %1$s tvarkaraštį</string>

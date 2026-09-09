@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">சேர்க்க முடியவில்லை</string>
     <string name="class_table_course_name">வகுப்பின் பெயர்</string>
     <string name="class_table_delete">நீக்கு</string>
-    <string name="class_table_delete_with_course">நீக்கு — %1$s</string>
     <string name="class_table_empty_message">புதுப்பிக்க இழுக்கவும், வகுப்பு சேர்க்க + தட்டவும், அல்லது வேறு பருவத்திற்கு மாறவும்</string>
     <string name="class_table_pick_color">நிறம் தேர்வு</string>
-    <string name="class_table_pick_color_with_course">நிறம் தேர்வு — %1$s</string>
     <string name="class_table_rename_default_label">இயல்புநிலை: %1$s</string>
     <string name="class_table_rename_revert">இயல்புநிலைக்கு மீட்டமை</string>
     <string name="class_table_rename_title">மறுபெயரிடு</string>
-    <string name="class_table_rename_with_course">மறுபெயரிடு — %1$s</string>
     <string name="class_table_reset_message">Moodle, பாடத் தேர்வு அமைப்பு மற்றும் மதிப்பெண் அமைப்பின் அடிப்படையில் பாடநேர அட்டவணை மீண்டும் உருவாக்கப்படும். கைமுறையாகச் சேர்க்கப்பட்ட, நீக்கப்பட்ட மற்றும் பெயர் மாற்றப்பட்ட பாடங்கள் இழக்கப்படும்.</string>
     <string name="class_table_reset_title">பாடநேர அட்டவணையை மீட்டமைக்கவும்</string>
     <string name="class_table_reset_title_with_semester">%1$s பாடநேர அட்டவணையை மீட்டமைக்கவும்</string>

@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Hindi maidagdag</string>
     <string name="class_table_course_name">Pangalan ng kurso</string>
     <string name="class_table_delete">Burahin</string>
-    <string name="class_table_delete_with_course">Burahin — %1$s</string>
     <string name="class_table_empty_message">I-pull para mag-refresh, i-tap ang + para magdagdag ng kurso, o lumipat sa ibang semestre</string>
     <string name="class_table_pick_color">Pumili ng kulay</string>
-    <string name="class_table_pick_color_with_course">Pumili ng kulay — %1$s</string>
     <string name="class_table_rename_default_label">Default: %1$s</string>
     <string name="class_table_rename_revert">Ibalik sa default</string>
     <string name="class_table_rename_title">Palitan ng pangalan</string>
-    <string name="class_table_rename_with_course">Palitan ng pangalan — %1$s</string>
     <string name="class_table_reset_message">Muling bubuuin ang talaan ng kurso batay sa Moodle, sa sistema ng pagpili ng kurso, at sa sistema ng marka. Mawawala ang mga kursong manu-manong idinagdag, inalis, o pinalitan ng pangalan.</string>
     <string name="class_table_reset_title">I-reset ang talaan ng kurso</string>
     <string name="class_table_reset_title_with_semester">I-reset ang talaan ng kurso ng %1$s</string>

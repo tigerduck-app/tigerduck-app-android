@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Impossible d\'ajouter</string>
     <string name="class_table_course_name">Nom du cours</string>
     <string name="class_table_delete">Supprimer</string>
-    <string name="class_table_delete_with_course">Supprimer — %1$s</string>
     <string name="class_table_empty_message">Tirez vers le bas pour actualiser, appuyez sur + pour ajouter un cours, ou changez de semestre</string>
     <string name="class_table_pick_color">Choisir une couleur</string>
-    <string name="class_table_pick_color_with_course">Choisir une couleur — %1$s</string>
     <string name="class_table_rename_default_label">Par défaut : %1$s</string>
     <string name="class_table_rename_revert">Rétablir par défaut</string>
     <string name="class_table_rename_title">Renommer</string>
-    <string name="class_table_rename_with_course">Renommer — %1$s</string>
     <string name="class_table_reset_message">L\'emploi du temps sera reconstruit à partir de Moodle, du système d\'inscription aux cours et du système de notes. Les cours ajoutés, supprimés ou renommés manuellement seront perdus.</string>
     <string name="class_table_reset_title">Réinitialiser l\'emploi du temps</string>
     <string name="class_table_reset_title_with_semester">Réinitialiser l\'emploi du temps %1$s</string>

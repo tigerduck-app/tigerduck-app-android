@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">जोडता येत नाही</string>
     <string name="class_table_course_name">अभ्यासक्रमाचे नाव</string>
     <string name="class_table_delete">हटवा</string>
-    <string name="class_table_delete_with_course">हटवा — %1$s</string>
     <string name="class_table_empty_message">रिफ्रेश करण्यासाठी ओढा, कोर्स जोडण्यासाठी + टॅप करा, किंवा दुसऱ्या सेमिस्टरवर स्विच करा</string>
     <string name="class_table_pick_color">रंग निवडा</string>
-    <string name="class_table_pick_color_with_course">रंग निवडा — %1$s</string>
     <string name="class_table_rename_default_label">डीफॉल्ट: %1$s</string>
     <string name="class_table_rename_revert">डीफॉल्टवर परत जा</string>
     <string name="class_table_rename_title">नाव बदला</string>
-    <string name="class_table_rename_with_course">नाव बदला — %1$s</string>
     <string name="class_table_reset_message">कोर्स टेबल Moodle, अभ्यासक्रम निवड प्रणाली आणि गुण प्रणालीनुसार पुन्हा तयार केले जाईल. स्वहस्ते जोडलेले, हटवलेले आणि नाव बदललेले कोर्स गमावले जातील.</string>
     <string name="class_table_reset_title">कोर्स टेबल रीसेट करा</string>
     <string name="class_table_reset_title_with_semester">%1$s कोर्स टेबल रीसेट करा</string>

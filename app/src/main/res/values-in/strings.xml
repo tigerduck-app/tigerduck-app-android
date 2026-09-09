@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">Tidak dapat ditambahkan</string>
     <string name="class_table_course_name">Nama mata kuliah</string>
     <string name="class_table_delete">Hapus</string>
-    <string name="class_table_delete_with_course">Hapus — %1$s</string>
     <string name="class_table_empty_message">Tarik untuk menyegarkan, ketuk + untuk menambahkan mata kuliah, atau beralih ke semester lain</string>
     <string name="class_table_pick_color">Pilih warna</string>
-    <string name="class_table_pick_color_with_course">Pilih warna — %1$s</string>
     <string name="class_table_rename_default_label">Default: %1$s</string>
     <string name="class_table_rename_revert">Kembalikan ke default</string>
     <string name="class_table_rename_title">Ganti nama</string>
-    <string name="class_table_rename_with_course">Ganti nama — %1$s</string>
     <string name="class_table_reset_message">Jadwal kuliah akan dibuat ulang berdasarkan Moodle, sistem pemilihan mata kuliah, dan sistem nilai. Mata kuliah yang ditambahkan, dihapus, atau diganti namanya secara manual akan hilang.</string>
     <string name="class_table_reset_title">Reset jadwal kuliah</string>
     <string name="class_table_reset_title_with_semester">Reset jadwal kuliah %1$s</string>

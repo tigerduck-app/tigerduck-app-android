@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">ചേർക്കാൻ കഴിയില്ല</string>
     <string name="class_table_course_name">കോഴ്‌സ് നാമം</string>
     <string name="class_table_delete">ഇല്ലാതാക്കുക</string>
-    <string name="class_table_delete_with_course">ഇല്ലാതാക്കുക — %1$s</string>
     <string name="class_table_empty_message">പുതുക്കാൻ വലിക്കുക, കോഴ്‌സ് ചേർക്കാൻ + ടാപ്പ് ചെയ്യുക, അല്ലെങ്കിൽ മറ്റൊരു സെമസ്റ്ററിലേക്ക് മാറുക</string>
     <string name="class_table_pick_color">നിറം തിരഞ്ഞെടുക്കുക</string>
-    <string name="class_table_pick_color_with_course">നിറം തിരഞ്ഞെടുക്കുക — %1$s</string>
     <string name="class_table_rename_default_label">സ്ഥിരസ്ഥിതി: %1$s</string>
     <string name="class_table_rename_revert">സ്ഥിരസ്ഥിതിയിലേക്ക് മടങ്ങുക</string>
     <string name="class_table_rename_title">പുനർനാമകരണം ചെയ്യുക</string>
-    <string name="class_table_rename_with_course">പുനർനാമകരണം — %1$s</string>
     <string name="class_table_reset_message">Moodle, കോഴ്‌സ് തിരഞ്ഞെടുക്കൽ സിസ്റ്റം, ഗ്രേഡ് സിസ്റ്റം എന്നിവയുടെ അടിസ്ഥാനത്തിൽ കോഴ്‌സ് ടേബിൾ വീണ്ടും നിർമ്മിക്കും. സ്വമേധയാ ചേർത്തതും നീക്കം ചെയ്തതും പേര് മാറ്റിയതുമായ കോഴ്‌സുകൾ നഷ്ടപ്പെടും.</string>
     <string name="class_table_reset_title">കോഴ്‌സ് ടേബിൾ റീസെറ്റ് ചെയ്യുക</string>
     <string name="class_table_reset_title_with_semester">%1$s കോഴ്‌സ് ടേബിൾ റീസെറ്റ് ചെയ്യുക</string>

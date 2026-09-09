@@ -170,14 +170,11 @@
     <string name="class_table_conflict_add_failed_title">No se puede agregar</string>
     <string name="class_table_course_name">Nombre del curso</string>
     <string name="class_table_delete">Eliminar</string>
-    <string name="class_table_delete_with_course">Eliminar — %1$s</string>
     <string name="class_table_empty_message">Desliza hacia abajo para actualizar, toca + para añadir un curso o cambia a otro semestre</string>
     <string name="class_table_pick_color">Elegir color</string>
-    <string name="class_table_pick_color_with_course">Elegir color — %1$s</string>
     <string name="class_table_rename_default_label">Predeterminado: %1$s</string>
     <string name="class_table_rename_revert">Restablecer predeterminado</string>
     <string name="class_table_rename_title">Renombrar</string>
-    <string name="class_table_rename_with_course">Renombrar — %1$s</string>
     <string name="class_table_reset_message">El horario se reconstruirá a partir de Moodle, el sistema de selección de cursos y el sistema de calificaciones. Los cursos añadidos, eliminados o renombrados manualmente se perderán.</string>
     <string name="class_table_reset_title">Restablecer horario de cursos</string>
     <string name="class_table_reset_title_with_semester">Restablecer horario de %1$s</string>
