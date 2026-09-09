@@ -112,7 +112,7 @@ silently reusing a code the watch already spent.
 
 Note that uploading a bundle consumes its version code permanently; discarding
 the draft release does not hand it back. 23 belongs to the watch bundle for
-good, so 2.0.1 ships as phone 25 / watch 10025.
+good, so 2.0.1 ships as phone 24 / watch 10024.
 
 ### `whatsnew-has-version.yaml`
 

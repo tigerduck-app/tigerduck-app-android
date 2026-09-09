@@ -26,7 +26,7 @@ android {
         // android.hardware.type.watch. It separates the ranges only while the
         // phone stays under 10000, which version-bumped.yaml asserts rather
         // than leaves to chance. versionName still tracks the phone exactly.
-        versionCode = 10025
+        versionCode = 10024
         versionName = "2.0.1"
     }
 
