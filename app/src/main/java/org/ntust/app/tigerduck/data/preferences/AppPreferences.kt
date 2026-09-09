@@ -115,6 +115,25 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getBoolean("hasCompletedOnboarding", false)
         set(value) = prefs.edit().putBoolean("hasCompletedOnboarding", value).apply()
 
+    /**
+     * Which revision of the wizard this install has actually been through.
+     *
+     * Stamped by [org.ntust.app.tigerduck.ui.AppState.completeOnboarding] with
+     * [ONBOARDING_VERSION]. The default of 0 is every pre-2.0.0 install: they
+     * finished onboarding before this key existed, which means they finished a
+     * wizard that had no TigerSync page and no 2.0.0 privacy copy. Those
+     * installs are walked through it once — still signed in, since nothing
+     * here touches [CredentialManager]. See `AppState.needsOnboardingRerun`.
+     *
+     * Separate from [hasCompletedOnboarding] on purpose: that flag also gates
+     * push registration and the "What's new" fresh-install check, and clearing
+     * it to re-show the wizard would make an upgrading user look like a brand
+     * new one to both.
+     */
+    var onboardingVersion: Int
+        get() = prefs.getInt("onboardingVersion", 0)
+        set(value) = prefs.edit().putInt("onboardingVersion", value).apply()
+
     // --- Update notification (issue #89) ---
     // Sentinel for "no update prompt shown yet".
     var lastUpdatePromptVersionCode: Int
@@ -575,6 +594,16 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     companion object {
         const val WHATS_NEW_UNSET = -1
         const val WHATS_NEW_REPLAY = 0
+
+        /**
+         * Current wizard revision. Bump when the wizard gains a page existing
+         * users have to see; every install below it walks the wizard once more.
+         *
+         * 1 was the pre-2.0.0 wizard. 2 adds the TigerSync page — cross-device
+         * sync defaults to on to match Apple, so an upgrade that never showed
+         * that page would opt the user in without ever asking.
+         */
+        const val ONBOARDING_VERSION = 2
 
         /** Comma is safe: NTUST semester codes are `[0-9]{3}[12H]`. */
         private const val SEMESTER_LIST_DELIMITER = ","

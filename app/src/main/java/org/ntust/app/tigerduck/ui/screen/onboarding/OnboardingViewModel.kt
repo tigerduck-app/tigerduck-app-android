@@ -21,6 +21,14 @@ class OnboardingViewModel @Inject constructor(
     val isLoggingIn = authService.isLoggingIn
     val loginError = authService.loginError
     val isSignedIn = authService.authState
+
+    /**
+     * The stored account, for the sign-in page's already-signed-in state.
+     * A plain read: it cannot change while the wizard is up without a sign-in
+     * that recomposes the page anyway.
+     */
+    val signedInStudentId: String?
+        get() = authService.storedStudentId
     val systemPermissions = appState.systemPermissions
 
     fun login(studentId: String, password: String, onSuccess: () -> Unit) {
@@ -36,7 +44,12 @@ class OnboardingViewModel @Inject constructor(
     }
 
     fun setSyncEnabled(enabled: Boolean) {
-        prefs.cloudSyncEnabled = enabled
+        // Through AppState, not straight to prefs: it holds the observable
+        // copy the settings screen and the revision poll read. Writing the
+        // preference alone left them on the value from process start, which
+        // an upgrade re-run makes visible — the user turns TigerSync off in
+        // the wizard and lands on a settings screen that still says on.
+        appState.cloudSyncEnabled = enabled
     }
 
     fun completeOnboarding() {

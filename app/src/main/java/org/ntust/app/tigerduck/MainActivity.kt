@@ -195,7 +195,12 @@ class MainActivity : AppCompatActivity() {
                         // failing and only a new build fixes it.
                         UpdateRequiredHost()
 
-                        whatsNewContent.value?.let { content ->
+                        // Held back while the wizard owns the screen — an
+                        // upgrade re-runs it, and a dialog stacked on top of
+                        // page 1 would be the first thing that user sees. The
+                        // state stays set, so it opens the moment the wizard
+                        // is done, which is also the better place for it.
+                        whatsNewContent.value?.takeIf { !appState.showOnboarding }?.let { content ->
                             WhatsNewDialog(
                                 content = content,
                                 onDismiss = {
@@ -421,8 +426,9 @@ class MainActivity : AppCompatActivity() {
     private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         // During onboarding, the dedicated permission page triggers the prompt
-        // with context. Skip the bare auto-prompt on cold start until that's done.
-        if (!appState.hasCompletedOnboarding) return
+        // with context. Skip the bare auto-prompt on cold start until that's
+        // done — including an upgrade re-run, which shows that page again.
+        if (appState.showOnboarding) return
         val granted = ContextCompat.checkSelfPermission(
             this, Manifest.permission.POST_NOTIFICATIONS,
         ) == PackageManager.PERMISSION_GRANTED

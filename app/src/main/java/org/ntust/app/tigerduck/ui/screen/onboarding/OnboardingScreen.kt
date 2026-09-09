@@ -406,42 +406,53 @@ fun OnboardingScreen(
                         title = stringResource(R.string.onboarding_sign_in_title),
                         subtitle = stringResource(R.string.onboarding_sign_in_subtitle),
                         actions = {
-                            // Ordered least-committal first: look at the
-                            // server, then repoint the app at a different
-                            // one, then give up and skip. A sign-in that
-                            // fails here has no other way to tell the user
-                            // whether the backend is the reason.
-                            TextButton(onClick = { openUrl(context, URL_SERVER_STATUS) }) {
-                                Text(stringResource(R.string.settings_check_server_status))
-                            }
-                            TextButton(onClick = { showEndpointEditor = true }) {
-                                Text(stringResource(R.string.onboarding_custom_endpoint_button))
-                            }
-                            TextButton(onClick = { goToPage(permissionsPageIndex) }) {
-                                Text(
-                                    stringResource(R.string.onboarding_skip_for_now),
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY)
-                                )
-                            }
-                            Button(
-                                onClick = {
-                                    focusManager.clearFocus()
-                                    viewModel.login(studentId, password) {
-                                        password = ""
-                                        goToPage(permissionsPageIndex)
-                                    }
-                                },
-                                enabled = studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn,
-                                modifier = Modifier.fillMaxWidth(0.8f),
-                            ) {
-                                if (isLoggingIn) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.onPrimary,
+                            if (isSignedIn) {
+                                // The session survived the upgrade, so this
+                                // page is a confirmation rather than a form —
+                                // an upgrading user is never asked to type a
+                                // password they already gave this install.
+                                Button(
+                                    onClick = { goToPage(permissionsPageIndex) },
+                                    modifier = Modifier.fillMaxWidth(0.6f),
+                                ) { Text(stringResource(R.string.action_next)) }
+                            } else {
+                                // Ordered least-committal first: look at the
+                                // server, then repoint the app at a different
+                                // one, then give up and skip. A sign-in that
+                                // fails here has no other way to tell the user
+                                // whether the backend is the reason.
+                                TextButton(onClick = { openUrl(context, URL_SERVER_STATUS) }) {
+                                    Text(stringResource(R.string.settings_check_server_status))
+                                }
+                                TextButton(onClick = { showEndpointEditor = true }) {
+                                    Text(stringResource(R.string.onboarding_custom_endpoint_button))
+                                }
+                                TextButton(onClick = { goToPage(permissionsPageIndex) }) {
+                                    Text(
+                                        stringResource(R.string.onboarding_skip_for_now),
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY)
                                     )
-                                } else {
-                                    Text(stringResource(R.string.onboarding_sign_in_button))
+                                }
+                                Button(
+                                    onClick = {
+                                        focusManager.clearFocus()
+                                        viewModel.login(studentId, password) {
+                                            password = ""
+                                            goToPage(permissionsPageIndex)
+                                        }
+                                    },
+                                    enabled = studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn,
+                                    modifier = Modifier.fillMaxWidth(0.8f),
+                                ) {
+                                    if (isLoggingIn) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                        )
+                                    } else {
+                                        Text(stringResource(R.string.onboarding_sign_in_button))
+                                    }
                                 }
                             }
                         },
@@ -451,68 +462,74 @@ fun OnboardingScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxWidth(0.8f),
                         ) {
-                            OutlinedAccountIdField(
-                                value = studentId,
-                                onValueChange = { raw ->
-                                    studentId = raw.filter { ch -> !ch.isWhitespace() }.uppercase()
-                                },
-                                label = stringResource(R.string.sign_in_student_id),
-                                capitalization = KeyboardCapitalization.Sentences,
-                                imeAction = ImeAction.Next,
-                                onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
-                                enabled = !isLoggingIn,
-                                autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            OutlinedTextField(
-                                value = password,
-                                onValueChange = { password = it },
-                                label = { Text(stringResource(R.string.sign_in_password)) },
-                                singleLine = true,
-                                visualTransformation = if (passwordVisible) VisualTransformation.None
-                                else PasswordVisualTransformation(),
-                                trailingIcon = if (!isLoggingIn) {
-                                    {
-                                        PasswordTrailingIcons(
-                                            password = password,
-                                            passwordVisible = passwordVisible,
-                                            onClear = { password = ""; passwordVisible = false },
-                                            onToggleVisibility = {
-                                                passwordVisible = !passwordVisible
-                                            },
-                                        )
-                                    }
-                                } else null,
-                                enabled = !isLoggingIn,
-                                keyboardOptions = KeyboardOptions(
-                                    autoCorrectEnabled = false,
-                                    keyboardType = KeyboardType.Password,
-                                    imeAction = ImeAction.Done,
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onDone = {
-                                        focusManager.clearFocus()
-                                        if (studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn) {
-                                            viewModel.login(studentId, password) {
-                                                password = ""
-                                                goToPage(permissionsPageIndex)
-                                            }
-                                        }
-                                    }
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .semantics { contentType = ContentType.Password },
-                            )
-                            if (loginError != null) {
-                                Text(
-                                    text = loginError!!,
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall,
+                            if (!isSignedIn) {
+                                OutlinedAccountIdField(
+                                    value = studentId,
+                                    onValueChange = { raw ->
+                                        studentId = raw.filter { ch -> !ch.isWhitespace() }.uppercase()
+                                    },
+                                    label = stringResource(R.string.sign_in_student_id),
+                                    capitalization = KeyboardCapitalization.Sentences,
+                                    imeAction = ImeAction.Next,
+                                    onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+                                    enabled = !isLoggingIn,
+                                    autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,
                                     modifier = Modifier.fillMaxWidth(),
                                 )
-                            }
-                            if (isSignedIn) {
+                                OutlinedTextField(
+                                    value = password,
+                                    onValueChange = { password = it },
+                                    label = { Text(stringResource(R.string.sign_in_password)) },
+                                    singleLine = true,
+                                    visualTransformation = if (passwordVisible) VisualTransformation.None
+                                    else PasswordVisualTransformation(),
+                                    trailingIcon = if (!isLoggingIn) {
+                                        {
+                                            PasswordTrailingIcons(
+                                                password = password,
+                                                passwordVisible = passwordVisible,
+                                                onClear = { password = ""; passwordVisible = false },
+                                                onToggleVisibility = {
+                                                    passwordVisible = !passwordVisible
+                                                },
+                                            )
+                                        }
+                                    } else null,
+                                    enabled = !isLoggingIn,
+                                    keyboardOptions = KeyboardOptions(
+                                        autoCorrectEnabled = false,
+                                        keyboardType = KeyboardType.Password,
+                                        imeAction = ImeAction.Done,
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onDone = {
+                                            focusManager.clearFocus()
+                                            if (studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn) {
+                                                viewModel.login(studentId, password) {
+                                                    password = ""
+                                                    goToPage(permissionsPageIndex)
+                                                }
+                                            }
+                                        }
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .semantics { contentType = ContentType.Password },
+                                )
+                                if (loginError != null) {
+                                    Text(
+                                        text = loginError!!,
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                            } else {
+                                // Named, not just ticked: the account shown is
+                                // the one TigerSync will carry to the other
+                                // devices, and a shared or mis-typed id is
+                                // worth catching here rather than after the
+                                // first sync.
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -524,9 +541,17 @@ fun OnboardingScreen(
                                         modifier = Modifier.size(18.dp),
                                     )
                                     Text(
-                                        text = stringResource(R.string.action_done),
+                                        text = stringResource(R.string.desktop_settings_signed_in_ntust),
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                         color = onboardingGreen(),
+                                    )
+                                }
+                                viewModel.signedInStudentId?.let { id ->
+                                    Text(
+                                        text = id,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                            .copy(alpha = ContentAlpha.SECONDARY),
                                     )
                                 }
                             }

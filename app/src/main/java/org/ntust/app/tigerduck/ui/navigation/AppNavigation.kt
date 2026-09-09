@@ -130,7 +130,7 @@ fun AppNavigation(
     widgetStartRoute: String? = null,
     onStartRouteConsumed: () -> Unit = {},
 ) {
-    if (!appState.hasCompletedOnboarding) {
+    if (appState.showOnboarding) {
         OnboardingScreen()
     } else {
         MainNavigation(

@@ -124,6 +124,27 @@ class AppState @Inject constructor(
             prefs.hasCompletedOnboarding = value
         }
 
+    private var onboardingVersionState by mutableIntStateOf(prefs.onboardingVersion)
+
+    /**
+     * True for an install that finished an older wizard than this build ships.
+     *
+     * The user stays signed in throughout: this reads a plain preference and
+     * the wizard's sign-in page recognises a live session, so nothing in the
+     * re-run touches stored credentials. See [AppPreferences.onboardingVersion]
+     * for why this is not done by clearing [hasCompletedOnboarding].
+     *
+     * Demo mode is excluded for the same reason it reports the wizard as done
+     * — a screenshot device must not be interrupted by it.
+     */
+    val needsOnboardingRerun: Boolean
+        get() = hasCompletedOnboardingState && !demoMode &&
+            onboardingVersionState < AppPreferences.ONBOARDING_VERSION
+
+    /** Whether the wizard owns the screen: never seen, or seen too long ago. */
+    val showOnboarding: Boolean
+        get() = !hasCompletedOnboarding || needsOnboardingRerun
+
     private var accentColorHexState by mutableIntStateOf(prefs.accentColorHex)
 
     var accentColorHex: Int
@@ -432,6 +453,11 @@ class AppState @Inject constructor(
 
     fun completeOnboarding() {
         hasCompletedOnboarding = true
+        // Stamped only on the way out, so a wizard abandoned halfway — killed
+        // from the recents list, say — is offered again on the next launch
+        // rather than being recorded as confirmed.
+        onboardingVersionState = AppPreferences.ONBOARDING_VERSION
+        prefs.onboardingVersion = AppPreferences.ONBOARDING_VERSION
         // Push registration is held back until this point so no device
         // identity reaches the backend before the privacy page has been
         // seen. Consent has landed, so release the token that arrived
@@ -467,6 +493,7 @@ class AppState @Inject constructor(
             // time. Re-read so the UI shows defaults instead of ghost values
             // from the wiped store.
             hasCompletedOnboardingState = prefs.hasCompletedOnboarding
+            onboardingVersionState = prefs.onboardingVersion
             accentColorHexState = prefs.accentColorHex
             showAbsoluteAssignmentTimeState = prefs.showAbsoluteAssignmentTime
             alwaysShowPeriodsABCState = prefs.alwaysShowPeriodsABC
