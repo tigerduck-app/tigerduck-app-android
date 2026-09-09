@@ -26,6 +26,13 @@ import org.ntust.app.tigerduck.shared.LibraryService
 class LibraryQRController(
     private val service: LibraryService,
     private val scope: CoroutineScope,
+    /**
+     * Screenshot override: encode this instead of asking the library server.
+     * Null in a release build, where the caller's `BuildConfig.DEBUG` branch
+     * folds away. The countdown still runs, so the page animates the way it
+     * really does -- it just re-renders the same payload.
+     */
+    private val fixtureQr: String? = null,
 ) {
     private val _qrBitmap = MutableStateFlow<Bitmap?>(null)
     val qrBitmap: StateFlow<Bitmap?> = _qrBitmap.asStateFlow()
@@ -77,7 +84,7 @@ class LibraryQRController(
         _isLoading.value = _qrBitmap.value == null
         _error.value = null
         try {
-            val qrData = service.generateQRCode()
+            val qrData = fixtureQr ?: service.generateQRCode()
             val rendered = withContext(Dispatchers.Default) {
                 val bmp = LibraryQRRenderer.render(qrData, qrSidePx)
                 bmp to LibraryQRRenderer.patternBounds(bmp)

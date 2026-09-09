@@ -67,6 +67,7 @@ import org.ntust.app.tigerduck.wear.data.LibraryQRController
 import org.ntust.app.tigerduck.wear.data.SchedulePersistence
 import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
 import org.ntust.app.tigerduck.wear.data.WatchLibraryCredentialStore
+import org.ntust.app.tigerduck.wear.debug.WearFixtureStore
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
 import kotlin.math.abs
@@ -79,7 +80,12 @@ fun LibraryQRScreen() {
         initial = WatchLibraryCredentialStore.LibrarySnapshot(null, null, 0L)
     )
 
-    if (!snapshot.isLoggedIn) {
+    // A screenshot device has no real library account, and this page is the
+    // one thing the phone's fixture cannot reach — see [WearFixtureStore].
+    val fixture = if (BuildConfig.DEBUG) WearFixtureStore.get(context) else null
+    val fixtureActive = fixture?.isActive == true
+
+    if (!snapshot.isLoggedIn && !fixtureActive) {
         ScreenScaffold {
             Column(
                 modifier = Modifier
@@ -93,7 +99,7 @@ fun LibraryQRScreen() {
             }
         }
     } else {
-        LoggedInState(username = snapshot.username)
+        LoggedInState(username = fixture?.username?.takeIf { fixtureActive } ?: snapshot.username)
     }
 }
 
@@ -155,7 +161,14 @@ private fun LoggedInState(username: String?) {
     val store = remember(context) { WatchLibraryCredentialStore.get(context) }
     val service = remember(store) { LibraryService(store, isDebugBuild = BuildConfig.DEBUG) }
     val scope = rememberCoroutineScope()
-    val controller = remember(service) { LibraryQRController(service, scope) }
+    val fixtureQr = if (BuildConfig.DEBUG) {
+        WearFixtureStore.get(context).takeIf { it.isActive }?.libraryQrContent
+    } else {
+        null
+    }
+    val controller = remember(service, fixtureQr) {
+        LibraryQRController(service, scope, fixtureQr)
+    }
 
     val bitmap by controller.qrBitmap.collectAsState()
     val patternBounds by controller.qrPatternBounds.collectAsState()

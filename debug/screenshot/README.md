@@ -164,6 +164,36 @@ fastlane/metadata/android/<zh-TW|en-US>/images/<phone|sevenInch|tenInch>Screensh
 
 Wear shots go in `wearScreenshots/`.
 
+## The watch
+
+Pick the watch with menu `9` and load the fixture there too. It is the same
+file, and the watch takes only the `libraryQr` and `studentId` keys from it.
+
+Everything else the watch draws — the timetable, the accent colour, the
+"logged in" state — is mirrored from the phone over the Wearable Data Layer,
+so loading the fixture on the phone has already put the fake courses on the
+watch. The virtual pass is the exception: the watch fetches its own QR from
+`api.lib.ntust.edu.tw` with credentials mirrored from the phone, so without a
+real library account that page can only render "open TigerDuck on your phone".
+`WearFixtureStore` overrides the payload and the username so it renders a pass
+instead. Mirroring a fake credential would not work — the watch would make a
+real call with it and show the error.
+
+The pass page is `FLAG_SECURE` by default, so `screencap` returns black. The
+phone's screen-capture toggle turns that off and the setting rides the same
+Data Layer sync.
+
+Demo mode is phone-only. The watch does not talk to a server for anything the
+fixture covers, so there is nothing there to cut off.
+
+Two gotchas:
+
+- `logcat -s WearFixture` on the watch, not `DebugFixture`.
+- The watch APK carries the **same applicationId** as the play phone build, so
+  a bare `./gradlew :wear:installDebug` with both a phone and a watch attached
+  installs the watch app over the phone one. Use `ANDROID_SERIAL=<watch>`, or
+  menu `8`, which installs only to the selected device.
+
 ## Troubleshooting
 
 **`run-as` fails.** You have a release APK installed. Menu `8`.

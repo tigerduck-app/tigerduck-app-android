@@ -68,6 +68,17 @@ device_dir_name() {
   echo "${model:-device}${size:+-$size}${density:+-${density}dpi}" | tr ' /' '--'
 }
 
+# The launcher activity to restart after loading a fixture. The watch APK
+# carries the same applicationId as the play phone build, so the package alone
+# does not say which one is in front of us.
+main_activity() {
+  if is_watch; then
+    echo "org.ntust.app.tigerduck.wear.MainActivity"
+  else
+    echo "org.ntust.app.tigerduck.MainActivity"
+  fi
+}
+
 is_watch() {
   [[ "$(adb -s "$SERIAL" shell getprop ro.build.characteristics </dev/null 2>/dev/null | tr -d '\r')" == *watch* ]]
 }
@@ -118,7 +129,8 @@ choose_device() {
   echo "==> Using $SERIAL"
   if can_set_system_time; then CAN_SET_TIME=true; else CAN_SET_TIME=false; fi
   if is_watch; then
-    echo "    (watch — demo mode and the fixture loader are phone-only)"
+    echo "    (watch — the fixture loads its library pass; the timetable comes"
+    echo "     from the phone over the Data Layer, and demo mode is phone-only)"
   fi
 }
 
@@ -204,12 +216,15 @@ load_fixture() {
   # skip at process start, and restarting is also what guarantees no sync that
   # was already in flight lands on top of what we just wrote.
   adb -s "$SERIAL" shell am force-stop "$PKG" >/dev/null 2>&1 || true
-  adb -s "$SERIAL" shell am start -n "$PKG/org.ntust.app.tigerduck.MainActivity" >/dev/null 2>&1 || true
+  adb -s "$SERIAL" shell am start -n "$PKG/$(main_activity)" >/dev/null 2>&1 || true
 
   echo "==> Sent $fixture → $PKG, restarted the app"
-  echo "    Watch it land:  adb -s $SERIAL logcat -s DebugFixture"
+  echo "    Watch it land:  adb -s $SERIAL logcat -s $(if is_watch; then echo WearFixture; else echo DebugFixture; fi)"
   echo ""
-  if grep -q '"demoMode"[[:space:]]*:[[:space:]]*true' "$fixture"; then
+  if is_watch; then
+    echo "    On a watch the fixture only supplies the library pass. The"
+    echo "    timetable arrives from the phone, so load it there too."
+  elif grep -q '"demoMode"[[:space:]]*:[[:space:]]*true' "$fixture"; then
     echo "    demoMode is on: every server is refused, so nothing can overwrite"
     echo "    the fake data. Menu 3 turns it back off."
   else
@@ -222,7 +237,7 @@ load_fixture() {
 clear_fixture() {
   adb -s "$SERIAL" shell am broadcast -a "$ACTION_CLEAR" -p "$PKG" >/dev/null
   adb -s "$SERIAL" shell am force-stop "$PKG" >/dev/null 2>&1 || true
-  adb -s "$SERIAL" shell am start -n "$PKG/org.ntust.app.tigerduck.MainActivity" >/dev/null 2>&1 || true
+  adb -s "$SERIAL" shell am start -n "$PKG/$(main_activity)" >/dev/null 2>&1 || true
   echo "==> Cleared demo mode, the student ID and the library QR override,"
   echo "    and put the real hand-added courses back."
   echo "    Fetched courses, bulletins and calendar return on the next sync —"
