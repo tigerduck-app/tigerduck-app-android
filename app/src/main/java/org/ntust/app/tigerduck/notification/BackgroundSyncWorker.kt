@@ -327,6 +327,10 @@ class BackgroundSyncWorker @AssistedInject constructor(
             val merged = remote.map { a ->
                 if (a.assignmentId in completed) a.copy(isCompleted = true) else a
             }
+            // See the note in ClassTableViewModel: an empty list here is
+            // upstream failing, not a clear week, and writing it drops every
+            // cached assignment.
+            if (merged.isEmpty()) return true
             dataCache.saveAssignments(merged)
             runCatching { pushApiClient.uploadAssignments(merged) }
                 .onFailure {

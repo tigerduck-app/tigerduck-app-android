@@ -281,6 +281,10 @@ class CalendarViewModel @Inject constructor(
             }
             val enrolled = moodleService.fetchEnrolledCourses()
             val assignments = moodleService.fetchAssignments(enrolled)
+            // Same guard as the class table's: an empty answer is upstream
+            // failing quietly, and overwriting with it empties the calendar
+            // on every other screen too.
+            if (assignments.isEmpty()) return dataCache.loadAssignments().toCalendarEvents()
             dataCache.saveAssignments(assignments)
             assignments.toCalendarEvents()
         } catch (_: Exception) {
