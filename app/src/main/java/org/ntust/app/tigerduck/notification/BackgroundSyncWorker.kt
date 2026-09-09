@@ -19,6 +19,7 @@ import kotlinx.coroutines.coroutineScope
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -98,57 +99,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
             if (prefs.syncCourseColors && result.courseOverrides.isNotEmpty()) {
                 applyCourseOverridesBackground(result.courseOverrides)
             }
-            // Hard-delete model: courses removed on the server are absent from
-            // the courses array. Compare against local to update deletedCourseNos.
-            if (prefs.syncCourses && result.serverCourseNos.isNotEmpty()) {
-                val semester = courseService.currentSemesterCode()
-                val localCourses = dataCache.loadCourses()
-                val stored = dataCache.loadDeletedCourseNos()
-                var deleted = stored
-                // Only this term's server rows may speak for this term. A
-                // flattened set would let a course the student retook next
-                // term un-hide the one they deleted in this one.
-                val filedNosHere = result.serverCourses
-                    .filter { it.semester == semester }
-                    .filter { CourseSyncReconciler.isFiled(it.moodleId, it.courseNo, semester) }
-                    .map { it.courseNo }
-                    .toSet()
-                val serverNosHere = filedNosHere.ifEmpty { result.serverCourseNos }
-                // Same rule as CourseSyncReconciler.reconcileSemester: a
-                // manual course is exempt from server-absence only until a
-                // snapshot has carried it. Without the second half, a row
-                // merged down from the cloud — stamped manual by toCourse —
-                // can never be retired here either, and this worker re-uploads
-                // it behind the user's back.
-                val storedKnown = dataCache.loadServerKnownNos()
-                val knownHere = storedKnown[semester].orEmpty().toSet()
-                for (course in localCourses) {
-                    if (course.courseNo in serverNosHere) continue
-                    if (course.isManual && course.courseNo !in knownHere) continue
-                    deleted = CourseTombstoneKeys.hide(course.courseNo, semester, deleted)
-                }
-                for (courseNo in serverNosHere) {
-                    deleted = CourseTombstoneKeys.unhide(courseNo, semester, deleted)
-                }
-                if (deleted != stored) {
-                    dataCache.saveDeletedCourseNos(deleted)
-                }
-                // Only rows actually filed under this term may be recorded —
-                // the ifEmpty fallback above is a flattened cross-term set and
-                // would tell the next sync the server knows courses it has
-                // never carried for this semester.
-                val grownKnown = knownHere + filedNosHere
-                if (grownKnown != knownHere) {
-                    dataCache.saveServerKnownNos(storedKnown + (semester to grownKnown.sorted()))
-                }
-            } else if (prefs.syncCourses) {
-                val localCourses = dataCache.loadCourses()
-                if (localCourses.isNotEmpty()) {
-                    val semester = courseService.currentSemesterCode()
-                    runCatching { pushApiClient.uploadCourses(localCourses, semester) }
-                        .onFailure { e -> Log.w(TAG, "[Sync] auto-upload failed", e) }
-                    Log.i(TAG, "[Sync] backend empty, auto-uploaded ${localCourses.size} courses")
-                }
+            if (prefs.syncCourses) {
+                reconcileCurrentSemester(result)
             }
             prefs.setLastSyncSource(SyncSource.BACKEND)
         } catch (e: CancellationException) {
@@ -156,6 +108,67 @@ class BackgroundSyncWorker @AssistedInject constructor(
         } catch (e: Exception) {
             prefs.setLastSyncSource(SyncSource.LOCAL)
             Log.w(TAG, "override sync failed", e)
+        }
+    }
+
+    /**
+     * The current term's slice of the foreground sync's per-semester
+     * reconcile, through the same [CourseSyncReconciler] so the rules
+     * cannot drift.
+     *
+     * This used to carry its own copy of the rules, and it had drifted: it
+     * never read `course_tombstones` at all, and when the server had nothing
+     * for this term it fell back to the roster flattened across every term
+     * — so a semester another device had just reset looked populated from
+     * here, and nothing was hidden.
+     *
+     * Deliberately narrower than the foreground path: only the current
+     * term, no merge of rows this device lacks (that is left to the
+     * foreground sync), and no pinning of legacy bare tombstones to terms
+     * (`HomeBackendSync.migratedTombstones`) — so an un-hide here can lift
+     * a bare entry for every term at once, as the code it replaced also
+     * did, and the cache prune below ignores bare entries rather than
+     * delete a retaken course on the strength of one.
+     */
+    private suspend fun reconcileCurrentSemester(result: BackendSyncResult) {
+        val semester = courseService.currentSemesterCode()
+        // Mid-reset, or a snapshot fetched before this device reset the
+        // term — see CourseSyncReconciler.termsResetAfter.
+        val resetAt = dataCache.loadSemesterResetAt()
+        dataCache.clearSemesterResetAt(CourseSyncReconciler.resetStampsOutlived(result.fetchedAtMs, resetAt))
+        val stale = CourseSyncReconciler.termsResetAfter(
+            result.fetchedAtMs, resetAt, dataCache.resettingSemesters(),
+        )
+        if (semester in stale) return
+        val localCourses = dataCache.loadCourses(semester)
+        val stored = dataCache.loadDeletedCourseNos()
+        val storedKnown = dataCache.loadServerKnownNos()
+        val knownHere = storedKnown[semester].orEmpty().toSet()
+        val outcome = CourseSyncReconciler.reconcileSemester(
+            semester = semester,
+            localCourses = localCourses,
+            serverRows = result.serverCourses.filter { it.semester == semester },
+            tombstoneNos = CourseSyncReconciler.tombstoneNosFor(semester, result.tombstones),
+            tombstones = stored,
+            serverKnownNos = knownHere,
+            selectionDroppedNos = dataCache.loadSelectionDroppedNos()[semester].orEmpty().toSet(),
+        )
+        if (outcome.tombstones != stored) {
+            dataCache.saveDeletedCourseNos(outcome.tombstones)
+        }
+        // Unconditional: a course hidden by an earlier build and left in
+        // the cache is pruned on the first run, not the next change.
+        CourseSyncReconciler.pruneHidden(semester, localCourses, outcome.tombstones, legacyBare = false)
+            ?.let { dataCache.saveCourses(it, semester) }
+        var known = outcome.serverKnownNos
+        if (outcome.uploadLocal) {
+            runCatching { pushApiClient.uploadCourses(outcome.toUpload, semester) }
+                .onSuccess { accepted -> if (!accepted.isNullOrEmpty()) known = known + accepted }
+                .onFailure { e -> Log.w(TAG, "[Sync] auto-upload failed", e) }
+            Log.i(TAG, "[Sync] backend empty, auto-uploaded ${outcome.toUpload.size} courses")
+        }
+        if (known != knownHere) {
+            dataCache.saveServerKnownNos(storedKnown + (semester to known.sorted()))
         }
     }
 

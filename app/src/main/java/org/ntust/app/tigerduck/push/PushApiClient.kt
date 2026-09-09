@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONObject
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
@@ -283,16 +284,22 @@ class PushApiClient @Inject constructor(
     }
 
     /**
-     * Fire-and-forget upload of the user's enrolled course list so the backend
-     * can persist it for cross-device sync. Callers wrap this in `runCatching`
-     * — a failure here must never block the normal fetch/save flow.
+     * Upload the user's course list so the backend can persist it for
+     * cross-device sync. Callers wrap this in `runCatching` — a failure here
+     * must never block the normal fetch/save flow.
+     *
+     * Returns the course numbers the server actually accepted, or null when
+     * nothing was sent (sync off). A 200 is not acceptance: the server skips
+     * any course another device has tombstoned and says so in the body, and
+     * a caller that took the status for "the server has seen these" would
+     * retire a hand-typed course's protection on an upload that was refused.
      */
     suspend fun uploadCourses(
         courses: List<Course>,
         semester: String,
         forceKeys: List<String> = emptyList(),
-    ) = withContext(Dispatchers.IO) {
-        if (!isSyncCapable || !prefs.syncCourses) return@withContext
+    ): List<String>? = withContext(Dispatchers.IO) {
+        if (!isSyncCapable || !prefs.syncCourses) return@withContext null
         val payload = CourseUploadPayload.build(courses, semester, forceKeys)
         val body = gson.toJson(payload).toRequestBody(jsonType)
         val request = Request.Builder()
@@ -304,6 +311,12 @@ class PushApiClient @Inject constructor(
             if (!response.isSuccessful) {
                 throw PushApiException("uploadCourses failed: HTTP ${response.code}")
             }
+            // A 2xx with an unreadable body (a captive portal, a proxy) is
+            // still an upload that landed; it just cannot say what was accepted.
+            val json = runCatching { JSONObject(response.body.string()) }.getOrNull()
+            val keys = json?.optJSONArray("accepted_keys") ?: return@use emptyList()
+            // "client:{semester}:{course_no}" — the shape CourseUploadPayload sends.
+            (0 until keys.length()).map { keys.getString(it).substringAfterLast(':') }
         }
     }
 

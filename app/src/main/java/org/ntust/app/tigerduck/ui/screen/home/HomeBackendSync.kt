@@ -335,11 +335,16 @@ class HomeBackendSync @Inject constructor(
     private suspend fun syncCourseList(result: BackendSyncResult) {
         if (!prefs.syncCourses) return
 
+        val resetAt = dataCache.loadSemesterResetAt()
         val semesters = CourseSyncReconciler.semestersToReconcile(
             serverCourses = result.serverCourses,
             tombstones = result.tombstones,
             catalogue = semesterCatalog.availableSemesters(),
+            excluding = CourseSyncReconciler.termsResetAfter(
+                result.fetchedAtMs, resetAt, dataCache.resettingSemesters(),
+            ),
         )
+        dataCache.clearSemesterResetAt(CourseSyncReconciler.resetStampsOutlived(result.fetchedAtMs, resetAt))
         val rowsBySemester = result.serverCourses.groupBy { it.semester }
         val selectionDropped = dataCache.loadSelectionDroppedNos()
         val serverKnown = dataCache.loadServerKnownNos()
@@ -365,15 +370,35 @@ class HomeBackendSync @Inject constructor(
                 updatedKnown[semester] = outcome.serverKnownNos.sorted()
             }
 
+            // Before the upload branch: an empty term can still have hidden
+            // courses to take out of the cache (a reset elsewhere, with one
+            // hand-typed survivor left to upload).
+            val pruned = CourseSyncReconciler.pruneHidden(semester, localCourses, tombstones)
             if (outcome.uploadLocal) {
-                runCatching { pushApiClient.uploadCourses(localCourses, semester) }
+                pruned?.let {
+                    dataCache.saveCourses(it, semester)
+                    if (semester == currentSemester) touchedCurrent = true
+                }
+                runCatching { pushApiClient.uploadCourses(outcome.toUpload, semester) }
+                    .onSuccess { accepted ->
+                        // The server has now seen these numbers: from here
+                        // on their absence is a deletion, not a pending
+                        // upload — see reconcileSemester. Only what it
+                        // accepted: a tombstoned course it skipped is still
+                        // unknown to it.
+                        if (!accepted.isNullOrEmpty()) {
+                            updatedKnown[semester] = (outcome.serverKnownNos + accepted).sorted()
+                        }
+                    }
                     .onFailure { e -> Log.w(TAG, "[Sync] $semester: auto-upload failed", e) }
-                Log.i(TAG, "[Sync] $semester: server empty, uploaded ${localCourses.size} local courses")
+                Log.i(TAG, "[Sync] $semester: server empty, uploaded ${outcome.toUpload.size} local courses")
                 continue
             }
-            if (outcome.merged.isNotEmpty()) {
-                Log.i(TAG, "[Sync] $semester: merged from server ${outcome.merged.map { it.courseNo }}")
-                dataCache.saveCourses(localCourses + outcome.merged, semester)
+            if (pruned != null || outcome.merged.isNotEmpty()) {
+                if (outcome.merged.isNotEmpty()) {
+                    Log.i(TAG, "[Sync] $semester: merged from server ${outcome.merged.map { it.courseNo }}")
+                }
+                dataCache.saveCourses((pruned ?: localCourses) + outcome.merged, semester)
                 if (semester == currentSemester) touchedCurrent = true
             }
         }

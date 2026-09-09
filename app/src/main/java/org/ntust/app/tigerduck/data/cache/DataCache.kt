@@ -327,6 +327,51 @@ class DataCache @Inject constructor(
         return loadFromUserData(type, "selection_dropped.json") ?: emptyMap()
     }
 
+    // --- Semester Reset ---
+    // A reset is: backend DELETE, then wipe the term locally, then refetch
+    // and upload the fresh roster. Two things guard the syncs that can run
+    // in the middle (the 10-second revision poll, the hourly worker):
+    //
+    // [resettingSemesters] holds the term from before the DELETE goes out
+    // until the local wipe is done. A snapshot reconciled in that window
+    // sees the server either still full or just emptied and the cache
+    // either still full or just emptied, and every combination but the
+    // right one puts the old roster somewhere it gets uploaded from. The
+    // reconcile skips the term. In memory: it only has to outlive one
+    // round trip.
+    //
+    // `semester_reset_at.json` records, per term, when the DELETE landed.
+    // A snapshot is fetched, then reconciled some time later — after the
+    // assignment overrides and their PATCHes — so one fetched before the
+    // DELETE can be reconciled after the latch is gone, still carrying the
+    // pre-reset roster. The reconcile leaves a term alone when the snapshot
+    // predates its reset (CourseSyncReconciler.termsResetAfter), and drops
+    // the stamp once a snapshot clearly newer has been reconciled. In
+    // filesDir so eviction cannot lose it.
+
+    private val resetting = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /** Latches [semester] as mid-reset; false when it already is. */
+    fun beginReset(semester: String): Boolean = resetting.add(semester)
+
+    fun endReset(semester: String) { resetting.remove(semester) }
+
+    fun resettingSemesters(): Set<String> = resetting.toSet()
+
+    suspend fun saveSemesterResetAt(semester: String, atMs: Long) =
+        saveToUserData(loadSemesterResetAt() + (semester to atMs), "semester_reset_at.json")
+
+    /** Drops stamps a newer snapshot has outlived — see [CourseSyncReconciler.resetStampsOutlived]. */
+    suspend fun clearSemesterResetAt(semesters: Set<String>) {
+        if (semesters.isEmpty()) return
+        saveToUserData(loadSemesterResetAt() - semesters, "semester_reset_at.json")
+    }
+
+    suspend fun loadSemesterResetAt(): Map<String, Long> {
+        val type = object : TypeToken<Map<String, Long>>() {}.type
+        return loadFromUserData(type, "semester_reset_at.json") ?: emptyMap()
+    }
+
     // --- Deleted Course Nos (hidden by user or server) ---
     // Stored in filesDir so courses hidden via sync or the delete gesture
     // stay gone even when Moodle/NTUST re-fetches re-add them.
@@ -507,6 +552,7 @@ class DataCache @Inject constructor(
                     "course_custom_names.json",
                     "selection_dropped.json",
                     "server_known_courses.json",
+                    "semester_reset_at.json",
                 ).forEach { name ->
                     runCatching { File(userDataDir, name).delete() }
                 }

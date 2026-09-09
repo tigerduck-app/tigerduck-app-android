@@ -209,6 +209,156 @@ class CourseSyncReconcilerTest {
         assertTrue("it is a first sync for this term — push what we have", out.uploadLocal)
     }
 
+    /**
+     * A semester reset, seen from the other phone. The backend has no rows
+     * for the term and a tombstone for every course it used to hold. Reading
+     * the empty term as "first sync, push what we have" kept the old roster
+     * on screen and re-uploaded it on every refresh — which the backend
+     * refuses, silently — so the reset never arrived here.
+     */
+    @Test
+    fun `a reset term hides every tombstoned course even though the server is empty`() {
+        val out = reconcile(
+            local = listOf(local("A"), local("B")),
+            rows = emptyList(),
+            tombstoneNos = setOf("A", "B"),
+        )
+        assertEquals(setOf("1141:A", "1141:B"), out.tombstones)
+        assertFalse("the reset roster must not be pushed back", out.uploadLocal)
+    }
+
+    @Test
+    fun `an empty term still uploads the courses its tombstones do not name`() {
+        // One course deleted elsewhere, one this device added and has never
+        // managed to sync: only the second is a first-sync upload.
+        val out = reconcile(
+            local = listOf(local("A"), local("M", manual = true)),
+            rows = emptyList(),
+            tombstoneNos = setOf("A"),
+        )
+        assertEquals(setOf("1141:A"), out.tombstones)
+        assertEquals(listOf("M"), out.toUpload.map { it.courseNo })
+    }
+
+    @Test
+    fun `an empty term does not re-upload a course this device already hid`() {
+        // Hidden here earlier (a delete by hand, or a tombstone from a
+        // previous sync) — silence from the server is no reason to push it
+        // back up, in either the scoped or the legacy bare shape.
+        val scoped = reconcile(local = listOf(local("A"), local("B")), tombstones = setOf("1141:A"))
+        assertEquals(listOf("B"), scoped.toUpload.map { it.courseNo })
+        val bare = reconcile(local = listOf(local("A"), local("B")), tombstones = setOf("A"))
+        assertEquals(listOf("B"), bare.toUpload.map { it.courseNo })
+    }
+
+    /**
+     * The other half of the manual-course rule. A tombstone can only name a
+     * course some device once uploaded; a hand-typed course no snapshot has
+     * carried is not that course, even when the numbers match — say the
+     * term was reset elsewhere and the student typed it back in here before
+     * the re-add upload landed.
+     */
+    @Test
+    fun `a tombstone does not delete a hand-typed course the server has never seen`() {
+        val out = reconcile(
+            local = listOf(local("A", manual = true)),
+            rows = emptyList(),
+            tombstoneNos = setOf("A"),
+        )
+        assertTrue(out.tombstones.isEmpty())
+        assertEquals(listOf("A"), out.toUpload.map { it.courseNo })
+    }
+
+    @Test
+    fun `a tombstone still deletes a manual course once a snapshot has carried it`() {
+        // Rows merged down from the cloud are stamped manual by toCourse;
+        // that must not shield them from the reset that removed them.
+        val out = reconcile(
+            local = listOf(local("A", manual = true)),
+            rows = emptyList(),
+            tombstoneNos = setOf("A"),
+            serverKnown = setOf("A"),
+        )
+        assertEquals(setOf("1141:A"), out.tombstones)
+        assertTrue(out.toUpload.isEmpty())
+    }
+
+    // ---- keeping the cache honest ----
+
+    @Test
+    fun `pruneHidden drops what the tombstones hide and is null when nothing is`() {
+        val courses = listOf(local("A"), local("B"), local("C"))
+        assertEquals(
+            listOf("B"),
+            CourseSyncReconciler.pruneHidden("1141", courses, setOf("1141:A", "C"))!!.map { it.courseNo },
+        )
+        assertNull(CourseSyncReconciler.pruneHidden("1141", courses, setOf("1132:A")))
+    }
+
+    /**
+     * A snapshot is fetched, then reconciled after the assignment overrides
+     * and their PATCHes. One fetched before a reset still carries the
+     * pre-reset roster; merged into the freshly cleared cache it put the
+     * whole roster back, for the reset's own refetch to upload.
+     */
+    @Test
+    fun `a snapshot fetched before this device reset a term leaves that term alone`() {
+        val resetAt = mapOf("1141" to 1_000L, "1132" to 500L)
+        assertEquals(setOf("1141"), CourseSyncReconciler.termsResetAfter(fetchedAtMs = 700L, resetAt = resetAt))
+        assertTrue(CourseSyncReconciler.termsResetAfter(fetchedAtMs = 1_000L, resetAt = resetAt).isEmpty())
+        // And a term whose DELETE is in flight right now, whatever the stamp says.
+        assertEquals(
+            setOf("1151"),
+            CourseSyncReconciler.termsResetAfter(fetchedAtMs = 1_000L, resetAt = resetAt, resetting = setOf("1151")),
+        )
+        // A stamp is dropped once a snapshot clearly newer than it has been
+        // reconciled, so an overlapping sync seconds behind is still caught
+        // but a clock that steps backwards cannot mute the term for good.
+        assertEquals(setOf("1132"), CourseSyncReconciler.resetStampsOutlived(fetchedAtMs = 61_000L, resetAt = resetAt))
+        assertTrue(CourseSyncReconciler.resetStampsOutlived(fetchedAtMs = 30_000L, resetAt = resetAt).isEmpty())
+        val terms = CourseSyncReconciler.semestersToReconcile(
+            serverCourses = listOf(server("A", semester = "1141")),
+            tombstones = emptyList(),
+            catalogue = listOf("1141", "1151"),
+            excluding = setOf("1141"),
+        )
+        assertEquals(listOf("1151"), terms)
+    }
+
+    @Test
+    fun `pruneHidden returns an empty list, not null, when every course is hidden`() {
+        // The reset-elsewhere shape: the caller must write the empty cache.
+        val pruned = CourseSyncReconciler.pruneHidden("1141", listOf(local("A")), setOf("1141:A"))
+        assertEquals(emptyList<Course>(), pruned)
+    }
+
+    @Test
+    fun `pruneHidden without legacy entries only honours this term's scoped keys`() {
+        // The worker has not pinned bare entries to terms, so a bare "C" —
+        // a deletion made in some other term — must not delete C here.
+        val courses = listOf(local("A"), local("C"))
+        val pruned = CourseSyncReconciler.pruneHidden("1141", courses, setOf("1141:A", "C"), legacyBare = false)
+        assertEquals(listOf("C"), pruned!!.map { it.courseNo })
+    }
+
+    /**
+     * The backend's rule, mirrored: a reset tombstone does not bind the
+     * device that wrote it, whose next upload releases it. Between that
+     * DELETE and the upload, this device must not read its own tombstones
+     * as "hide everything" — the refetch filters by the tombstone store and
+     * would then upload nothing, leaving the term hidden for good.
+     */
+    @Test
+    fun `this device's own reset tombstones do not count`() {
+        val own = tombstone("A", "1141").copy(deletedByReset = true, deletedByThisDevice = true)
+        val elsewhere = tombstone("B", "1141").copy(deletedByReset = true)
+        val ownSingleDelete = tombstone("C", "1141").copy(deletedByThisDevice = true)
+        assertEquals(
+            setOf("B", "C"),
+            CourseSyncReconciler.tombstoneNosFor("1141", listOf(own, elsewhere, ownSingleDelete)),
+        )
+    }
+
     @Test
     fun `a misfiled row neither merges nor counts as the course being present`() {
         // A 1151 Moodle id filed under 1142 — the 2026-08 attribution bug.

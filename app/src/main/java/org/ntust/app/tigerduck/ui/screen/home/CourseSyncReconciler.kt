@@ -61,8 +61,8 @@ object CourseSyncReconciler {
      *
      * [serverRows] is this term's slice of `/sync/full`'s `courses`;
      * [tombstoneNos] this term's `course_tombstones`. Returns the new
-     * tombstone set and the rows to merge locally, or null for [merged] when
-     * the caller should skip the cache write.
+     * tombstone set, the rows to merge locally, and — when the server has
+     * nothing for the term — the local courses still worth uploading.
      *
      * [selectionDroppedNos] is this term's entry from
      * [DataCache.loadSelectionDroppedNos] — courses 選課 stopped listing.
@@ -99,19 +99,45 @@ object CourseSyncReconciler {
         }
         val serverNos = rows.map { it.courseNo }.toSet()
 
+        var updated = tombstones
+
+        // A hand-typed course no snapshot has carried is this device's alone
+        // to delete: the server has never seen it, so nothing the server
+        // says can be about it. A tombstone naming its number belongs to a
+        // course some other device once held — the same rule that keeps
+        // server absence from deleting it below.
+        val unsyncedManualNos = localCourses
+            .filter { it.isManual && it.courseNo !in serverKnownNos }
+            .map { it.courseNo }
+            .toSet()
+
+        // Explicit tombstones from other devices, applied before anything
+        // reads this term's emptiness. A semester reset is exactly the case
+        // where the server has no rows for the term and a tombstone for
+        // every course it used to hold. Reading the silence first kept the
+        // pre-reset roster on this device and re-uploaded it on every
+        // refresh — the backend refuses that upload, silently — which is
+        // how a reset on one phone never reached the other.
+        for (courseNo in tombstoneNos) {
+            if (courseNo in serverNos || courseNo in unsyncedManualNos) continue
+            if (CourseTombstoneKeys.isHidden(courseNo, semester, updated)) continue
+            updated = CourseTombstoneKeys.hide(courseNo, semester, updated)
+        }
+
         // Nothing uploaded for this term yet — first sync, or another device
         // mid-reset. Push what we have instead of reading the silence as
-        // "every local course was deleted elsewhere".
+        // "every local course was deleted elsewhere". Only what the
+        // tombstones leave visible counts: after a reset the whole roster is
+        // tombstoned, and then there is nothing to push.
         if (serverNos.isEmpty()) {
+            val hidden = CourseTombstoneKeys.hiddenIn(semester, updated)
             return SemesterOutcome(
-                tombstones = tombstones,
+                tombstones = updated,
                 merged = emptyList(),
-                uploadLocal = localCourses.isNotEmpty(),
+                toUpload = localCourses.filter { it.courseNo !in hidden },
                 serverKnownNos = serverKnownNos,
             )
         }
-
-        var updated = tombstones
 
         // A local course the server does not list was deleted on another
         // device — unless it is manual and the server has never carried it,
@@ -133,14 +159,6 @@ object CourseSyncReconciler {
             if (CourseTombstoneKeys.isHidden(course.courseNo, semester, updated)) continue
             updated = CourseTombstoneKeys.hide(course.courseNo, semester, updated)
         }
-        // Explicit tombstones from other devices.
-        for (courseNo in tombstoneNos) {
-            if (courseNo !in serverNos &&
-                !CourseTombstoneKeys.isHidden(courseNo, semester, updated)
-            ) {
-                updated = CourseTombstoneKeys.hide(courseNo, semester, updated)
-            }
-        }
         // Hidden here but back on the server → un-hide, unless our own delete
         // is still in flight and the backend has not caught up yet.
         for (courseNo in serverNos) {
@@ -161,7 +179,6 @@ object CourseSyncReconciler {
         return SemesterOutcome(
             tombstones = updated,
             merged = merged,
-            uploadLocal = false,
             serverKnownNos = serverKnownNos + serverNos,
         )
     }
@@ -169,11 +186,17 @@ object CourseSyncReconciler {
     data class SemesterOutcome(
         val tombstones: Set<String>,
         val merged: List<Course>,
-        /** The server had nothing for this term; push the local roster up. */
-        val uploadLocal: Boolean,
+        /**
+         * The server had nothing for this term; push these up. Empty when
+         * there is nothing to push — including a term whose whole roster the
+         * tombstones hide, which is what a reset elsewhere looks like here.
+         */
+        val toUpload: List<Course> = emptyList(),
         /** Course numbers a snapshot of this term has ever carried. */
         val serverKnownNos: Set<String> = emptySet(),
-    )
+    ) {
+        val uploadLocal: Boolean get() = toUpload.isNotEmpty()
+    }
 
     /**
      * Marked `isManual` because from this device's point of view the row did
@@ -194,19 +217,104 @@ object CourseSyncReconciler {
         classroomMapJson = it.classroomMapJson,
     )
 
-    /** This term's tombstone course numbers, from the full-sync payload. */
+    /**
+     * This term's tombstone course numbers, from the full-sync payload.
+     *
+     * A reset tombstone does not bind the device that wrote it — the same
+     * rule the backend applies to that device's next upload, which
+     * releases the tombstones for the keys it names. Between the reset's
+     * DELETE and that upload the server has an empty term and a tombstone
+     * per course, and a sync landing in the gap must not read them as
+     * "hide everything here": the refetch filters by the tombstone store,
+     * so it would then upload nothing and never release them. A single
+     * delete binds its author like everyone else.
+     */
     fun tombstoneNosFor(semester: String, tombstones: List<CourseTombstone>): Set<String> =
-        tombstones.filter { it.semester == semester }.mapNotNull { it.courseNo }.toSet()
+        tombstones
+            .filter { it.semester == semester && !(it.deletedByReset && it.deletedByThisDevice) }
+            .mapNotNull { it.courseNo }
+            .toSet()
 
-    /** The terms to reconcile: everything the server knows plus the picker's. */
+    /**
+     * [localCourses] with everything [tombstones] hide in [semester] taken
+     * out, or null when nothing is hidden.
+     *
+     * The course cache must never carry a hidden course: the class table,
+     * the widget and the Live Activity read it as-is and only Home filters
+     * by the tombstone store, so a course hidden by the reconcile but left
+     * in the cache stays on screen everywhere but Home. Deleting by hand
+     * prunes the cache; so must a deletion that arrived from the server.
+     *
+     * [legacyBare] says whether a bare pre-scoping entry counts. It hides
+     * in every term until [CourseTombstoneKeys.migrateLegacyEntries] pins
+     * it, and only the foreground sync runs that migration; a caller that
+     * has not must not delete a retaken course's cache on the strength of
+     * a deletion made in another term.
+     */
+    fun pruneHidden(
+        semester: String,
+        localCourses: List<Course>,
+        tombstones: Set<String>,
+        legacyBare: Boolean = true,
+    ): List<Course>? {
+        val hidden = if (legacyBare) {
+            CourseTombstoneKeys.hiddenIn(semester, tombstones)
+        } else {
+            localCourses.map { it.courseNo }
+                .filterTo(mutableSetOf()) { CourseTombstoneKeys.key(semester, it) in tombstones }
+        }
+        val kept = localCourses.filter { it.courseNo !in hidden }
+        return if (kept.size == localCourses.size) null else kept
+    }
+
+    /**
+     * The terms a snapshot fetched at [fetchedAtMs] must not touch: those
+     * mid-reset right now ([resetting], [DataCache.resettingSemesters]) and
+     * those this device reset after the snapshot was fetched ([resetAt],
+     * [DataCache.loadSemesterResetAt]).
+     *
+     * Such a snapshot still carries the pre-reset roster. Reconciled into
+     * the freshly cleared cache it merged the whole roster back, and the
+     * refetch the reset had started then uploaded it — from the resetting
+     * device, whose upload releases its own reset tombstones — so the reset
+     * undid itself. A snapshot fetched after the reset landed is fine.
+     */
+    fun termsResetAfter(
+        fetchedAtMs: Long,
+        resetAt: Map<String, Long>,
+        resetting: Set<String> = emptySet(),
+    ): Set<String> = resetAt.filterValues { it > fetchedAtMs }.keys + resetting
+
+    /**
+     * The reset stamps a snapshot fetched at [fetchedAtMs] has outlived:
+     * those more than [RESET_STAMP_GRACE_MS] older than it.
+     *
+     * A stamp has done its job once a snapshot clearly newer than the
+     * reset has been reconciled — an overlapping sync's older snapshot is
+     * at most seconds behind, never a minute. Dropping it then is what
+     * keeps a wall clock that later steps backwards from muting the term
+     * for good: the stamp would otherwise sit ahead of every fetch time
+     * until the clock caught up with it.
+     */
+    fun resetStampsOutlived(fetchedAtMs: Long, resetAt: Map<String, Long>): Set<String> =
+        resetAt.filterValues { fetchedAtMs - it > RESET_STAMP_GRACE_MS }.keys
+
+    private const val RESET_STAMP_GRACE_MS = 60_000L
+
+    /**
+     * The terms to reconcile: everything the server knows plus the picker's,
+     * less [excluding] — see [termsResetAfter].
+     */
     fun semestersToReconcile(
         serverCourses: List<ServerCourse>,
         tombstones: List<CourseTombstone>,
         catalogue: List<String>,
+        excluding: Set<String> = emptySet(),
     ): List<String> = buildSet {
         serverCourses.mapNotNullTo(this) { it.semester.takeIf(String::isNotBlank) }
         tombstones.mapNotNullTo(this) { it.semester.takeIf(String::isNotBlank) }
         addAll(catalogue.filter(String::isNotBlank))
+        removeAll(excluding)
     }.sorted()
 
     /**

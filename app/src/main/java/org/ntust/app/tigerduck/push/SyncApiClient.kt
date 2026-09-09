@@ -43,6 +43,10 @@ data class CourseTombstone(
     val courseNo: String?,
     val semester: String,
     val deletedAt: String,
+    /** Written by a semester reset rather than a single delete. */
+    val deletedByReset: Boolean = false,
+    /** Written by the device this snapshot was served to. */
+    val deletedByThisDevice: Boolean = false,
 )
 
 data class BackendSyncResult(
@@ -55,6 +59,8 @@ data class BackendSyncResult(
     val currentRevision: Long,
     val coursesResetAt: String? = null,
     val tombstones: List<CourseTombstone> = emptyList(),
+    /** When the request went out (epoch millis) — what the snapshot is as of. */
+    val fetchedAtMs: Long = 0L,
     /**
      * Holidays the user opted back into on some device. Null means the
      * server did not send the section at all — an older backend — which is
@@ -97,6 +103,7 @@ class SyncApiClient @Inject constructor(
     suspend fun fetchFullSync(): BackendSyncResult = withContext(Dispatchers.IO) {
         val authHeader = authTokenManager.authHeader()
             ?: throw PushApiException("not authenticated")
+        val fetchedAtMs = System.currentTimeMillis()
         val request = Request.Builder()
             .url("$baseUrl/sync/full")
             .get()
@@ -107,7 +114,7 @@ class SyncApiClient @Inject constructor(
                 throw PushApiException("sync/full failed: HTTP ${response.code}")
             }
             val json = JSONObject(response.body.string())
-            parseFullSync(json)
+            parseFullSync(json).copy(fetchedAtMs = fetchedAtMs)
         }
     }
 
@@ -261,6 +268,8 @@ class SyncApiClient @Inject constructor(
                     courseNo = nullStr(t, "course_no"),
                     semester = t.optString("semester", ""),
                     deletedAt = t.optString("deleted_at", ""),
+                    deletedByReset = t.optBoolean("deleted_by_reset", false),
+                    deletedByThisDevice = t.optBoolean("deleted_by_this_device", false),
                 ))
             }
         }
