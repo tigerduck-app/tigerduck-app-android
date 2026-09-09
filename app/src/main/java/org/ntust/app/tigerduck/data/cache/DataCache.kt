@@ -301,6 +301,27 @@ class DataCache @Inject constructor(
     suspend fun saveSelectionDroppedNos(dropped: Map<String, List<String>>) =
         saveToUserData(dropped, "selection_dropped.json")
 
+    // --- Server-Known Course Nos ---
+    // Per semester, every course number a `/sync/full` snapshot has carried.
+    //
+    // A manual course is exempt from "absent from the server means deleted
+    // elsewhere" only until the server has actually seen it — before that,
+    // absence means our upload has not landed. This is the record of what it
+    // has seen. Grows only; a number stays known after the course is deleted,
+    // which is what keeps the deletion from being undone on the next sync.
+    //
+    // In filesDir rather than cacheDir for the same reason as the tombstones:
+    // if eviction could drop it, an evicted device would re-arm immunity for
+    // every course it holds and upload a term someone else had reset.
+
+    suspend fun saveServerKnownNos(known: Map<String, List<String>>) =
+        saveToUserData(known, "server_known_courses.json")
+
+    suspend fun loadServerKnownNos(): Map<String, List<String>> {
+        val type = object : TypeToken<Map<String, List<String>>>() {}.type
+        return loadFromUserData(type, "server_known_courses.json") ?: emptyMap()
+    }
+
     suspend fun loadSelectionDroppedNos(): Map<String, List<String>> {
         val type = object : TypeToken<Map<String, List<String>>>() {}.type
         return loadFromUserData(type, "selection_dropped.json") ?: emptyMap()
@@ -485,6 +506,7 @@ class DataCache @Inject constructor(
                     "deleted_courses.json",
                     "course_custom_names.json",
                     "selection_dropped.json",
+                    "server_known_courses.json",
                 ).forEach { name ->
                     runCatching { File(userDataDir, name).delete() }
                 }

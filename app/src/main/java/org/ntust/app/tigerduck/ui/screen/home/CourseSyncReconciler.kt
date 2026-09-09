@@ -73,6 +73,13 @@ object CourseSyncReconciler {
      * required to preserve it. Dropping the row before anything else also
      * keeps it from counting as evidence of presence further down, which
      * would otherwise un-hide it.
+     *
+     * [serverKnownNos] is every course number a snapshot of this term has
+     * ever carried, from [DataCache.loadServerKnownNos]. It is what lets a
+     * manual course lose its absence-immunity — see the loop below — and it
+     * comes back in [SemesterOutcome.serverKnownNos] for the caller to
+     * persist. It only ever grows; a number stays known after the course is
+     * deleted, which is the point.
      */
     fun reconcileSemester(
         semester: String,
@@ -80,6 +87,7 @@ object CourseSyncReconciler {
         serverRows: List<ServerCourse>,
         tombstoneNos: Set<String>,
         tombstones: Set<String>,
+        serverKnownNos: Set<String> = emptySet(),
         graceCourseNos: Set<String> = emptySet(),
         selectionDroppedNos: Set<String> = emptySet(),
     ): SemesterOutcome {
@@ -99,20 +107,31 @@ object CourseSyncReconciler {
                 tombstones = tombstones,
                 merged = emptyList(),
                 uploadLocal = localCourses.isNotEmpty(),
+                serverKnownNos = serverKnownNos,
             )
         }
 
         var updated = tombstones
 
-        // A non-manual local course the server does not list was deleted on
-        // another device. Manual courses are never tombstoned on absence —
-        // the user typed them in and the server may simply not have them yet.
+        // A local course the server does not list was deleted on another
+        // device — unless it is manual and the server has never carried it,
+        // in which case the silence means our upload has not landed yet.
+        // That is the narrow rule; the blanket one ("manual is never
+        // tombstoned on absence") destroyed data in both directions.
+        //
+        // Dropping it entirely deletes hand-typed courses the server has
+        // not heard of, which is the incident this file's header describes.
+        // Keeping it made every row [toCourse] merges down from the cloud
+        // immortal, because those are stamped manual so a portal refresh
+        // cannot drop them: no roster could retire such a row, and this
+        // device re-uploaded it on every refresh, refilling a term another
+        // device had just reset. [serverKnownNos] is the difference — once
+        // a snapshot has carried the number, absence is a deletion.
         for (course in localCourses) {
-            if (!course.isManual && course.courseNo !in serverNos &&
-                !CourseTombstoneKeys.isHidden(course.courseNo, semester, updated)
-            ) {
-                updated = CourseTombstoneKeys.hide(course.courseNo, semester, updated)
-            }
+            if (course.courseNo in serverNos) continue
+            if (course.isManual && course.courseNo !in serverKnownNos) continue
+            if (CourseTombstoneKeys.isHidden(course.courseNo, semester, updated)) continue
+            updated = CourseTombstoneKeys.hide(course.courseNo, semester, updated)
         }
         // Explicit tombstones from other devices.
         for (courseNo in tombstoneNos) {
@@ -139,7 +158,12 @@ object CourseSyncReconciler {
             .distinctBy { it.courseNo }
             .map(::toCourse)
 
-        return SemesterOutcome(tombstones = updated, merged = merged, uploadLocal = false)
+        return SemesterOutcome(
+            tombstones = updated,
+            merged = merged,
+            uploadLocal = false,
+            serverKnownNos = serverKnownNos + serverNos,
+        )
     }
 
     data class SemesterOutcome(
@@ -147,6 +171,8 @@ object CourseSyncReconciler {
         val merged: List<Course>,
         /** The server had nothing for this term; push the local roster up. */
         val uploadLocal: Boolean,
+        /** Course numbers a snapshot of this term has ever carried. */
+        val serverKnownNos: Set<String> = emptySet(),
     )
 
     /**

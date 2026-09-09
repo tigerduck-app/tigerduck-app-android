@@ -342,6 +342,8 @@ class HomeBackendSync @Inject constructor(
         )
         val rowsBySemester = result.serverCourses.groupBy { it.semester }
         val selectionDropped = dataCache.loadSelectionDroppedNos()
+        val serverKnown = dataCache.loadServerKnownNos()
+        val updatedKnown = serverKnown.toMutableMap()
         var tombstones = migratedTombstones(semesters)
         val tombstonesBefore = tombstones
         val currentSemester = courseService.currentSemesterCode()
@@ -355,9 +357,13 @@ class HomeBackendSync @Inject constructor(
                 serverRows = rowsBySemester[semester].orEmpty(),
                 tombstoneNos = CourseSyncReconciler.tombstoneNosFor(semester, result.tombstones),
                 tombstones = tombstones,
+                serverKnownNos = serverKnown[semester].orEmpty().toSet(),
                 selectionDroppedNos = selectionDropped[semester].orEmpty().toSet(),
             )
             tombstones = outcome.tombstones
+            if (outcome.serverKnownNos.isNotEmpty()) {
+                updatedKnown[semester] = outcome.serverKnownNos.sorted()
+            }
 
             if (outcome.uploadLocal) {
                 runCatching { pushApiClient.uploadCourses(localCourses, semester) }
@@ -374,6 +380,9 @@ class HomeBackendSync @Inject constructor(
 
         if (tombstones != tombstonesBefore) {
             dataCache.saveDeletedCourseNos(tombstones)
+        }
+        if (updatedKnown != serverKnown) {
+            dataCache.saveServerKnownNos(updatedKnown)
         }
         if (touchedCurrent) widgetUpdater.requestUpdate()
     }

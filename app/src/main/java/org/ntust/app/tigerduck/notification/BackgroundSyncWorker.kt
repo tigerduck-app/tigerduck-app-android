@@ -108,25 +108,38 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 // Only this term's server rows may speak for this term. A
                 // flattened set would let a course the student retook next
                 // term un-hide the one they deleted in this one.
-                val serverNosHere = result.serverCourses
+                val filedNosHere = result.serverCourses
                     .filter { it.semester == semester }
                     .filter { CourseSyncReconciler.isFiled(it.moodleId, it.courseNo, semester) }
                     .map { it.courseNo }
                     .toSet()
-                    .ifEmpty { result.serverCourseNos }
+                val serverNosHere = filedNosHere.ifEmpty { result.serverCourseNos }
+                // Same rule as CourseSyncReconciler.reconcileSemester: a
+                // manual course is exempt from server-absence only until a
+                // snapshot has carried it. Without the second half, a row
+                // merged down from the cloud — stamped manual by toCourse —
+                // can never be retired here either, and this worker re-uploads
+                // it behind the user's back.
+                val storedKnown = dataCache.loadServerKnownNos()
+                val knownHere = storedKnown[semester].orEmpty().toSet()
                 for (course in localCourses) {
-                    // Manual (user-local) courses absent from the server may just
-                    // be pending a prior failed upload — never tombstone them here,
-                    // or syncCourses would filter them out of saveCourses permanently.
-                    if (!course.isManual && course.courseNo !in serverNosHere) {
-                        deleted = CourseTombstoneKeys.hide(course.courseNo, semester, deleted)
-                    }
+                    if (course.courseNo in serverNosHere) continue
+                    if (course.isManual && course.courseNo !in knownHere) continue
+                    deleted = CourseTombstoneKeys.hide(course.courseNo, semester, deleted)
                 }
                 for (courseNo in serverNosHere) {
                     deleted = CourseTombstoneKeys.unhide(courseNo, semester, deleted)
                 }
                 if (deleted != stored) {
                     dataCache.saveDeletedCourseNos(deleted)
+                }
+                // Only rows actually filed under this term may be recorded —
+                // the ifEmpty fallback above is a flattened cross-term set and
+                // would tell the next sync the server knows courses it has
+                // never carried for this semester.
+                val grownKnown = knownHere + filedNosHere
+                if (grownKnown != knownHere) {
+                    dataCache.saveServerKnownNos(storedKnown + (semester to grownKnown.sorted()))
                 }
             } else if (prefs.syncCourses) {
                 val localCourses = dataCache.loadCourses()

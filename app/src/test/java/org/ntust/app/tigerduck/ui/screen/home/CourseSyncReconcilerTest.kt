@@ -44,12 +44,14 @@ class CourseSyncReconcilerTest {
         tombstones: Set<String> = emptySet(),
         grace: Set<String> = emptySet(),
         selectionDropped: Set<String> = emptySet(),
+        serverKnown: Set<String> = emptySet(),
     ) = CourseSyncReconciler.reconcileSemester(
         semester = semester,
         localCourses = local,
         serverRows = rows,
         tombstoneNos = tombstoneNos,
         tombstones = tombstones,
+        serverKnownNos = serverKnown,
         graceCourseNos = grace,
         selectionDroppedNos = selectionDropped,
     )
@@ -105,6 +107,47 @@ class CourseSyncReconcilerTest {
             rows = listOf(server("A")),
         )
         assertTrue("a hand-typed course must survive server silence", out.tombstones.isEmpty())
+    }
+
+    @Test
+    fun `a manual course the server HAS listed is tombstoned once it drops off`() {
+        // The reported sync bug. Every row merged down from the cloud is
+        // stamped isManual by `toCourse`, so blanket immunity made it
+        // immortal: no roster could retire it and this device uploaded it
+        // back on every refresh, undoing the other device's reset.
+        val out = reconcile(
+            local = listOf(local("A"), local("M", manual = true)),
+            rows = listOf(server("A")),
+            serverKnown = setOf("M"),
+        )
+        assertEquals(setOf("1141:M"), out.tombstones)
+    }
+
+    @Test
+    fun `the server-known set grows with every term the snapshot lists`() {
+        val out = reconcile(rows = listOf(server("A"), server("B")), serverKnown = setOf("Z"))
+        assertEquals(setOf("A", "B", "Z"), out.serverKnownNos)
+    }
+
+    @Test
+    fun `a term the server has nothing for does not forget what it knew`() {
+        // The empty-server branch returns early. Dropping the set there
+        // would re-arm immunity for every course on the next sync.
+        val out = reconcile(local = listOf(local("A")), serverKnown = setOf("A"))
+        assertEquals(setOf("A"), out.serverKnownNos)
+    }
+
+    @Test
+    fun `a misfiled row does not count as the server knowing that course`() {
+        // A row filed under the wrong term is not a roster, so it must not
+        // strip a hand-typed course of its immunity either.
+        val out = reconcile(
+            semester = "1142",
+            local = listOf(local("M", manual = true)),
+            rows = listOf(server("A", semester = "1142"), server("M", semester = "1142", moodleId = "1151M")),
+        )
+        assertFalse("M" in out.serverKnownNos)
+        assertTrue(out.tombstones.isEmpty())
     }
 
     @Test
