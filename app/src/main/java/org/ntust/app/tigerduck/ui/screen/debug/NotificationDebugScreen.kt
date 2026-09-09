@@ -57,6 +57,8 @@ fun NotificationDebugScreen(onBack: () -> Unit) {
     val sendTest = sendTest@{
         val notification = NotificationCompat.Builder(context, NotificationChannels.BULLETINS)
             .setSmallIcon(R.drawable.ic_notification)
+            // Mirrors the production builders so this preview stays honest.
+            .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
             .setContentTitle("Test notification")
             .setContentText("This is a test notification from the developer menu.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)

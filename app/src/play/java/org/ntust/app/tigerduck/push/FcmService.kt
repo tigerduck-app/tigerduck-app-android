@@ -7,6 +7,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -136,6 +137,8 @@ class FcmService : FirebaseMessagingService() {
             // silhouette; passing the full-color launcher mipmap lets
             // Android fall back to a generic circle.
             .setSmallIcon(R.drawable.ic_notification)
+            // Brand tint for the shade badge; the status-bar glyph stays mono.
+            .setColor(ContextCompat.getColor(this, R.color.duck_yellow))
             // Large icon (rendered in the notification body) is the
             // full-color TigerDuck character — gives the brand visible
             // presence without violating the silhouette-only contract
@@ -199,6 +202,8 @@ class FcmService : FirebaseMessagingService() {
             else NotificationChannels.BULLETINS_SILENT
         val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_notification)
+            // Brand tint for the shade badge; the status-bar glyph stays mono.
+            .setColor(ContextCompat.getColor(this, R.color.duck_yellow))
             // Same brand presence in the notification body as the bulletin
             // path — see showBulletinNotification for the silhouette /
             // large-icon split rationale.

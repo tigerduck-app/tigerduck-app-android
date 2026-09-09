@@ -61,6 +61,8 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
+            // Brand tint for the shade badge; the status-bar glyph stays mono.
+            .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
             .setContentTitle(
                 context.getString(R.string.notification_class_preparing_title, courseName)
             )
