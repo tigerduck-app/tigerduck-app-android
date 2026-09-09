@@ -64,8 +64,13 @@ Unsigned because fork PRs cannot read the `KEYSTORE_*` secrets.
 
 ### `pr-checklist.yaml`
 
-Posts the target-branch checklist as a PR comment and holds a commit status
-until every box is ticked. Re-evaluates on PR edits and on comment activity.
+Posts the target-branch checklist as a PR comment and reports how many boxes
+are still unticked. Re-evaluates on PR edits and on comment activity.
+
+The `pr-checklist` commit status is **informational only** — it is always set to
+`success`, so it never blocks a merge. The real gate is the team-approval
+ruleset on `dev` / `main`; the status description just saves reviewers from
+expanding the bot comment to see whether the author ticked anything.
 
 ### `submodules-up-to-date.yaml`
 
@@ -75,9 +80,26 @@ submodule references.
 
 ### `version-bumped.yaml`
 
-Runs on PRs to `main`. Verifies `versionCode` and `versionName` have been bumped
-relative to the base branch, so a release tag cut from `main` always carries a
-fresh version.
+Runs on PRs to `main`. Verifies the version has been bumped relative to the base
+branch across all three version-carrying files, so a release tag cut from `main`
+always carries a fresh version:
+
+- `app/build.gradle.kts` — phone `versionCode` / `versionName`
+- `wear/build.gradle.kts` — watch `versionCode` / `versionName`
+- `metadata/org.ntust.app.tigerduck.fdroid.yml` — `Builds.versionCode`,
+  `CurrentVersionCode`, `Builds.versionName`, `CurrentVersion`
+
+It also enforces cross-file consistency, which is the part that bites:
+
+- The F-Droid metadata `versionCode` must **equal** the Gradle one, and its
+  `versionName` must be exactly `<gradle versionName>-fdroid`.
+- The watch `versionCode` and `versionName` must **match the phone exactly**
+  ("wear ships in lockstep with the phone Play APK").
+
+That last rule is load-bearing to know about: Google Play requires every
+artifact under one package name to carry a *distinct* `versionCode`, so shipping
+the wear AAB alongside the phone AAB in a single Play release means relaxing
+this equality check first. Both modules currently declare `versionCode = 23`.
 
 ### `whatsnew-has-version.yaml`
 

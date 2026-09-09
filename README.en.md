@@ -21,11 +21,11 @@
 
 ## Overview
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/0557da5b-f168-48b1-ab88-5f038ede7642">
-  <source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/521e2b57-eb1c-46d2-99e8-b16de026578c">
-  <img align="right" width="323" height="682" alt="Dark" src="https://github.com/user-attachments/assets/521e2b57-eb1c-46d2-99e8-b16de026578c">
-</picture>
+<div align="center">
+  <img width="300" alt="TigerDuck on the phone" src="readme-assets/images/phone-en.png">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img width="220" alt="TigerDuck on Wear OS" src="readme-assets/images/watch-en.png">
+</div>
 
 TigerDuck is a campus companion app built by a group of students at **NTUST**.  
 It was created to solve common pain points: scattered resources, delayed notifications, and
@@ -79,6 +79,12 @@ even more OAO!
 - Editable tabs, freely add/remove home sections, accent color theming
 - Per-scenario haptics — toggle each one independently (including the flip-to-QR gesture)
 
+### ☁️ **Cross-Device Sync** (TigerSync)
+
+- Pick **per item** what syncs: class table, courses, assignments, course colors, custom course names
+- **Cross-platform** — macOS, iPad, iPhone, and Android all sync together once TigerSync is on
+- Anything you leave off stays on this device; turn sync off and nothing leaves the device at all
+
 ### 🔄 **Auto-Update** (Play only)
 
 - Play In-App Update FLEXIBLE flow built in — proactively prompts when a new version ships
@@ -90,9 +96,9 @@ even more OAO!
 - **Today** list and per-course detail screen
 - **Tile** and **Complication** to surface the next class on the watch face
 - Auto-syncs schedule, locale, and accent color from the phone over the Wearable Data Layer
+- **Library entry QR on your wrist** — credentials are pushed encrypted from the phone and the watch
+  refreshes them itself, so you never have to dig the phone out
 - Tap the empty state on the watch to open TigerDuck on the paired phone
-
-<br clear="right"/>
 
 ## Roadmap
 
@@ -160,6 +166,8 @@ even more OAO!
 - [x] **Tile and Complication** — Surface the next class directly on the home screen / watch face
 - [x] **Phone ↔ Watch sync** — Schedule, auth state, locale, and accent color over the Wearable Data
   Layer
+- [x] **Library entry QR on the watch** — Credentials pushed encrypted from the phone, stored
+  encrypted on the watch, and refreshed automatically
 - [x] **Empty-state wake** — Tap on the watch to open TigerDuck on the phone
 
 ## System Requirements
@@ -167,7 +175,7 @@ even more OAO!
 | Item        | Requirement                                                              |
 |-------------|--------------------------------------------------------------------------|
 | OS          | Android 10 (API 29) or later                                             |
-| Wear OS     | Wear OS 4 (API 30) or later, paired with the Play build of the phone app |
+| Wear OS     | Wear OS 3 (API 30) or later, paired with the Play build of the phone app |
 | SSO Account | Student account (required for some features)                             |
 | Library     | Library account (required for some features)                             |
 
@@ -246,7 +254,7 @@ submodule and are shared with the iOS client.
 - Generated outputs in `app-translation/generated/`:
     - Android: `android/values/strings.xml` (Traditional Chinese as default),
       `android/values-<lang>/strings.xml`
-    - iOS: `ios/<lang>.lproj/Localizable.strings`
+    - Apple (iOS / macOS): `apple/<lang>.lproj/Localizable.strings`
 - The Android app's `app/src/main/res/values*/strings.xml` is overwritten by the same script — **do
   not** edit generated files by hand.
 
@@ -256,8 +264,13 @@ Run a one-shot sync:
 python3 tools/localization/sync_localizations.py
 ```
 
-The Android build wires this in automatically (`preBuild` depends on `syncLocalizations`), so
-editing `app-translation/source/*.json` regenerates Android/iOS outputs before each build.
+Gradle can also run it before a build, but this is **opt-in**: `syncLocalizations` is only wired
+into `preBuild` when you pass `-PsyncLocalizations` (see `app/build.gradle.kts` and
+`wear/build.gradle.kts`):
+
+```bash
+./gradlew :app:assemblePlayDebug -PsyncLocalizations
+```
 
 For new locales or strings, open a separate PR against the
 [`app-translation/`](https://github.com/tigerduck-app/app-translation) submodule — do **not** edit
@@ -276,11 +289,9 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 ├── app/                                # Phone app (fdroid / play flavors)
 │   ├── build.gradle.kts
 │   └── src/main/java/org/ntust/app/tigerduck/
-│       ├── announcements/              # Bulletin feed, LLM categories, subscription rules
 │       ├── auth/                       # NTUST SSO authentication, login state
 │       ├── data/
 │       │   ├── cache/                  # File cache
-│       │   ├── local/                  # Room data layer
 │       │   ├── model/                  # Domain / DTO models
 │       │   └── preferences/            # App preferences and credential vault (EncryptedSharedPreferences)
 │       ├── debug/                      # Developer tools incl. debug clock + API endpoint override
@@ -299,6 +310,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 │       │   │   ├── home/               # Home (Time Slider, assignments, customizable sections)
 │       │   │   ├── classtable/         # Class table
 │       │   │   ├── calendar/           # Calendar
+│       │   │   ├── announcements/      # Bulletin feed, LLM categories, subscriptions
 │       │   │   ├── library/            # Library
 │       │   │   ├── score/              # Historical GPA & rankings
 │       │   │   ├── more/               # "More" hub
@@ -326,7 +338,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 │   └── libs.versions.toml              # Version Catalog
 ├── app-translation/                    # ⤴ git submodule: 65 locale translations (incl. `watch_*` keys)
 ├── name-abbr/                          # ⤴ git submodule: course / classroom abbreviations
-├── tools/localization/                 # Translation sync script (auto-triggered by preBuild)
+├── tools/localization/                 # Translation sync script (opt in via -PsyncLocalizations)
 ├── build.gradle.kts
 └── settings.gradle.kts
 ```
@@ -341,7 +353,9 @@ Before submitting, please make sure to:
 2. Run at least `:app:compileFdroidDebugKotlin` / `:app:compilePlayDebugKotlin` or
    `:app:assembleFdroidDebug` / `:app:assemblePlayDebug` once
 3. Name your branch using `feature/your-feature` or `fix/your-fix`
-4. Target the `dev` branch when opening a PR, and enable Copilot review
+4. Target the `dev` branch when opening a PR, and tick every box on the pre-merge checklist the bot
+   posts (the `main` variant additionally asks you to run the three `debug/` scripts, verify the
+   upgrade path from the previous release, and update `app/src/main/assets/whatsnew.json`)
 5. For translation strings, open a separate PR against the
    [`app-translation/`](https://github.com/tigerduck-app/app-translation) submodule — do **not** edit
    generated files
