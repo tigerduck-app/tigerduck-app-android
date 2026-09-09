@@ -331,19 +331,19 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private suspend fun migrateColorHashIfNeeded() {
-        if (prefs.colorHashV2Migrated) return
-        if (!prefs.cloudSyncEnabled) {
-            prefs.colorHashV2Migrated = true
-            return
-        }
-        val courses = dataCache.loadCourses()
-        if (courses.isNotEmpty()) {
-            val cleared = courses.map { it.copy(customColorHex = null) }
-            dataCache.saveCourses(cleared)
-        }
-        prefs.colorHashV2Migrated = true
-    }
+    // A `migrateColorHashIfNeeded()` used to run here, clearing every cached
+    // customColorHex so the v2 hash palette could take over — safe, it
+    // assumed, because cloudSyncEnabled meant the user's real picks would come
+    // back down on the next sync. That flag defaults to true, so it is also
+    // true for a v1.4.4 user who has never synced anything, and v1.4.4 had no
+    // course-override upload at all: the wipe took every hand-picked colour
+    // and there was nothing on the server to restore it from.
+    //
+    // Removed rather than disarmed, because it had nothing to fix either.
+    // customColorHex only ever holds an explicit choice (the colour picker, or
+    // Settings > randomise all); the courses the hash decides are the ones
+    // with no pin, and those recompute on their own in
+    // buildCourseColorAssignments.
 
     private var hasLoaded = false
 
@@ -352,7 +352,6 @@ class HomeViewModel @Inject constructor(
         hasLoaded = true
 
         viewModelScope.launch {
-            migrateColorHashIfNeeded()
             // _skippedDates.value = dataCache.loadSkippedDates()
             _ignoredAssignmentIds.value = dataCache.loadIgnoredAssignments()
             _markedCompletedIds.value = dataCache.loadMarkedCompletedAssignments()
