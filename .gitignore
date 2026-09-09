@@ -1080,3 +1080,8 @@ FodyWeavers.xsd
 # script and fixture JSON living next to it are meant to be tracked, and that
 # distinction is worth stating where someone will look for it.
 debug/screenshot/out/
+
+# Kotlin build-tool session files (KGP 2.x writes these next to the project
+# root). Pure build state — they were briefly committed by an over-broad
+# `git add -A` and are here so that cannot repeat.
+.kotlin/
