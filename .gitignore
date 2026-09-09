@@ -706,6 +706,9 @@ mono_crash.*
 !app/src/fdroid/java/org/ntust/app/tigerduck/debug/
 !app/src/debug/java/org/ntust/app/tigerduck/debug/
 !app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/
+!wear/src/debug/
+!wear/src/debug/java/org/ntust/app/tigerduck/wear/debug/
+!wear/src/main/java/org/ntust/app/tigerduck/wear/debug/
 # Root-level developer scripts + docs, not a build-output directory.
 !/debug/
 x64/
