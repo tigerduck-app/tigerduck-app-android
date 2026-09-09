@@ -59,4 +59,26 @@ class DataCacheParseTest {
         )
         assertNull(result)
     }
+
+    /**
+     * `score_<id>.json` is read across upgrades and `ScoreReportSnapshot`'s
+     * fields were made nullable for exactly this reason (Gson bypasses the
+     * constructor). A snapshot whose keys are absent or explicitly null must
+     * parse into null fields rather than throw, so a stale or truncated file
+     * degrades to "no cached report" instead of crashing the Score screen.
+     */
+    @Test
+    fun `score report snapshot with absent or null fields parses to nulls`() {
+        val type = object : TypeToken<DataCache.ScoreReportSnapshot>() {}.type
+        val absent: DataCache.ScoreReportSnapshot? =
+            DataCache.parseJsonIfContains("{}", null, gson, type)
+        assertNull(absent!!.report)
+        assertNull(absent.cachedAt)
+
+        val explicitNull: DataCache.ScoreReportSnapshot? = DataCache.parseJsonIfContains(
+            """{"report":null,"cachedAt":null}""", null, gson, type,
+        )
+        assertNull(explicitNull!!.report)
+        assertNull(explicitNull.cachedAt)
+    }
 }
