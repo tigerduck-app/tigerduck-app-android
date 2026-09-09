@@ -103,16 +103,21 @@ class LiveActivityManager @Inject constructor(
             return
         }
         val now = Date(AppClock.nowMillis())
-        // Classes do not meet on a school holiday, so neither the chip nor
-        // the class-preparing alarm should surface one. Read once and used
-        // for both so a holiday starting between the two calls cannot leave
-        // them disagreeing.
+        // Classes do not meet on a school holiday, nor before 開學 — 選課 fills
+        // the timetable weeks ahead of the term, so having courses is not
+        // evidence that classes have started. Neither the chip nor the
+        // class-preparing alarm should surface one on such a day. Read once
+        // and used for both so a flip between the two calls cannot leave them
+        // disagreeing.
         val calendar = academicCalendar.current()
         val optedIn = academicCalendar.optedInHolidayIds
-        val onHoliday = calendar.suppressesClasses(
-            AppClock.localDateTime().toLocalDate(), optedIn
-        )
-        val courses = if (onHoliday) emptyList() else dataCache.loadCourses()
+        val today = AppClock.localDateTime().toLocalDate()
+        val quietToday =
+            !calendar.isInSession(today) || calendar.suppressesClasses(today, optedIn)
+        // Emptying the list is what gates the resolver, which is pure and
+        // takes no calendar of its own — and scheduleBoundaryRefresh reads the
+        // same list, so no boundary alarm is armed for a quiet day either.
+        val courses = if (quietToday) emptyList() else dataCache.loadCourses()
         val assignments = dataCache.loadAssignments()
         // 翹課 parked — see DataCache's skipped-dates section. Not read, so
         // pre-v2.0.0 marks can't suppress a class the user can no longer unskip.
@@ -134,7 +139,7 @@ class LiveActivityManager @Inject constructor(
             Log.d(
                 TAG,
                 "no live update at $now: courses=${courses.size} " +
-                    "assignments=${assignments.size} onHoliday=$onHoliday",
+                    "assignments=${assignments.size} quietToday=$quietToday",
             )
         }
         notifier.apply(snapshot)

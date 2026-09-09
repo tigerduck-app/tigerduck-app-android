@@ -45,16 +45,22 @@ object WidgetDataLoader {
         val weekday = cal.toWeekday()
         val minuteOfDay = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
 
-        // Classes do not meet on a school holiday, so the "now / next"
-        // derivations go quiet — that is what the Next-class widget renders.
+        // Classes do not meet on a school holiday, nor before 開學 — 選課 fills
+        // the timetable weeks ahead of the term, so having courses is not
+        // evidence that classes have started. Either way the "now / next"
+        // derivations go quiet, which is what the Next-class widget renders.
         // `courses` is deliberately left alone: the Today and Week grids show
-        // the timetable itself, which stays useful on a day off.
+        // the timetable itself, which stays useful on a day off, and Today
+        // does its own term filtering off [WidgetState.isTermInSession].
         val calendarStore = entry.academicCalendar()
         val calendar = calendarStore.current()
         val optedIn = calendarStore.optedInHolidayIds
         val today = AppClock.localDateTime().toLocalDate()
-        val quietToday = calendar.suppressesClasses(today, optedIn)
-        val quietTomorrow = calendar.suppressesClasses(today.plusDays(1), optedIn)
+        val tomorrow = today.plusDays(1)
+        val inSession = calendar.isInSession(today)
+        val quietToday = !inSession || calendar.suppressesClasses(today, optedIn)
+        val quietTomorrow =
+            !calendar.isInSession(tomorrow) || calendar.suppressesClasses(tomorrow, optedIn)
 
         val ongoingInfos =
             if (quietToday) emptyList() else computeOngoingCourses(courses, weekday, minuteOfDay)
@@ -78,6 +84,7 @@ object WidgetDataLoader {
             currentWeekday = weekday,
             currentMinuteOfDay = minuteOfDay,
             isLoggedIn = isLoggedIn,
+            isTermInSession = inSession,
             ongoingCourseNos = ongoingNos,
             nextCourseTodayNo = nextCourseTodayNo,
             tomorrowFirstCourseNo = tomorrowFirst?.courseNo,

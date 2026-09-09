@@ -10,7 +10,12 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -18,6 +23,12 @@ import java.time.Instant
 import java.time.ZoneId
 
 class ClassPreparingNotificationReceiver : BroadcastReceiver() {
+
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    internal interface Deps {
+        fun academicCalendar(): AcademicCalendarStore
+    }
 
     override fun onReceive(rawContext: Context, intent: Intent) {
         // Receiver contexts carry the SYSTEM locale, not the user's in-app
@@ -36,6 +47,24 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         // collide the way slotId.hashCode() could.
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, -1)
         if (notificationId < 0) return
+
+        // Defence in depth for the term gate, which primarily lives in
+        // ClassPreparingNotificationScheduler.upcomingSlots. v1.4.3 armed these
+        // alarms for pre-開學 days, and an AlarmManager entry outlives the
+        // upgrade until the next scheduleAll cancels it — which only happens on
+        // the next sync or Live Update refresh. Until then a stale alarm would
+        // still land here and post, so re-check at the point of posting rather
+        // than trusting that the alarm should have existed at all. An empty
+        // calendar reads as in session, so a device that has never reached the
+        // backend keeps the reminders it had.
+        val startDate = runCatching {
+            Instant.ofEpochMilli(startMs).atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
+        }.getOrNull() ?: return
+        val calendar = EntryPointAccessors
+            .fromApplication(rawContext.applicationContext, Deps::class.java)
+            .academicCalendar()
+            .current()
+        if (!calendar.isInSession(startDate)) return
         // The lead-time extra lets us auto-cancel the "即將上課" notification when
         // class actually starts: post-time + leadTimeMs ≈ classStart. Without it
         // (older intents from before the field existed) we fall back to manual

@@ -44,7 +44,12 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, tapAction: Action
     val isWeekend = today == 6 || today == 7
     val order = AppConstants.Periods.chronologicalOrder
 
-    val todayCourses = state.courses
+    // Today is a "today"-scoped surface, so it stays empty until 開學 — the
+    // timetable is cached weeks ahead and would otherwise list classes for a
+    // term that has not started. Filtered here rather than in WidgetDataLoader
+    // because this reads `state.courses` directly, and the Week grid shares
+    // that list and deliberately keeps rendering outside the term.
+    val todayCourses = (if (state.isTermInSession) state.courses else emptyList())
         .filter { it.schedule.containsKey(today) }
         .sortedBy { course ->
             course.schedule[today]!!

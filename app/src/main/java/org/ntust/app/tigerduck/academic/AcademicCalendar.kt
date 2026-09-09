@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.academic
 
+import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.network.model.AcademicCalendarDto
 import java.time.LocalDate
 
@@ -77,6 +78,29 @@ data class AcademicCalendar(
      */
     fun isInSession(today: LocalDate): Boolean =
         terms.isEmpty() || terms.any { it.contains(today) }
+
+    /**
+     * The midnights at which [isInSession] changes its answer — every
+     * published term's 開學日, and the day after its 結業日.
+     *
+     * Nothing announces a term flip on its own. The widgets' refresh chain is
+     * driven by class times, so the first thing that would redraw them after
+     * 開學 is the first class boundary of 開學日 — leaving the pre-term empty
+     * state up through the whole first morning of the term, which is the
+     * morning students are most likely to look. Same shape at 結業. See
+     * [org.ntust.app.tigerduck.widget.WidgetBoundaryScheduler.chooseTriggerMillis].
+     *
+     * Empty for an empty calendar, which lands callers on the plain class
+     * boundary they used before the feed existed.
+     */
+    fun termFlipMillis(): List<Long> = terms.flatMap { term ->
+        listOfNotNull(startOfDayMillis(term.start), startOfDayMillis(term.end.plusDays(1)))
+    }
+
+    /** Null rather than a sentinel: an unbuildable date is simply not a flip. */
+    private fun startOfDayMillis(date: LocalDate): Long? = runCatching {
+        date.atStartOfDay(AppConstants.TAIPEI_ZONE).toInstant().toEpochMilli()
+    }.getOrNull()
 
     fun holidaysOn(date: LocalDate): List<Holiday> = holidays.filter { it.contains(date) }
 

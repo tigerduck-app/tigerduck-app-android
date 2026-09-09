@@ -202,10 +202,15 @@ class ClassPreparingNotificationScheduler @Inject constructor(
                 in 1..7 -> date.dayOfWeek.value // Monday=1 .. Sunday=7
                 else -> continue
             }
+            // No 即將上課 alarms outside the term. The timetable is populated
+            // weeks before 開學 (選課 opens ahead of the term), so an install in
+            // late August would otherwise arm reminders for classes that have
+            // not started.
+            if (!calendar.isInSession(date)) continue
             // Classes do not meet on a school holiday, so nothing should be
-            // scheduled for that day at all. Checked per day rather than at
-            // the call site because this loop reaches ten days ahead and a
-            // holiday can start partway through that window.
+            // scheduled for that day at all. Both checks are per day rather
+            // than at the call site because this loop reaches ten days ahead
+            // and either 開學 or a holiday can land partway through that window.
             if (calendar.suppressesClasses(date, optedInHolidayIds)) continue
             val isoDate = date.toString()
             for (course in courses) {
