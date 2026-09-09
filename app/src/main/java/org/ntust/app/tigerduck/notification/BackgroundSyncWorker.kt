@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
+import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.network.CourseService
@@ -197,6 +198,10 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 selectionDef.await() to moodleDef.await()
             }
 
+            // Before the merge below rewrites the cache — see
+            // DataCache.recordSelectionRoster.
+            selectionNos?.let { dataCache.recordSelectionRoster(semester, it) }
+
             if (selectionNos == null && moodleAll == null) return false
             // With 選課 gated off, Moodle is the only source — its failure is
             // a total failure, so retry rather than report success on an
@@ -207,10 +212,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 .filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }
             val moodleByNo = moodleForSemester.associateBy { it.courseNo }
 
-            val orderedCourseNos = LinkedHashSet<String>().apply {
-                selectionNos?.forEach { add(it) }
-                moodleForSemester.forEach { add(it.courseNo) }
-            }.toList()
+            val orderedCourseNos =
+                CourseRosterMerge.rosterOrder(selectionNos, moodleForSemester)
 
             if (orderedCourseNos.isEmpty()) return true
 

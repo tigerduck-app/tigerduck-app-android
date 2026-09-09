@@ -63,6 +63,16 @@ object CourseSyncReconciler {
      * [tombstoneNos] this term's `course_tombstones`. Returns the new
      * tombstone set and the rows to merge locally, or null for [merged] when
      * the caller should skip the cache write.
+     *
+     * [selectionDroppedNos] is this term's entry from
+     * [DataCache.loadSelectionDroppedNos] — courses 選課 stopped listing.
+     * Their rows are dropped up front rather than merged, because an upload
+     * never prunes: the backend still carries a course the student dropped in
+     * 加退選 until someone deletes it explicitly, and merging it back would
+     * put it on the timetable as a manual course, where a later refresh is
+     * required to preserve it. Dropping the row before anything else also
+     * keeps it from counting as evidence of presence further down, which
+     * would otherwise un-hide it.
      */
     fun reconcileSemester(
         semester: String,
@@ -71,9 +81,14 @@ object CourseSyncReconciler {
         tombstoneNos: Set<String>,
         tombstones: Set<String>,
         graceCourseNos: Set<String> = emptySet(),
+        selectionDroppedNos: Set<String> = emptySet(),
     ): SemesterOutcome {
-        // Misfiled rows are neither a roster nor evidence of presence.
-        val rows = serverRows.filter { isFiled(it.moodleId, it.courseNo, semester) }
+        // Misfiled rows are neither a roster nor evidence of presence, and
+        // neither is a course 選課 has dropped.
+        val rows = serverRows.filter {
+            isFiled(it.moodleId, it.courseNo, semester) &&
+                it.courseNo !in selectionDroppedNos
+        }
         val serverNos = rows.map { it.courseNo }.toSet()
 
         // Nothing uploaded for this term yet — first sync, or another device

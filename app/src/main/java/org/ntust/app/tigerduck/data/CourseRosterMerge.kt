@@ -20,24 +20,69 @@ import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 object CourseRosterMerge {
 
     /**
-     * Merge the two enrolment sources into one ordered, de-duplicated roster.
+     * The course numbers a term renders, in source priority order, deduped.
      *
-     * NTUST's 選課 list comes first because it is the authoritative
-     * enrolment record and its order is the one the user recognises; Moodle
-     * contributes anything 選課 missed (cross-listed courses, late adds).
-     * Insertion-ordered and de-duplicated, so a course in both appears once,
-     * in its 選課 position.
+     * **A non-empty 選課 answer owns its term outright.** Moodle keeps an
+     * enrolment after the student drops the class and gains one only once
+     * the teacher opens the course, so during 加退選 the two disagree in both
+     * directions: a dropped course lingers there for days, and a just-added
+     * one is missing. Letting Moodle top up the roster put the dropped course
+     * back on the timetable — which is why it no longer does. A course 選課
+     * lists but Moodle has not caught up with still renders; it simply has no
+     * Moodle link until the binding resolves.
      *
-     * [selectionCourseNos] is null when the 選課 scrape failed — distinct
-     * from empty, which means "asked, enrolled in nothing".
+     * [selectionCourseNos] is null when the scrape failed and empty when 選課
+     * serves another term or the page yielded nothing. Both mean the same
+     * thing here — **Moodle is the source** — because the scrape is a regex
+     * over HTML, and a layout change returns zero matches rather than an
+     * error. "Everything was dropped" and "the parser broke" are
+     * indistinguishable, and only one of them may blank a timetable.
+     *
+     * Matches iOS `AppServiceBridge.enrolledCourseNos`, minus its transcript
+     * source, which Android has no equivalent of.
      */
     fun rosterOrder(
         selectionCourseNos: List<String>?,
         moodleForSemester: List<MoodleEnrolledCourse>,
-    ): List<String> = LinkedHashSet<String>().apply {
-        selectionCourseNos?.forEach { add(it) }
-        moodleForSemester.forEach { add(it.courseNo) }
-    }.toList()
+    ): List<String> {
+        val candidates = if (!selectionCourseNos.isNullOrEmpty()) {
+            selectionCourseNos
+        } else {
+            moodleForSemester.map { it.courseNo }
+        }
+        return LinkedHashSet<String>().apply {
+            candidates.forEach { if (it.isNotEmpty()) add(it) }
+        }.toList()
+    }
+
+    /**
+     * The courses 選課 has stopped listing for one term, updated from one
+     * successful, non-empty answer.
+     *
+     * Only a drop this device actually witnessed goes in: [localPortalNos]
+     * are the portal courses it is holding right now, so the difference
+     * against [roster] is exactly what 加退選 just removed. That temporal
+     * check is the whole point — a snapshot cannot tell a dropped course
+     * from a course another device added by hand, since neither is in 選課
+     * and the uploaded rows look identical. A manual course from elsewhere
+     * was never in this device's roster, so it is never in the difference.
+     *
+     * Anything 選課 lists again is cleared, so re-adding a course in 加退選
+     * brings it straight back.
+     *
+     * Call only with a non-empty [roster]: an empty answer means the scrape
+     * was not consulted or the page drifted, and would read as "everything
+     * was dropped". See [rosterOrder].
+     */
+    fun selectionDrops(
+        previous: Set<String>,
+        localPortalNos: List<String>,
+        roster: List<String>,
+    ): Set<String> {
+        if (roster.isEmpty()) return previous
+        val enrolled = roster.toSet()
+        return (previous + localPortalNos).filterNot { it in enrolled }.toSet()
+    }
 
     /**
      * Moodle enrolments that belong to [semester] and carry a usable course

@@ -750,6 +750,9 @@ class ClassTableViewModel @Inject constructor(
                 selectionDef.await() to moodleDef.await()
             }
             Log.i("ClassTableVM", "selectionNos=${selectionNos.size} -> $selectionNos")
+            // Before the merge below rewrites the cache — see
+            // DataCache.recordSelectionRoster.
+            dataCache.recordSelectionRoster(semester, selectionNos)
             Log.i(
                 "ClassTableVM",
                 "moodleAll=${moodleAll.size} sampleIdnums=${

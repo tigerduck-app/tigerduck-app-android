@@ -582,6 +582,10 @@ class HomeViewModel @Inject constructor(
         }
 
         val courseNos = courseNosDef.await()
+        // Before anything overwrites the cache: a course that was in the
+        // portal roster and is not in this answer was dropped in 加退選, and
+        // the backend will keep serving it until someone deletes it by hand.
+        courseNos?.let { dataCache.recordSelectionRoster(semester, it) }
         val moodleEnrolled = moodleEnrolledDef.await()
         val moodleForSemester = CourseRosterMerge.moodleCoursesFor(semester, moodleEnrolled)
         val moodleByNo = moodleForSemester.associateBy { it.courseNo }

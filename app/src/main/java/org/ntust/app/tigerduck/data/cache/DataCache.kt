@@ -5,6 +5,7 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.network.SemesterCodes
 import org.ntust.app.tigerduck.shared.clock.AppClock
@@ -258,6 +259,53 @@ class DataCache @Inject constructor(
         return loadFromUserData(type, "course_custom_names.json") ?: emptyMap()
     }
 
+    // --- Courses 選課 stopped listing (semester → courseNos) ---
+    // Written when a successful, non-empty 選課 answer no longer names a
+    // course this device holds — a 加退選 drop. Read by the sync reconcile,
+    // which would otherwise merge the row the backend still carries straight
+    // back onto the timetable, since an upload never prunes and only an
+    // explicit DELETE writes a tombstone.
+    //
+    // Deliberately NOT the deleted_courses.json tombstone set: that one is
+    // driven by the server ("absent there → hide, present there → un-hide"),
+    // so a 選課-driven entry would be un-hidden by the next sync. This one
+    // answers a different question and only 選課 may add to or clear it.
+    // Stored in filesDir so a drop survives cache eviction.
+
+    /**
+     * Fold one successful 選課 answer for [semester] into the dropped set.
+     *
+     * Must be called *before* the fetch overwrites the course cache: the
+     * courses on disk right now are what the answer is diffed against, and
+     * once they are replaced the drop is no longer visible to anyone.
+     *
+     * Lives here rather than in the three fetch paths that call it — Home,
+     * the class table and the background worker — because those three have
+     * already grown one duplicated roster merge between them, and this is
+     * load and save either side of one line of rule.
+     */
+    suspend fun recordSelectionRoster(semester: String, roster: List<String>) {
+        if (roster.isEmpty()) return
+        val stored = loadSelectionDroppedNos()
+        val updated = CourseRosterMerge.selectionDrops(
+            previous = stored[semester].orEmpty().toSet(),
+            localPortalNos = loadCourses(semester).filterNot { it.isManual }.map { it.courseNo },
+            roster = roster,
+        )
+        if (updated == stored[semester].orEmpty().toSet()) return
+        saveSelectionDroppedNos(
+            if (updated.isEmpty()) stored - semester else stored + (semester to updated.toList())
+        )
+    }
+
+    suspend fun saveSelectionDroppedNos(dropped: Map<String, List<String>>) =
+        saveToUserData(dropped, "selection_dropped.json")
+
+    suspend fun loadSelectionDroppedNos(): Map<String, List<String>> {
+        val type = object : TypeToken<Map<String, List<String>>>() {}.type
+        return loadFromUserData(type, "selection_dropped.json") ?: emptyMap()
+    }
+
     // --- Deleted Course Nos (hidden by user or server) ---
     // Stored in filesDir so courses hidden via sync or the delete gesture
     // stay gone even when Moodle/NTUST re-fetches re-add them.
@@ -436,6 +484,7 @@ class DataCache @Inject constructor(
                     "marked_completed_assignments.json",
                     "deleted_courses.json",
                     "course_custom_names.json",
+                    "selection_dropped.json",
                 ).forEach { name ->
                     runCatching { File(userDataDir, name).delete() }
                 }

@@ -341,6 +341,7 @@ class HomeBackendSync @Inject constructor(
             catalogue = semesterCatalog.availableSemesters(),
         )
         val rowsBySemester = result.serverCourses.groupBy { it.semester }
+        val selectionDropped = dataCache.loadSelectionDroppedNos()
         var tombstones = migratedTombstones(semesters)
         val tombstonesBefore = tombstones
         val currentSemester = courseService.currentSemesterCode()
@@ -354,6 +355,7 @@ class HomeBackendSync @Inject constructor(
                 serverRows = rowsBySemester[semester].orEmpty(),
                 tombstoneNos = CourseSyncReconciler.tombstoneNosFor(semester, result.tombstones),
                 tombstones = tombstones,
+                selectionDroppedNos = selectionDropped[semester].orEmpty().toSet(),
             )
             tombstones = outcome.tombstones
 

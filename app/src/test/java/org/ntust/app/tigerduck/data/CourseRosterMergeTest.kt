@@ -44,13 +44,18 @@ class CourseRosterMergeTest {
 
     // --- roster ------------------------------------------------------------
 
+    /**
+     * The 加退選 case. "C" is a course the student dropped in 選課 that Moodle
+     * has not let go of yet; topping the roster up with Moodle would put it
+     * back on the timetable for however many days that takes.
+     */
     @Test
-    fun `selection order leads and moodle fills the gaps`() {
+    fun `a selection answer owns its term and moodle adds nothing`() {
         val order = CourseRosterMerge.rosterOrder(
-            selectionCourseNos = listOf("B", "A"),
+            selectionCourseNos = listOf("B", "A", "B"),
             moodleForSemester = listOf(moodle("C", "1131"), moodle("A", "1131")),
         )
-        assertEquals(listOf("B", "A", "C"), order)
+        assertEquals(listOf("B", "A"), order)
     }
 
     @Test
@@ -60,6 +65,78 @@ class CourseRosterMergeTest {
             moodleForSemester = listOf(moodle("C", "1131")),
         )
         assertEquals(listOf("C"), order)
+    }
+
+    /**
+     * Empty is not "enrolled in nothing" — the scrape is a regex over HTML, so
+     * a layout change reads as zero matches rather than as an error. It also
+     * covers the terms 選課 does not serve, where the caller passes empty.
+     */
+    @Test
+    fun `an empty selection answer falls back to moodle rather than blanking the term`() {
+        val order = CourseRosterMerge.rosterOrder(
+            selectionCourseNos = emptyList(),
+            moodleForSemester = listOf(moodle("C", "1131"), moodle("D", "1131")),
+        )
+        assertEquals(listOf("C", "D"), order)
+    }
+
+    // --- 選課 drops -------------------------------------------------------
+
+    /**
+     * The drop this device witnessed: "C" was in the portal roster and this
+     * answer no longer names it.
+     */
+    @Test
+    fun `a course the answer no longer names is recorded as dropped`() {
+        val dropped = CourseRosterMerge.selectionDrops(
+            previous = emptySet(),
+            localPortalNos = listOf("A", "B", "C"),
+            roster = listOf("A", "B"),
+        )
+        assertEquals(setOf("C"), dropped)
+    }
+
+    /**
+     * The reason drops are recorded from a diff rather than read off a
+     * snapshot: a course another device added by hand is not in 選課 either,
+     * and the uploaded rows are indistinguishable. It was never in this
+     * device's portal roster, so it is never in the difference.
+     */
+    @Test
+    fun `a course this device never held is not treated as a drop`() {
+        val dropped = CourseRosterMerge.selectionDrops(
+            previous = emptySet(),
+            localPortalNos = listOf("A"),
+            roster = listOf("A"),
+        )
+        assertTrue(dropped.isEmpty())
+    }
+
+    /** Re-adding in 加退選 clears the entry, so the course comes straight back. */
+    @Test
+    fun `a course the answer names again is cleared`() {
+        val dropped = CourseRosterMerge.selectionDrops(
+            previous = setOf("C", "D"),
+            localPortalNos = listOf("A"),
+            roster = listOf("A", "C"),
+        )
+        assertEquals(setOf("D"), dropped)
+    }
+
+    /**
+     * An empty answer means 選課 was not consulted or the scrape drifted —
+     * never "everything was dropped". Callers guard it too; this is the
+     * second lock on a rule that would blank a whole term.
+     */
+    @Test
+    fun `an empty answer records nothing and clears nothing`() {
+        val dropped = CourseRosterMerge.selectionDrops(
+            previous = setOf("C"),
+            localPortalNos = listOf("A", "B"),
+            roster = emptyList(),
+        )
+        assertEquals(setOf("C"), dropped)
     }
 
     @Test

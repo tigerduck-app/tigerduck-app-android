@@ -43,6 +43,7 @@ class CourseSyncReconcilerTest {
         tombstoneNos: Set<String> = emptySet(),
         tombstones: Set<String> = emptySet(),
         grace: Set<String> = emptySet(),
+        selectionDropped: Set<String> = emptySet(),
     ) = CourseSyncReconciler.reconcileSemester(
         semester = semester,
         localCourses = local,
@@ -50,7 +51,46 @@ class CourseSyncReconcilerTest {
         tombstoneNos = tombstoneNos,
         tombstones = tombstones,
         graceCourseNos = grace,
+        selectionDroppedNos = selectionDropped,
     )
+
+    /**
+     * The 加退選 case, end to end. The student dropped "B"; the backend still
+     * carries it, because an upload only ever upserts and no explicit DELETE
+     * was sent. Merging it back would put it on the timetable as a manual
+     * course — the one shape a later refresh is required to preserve.
+     */
+    @Test
+    fun `a course 選課 dropped is not merged back from the server`() {
+        val out = reconcile(
+            local = listOf(local("A")),
+            rows = listOf(server("A"), server("B")),
+            selectionDropped = setOf("B"),
+        )
+        assertTrue(out.merged.none { it.courseNo == "B" })
+    }
+
+    /**
+     * And it must not count as evidence of presence either: a dropped row
+     * left in scope would un-hide a course the user had deleted by hand.
+     */
+    @Test
+    fun `a dropped row does not un-hide a course the user deleted`() {
+        val out = reconcile(
+            local = listOf(local("A")),
+            rows = listOf(server("A"), server("B")),
+            tombstones = setOf("1141:B"),
+            selectionDropped = setOf("B"),
+        )
+        assertTrue("1141:B" in out.tombstones)
+    }
+
+    /** Without the drop, the same row merges — the guard is what changes it. */
+    @Test
+    fun `the same server row still merges when 選課 has not dropped it`() {
+        val out = reconcile(local = listOf(local("A")), rows = listOf(server("A"), server("B")))
+        assertEquals(listOf("B"), out.merged.map { it.courseNo })
+    }
 
     @Test
     fun `a synced course the server no longer lists is tombstoned`() {
