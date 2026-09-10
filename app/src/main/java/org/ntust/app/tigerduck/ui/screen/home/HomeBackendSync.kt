@@ -161,20 +161,21 @@ class HomeBackendSync @Inject constructor(
     }
 
     /**
-     * Report "no sync was attempted" — grey cloud, no local-only banner.
+     * Report "no sync was attempted" — no local-only banner, and TigerSync's
+     * row reading Minimal rather than OK.
      *
-     * Clearing the tracker is the load-bearing half. [ServerStatusTracker] is
-     * a process-wide singleton, so an OK written by an earlier successful pull
-     * stays green for the rest of the process. Turning cloud sync off (or
-     * logging out) only short-circuits `pull`, so without this the indicator
-     * kept claiming a healthy backend on every screen that shows it.
+     * Deliberately does not clear BACKEND's status. It used to, because a
+     * stale OK from an earlier successful pull would otherwise stay green for
+     * the rest of the process; [ServerStatusTracker.setCloudSyncEnabled] now
+     * drops it on the flip instead, which is the moment the reading actually
+     * stops meaning what it meant. Clearing here as well would blank it on
+     * every pull, and with sync off that is every refresh — stamping out the
+     * reachability the public GETs report between one call and the next.
      */
     private fun markBackendIdle() {
         prefs.setLastSyncSource(SyncSource.NONE)
-        ServerStatusTracker.set(ServerStatus.UNKNOWN, ServerKind.BACKEND)
-        // Grey is the right colour for all three reasons we land here, but
-        // only one of them is "switched off" — the status dot's detail list
-        // needs to tell that apart from logged-out and fdroid.
+        // Three reasons land here and only one of them is "switched off"; the
+        // tracker folds fdroid in itself, and logged-out hides the dot.
         ServerStatusTracker.setCloudSyncEnabled(prefs.cloudSyncEnabled)
     }
 

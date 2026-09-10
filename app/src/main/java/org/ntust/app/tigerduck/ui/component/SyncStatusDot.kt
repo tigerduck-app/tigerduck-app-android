@@ -6,9 +6,10 @@
 // already know which icon was Moodle and which was the backend.
 //
 // Colour is the worst known state of the sources the page depends on
-// (red > green). Grey means nothing has reported yet or the source is
-// switched off, and never wins: an unconfigured backend must not paint the
-// header as though Moodle were down. While a fetch is running the dot
+// (red > green). Grey means nothing has reported yet, and never wins: a
+// server nobody has called must not paint the header as though Moodle were
+// down. Switched off is not grey — see the TigerSync note in the composable
+// below; it is still a source with a real state. While a fetch is running the dot
 // becomes a spinning ring. Tapping it lists every source with its own state,
 // which is where the detail the three icons used to carry now lives.
 //
@@ -159,24 +160,30 @@ fun SyncStatusDot(
     val cloudSyncEnabled by ServerStatusTracker.cloudSyncEnabled.collectAsState()
     val sources = servers.map { server ->
         /*
-         * Cloud sync switched off is reported as *minimal* rather than off,
-         * and never as a failure: the backend is still doing work for this
-         * device. The academic calendar — semester dates and holidays — and
-         * the bulletin feed are public GETs that carry no account and are
-         * fetched regardless of the sync setting, so "Off" would tell the
-         * user the class table is getting nothing from the server when it is
-         * still getting the dates it silences reminders by. The colour stays
-         * grey, as when it read "Off".
+         * Sync switched off changes the *word* beside TigerSync, never its
+         * colour, and never suppresses its state. The academic calendar —
+         * semester dates and holidays — and the bulletin feed are public GETs
+         * that carry no account and are fetched regardless of the setting, so
+         * the backend is doing work for this device either way and always has
+         * a real answer: reachable, or not. Pinning the row grey said the
+         * opposite, that there was nothing to know, and hid a backend that
+         * was genuinely down from anyone who had turned sync off.
+         *
+         * So: green "Minimal" when the public part is answering, green "OK"
+         * when a full sync is, red "Failed" when neither is. Grey is left to
+         * mean only what it means everywhere else on this dot — nothing has
+         * reported yet.
          */
         val minimal = server == ServerKind.BACKEND && !cloudSyncEnabled
+        val status = statuses[server] ?: ServerStatus.UNKNOWN
         DotSource(
-            status = if (minimal) ServerStatus.UNKNOWN else statuses[server] ?: ServerStatus.UNKNOWN,
+            status = status,
             icon = server.icon,
             name = stringResource(server.labelRes),
-            text = if (minimal) {
+            text = if (minimal && status == ServerStatus.OK) {
                 stringResource(R.string.sync_status_minimal)
             } else {
-                statusText(statuses[server] ?: ServerStatus.UNKNOWN)
+                statusText(status)
             },
         )
     }

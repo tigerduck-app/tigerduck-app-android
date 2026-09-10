@@ -32,8 +32,6 @@ import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.push.PushRegistrationService
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.ui.AppState
-import org.ntust.app.tigerduck.ui.component.ServerKind
-import org.ntust.app.tigerduck.ui.component.ServerStatus
 import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
@@ -111,11 +109,11 @@ class SettingsViewModel @Inject constructor(
             // (toggle off, then leave the screen), and a preference left true
             // would silently re-activate sync on the next launch.
             prefs.cloudSyncEnabled = false
-            // HomeBackendSync greys the cloud out too, but only on the next
-            // pull — and the disabled guard is what stops that pull from
-            // running. Flip it here so the icon matches the switch as soon as
-            // the user leaves this screen rather than at the next sync.
-            ServerStatusTracker.set(ServerStatus.UNKNOWN, ServerKind.BACKEND)
+            // The tracker was already told at the top of this function, which
+            // is what makes the row match the switch immediately rather than
+            // at the next pull — and dropped the now-meaningless full-sync
+            // reading as it flipped. The next public GET fills the row back
+            // in as Minimal.
             viewModelScope.launch {
                 runCatching { pushRegistration.updateCloudSyncEnabled(false) }
                     .onFailure { Log.w(TAG, "disabling cloud sync: server update failed (non-fatal)", it) }

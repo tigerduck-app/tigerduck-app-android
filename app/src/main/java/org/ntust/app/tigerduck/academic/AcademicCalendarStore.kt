@@ -18,6 +18,7 @@ import okhttp3.Request
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.model.AcademicCalendarDto
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -88,6 +89,14 @@ class AcademicCalendarStore @Inject constructor(
 
             runCatching {
                 client.newCall(builder.build()).execute().use { response ->
+                    // This GET carries no account and runs on every app open
+                    // whatever the sync setting is, which makes it the one
+                    // signal that can tell the status dot whether the backend
+                    // is alive for a device that does not sync. 304 counts as
+                    // reachable — it is a served answer, just an empty one.
+                    ServerStatusTracker.noteBackendReachable(
+                        response.isSuccessful || response.code == HTTP_NOT_MODIFIED
+                    )
                     when {
                         response.code == HTTP_NOT_MODIFIED -> true
                         response.isSuccessful -> {
@@ -107,6 +116,7 @@ class AcademicCalendarStore @Inject constructor(
                 }
             }.getOrElse { e ->
                 if (e is CancellationException) throw e
+                ServerStatusTracker.noteBackendReachable(false)
                 Log.w(TAG, "academic calendar refresh failed", e)
                 false
             }
