@@ -18,7 +18,7 @@ Repo: https://github.com/tigerduck-app/tigerduck-app-android.git
 Builds:
   - versionName: 2.0.2-fdroid
     versionCode: 25
-    commit: <will be replaced by GitHub Action when creating release>
+    commit: 690282c3b8e44bc088a7eabce1b5ea7653a907c1
     subdir: app
     submodules: true
     gradle:
