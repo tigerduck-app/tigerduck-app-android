@@ -191,4 +191,22 @@ class AcademicCalendarTest {
         assertEquals("Mid-Autumn", holiday.name("en-US"))
         assertEquals("Mid-Autumn", holiday.name("ja-JP"))
     }
+
+    @Test
+    fun `Cantonese reads the Chinese holiday name`() {
+        val holiday = calendar.holidays.first()
+        // `yue-HK` ships as a selectable UI language and its semester
+        // boundaries come from `values-yue-rHK` in Chinese, so an English
+        // holiday name here would mix scripts on one screen.
+        assertEquals("中秋節", holiday.name("yue-HK"))
+        assertEquals("中秋節", holiday.name("yue-Hant-HK"))
+    }
+
+    @Test
+    fun `every shipped Chinese locale reads the Chinese holiday name`() {
+        val holiday = calendar.holidays.first()
+        listOf("zh-TW", "zh-CN", "zh-HK", "zh-MO", "zh-SG", "yue-HK").forEach { tag ->
+            assertEquals(tag, "中秋節", holiday.name(tag))
+        }
+    }
 }

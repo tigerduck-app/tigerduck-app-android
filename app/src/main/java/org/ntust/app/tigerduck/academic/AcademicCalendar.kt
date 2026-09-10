@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.academic
 
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.network.model.AcademicCalendarDto
 import java.time.LocalDate
 
@@ -23,10 +24,17 @@ data class Holiday(
 ) {
     fun contains(date: LocalDate): Boolean = !date.isBefore(start) && !date.isAfter(end)
 
-    /** Chinese for any `zh-*` tag, English otherwise — matches how the
-     *  backend authors the pair and how `WhatsNewRepository` picks. */
+    /**
+     * Chinese for any Chinese UI language — `zh-*` and Cantonese `yue-HK`
+     * alike — English otherwise, matching how the backend authors the pair.
+     *
+     * The `zh`/`en` split is [AppLanguageManager.isChineseLanguageTag]'s to
+     * make, not this file's: a `zh` string prefix here missed `yue-HK` and
+     * put English holiday names on a calendar whose semester boundaries came
+     * from `values-yue-rHK` in Chinese.
+     */
     fun name(languageTag: String): String =
-        if (languageTag.startsWith("zh", ignoreCase = true)) nameZh else nameEn
+        if (AppLanguageManager.isChineseLanguageTag(languageTag)) nameZh else nameEn
 }
 
 /**

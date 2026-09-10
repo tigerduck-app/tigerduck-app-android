@@ -29,6 +29,22 @@ class WhatsNewRepositoryTest {
     }
 
     @Test
+    fun `returns the zh-Hant entry for cantonese`() {
+        // `yue-HK` ships as a selectable UI language; a `zh` string prefix
+        // test missed it and handed Cantonese users the English release notes.
+        val content = WhatsNewRepository.parse(json, versionCode = 21, languageTag = "yue-HK")
+        assertEquals(listOf("一", "二"), content?.highlights)
+    }
+
+    @Test
+    fun `every shipped chinese locale gets the zh-Hant entry`() {
+        listOf("zh-TW", "zh-CN", "zh-HK", "zh-MO", "zh-SG", "yue-HK").forEach { tag ->
+            val content = WhatsNewRepository.parse(json, versionCode = 21, languageTag = tag)
+            assertEquals(tag, "1.5.0 新功能", content?.title)
+        }
+    }
+
+    @Test
     fun `falls back to english for a non-chinese non-english language tag`() {
         val content = WhatsNewRepository.parse(json, versionCode = 21, languageTag = "ja-JP")
         assertEquals("What's new in 1.5.0", content?.title)

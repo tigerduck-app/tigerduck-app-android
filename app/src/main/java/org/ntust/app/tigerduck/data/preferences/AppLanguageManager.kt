@@ -76,6 +76,21 @@ object AppLanguageManager {
         return code.lowercase() in SINITIC_LANGUAGE_CODES
     }
 
+    /**
+     * True when a BCP-47 [languageTag] should be shown the app's Chinese
+     * copy — the pick for any string the app carries in a `zh` / `en` pair
+     * rather than in `values-*` resources (holiday names, "What's new").
+     *
+     * Matched on the parsed *language subtag* against [SINITIC_LANGUAGE_CODES],
+     * never on a `"zh"` string prefix: Cantonese ships as `yue-HK`, which a
+     * prefix test misses, and those users then got English copy on a screen
+     * whose `values-yue-rHK` strings were Chinese. Sharing the set with
+     * [resolvedCourseApiLanguage] is what keeps a Chinese course name from
+     * sitting next to an English holiday name.
+     */
+    fun isChineseLanguageTag(languageTag: String): Boolean =
+        isSiniticLanguage(Locale.forLanguageTag(languageTag).language)
+
     fun isCourseApiEnglish(appLanguage: String): Boolean =
         resolvedCourseApiLanguage(appLanguage) == "en"
 
