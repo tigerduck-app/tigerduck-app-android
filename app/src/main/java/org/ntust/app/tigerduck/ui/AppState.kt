@@ -180,15 +180,15 @@ class AppState @Inject constructor(
             prefs.showAbsoluteAssignmentTime = value
         }
 
-    private var alwaysShowPeriodsABCState by mutableStateOf(prefs.alwaysShowPeriodsABC)
+    private var alwaysShowAllPeriodsState by mutableStateOf(prefs.alwaysShowAllPeriods)
 
-    /** Keep periods A, B and C on the timetable even when empty. */
-    var alwaysShowPeriodsABC: Boolean
-        get() = alwaysShowPeriodsABCState
+    /** Keep every period on the timetable even when empty. */
+    var alwaysShowAllPeriods: Boolean
+        get() = alwaysShowAllPeriodsState
         set(value) {
-            if (alwaysShowPeriodsABCState == value) return
-            alwaysShowPeriodsABCState = value
-            prefs.alwaysShowPeriodsABC = value
+            if (alwaysShowAllPeriodsState == value) return
+            alwaysShowAllPeriodsState = value
+            prefs.alwaysShowAllPeriods = value
         }
 
     private var rememberAnnouncementFilterState by mutableStateOf(prefs.rememberAnnouncementFilter)
@@ -496,7 +496,7 @@ class AppState @Inject constructor(
             onboardingVersionState = prefs.onboardingVersion
             accentColorHexState = prefs.accentColorHex
             showAbsoluteAssignmentTimeState = prefs.showAbsoluteAssignmentTime
-            alwaysShowPeriodsABCState = prefs.alwaysShowPeriodsABC
+            alwaysShowAllPeriodsState = prefs.alwaysShowAllPeriods
             rememberAnnouncementFilterState = prefs.rememberAnnouncementFilter
             useEnglishCourseAbbreviationState = prefs.useEnglishCourseAbbreviation
             useEnglishClassroomAbbreviationState = prefs.useEnglishClassroomAbbreviation

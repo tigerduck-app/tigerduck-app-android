@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Raamatukogu süsteem</string>
     <string name="settings_account_ntust_system">Akadeemiline süsteem</string>
     <string name="settings_acknowledged">Selge</string>
-    <string name="settings_always_show_periods_abc">Kuva alati tunnid A, B ja C</string>
+    <string name="settings_always_show_periods_abc">Kuva tunniplaanis alati kõik tunnid</string>
     <string name="settings_analytics_description">Jaga anonüümseid kasutusandmeid (külastatud lehed, vidinate kasutamine), et aidata TigerDucki paremaks muuta</string>
     <string name="settings_analytics_enabled">Kasutusanalüütika</string>
     <string name="settings_api_endpoint">API lõpp-punkt</string>

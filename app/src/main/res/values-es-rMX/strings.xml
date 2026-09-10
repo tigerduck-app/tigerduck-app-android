@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Sistema de biblioteca</string>
     <string name="settings_account_ntust_system">Sistema académico</string>
     <string name="settings_acknowledged">Entendido</string>
-    <string name="settings_always_show_periods_abc">Mostrar siempre los períodos A, B y C</string>
+    <string name="settings_always_show_periods_abc">Mostrar siempre todos los períodos en el horario de clases</string>
     <string name="settings_analytics_description">Comparte datos de uso anónimos (páginas visitadas, uso de widgets) para ayudar a mejorar TigerDuck</string>
     <string name="settings_analytics_enabled">Análisis de uso</string>
     <string name="settings_api_endpoint">Punto final de la API</string>

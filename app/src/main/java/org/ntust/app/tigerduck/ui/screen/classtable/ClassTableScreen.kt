@@ -165,8 +165,8 @@ fun ClassTableScreen(
     // Keyed on the preference too: it is read inside the getter, so a flip
     // in Settings has to invalidate this or the grid keeps the old rows
     // until the course list happens to change.
-    val alwaysShowPeriodsABC by viewModel.alwaysShowPeriodsABC.collectAsStateWithLifecycle()
-    val activePeriods = remember(courses, alwaysShowPeriodsABC) { viewModel.activePeriods }
+    val alwaysShowAllPeriods by viewModel.alwaysShowAllPeriods.collectAsStateWithLifecycle()
+    val activePeriods = remember(courses, alwaysShowAllPeriods) { viewModel.activePeriods }
     val activeWeekdays = remember(courses) { viewModel.activeWeekdays }
     var showAddCourse by remember { mutableStateOf(false) }
     var showResetConfirm by remember { mutableStateOf(false) }

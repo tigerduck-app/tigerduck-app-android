@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">سیستم کتابخانه</string>
     <string name="settings_account_ntust_system">سیستم دانشگاه</string>
     <string name="settings_acknowledged">متوجه شدم</string>
-    <string name="settings_always_show_periods_abc">همیشه نمایش کلاس‌های A، B و C</string>
+    <string name="settings_always_show_periods_abc">همیشه همهٔ دوره‌ها را در برنامه کلاس‌ها نمایش بده</string>
     <string name="settings_analytics_description">داده‌های ناشناس استفاده (صفحات بازدیدشده، استفاده از ویجت) را برای بهبود TigerDuck به اشتراک بگذارید</string>
     <string name="settings_analytics_enabled">آمار استفاده</string>
     <string name="settings_api_endpoint">نقطهٔ پایانی API</string>

@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Bibliotheeksysteem</string>
     <string name="settings_account_ntust_system">Studentenportaal</string>
     <string name="settings_acknowledged">Begrepen</string>
-    <string name="settings_always_show_periods_abc">Altijd les A, B en C tonen</string>
+    <string name="settings_always_show_periods_abc">Altijd alle periodes in het rooster tonen</string>
     <string name="settings_analytics_description">Deel anonieme gebruiksgegevens (bezochte pagina\'s, gebruik van widgets) om TigerDuck te helpen verbeteren</string>
     <string name="settings_analytics_enabled">Gebruiksanalyse</string>
     <string name="settings_api_endpoint">API-eindpunt</string>

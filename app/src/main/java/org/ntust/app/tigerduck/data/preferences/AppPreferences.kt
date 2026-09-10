@@ -208,29 +208,32 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getBoolean("showAbsoluteAssignmentTime", false)
         set(value) = prefs.edit().putBoolean("showAbsoluteAssignmentTime", value).apply()
 
-    private val _alwaysShowPeriodsABC =
+    // Stored name predates the rename from "always show A/B/C" to "always
+    // show every period" — keeping it carries the setting over.
+    private val _alwaysShowAllPeriods =
         MutableStateFlow(prefs.getBoolean("alwaysShowPeriodsABC", false))
 
     /**
-     * Observable form of [alwaysShowPeriodsABC], for the class table.
+     * Observable form of [alwaysShowAllPeriods], for the class table.
      *
      * The grid derives its row list from this, and the toggle lives on a
      * different screen — a plain getter would leave the timetable showing
      * the old rows until something else happened to invalidate it.
      */
-    val alwaysShowPeriodsABCFlow: StateFlow<Boolean> =
-        _alwaysShowPeriodsABC.asStateFlow()
+    val alwaysShowAllPeriodsFlow: StateFlow<Boolean> =
+        _alwaysShowAllPeriods.asStateFlow()
 
     /**
-     * Keep periods A, B and C on the timetable even when no course uses
-     * them. Off by default: an empty evening is three rows of nothing for
-     * the majority who never have a class there.
+     * Keep every period — lunch (5) and the evening block (A–D) included —
+     * on the timetable even when no course uses them. Off by default: an
+     * empty evening is rows of nothing for the majority who never have a
+     * class there.
      */
-    var alwaysShowPeriodsABC: Boolean
-        get() = _alwaysShowPeriodsABC.value
+    var alwaysShowAllPeriods: Boolean
+        get() = _alwaysShowAllPeriods.value
         set(value) {
             prefs.edit().putBoolean("alwaysShowPeriodsABC", value).apply()
-            _alwaysShowPeriodsABC.value = value
+            _alwaysShowAllPeriods.value = value
         }
 
     var rememberAnnouncementFilter: Boolean

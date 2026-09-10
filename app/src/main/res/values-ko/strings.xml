@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">도서관 시스템</string>
     <string name="settings_account_ntust_system">학사 시스템</string>
     <string name="settings_acknowledged">확인</string>
-    <string name="settings_always_show_periods_abc">A, B, C 교시 항상 표시</string>
+    <string name="settings_always_show_periods_abc">시간표에 모든 교시 항상 표시</string>
     <string name="settings_analytics_description">익명 사용 데이터(방문한 페이지, 위젯 사용)를 공유하여 TigerDuck 개선에 도움을 주세요</string>
     <string name="settings_analytics_enabled">사용 분석</string>
     <string name="settings_api_endpoint">API 엔드포인트</string>

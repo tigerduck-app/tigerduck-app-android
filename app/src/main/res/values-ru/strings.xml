@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Система библиотеки</string>
     <string name="settings_account_ntust_system">Школьная система</string>
     <string name="settings_acknowledged">Понятно</string>
-    <string name="settings_always_show_periods_abc">Всегда показывать занятия A, B и C</string>
+    <string name="settings_always_show_periods_abc">Всегда показывать все пары в расписании</string>
     <string name="settings_analytics_description">Делись анонимными данными об использовании (посещённые страницы, использование виджетов), чтобы помочь улучшить TigerDuck</string>
     <string name="settings_analytics_enabled">Аналитика использования</string>
     <string name="settings_api_endpoint">Конечная точка API</string>

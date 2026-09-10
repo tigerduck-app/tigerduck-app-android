@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">ಗ್ರಂಥಾಲಯ ವ್ಯವಸ್ಥೆ</string>
     <string name="settings_account_ntust_system">ಶಾಲಾ ವ್ಯವಸ್ಥೆ</string>
     <string name="settings_acknowledged">ತಿಳಿಯಿತು</string>
-    <string name="settings_always_show_periods_abc">ಯಾವಾಗಲೂ A, B ಮತ್ತು C ತರಗತಿಗಳನ್ನು ತೋರಿಸಿ</string>
+    <string name="settings_always_show_periods_abc">ತರಗತಿ ವೇಳಾಪಟ್ಟಿಯಲ್ಲಿ ಯಾವಾಗಲೂ ಎಲ್ಲಾ ಅವಧಿಗಳನ್ನು ತೋರಿಸಿ</string>
     <string name="settings_analytics_description">TigerDuck ಸುಧಾರಿಸಲು ಸಹಾಯ ಮಾಡಲು ಅನಾಮಧೇಯ ಬಳಕೆ ಡೇಟಾ (ಭೇಟಿ ನೀಡಿದ ಪುಟಗಳು, ವಿಜೆಟ್ ಬಳಕೆ) ಹಂಚಿಕೊಳ್ಳಿ</string>
     <string name="settings_analytics_enabled">ಬಳಕೆ ವಿಶ್ಲೇಷಣೆ</string>
     <string name="settings_api_endpoint">API ಎಂಡ್‌ಪಾಯಿಂಟ್</string>

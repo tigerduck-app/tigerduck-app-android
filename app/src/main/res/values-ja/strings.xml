@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">図書館システム</string>
     <string name="settings_account_ntust_system">校務システム</string>
     <string name="settings_acknowledged">了解</string>
-    <string name="settings_always_show_periods_abc">常に A・B・C 時限を表示</string>
+    <string name="settings_always_show_periods_abc">時間割にすべての時限を常に表示</string>
     <string name="settings_analytics_description">匿名の利用データ（閲覧ページ、ウィジェットの使用状況）を共有して、TigerDuck の改善にご協力ください</string>
     <string name="settings_analytics_enabled">利用状況の分析</string>
     <string name="settings_api_endpoint">API エンドポイント</string>

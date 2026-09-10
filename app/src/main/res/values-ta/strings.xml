@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">நூலக அமைப்பு</string>
     <string name="settings_account_ntust_system">கல்வி அமைப்பு</string>
     <string name="settings_acknowledged">புரிந்தது</string>
-    <string name="settings_always_show_periods_abc">எப்போதும் A, B, C வகுப்புகளைக் காட்டு</string>
+    <string name="settings_always_show_periods_abc">வகுப்பு அட்டவணையில் எப்போதும் அனைத்து பீரியட்களையும் காட்டு</string>
     <string name="settings_analytics_description">TigerDuck-ஐ மேம்படுத்த உதவ அநாமதேய பயன்பாட்டு தரவு (பார்வையிட்ட பக்கங்கள், விட்ஜெட் பயன்பாடு) பகிரவும்</string>
     <string name="settings_analytics_enabled">பயன்பாட்டு பகுப்பாய்வு</string>
     <string name="settings_api_endpoint">API எண்ட்பாயிண்ட்</string>

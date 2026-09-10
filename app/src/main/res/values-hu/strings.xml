@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Könyvtári rendszer</string>
     <string name="settings_account_ntust_system">Tanulmányi rendszer</string>
     <string name="settings_acknowledged">Értem</string>
-    <string name="settings_always_show_periods_abc">Az A, B és C óra mindig látható</string>
+    <string name="settings_always_show_periods_abc">Az órarendben mindig minden óra látható</string>
     <string name="settings_analytics_description">Ossz meg névtelen használati adatokat (meglátogatott oldalak, widget-használat), hogy segíts fejleszteni a TigerDuck-ot</string>
     <string name="settings_analytics_enabled">Használati analitika</string>
     <string name="settings_api_endpoint">API-végpont</string>

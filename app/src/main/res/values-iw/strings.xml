@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">מערכת ספרייה</string>
     <string name="settings_account_ntust_system">מערכת אקדמית</string>
     <string name="settings_acknowledged">הבנתי</string>
-    <string name="settings_always_show_periods_abc">הצג תמיד שיעורים A, B ו-C</string>
+    <string name="settings_always_show_periods_abc">הצג תמיד את כל השיעורים במערכת השעות</string>
     <string name="settings_analytics_description">שתף נתוני שימוש אנונימיים (דפים שביקרת, שימוש בווידג\'טים) כדי לעזור לשפר את TigerDuck</string>
     <string name="settings_analytics_enabled">ניתוח שימוש</string>
     <string name="settings_api_endpoint">נקודת קצה של API</string>

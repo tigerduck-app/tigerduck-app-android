@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Σύστημα βιβλιοθήκης</string>
     <string name="settings_account_ntust_system">Ακαδημαϊκό σύστημα</string>
     <string name="settings_acknowledged">Κατάλαβα</string>
-    <string name="settings_always_show_periods_abc">Να εμφανίζονται πάντα τα μαθήματα A, B και C</string>
+    <string name="settings_always_show_periods_abc">Να εμφανίζονται πάντα όλες οι ώρες στο πρόγραμμα μαθημάτων</string>
     <string name="settings_analytics_description">Μοιράσου ανώνυμα δεδομένα χρήσης (σελίδες που επισκέφτηκες, χρήση widget) για να βοηθήσεις στη βελτίωση του TigerDuck</string>
     <string name="settings_analytics_enabled">Ανάλυση χρήσης</string>
     <string name="settings_api_endpoint">Τελικό σημείο API</string>

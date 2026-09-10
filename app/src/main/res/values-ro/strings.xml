@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Sistem bibliotecă</string>
     <string name="settings_account_ntust_system">Sistem academic</string>
     <string name="settings_acknowledged">Înțeles</string>
-    <string name="settings_always_show_periods_abc">Afișează întotdeauna perioadele A, B și C</string>
+    <string name="settings_always_show_periods_abc">Afișează întotdeauna toate perioadele în orar</string>
     <string name="settings_analytics_description">Împărtășește date anonime despre utilizare (pagini vizitate, utilizarea widget-urilor) pentru a ajuta la îmbunătățirea TigerDuck</string>
     <string name="settings_analytics_enabled">Analiză utilizare</string>
     <string name="settings_api_endpoint">Punct final API</string>

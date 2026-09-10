@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">లైబ్రరీ సిస్టమ్</string>
     <string name="settings_account_ntust_system">అకాడెమిక్ సిస్టమ్</string>
     <string name="settings_acknowledged">అర్థమైంది</string>
-    <string name="settings_always_show_periods_abc">ఎల్లప్పుడూ A, B మరియు C క్లాసులను చూపించు</string>
+    <string name="settings_always_show_periods_abc">తరగతి షెడ్యూల్‌లో ఎల్లప్పుడూ అన్ని పీరియడ్‌లను చూపించు</string>
     <string name="settings_analytics_description">TigerDuck మెరుగుపరచడానికి అనామక వినియోగ డేటా (సందర్శించిన పేజీలు, విజెట్ వినియోగం) పంచుకోండి</string>
     <string name="settings_analytics_enabled">వినియోగ విశ్లేషణ</string>
     <string name="settings_api_endpoint">API ఎండ్‌పాయింట్</string>

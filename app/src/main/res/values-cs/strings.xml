@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Systém knihovny</string>
     <string name="settings_account_ntust_system">Školní systém</string>
     <string name="settings_acknowledged">Rozumím</string>
-    <string name="settings_always_show_periods_abc">Vždy zobrazujte hodiny A, B a C</string>
+    <string name="settings_always_show_periods_abc">V rozvrhu vždy zobrazovat všechny hodiny</string>
     <string name="settings_analytics_description">Sdílej anonymní data o používání (navštívené stránky, používání widgetů) a pomoz nám vylepšit TigerDuck</string>
     <string name="settings_analytics_enabled">Analytika používání</string>
     <string name="settings_api_endpoint">Koncový bod API</string>

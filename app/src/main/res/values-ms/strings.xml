@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Sistem perpustakaan</string>
     <string name="settings_account_ntust_system">Sistem akademik</string>
     <string name="settings_acknowledged">Faham</string>
-    <string name="settings_always_show_periods_abc">Sentiasa tunjukkan kelas A, B dan C</string>
+    <string name="settings_always_show_periods_abc">Sentiasa tunjukkan semua tempoh dalam jadual kelas</string>
     <string name="settings_analytics_description">Kongsi data penggunaan tanpa nama (halaman dilawati, penggunaan widget) untuk membantu meningkatkan TigerDuck</string>
     <string name="settings_analytics_enabled">Analitik penggunaan</string>
     <string name="settings_api_endpoint">Titik akhir API</string>

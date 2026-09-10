@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">ਲਾਇਬ੍ਰੇਰੀ ਸਿਸਟਮ</string>
     <string name="settings_account_ntust_system">ਅਕਾਦਮਿਕ ਸਿਸਟਮ</string>
     <string name="settings_acknowledged">ਸਮਝ ਗਿਆ</string>
-    <string name="settings_always_show_periods_abc">ਹਮੇਸ਼ਾ ਕਲਾਸ A, B ਅਤੇ C ਦਿਖਾਓ</string>
+    <string name="settings_always_show_periods_abc">ਕਲਾਸ ਸਾਰਣੀ ਵਿੱਚ ਹਮੇਸ਼ਾ ਸਾਰੇ ਪੀਰੀਅਡ ਦਿਖਾਓ</string>
     <string name="settings_analytics_description">TigerDuck ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਵਿੱਚ ਮਦਦ ਕਰਨ ਲਈ ਅਗਿਆਤ ਵਰਤੋਂ ਡੇਟਾ (ਵੇਖੇ ਗਏ ਪੰਨੇ, ਵਿਜੇਟ ਵਰਤੋਂ) ਸਾਂਝਾ ਕਰੋ</string>
     <string name="settings_analytics_enabled">ਵਰਤੋਂ ਵਿਸ਼ਲੇਸ਼ਣ</string>
     <string name="settings_api_endpoint">API ਐਂਡਪੁਆਇੰਟ</string>

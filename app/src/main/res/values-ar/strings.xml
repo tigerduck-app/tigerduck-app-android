@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">نظام المكتبة</string>
     <string name="settings_account_ntust_system">النظام الأكاديمي</string>
     <string name="settings_acknowledged">حسنًا</string>
-    <string name="settings_always_show_periods_abc">عرض حصص A وB وC دائمًا</string>
+    <string name="settings_always_show_periods_abc">عرض جميع الفترات دائمًا في الجدول الدراسي</string>
     <string name="settings_analytics_description">شارك بيانات استخدام مجهولة الهوية (الصفحات المزارة، استخدام الأدوات) للمساعدة في تحسين TigerDuck</string>
     <string name="settings_analytics_enabled">تحليلات الاستخدام</string>
     <string name="settings_api_endpoint">نقطة نهاية API</string>

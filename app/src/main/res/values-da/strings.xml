@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Bibliotekssystem</string>
     <string name="settings_account_ntust_system">Studentportal</string>
     <string name="settings_acknowledged">Forstået</string>
-    <string name="settings_always_show_periods_abc">Vis altid time A, B og C</string>
+    <string name="settings_always_show_periods_abc">Vis altid alle timer i skemaet</string>
     <string name="settings_analytics_description">Del anonyme brugsdata (besøgte sider, brug af widgets) for at hjælpe med at forbedre TigerDuck</string>
     <string name="settings_analytics_enabled">Brugsanalyse</string>
     <string name="settings_api_endpoint">API-endepunkt</string>

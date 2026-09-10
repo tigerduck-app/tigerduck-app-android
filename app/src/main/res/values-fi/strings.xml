@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Kirjastojärjestelmä</string>
     <string name="settings_account_ntust_system">Opiskelijaportaali</string>
     <string name="settings_acknowledged">Selvä</string>
-    <string name="settings_always_show_periods_abc">Näytä aina tunnit A, B ja C</string>
+    <string name="settings_always_show_periods_abc">Näytä lukujärjestyksessä aina kaikki tunnit</string>
     <string name="settings_analytics_description">Jaa anonyymiä käyttödataa (vieraillut sivut, widgetien käyttö) TigerDuckin kehittämiseksi</string>
     <string name="settings_analytics_enabled">Käyttöanalytiikka</string>
     <string name="settings_api_endpoint">API-päätepiste</string>

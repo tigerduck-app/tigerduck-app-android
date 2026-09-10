@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Sustav knjižnice</string>
     <string name="settings_account_ntust_system">Akademski sustav</string>
     <string name="settings_acknowledged">Razumijem</string>
-    <string name="settings_always_show_periods_abc">Uvijek prikaži sate A, B i C</string>
+    <string name="settings_always_show_periods_abc">Uvijek prikaži sve sate u rasporedu</string>
     <string name="settings_analytics_description">Dijeli anonimne podatke o korištenju (posjećene stranice, korištenje widgeta) kako bi pomogao/la poboljšati TigerDuck</string>
     <string name="settings_analytics_enabled">Analitika korištenja</string>
     <string name="settings_api_endpoint">Krajnja točka API-ja</string>

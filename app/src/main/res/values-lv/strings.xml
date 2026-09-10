@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Bibliotēkas sistēma</string>
     <string name="settings_account_ntust_system">Akadēmiskā sistēma</string>
     <string name="settings_acknowledged">Sapratu</string>
-    <string name="settings_always_show_periods_abc">Vienmēr rādīt A, B un C nodarbības</string>
+    <string name="settings_always_show_periods_abc">Stundu plānā vienmēr rādīt visus periodus</string>
     <string name="settings_analytics_description">Dalies ar anonīmiem lietošanas datiem (apmeklētās lapas, sīkrīku lietošana), lai palīdzētu uzlabot TigerDuck</string>
     <string name="settings_analytics_enabled">Lietošanas analītika</string>
     <string name="settings_api_endpoint">API galapunkts</string>
