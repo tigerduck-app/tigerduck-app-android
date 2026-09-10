@@ -716,7 +716,7 @@
     <string name="settings_official_website">เว็บไซต์ทางการ</string>
     <string name="settings_open_source_licenses">สัญญาอนุญาตโอเพนซอร์ส</string>
     <string name="settings_privacy_policy">นโยบายความเป็นส่วนตัว</string>
-    <string name="settings_push_server_nav_label">Server push</string>
+    <string name="settings_push_server_nav_label">พุชจากเซิร์ฟเวอร์</string>
     <string name="settings_remember_bulletin_filter">จดจำตัวกรองกระดานข่าว</string>
     <string name="settings_reset_course_colors">กำหนดสีรายวิชาใหม่</string>
     <string name="settings_reset_course_colors_confirm_message">ทุกรายวิชาจะได้รับสีใหม่ที่ไม่ซ้ำกัน — เริ่มจากชุดสีล่วงหน้า เมื่อหมดแล้วจะสุ่มขึ้นมา.</string>

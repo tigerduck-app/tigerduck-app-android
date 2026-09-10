@@ -716,7 +716,7 @@
     <string name="settings_official_website">Oficiálna stránka</string>
     <string name="settings_open_source_licenses">Licencie open-source</string>
     <string name="settings_privacy_policy">Zásady ochrany súkromia</string>
-    <string name="settings_push_server_nav_label">Server push</string>
+    <string name="settings_push_server_nav_label">Serverový push</string>
     <string name="settings_remember_bulletin_filter">Zapamätať filtre bulletinu</string>
     <string name="settings_reset_course_colors">Znova priradiť farby kurzov</string>
     <string name="settings_reset_course_colors_confirm_message">Každý kurz dostane novú jedinečnú farbu — najprv z prednastavenej palety, po vyčerpaní náhodne.</string>

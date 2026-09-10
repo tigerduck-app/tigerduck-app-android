@@ -716,7 +716,7 @@
     <string name="settings_official_website">Официальный сайт</string>
     <string name="settings_open_source_licenses">Лицензии открытого кода</string>
     <string name="settings_privacy_policy">Политика конфиденциальности</string>
-    <string name="settings_push_server_nav_label">Server push</string>
+    <string name="settings_push_server_nav_label">Серверный push</string>
     <string name="settings_remember_bulletin_filter">Запомнить фильтры бюллетеней</string>
     <string name="settings_reset_course_colors">Переназначить цвета курсов</string>
     <string name="settings_reset_course_colors_confirm_message">Каждому курсу будет назначен новый уникальный цвет — сначала из палитры, затем случайно, когда палитра исчерпана.</string>

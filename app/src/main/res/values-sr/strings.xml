@@ -716,7 +716,7 @@
     <string name="settings_official_website">Званични веб-сајт</string>
     <string name="settings_open_source_licenses">Лиценце отвореног кода</string>
     <string name="settings_privacy_policy">Политика приватности</string>
-    <string name="settings_push_server_nav_label">Server push</string>
+    <string name="settings_push_server_nav_label">Пуш са сервера</string>
     <string name="settings_remember_bulletin_filter">Zapamti filtere biltena</string>
     <string name="settings_reset_course_colors">Поново додели боје курсева</string>
     <string name="settings_reset_course_colors_confirm_message">Сваки курс ће добити нову, јединствену боју — прво из унапред подешене палете, затим насумично када се палета исцрпи.</string>
