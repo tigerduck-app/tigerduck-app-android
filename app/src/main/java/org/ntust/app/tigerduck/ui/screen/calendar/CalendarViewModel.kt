@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.MoodleService
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.notification.SyncSource
@@ -75,17 +76,28 @@ class CalendarViewModel @Inject constructor(
      * path that empties the rest: the school calendar is public information
      * the user can still use while logged out.
      */
-    private fun academicEvents(): List<CalendarEvent> =
-        org.ntust.app.tigerduck.academic.AcademicCalendarEvents.eventsFor(
+    private fun academicEvents(): List<CalendarEvent> {
+        // Both the holiday name and the boundary titles are resolved against
+        // the language the user picked, not against `Locale.getDefault()` and
+        // the injected `@ApplicationContext`. Below API 33 AppCompat applies
+        // the in-app language to Activity configurations only, so those two
+        // keep reporting the *device* language: on a Taiwanese phone running
+        // the app in English or Japanese every holiday came back as its
+        // Chinese name and every term boundary as "115-1 開始", on a screen
+        // that was otherwise correctly translated.
+        val language = prefs.appLanguage
+        val localized = AppLanguageManager.localizedContext(context, language)
+        return org.ntust.app.tigerduck.academic.AcademicCalendarEvents.eventsFor(
             calendar = academicCalendar.current(),
-            languageTag = java.util.Locale.getDefault().toLanguageTag(),
-            startTitle = { context.getString(R.string.calendar_semester_start, it) },
-            endTitle = { context.getString(R.string.calendar_semester_end, it) },
+            languageTag = AppLanguageManager.currentLocale(language).toLanguageTag(),
+            startTitle = { localized.getString(R.string.calendar_semester_start, it) },
+            endTitle = { localized.getString(R.string.calendar_semester_end, it) },
             formatCode = { code ->
                 if (code.length == 4) "${code.take(3)}-${code.drop(3)}" else code
             },
             zone = org.ntust.app.tigerduck.AppConstants.TAIPEI_ZONE,
         )
+    }
 
     /**
      * The holiday a row belongs to, or null when it is a term boundary or an
@@ -135,6 +147,15 @@ class CalendarViewModel @Inject constructor(
             // snapshot read would leave a newly published semester or
             // holiday invisible until the next cold launch.
             academicCalendar.calendar.collect {
+                _events.value = withAcademicEvents(_events.value)
+            }
+        }
+        viewModelScope.launch {
+            // Switching language recreates the Activity, but this ViewModel is
+            // retained across that, so the already-built rows would keep the
+            // titles of the language they were built in. They are cheap to
+            // rebuild and nothing else refreshes them.
+            prefs.appLanguageChanged.collect {
                 _events.value = withAcademicEvents(_events.value)
             }
         }

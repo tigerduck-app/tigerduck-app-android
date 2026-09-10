@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.data.preferences
 
+import android.content.Context
 import android.content.res.Resources
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
@@ -94,6 +95,37 @@ object AppLanguageManager {
         if (list.isEmpty) return null
         return list[0]
     }
+
+    /**
+     * A [Context] whose resources resolve against the user's chosen language.
+     *
+     * Needed wherever strings are looked up away from an Activity. Below API 33
+     * [AppCompatDelegate.setApplicationLocales] applies the override to Activity
+     * configurations only, so an application [Context] — a Hilt
+     * `@ApplicationContext`, say — keeps returning the *device* language, and
+     * `Locale.getDefault()` keeps reporting it too. On a Chinese-locale phone
+     * running the app in English that means Chinese strings on an otherwise
+     * English screen.
+     *
+     * Returns [base] unchanged for "Follow system", where the platform default
+     * is already the right answer.
+     */
+    @android.annotation.SuppressLint("AppBundleLocaleChanges")
+    fun localizedContext(base: Context, language: String): Context {
+        val locale = resolveExplicitLocale(language) ?: return base
+        val config = android.content.res.Configuration(base.resources.configuration)
+        config.setLocale(locale)
+        return base.createConfigurationContext(config)
+    }
+
+    /**
+     * The [Locale] the UI is actually running in, for callers that need the tag
+     * rather than a Context — picking between server-supplied `zh`/`en` copy,
+     * say. Same reasoning as [localizedContext]: derived from the app's own
+     * stored choice, not from `Locale.getDefault()`.
+     */
+    fun currentLocale(language: String): Locale =
+        resolveExplicitLocale(language) ?: Locale.getDefault()
 
     private fun toLocaleList(language: String): LocaleListCompat {
         return when (val normalized = normalize(language)) {
