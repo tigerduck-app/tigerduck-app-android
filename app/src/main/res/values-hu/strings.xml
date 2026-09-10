@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">A TigerSync Google Play szolgáltatásokat igényel, és nem érhető el az F-Droid változatban.</string>
     <string name="sync_fdroid_unavailable_title">Nem érhető el az F-Droidon</string>
     <string name="sync_status_failed">Sikertelen</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">Korlátozott</string>
     <string name="sync_status_ok">Rendben</string>
     <string name="sync_status_syncing">Szinkronizálás…</string>
     <string name="sync_status_title">Szinkronizálás állapota</string>

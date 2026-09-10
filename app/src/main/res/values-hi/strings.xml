@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync के लिए Google Play सेवाओं की आवश्यकता है और F-Droid बिल्ड में उपलब्ध नहीं है।</string>
     <string name="sync_fdroid_unavailable_title">F-Droid पर उपलब्ध नहीं</string>
     <string name="sync_status_failed">विफल</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">सीमित</string>
     <string name="sync_status_ok">ठीक</string>
     <string name="sync_status_syncing">सिंक हो रहा है…</string>
     <string name="sync_status_title">सिंक स्थिति</string>

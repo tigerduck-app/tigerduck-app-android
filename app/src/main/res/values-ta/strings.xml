@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync-க்கு Google Play சேவைகள் தேவை, F-Droid பதிப்பில் கிடைக்காது.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid இல் கிடைக்காது</string>
     <string name="sync_status_failed">தோல்வி</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">அடிப்படை</string>
     <string name="sync_status_ok">சரி</string>
     <string name="sync_status_syncing">ஒத்திசைக்கிறது…</string>
     <string name="sync_status_title">ஒத்திசைவு நிலை</string>

@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync에는 Google Play 서비스가 필요하며 F-Droid 빌드에서는 사용할 수 없습니다.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid에서 사용 불가</string>
     <string name="sync_status_failed">실패</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">제한됨</string>
     <string name="sync_status_ok">정상</string>
     <string name="sync_status_syncing">동기화 중…</string>
     <string name="sync_status_title">동기화 상태</string>
