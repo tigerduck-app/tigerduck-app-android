@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_week_light_desc"
+    android:initialLayout="@layout/glance_default_loading_layout"
     android:label="@string/widget_week_light_label"
     android:minWidth="250dp"
     android:minHeight="250dp"
