@@ -568,7 +568,7 @@
     <string name="permission_warning_description">สิทธิ์ต่อไปนี้เคยถูกอนุญาตไว้ก่อนหน้านี้ แต่ปัจจุบันถูกปิดใช้งานแล้ว การแจ้งเตือนและข้อมูลอัปเดตแบบเรียลไทม์ที่เกี่ยวข้องอาจไม่แสดงผลอย่างถูกต้อง</string>
     <string name="permission_warning_mute_item">ไม่ต้องเตือนเรื่องนี้อีก</string>
     <string name="permission_warning_title">สิทธิ์ที่เกี่ยวข้องกับการแจ้งเตือนถูกปิดอยู่</string>
-    <string name="push_server_enable_toggle">Server-Push aktivieren</string>
+    <string name="push_server_enable_toggle">เปิดใช้งานพุชจากเซิร์ฟเวอร์</string>
     <string name="push_server_footer">Wird verwendet, um Schulbulletin-Benachrichtigungen in Echtzeit zu erhalten und Erinnerungen aktiv auszulösen.</string>
     <string name="push_server_ids_section">ID</string>
     <string name="push_server_last_registration">การลงทะเบียนครั้งล่าสุด</string>

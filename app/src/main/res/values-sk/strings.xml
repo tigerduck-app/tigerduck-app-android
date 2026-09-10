@@ -568,7 +568,7 @@
     <string name="permission_warning_description">Nasledujúce povolenia boli predtým povolené, ale teraz sú vypnuté. Súvisiace notifikácie a aktuality naživo sa nemusia zobrazovať správne.</string>
     <string name="permission_warning_mute_item">Viac mi to nepripomínať</string>
     <string name="permission_warning_title">Povolenia súvisiace s notifikáciami sú vypnuté</string>
-    <string name="push_server_enable_toggle">Server-Push aktivieren</string>
+    <string name="push_server_enable_toggle">Zapnúť serverový push</string>
     <string name="push_server_footer">Wird verwendet, um Schulbulletin-Benachrichtigungen in Echtzeit zu erhalten und Erinnerungen aktiv auszulösen.</string>
     <string name="push_server_ids_section">ID</string>
     <string name="push_server_last_registration">Posledná registrácia</string>
