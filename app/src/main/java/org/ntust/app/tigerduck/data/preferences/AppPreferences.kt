@@ -480,6 +480,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     /** Wipe every pref key. Used by the full-reset flow only. */
     fun clearAllPrefs() {
         prefs.edit().clear().apply()
+        // `alwaysShowAllPeriods` is the one preference read from an in-memory
+        // mirror rather than the file, so clearing the file alone leaves the
+        // class table pinned — and the Settings row reading "on" — until the
+        // next process start.
+        _alwaysShowAllPeriods.value = false
     }
 
     fun getString(key: String): String? = prefs.getString(key, null)
