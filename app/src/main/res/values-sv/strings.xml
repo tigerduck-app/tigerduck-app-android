@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Bibliotekets system</string>
     <string name="settings_account_ntust_system">Studentportal</string>
     <string name="settings_acknowledged">Förstår</string>
-    <string name="settings_always_show_periods_abc">Visa alltid lektion A, B och C</string>
+    <string name="settings_always_show_periods_abc">Visa alltid alla perioder i schemat</string>
     <string name="settings_analytics_description">Dela anonym användningsdata (besökta sidor, användning av widgets) för att hjälpa till att förbättra TigerDuck</string>
     <string name="settings_analytics_enabled">Användningsanalys</string>
     <string name="settings_api_endpoint">API-slutpunkt</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync kräver Google Play-tjänster och är inte tillgänglig i F-Droid-versionen.</string>
     <string name="sync_fdroid_unavailable_title">Inte tillgänglig på F-Droid</string>
     <string name="sync_status_failed">Misslyckades</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">Begränsad</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synkroniserar…</string>
     <string name="sync_status_title">Synkroniseringsstatus</string>

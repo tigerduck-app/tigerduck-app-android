@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Система библиотеки</string>
     <string name="settings_account_ntust_system">Школьная система</string>
     <string name="settings_acknowledged">Понятно</string>
-    <string name="settings_always_show_periods_abc">Всегда показывать занятия A, B и C</string>
+    <string name="settings_always_show_periods_abc">Всегда показывать все пары в расписании</string>
     <string name="settings_analytics_description">Делись анонимными данными об использовании (посещённые страницы, использование виджетов), чтобы помочь улучшить TigerDuck</string>
     <string name="settings_analytics_enabled">Аналитика использования</string>
     <string name="settings_api_endpoint">Конечная точка API</string>
@@ -716,7 +716,7 @@
     <string name="settings_official_website">Официальный сайт</string>
     <string name="settings_open_source_licenses">Лицензии открытого кода</string>
     <string name="settings_privacy_policy">Политика конфиденциальности</string>
-    <string name="settings_push_server_nav_label">Server push</string>
+    <string name="settings_push_server_nav_label">Серверный push</string>
     <string name="settings_remember_bulletin_filter">Запомнить фильтры бюллетеней</string>
     <string name="settings_reset_course_colors">Переназначить цвета курсов</string>
     <string name="settings_reset_course_colors_confirm_message">Каждому курсу будет назначен новый уникальный цвет — сначала из палитры, затем случайно, когда палитра исчерпана.</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync требует сервисов Google Play и недоступен в сборке F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Недоступно в F-Droid</string>
     <string name="sync_status_failed">Ошибка</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">Ограничено</string>
     <string name="sync_status_ok">ОК</string>
     <string name="sync_status_syncing">Синхронизация…</string>
     <string name="sync_status_title">Состояние синхронизации</string>

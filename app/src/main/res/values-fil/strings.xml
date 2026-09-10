@@ -653,10 +653,10 @@
     <string name="settings_account_library_system">Sistema ng aklatan</string>
     <string name="settings_account_ntust_system">Sistemang akademiko</string>
     <string name="settings_acknowledged">Naintindihan ko</string>
-    <string name="settings_always_show_periods_abc">Laging ipakita ang mga klase A, B, at C</string>
+    <string name="settings_always_show_periods_abc">Laging ipakita ang lahat ng period sa iskedyul ng klase</string>
     <string name="settings_analytics_description">Ibahagi ang anonymous na datos ng paggamit (mga page na binisita, paggamit ng widget) para mapabuti ang TigerDuck</string>
     <string name="settings_analytics_enabled">Analytics ng paggamit</string>
-    <string name="settings_api_endpoint">API endpoint</string>
+    <string name="settings_api_endpoint">Endpoint ng API</string>
     <string name="settings_api_endpoint_change_title">Baguhin ang endpoint</string>
     <string name="settings_api_endpoint_checking">Sinusuri…</string>
     <string name="settings_api_endpoint_effective_title">Kasalukuyang endpoint</string>
@@ -716,7 +716,7 @@
     <string name="settings_official_website">Opisyal na website</string>
     <string name="settings_open_source_licenses">Mga open-source na lisensya</string>
     <string name="settings_privacy_policy">Patakaran sa privacy</string>
-    <string name="settings_push_server_nav_label">Server push</string>
+    <string name="settings_push_server_nav_label">Push ng server</string>
     <string name="settings_remember_bulletin_filter">Tandaan ang mga filter ng bulletin</string>
     <string name="settings_reset_course_colors">Iulit ang pagtatalaga ng kulay ng kurso</string>
     <string name="settings_reset_course_colors_confirm_message">Bawat kurso ay bibigyan ng bago at natatanging kulay — una mula sa preset na palette, sumunod ay random kapag naubos na ang palette.</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">Ang TigerSync ay nangangailangan ng Google Play Services at hindi available sa F-Droid build.</string>
     <string name="sync_fdroid_unavailable_title">Hindi available sa F-Droid</string>
     <string name="sync_status_failed">Nabigo</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">Limitado</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Nagsi-sync…</string>
     <string name="sync_status_title">Katayuan ng pag-sync</string>

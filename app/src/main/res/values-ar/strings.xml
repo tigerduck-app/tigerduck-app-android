@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">نظام المكتبة</string>
     <string name="settings_account_ntust_system">النظام الأكاديمي</string>
     <string name="settings_acknowledged">حسنًا</string>
-    <string name="settings_always_show_periods_abc">عرض حصص A وB وC دائمًا</string>
+    <string name="settings_always_show_periods_abc">عرض جميع الفترات دائمًا في الجدول الدراسي</string>
     <string name="settings_analytics_description">شارك بيانات استخدام مجهولة الهوية (الصفحات المزارة، استخدام الأدوات) للمساعدة في تحسين TigerDuck</string>
     <string name="settings_analytics_enabled">تحليلات الاستخدام</string>
     <string name="settings_api_endpoint">نقطة نهاية API</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">يتطلب TigerSync خدمات Google Play وغير متوفر في إصدار F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">غير متوفر على F-Droid</string>
     <string name="sync_status_failed">فشل</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">محدود</string>
     <string name="sync_status_ok">سليم</string>
     <string name="sync_status_syncing">جارٍ المزامنة…</string>
     <string name="sync_status_title">حالة المزامنة</string>

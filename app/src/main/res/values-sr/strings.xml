@@ -568,7 +568,7 @@
     <string name="permission_warning_description">Следеће дозволе су раније биле омогућене, али су сада онемогућене. Одговарајућа обавештења и новости уживо можда неће бити исправно приказане.</string>
     <string name="permission_warning_mute_item">Не подсећај ме о овоме поново</string>
     <string name="permission_warning_title">Дозволе за обавештења су искључене</string>
-    <string name="push_server_enable_toggle">Server-Push aktivieren</string>
+    <string name="push_server_enable_toggle">Укључи пуш са сервера</string>
     <string name="push_server_footer">Wird verwendet, um Schulbulletin-Benachrichtigungen in Echtzeit zu erhalten und Erinnerungen aktiv auszulösen.</string>
     <string name="push_server_ids_section">ID</string>
     <string name="push_server_last_registration">Poslednja registracija</string>
@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Библиотечки систем</string>
     <string name="settings_account_ntust_system">Академски систем</string>
     <string name="settings_acknowledged">Разумем</string>
-    <string name="settings_always_show_periods_abc">Увек прикажи часове A, B и C</string>
+    <string name="settings_always_show_periods_abc">Увек прикажи све часове у распореду</string>
     <string name="settings_analytics_description">Дели анонимне податке о коришћењу (посећене странице, коришћење виџета) да би помогао у побољшању TigerDuck-а</string>
     <string name="settings_analytics_enabled">Аналитика коришћења</string>
     <string name="settings_api_endpoint">Крајња тачка API-ја</string>
@@ -716,7 +716,7 @@
     <string name="settings_official_website">Званични веб-сајт</string>
     <string name="settings_open_source_licenses">Лиценце отвореног кода</string>
     <string name="settings_privacy_policy">Политика приватности</string>
-    <string name="settings_push_server_nav_label">Server push</string>
+    <string name="settings_push_server_nav_label">Пуш са сервера</string>
     <string name="settings_remember_bulletin_filter">Zapamti filtere biltena</string>
     <string name="settings_reset_course_colors">Поново додели боје курсева</string>
     <string name="settings_reset_course_colors_confirm_message">Сваки курс ће добити нову, јединствену боју — прво из унапред подешене палете, затим насумично када се палета исцрпи.</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync захтева Google Play услуге и није доступан у F-Droid верзији.</string>
     <string name="sync_fdroid_unavailable_title">Није доступно на F-Droid</string>
     <string name="sync_status_failed">Неуспешно</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">Ограничено</string>
     <string name="sync_status_ok">У реду</string>
     <string name="sync_status_syncing">Синхронизација…</string>
     <string name="sync_status_title">Стање синхронизације</string>

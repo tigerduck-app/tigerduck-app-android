@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">पुस्तकालय प्रणाली</string>
     <string name="settings_account_ntust_system">शैक्षणिक प्रणाली</string>
     <string name="settings_acknowledged">समझ गया</string>
-    <string name="settings_always_show_periods_abc">हमेशा क्लास A, B और C दिखाएँ</string>
+    <string name="settings_always_show_periods_abc">कक्षा सारणी में हमेशा सभी पीरियड दिखाएँ</string>
     <string name="settings_analytics_description">TigerDuck को बेहतर बनाने में मदद के लिए गुमनाम उपयोग डेटा (देखे गए पेज, विजेट उपयोग) साझा करें</string>
     <string name="settings_analytics_enabled">उपयोग विश्लेषण</string>
     <string name="settings_api_endpoint">API एंडपॉइंट</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync के लिए Google Play सेवाओं की आवश्यकता है और F-Droid बिल्ड में उपलब्ध नहीं है।</string>
     <string name="sync_fdroid_unavailable_title">F-Droid पर उपलब्ध नहीं</string>
     <string name="sync_status_failed">विफल</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">सीमित</string>
     <string name="sync_status_ok">ठीक</string>
     <string name="sync_status_syncing">सिंक हो रहा है…</string>
     <string name="sync_status_title">सिंक स्थिति</string>

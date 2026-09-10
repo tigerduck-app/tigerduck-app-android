@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import org.ntust.app.tigerduck.BuildConfig
 
 enum class ServerKind {
     MOODLE,
@@ -18,24 +19,61 @@ enum class ServerStatus {
 }
 
 object ServerStatusTracker {
+    /** That build ships without Play Services and so never syncs. */
+    private val IS_FDROID =
+        BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)
+
     private val _statuses = MutableStateFlow<Map<ServerKind, ServerStatus>>(emptyMap())
     val statuses: StateFlow<Map<ServerKind, ServerStatus>> = _statuses.asStateFlow()
 
     /**
-     * Whether cloud sync is switched on.
+     * Whether the device is syncing through the backend, as opposed to only
+     * reading the public part of it.
      *
-     * The status map already reports BACKEND as UNKNOWN while sync is off,
-     * which is the right colour but the wrong word: the header's detail list
-     * would say "unknown" about a server the user deliberately turned off.
-     * Kept here rather than plumbed through five ViewModels because this
-     * object is already what the headers read, and the two writers that set
-     * BACKEND -> UNKNOWN are the same ones that flip this.
+     * This does not gate whether BACKEND has a status — it only picks which
+     * word the header's detail list puts beside it, "OK" or "Minimal". The
+     * backend is contacted either way, so it always has a real state to
+     * report; see [noteBackendReachable].
+     *
+     * fdroid is folded in here because that build has no Play Services and
+     * never syncs whatever the preference says, so reporting it as syncing
+     * would put "OK" beside a sync that cannot happen. Kept in this object
+     * rather than plumbed through five ViewModels because this is already
+     * what the headers read.
      */
-    private val _cloudSyncEnabled = MutableStateFlow(true)
+    private val _cloudSyncEnabled = MutableStateFlow(!IS_FDROID)
     val cloudSyncEnabled: StateFlow<Boolean> = _cloudSyncEnabled.asStateFlow()
 
     fun setCloudSyncEnabled(enabled: Boolean) {
-        _cloudSyncEnabled.value = enabled
+        val effective = enabled && !IS_FDROID
+        if (_cloudSyncEnabled.value == effective) return
+        _cloudSyncEnabled.value = effective
+        // The slot means a different thing on each side of this flip — a full
+        // sync result vs. a public GET's reachability — so a reading taken
+        // under the old meaning must not survive the change. Cleared rather
+        // than recomputed: the next fetch of either kind fills it in, and a
+        // moment of grey beats a stale green claiming a sync that is now off.
+        if (!demoMode) _statuses.update { it - ServerKind.BACKEND }
+    }
+
+    /**
+     * Report whether a *public* backend call got through.
+     *
+     * The academic calendar refresh is an unauthenticated GET that runs on
+     * every app open no matter how sync is configured, which makes it the one
+     * caller that can keep TigerSync's row honest when there is no sync to
+     * report: the row reads Minimal-and-reachable, or Failed, rather than
+     * sitting grey and unexplained forever. (The bulletin feed is public too
+     * and could report here; the calendar is the one that always runs.)
+     *
+     * Ignored while sync is on. There the sync is the more demanding call and
+     * its result is the authoritative one — letting a public GET that
+     * happened to land later paint over a sync failure would hide exactly the
+     * breakage the dot exists to surface.
+     */
+    fun noteBackendReachable(reachable: Boolean) {
+        if (_cloudSyncEnabled.value) return
+        set(if (reachable) ServerStatus.OK else ServerStatus.FAILED, ServerKind.BACKEND)
     }
 
     /**

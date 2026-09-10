@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Sistem bibliotecă</string>
     <string name="settings_account_ntust_system">Sistem academic</string>
     <string name="settings_acknowledged">Înțeles</string>
-    <string name="settings_always_show_periods_abc">Afișează întotdeauna perioadele A, B și C</string>
+    <string name="settings_always_show_periods_abc">Afișează întotdeauna toate perioadele în orar</string>
     <string name="settings_analytics_description">Împărtășește date anonime despre utilizare (pagini vizitate, utilizarea widget-urilor) pentru a ajuta la îmbunătățirea TigerDuck</string>
     <string name="settings_analytics_enabled">Analiză utilizare</string>
     <string name="settings_api_endpoint">Punct final API</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync necesită servicii Google Play și nu este disponibil în versiunea F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Indisponibil pe F-Droid</string>
     <string name="sync_status_failed">Eșuat</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">Limitat</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Se sincronizează…</string>
     <string name="sync_status_title">Stare sincronizare</string>

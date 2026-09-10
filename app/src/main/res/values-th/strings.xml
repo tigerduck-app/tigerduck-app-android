@@ -568,7 +568,7 @@
     <string name="permission_warning_description">สิทธิ์ต่อไปนี้เคยถูกอนุญาตไว้ก่อนหน้านี้ แต่ปัจจุบันถูกปิดใช้งานแล้ว การแจ้งเตือนและข้อมูลอัปเดตแบบเรียลไทม์ที่เกี่ยวข้องอาจไม่แสดงผลอย่างถูกต้อง</string>
     <string name="permission_warning_mute_item">ไม่ต้องเตือนเรื่องนี้อีก</string>
     <string name="permission_warning_title">สิทธิ์ที่เกี่ยวข้องกับการแจ้งเตือนถูกปิดอยู่</string>
-    <string name="push_server_enable_toggle">Server-Push aktivieren</string>
+    <string name="push_server_enable_toggle">เปิดใช้งานพุชจากเซิร์ฟเวอร์</string>
     <string name="push_server_footer">Wird verwendet, um Schulbulletin-Benachrichtigungen in Echtzeit zu erhalten und Erinnerungen aktiv auszulösen.</string>
     <string name="push_server_ids_section">ID</string>
     <string name="push_server_last_registration">การลงทะเบียนครั้งล่าสุด</string>
@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">ระบบห้องสมุด</string>
     <string name="settings_account_ntust_system">ระบบสารสนเทศนักศึกษา</string>
     <string name="settings_acknowledged">เข้าใจแล้ว</string>
-    <string name="settings_always_show_periods_abc">แสดงคาบ A B และ C เสมอ</string>
+    <string name="settings_always_show_periods_abc">แสดงทุกคาบในตารางเรียนเสมอ</string>
     <string name="settings_analytics_description">แชร์ข้อมูลการใช้งานแบบไม่ระบุตัวตน (หน้าที่เข้าชม, การใช้วิดเจ็ต) เพื่อช่วยพัฒนา TigerDuck</string>
     <string name="settings_analytics_enabled">การวิเคราะห์การใช้งาน</string>
     <string name="settings_api_endpoint">ปลายทาง API</string>
@@ -716,7 +716,7 @@
     <string name="settings_official_website">เว็บไซต์ทางการ</string>
     <string name="settings_open_source_licenses">สัญญาอนุญาตโอเพนซอร์ส</string>
     <string name="settings_privacy_policy">นโยบายความเป็นส่วนตัว</string>
-    <string name="settings_push_server_nav_label">Server push</string>
+    <string name="settings_push_server_nav_label">พุชจากเซิร์ฟเวอร์</string>
     <string name="settings_remember_bulletin_filter">จดจำตัวกรองกระดานข่าว</string>
     <string name="settings_reset_course_colors">กำหนดสีรายวิชาใหม่</string>
     <string name="settings_reset_course_colors_confirm_message">ทุกรายวิชาจะได้รับสีใหม่ที่ไม่ซ้ำกัน — เริ่มจากชุดสีล่วงหน้า เมื่อหมดแล้วจะสุ่มขึ้นมา.</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync ต้องการ Google Play Services และไม่พร้อมใช้งานในเวอร์ชัน F-Droid</string>
     <string name="sync_fdroid_unavailable_title">ไม่พร้อมใช้งานบน F-Droid</string>
     <string name="sync_status_failed">ล้มเหลว</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">จำกัด</string>
     <string name="sync_status_ok">ปกติ</string>
     <string name="sync_status_syncing">กำลังซิงค์…</string>
     <string name="sync_status_title">สถานะการซิงค์</string>

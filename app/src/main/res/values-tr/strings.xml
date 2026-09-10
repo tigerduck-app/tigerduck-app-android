@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Kütüphane sistemi</string>
     <string name="settings_account_ntust_system">Öğrenci bilgi sistemi</string>
     <string name="settings_acknowledged">Anladım</string>
-    <string name="settings_always_show_periods_abc">A, B ve C derslerini her zaman göster</string>
+    <string name="settings_always_show_periods_abc">Ders programında tüm dersleri her zaman göster</string>
     <string name="settings_analytics_description">TigerDuck\'ı geliştirmeye yardımcı olmak için anonim kullanım verilerini (ziyaret edilen sayfalar, widget kullanımı) paylaş</string>
     <string name="settings_analytics_enabled">Kullanım analitiği</string>
     <string name="settings_api_endpoint">API uç noktası</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync, Google Play Hizmetleri gerektirir ve F-Droid sürümünde mevcut değildir.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid\'de mevcut değil</string>
     <string name="sync_status_failed">Başarısız</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">Sınırlı</string>
     <string name="sync_status_ok">Tamam</string>
     <string name="sync_status_syncing">Eşitleniyor…</string>
     <string name="sync_status_title">Eşitleme durumu</string>

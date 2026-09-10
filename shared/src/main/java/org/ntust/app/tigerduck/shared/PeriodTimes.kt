@@ -10,14 +10,6 @@ object Periods {
      * `ClassTableCellLayout.activePeriods`.
      */
     val defaultVisible = listOf("1", "2", "3", "4", "6", "7", "8", "9", "10")
-    val extended = listOf("5", "A", "B", "C", "D")
-
-    /**
-     * The evening periods the Display toggle pins on. D is left out
-     * deliberately: it ends at 22:00 and is rare enough that pinning it
-     * would cost a row almost nobody needs.
-     */
-    val eveningOptional = listOf("A", "B", "C")
     val chronologicalOrder =
         listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "A", "B", "C", "D")
 }
@@ -34,8 +26,8 @@ object PeriodTimes {
         "8" to ("15:30" to "16:20"),
         "9" to ("16:30" to "17:20"),
         "10" to ("17:30" to "18:20"),
-        "A" to ("18:30" to "19:20"),
-        "B" to ("19:25" to "20:10"),
+        "A" to ("18:25" to "19:15"),
+        "B" to ("19:20" to "20:10"),
         "C" to ("20:15" to "21:05"),
         "D" to ("21:10" to "22:00"),
     )

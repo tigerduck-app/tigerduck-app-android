@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Hệ thống thư viện</string>
     <string name="settings_account_ntust_system">Hệ thống học vụ</string>
     <string name="settings_acknowledged">Đã hiểu</string>
-    <string name="settings_always_show_periods_abc">Luôn hiển thị tiết A, B và C</string>
+    <string name="settings_always_show_periods_abc">Luôn hiển thị tất cả các tiết trong thời khóa biểu</string>
     <string name="settings_analytics_description">Chia sẻ dữ liệu sử dụng ẩn danh (trang đã truy cập, sử dụng widget) để giúp cải thiện TigerDuck</string>
     <string name="settings_analytics_enabled">Phân tích sử dụng</string>
     <string name="settings_api_endpoint">Điểm cuối API</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync yêu cầu Dịch vụ Google Play và không khả dụng trong bản F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Không khả dụng trên F-Droid</string>
     <string name="sync_status_failed">Thất bại</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">Giới hạn</string>
     <string name="sync_status_ok">Bình thường</string>
     <string name="sync_status_syncing">Đang đồng bộ…</string>
     <string name="sync_status_title">Trạng thái đồng bộ</string>

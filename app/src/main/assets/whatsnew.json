@@ -60,5 +60,27 @@
         "Many other improvements and changes."
       ]
     }
+  },
+  "25": {
+    "zh-Hant": {
+      "title": "2.0.2 新功能",
+      "highlights": [
+        "課表時間修正",
+        "修正 TigerSync 相關詞匯",
+        "修正 Widget 顯示成其他版面或錯誤畫面的問題",
+        "翻譯優化",
+        "行事曆顯示優化"
+      ]
+    },
+    "en": {
+      "title": "What's new in 2.0.2",
+      "highlights": [
+        "Class table time correction",
+        "Fix TigerSync related terms",
+        "Fix the problem of Widget displaying other layouts or error screens",
+        "Translation optimization",
+        "Calendar display optimization"
+      ]
+    }
   }
 }

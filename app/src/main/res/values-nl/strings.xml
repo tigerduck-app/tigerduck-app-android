@@ -200,7 +200,7 @@
     <string name="cloud_sync_last_synced_never">Nog niet gesynchroniseerd</string>
     <string name="cloud_sync_privacy_body">Wanneer TigerSync is ingeschakeld, worden je schoolsysteemwachtwoord en Moodle-token versleuteld en geüpload naar de TigerDuck-server, waar ze worden gebruikt om periodiek Moodle-opdrachten op te halen namens jou en om roosterwijzigingen, opdrachtstatussen en instellingen te synchroniseren tussen je apparaten.\n\nJe kunt TigerSync op elk moment uitschakelen. Uitschakelen logt dit apparaat uit en trekt de registratie op de server in (inclusief push-inloggegevens); geüploade accountgegevens blijven alleen op de server zolang andere gesynchroniseerde apparaten ze gebruiken. Lokale gegevens worden niet beïnvloed.</string>
     <string name="cloud_sync_privacy_confirm">Akkoord en inschakelen</string>
-    <string name="cloud_sync_privacy_title">TigerSync &amp; Privacy</string>
+    <string name="cloud_sync_privacy_title">TigerSync en privacy</string>
     <string name="cloud_sync_reauth_button">Opnieuw inschakelen</string>
     <string name="cloud_sync_reauth_session_missing">TigerSync moet opnieuw ingeschakeld worden</string>
     <string name="cloud_sync_reauth_session_revoked">Je sessie is verlopen — schakel opnieuw in</string>
@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Bibliotheeksysteem</string>
     <string name="settings_account_ntust_system">Studentenportaal</string>
     <string name="settings_acknowledged">Begrepen</string>
-    <string name="settings_always_show_periods_abc">Altijd les A, B en C tonen</string>
+    <string name="settings_always_show_periods_abc">Altijd alle periodes in het rooster tonen</string>
     <string name="settings_analytics_description">Deel anonieme gebruiksgegevens (bezochte pagina\'s, gebruik van widgets) om TigerDuck te helpen verbeteren</string>
     <string name="settings_analytics_enabled">Gebruiksanalyse</string>
     <string name="settings_api_endpoint">API-eindpunt</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync vereist Google Play-services en is niet beschikbaar in de F-Droid-versie.</string>
     <string name="sync_fdroid_unavailable_title">Niet beschikbaar op F-Droid</string>
     <string name="sync_status_failed">Mislukt</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">Beperkt</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synchroniseren…</string>
     <string name="sync_status_title">Synchronisatiestatus</string>

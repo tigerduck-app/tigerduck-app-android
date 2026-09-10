@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">도서관 시스템</string>
     <string name="settings_account_ntust_system">학사 시스템</string>
     <string name="settings_acknowledged">확인</string>
-    <string name="settings_always_show_periods_abc">A, B, C 교시 항상 표시</string>
+    <string name="settings_always_show_periods_abc">시간표에 모든 교시 항상 표시</string>
     <string name="settings_analytics_description">익명 사용 데이터(방문한 페이지, 위젯 사용)를 공유하여 TigerDuck 개선에 도움을 주세요</string>
     <string name="settings_analytics_enabled">사용 분석</string>
     <string name="settings_api_endpoint">API 엔드포인트</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync에는 Google Play 서비스가 필요하며 F-Droid 빌드에서는 사용할 수 없습니다.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid에서 사용 불가</string>
     <string name="sync_status_failed">실패</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">제한됨</string>
     <string name="sync_status_ok">정상</string>
     <string name="sync_status_syncing">동기화 중…</string>
     <string name="sync_status_title">동기화 상태</string>

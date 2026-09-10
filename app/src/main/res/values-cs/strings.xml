@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Systém knihovny</string>
     <string name="settings_account_ntust_system">Školní systém</string>
     <string name="settings_acknowledged">Rozumím</string>
-    <string name="settings_always_show_periods_abc">Vždy zobrazujte hodiny A, B a C</string>
+    <string name="settings_always_show_periods_abc">V rozvrhu vždy zobrazovat všechny hodiny</string>
     <string name="settings_analytics_description">Sdílej anonymní data o používání (navštívené stránky, používání widgetů) a pomoz nám vylepšit TigerDuck</string>
     <string name="settings_analytics_enabled">Analytika používání</string>
     <string name="settings_api_endpoint">Koncový bod API</string>
@@ -716,7 +716,7 @@
     <string name="settings_official_website">Oficiální web</string>
     <string name="settings_open_source_licenses">Open-source licence</string>
     <string name="settings_privacy_policy">Zásady ochrany osobních údajů</string>
-    <string name="settings_push_server_nav_label">Server push</string>
+    <string name="settings_push_server_nav_label">Push ze serveru</string>
     <string name="settings_remember_bulletin_filter">Pamatujte na filtry bulletinů</string>
     <string name="settings_reset_course_colors">Znovu přiřadit barvy kurzů</string>
     <string name="settings_reset_course_colors_confirm_message">Každý kurz dostane novou jedinečnou barvu — nejprve z přednastavené palety, po vyčerpání náhodně.</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync vyžaduje služby Google Play a není dostupný v sestavení F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Nedostupné na F-Droid</string>
     <string name="sync_status_failed">Selhalo</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">Omezeno</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synchronizace…</string>
     <string name="sync_status_title">Stav synchronizace</string>

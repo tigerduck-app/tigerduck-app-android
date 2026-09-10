@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Sistema biblioteca</string>
     <string name="settings_account_ntust_system">Sistema accademico</string>
     <string name="settings_acknowledged">Ho capito</string>
-    <string name="settings_always_show_periods_abc">Mostra sempre i periodi A, B e C</string>
+    <string name="settings_always_show_periods_abc">Mostra sempre tutti i periodi nell\'orario delle lezioni</string>
     <string name="settings_analytics_description">Condividi dati d\'uso anonimi (pagine visitate, utilizzo dei widget) per migliorare TigerDuck</string>
     <string name="settings_analytics_enabled">Analisi dell\'utilizzo</string>
     <string name="settings_api_endpoint">Endpoint API</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync richiede i servizi Google Play e non è disponibile nella versione F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Non disponibile su F-Droid</string>
     <string name="sync_status_failed">Non riuscita</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">Limitato</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Sincronizzazione…</string>
     <string name="sync_status_title">Stato sincronizzazione</string>

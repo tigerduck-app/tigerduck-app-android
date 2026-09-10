@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Kirjastojärjestelmä</string>
     <string name="settings_account_ntust_system">Opiskelijaportaali</string>
     <string name="settings_acknowledged">Selvä</string>
-    <string name="settings_always_show_periods_abc">Näytä aina tunnit A, B ja C</string>
+    <string name="settings_always_show_periods_abc">Näytä lukujärjestyksessä aina kaikki tunnit</string>
     <string name="settings_analytics_description">Jaa anonyymiä käyttödataa (vieraillut sivut, widgetien käyttö) TigerDuckin kehittämiseksi</string>
     <string name="settings_analytics_enabled">Käyttöanalytiikka</string>
     <string name="settings_api_endpoint">API-päätepiste</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync vaatii Google Play -palvelut eikä ole käytettävissä F-Droid-versiossa.</string>
     <string name="sync_fdroid_unavailable_title">Ei saatavilla F-Droidissa</string>
     <string name="sync_status_failed">Epäonnistui</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">Rajoitettu</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synkronoidaan…</string>
     <string name="sync_status_title">Synkronoinnin tila</string>

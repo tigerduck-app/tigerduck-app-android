@@ -568,7 +568,7 @@
     <string name="permission_warning_description">Nasledujúce povolenia boli predtým povolené, ale teraz sú vypnuté. Súvisiace notifikácie a aktuality naživo sa nemusia zobrazovať správne.</string>
     <string name="permission_warning_mute_item">Viac mi to nepripomínať</string>
     <string name="permission_warning_title">Povolenia súvisiace s notifikáciami sú vypnuté</string>
-    <string name="push_server_enable_toggle">Server-Push aktivieren</string>
+    <string name="push_server_enable_toggle">Zapnúť serverový push</string>
     <string name="push_server_footer">Wird verwendet, um Schulbulletin-Benachrichtigungen in Echtzeit zu erhalten und Erinnerungen aktiv auszulösen.</string>
     <string name="push_server_ids_section">ID</string>
     <string name="push_server_last_registration">Posledná registrácia</string>
@@ -653,7 +653,7 @@
     <string name="settings_account_library_system">Systém knižnice</string>
     <string name="settings_account_ntust_system">Školský systém</string>
     <string name="settings_acknowledged">Rozumiem</string>
-    <string name="settings_always_show_periods_abc">Vždy zobrazovať hodiny A, B a C</string>
+    <string name="settings_always_show_periods_abc">V rozvrhu vždy zobrazovať všetky hodiny</string>
     <string name="settings_analytics_description">Zdieľaj anonymné údaje o používaní (navštívené stránky, používanie widgetov) a pomôž nám vylepšiť TigerDuck</string>
     <string name="settings_analytics_enabled">Analytika používania</string>
     <string name="settings_api_endpoint">Koncový bod API</string>
@@ -716,7 +716,7 @@
     <string name="settings_official_website">Oficiálna stránka</string>
     <string name="settings_open_source_licenses">Licencie open-source</string>
     <string name="settings_privacy_policy">Zásady ochrany súkromia</string>
-    <string name="settings_push_server_nav_label">Server push</string>
+    <string name="settings_push_server_nav_label">Serverový push</string>
     <string name="settings_remember_bulletin_filter">Zapamätať filtre bulletinu</string>
     <string name="settings_reset_course_colors">Znova priradiť farby kurzov</string>
     <string name="settings_reset_course_colors_confirm_message">Každý kurz dostane novú jedinečnú farbu — najprv z prednastavenej palety, po vyčerpaní náhodne.</string>
@@ -775,7 +775,7 @@
     <string name="sync_fdroid_unavailable_body">TigerSync vyžaduje služby Google Play a nie je dostupný vo verzii F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Nedostupné na F-Droid</string>
     <string name="sync_status_failed">Zlyhalo</string>
-    <string name="sync_status_minimal">Minimal</string>
+    <string name="sync_status_minimal">Obmedzené</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synchronizuje sa…</string>
     <string name="sync_status_title">Stav synchronizácie</string>

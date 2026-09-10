@@ -6,6 +6,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.model.WhatsNewContent
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.update.WhatsNewRepository.Companion.parse
 import org.ntust.app.tigerduck.update.WhatsNewRepository.Companion.select
 import javax.inject.Inject
@@ -85,16 +86,18 @@ class WhatsNewRepository @Inject constructor(
 
         /**
          * Picks the localized [WhatsNewContent] out of one version's per-locale
-         * map. A Chinese [languageTag] (`zh-*`) maps to the `zh-Hant` block;
-         * everything else falls back to `en`. An entry with no usable text is
-         * treated as absent.
+         * map. Any Chinese [languageTag] — `zh-*` and Cantonese `yue-HK`
+         * alike, per [AppLanguageManager.isChineseLanguageTag] — maps to the
+         * `zh-Hant` block; everything else falls back to `en`. An entry with
+         * no usable text is treated as absent.
          */
         private fun select(
             versionEntry: Map<String, WhatsNewContent>?,
             languageTag: String,
         ): WhatsNewContent? {
             versionEntry ?: return null
-            val localeKey = if (languageTag.startsWith("zh", ignoreCase = true)) "zh-Hant" else "en"
+            val localeKey =
+                if (AppLanguageManager.isChineseLanguageTag(languageTag)) "zh-Hant" else "en"
             val content = versionEntry[localeKey] ?: versionEntry["en"] ?: return null
             if (content.title.isNullOrBlank() || content.highlights.isNullOrEmpty()) return null
             return content
