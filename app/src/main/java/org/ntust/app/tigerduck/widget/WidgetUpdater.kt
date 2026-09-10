@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.glance.GlanceId
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.state.updateAppWidgetState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -56,17 +57,32 @@ class WidgetUpdater @Inject constructor(
         // captured when the widget's session was first established.
         val now = AppClock.nowMillis()
         val manager = GlanceAppWidgetManager(context)
+        val awm = AppWidgetManager.getInstance(context)
         coroutineScope {
-            GLANCE_WIDGET_FACTORIES.forEach { factory ->
+            WIDGETS.forEach { widgetKind ->
                 launch {
-                    val widget = factory()
-                    // Single getGlanceIds round-trip per factory: the prior
-                    // shape called it once for the tick bump and again inside
-                    // widget.updateAll(). Explicit per-id update reuses the
-                    // ids we already have.
-                    val ids: List<GlanceId> =
-                        runCatching { manager.getGlanceIds(widget.javaClass) }
-                            .getOrDefault(emptyList())
+                    val widget = widgetKind.factory()
+                    // Ids come from AppWidgetManager keyed on the *receiver*
+                    // component, never GlanceAppWidgetManager.getGlanceIds().
+                    // That call answers "which widgets is this provider on?"
+                    // out of a datastore map keyed by the GlanceAppWidget
+                    // subclass's canonical name, written by whichever build
+                    // last ran the receiver and never pruned — so it is the
+                    // one thing here that can hand back another provider's
+                    // appWidgetIds and render a layout into a widget it does
+                    // not belong to. The pairing is static and known at
+                    // compile time; there is no reason to look it up at all.
+                    // getGlanceIdBy() only validates and wraps the int, so it
+                    // reads nothing persisted.
+                    val component = ComponentName(context, widgetKind.receiver)
+                    val appWidgetIds: IntArray =
+                        runCatching { awm.getAppWidgetIds(component) }.getOrNull() ?: IntArray(0)
+                    // Per id, not around the whole map: getGlanceIdBy throws on
+                    // an id the host has since dropped, and one widget removed
+                    // mid-refresh must not cost the others their update.
+                    val ids: List<GlanceId> = appWidgetIds.toList().mapNotNull {
+                        runCatching { manager.getGlanceIdBy(it) }.getOrNull()
+                    }
                     if (ids.isEmpty()) return@launch
                     ids.forEach { id ->
                         runCatching {
@@ -81,13 +97,15 @@ class WidgetUpdater @Inject constructor(
         }
         if (!hasLoggedWidgetAnalytics) {
             hasLoggedWidgetAnalytics = true
-            val awm = AppWidgetManager.getInstance(context)
-            WIDGET_ANALYTICS.forEach { (clazz, label) ->
+            WIDGETS.forEach { widgetKind ->
                 val count = runCatching {
-                    awm.getAppWidgetIds(ComponentName(context, clazz))?.size ?: 0
+                    awm.getAppWidgetIds(ComponentName(context, widgetKind.receiver))?.size ?: 0
                 }.getOrDefault(0)
                 if (count > 0) {
-                    analyticsLogger.log("widget_active", mapOf("widget_type" to label, "count" to count))
+                    analyticsLogger.log(
+                        "widget_active",
+                        mapOf("widget_type" to widgetKind.analyticsLabel, "count" to count),
+                    )
                 }
             }
         }
@@ -143,7 +161,8 @@ class WidgetUpdater @Inject constructor(
 
     private fun broadcastAppWidgetUpdate() {
         val manager = AppWidgetManager.getInstance(context)
-        RECEIVER_CLASSES.forEach { clazz ->
+        WIDGETS.forEach { widgetKind ->
+            val clazz = widgetKind.receiver
             val component = ComponentName(context, clazz)
             val ids = runCatching { manager.getAppWidgetIds(component) }.getOrNull()
                 ?: return@forEach
@@ -156,33 +175,36 @@ class WidgetUpdater @Inject constructor(
         }
     }
 
+    /**
+     * One placed widget kind: the manifest receiver that owns its
+     * appWidgetIds, the provider that renders them, and its analytics label.
+     *
+     * Deliberately one table rather than three parallel lists. The pairing of
+     * receiver to provider is what keeps a layout rendering into its own
+     * widget, so it must not be able to drift by someone appending to one
+     * list and not another.
+     */
+    private class WidgetKind(
+        val receiver: Class<out GlanceAppWidgetReceiver>,
+        val analyticsLabel: String,
+        val factory: () -> GlanceAppWidget,
+    )
+
     companion object {
-        private val RECEIVER_CLASSES = listOf(
-            WeekLightWidgetReceiver::class.java,
-            WeekDarkWidgetReceiver::class.java,
-            TodayLightWidgetReceiver::class.java,
-            TodayDarkWidgetReceiver::class.java,
-            NextClassLightWidgetReceiver::class.java,
-            NextClassDarkWidgetReceiver::class.java,
-            LibraryShortcutWidgetReceiver::class.java,
-        )
-        private val WIDGET_ANALYTICS = listOf(
-            WeekLightWidgetReceiver::class.java to "week_light",
-            WeekDarkWidgetReceiver::class.java to "week_dark",
-            TodayLightWidgetReceiver::class.java to "today_light",
-            TodayDarkWidgetReceiver::class.java to "today_dark",
-            NextClassLightWidgetReceiver::class.java to "next_class_light",
-            NextClassDarkWidgetReceiver::class.java to "next_class_dark",
-            LibraryShortcutWidgetReceiver::class.java to "library_shortcut",
-        )
-        private val GLANCE_WIDGET_FACTORIES: List<() -> GlanceAppWidget> = listOf(
-            { WeekLightWidget() },
-            { WeekDarkWidget() },
-            { TodayLightWidget() },
-            { TodayDarkWidget() },
-            { NextClassLightWidget() },
-            { NextClassDarkWidget() },
-            { LibraryShortcutWidget() },
+        private val WIDGETS = listOf(
+            WidgetKind(WeekLightWidgetReceiver::class.java, "week_light") { WeekLightWidget() },
+            WidgetKind(WeekDarkWidgetReceiver::class.java, "week_dark") { WeekDarkWidget() },
+            WidgetKind(TodayLightWidgetReceiver::class.java, "today_light") { TodayLightWidget() },
+            WidgetKind(TodayDarkWidgetReceiver::class.java, "today_dark") { TodayDarkWidget() },
+            WidgetKind(NextClassLightWidgetReceiver::class.java, "next_class_light") {
+                NextClassLightWidget()
+            },
+            WidgetKind(NextClassDarkWidgetReceiver::class.java, "next_class_dark") {
+                NextClassDarkWidget()
+            },
+            WidgetKind(LibraryShortcutWidgetReceiver::class.java, "library_shortcut") {
+                LibraryShortcutWidget()
+            },
         )
     }
 }

@@ -13,6 +13,24 @@
 # watch-side CourseWire can't recognize.
 -keep class org.ntust.app.tigerduck.wear.WearScheduleBridge$* { *; }
 
+# Glance addresses a widget provider by its *canonical class name* across
+# upgrades: GlanceAppWidgetManager persists a receiver -> provider name map in
+# its own DataStore, getGlanceIds(provider) resolves through the reverse of it,
+# and the map is never pruned — it is only rebuilt when missing outright. So a
+# provider name that gets reused for a different class in a later build resolves
+# to whichever receiver held it in the previous one, and a layout can be pushed
+# into another widget's appWidgetId. That is the same shape as the v1.4.0 Gson
+# incident above: a name that outlives the build that wrote it must not be
+# obfuscated.
+#
+# The manifest pins the receivers. It does NOT pin the GlanceAppWidget
+# subclasses — checked against seeds.txt, no rule seeds them — yet R8 leaves
+# their names alone today anyway, for reasons no rule in the merged
+# configuration accounts for. That is luck, not a guarantee, so pin them.
+# Cheap: -keepnames still allows shrinking and member obfuscation.
+-keepnames class * extends androidx.glance.appwidget.GlanceAppWidget
+-keepnames class * extends androidx.glance.appwidget.GlanceAppWidgetReceiver
+
 # Gson — TypeToken<List<Course>>() {} anonymous subclasses lose their generic
 # signature under R8 full mode (default since AGP 8.x), which makes
 # fromJson(json, type) deserialize each element as LinkedTreeMap. The cast
