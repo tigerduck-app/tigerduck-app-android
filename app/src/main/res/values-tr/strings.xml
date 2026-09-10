@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Ders birazdan başlıyor: %1$s</string>
     <string name="notification_setup_description">Aşağıdaki izinleri etkinleştirerek ödev hatırlatıcılarının, ders başlangıç uyarılarının ve canlı güncellemelerin uygulama kapalıyken bile zamanında ulaşmasını sağlayın.</string>
     <string name="notification_setup_title">Bildirimleri yeniden yapılandır</string>
+    <string name="notification_system_channel_description">İlginizi gerektiren hesap ve eşitleme sorunları</string>
+    <string name="notification_system_channel_name">Sistem bildirimleri</string>
     <string name="onboarding_analytics_description">Ziyaret edilen sayfalar ve widget kullanımına ilişkin anonim verileri paylaşarak TigerDuck\'ı geliştirmeye yardımcı ol. Bunu istediğin zaman Ayarlar\'dan değiştirebilirsin.</string>
     <string name="onboarding_analytics_label">Kullanım analitiği (isteğe bağlı)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

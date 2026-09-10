@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Undervisning begynder snart: %1$s</string>
     <string name="notification_setup_description">Aktivér nedenstående tilladelser for at sikre, at opgavepåmindelser, advarsler om kommende undervisning og liveopdateringer ankommer til tiden, selv når appen er lukket.</string>
     <string name="notification_setup_title">Rekonfigurer notifikationer</string>
+    <string name="notification_system_channel_description">Problemer med konto og synkronisering, der kræver din opmærksomhed</string>
+    <string name="notification_system_channel_name">Systemnotifikationer</string>
     <string name="onboarding_analytics_description">Hjælp med at forbedre TigerDuck ved at dele anonyme sidebesøg og brug af widgets. Du kan ændre dette til enhver tid i Indstillinger.</string>
     <string name="onboarding_analytics_label">Brugsanalyse (valgfrit)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

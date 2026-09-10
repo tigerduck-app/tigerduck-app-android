@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">ਕਲਾਸ ਜਲਦੀ ਸ਼ੁਰੂ ਹੋਵੇਗੀ: %1$s</string>
     <string name="notification_setup_description">ਹੇਠ ਲਿਖੀਆਂ ਅਨੁਮਤੀਆਂ ਚਾਲੂ ਕਰੋ ਤਾਂ ਜੋ ਅਸਾਈਨਮੈਂਟ ਰੀਮਾਈਂਡਰ, ਕਲਾਸ-ਸ਼ੁਰੂ ਹੋਣ ਦੀਆਂ ਸੂਚਨਾਵਾਂ, ਅਤੇ Live Updates ਐਪ ਬੰਦ ਹੋਣ \'ਤੇ ਵੀ ਸਮੇਂ \'ਤੇ ਪਹੁੰਚ ਸਕਣ।</string>
     <string name="notification_setup_title">ਸੂਚਨਾਵਾਂ ਦੁਬਾਰਾ ਸੈੱਟ ਕਰੋ</string>
+    <string name="notification_system_channel_description">ਖਾਤੇ ਅਤੇ ਸਿੰਕ ਦੀਆਂ ਸਮੱਸਿਆਵਾਂ, ਜਿਨ੍ਹਾਂ ਵੱਲ ਤੁਹਾਡਾ ਧਿਆਨ ਲੋੜੀਂਦਾ ਹੈ</string>
+    <string name="notification_system_channel_name">ਸਿਸਟਮ ਸੂਚਨਾਵਾਂ</string>
     <string name="onboarding_analytics_description">ਅਗਿਆਤ ਪੰਨਾ ਵਿਜ਼ਿਟ ਅਤੇ ਵਿਜੇਟ ਵਰਤੋਂ ਸਾਂਝੀ ਕਰਕੇ TigerDuck ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਵਿੱਚ ਮਦਦ ਕਰੋ। ਤੁਸੀਂ ਇਹ ਕਿਸੇ ਵੀ ਸਮੇਂ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਬਦਲ ਸਕਦੇ ਹੋ।</string>
     <string name="onboarding_analytics_label">ਵਰਤੋਂ ਵਿਸ਼ਲੇਸ਼ਣ (ਵਿਕਲਪਿਕ)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

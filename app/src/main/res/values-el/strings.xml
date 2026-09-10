@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Το μάθημα ξεκινά σύντομα: %1$s</string>
     <string name="notification_setup_description">Ενεργοποιήστε τις παρακάτω άδειες για να διασφαλίσετε ότι οι υπενθυμίσεις εργασιών, οι ειδοποιήσεις έναρξης μαθήματος και οι ενημερώσεις σε πραγματικό χρόνο παραδίδονται έγκαιρα ακόμα και όταν η εφαρμογή είναι κλειστή.</string>
     <string name="notification_setup_title">Επαναδιαμόρφωση ειδοποιήσεων</string>
+    <string name="notification_system_channel_description">Προβλήματα λογαριασμού και συγχρονισμού που χρειάζονται την προσοχή σας</string>
+    <string name="notification_system_channel_name">Ειδοποιήσεις συστήματος</string>
     <string name="onboarding_analytics_description">Βοήθησε στη βελτίωση του TigerDuck μοιράζοντας ανώνυμα δεδομένα για τις σελίδες που επισκέπτεσαι και τη χρήση widget. Μπορείς να το αλλάξεις οποιαδήποτε στιγμή από τις Ρυθμίσεις.</string>
     <string name="onboarding_analytics_label">Ανάλυση χρήσης (προαιρετικό)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Wkrótce zajęcia: %1$s</string>
     <string name="notification_setup_description">Włączyć poniższe uprawnienia, aby przypomnienia o zadaniach, alerty o nadchodzących zajęciach oraz aktualizacje na żywo docierały na czas, nawet gdy aplikacja jest zamknięta.</string>
     <string name="notification_setup_title">Skonfiguruj powiadomienia ponownie</string>
+    <string name="notification_system_channel_description">Problemy z kontem i synchronizacją, które wymagają Twojej uwagi</string>
+    <string name="notification_system_channel_name">Powiadomienia systemowe</string>
     <string name="onboarding_analytics_description">Pomóż ulepszać TigerDuck, udostępniając anonimowe dane o odwiedzanych stronach i używaniu widgetów. Możesz to zmienić w dowolnym momencie w Ustawieniach.</string>
     <string name="onboarding_analytics_label">Analityka użytkowania (opcjonalne)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

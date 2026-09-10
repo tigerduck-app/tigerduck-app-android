@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Class starting soon: %1$s</string>
     <string name="notification_setup_description">Enable the permissions below to ensure assignment reminders, class-preparing alerts, and Live Updates arrive on time even when the app is closed.</string>
     <string name="notification_setup_title">Reconfigure notifications</string>
+    <string name="notification_system_channel_description">Account and sync problems that need your attention</string>
+    <string name="notification_system_channel_name">System notifications</string>
     <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymised page visits and widget usage. You can change this anytime in Settings.</string>
     <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

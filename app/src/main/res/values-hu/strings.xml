@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Hamarosan kezdődik az óra: %1$s</string>
     <string name="notification_setup_description">Az alábbi engedélyek engedélyezésével biztosítható, hogy a házi feladat emlékeztetők, az órakezdés figyelmeztetések és az élő frissítések akkor is időben megérkezzenek, amikor az alkalmazás be van zárva.</string>
     <string name="notification_setup_title">Értesítések újrakonfigurálása</string>
+    <string name="notification_system_channel_description">Fiókkal és szinkronizálással kapcsolatos problémák, amelyek figyelmet igényelnek</string>
+    <string name="notification_system_channel_name">Rendszerértesítések</string>
     <string name="onboarding_analytics_description">Segíts fejleszteni a TigerDuck-ot névtelen adatok megosztásával a meglátogatott oldalakról és a widget-használatról. Ezt bármikor megváltoztathatod a Beállításokban.</string>
     <string name="onboarding_analytics_label">Használati analitika (nem kötelező)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

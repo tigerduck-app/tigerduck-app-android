@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Les begint zo: %1$s</string>
     <string name="notification_setup_description">Schakel de onderstaande machtigingen in zodat opdrachtherinneringen, meldingen voor lessen die zo beginnen en live updates op tijd binnenkomen, ook als de app gesloten is.</string>
     <string name="notification_setup_title">Meldingen opnieuw configureren</string>
+    <string name="notification_system_channel_description">Problemen met je account en synchronisatie die aandacht nodig hebben</string>
+    <string name="notification_system_channel_name">Systeemmeldingen</string>
     <string name="onboarding_analytics_description">Help TigerDuck te verbeteren door anoniem paginabezoeken en widgetgebruik te delen. Je kunt dit altijd wijzigen in Instellingen.</string>
     <string name="onboarding_analytics_label">Gebruiksanalyse (optioneel)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

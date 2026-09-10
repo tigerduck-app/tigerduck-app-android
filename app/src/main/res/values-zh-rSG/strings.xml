@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">即将上课：%1$s</string>
     <string name="notification_setup_description">设置以下权限可确保作业提醒、即将上课、实时动态在 App 关闭时也能准时送达。</string>
     <string name="notification_setup_title">重新设置通知</string>
+    <string name="notification_system_channel_description">需要您处理的账号与同步问题</string>
+    <string name="notification_system_channel_name">系统通知</string>
     <string name="onboarding_analytics_description">通过分享匿名的页面浏览和小组件使用数据，帮助改进 TigerDuck。你可以随时在设置中更改。</string>
     <string name="onboarding_analytics_label">使用分析（可选）</string>
     <string name="onboarding_custom_endpoint_button">使用其他 API 端点</string>

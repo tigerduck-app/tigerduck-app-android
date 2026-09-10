@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Скоро начнётся занятие: %1$s</string>
     <string name="notification_setup_description">Включите указанные ниже разрешения, чтобы напоминания о заданиях, оповещения о начале занятий и уведомления в реальном времени приходили вовремя, даже когда приложение закрыто.</string>
     <string name="notification_setup_title">Настроить уведомления заново</string>
+    <string name="notification_system_channel_description">Проблемы с аккаунтом и синхронизацией, требующие вашего внимания</string>
+    <string name="notification_system_channel_name">Системные уведомления</string>
     <string name="onboarding_analytics_description">Помоги улучшить TigerDuck, делясь анонимными данными о посещённых страницах и использовании виджетов. Изменить это можно в любой момент в Настройках.</string>
     <string name="onboarding_analytics_label">Аналитика использования (необязательно)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

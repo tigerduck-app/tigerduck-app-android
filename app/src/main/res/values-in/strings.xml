@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Kelas akan segera dimulai: %1$s</string>
     <string name="notification_setup_description">Aktifkan izin di bawah ini untuk memastikan pengingat tugas, peringatan sebelum kelas, dan live update tiba tepat waktu meskipun aplikasi ditutup.</string>
     <string name="notification_setup_title">Konfigurasi ulang notifikasi</string>
+    <string name="notification_system_channel_description">Masalah akun dan sinkronisasi yang perlu Anda tangani</string>
+    <string name="notification_system_channel_name">Notifikasi sistem</string>
     <string name="onboarding_analytics_description">Bantu tingkatkan TigerDuck dengan berbagi data anonim tentang halaman yang dikunjungi dan penggunaan widget. Kamu bisa mengubah ini kapan saja di Pengaturan.</string>
     <string name="onboarding_analytics_label">Analitik penggunaan (opsional)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Paskaita prasideda: %1$s</string>
     <string name="notification_setup_description">Įjunkite toliau nurodytus leidimus, kad užduočių priminimai, paskaitų įspėjimai ir tiesioginiai atnaujinimai būtų pristatomi laiku net uždarius programą.</string>
     <string name="notification_setup_title">Iš naujo konfigūruoti pranešimus</string>
+    <string name="notification_system_channel_description">Paskyros ir sinchronizavimo problemos, kurioms reikia jūsų dėmesio</string>
+    <string name="notification_system_channel_name">Sistemos pranešimai</string>
     <string name="onboarding_analytics_description">Padėk tobulinti TigerDuck dalindamasis anoniminiais duomenimis apie lankytus puslapius ir valdiklių naudojimą. Tai galite keisti bet kada Nustatymuose.</string>
     <string name="onboarding_analytics_label">Naudojimo analizė (neprivaloma)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

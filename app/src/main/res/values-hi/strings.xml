@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">कक्षा जल्द शुरू होगी: %1$s</string>
     <string name="notification_setup_description">नीचे दी गई अनुमतियाँ सक्षम करें ताकि असाइनमेंट अनुस्मारक, कक्षा तैयारी अलर्ट और लाइव अपडेट ऐप बंद होने पर भी समय पर आ सकें।</string>
     <string name="notification_setup_title">नोटिफिकेशन पुनः कॉन्फ़िगर करें</string>
+    <string name="notification_system_channel_description">खाते और सिंक से जुड़ी समस्याएँ, जिन पर आपका ध्यान ज़रूरी है</string>
+    <string name="notification_system_channel_name">सिस्टम नोटिफिकेशन</string>
     <string name="onboarding_analytics_description">गुमनाम पेज विज़िट और विजेट उपयोग साझा करके TigerDuck को बेहतर बनाने में मदद करें। आप इसे कभी भी सेटिंग में बदल सकते हैं।</string>
     <string name="onboarding_analytics_label">उपयोग विश्लेषण (वैकल्पिक)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

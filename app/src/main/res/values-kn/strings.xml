@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">ತರಗತಿ ಶೀಘ್ರದಲ್ಲಿ ಆರಂಭವಾಗುತ್ತದೆ: %1$s</string>
     <string name="notification_setup_description">ಕಾರ್ಯ ಜ್ಞಾಪನೆಗಳು, ತರಗತಿ ಸಿದ್ಧತೆ ಎಚ್ಚರಿಕೆಗಳು ಮತ್ತು Live Updates ಅಪ್ಲಿಕೇಶನ್ ಮುಚ್ಚಿದ್ದರೂ ಸಮಯಕ್ಕೆ ತಲುಪುವಂತೆ ಕೆಳಗಿನ ಅನುಮತಿಗಳನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ.</string>
     <string name="notification_setup_title">ಅಧಿಸೂಚನೆಗಳನ್ನು ಮರುಸಂರಚಿಸಿ</string>
+    <string name="notification_system_channel_description">ನಿಮ್ಮ ಗಮನ ಬೇಕಿರುವ ಖಾತೆ ಮತ್ತು ಸಿಂಕ್ ಸಮಸ್ಯೆಗಳು</string>
+    <string name="notification_system_channel_name">ಸಿಸ್ಟಂ ಅಧಿಸೂಚನೆಗಳು</string>
     <string name="onboarding_analytics_description">ಅನಾಮಧೇಯ ಪುಟ ಭೇಟಿಗಳು ಮತ್ತು ವಿಜೆಟ್ ಬಳಕೆ ಹಂಚಿಕೊಂಡು TigerDuck ಸುಧಾರಿಸಲು ಸಹಾಯ ಮಾಡಿ. ನೀವು ಇದನ್ನು ಯಾವಾಗ ಬೇಕಾದರೂ ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಬದಲಾಯಿಸಬಹುದು.</string>
     <string name="onboarding_analytics_label">ಬಳಕೆ ವಿಶ್ಲೇಷಣೆ (ಐಚ್ಛಿಕ)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

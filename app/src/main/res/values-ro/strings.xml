@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Curs începe în curând: %1$s</string>
     <string name="notification_setup_description">Activează permisiunile de mai jos pentru a asigura că reminderele pentru teme, alertele de pregătire curs și actualizările live ajung la timp chiar și când aplicația este închisă.</string>
     <string name="notification_setup_title">Reconfigurează notificările</string>
+    <string name="notification_system_channel_description">Probleme de cont și de sincronizare care necesită atenția dvs.</string>
+    <string name="notification_system_channel_name">Notificări de sistem</string>
     <string name="onboarding_analytics_description">Ajută la îmbunătățirea TigerDuck prin partajarea datelor anonime despre paginile vizitate și utilizarea widget-urilor. Poți schimba asta oricând din Setări.</string>
     <string name="onboarding_analytics_label">Analiză utilizare (opțional)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

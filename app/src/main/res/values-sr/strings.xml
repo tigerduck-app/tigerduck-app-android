@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Час ускоро почиње: %1$s</string>
     <string name="notification_setup_description">Омогућите следеће дозволе да бисте осигурали да подсетници за задатке, упозорења о почетку часа и новости уживо стижу на вријеме чак и кад је апликација затворена.</string>
     <string name="notification_setup_title">Поново подеси обавештења</string>
+    <string name="notification_system_channel_description">Проблеми са налогом и синхронизацијом који захтевају Вашу пажњу</string>
+    <string name="notification_system_channel_name">Системска обавештења</string>
     <string name="onboarding_analytics_description">Помози у побољшању TigerDuck-а дељењем анонимних података о посећеним страницама и коришћењу виџета. Ово можеш променити у било ком тренутку у Подешавањима.</string>
     <string name="onboarding_analytics_label">Аналитика коришћења (опционално)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

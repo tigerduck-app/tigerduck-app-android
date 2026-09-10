@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Cours imminent : %1$s</string>
     <string name="notification_setup_description">Activez les autorisations ci-dessous pour vous assurer que les rappels de devoirs, les alertes avant les cours et les mises à jour en temps réel arrivent à temps, même lorsque l\'application est fermée.</string>
     <string name="notification_setup_title">Reconfigurer les notifications</string>
+    <string name="notification_system_channel_description">Problèmes de compte et de synchronisation qui nécessitent votre attention</string>
+    <string name="notification_system_channel_name">Notifications système</string>
     <string name="onboarding_analytics_description">Aide à améliorer TigerDuck en partageant de façon anonyme tes visites de pages et l\'utilisation des widgets. Tu peux modifier ça à tout moment dans les Réglages.</string>
     <string name="onboarding_analytics_label">Analyse d\'utilisation (facultatif)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

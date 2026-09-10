@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Sắp vào lớp: %1$s</string>
     <string name="notification_setup_description">Bật các quyền dưới đây để đảm bảo nhắc bài tập, cảnh báo sắp vào lớp và thông tin cập nhật trực tiếp đến đúng giờ ngay cả khi ứng dụng đã đóng.</string>
     <string name="notification_setup_title">Cài đặt lại thông báo</string>
+    <string name="notification_system_channel_description">Sự cố tài khoản và đồng bộ cần bạn xử lý</string>
+    <string name="notification_system_channel_name">Thông báo hệ thống</string>
     <string name="onboarding_analytics_description">Giúp cải thiện TigerDuck bằng cách chia sẻ lượt truy cập trang và sử dụng widget ẩn danh. Bạn có thể thay đổi điều này bất cứ lúc nào trong Cài đặt.</string>
     <string name="onboarding_analytics_label">Phân tích sử dụng (tùy chọn)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

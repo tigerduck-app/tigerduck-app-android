@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">La lezione sta per iniziare: %1$s</string>
     <string name="notification_setup_description">Abilita le autorizzazioni qui sotto per assicurarti che i promemoria dei compiti, gli avvisi di preparazione lezione e gli aggiornamenti in tempo reale arrivino in tempo anche quando l\'app è chiusa.</string>
     <string name="notification_setup_title">Riconfigura le notifiche</string>
+    <string name="notification_system_channel_description">Problemi di account e sincronizzazione che richiedono la tua attenzione</string>
+    <string name="notification_system_channel_name">Notifiche di sistema</string>
     <string name="onboarding_analytics_description">Aiuta a migliorare TigerDuck condividendo in modo anonimo le pagine visitate e l\'utilizzo dei widget. Puoi cambiare questa impostazione in qualsiasi momento nelle Impostazioni.</string>
     <string name="onboarding_analytics_label">Analisi dell\'utilizzo (opzionale)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

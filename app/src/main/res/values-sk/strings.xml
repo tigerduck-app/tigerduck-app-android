@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Čoskoro začína hodina: %1$s</string>
     <string name="notification_setup_description">Povoľte nižšie uvedené oprávnenia, aby pripomienky úloh, upozornenia pred hodinou a aktuality naživo prichádzali včas aj keď je aplikácia zatvorená.</string>
     <string name="notification_setup_title">Znovu nastaviť notifikácie</string>
+    <string name="notification_system_channel_description">Problémy s účtom a synchronizáciou, ktoré si vyžadujú vašu pozornosť</string>
+    <string name="notification_system_channel_name">Systémové notifikácie</string>
     <string name="onboarding_analytics_description">Pomôž nám vylepšiť TigerDuck zdieľaním anonymných údajov o navštívených stránkach a používaní widgetov. Kedykoľvek to môžeš zmeniť v Nastaveniach.</string>
     <string name="onboarding_analytics_label">Analytika používania (voliteľné)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

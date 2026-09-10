@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Drīz sāksies: %1$s</string>
     <string name="notification_setup_description">Iespējojiet tālāk minētās atļaujas, lai uzdevumu atgādinājumi, nodarbību brīdinājumi un reāllaika atjauninājumi tiktu piegādāti laikā arī tad, kad lietotne ir aizvērta.</string>
     <string name="notification_setup_title">Pārkonfigurēt paziņojumus</string>
+    <string name="notification_system_channel_description">Konta un sinhronizācijas problēmas, kurām nepieciešama jūsu uzmanība</string>
+    <string name="notification_system_channel_name">Sistēmas paziņojumi</string>
     <string name="onboarding_analytics_description">Palīdzi uzlabot TigerDuck, daloties ar anonīmiem datiem par apmeklētajām lapām un sīkrīku lietošanu. To var mainīt jebkurā laikā Iestatījumos.</string>
     <string name="onboarding_analytics_label">Lietošanas analītika (neobligāti)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

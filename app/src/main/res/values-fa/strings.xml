@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">کلاس به‌زودی شروع می‌شود: %1$s</string>
     <string name="notification_setup_description">برای اینکه یادآورهای تکلیف، هشدارهای شروع کلاس و به‌روزرسانی‌های زنده حتی وقتی برنامه بسته است به‌موقع برسند، مجوزهای زیر را فعال کنید.</string>
     <string name="notification_setup_title">پیکربندی مجدد اعلان‌ها</string>
+    <string name="notification_system_channel_description">مشکلات حساب و همگام‌سازی که به توجه شما نیاز دارند</string>
+    <string name="notification_system_channel_name">اعلان‌های سیستم</string>
     <string name="onboarding_analytics_description">با به اشتراک گذاشتن بازدید ناشناس صفحات و استفاده از ویجت، به بهبود TigerDuck کمک کنید. هر زمان می‌توانید این را در تنظیمات تغییر دهید.</string>
     <string name="onboarding_analytics_label">آمار استفاده (اختیاری)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

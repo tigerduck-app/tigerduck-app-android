@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">La classe comença aviat: %1$s</string>
     <string name="notification_setup_description">Activeu els permisos següents per garantir que els recordatoris de tasques, les alertes de classe i les actualitzacions en temps real arribin a temps fins i tot quan l\'aplicació estigui tancada.</string>
     <string name="notification_setup_title">Reconfigura les notificacions</string>
+    <string name="notification_system_channel_description">Problemes de compte i de sincronització que requereixen la vostra atenció</string>
+    <string name="notification_system_channel_name">Notificacions del sistema</string>
     <string name="onboarding_analytics_description">Ajuda a millorar TigerDuck compartint visites de pàgines i ús de widgets de manera anònima. Pots canviar-ho en qualsevol moment a Configuració.</string>
     <string name="onboarding_analytics_label">Anàlisi d\'ús (opcional)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

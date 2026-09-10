@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Tími byrjar bráðum: %1$s</string>
     <string name="notification_setup_description">Virkjaðu leyfi hér að neðan til að tryggja að verkefnaáminningar, tímaviðvaranir og Live Updates berist á réttum tíma jafnvel þegar forritið er lokað.</string>
     <string name="notification_setup_title">Endursetja tilkynningar</string>
+    <string name="notification_system_channel_description">Vandamál með reikning og samstillingu sem þarfnast athygli þinnar</string>
+    <string name="notification_system_channel_name">Kerfistilkynningar</string>
     <string name="onboarding_analytics_description">Hjálpaðu til við að bæta TigerDuck með því að deila nafnlausum síðuheimsóknum og notkun widgets. Þú getur breytt þessu hvenær sem er í Stillingar.</string>
     <string name="onboarding_analytics_label">Notkunargreining (valfrjálst)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

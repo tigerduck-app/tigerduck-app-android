@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Unterricht beginnt bald: %1$s</string>
     <string name="notification_setup_description">Aktivieren Sie die folgenden Berechtigungen, damit Aufgabenerinnerungen, Unterrichtsvorwarnungen und Livemeldungen auch bei geschlossener App rechtzeitig eintreffen.</string>
     <string name="notification_setup_title">Benachrichtigungen neu einrichten</string>
+    <string name="notification_system_channel_description">Konto- und Synchronisierungsprobleme, die Ihre Aufmerksamkeit erfordern</string>
+    <string name="notification_system_channel_name">Systembenachrichtigungen</string>
     <string name="onboarding_analytics_description">Hilf dabei, TigerDuck zu verbessern, indem du anonyme Seitenaufrufe und Widget-Nutzung teilst. Du kannst das jederzeit in den Einstellungen ändern.</string>
     <string name="onboarding_analytics_label">Nutzungsanalyse (optional)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

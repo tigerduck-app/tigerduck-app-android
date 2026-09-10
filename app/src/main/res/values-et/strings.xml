@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Tund algab varsti: %1$s</string>
     <string name="notification_setup_description">Lubage allpool olevad load, et ülesande meeldetuletused, tunni alguse teavitused ja reaalajas teavitused jõuaksid õigel ajal kohale isegi siis, kui rakendus on suletud.</string>
     <string name="notification_setup_title">Seadista teavitused uuesti</string>
+    <string name="notification_system_channel_description">Konto ja sünkroonimise probleemid, mis vajavad teie tähelepanu</string>
+    <string name="notification_system_channel_name">Süsteemiteavitused</string>
     <string name="onboarding_analytics_description">Aita TigerDucki paremaks muuta, jagades anonüümseid andmeid külastatud lehtede ja vidinate kasutamise kohta. Saad seda igal ajal Seadetes muuta.</string>
     <string name="onboarding_analytics_label">Kasutusanalüütika (valikuline)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

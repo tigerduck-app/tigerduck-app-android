@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">తరగతి త్వరలో మొదలవుతుంది: %1$s</string>
     <string name="notification_setup_description">అసైన్‌మెంట్ రిమైండర్లు, తరగతి హెచ్చరికలు మరియు Live Updates యాప్ మూసివేసినా సమయానికి వచ్చేలా కింది అనుమతులు ఆన్ చేయండి.</string>
     <string name="notification_setup_title">నోటిఫికేషన్లు తిరిగి సెట్ చేయండి</string>
+    <string name="notification_system_channel_description">మీ దృష్టి అవసరమైన అకౌంట్ మరియు సింక్ సమస్యలు</string>
+    <string name="notification_system_channel_name">సిస్టమ్ నోటిఫికేషన్లు</string>
     <string name="onboarding_analytics_description">అనామక పేజీ సందర్శనలు మరియు విజెట్ వినియోగాన్ని పంచుకుని TigerDuck మెరుగుపరచడంలో సహాయపడండి. మీరు ఇది ఎప్పుడైనా సెట్టింగ్‌లలో మార్చవచ్చు.</string>
     <string name="onboarding_analytics_label">వినియోగ విశ్లేషణ (ఐచ్ఛికం)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

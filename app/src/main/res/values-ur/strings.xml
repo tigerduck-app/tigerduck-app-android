@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">کلاس جلد شروع ہو رہی ہے: %1$s</string>
     <string name="notification_setup_description">درج ذیل اجازتیں فعال کریں تاکہ اسائنمنٹ کی یاددہانی، کلاس کی تیاری کے الرٹ، اور Live Updates وقت پر پہنچیں چاہے ایپ بند ہو۔</string>
     <string name="notification_setup_title">اطلاعات دوبارہ ترتیب دیں</string>
+    <string name="notification_system_channel_description">اکاؤنٹ اور سنک کے مسائل جن پر آپ کی توجہ درکار ہے</string>
+    <string name="notification_system_channel_name">سسٹم اطلاعات</string>
     <string name="onboarding_analytics_description">گمنام صفحہ وزٹ اور ویجٹ استعمال شیئر کر کے TigerDuck کو بہتر بنانے میں مدد کریں۔ آپ اسے کسی بھی وقت ترتیبات میں تبدیل کر سکتے ہیں۔</string>
     <string name="onboarding_analytics_label">استعمال کا تجزیہ (اختیاری)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">વર્ગ ટૂંક સમયમાં શરૂ: %1$s</string>
     <string name="notification_setup_description">નીચેની પરમિશન ચાલુ કરો જેથી App બંધ હોય ત્યારે પણ અસાઇનમેન્ટ રિમાઇન્ડર, ક્લાસ-તૈયારી એલર્ટ અને Live Updates સમયસર આવે.</string>
     <string name="notification_setup_title">નોટિફિકેશન ફરીથી ગોઠવો</string>
+    <string name="notification_system_channel_description">એકાઉન્ટ અને સિંક સંબંધિત સમસ્યાઓ, જેમાં તમારું ધ્યાન જરૂરી છે</string>
+    <string name="notification_system_channel_name">સિસ્ટમ નોટિફિકેશન</string>
     <string name="onboarding_analytics_description">અજ્ઞાત પૃષ્ઠ મુલાકાત અને વિજેટ ઉપયોગ શેર કરીને TigerDuck સુધારવામાં મદદ કરો. તમે આ ગમે ત્યારે સેટિંગ્સમાં બદલી શકો છો.</string>
     <string name="onboarding_analytics_label">ઉપયોગ વિશ્લેષણ (વૈકલ્પિક)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

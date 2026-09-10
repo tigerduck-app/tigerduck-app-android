@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">वर्ग लवकरच सुरू होणार: %1$s</string>
     <string name="notification_setup_description">असाइनमेंट स्मरणपत्रे, वर्ग सुरू होण्याच्या सूचना आणि Live Updates ॲप बंद असतानाही वेळेवर येण्यासाठी खालील परवानग्या सक्षम करा.</string>
     <string name="notification_setup_title">अधिसूचना पुन्हा सेट करा</string>
+    <string name="notification_system_channel_description">खाते आणि सिंक संबंधित समस्या, ज्यांकडे तुमचे लक्ष आवश्यक आहे</string>
+    <string name="notification_system_channel_name">सिस्टम अधिसूचना</string>
     <string name="onboarding_analytics_description">अनामिक पृष्ठ भेटी आणि विजेट वापर शेअर करून TigerDuck सुधारण्यास मदत करा. तुम्ही हे कधीही सेटिंग्जमध्ये बदलू शकता.</string>
     <string name="onboarding_analytics_label">वापर विश्लेषण (पर्यायी)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

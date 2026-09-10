@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Hodina brzy začne: %1$s</string>
     <string name="notification_setup_description">Povolte níže uvedená oprávnění, abyste zajistili, že upozornění na úkoly, na blížící se hodinu a aktuality živě budou doručena včas, i když je aplikace zavřená.</string>
     <string name="notification_setup_title">Znovu nastavit oznámení</string>
+    <string name="notification_system_channel_description">Problémy s účtem a synchronizací, které vyžadují vaši pozornost</string>
+    <string name="notification_system_channel_name">Systémová oznámení</string>
     <string name="onboarding_analytics_description">Pomoz nám vylepšit TigerDuck sdílením anonymních dat o navštívených stránkách a používání widgetů. Kdykoli to můžeš změnit v Nastavení.</string>
     <string name="onboarding_analytics_label">Analytika používání (volitelné)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

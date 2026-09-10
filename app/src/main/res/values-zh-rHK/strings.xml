@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">就快上堂：%1$s</string>
     <string name="notification_setup_description">設定以下權限可確保功課提醒、就快上堂、最新即時資訊喺 App 關閉時都可以準時送達。</string>
     <string name="notification_setup_title">重新設定通知</string>
+    <string name="notification_system_channel_description">需要你處理嘅帳號同埋同步問題</string>
+    <string name="notification_system_channel_name">系統通知</string>
     <string name="onboarding_analytics_description">分享匿名嘅頁面瀏覽同小工具使用資料，協助改善 TigerDuck。你可以隨時喺設定度更改。</string>
     <string name="onboarding_analytics_label">使用分析（可選）</string>
     <string name="onboarding_custom_endpoint_button">用其他 API 端點</string>

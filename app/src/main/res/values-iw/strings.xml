@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">השיעור מתחיל בקרוב: %1$s</string>
     <string name="notification_setup_description">הפעל את ההרשאות שלהלן כדי להבטיח שתזכורות מטלות, התראות לפני שיעור ועדכונים בזמן אמת יגיעו בזמן גם כשהאפליקציה סגורה.</string>
     <string name="notification_setup_title">הגדר מחדש התראות</string>
+    <string name="notification_system_channel_description">בעיות בחשבון ובסנכרון שדורשות טיפול</string>
+    <string name="notification_system_channel_name">התראות מערכת</string>
     <string name="onboarding_analytics_description">עזור לשפר את TigerDuck על ידי שיתוף ביקורי דפים אנונימיים ושימוש בווידג\'טים. אפשר לשנות זאת בכל עת בהגדרות.</string>
     <string name="onboarding_analytics_label">ניתוח שימוש (אופציונלי)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Magsisimula na ang klase: %1$s</string>
     <string name="notification_setup_description">I-enable ang mga pahintulot sa ibaba para matiyak na darating sa tamang oras ang mga paalala sa takdang-aralin, bago mag-klase, at mga live na update kahit naka-close ang app.</string>
     <string name="notification_setup_title">I-reconfigure ang mga notification</string>
+    <string name="notification_system_channel_description">Mga problema sa account at sync na kailangan mong asikasuhin</string>
+    <string name="notification_system_channel_name">Mga notification ng system</string>
     <string name="onboarding_analytics_description">Tulungan kaming mapabuti ang TigerDuck sa pamamagitan ng pagbabahagi ng iyong anonymous na mga page visit at paggamit ng widget. Maaari mong baguhin ito anumang oras sa Mga Setting.</string>
     <string name="onboarding_analytics_label">Analytics ng paggamit (opsyonal)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>

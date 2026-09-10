@@ -514,6 +514,8 @@
     <string name="notification_class_preparing_title">Timen starter snart: %1$s</string>
     <string name="notification_setup_description">Aktiver tillatelsene nedenfor for å sikre at oppgavepåminnelser, timevarsler og direkteoppdateringer kommer frem i tide selv når appen er lukket.</string>
     <string name="notification_setup_title">Konfigurer varsler på nytt</string>
+    <string name="notification_system_channel_description">Konto- og synkroniseringsproblemer som krever oppmerksomheten din</string>
+    <string name="notification_system_channel_name">Systemvarsler</string>
     <string name="onboarding_analytics_description">Hjelp til å forbedre TigerDuck ved å dele anonyme sidebesøk og bruk av widgets. Du kan endre dette når som helst i Innstillinger.</string>
     <string name="onboarding_analytics_label">Bruksanalyse (valgfritt)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
