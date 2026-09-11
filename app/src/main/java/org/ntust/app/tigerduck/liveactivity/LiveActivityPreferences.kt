@@ -37,6 +37,26 @@ data class LiveActivitySyncValues(
 )
 
 /**
+ * The pull-side mirror of [LiveActivitySyncValues]: what
+ * `NotificationSettingsSync.pullLiveActivitySettings` validated out of a
+ * `notification` document's `live_activity` section. Every field is
+ * nullable, unlike [LiveActivitySyncValues] — a missing section, a null
+ * section, a missing field, or a field of the wrong JSON type all surface
+ * here as `null`, meaning "the document said nothing usable about this
+ * field", never `false`/`0`. [LiveActivityPreferences.applySyncUpdate]
+ * applies only the non-null fields and leaves the rest exactly as they
+ * were, the same "what the document can't express, keep the local choice"
+ * principle as iOS's `resolveOffsets`.
+ */
+data class LiveActivitySyncUpdate(
+    val showInClass: Boolean? = null,
+    val showClassPreparing: Boolean? = null,
+    val showAssignment: Boolean? = null,
+    val classPreparingLeadSeconds: Int? = null,
+    val assignmentLeadSeconds: Int? = null,
+)
+
+/**
  * Preferences for the Android Live Update feature — the dynamic-island-style
  * ongoing notification that mirrors the iOS Live Activity.
  *
@@ -147,6 +167,29 @@ class LiveActivityPreferences internal constructor(
         classPreparingLeadSeconds = classPreparingLeadTimeSec.toInt(),
         assignmentLeadSeconds = assignmentLeadTimeSec.toInt(),
     )
+
+    /**
+     * Applies the non-null fields of [update] — the validated half of a
+     * pulled `notification` document's `live_activity` section — and
+     * leaves every null field's local value untouched. Mirrors
+     * [syncSnapshot] in the other direction; see
+     * `NotificationSettingsSync.pullLiveActivitySettings` for where
+     * [update] comes from and why every field can be null.
+     *
+     * The two lead-time fields go through [assignmentLeadTimeSec] and
+     * [classPreparingLeadTimeSec]'s own setters, so they are clamped into
+     * this build's local range exactly as if the slider had produced them
+     * — those ceilings differ from iOS's and have even narrowed within
+     * Android's own history (see [readClampedLong]'s KDoc), so a document
+     * value must never be written back unclamped.
+     */
+    fun applySyncUpdate(update: LiveActivitySyncUpdate) {
+        update.showInClass?.let { showInClass = it }
+        update.showClassPreparing?.let { showClassPreparing = it }
+        update.showAssignment?.let { showAssignment = it }
+        update.classPreparingLeadSeconds?.let { classPreparingLeadTimeSec = it.toLong() }
+        update.assignmentLeadSeconds?.let { assignmentLeadTimeSec = it.toLong() }
+    }
 
     private fun writeBool(key: String, value: Boolean) {
         prefs.edit().putBoolean(key, value).apply()

@@ -1,9 +1,19 @@
 // Writes this device's Live Update preferences into the `notification`
 // settings-document namespace (`GET/PUT /v3/settings/notification`, design
-// spec §4.6). Android owns exactly one key in that document —
-// `live_activity`. Everything else belongs to somebody else: `assignments`
-// and `courses` to iOS/the backend, plus whatever sections a newer build of
-// either platform adds to the same namespace.
+// spec §4.6), and reads them back. Android owns exactly one key in that
+// document — `live_activity`. Everything else belongs to somebody else:
+// `assignments` and `courses` to iOS/the backend, plus whatever sections a
+// newer build of either platform adds to the same namespace.
+//
+// The read half ([pullLiveActivitySettings]) is what makes this sync
+// rather than one-way replication: until it existed, an iOS user's edits
+// to their Live Activity lead times were invisible on Android (plan gap,
+// see task-7-brief.md). Every field it reads degrades to "keep the local
+// value" when the document can't express it — missing, null, or the wrong
+// JSON type — never to `false`/`0`. The two lead times are additionally
+// clamped into this build's local range: `MAX_CLASS_LEAD_SEC` narrowed to
+// 4h in v2.1.0, iOS's ceiling is different again, so the document can
+// easily hold a value this build's own slider could never produce.
 //
 // Writes therefore **merge at the JSON level** rather than re-encoding a
 // typed struct: read whatever the server currently holds as a `JsonObject`,
@@ -39,6 +49,7 @@ package org.ntust.app.tigerduck.push
 
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -49,9 +60,11 @@ import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
+import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncUpdate
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncValues
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.floor
 
 /** The settings-document namespace this file reads and writes. */
 internal const val NOTIFICATION_SETTINGS_NAMESPACE = "notification"
@@ -157,11 +170,26 @@ internal fun LiveActivitySyncValues.documentUpdates(): JsonObject =
  * are closed and nothing was attempted, so a caller can never read "didn't
  * run" as "succeeded".
  *
- * Both gates come from spec §6: cloud sync is the master switch, and
+ * All three gates come from spec §6: cloud sync is the master switch,
  * "同步內容 → 即時更新" (`AppPreferences.syncLiveActivity`) decides whether
- * *this* device's Live Update settings are among the things it syncs. iOS
- * gates its own write on the same pair. Closed means no request at all, not
- * a request whose result is discarded.
+ * *this* device's Live Update settings are among the things it syncs, and
+ * [isLoggedIn] is the session a settings-document PUT needs to mean
+ * anything (there is no per-user document without an account). Checking it
+ * proactively, rather than firing the request and reading a 401 as "not
+ * signed in", also avoids conflating that with a revoked or expired
+ * session — also a 401, but a case that deserves different handling. iOS
+ * gates its own write on the sync pair. Closed means no request at all,
+ * not a request whose result is discarded.
+ *
+ * [isLoggedIn] used to be checked only in [NotificationSettingsSync]'s
+ * Hilt-constructed `pushNow()`, which no plain-JVM test can reach — folded
+ * in here so all three gates sit under the same tests (task-5-review.md
+ * Minor 3). It is also what closes task-5-review.md Important 1(a): the
+ * Live Activity settings screen works without an account, so a user who
+ * edits these settings while signed out used to have every one of those
+ * pushes silently no-op forever. [NotificationSettingsSync] re-enqueues a
+ * push on sign-in (see its `init`), so the same gate that used to block
+ * silently now lets that catch-up push through.
  *
  * A second conflict throws rather than returning false: it is a genuine
  * failure to write (two other devices wrote in the time this one took to
@@ -173,8 +201,9 @@ internal suspend fun pushLiveActivitySettings(
     transport: SettingsDocumentTransport,
     cloudSyncEnabled: Boolean,
     syncLiveActivity: Boolean,
+    isLoggedIn: Boolean,
 ): Boolean {
-    if (!cloudSyncEnabled || !syncLiveActivity) return false
+    if (!cloudSyncEnabled || !syncLiveActivity || !isLoggedIn) return false
 
     val current = transport.read()
     // No document yet (404) is the normal state for every user who has never
@@ -205,6 +234,131 @@ internal suspend fun pushLiveActivitySettings(
         }
     }
 }
+
+/**
+ * [element]'s boolean value, or null if [element] is missing, JSON `null`,
+ * or anything other than a genuine JSON boolean.
+ *
+ * A JSON string or number that merely *looks* boolean-ish (`"true"`, `1`)
+ * is rejected rather than coerced: `JsonPrimitive.getAsBoolean()` on a
+ * non-boolean primitive silently falls back to
+ * `Boolean.parseBoolean(asString)`, which turns any string other than
+ * exactly `"true"` into `false`. Requirement 3 (missing/null/wrong-type
+ * must degrade to "keep the local value") must not be satisfied by
+ * accident because that fallback happened to land on `false`.
+ */
+private fun JsonElement?.asValidatedBooleanOrNull(): Boolean? {
+    if (this == null || !isJsonPrimitive) return null
+    val primitive = asJsonPrimitive
+    return if (primitive.isBoolean) primitive.asBoolean else null
+}
+
+/**
+ * [element]'s integer value, or null if [element] is missing, JSON `null`,
+ * not a genuine JSON number, a non-finite number, out of [Int] range, or —
+ * the load-bearing case — a number with a fractional component.
+ *
+ * [SettingsDocumentTransport.read] hands back an already-parsed
+ * [JsonObject], so every numeric field pulled from it goes through Gson's
+ * *parsed-tree* int path (`JsonTreeReader.nextInt()` ->
+ * `JsonPrimitive.getAsInt()` -> `Number.intValue()`), not the raw-text
+ * `JsonReader.nextInt()` path that validates and throws
+ * `NumberFormatException` on a fractional value. The parsed-tree path
+ * truncates silently instead: `0.5` reads back as `0`, no exception, and
+ * `0` is a value this code would otherwise happily treat as a real user
+ * preference. Gson raises nothing to catch here, so this app has to reject
+ * a fractional value itself before calling [com.google.gson.JsonPrimitive.getAsInt].
+ */
+private fun JsonElement?.asValidatedIntOrNull(): Int? {
+    if (this == null || !isJsonPrimitive) return null
+    val primitive = asJsonPrimitive
+    if (!primitive.isNumber) return null
+    val value = primitive.asDouble
+    if (value.isNaN() || value.isInfinite()) return null
+    if (value != floor(value)) return null
+    if (value < Int.MIN_VALUE.toDouble() || value > Int.MAX_VALUE.toDouble()) return null
+    return value.toInt()
+}
+
+/**
+ * Read-and-apply half of the `live_activity` section — the mirror of
+ * [pushLiveActivitySettings], and what makes this cross-platform *sync*
+ * rather than Android-writes-only replication (task-7-brief.md; Task 5
+ * only ever wrote this section).
+ *
+ * Every one of the five fields is independently optional: a missing
+ * `live_activity` section, a JSON `null` section, a missing field, or a
+ * field of the wrong JSON type ([asValidatedBooleanOrNull],
+ * [asValidatedIntOrNull]) all degrade to "keep [preferences]'s current
+ * value" rather than to `false`/`0` — the same principle as iOS's
+ * `resolveOffsets`: what the document cannot express, the local choice is
+ * safer than a guess. The two lead-time fields are additionally clamped
+ * into this build's local range by [LiveActivityPreferences.applySyncUpdate]
+ * (via [LiveActivityPreferences.assignmentLeadTimeSec] /
+ * [LiveActivityPreferences.classPreparingLeadTimeSec]'s own setters),
+ * because those ceilings differ from iOS's and a document value this
+ * build's own slider could never produce is completely reachable —
+ * `MAX_CLASS_LEAD_SEC` alone narrowed within Android's own history (see
+ * [LiveActivityPreferences.readClampedLong]'s KDoc).
+ *
+ * Same three gates as [pushLiveActivitySettings], for the same reasons:
+ * pulling a document into local prefs when the user has not opted into
+ * syncing it would be just as wrong as pushing one, and reading a
+ * per-user document with no session identifies nobody. Returns true only
+ * when a read was actually attempted — closed gates return false with no
+ * request made, matching [pushLiveActivitySettings]'s contract; a missing
+ * document or section is not a failure, so that case still returns true.
+ */
+internal suspend fun pullLiveActivitySettings(
+    preferences: LiveActivityPreferences,
+    transport: SettingsDocumentTransport,
+    cloudSyncEnabled: Boolean,
+    syncLiveActivity: Boolean,
+    isLoggedIn: Boolean,
+): Boolean {
+    if (!cloudSyncEnabled || !syncLiveActivity || !isLoggedIn) return false
+
+    val section = transport.read()?.document
+        ?.get("live_activity")
+        ?.takeIf { it.isJsonObject }
+        ?.asJsonObject
+        ?: return true
+
+    preferences.applySyncUpdate(
+        LiveActivitySyncUpdate(
+            showInClass = section.get("show_in_class").asValidatedBooleanOrNull(),
+            showClassPreparing = section.get("show_class_preparing").asValidatedBooleanOrNull(),
+            showAssignment = section.get("show_assignment").asValidatedBooleanOrNull(),
+            classPreparingLeadSeconds = section.get("class_preparing_lead_seconds").asValidatedIntOrNull(),
+            assignmentLeadSeconds = section.get("assignment_lead_seconds").asValidatedIntOrNull(),
+        )
+    )
+    return true
+}
+
+/**
+ * How many additional attempts [NotificationSettingsSync]'s coalesced push
+ * loop makes after a push fails, before giving up until the next real
+ * trigger — an edit, a sign-in, or the live-activity sync switch turning
+ * on. Bounded so a persistent failure (offline, server down) cannot retry
+ * forever (task-5-review.md Important 1(b)).
+ */
+internal const val MAX_PUSH_RETRIES = 2
+
+/**
+ * Whether the coalesced push loop should schedule another attempt after
+ * [consecutiveFailures] consecutive push failures.
+ *
+ * Extracted as a pure function — no [Channel], no `delay()` — so the retry
+ * *policy* is unit-testable without the real coroutine timing
+ * [NotificationSettingsSync]'s `init` block runs the loop on. Same
+ * reasoning as `applyOptOutIfAccepted` being lifted out of
+ * `PushRegistrationService`.
+ */
+internal fun shouldRetryAfterPushFailure(
+    consecutiveFailures: Int,
+    maxRetries: Int = MAX_PUSH_RETRIES,
+): Boolean = consecutiveFailures in 1..maxRetries
 
 /**
  * Application-scoped owner of the `live_activity` push: turns "a Live Update
@@ -249,6 +403,12 @@ class NotificationSettingsSync @Inject constructor(
             client.write(NOTIFICATION_SETTINGS_NAMESPACE, document, baseRevision, JsonObject::class.java)
     }
 
+    // How many pushes in a row have failed outright (an exception from
+    // pushNow(), never a closed-gate no-op — see the init loop below).
+    // Reset to 0 on a success; read and bumped only from that same loop, so
+    // it never needs its own lock.
+    private var consecutiveFailures = 0
+
     init {
         scope.launch {
             for (unused in pending) {
@@ -257,12 +417,43 @@ class NotificationSettingsSync @Inject constructor(
                 // not one per step. Same 250 ms coalescing window
                 // PushRegistrationService.scheduleRegister uses.
                 delay(DEBOUNCE_MS)
-                runCatching { pushNow() }.onFailure { e ->
-                    if (e is CancellationException) throw e
-                    // Best-effort: the local preference is already saved, and
-                    // the next preference change re-runs this.
-                    Log.w(TAG, "live_activity settings push failed", e)
+                val result = runCatching { pushNow() }
+                when {
+                    result.getOrNull() == true -> consecutiveFailures = 0
+                    result.isFailure -> {
+                        val e = result.exceptionOrNull()!!
+                        if (e is CancellationException) throw e
+                        Log.w(TAG, "live_activity settings push failed", e)
+                        consecutiveFailures++
+                        // Re-enqueue for another attempt, bounded: a persistent
+                        // failure (offline, server down) must not retry
+                        // forever (task-5-review.md Important 1(b)). Giving up
+                        // here is not data loss — syncSnapshot() always sends
+                        // the complete five values, so the next edit, sign-in,
+                        // or sync-switch flip heals it from scratch.
+                        if (shouldRetryAfterPushFailure(consecutiveFailures)) {
+                            pending.trySend(Unit)
+                        } else {
+                            Log.w(
+                                TAG,
+                                "live_activity settings push: giving up after $consecutiveFailures failures",
+                            )
+                        }
+                    }
+                    // else: pushNow() returned false, meaning a gate was
+                    // closed (not logged in, cloud sync off, or live-activity
+                    // sync off) — an intentional no-op, not a failure to
+                    // retry. The next real trigger re-enqueues.
                 }
+            }
+        }
+        // Gap 1(c) (task-5-review.md Important 1): turning "同步內容 → 即時更新"
+        // back on doesn't itself change any of the five synced values, so
+        // nothing else here would ever notice and (re-)push them. Mirrors the
+        // appLanguageChanged collector in PushRegistrationService.init.
+        scope.launch {
+            appPreferences.syncLiveActivityChanged.collect {
+                if (appPreferences.syncLiveActivity) enqueueLiveActivityPush()
             }
         }
     }
@@ -270,24 +461,41 @@ class NotificationSettingsSync @Inject constructor(
     /**
      * Ask for a push of the current Live Update preferences. Returns
      * immediately; the write happens on the application scope.
+     *
+     * This is also the one shared reconcile trigger: a user edit
+     * ([org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsViewModel]),
+     * a sign-in ([org.ntust.app.tigerduck.auth.AuthService]), the sync
+     * switch turning on (this class's `init`), and a bounded retry after a
+     * failure (also this class's `init`) all funnel through this same
+     * method rather than each having their own push path.
      */
     fun enqueueLiveActivityPush() {
         pending.trySend(Unit)
     }
 
-    private suspend fun pushNow() {
-        // A settings-document PUT needs a session. Firing one without a token
-        // and reading the 401 as the answer is what PushApiClient.hasAuthSession
-        // documents you must not do: a 401 is also what a revoked or expired
-        // session looks like, and those deserve different handling.
-        if (!authTokenManager.isLoggedIn) return
-        pushLiveActivitySettings(
-            local = liveActivityPreferences.syncSnapshot(),
-            transport = transport,
-            cloudSyncEnabled = appPreferences.cloudSyncEnabled,
-            syncLiveActivity = appPreferences.syncLiveActivity,
-        )
-    }
+    /**
+     * Reads the shared `notification` document and applies its
+     * `live_activity` section to [liveActivityPreferences] — see
+     * [pullLiveActivitySettings] for exactly what happens when the section
+     * is missing, null, or individually malformed. Called when the Live
+     * Activity settings screen opens
+     * ([org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsViewModel]).
+     */
+    suspend fun pullNow(): Boolean = pullLiveActivitySettings(
+        preferences = liveActivityPreferences,
+        transport = transport,
+        cloudSyncEnabled = appPreferences.cloudSyncEnabled,
+        syncLiveActivity = appPreferences.syncLiveActivity,
+        isLoggedIn = authTokenManager.isLoggedIn,
+    )
+
+    private suspend fun pushNow(): Boolean = pushLiveActivitySettings(
+        local = liveActivityPreferences.syncSnapshot(),
+        transport = transport,
+        cloudSyncEnabled = appPreferences.cloudSyncEnabled,
+        syncLiveActivity = appPreferences.syncLiveActivity,
+        isLoggedIn = authTokenManager.isLoggedIn,
+    )
 
     private companion object {
         const val TAG = "Push.NotifSettings"

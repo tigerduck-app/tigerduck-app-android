@@ -112,10 +112,25 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getBoolean("syncAssignmentReminders", true)
         set(value) = prefs.edit().putBoolean("syncAssignmentReminders", value).apply()
 
+    // Flips so NotificationSettingsSync can reconcile: turning this switch
+    // back on doesn't itself change any of the five live_activity values,
+    // so nothing else would ever notice and (re-)push them (task-5-review.md
+    // Important 1, gap 3). Emitted only on an actual change, same as
+    // appLanguageChanged above.
+    private val _syncLiveActivityChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val syncLiveActivityChanged: SharedFlow<Unit> = _syncLiveActivityChanged.asSharedFlow()
+
     /** "同步內容" (Synced content) toggle — Live Activity / Live Updates state. */
     var syncLiveActivity: Boolean
         get() = prefs.getBoolean("syncLiveActivity", true)
-        set(value) = prefs.edit().putBoolean("syncLiveActivity", value).apply()
+        set(value) {
+            val previous = syncLiveActivity
+            prefs.edit().putBoolean("syncLiveActivity", value).apply()
+            if (value != previous) _syncLiveActivityChanged.tryEmit(Unit)
+        }
 
     var pendingConflictCategories: Set<String>
         get() = prefs.getStringSet("pendingConflictCategories", emptySet()) ?: emptySet()

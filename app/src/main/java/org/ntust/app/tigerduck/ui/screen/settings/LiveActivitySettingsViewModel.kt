@@ -36,6 +36,21 @@ class LiveActivitySettingsViewModel @Inject constructor(
     private val _state = MutableStateFlow(snapshot())
     val state: StateFlow<State> = _state.asStateFlow()
 
+    init {
+        // Read-and-apply half of the notification-document sync (task-7-brief.md):
+        // pick up whatever another device (most likely iOS) has written to
+        // the shared live_activity section before this screen shows anything,
+        // so an iOS-side lead-time change isn't invisible here. Best-effort —
+        // pullNow() already degrades to "keep local" for everything it can't
+        // validate, and viewModelScope is fine to cancel if the user leaves
+        // immediately: nothing local is at risk either way.
+        viewModelScope.launch {
+            if (notificationSettingsSync.pullNow()) {
+                _state.value = snapshot()
+            }
+        }
+    }
+
     fun setEnabled(v: Boolean) {
         prefs.isEnabled = v; emit()
     }

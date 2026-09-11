@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.push
 
+import android.content.SharedPreferences
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlinx.coroutines.runBlocking
@@ -9,6 +10,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncValues
 
 /**
@@ -120,6 +122,7 @@ class NotificationSettingsSyncTest {
             transport = transport,
             cloudSyncEnabled = true,
             syncLiveActivity = true,
+            isLoggedIn = true,
         )
 
         assertTrue("the write landed", written)
@@ -173,6 +176,7 @@ class NotificationSettingsSyncTest {
             transport = transport,
             cloudSyncEnabled = true,
             syncLiveActivity = true,
+            isLoggedIn = true,
         )
 
         val document = transport.writtenDocuments.single()
@@ -247,6 +251,7 @@ class NotificationSettingsSyncTest {
             transport = transport,
             cloudSyncEnabled = true,
             syncLiveActivity = true,
+            isLoggedIn = true,
         )
 
         val offsets = transport.writtenDocuments.single()
@@ -285,6 +290,7 @@ class NotificationSettingsSyncTest {
             transport = transport,
             cloudSyncEnabled = true,
             syncLiveActivity = true,
+            isLoggedIn = true,
         )
 
         assertTrue("the retry landed", written)
@@ -325,6 +331,7 @@ class NotificationSettingsSyncTest {
                     transport = transport,
                     cloudSyncEnabled = true,
                     syncLiveActivity = true,
+                    isLoggedIn = true,
                 )
             }
         }
@@ -349,6 +356,7 @@ class NotificationSettingsSyncTest {
             transport = transport,
             cloudSyncEnabled = false,
             syncLiveActivity = true,
+            isLoggedIn = true,
         )
 
         assertFalse("nothing was written, so this must not report success", written)
@@ -367,6 +375,7 @@ class NotificationSettingsSyncTest {
             transport = transport,
             cloudSyncEnabled = true,
             syncLiveActivity = false,
+            isLoggedIn = true,
         )
 
         assertFalse("nothing was written, so this must not report success", written)
@@ -394,5 +403,430 @@ class NotificationSettingsSyncTest {
         // same `updates` against a different `existing` after a conflict.
         assertEquals(json("""{"a": {"keep": 1, "change": 2, "deep": {"kept": true}}, "list": [1, 2, 3]}"""), existing)
         assertEquals(json("""{"a": {"change": 20, "added": 3}, "list": [9]}"""), updates)
+    }
+
+    // ── 6. Read-and-apply: pullLiveActivitySettings ─────────────────────────
+    //
+    // [pullLiveActivitySettings] is exercised against a real
+    // [LiveActivityPreferences] (backed by the in-memory [FakeLiveActivitySharedPreferences]
+    // below), not a mock -- the whole point is proving the *stored* value
+    // after applying, including the real clamping [LiveActivityPreferences]'s
+    // own setters do. Every "keep local" case below starts from a value that
+    // is deliberately neither the property's default nor whatever a plausible
+    // bug would coerce the bad input to, so a reset-to-default or a silent
+    // coercion would each be caught rather than passing by coincidence.
+
+    private fun freshPreferences(): LiveActivityPreferences = LiveActivityPreferences(FakeLiveActivitySharedPreferences())
+
+    @Test
+    fun `pull applies all five document fields onto local preferences, field by field`() = runBlocking {
+        val prefs = freshPreferences()
+        // Opposite of every document value below, so a swapped mapping (e.g.
+        // show_in_class and show_class_preparing transposed) fails instead of
+        // coincidentally matching.
+        prefs.showInClass = true
+        prefs.showClassPreparing = false
+        prefs.showAssignment = true
+        prefs.classPreparingLeadTimeSec = 3_600
+        prefs.assignmentLeadTimeSec = 14_400
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(
+                document = json(
+                    """
+                    {
+                      "live_activity": {
+                        "show_in_class": false,
+                        "show_class_preparing": true,
+                        "show_assignment": false,
+                        "class_preparing_lead_seconds": 1800,
+                        "assignment_lead_seconds": 7200
+                      }
+                    }
+                    """.trimIndent()
+                ),
+                revision = 1L,
+            )
+        )
+
+        val result = pullLiveActivitySettings(
+            preferences = prefs,
+            transport = transport,
+            cloudSyncEnabled = true,
+            syncLiveActivity = true,
+            isLoggedIn = true,
+        )
+
+        assertTrue("a read was attempted and applied", result)
+        assertEquals("show_in_class -> showInClass", false, prefs.showInClass)
+        assertEquals("show_class_preparing -> showClassPreparing", true, prefs.showClassPreparing)
+        assertEquals("show_assignment -> showAssignment", false, prefs.showAssignment)
+        assertEquals(
+            "class_preparing_lead_seconds -> classPreparingLeadTimeSec",
+            1_800L,
+            prefs.classPreparingLeadTimeSec,
+        )
+        assertEquals(
+            "assignment_lead_seconds -> assignmentLeadTimeSec",
+            7_200L,
+            prefs.assignmentLeadTimeSec,
+        )
+    }
+
+    @Test
+    fun `pull clamps a value outside the local range instead of writing it as-is or discarding it`() = runBlocking {
+        val prefs = freshPreferences()
+        prefs.classPreparingLeadTimeSec = 1_800
+        prefs.assignmentLeadTimeSec = 7_200
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(
+                document = json(
+                    """
+                    {
+                      "live_activity": {
+                        "class_preparing_lead_seconds": 50000,
+                        "assignment_lead_seconds": 100
+                      }
+                    }
+                    """.trimIndent()
+                ),
+                revision = 1L,
+            )
+        )
+
+        pullLiveActivitySettings(
+            preferences = prefs,
+            transport = transport,
+            cloudSyncEnabled = true,
+            syncLiveActivity = true,
+            isLoggedIn = true,
+        )
+
+        // 50000s is above MAX_CLASS_LEAD_SEC (14400 = 4h): clamped down, not
+        // written as 50000 and not left at the old 1800.
+        assertEquals(14_400L, prefs.classPreparingLeadTimeSec)
+        // 100s is below MIN_ASSIGNMENT_LEAD_SEC (3600 = 1h): clamped up, not
+        // written as 100 and not left at the old 7200.
+        assertEquals(3_600L, prefs.assignmentLeadTimeSec)
+    }
+
+    @Test
+    fun `pull leaves every local value untouched when live_activity is absent`() = runBlocking {
+        val prefs = freshPreferences()
+        prefs.showInClass = false
+        prefs.showClassPreparing = false
+        prefs.showAssignment = false
+        prefs.classPreparingLeadTimeSec = 1_800
+        prefs.assignmentLeadTimeSec = 7_200
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(
+                document = json("""{"assignments": {"enabled": true}}"""),
+                revision = 1L,
+            )
+        )
+
+        val result = pullLiveActivitySettings(prefs, transport, cloudSyncEnabled = true, syncLiveActivity = true, isLoggedIn = true)
+
+        assertTrue("an absent section is not a failure", result)
+        assertFalse(prefs.showInClass)
+        assertFalse(prefs.showClassPreparing)
+        assertFalse(prefs.showAssignment)
+        assertEquals(1_800L, prefs.classPreparingLeadTimeSec)
+        assertEquals(7_200L, prefs.assignmentLeadTimeSec)
+    }
+
+    @Test
+    fun `pull leaves every local value untouched when live_activity is JSON null`() = runBlocking {
+        val prefs = freshPreferences()
+        prefs.showInClass = false
+        prefs.showClassPreparing = false
+        prefs.showAssignment = false
+        prefs.classPreparingLeadTimeSec = 1_800
+        prefs.assignmentLeadTimeSec = 7_200
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(document = json("""{"live_activity": null}"""), revision = 1L)
+        )
+
+        val result = pullLiveActivitySettings(prefs, transport, cloudSyncEnabled = true, syncLiveActivity = true, isLoggedIn = true)
+
+        assertTrue("a null section is not a failure", result)
+        assertFalse(prefs.showInClass)
+        assertFalse(prefs.showClassPreparing)
+        assertFalse(prefs.showAssignment)
+        assertEquals(1_800L, prefs.classPreparingLeadTimeSec)
+        assertEquals(7_200L, prefs.assignmentLeadTimeSec)
+    }
+
+    @Test
+    fun `pull leaves just the missing fields untouched when live_activity has only some of them`() = runBlocking {
+        val prefs = freshPreferences()
+        prefs.showInClass = true
+        prefs.showClassPreparing = false
+        prefs.showAssignment = false
+        prefs.classPreparingLeadTimeSec = 1_800
+        prefs.assignmentLeadTimeSec = 7_200
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(
+                document = json("""{"live_activity": {"show_in_class": false}}"""),
+                revision = 1L,
+            )
+        )
+
+        pullLiveActivitySettings(prefs, transport, cloudSyncEnabled = true, syncLiveActivity = true, isLoggedIn = true)
+
+        assertFalse("the one present, valid field is applied", prefs.showInClass)
+        assertFalse("a missing field keeps the local value", prefs.showClassPreparing)
+        assertFalse("a missing field keeps the local value", prefs.showAssignment)
+        assertEquals(1_800L, prefs.classPreparingLeadTimeSec)
+        assertEquals(7_200L, prefs.assignmentLeadTimeSec)
+    }
+
+    @Test
+    fun `pull keeps the local value when a boolean field is the wrong JSON type`() = runBlocking {
+        val prefs = freshPreferences()
+        // Chosen so a naive `JsonPrimitive.getAsBoolean()` (which falls back to
+        // `Boolean.parseBoolean(asString)` for a non-boolean primitive) would
+        // read the string "true" as `true` -- the OPPOSITE of this starting
+        // value -- so a missing type check flips this assertion instead of
+        // passing by coincidence.
+        prefs.showInClass = false
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(
+                document = json("""{"live_activity": {"show_in_class": "true"}}"""),
+                revision = 1L,
+            )
+        )
+
+        pullLiveActivitySettings(prefs, transport, cloudSyncEnabled = true, syncLiveActivity = true, isLoggedIn = true)
+
+        assertFalse(
+            "a JSON string is not a JSON boolean, however it reads -- keep local",
+            prefs.showInClass,
+        )
+    }
+
+    /**
+     * The trap this task exists to guard against: [SettingsDocumentTransport.read]
+     * hands back an already-parsed [JsonObject], so a fractional value here goes
+     * through Gson's *parsed-tree* int path (`JsonPrimitive.getAsInt()` ->
+     * `Number.intValue()`), which truncates `0.5` to `0` silently -- no
+     * exception the way the raw-text `JsonReader.nextInt()` path would throw.
+     * A naive `.asInt` here would turn a half-second document value into `0`,
+     * then clamping would turn that `0` into the 1-hour floor: a real,
+     * plausible-looking user preference manufactured from garbage.
+     */
+    @Test
+    fun `pull rejects a fractional lead-seconds value instead of silently truncating it`() = runBlocking {
+        val prefs = freshPreferences()
+        prefs.assignmentLeadTimeSec = 7_200
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(
+                document = json("""{"live_activity": {"assignment_lead_seconds": 0.5}}"""),
+                revision = 1L,
+            )
+        )
+
+        pullLiveActivitySettings(prefs, transport, cloudSyncEnabled = true, syncLiveActivity = true, isLoggedIn = true)
+
+        assertEquals(
+            "0.5 must be rejected outright, not truncated to 0 and then clamped to the 1h floor",
+            7_200L,
+            prefs.assignmentLeadTimeSec,
+        )
+    }
+
+    @Test
+    fun `pull keeps the local value when an integer field is the wrong JSON type`() = runBlocking {
+        val prefs = freshPreferences()
+        // Gson's getAsInt() actually parses a numeric-looking STRING leniently
+        // (LazilyParsedNumber), so "3600" would silently succeed as 3600 -- a
+        // different value from this 7200 starting point -- unless the pull
+        // path checks isNumber before trusting it.
+        prefs.assignmentLeadTimeSec = 7_200
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(
+                document = json("""{"live_activity": {"assignment_lead_seconds": "3600"}}"""),
+                revision = 1L,
+            )
+        )
+
+        pullLiveActivitySettings(prefs, transport, cloudSyncEnabled = true, syncLiveActivity = true, isLoggedIn = true)
+
+        assertEquals(
+            "a JSON string is not a JSON number, however numeric it looks -- keep local",
+            7_200L,
+            prefs.assignmentLeadTimeSec,
+        )
+    }
+
+    // ── 7. Reconcile gates: signing in / the sync switch turning on ────────
+    //
+    // These pin the gate behavior at the level this module can unit test --
+    // see pushLiveActivitySettings's KDoc. The production trigger itself
+    // (AuthService calling NotificationSettingsSync.enqueueLiveActivityPush()
+    // on sign-in; AppPreferences.syncLiveActivityChanged doing the same when
+    // the switch turns on) is glue that needs a real Context/Keystore to
+    // construct and is verified by reading the diff, the same way
+    // PushRegistrationService.onSignedIn()'s call sites are today.
+
+    @Test
+    fun `signing in lets a previously blocked push through`() = runBlocking {
+        val transport = RecordingTransport(existing = null)
+
+        val blockedWhileLoggedOut = pushLiveActivitySettings(
+            local = local,
+            transport = transport,
+            cloudSyncEnabled = true,
+            syncLiveActivity = true,
+            isLoggedIn = false,
+        )
+        assertFalse("not signed in yet, so this must not report success", blockedWhileLoggedOut)
+        assertEquals("must not even read the document while signed out", 0, transport.readCount)
+
+        val pushedAfterSignIn = pushLiveActivitySettings(
+            local = local,
+            transport = transport,
+            cloudSyncEnabled = true,
+            syncLiveActivity = true,
+            isLoggedIn = true,
+        )
+
+        assertTrue("the exact same call now succeeds once signed in", pushedAfterSignIn)
+        assertEquals(1, transport.writtenDocuments.size)
+    }
+
+    @Test
+    fun `turning the live-activity sync switch on lets a previously blocked push through`() = runBlocking {
+        val transport = RecordingTransport(existing = null)
+
+        val blockedWhileOff = pushLiveActivitySettings(
+            local = local,
+            transport = transport,
+            cloudSyncEnabled = true,
+            syncLiveActivity = false,
+            isLoggedIn = true,
+        )
+        assertFalse("the switch is off, so this must not report success", blockedWhileOff)
+        assertEquals("must not even read the document while the switch is off", 0, transport.readCount)
+
+        val pushedAfterSwitchOn = pushLiveActivitySettings(
+            local = local,
+            transport = transport,
+            cloudSyncEnabled = true,
+            syncLiveActivity = true,
+            isLoggedIn = true,
+        )
+
+        assertTrue("the exact same call now succeeds once the switch is on", pushedAfterSwitchOn)
+        assertEquals(1, transport.writtenDocuments.size)
+    }
+
+    // ── 8. Bounded retry after a push failure ───────────────────────────────
+
+    @Test
+    fun `a failed push is retried a bounded number of times, then gives up`() {
+        assertTrue("first consecutive failure schedules a retry", shouldRetryAfterPushFailure(1, maxRetries = 2))
+        assertTrue("second consecutive failure schedules a retry", shouldRetryAfterPushFailure(2, maxRetries = 2))
+        assertFalse(
+            "a third consecutive failure gives up instead of retrying forever",
+            shouldRetryAfterPushFailure(3, maxRetries = 2),
+        )
+        assertFalse(
+            "an arbitrarily large failure count must never resume retrying",
+            shouldRetryAfterPushFailure(1_000, maxRetries = 2),
+        )
+        // Production wiring relies on the default bound.
+        assertTrue(shouldRetryAfterPushFailure(MAX_PUSH_RETRIES))
+        assertFalse(shouldRetryAfterPushFailure(MAX_PUSH_RETRIES + 1))
+    }
+}
+
+/**
+ * Minimal in-memory [SharedPreferences] double, trimmed to exactly what
+ * [LiveActivityPreferences] uses (getLong/getBoolean, edit().putLong/
+ * putBoolean().apply()). File-private and independent from the identically
+ * shaped fake in `LiveActivityPreferencesTest` on purpose -- that one is
+ * `private` to its own file (Kotlin top-level `private` is file-scoped), and
+ * this suite constructs its starting state through [LiveActivityPreferences]'s
+ * own setters rather than seeding raw keys, so it never needs that fake's
+ * `initialLongs`/`initialBooleans`/`editCallCount` surface.
+ */
+private class FakeLiveActivitySharedPreferences : SharedPreferences {
+    private val longs = mutableMapOf<String, Long>()
+    private val booleans = mutableMapOf<String, Boolean>()
+
+    override fun getAll(): MutableMap<String, *> = (longs + booleans).toMutableMap()
+    override fun getString(key: String?, defValue: String?): String? = defValue
+    override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? = defValues
+    override fun getInt(key: String?, defValue: Int): Int = defValue
+    override fun getLong(key: String?, defValue: Long): Long = longs[key] ?: defValue
+    override fun getFloat(key: String?, defValue: Float): Float = defValue
+    override fun getBoolean(key: String?, defValue: Boolean): Boolean = booleans[key] ?: defValue
+    override fun contains(key: String?): Boolean = longs.containsKey(key) || booleans.containsKey(key)
+
+    override fun edit(): SharedPreferences.Editor = FakeEditor()
+
+    override fun registerOnSharedPreferenceChangeListener(
+        listener: SharedPreferences.OnSharedPreferenceChangeListener?
+    ) = Unit
+
+    override fun unregisterOnSharedPreferenceChangeListener(
+        listener: SharedPreferences.OnSharedPreferenceChangeListener?
+    ) = Unit
+
+    private inner class FakeEditor : SharedPreferences.Editor {
+        private val putLongs = mutableMapOf<String, Long>()
+        private val putBooleans = mutableMapOf<String, Boolean>()
+        private val removedKeys = mutableSetOf<String>()
+        private var doClear = false
+
+        override fun putString(key: String?, value: String?) = this
+        override fun putStringSet(key: String?, values: MutableSet<String>?) = this
+        override fun putInt(key: String?, value: Int) = this
+
+        override fun putLong(key: String?, value: Long): SharedPreferences.Editor = apply {
+            if (key != null) {
+                putLongs[key] = value
+                removedKeys.remove(key)
+            }
+        }
+
+        override fun putFloat(key: String?, value: Float) = this
+
+        override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor = apply {
+            if (key != null) {
+                putBooleans[key] = value
+                removedKeys.remove(key)
+            }
+        }
+
+        override fun remove(key: String?): SharedPreferences.Editor = apply {
+            if (key != null) {
+                removedKeys.add(key)
+                putLongs.remove(key)
+                putBooleans.remove(key)
+            }
+        }
+
+        override fun clear(): SharedPreferences.Editor = apply { doClear = true }
+
+        override fun commit(): Boolean {
+            applyChanges()
+            return true
+        }
+
+        override fun apply() = applyChanges()
+
+        private fun applyChanges() {
+            if (doClear) {
+                longs.clear()
+                booleans.clear()
+            }
+            removedKeys.forEach {
+                longs.remove(it)
+                booleans.remove(it)
+            }
+            longs.putAll(putLongs)
+            booleans.putAll(putBooleans)
+        }
     }
 }

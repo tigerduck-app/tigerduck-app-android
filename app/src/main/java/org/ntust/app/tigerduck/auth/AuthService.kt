@@ -18,6 +18,7 @@ import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.network.SsoLoginError
 import org.ntust.app.tigerduck.network.SsoLoginService
+import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.push.PushRegistrationService
 import org.ntust.app.tigerduck.shared.LibraryService
 import javax.inject.Inject
@@ -33,6 +34,7 @@ class AuthService @Inject constructor(
     private val libraryService: LibraryService,
     private val credentials: CredentialManager,
     private val pushRegistration: PushRegistrationService,
+    private val notificationSettingsSync: NotificationSettingsSync,
     private val authTokenManager: AuthTokenManager,
     private val moodleTokenService: MoodleTokenService,
     private val dataCache: DataCache,
@@ -125,6 +127,10 @@ class AuthService @Inject constructor(
             )
             android.util.Log.i("AuthService", "auto-relogin: v3 JWT refreshed")
             runCatching { pushRegistration.onSignedIn() }
+            // Catch up any live_activity edit made while signed out (or while
+            // the v3 JWT had lapsed) — see NotificationSettingsSync's
+            // isLoggedIn gate and task-5-review.md Important 1(a).
+            notificationSettingsSync.enqueueLiveActivityPush()
             true
         } catch (e: Exception) {
             if (e is CancellationException) throw e
@@ -167,6 +173,9 @@ class AuthService @Inject constructor(
             android.util.Log.i("AuthService", "v3 migration: JWT obtained")
             runCatching { pushRegistration.onSignedIn() }
                 .onFailure { e -> if (e is CancellationException) throw e }
+            // See the matching comment in attemptRelogin(): closing
+            // task-5-review.md Important 1(a) for the v2->v3 migration path too.
+            notificationSettingsSync.enqueueLiveActivityPush()
         }.onFailure { e ->
             if (e is CancellationException) throw e
             android.util.Log.w("AuthService", "v3 migration: login failed", e)
@@ -216,6 +225,11 @@ class AuthService @Inject constructor(
                 }
                 runCatching { pushRegistration.onSignedIn() }
                     .onFailure { e -> if (e is CancellationException) throw e }
+                // See the matching comment in attemptRelogin(): a fresh SSO
+                // login is the third of the three sign-in paths that used to
+                // leave live_activity edits made while signed out unpushed
+                // forever (task-5-review.md Important 1(a)).
+                notificationSettingsSync.enqueueLiveActivityPush()
             }
 
             _isLoggingIn.value = false
