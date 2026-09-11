@@ -100,7 +100,11 @@ class SettingsViewModel @Inject constructor(
     /**
      * Optimistically flips the switch, then reverts it to [previous] if the
      * backend rejects the change — a rejected PATCH must not leave the UI
-     * claiming a preference took effect when it didn't.
+     * claiming a preference took effect when it didn't. This only needs to
+     * revert the in-memory flag: `PushRegistrationService.updateServerPushOptOut`
+     * defers its own persisted write until the backend accepts the change,
+     * so a rejected PATCH never reaches storage in the first place — see
+     * `applyOptOutIfAccepted`.
      */
     fun setServerPushOn(isOn: Boolean) {
         if (_isTogglingPush.value || _serverPushOn.value == isOn) return

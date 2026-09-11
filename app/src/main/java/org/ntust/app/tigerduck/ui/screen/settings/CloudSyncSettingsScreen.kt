@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -224,6 +225,37 @@ fun CloudSyncSettingsScreen(
                     ContentCard {
                         SettingsLinkRow(stringResource(R.string.sync_content_nav_label)) {
                             onNavigateToSyncContent()
+                        }
+                    }
+                }
+            }
+            // `syncEnabled` (this same directly user-togglable switch, above)
+            // being off is reachable exactly as it was pre-refactor and is a
+            // common, intentional state (essential info + server push, no
+            // course/assignment sync) — not something the restructure
+            // removed. The disclosure that local-only data still applies in
+            // that state is still true, so it stays. Re-added per
+            // task-4-review.md Important 2 after being dropped on the false
+            // premise that no all-off state remained reachable.
+            if (!syncEnabled) {
+                item {
+                    ContentCard {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.Info,
+                                contentDescription = null,
+                                tint = Color(0xFFFF9500),
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Text(
+                                stringResource(R.string.settings_sync_disabled_note),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFFF9500),
+                            )
                         }
                     }
                 }

@@ -360,21 +360,24 @@ class PushRegistrationService @Inject constructor(
      *  initial UI hydration in the settings screen. */
     fun isServerPushOptedOut(): Boolean = prefs.getBoolean(KEY_SERVER_PUSH_OPT_OUT, false)
 
-    /** Persist the opt-out and PATCH the backend so the change takes effect
-     *  before the next register() rolls around. Returns `true` on full success
-     *  (local + backend), `false` if the PATCH failed. On failure the local
-     *  pref is still flipped so the next `performRegister` reconciles, and
-     *  `lastError` is surfaced via the diagnostic for the status card. */
+    /** PATCH the backend, and persist the opt-out locally only once the
+     *  backend has accepted it — a rejected change must not survive
+     *  anywhere, not just in the in-memory switch
+     *  (`SettingsViewModel.setServerPushOn` already reverts that half; this
+     *  is the other half, see task-4-review.md Important 1). Returns `true`
+     *  on full success (backend + local), `false` if the call failed, in
+     *  which case the pref is left exactly where it was. `lastError` is
+     *  surfaced via the diagnostic for the status card either way. See
+     *  [applyOptOutIfAccepted] for the extracted, unit-tested invariant. */
     suspend fun updateServerPushOptOut(optOut: Boolean): Boolean {
         val deviceId = identity.uuid()
-        // Hold the mutex across the pref write AND the PATCH so a concurrent
+        // Hold the mutex across the PATCH AND the pref write so a concurrent
         // performRegister (which snapshots under the same mutex) can't read
         // an in-flight value, and so rapid toggle taps serialize their
         // PATCH calls on the wire instead of racing to last-write-wins.
         // updateDiagnostic also acquires the mutex, so it has to run outside
         // this critical section to avoid self-deadlock.
         val error: String? = mutex.withLock {
-            prefs.edit().putBoolean(KEY_SERVER_PUSH_OPT_OUT, optOut).apply()
             // Two different rows hold this flag, and which one decides
             // depends on whether there is an account. Signed in, operator
             // targeting reads `user_devices` and the PATCH owns it. Signed
@@ -382,9 +385,10 @@ class PushRegistrationService @Inject constructor(
             // no session to authenticate with — it would 401 and the setting
             // would never leave the device — so the announce carries it
             // instead. With no token yet there is no row to correct: the
-            // pref is stored and the first announce will carry it.
+            // attempt below is a no-op success, and the pref is stored so
+            // the first announce will carry it.
             val token = if (isUnregistering) null else fcmToken
-            runCatching {
+            val failure = applyOptOutIfAccepted(prefs, KEY_SERVER_PUSH_OPT_OUT, optOut) {
                 if (authTokenManager.isLoggedIn) {
                     api.updateDevicePreferences(deviceId, serverPushEnabled = !optOut)
                 } else if (token != null) {
@@ -397,14 +401,11 @@ class PushRegistrationService @Inject constructor(
                         )
                     )
                 }
-            }.fold(
-                onSuccess = { null },
-                onFailure = { e ->
-                    if (e is CancellationException) throw e
-                    Log.w(TAG, "server push preference update failed", e)
-                    e.message ?: e::class.java.simpleName
-                },
-            )
+            }
+            failure?.let {
+                Log.w(TAG, "server push preference update failed", it)
+                it.message ?: it::class.java.simpleName
+            }
         }
         // Clear stale errors on success, set them on failure — either way the
         // status card now reflects backend reachability for this PATCH.
@@ -484,4 +485,51 @@ class PushRegistrationService @Inject constructor(
         const val KEY_LAST_ERR = "last_error"
         const val KEY_SERVER_PUSH_OPT_OUT = "server_push_user_opt_out"
     }
+}
+
+/**
+ * Commits [optOut] to [prefs] under [key] only once [attempt] — the PATCH /
+ * anonymous-register call that is supposed to make the backend agree —
+ * completes without throwing. A [CancellationException] is rethrown rather
+ * than treated as a failure, matching structured-concurrency expectations
+ * (e.g. the owning `SettingsViewModel` being cleared mid-toggle).
+ *
+ * Extracted as a top-level function, instead of inlined in
+ * [PushRegistrationService.updateServerPushOptOut], so this one invariant —
+ * a rejected change must not leave the wrong value in storage — is
+ * unit-testable by itself. [PushApiClient] and [AuthTokenManager] can't be
+ * constructed in a plain JVM test (real OkHttp / Android-Keystore calls, and
+ * this module has neither a mocking library nor Robolectric), so there is no
+ * way to make the real [PushRegistrationService.updateServerPushOptOut] fail
+ * on demand — but this function can be handed a fake [SharedPreferences] and
+ * a lambda that throws.
+ *
+ * Fixes task-4-review.md Important 1: `updateServerPushOptOut` used to write
+ * [prefs] unconditionally *before* attempting the call, on the theory that a
+ * failure would eventually reconcile via the next `performRegister` /
+ * `announceDevice`. That silently contradicted
+ * `SettingsViewModel.setServerPushOn`'s revert-and-Toast on failure, which
+ * tells the user the change did not take effect while the persisted value
+ * kept the rejected one — surviving a screen revisit or process death and
+ * still feeding `announceDevice`'s reconciliation. Mirrors
+ * `SettingsViewModel.pushCloudSyncEnabled`'s "fail closed" enable branch,
+ * the only other place in this codebase with the same shape (a switch that
+ * both persists locally and tells the server): record a preference only
+ * once the thing it claims has actually happened.
+ *
+ * @return `null` on success, the causing [Throwable] on failure.
+ */
+internal suspend fun applyOptOutIfAccepted(
+    prefs: SharedPreferences,
+    key: String,
+    optOut: Boolean,
+    attempt: suspend () -> Unit,
+): Throwable? = try {
+    attempt()
+    prefs.edit().putBoolean(key, optOut).apply()
+    null
+} catch (e: CancellationException) {
+    throw e
+} catch (e: Exception) {
+    e
 }
