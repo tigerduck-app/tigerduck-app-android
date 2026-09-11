@@ -12,9 +12,11 @@
 
 package org.ntust.app.tigerduck.ui.screen.settings
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,17 +39,26 @@ class LiveActivitySettingsViewModel @Inject constructor(
     val state: StateFlow<State> = _state.asStateFlow()
 
     init {
-        // Read-and-apply half of the notification-document sync (task-7-brief.md):
-        // pick up whatever another device (most likely iOS) has written to
-        // the shared live_activity section before this screen shows anything,
-        // so an iOS-side lead-time change isn't invisible here. Best-effort —
-        // pullNow() already degrades to "keep local" for everything it can't
-        // validate, and viewModelScope is fine to cancel if the user leaves
-        // immediately: nothing local is at risk either way.
+        // Read-and-apply half of the notification-document sync: pick up
+        // whatever another device (most likely iOS) has written to the
+        // shared live_activity section before this screen shows anything,
+        // so an iOS-side lead-time change isn't invisible here.
+        //
+        // Must not let a transport failure escape: SettingsDocumentApiClient.read()
+        // throws on an IOException (offline, DNS, timeout) and on any non-2xx,
+        // non-404 status, and viewModelScope has no CoroutineExceptionHandler --
+        // an uncaught throw here would reach the default handler and kill the
+        // process, turning "open this screen on a train" into a crash. A failed
+        // pull degrades to "keep local values" exactly like a malformed document
+        // does; it just also has to cover a failed *transport*, not only a
+        // parsed-but-unusable response.
         viewModelScope.launch {
-            if (notificationSettingsSync.pullNow()) {
-                _state.value = snapshot()
-            }
+            runCatching { notificationSettingsSync.pullNow() }
+                .onSuccess { applied -> if (applied) _state.value = snapshot() }
+                .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    Log.w(TAG, "pulling live_activity settings failed", e)
+                }
         }
     }
 
@@ -157,4 +168,8 @@ class LiveActivitySettingsViewModel @Inject constructor(
         val classLeadMinutes: Int,
         val permissions: List<org.ntust.app.tigerduck.notification.PermissionState>,
     )
+
+    private companion object {
+        const val TAG = "LiveActivitySettings"
+    }
 }

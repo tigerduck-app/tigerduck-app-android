@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.push
 import android.content.SharedPreferences
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -737,6 +738,211 @@ class NotificationSettingsSyncTest {
         // Production wiring relies on the default bound.
         assertTrue(shouldRetryAfterPushFailure(MAX_PUSH_RETRIES))
         assertFalse(shouldRetryAfterPushFailure(MAX_PUSH_RETRIES + 1))
+    }
+
+    @Test
+    fun `push retry backoff increases and is never immediate`() {
+        assertTrue(
+            "the first retry must actually wait, not fire inside the same debounce window",
+            pushRetryBackoffMillis(1) >= 1_000L,
+        )
+        assertTrue(
+            "backoff must increase, not repeat the same short wait forever",
+            pushRetryBackoffMillis(2) > pushRetryBackoffMillis(1),
+        )
+    }
+
+    // ── 9. A pull must never crash on a transport failure ──────────────────
+
+    private fun throwingTransport(failure: Throwable): SettingsDocumentTransport =
+        object : SettingsDocumentTransport {
+            override suspend fun read(): SettingsDocumentEnvelope<JsonObject> = throw failure
+            override suspend fun write(
+                document: JsonObject,
+                baseRevision: Long?,
+            ): SettingsWriteResult<JsonObject> = error("not used by this test")
+        }
+
+    /**
+     * Mirrors the hazard fixed at `LiveActivitySettingsViewModel`'s `init` block:
+     * opening the Live Activity settings screen with no connectivity used to
+     * crash the app outright, because `SettingsDocumentApiClient.read()` throws
+     * on a transport failure and nothing caught it before it reached
+     * `viewModelScope`, which has no `CoroutineExceptionHandler`.
+     * `LiveActivitySettingsViewModel` itself needs a real Context/Keystore-backed
+     * Hilt graph and cannot be constructed in this module's plain-JVM tests, so
+     * this pins the extracted catching wrapper it now calls instead.
+     */
+    @Test
+    fun `pullLiveActivitySettingsCatching survives a transport failure and leaves local values untouched`() = runBlocking {
+        val prefs = freshPreferences()
+        // Non-default, so "kept local" cannot be confused with "reset".
+        prefs.showInClass = false
+        prefs.assignmentLeadTimeSec = 7_200
+        var reportedFailure: Throwable? = null
+
+        val result = pullLiveActivitySettingsCatching(
+            preferences = prefs,
+            transport = throwingTransport(SettingsDocumentApiException("read notification failed: HTTP 000 offline")),
+            cloudSyncEnabled = true,
+            syncLiveActivity = true,
+            isLoggedIn = true,
+            onFailure = { e -> reportedFailure = e },
+        )
+
+        assertFalse("a caught transport failure must not report as a successful pull", result)
+        assertTrue(
+            "the caller must be told what failed, not have it silently swallowed",
+            reportedFailure is SettingsDocumentApiException,
+        )
+        assertFalse("local values must survive a failed pull untouched", prefs.showInClass)
+        assertEquals(7_200L, prefs.assignmentLeadTimeSec)
+    }
+
+    @Test
+    fun `cancellation during pull is rethrown, not caught and reported as an ordinary failure`() {
+        var reportedFailure: Throwable? = null
+
+        assertThrows(CancellationException::class.java) {
+            runBlocking {
+                pullLiveActivitySettingsCatching(
+                    preferences = freshPreferences(),
+                    transport = throwingTransport(CancellationException("scope cancelled")),
+                    cloudSyncEnabled = true,
+                    syncLiveActivity = true,
+                    isLoggedIn = true,
+                    onFailure = { e -> reportedFailure = e },
+                )
+            }
+        }
+
+        assertNull("cancellation must propagate, not be reported through onFailure", reportedFailure)
+    }
+
+    // ── 10. A pull must not silently discard an unconfirmed local edit ─────
+
+    /**
+     * The hazard the brief's "not data loss, only propagation delay" premise
+     * missed: with no protection, "edit a value, the push fails, reopen the
+     * screen" ends with the pull's stale server value silently overwriting the
+     * user's own edit — no error, no trace. `isLocalDirty` is
+     * `NotificationSettingsSync.hasUnconfirmedLocalEdit` at the production call
+     * site; this drives it directly since the Hilt class cannot be constructed
+     * here.
+     */
+    @Test
+    fun `pull does not overwrite local values while a push has not yet been confirmed`() = runBlocking {
+        val prefs = freshPreferences()
+        // Non-default, and the opposite of what "the server" holds below, so
+        // "overwritten by the document" and "kept local" are distinguishable.
+        prefs.showInClass = false
+        prefs.assignmentLeadTimeSec = 7_200
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(
+                document = json(
+                    """{"live_activity": {"show_in_class": true, "assignment_lead_seconds": 3600}}"""
+                ),
+                revision = 1L,
+            )
+        )
+        var onLocalDirtyCalled = false
+
+        val result = pullLiveActivitySettings(
+            preferences = prefs,
+            transport = transport,
+            cloudSyncEnabled = true,
+            syncLiveActivity = true,
+            isLoggedIn = true,
+            isLocalDirty = { true },
+            onLocalDirty = { onLocalDirtyCalled = true },
+        )
+
+        assertTrue("a read was still attempted", result)
+        assertTrue(
+            "the caller must be told to re-push rather than silently losing the edit",
+            onLocalDirtyCalled,
+        )
+        assertFalse(
+            "an unconfirmed local edit must survive a pull, not be overwritten by the server's older value",
+            prefs.showInClass,
+        )
+        assertEquals(
+            "an unconfirmed local edit must survive a pull, not be overwritten by the server's older value",
+            7_200L,
+            prefs.assignmentLeadTimeSec,
+        )
+    }
+
+    // ── 11. The wire keys must not be able to silently drift from the DTO ──
+
+    /**
+     * The highest-value test the prior round was missing: push known values
+     * through the real write path, feed the exact document it produced
+     * straight into the read path, and assert the five values survive. This is
+     * what would actually catch a divergence between the two sides' wire keys
+     * — both the key strings and the section name — rather than relying on
+     * two independent string literals happening to agree.
+     */
+    @Test
+    fun `a document written by the push path round-trips through the pull path unchanged`() = runBlocking {
+        val pushTransport = RecordingTransport(existing = null)
+        pushLiveActivitySettings(
+            local = local,
+            transport = pushTransport,
+            cloudSyncEnabled = true,
+            syncLiveActivity = true,
+            isLoggedIn = true,
+        )
+        val writtenDocument = pushTransport.writtenDocuments.single()
+
+        val prefs = freshPreferences()
+        // Deliberately opposite of `local`'s five values, so the assertions
+        // below prove the round trip actually moved data rather than
+        // coincidentally matching a default or an unrelated starting value.
+        prefs.showInClass = !local.showInClass
+        prefs.showClassPreparing = !local.showClassPreparing
+        prefs.showAssignment = !local.showAssignment
+        prefs.classPreparingLeadTimeSec = 3_600
+        prefs.assignmentLeadTimeSec = 14_400
+        val pullTransport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(document = writtenDocument, revision = 1L)
+        )
+
+        pullLiveActivitySettings(
+            preferences = prefs,
+            transport = pullTransport,
+            cloudSyncEnabled = true,
+            syncLiveActivity = true,
+            isLoggedIn = true,
+        )
+
+        assertEquals(local.showInClass, prefs.showInClass)
+        assertEquals(local.showClassPreparing, prefs.showClassPreparing)
+        assertEquals(local.showAssignment, prefs.showAssignment)
+        assertEquals(local.classPreparingLeadSeconds.toLong(), prefs.classPreparingLeadTimeSec)
+        assertEquals(local.assignmentLeadSeconds.toLong(), prefs.assignmentLeadTimeSec)
+    }
+
+    // ── 12. The other half of the hand-rolled integer guard ────────────────
+
+    @Test
+    fun `pull keeps the local value when an integer field is out of Int range`() = runBlocking {
+        val prefs = freshPreferences()
+        prefs.assignmentLeadTimeSec = 7_200
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(
+                document = json("""{"live_activity": {"assignment_lead_seconds": 1e19}}"""),
+                revision = 1L,
+            )
+        )
+
+        pullLiveActivitySettings(prefs, transport, cloudSyncEnabled = true, syncLiveActivity = true, isLoggedIn = true)
+
+        assertEquals(
+            "a value far outside Int range must be rejected, not accepted via an overflowed conversion",
+            7_200L,
+            prefs.assignmentLeadTimeSec,
+        )
     }
 }
 
