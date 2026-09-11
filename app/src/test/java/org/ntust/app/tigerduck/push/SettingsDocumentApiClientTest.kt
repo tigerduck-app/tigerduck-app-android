@@ -1,5 +1,7 @@
 package org.ntust.app.tigerduck.push
 
+import com.google.gson.Gson
+import kotlinx.coroutines.CancellationException
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -19,7 +21,7 @@ import org.junit.Test
  * ```
  * if (text.isBlank()) throw SettingsDocumentApiException(...)
  * val serverJson = extractConflictServerJson(text, namespace)
- * return@use SettingsWriteResult.Conflict(parseEnvelope(serverJson, type))
+ * return@use SettingsWriteResult.Conflict(parseEnvelope(serverJson, type, gson::fromJson))
  * ```
  * so calling [extractConflictServerJson] with the same `text` a 409
  * response body would produce exercises that exact parsing step.
@@ -95,5 +97,44 @@ class SettingsDocumentApiClientTest {
         // Compare through JSONObject rather than as raw strings — key
         // order in the round-tripped text isn't guaranteed.
         assertEquals(JSONObject(serverJson).toString(), JSONObject(extracted).toString())
+    }
+
+    // [parseEnvelope] is the other half of this file's catch-clause contract — see its
+    // KDoc in SettingsDocumentApiClient.kt. It takes the deserialize step as a plain
+    // function parameter specifically so these tests can substitute one, rather than
+    // routing through a real `Gson` — see that KDoc for why a real `Gson` can't be made
+    // to raise a raw CancellationException out of `fromJson` at all (it's `final`, and
+    // `fromJson` itself catches `IllegalStateException`, which CancellationException is,
+    // and rewraps it as `JsonSyntaxException` before returning).
+
+    @Test
+    fun `malformed document body reaches the caller as SettingsDocumentApiException`() {
+        val body = "not json at all"
+
+        val thrown = assertThrows(SettingsDocumentApiException::class.java) {
+            parseEnvelope(body, NotificationSettingsDocument::class.java, Gson()::fromJson)
+        }
+
+        assertTrue(
+            "expected message to mention the malformed-response wrapping, was: ${thrown.message}",
+            thrown.message.orEmpty().contains("malformed response"),
+        )
+    }
+
+    @Test
+    fun `CancellationException raised while parsing the document is not converted`() {
+        // Valid envelope JSON throughout - the point is that *deserializing* the
+        // "document" object is where the cancellation lands, simulating a coroutine
+        // cancelled while the real gson::fromJson is on the stack inside parseEnvelope.
+        // The deserialize step itself throws unconditionally, standing in for that,
+        // without needing a real cancelled CoroutineScope in a plain-JVM test (and
+        // without routing through a real Gson - see the comment above).
+        val body = """{"document": {}, "revision": 1}"""
+
+        assertThrows(CancellationException::class.java) {
+            parseEnvelope(body, NotificationSettingsDocument::class.java) { _, _ ->
+                throw CancellationException("cancelled while parsing the settings document")
+            }
+        }
     }
 }

@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.push
 
 import com.google.gson.Gson
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -109,7 +110,7 @@ class SettingsDocumentApiClient @Inject constructor(
                     )
                 }
                 if (text.isBlank()) throw SettingsDocumentApiException("read $namespace: empty body")
-                parseEnvelope(text, type)
+                parseEnvelope(text, type, gson::fromJson)
             }
         }
 
@@ -153,7 +154,7 @@ class SettingsDocumentApiClient @Inject constructor(
             if (response.code == 409) {
                 if (text.isBlank()) throw SettingsDocumentApiException("write $namespace: empty conflict body")
                 val serverJson = extractConflictServerJson(text, namespace)
-                return@use SettingsWriteResult.Conflict(parseEnvelope(serverJson, type))
+                return@use SettingsWriteResult.Conflict(parseEnvelope(serverJson, type, gson::fromJson))
             }
             if (!response.isSuccessful) {
                 throw SettingsDocumentApiException(
@@ -161,30 +162,76 @@ class SettingsDocumentApiClient @Inject constructor(
                 )
             }
             if (text.isBlank()) throw SettingsDocumentApiException("write $namespace: empty body")
-            SettingsWriteResult.Written(parseEnvelope(text, type).revision)
+            SettingsWriteResult.Written(parseEnvelope(text, type, gson::fromJson).revision)
         }
     }
-
-    /** Parses `{..., "document": {...}, "revision": N, ...}` into [T]. */
-    private fun <T> parseEnvelope(text: String, type: Class<T>): SettingsDocumentEnvelope<T> =
-        try {
-            val root = JSONObject(text)
-            val document = gson.fromJson(root.getJSONObject("document").toString(), type)
-                ?: throw SettingsDocumentApiException("settings document: null document")
-            SettingsDocumentEnvelope(document = document, revision = root.getLong("revision"))
-        } catch (e: SettingsDocumentApiException) {
-            throw e
-        } catch (e: Exception) {
-            throw SettingsDocumentApiException("settings document: malformed response: ${e.message}")
-        }
 }
+
+/**
+ * Parses `{..., "document": {...}, "revision": N, ...}` into [T] — the body-parsing
+ * step shared by [SettingsDocumentApiClient.read] and [SettingsDocumentApiClient.write].
+ * Top-level, rather than a private member, for the same reason [extractConflictServerJson]
+ * below is `internal` rather than `private`: so a unit test can drive it directly without
+ * constructing a full [SettingsDocumentApiClient] (see that function's KDoc for why that
+ * can't be done on the plain JVM this module's tests run on).
+ *
+ * Takes [deserializeDocument] as a parameter — production callers pass `gson::fromJson` —
+ * rather than a `Gson` instance, so a test can substitute a step that throws directly.
+ * That indirection is required, not just convenient: [Gson] is `final`, so it can't be
+ * subclassed to make `fromJson` throw something specific, and Gson's own
+ * `Gson.fromJson(JsonReader, TypeToken)` internally does
+ * `catch (e: IllegalStateException) { throw JsonSyntaxException(e) }` around the call to
+ * the type adapter — and [CancellationException] **is** an `IllegalStateException`. A real
+ * `Gson`, given a custom `TypeAdapter`/`JsonDeserializer` that throws
+ * [CancellationException], rewraps it as `JsonSyntaxException` before it ever leaves
+ * `fromJson`, taking the cancellation-preserving contract below out of play entirely.
+ * Only bypassing `Gson` for the test — injecting the step itself — reaches that contract
+ * with a real, unwrapped [CancellationException] the way a genuinely cancelled coroutine
+ * would produce one.
+ *
+ * The catch here otherwise stays a broad `Exception` rather than narrowing to `JSONException`
+ * the way [extractConflictServerJson] does: production's `deserializeDocument` is really
+ * `gson::fromJson`, and that call's exception surface isn't the closed set its
+ * `throws JsonSyntaxException` signature suggests. Beyond the `IllegalStateException` case
+ * above, `Gson.fromJson(JsonReader, TypeToken)` lets a bare `ClassCastException` through
+ * untouched when a type adapter returns the wrong type, and its reflective construction
+ * path (`ConstructorConstructor`, `ReflectiveTypeAdapterFactory`) throws plain
+ * `RuntimeException` on constructor/field-access failures that isn't itself an
+ * `IllegalStateException` and so isn't wrapped either. A self-hosted backend (see
+ * [SettingsDocumentApiClient]'s KDoc) sending a `document` shape that hits one of those
+ * paths is reachable in normal use, so narrowing to `JSONException` plus `JsonSyntaxException`
+ * would trade the cancellation bug below for a worse one: an unhandled crash instead of a
+ * swallowed cancellation.
+ *
+ * What must not stay broad is [CancellationException] itself: [SettingsDocumentApiClient.read]
+ * and [SettingsDocumentApiClient.write] both run inside `withContext`, and a coroutine
+ * cancelled while this function is on the stack must unwind as a cancellation, not get
+ * relabelled as a [SettingsDocumentApiException] — the same hazard [extractConflictServerJson]
+ * was written to avoid. Hence the explicit rethrow before the catch-all.
+ */
+internal fun <T> parseEnvelope(
+    text: String,
+    type: Class<T>,
+    deserializeDocument: (String, Class<T>) -> T,
+): SettingsDocumentEnvelope<T> =
+    try {
+        val root = JSONObject(text)
+        val document = deserializeDocument(root.getJSONObject("document").toString(), type)
+            ?: throw SettingsDocumentApiException("settings document: null document")
+        SettingsDocumentEnvelope(document = document, revision = root.getLong("revision"))
+    } catch (e: SettingsDocumentApiException) {
+        throw e
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        throw SettingsDocumentApiException("settings document: malformed response: ${e.message}")
+    }
 
 /**
  * Extracts the `"server"` object from a 409 write-conflict body — shape is
  * `{"error", "namespace", "server": {document, revision, ...}}`, see
  * `server/routes/settings_docs.py`'s `_conflict_response` — and returns it
- * as JSON text for [SettingsDocumentApiClient]'s private `parseEnvelope` to
- * decode.
+ * as JSON text for [parseEnvelope] to decode.
  *
  * This app points at user-configured self-hosted backends (see
  * `ApiEndpointOverride.kt`), so a 409 body that isn't exactly
