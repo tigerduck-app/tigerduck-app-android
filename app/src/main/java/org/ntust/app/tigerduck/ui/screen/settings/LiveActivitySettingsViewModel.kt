@@ -2,6 +2,13 @@
 // straight through to LiveActivityPreferences and then asks the manager to
 // refresh, so a toggle is reflected in the live notification without waiting
 // for the next scheduled tick.
+//
+// The five settings the `notification` settings document's `live_activity`
+// section carries (spec §4.6) additionally enqueue a push to the backend, so
+// they follow the user to their other devices — see NotificationSettingsSync.
+// The rest (the master switch, lock-screen visibility, the three per-scenario
+// sounds) are device-local: they are not in that section, and this task must
+// not invent document fields for them.
 
 package org.ntust.app.tigerduck.ui.screen.settings
 
@@ -15,6 +22,7 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.notification.SystemPermissions
+import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import javax.inject.Inject
 
 @HiltViewModel
@@ -22,6 +30,7 @@ class LiveActivitySettingsViewModel @Inject constructor(
     val prefs: LiveActivityPreferences,
     val systemPermissions: SystemPermissions,
     private val manager: LiveActivityManager,
+    private val notificationSettingsSync: NotificationSettingsSync,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(snapshot())
@@ -32,15 +41,15 @@ class LiveActivitySettingsViewModel @Inject constructor(
     }
 
     fun setShowInClass(v: Boolean) {
-        prefs.showInClass = v; emit()
+        prefs.showInClass = v; emitAndSync()
     }
 
     fun setShowClassPreparing(v: Boolean) {
-        prefs.showClassPreparing = v; emit()
+        prefs.showClassPreparing = v; emitAndSync()
     }
 
     fun setShowAssignment(v: Boolean) {
-        prefs.showAssignment = v; emit()
+        prefs.showAssignment = v; emitAndSync()
     }
 
     fun setShowOnLockScreen(v: Boolean) {
@@ -63,19 +72,22 @@ class LiveActivitySettingsViewModel @Inject constructor(
         val floor = (LiveActivityPreferences.MIN_ASSIGNMENT_LEAD_SEC / 60).toInt()
         val ceiling = (LiveActivityPreferences.MAX_ASSIGNMENT_LEAD_SEC / 60).toInt()
         prefs.assignmentLeadTimeSec = minutes.coerceIn(floor, ceiling).toLong() * 60
-        emit()
+        emitAndSync()
     }
 
     fun setClassLeadMinutes(m: Int) {
         val floor = (LiveActivityPreferences.MIN_CLASS_LEAD_SEC / 60).toInt().coerceAtLeast(1)
         val ceiling = (LiveActivityPreferences.MAX_CLASS_LEAD_SEC / 60).toInt()
         prefs.classPreparingLeadTimeSec = m.coerceIn(floor, ceiling).toLong() * 60
-        emit()
+        emitAndSync()
     }
 
     fun resetDefaults() {
         prefs.resetToDefaults()
-        emit()
+        // Resets three of the five synced values back to their defaults, which
+        // is a change the user's other devices have to hear about like any
+        // other.
+        emitAndSync()
     }
 
     /** Called when the screen resumes so the permission rows reflect reality. */
@@ -86,6 +98,21 @@ class LiveActivitySettingsViewModel @Inject constructor(
     private fun emit() {
         _state.value = snapshot()
         viewModelScope.launch { manager.refresh() }
+    }
+
+    /**
+     * [emit], plus a push of the `live_activity` section to the backend —
+     * for the five settings that section actually carries.
+     *
+     * The push deliberately does not run on [viewModelScope]: leaving the
+     * screen right after flipping a toggle would cancel it and lose the
+     * write. [NotificationSettingsSync] owns an application-scoped, coalesced
+     * queue instead, so this call just marks the preferences dirty and
+     * returns.
+     */
+    private fun emitAndSync() {
+        emit()
+        notificationSettingsSync.enqueueLiveActivityPush()
     }
 
     private fun snapshot() = State(

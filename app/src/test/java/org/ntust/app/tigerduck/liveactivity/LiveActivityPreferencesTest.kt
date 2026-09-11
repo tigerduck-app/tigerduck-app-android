@@ -58,6 +58,46 @@ class LiveActivityPreferencesTest {
         assertEquals(0, fake.editCallCount)
     }
 
+    /**
+     * [LiveActivityPreferences.syncSnapshot] is the local half of the
+     * `notification` document's `live_activity` mapping (the wire half lives
+     * in `NotificationSettingsSyncTest`). Every value is deliberately
+     * different from its neighbours' — the two booleans that are easiest to
+     * transpose disagree, and so do the two lead times — so a snapshot that
+     * reads the wrong preference key fails here instead of passing by luck.
+     */
+    @Test
+    fun `syncSnapshot reads each synced value from its own preference key`() {
+        val fake = FakeSharedPreferences(
+            initialLongs = mapOf(
+                LiveActivityPreferences.KEY_CLASS_LEAD to 900L,      // 15 min
+                LiveActivityPreferences.KEY_ASSIGNMENT_LEAD to 7_200L, // 2 h
+            ),
+            initialBooleans = mapOf(
+                "show_in_class" to true,
+                "show_class_preparing" to false,
+                "show_assignment" to true,
+                // Not part of the synced section; present so a snapshot that
+                // grabbed the wrong boolean key would read a distinguishable
+                // value rather than another `true`.
+                "show_on_lock_screen" to false,
+            ),
+        )
+
+        val snapshot = LiveActivityPreferences(fake).syncSnapshot()
+
+        assertEquals(
+            LiveActivitySyncValues(
+                showInClass = true,
+                showClassPreparing = false,
+                showAssignment = true,
+                classPreparingLeadSeconds = 900,
+                assignmentLeadSeconds = 7_200,
+            ),
+            snapshot,
+        )
+    }
+
     @Test
     fun `a clamped value is written back once, not recomputed on every read`() {
         val fake = FakeSharedPreferences(initialLongs = mapOf(LiveActivityPreferences.KEY_ASSIGNMENT_LEAD to 86_400L))

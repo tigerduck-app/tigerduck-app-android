@@ -11,6 +11,32 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
+ * Exactly the [LiveActivityPreferences] values that the `notification`
+ * settings document's `live_activity` section carries — the local half of
+ * the cross-device mapping, mirroring iOS's
+ * `NotificationSettingsSync.LocalPreferences`. Built by
+ * [LiveActivityPreferences.syncSnapshot] and consumed by
+ * `NotificationSettingsSync`.
+ *
+ * A value type rather than passing [LiveActivityPreferences] itself so the
+ * mapping can be exercised in a plain JVM unit test without a `Context`, and
+ * so one push always sends one consistent set of values.
+ *
+ * Not persisted and never Gson-*de*serialized — it is built from
+ * SharedPreferences and immediately encoded onto the wire — so CLAUDE.md's
+ * "a new field must be nullable, primitive, or migrated" rule doesn't bite
+ * here. (Every field is a required constructor parameter with no default
+ * anyway, which is the shape that rule exists to protect.)
+ */
+data class LiveActivitySyncValues(
+    val showInClass: Boolean,
+    val showClassPreparing: Boolean,
+    val showAssignment: Boolean,
+    val classPreparingLeadSeconds: Int,
+    val assignmentLeadSeconds: Int,
+)
+
+/**
  * Preferences for the Android Live Update feature — the dynamic-island-style
  * ongoing notification that mirrors the iOS Live Activity.
  *
@@ -100,6 +126,25 @@ class LiveActivityPreferences internal constructor(
         prefs.edit().clear().apply()
         _changeEvent.tryEmit(Unit)
     }
+
+    /**
+     * The five values the `notification` settings document's `live_activity`
+     * section carries, read in one pass — see [LiveActivitySyncValues] and
+     * `NotificationSettingsSync`. Read together so one push sends a coherent
+     * snapshot rather than five independently-timed reads.
+     *
+     * Seconds narrow to `Int` because that is the document's type (§4.6).
+     * Safe: both lead times are clamped on read to at most 8 h (28 800),
+     * nowhere near overflowing — and because they are clamped, a snapshot
+     * can never carry a value the slider itself couldn't produce.
+     */
+    fun syncSnapshot(): LiveActivitySyncValues = LiveActivitySyncValues(
+        showInClass = showInClass,
+        showClassPreparing = showClassPreparing,
+        showAssignment = showAssignment,
+        classPreparingLeadSeconds = classPreparingLeadTimeSec.toInt(),
+        assignmentLeadSeconds = assignmentLeadTimeSec.toInt(),
+    )
 
     private fun writeBool(key: String, value: Boolean) {
         prefs.edit().putBoolean(key, value).apply()
