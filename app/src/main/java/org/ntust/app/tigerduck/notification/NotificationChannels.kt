@@ -7,4 +7,6 @@ object NotificationChannels {
     const val BULLETINS_SOUND = "bulletins_sound"
     /** Default-importance bulletin channel: shows banner but silent. */
     const val BULLETINS_SILENT = "bulletins_silent"
+    /** Account and sync failures the user has to act on. Server-composed copy. */
+    const val SYSTEM = "system"
 }

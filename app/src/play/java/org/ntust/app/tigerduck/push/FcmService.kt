@@ -87,6 +87,19 @@ class FcmService : FirebaseMessagingService() {
                 val body = data["body"].orEmpty()
                 showServerPopupNotification(nid, title, body, forceRing)
             }
+            "reauth_required" -> {
+                val title = data["title"].orEmpty()
+                val body = data["body"].orEmpty()
+                // The server always carries the copy; a missing string means
+                // the backend misfired, and a blank notification is worse than
+                // none — that blank row is exactly the old behaviour being
+                // fixed here.
+                if (title.isBlank() || body.isBlank()) {
+                    Log.w(TAG, "reauth_required push arrived without copy — dropping")
+                    return
+                }
+                showReauthNotification(title, body)
+            }
             else -> {
                 // Legacy / scraped subscription bulletins. Route through the
                 // pre-existing BULLETINS channel so any per-channel mute or
@@ -226,11 +239,56 @@ class FcmService : FirebaseMessagingService() {
             .onFailure { Log.w(TAG, "notify failed for popup $notificationId", it) }
     }
 
+    /**
+     * Fixed id: a second reauth notice replaces the first rather than
+     * stacking. The account is either broken or it isn't — one row says
+     * that as well as five.
+     */
+    private fun showReauthNotification(title: String, body: String) {
+        // `tigerduck://home` is not a registered deep link — the manifest only
+        // declares the `announcement` host and MainActivity routes nothing for
+        // a `home` authority — so open the launcher entry point rather than
+        // mint a URI no one consumes.
+        val intent = packageManager.getLaunchIntentForPackage(packageName)
+            ?: Intent(this, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            REAUTH_NOTIFICATION_ID,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val manager = NotificationManagerCompat.from(this)
+        if (!manager.areNotificationsEnabled()) return
+        val notification = NotificationCompat.Builder(this, NotificationChannels.SYSTEM)
+            .setSmallIcon(R.drawable.ic_notification)
+            // Brand tint for the shade badge; the status-bar glyph stays mono.
+            .setColor(ContextCompat.getColor(this, R.color.duck_yellow))
+            // Same brand presence in the notification body as the bulletin
+            // path — see showBulletinNotification for the silhouette /
+            // large-icon split rationale.
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+            // Title and body are rendered server-side in the device's
+            // language; the client must never compose its own copy here.
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+        runCatching { manager.notify(REAUTH_NOTIFICATION_ID, notification) }
+            .onFailure { Log.w(TAG, "notify failed for reauth", it) }
+    }
+
     companion object {
         const val CHANNEL_ID = NotificationChannels.BULLETINS
         private const val TAG = "FcmService"
         // Fixed notify() id paired with per-popup tag (notificationId) so
         // the (tag, id) pair stays unique without hashing collision risk.
         private const val NOTIFY_ID_SERVER_POPUP = 1
+        // Negative so it can never collide with the bulletin namespace, which
+        // is keyed by positive `bulletin_id` values.
+        private const val REAUTH_NOTIFICATION_ID = -1001
     }
 }
