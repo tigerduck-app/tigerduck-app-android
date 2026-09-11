@@ -107,6 +107,16 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getBoolean("syncAssignments", true)
         set(value) = prefs.edit().putBoolean("syncAssignments", value).apply()
 
+    /** "同步內容" (Synced content) toggle — assignment due-date reminders. */
+    var syncAssignmentReminders: Boolean
+        get() = prefs.getBoolean("syncAssignmentReminders", true)
+        set(value) = prefs.edit().putBoolean("syncAssignmentReminders", value).apply()
+
+    /** "同步內容" (Synced content) toggle — Live Activity / Live Updates state. */
+    var syncLiveActivity: Boolean
+        get() = prefs.getBoolean("syncLiveActivity", true)
+        set(value) = prefs.edit().putBoolean("syncLiveActivity", value).apply()
+
     var pendingConflictCategories: Set<String>
         get() = prefs.getStringSet("pendingConflictCategories", emptySet()) ?: emptySet()
         set(value) = prefs.edit().putStringSet("pendingConflictCategories", value).apply()

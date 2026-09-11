@@ -77,12 +77,15 @@ class PushApiModelsTest {
     }
 
     /**
-     * Every field of [UpdateDevicePreferencesRequest] carries `@SerializedName`
-     * with the exact snake_case key the backend's `DevicePreferencesV3Request`
-     * expects — asserted by reflection over the compiled fields, not by
-     * eyeballing the source. Catches exactly the failure mode this task's
-     * binding constraint warns about: an unannotated field is invisible here
-     * in debug but silently renamed in release.
+     * Every field of [UpdateDevicePreferencesRequest] and
+     * [DevicePreferencesResponse] carries `@SerializedName` with the exact
+     * snake_case key the backend's `DevicePreferencesV3Request` /
+     * `DevicePreferencesV3Response` expect — asserted by reflection over the
+     * compiled fields, not by eyeballing the source. Catches exactly the
+     * failure mode this task's binding constraint warns about: an
+     * unannotated field is invisible here in debug but silently renamed in
+     * release. Covers the task-4 `sync_assignment_reminders` /
+     * `sync_live_activity` fields on both DTOs.
      */
     @Test
     fun `every field carries the exact SerializedName from the backend schema`() {
@@ -93,8 +96,21 @@ class PushApiModelsTest {
                 "syncCourseColors" to "sync_course_colors",
                 "syncCourseNames" to "sync_course_names",
                 "syncAssignments" to "sync_assignments",
+                "syncAssignmentReminders" to "sync_assignment_reminders",
+                "syncLiveActivity" to "sync_live_activity",
                 "cloudSyncEnabled" to "cloud_sync_enabled",
                 "locale" to "locale",
+            ),
+            DevicePreferencesResponse::class to mapOf(
+                "deviceId" to "device_id",
+                "serverPushEnabled" to "server_push_enabled",
+                "syncCourses" to "sync_courses",
+                "syncCourseColors" to "sync_course_colors",
+                "syncCourseNames" to "sync_course_names",
+                "syncAssignments" to "sync_assignments",
+                "syncAssignmentReminders" to "sync_assignment_reminders",
+                "syncLiveActivity" to "sync_live_activity",
+                "cloudSyncEnabled" to "cloud_sync_enabled",
             ),
         )
 
@@ -119,5 +135,72 @@ class PushApiModelsTest {
                 )
             }
         }
+    }
+
+    /**
+     * Task-4 addition: a request that sets the two new "同步內容" fields
+     * serializes them under their snake_case wire names, alongside the
+     * existing sync toggles — and omits them (Gson's default "omit nulls")
+     * when left at their `null` default, same as every other optional field
+     * on this class.
+     */
+    @Test
+    fun `syncAssignmentReminders and syncLiveActivity serialize under their backend keys`() {
+        val json = jsonOf(
+            UpdateDevicePreferencesRequest(
+                syncAssignmentReminders = false,
+                syncLiveActivity = true,
+            )
+        )
+        assertEquals(false, json.get("sync_assignment_reminders").asBoolean)
+        assertEquals(true, json.get("sync_live_activity").asBoolean)
+        assertEquals(setOf("sync_assignment_reminders", "sync_live_activity"), json.keySet())
+    }
+
+    @Test
+    fun `a request that omits syncAssignmentReminders and syncLiveActivity emits neither key`() {
+        val json = jsonOf(UpdateDevicePreferencesRequest(syncCourses = true))
+        assertTrue(json.has("sync_courses"))
+        assertFalse(json.has("sync_assignment_reminders"))
+        assertFalse(json.has("sync_live_activity"))
+    }
+
+    /**
+     * [DevicePreferencesResponse]'s new fields follow the same
+     * "`Boolean = true`, matching the five pre-existing sync fields'
+     * convention" the task-4 brief calls for. A backend response that omits
+     * them entirely (an older backend, or a device that predates the
+     * columns) must still read back `true` on decode — not the JVM
+     * zero-value `false` a naive reading of Gson's Kotlin-construction
+     * behavior might suggest. This is the concrete claim the
+     * upgrade-safe-persistence checklist's "primitive types default safely"
+     * bullet rests on for this class.
+     */
+    @Test
+    fun `a response missing the new keys still defaults both to true`() {
+        val decoded = gson.fromJson(
+            """{"device_id":"abc"}""",
+            DevicePreferencesResponse::class.java,
+        )
+        assertEquals(true, decoded.syncAssignmentReminders)
+        assertEquals(true, decoded.syncLiveActivity)
+    }
+
+    /**
+     * Mirror check: when the backend *does* send the keys, the decoded
+     * value must actually come from the wire, not just fall back to the
+     * `true` default. This is what would catch a missing or mistyped
+     * `@SerializedName` that the reflection test above didn't (a response
+     * decode doesn't fail loudly on an unmatched JSON key — the field
+     * would just silently stay at its default).
+     */
+    @Test
+    fun `a response with the new keys present overrides the default`() {
+        val decoded = gson.fromJson(
+            """{"sync_assignment_reminders":false,"sync_live_activity":false}""",
+            DevicePreferencesResponse::class.java,
+        )
+        assertEquals(false, decoded.syncAssignmentReminders)
+        assertEquals(false, decoded.syncLiveActivity)
     }
 }

@@ -81,10 +81,9 @@ import org.ntust.app.tigerduck.ui.screen.settings.CourseNameSizeSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
-import org.ntust.app.tigerduck.ui.screen.settings.ClassTableSyncScreen
 import org.ntust.app.tigerduck.ui.screen.settings.CloudSyncSettingsScreen
-import org.ntust.app.tigerduck.ui.screen.settings.ServerPushScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.SyncContentScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SourceCodePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
 import org.ntust.app.tigerduck.ui.screen.settings.VibrationSettingsScreen
@@ -113,8 +112,7 @@ sealed class Screen(val route: String) {
     object OtherSettings : Screen("otherSettings")
     object CourseNameSizeSettings : Screen("courseNameSizeSettings")
     object CloudSync : Screen("cloudSync")
-    object ClassTableSync : Screen("classTableSync")
-    object ServerPush : Screen("serverPush")
+    object SyncContent : Screen("syncContent")
     object VibrationSettings : Screen("vibrationSettings")
     object Debug : Screen("debug")
     object NotificationDebug : Screen("notificationDebug")
@@ -415,7 +413,6 @@ fun MainNavigation(
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
                     onNavigateToAssignmentReminders = { navController.navigate(Screen.AssignmentReminderSettings.route) },
-                    onNavigateToServerPush = { navController.navigate(Screen.ServerPush.route) },
                     onNavigateToCloudSync = { navController.navigate(Screen.CloudSync.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
                     // Debug-route navigation is no-op in release builds:
@@ -511,14 +508,14 @@ fun MainNavigation(
             composable(Screen.CloudSync.route) {
                 CloudSyncSettingsScreen(
                     onBack = { navController.popBackStack() },
-                    onNavigateToClassTableSync = { navController.navigate(Screen.ClassTableSync.route) },
+                    onNavigateToSyncContent = { navController.navigate(Screen.SyncContent.route) },
                 )
             }
-            composable(Screen.ClassTableSync.route) {
-                ClassTableSyncScreen(onBack = { navController.popBackStack() })
-            }
-            composable(Screen.ServerPush.route) {
-                ServerPushScreen(onBack = { navController.popBackStack() })
+            composable(Screen.SyncContent.route) {
+                SyncContentScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToLiveActivitySettings = { navController.navigate(Screen.LiveActivitySettings.route) },
+                )
             }
             composable(Screen.SourceCodePicker.route) {
                 SourceCodePickerScreen(onBack = { navController.popBackStack() })

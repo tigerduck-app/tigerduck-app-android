@@ -83,6 +83,17 @@ data class UpdateDevicePreferencesRequest(
     @SerializedName("sync_course_colors") val syncCourseColors: Boolean? = null,
     @SerializedName("sync_course_names") val syncCourseNames: Boolean? = null,
     @SerializedName("sync_assignments") val syncAssignments: Boolean? = null,
+    /**
+     * The two "同步內容" (Synced content) toggles added alongside the
+     * TigerSync settings restructure (spec §6): whether this device wants
+     * assignment due-date reminders and Live Activity/Live Updates state
+     * synced across devices. Same wire names as the backend's
+     * `sync_assignment_reminders` / `sync_live_activity` device-preference
+     * columns (backend commit 67b03e3) — `@SerializedName` is mandatory,
+     * same as every other field in this file: `push` has no R8 keep rule.
+     */
+    @SerializedName("sync_assignment_reminders") val syncAssignmentReminders: Boolean? = null,
+    @SerializedName("sync_live_activity") val syncLiveActivity: Boolean? = null,
     @SerializedName("cloud_sync_enabled") val cloudSyncEnabled: Boolean? = null,
     /**
      * BCP-47 tag for the language the in-app picker just switched to, sent
@@ -106,5 +117,7 @@ data class DevicePreferencesResponse(
     @SerializedName("sync_course_colors") val syncCourseColors: Boolean = true,
     @SerializedName("sync_course_names") val syncCourseNames: Boolean = true,
     @SerializedName("sync_assignments") val syncAssignments: Boolean = true,
+    @SerializedName("sync_assignment_reminders") val syncAssignmentReminders: Boolean = true,
+    @SerializedName("sync_live_activity") val syncLiveActivity: Boolean = true,
     @SerializedName("cloud_sync_enabled") val cloudSyncEnabled: Boolean = true,
 )

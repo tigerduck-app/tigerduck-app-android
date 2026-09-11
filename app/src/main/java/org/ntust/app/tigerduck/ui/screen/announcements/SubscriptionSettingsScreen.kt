@@ -143,9 +143,11 @@ fun SubscriptionSettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 // The server-push status card, opt-out toggle, and device ID
-                // live on the dedicated Settings → Notifications → Server push
-                // screen now (see ServerPushScreen). This screen is for
-                // bulletin-subscription rules only.
+                // live on the TigerSync settings screen now (see
+                // CloudSyncSettingsScreen) — the dedicated Server push screen
+                // (ServerPushScreen) was folded into it as part of the spec
+                // §6 restructure. This screen is for bulletin-subscription
+                // rules only.
                 if (isFdroidFlavor) {
                     item { FdroidNoticeCard() }
                 }

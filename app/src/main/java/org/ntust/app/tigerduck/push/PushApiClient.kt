@@ -152,6 +152,8 @@ class PushApiClient @Inject constructor(
         syncCourseColors: Boolean? = null,
         syncCourseNames: Boolean? = null,
         syncAssignments: Boolean? = null,
+        syncAssignmentReminders: Boolean? = null,
+        syncLiveActivity: Boolean? = null,
         cloudSyncEnabled: Boolean? = null,
         locale: String? = null,
     ): DevicePreferencesResponse = withContext(Dispatchers.IO) {
@@ -161,6 +163,8 @@ class PushApiClient @Inject constructor(
             syncCourseColors = syncCourseColors,
             syncCourseNames = syncCourseNames,
             syncAssignments = syncAssignments,
+            syncAssignmentReminders = syncAssignmentReminders,
+            syncLiveActivity = syncLiveActivity,
             cloudSyncEnabled = cloudSyncEnabled,
             locale = locale,
         )

@@ -78,7 +78,6 @@ fun SettingsScreen(
     onNavigateToLanguagePicker: () -> Unit = {},
     onNavigateToLiveActivity: () -> Unit = {},
     onNavigateToAssignmentReminders: () -> Unit = {},
-    onNavigateToServerPush: () -> Unit = {},
     onNavigateToCloudSync: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
@@ -414,13 +413,12 @@ fun SettingsScreen(
                         ) { onNavigateToAssignmentReminders() }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) { onNavigateToLiveActivity() }
-                        // Hide on F-Droid flavor since the Server Push pipeline
-                        // (FCM) isn't compiled in there — same rule as
-                        // SubscriptionSettingsScreen's existing toggle gate.
-                        if (!BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                            HorizontalDivider()
-                            SettingsLinkRow(stringResource(R.string.settings_push_server_nav_label)) { onNavigateToServerPush() }
-                        }
+                        // The "Server push" row used to live here, gated to
+                        // non-fdroid flavors (its FCM pipeline isn't compiled
+                        // into fdroid). It's gone: the opt-out toggle it led
+                        // to now lives on the TigerSync settings screen
+                        // itself (see CloudSyncSettingsScreen), which is
+                        // already fdroid-gated at the Cloud Sync entry above.
                     }
                 }
             }

@@ -454,6 +454,8 @@ class PushRegistrationService @Inject constructor(
         syncCourseColors: Boolean,
         syncCourseNames: Boolean,
         syncAssignments: Boolean,
+        syncAssignmentReminders: Boolean,
+        syncLiveActivity: Boolean,
     ) {
         val deviceId = identity.uuid()
         runCatching {
@@ -463,6 +465,8 @@ class PushRegistrationService @Inject constructor(
                 syncCourseColors = syncCourseColors,
                 syncCourseNames = syncCourseNames,
                 syncAssignments = syncAssignments,
+                syncAssignmentReminders = syncAssignmentReminders,
+                syncLiveActivity = syncLiveActivity,
             )
         }.onFailure { e ->
             if (e is CancellationException) throw e

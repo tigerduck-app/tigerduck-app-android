@@ -1,11 +1,16 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,9 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,6 +43,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import android.text.format.DateUtils
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -62,11 +67,20 @@ import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
+/**
+ * TigerSync settings — spec §6. Root-level rows, each a [ToggleWithFooterRow]:
+ * an always-on "essential info" indicator (no persisted setting — it is
+ * bound to a constant, see its call site below), the course-sync master
+ * toggle (nested "同步內容" entry when on), the server-push opt-out (moved
+ * here from the now-removed ServerPushScreen — see
+ * [SubscriptionSettingsScreen][org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsScreen]'s
+ * comment for that history), and the TigerSync status card.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CloudSyncSettingsScreen(
     onBack: () -> Unit,
-    onNavigateToClassTableSync: () -> Unit,
+    onNavigateToSyncContent: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     var syncEnabled by remember { mutableStateOf(viewModel.appState.cloudSyncEnabled) }
@@ -79,6 +93,8 @@ fun CloudSyncSettingsScreen(
     val diagnostic by viewModel.syncDiagnostic.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
     val reenableConflict by viewModel.reenableConflict.collectAsState()
+    val serverPushOn by viewModel.serverPushOn.collectAsState()
+    val isTogglingServerPush by viewModel.isTogglingServerPush.collectAsState()
 
     fun refreshSyncStates() {
         syncCourses = viewModel.prefs.syncCourses
@@ -102,6 +118,15 @@ fun CloudSyncSettingsScreen(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // The server-push opt-out PATCH can be rejected by the backend; setServerPushOn
+    // reverts the switch itself in that case, and this just surfaces why.
+    val serverPushFailedMessage = stringResource(R.string.settings_server_push_update_failed)
+    LaunchedEffect(Unit) {
+        viewModel.serverPushUpdateFailed.collect {
+            Toast.makeText(context, serverPushFailedMessage, Toast.LENGTH_SHORT).show()
+        }
     }
 
     if (reenableConflict != null) {
@@ -159,114 +184,73 @@ fun CloudSyncSettingsScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // ── 取得必要資訊 (always on, not a real setting) ──────────────
             item {
                 ContentCard {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                stringResource(R.string.cloud_sync_title),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Text(
-                                stringResource(R.string.settings_sync_brief_description),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                            )
-                        }
-                        Switch(
-                            checked = syncEnabled,
-                            onCheckedChange = {
-                                if (it && !syncEnabled) {
-                                    if (viewModel.prefs.syncCourses) viewModel.markCategoryReenabled("courses")
-                                    if (viewModel.prefs.syncCourseColors) viewModel.markCategoryReenabled("course_colors")
-                                    if (viewModel.prefs.syncCourseNames) viewModel.markCategoryReenabled("course_names")
-                                    if (viewModel.prefs.syncAssignments) viewModel.markCategoryReenabled("assignments")
-                                    viewModel.checkPendingConflicts()
-                                }
-                                syncEnabled = it
-                                viewModel.appState.cloudSyncEnabled = it
-                                viewModel.pushCloudSyncEnabled(it)
-                            },
-                        )
-                    }
-                }
-            }
-
-            if (syncEnabled) {
-                item { SectionHeader(stringResource(R.string.cloud_sync_sync_options)) }
-                item {
-                    ContentCard {
-                        Column {
-                            SyncToggleRow(stringResource(R.string.cloud_sync_assignments), syncAssignments) {
-                                if (it && !syncAssignments) {
-                                    viewModel.markCategoryReenabled("assignments")
-                                    viewModel.checkPendingConflicts()
-                                }
-                                syncAssignments = it
-                                viewModel.prefs.syncAssignments = it
-                                viewModel.pushSyncPreferences()
-                                refreshSyncStates()
-                            }
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                            ClassTableNavRow(
-                                summary = classTableSyncSummary(syncCourses, syncCourseColors, syncCourseNames),
-                                onClick = {
-                                    onNavigateToClassTableSync()
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (!syncEnabled) {
-                item {
-                    ContentCard {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Icon(
-                                Icons.Filled.Info,
-                                contentDescription = null,
-                                tint = Color(0xFFFF9500),
-                                modifier = Modifier.size(20.dp),
-                            )
-                            Text(
-                                stringResource(R.string.settings_sync_disabled_note),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFFF9500),
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (syncEnabled) {
-                item { SectionHeader(stringResource(R.string.push_server_status_section)) }
-                item {
-                    SyncStatusCard(
-                        diagnostic = diagnostic,
-                        isSyncing = isSyncing,
-                        onSyncNow = viewModel::syncNow,
+                    ToggleWithFooterRow(
+                        label = stringResource(R.string.sync_essential_toggle),
+                        footer = stringResource(R.string.sync_essential_footer),
+                        checked = true,
+                        enabled = false,
+                        onCheckedChange = {},
                     )
                 }
             }
 
-            item { SectionHeader(stringResource(R.string.push_server_ids_section)) }
+            // ── 同步課程資訊 (the pre-existing cloudSyncEnabled master) ───
             item {
                 ContentCard {
-                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                        DeviceIdRow(deviceId = deviceId)
+                    ToggleWithFooterRow(
+                        label = stringResource(R.string.sync_courses_toggle),
+                        footer = stringResource(R.string.sync_courses_footer),
+                        checked = syncEnabled,
+                        onCheckedChange = {
+                            if (it && !syncEnabled) {
+                                if (viewModel.prefs.syncCourses) viewModel.markCategoryReenabled("courses")
+                                if (viewModel.prefs.syncCourseColors) viewModel.markCategoryReenabled("course_colors")
+                                if (viewModel.prefs.syncCourseNames) viewModel.markCategoryReenabled("course_names")
+                                if (viewModel.prefs.syncAssignments) viewModel.markCategoryReenabled("assignments")
+                                viewModel.checkPendingConflicts()
+                            }
+                            syncEnabled = it
+                            viewModel.appState.cloudSyncEnabled = it
+                            viewModel.pushCloudSyncEnabled(it)
+                        },
+                    )
+                }
+            }
+            if (syncEnabled) {
+                item {
+                    ContentCard {
+                        SettingsLinkRow(stringResource(R.string.sync_content_nav_label)) {
+                            onNavigateToSyncContent()
+                        }
                     }
                 }
+            }
+
+            // ── 接收額外伺服器推播 (moved from the removed ServerPushScreen) ─
+            item {
+                ContentCard {
+                    ToggleWithFooterRow(
+                        label = stringResource(R.string.settings_server_push_label),
+                        footer = stringResource(R.string.settings_server_push_footer),
+                        checked = serverPushOn,
+                        enabled = !isTogglingServerPush,
+                        onCheckedChange = viewModel::setServerPushOn,
+                    )
+                }
+            }
+
+            // ── TigerSync 狀態 ─────────────────────────────────────────
+            item { SectionHeader(stringResource(R.string.sync_status_nav_label)) }
+            item {
+                SyncStatusCard(
+                    diagnostic = diagnostic,
+                    isSyncing = isSyncing,
+                    deviceId = deviceId,
+                    onSyncNow = viewModel::syncNow,
+                )
             }
 
             item { Spacer(Modifier.height(8.dp)) }
@@ -301,182 +285,38 @@ fun CloudSyncSettingsScreen(
     }
 }
 
-// ── ClassTableSyncScreen ────────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ClassTableSyncScreen(
-    onBack: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel(),
-) {
-    var syncCourses by remember { mutableStateOf(viewModel.prefs.syncCourses) }
-    var syncCourseColors by remember { mutableStateOf(viewModel.prefs.syncCourseColors) }
-    var syncCourseNames by remember { mutableStateOf(viewModel.prefs.syncCourseNames) }
-    val masterOn = syncCourses || syncCourseColors || syncCourseNames
-    val reenableConflict by viewModel.reenableConflict.collectAsState()
-
-    if (reenableConflict != null) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = {},
-            title = { Text(stringResource(R.string.sync_conflict_title)) },
-            text = {
-                Column {
-                    Text(
-                        stringResource(R.string.sync_conflict_reenable_message),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        reenableConflict!!.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(
-                    onClick = { viewModel.resolveReenableConflict(keepLocal = false) }
-                ) { Text(stringResource(R.string.sync_conflict_use_server)) }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(
-                    onClick = { viewModel.resolveReenableConflict(keepLocal = true) }
-                ) { Text(stringResource(R.string.sync_conflict_use_local)) }
-            },
-        )
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                windowInsets = NoTopBarInsets,
-                title = { Text(stringResource(R.string.cloud_sync_class_table_sync)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
-                expandedHeight = SubSettingsBarHeight,
-            )
-        },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            item {
-                ContentCard {
-                    SyncToggleRow(stringResource(R.string.cloud_sync_class_table), masterOn) { on ->
-                        if (on && !masterOn) {
-                            viewModel.markCategoryReenabled("courses")
-                            viewModel.markCategoryReenabled("course_colors")
-                            viewModel.markCategoryReenabled("course_names")
-                            viewModel.checkPendingConflicts()
-                        }
-                        syncCourses = on
-                        syncCourseColors = on
-                        syncCourseNames = on
-                        viewModel.prefs.syncCourses = on
-                        viewModel.prefs.syncCourseColors = on
-                        viewModel.prefs.syncCourseNames = on
-                        viewModel.pushSyncPreferences()
-                    }
-                }
-                Text(
-                    stringResource(R.string.cloud_sync_class_table_footer),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
-                )
-            }
-
-            if (masterOn) {
-                item {
-                    ContentCard {
-                        Column {
-                            SyncToggleRow(stringResource(R.string.cloud_sync_courses), syncCourses) {
-                                if (it && !syncCourses) {
-                                    viewModel.markCategoryReenabled("courses")
-                                    viewModel.checkPendingConflicts()
-                                }
-                                syncCourses = it
-                                viewModel.prefs.syncCourses = it
-                                if (!it) {
-                                    syncCourseColors = false
-                                    viewModel.prefs.syncCourseColors = false
-                                }
-                                viewModel.pushSyncPreferences()
-                            }
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                            SyncToggleRow(stringResource(R.string.cloud_sync_course_colours), syncCourseColors, enabled = syncCourses) {
-                                if (it && !syncCourseColors) {
-                                    viewModel.markCategoryReenabled("course_colors")
-                                    viewModel.checkPendingConflicts()
-                                }
-                                syncCourseColors = it
-                                viewModel.prefs.syncCourseColors = it
-                                viewModel.pushSyncPreferences()
-                            }
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                            SyncToggleRow(stringResource(R.string.cloud_sync_custom_course_names), syncCourseNames) {
-                                if (it && !syncCourseNames) {
-                                    viewModel.markCategoryReenabled("course_names")
-                                    viewModel.checkPendingConflicts()
-                                }
-                                syncCourseNames = it
-                                viewModel.prefs.syncCourseNames = it
-                                viewModel.pushSyncPreferences()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-private fun classTableSyncSummary(
-    syncCourses: Boolean,
-    syncCourseColors: Boolean,
-    syncCourseNames: Boolean,
-): String {
-    val on = listOf(syncCourses, syncCourseColors, syncCourseNames).count { it }
-    return "$on/3"
-}
-
+/**
+ * A settings row shaped like the pre-restructure master TigerSync card: a
+ * two-line label (title + footer) next to a [Switch]. Used for every
+ * root-level TigerSync toggle so the essential-info, course-sync, and
+ * server-push rows read as one consistent family.
+ */
 @Composable
-private fun ClassTableNavRow(summary: String, onClick: () -> Unit) {
+private fun ToggleWithFooterRow(
+    label: String,
+    footer: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    onCheckedChange: (Boolean) -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = SettingRowHeight)
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            stringResource(R.string.cloud_sync_class_table),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            summary,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-            maxLines = 1,
-        )
-        Spacer(Modifier.width(8.dp))
-        Icon(
-            Icons.Filled.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
-            modifier = Modifier.size(18.dp),
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                footer,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+            )
+        }
+        Switch(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
     }
 }
 
@@ -484,60 +324,128 @@ private fun ClassTableNavRow(summary: String, onClick: () -> Unit) {
 private fun SyncStatusCard(
     diagnostic: PushDiagnostic,
     isSyncing: Boolean,
+    deviceId: String,
     onSyncNow: () -> Unit,
 ) {
-    ContentCard {
-        Column(modifier = Modifier.padding(12.dp)) {
-            StatusRow(
-                label = stringResource(R.string.push_server_status_device_registration),
-                ok = diagnostic.isRegistered,
-                okText = stringResource(R.string.bulletin_push_status_registration_done),
-                badText = if (diagnostic.hasFcmToken) {
-                    stringResource(R.string.push_server_status_waiting_token)
-                } else {
-                    stringResource(R.string.bulletin_push_status_registration_pending)
-                },
-            )
-            diagnostic.lastRegistrationAt?.let { ts ->
-                Spacer(Modifier.height(10.dp))
-                LabeledText(
-                    label = stringResource(R.string.push_server_last_registration),
-                    value = DateUtils.getRelativeTimeSpanString(ts, System.currentTimeMillis(), DateUtils.SECOND_IN_MILLIS).toString(),
-                )
-            }
-            diagnostic.lastSyncAt?.let { ts ->
-                Spacer(Modifier.height(10.dp))
-                LabeledText(
-                    label = stringResource(R.string.push_server_last_sync),
-                    value = DateUtils.getRelativeTimeSpanString(ts, System.currentTimeMillis(), DateUtils.SECOND_IN_MILLIS).toString(),
-                )
-            }
-            diagnostic.lastError?.let { msg ->
-                Spacer(Modifier.height(10.dp))
-                LabeledText(
-                    label = stringResource(R.string.push_server_latest_error),
-                    value = msg,
-                    valueColor = MaterialTheme.colorScheme.error,
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = onSyncNow,
-                enabled = !isSyncing,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                if (isSyncing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                } else {
-                    Text(stringResource(R.string.cloud_sync_sync_now))
-                }
+    val context = LocalContext.current
+    fun checkNotificationGranted(): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        } else true
+
+    var permissionGranted by remember { mutableStateOf(checkNotificationGranted()) }
+
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> permissionGranted = granted }
+
+    // Re-check on ON_RESUME so revoking POST_NOTIFICATIONS in system Settings
+    // and returning here reflects the current grant, not the stale value
+    // captured on first composition. Mirrors the removed ServerPushScreen's
+    // PushStatusCard.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                permissionGranted = checkNotificationGranted()
             }
         }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+
+    ContentCard {
+        Column {
+            Column(modifier = Modifier.padding(12.dp)) {
+                StatusRow(
+                    label = stringResource(R.string.bulletin_push_status_label),
+                    ok = permissionGranted,
+                    okText = stringResource(R.string.permission_granted),
+                    badText = stringResource(R.string.bulletin_push_status_denied),
+                )
+                Spacer(Modifier.height(8.dp))
+                StatusRow(
+                    label = stringResource(R.string.push_server_status_device_registration),
+                    ok = diagnostic.isRegistered,
+                    okText = stringResource(R.string.bulletin_push_status_registration_done),
+                    badText = if (diagnostic.hasFcmToken) {
+                        stringResource(R.string.push_server_status_waiting_token)
+                    } else {
+                        stringResource(R.string.bulletin_push_status_registration_pending)
+                    },
+                )
+                diagnostic.lastRegistrationAt?.let { ts ->
+                    Spacer(Modifier.height(10.dp))
+                    LabeledText(
+                        label = stringResource(R.string.push_server_last_registration),
+                        value = DateUtils.getRelativeTimeSpanString(ts, System.currentTimeMillis(), DateUtils.SECOND_IN_MILLIS).toString(),
+                    )
+                }
+                diagnostic.lastSyncAt?.let { ts ->
+                    Spacer(Modifier.height(10.dp))
+                    LabeledText(
+                        label = stringResource(R.string.push_server_last_sync),
+                        value = DateUtils.getRelativeTimeSpanString(ts, System.currentTimeMillis(), DateUtils.SECOND_IN_MILLIS).toString(),
+                    )
+                }
+                diagnostic.lastError?.let { msg ->
+                    Spacer(Modifier.height(10.dp))
+                    LabeledText(
+                        label = stringResource(R.string.push_server_latest_error),
+                        value = msg,
+                        valueColor = MaterialTheme.colorScheme.error,
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                Button(
+                    onClick = onSyncNow,
+                    enabled = !isSyncing,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    if (isSyncing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    } else {
+                        Text(stringResource(R.string.cloud_sync_sync_now))
+                    }
+                }
+                if (!permissionGranted) {
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                openAppSettings(context)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.bulletin_push_reopen_settings))
+                    }
+                }
+            }
+            // Device ID no longer forms its own "push_server_ids_section" —
+            // it stays visible as part of the status area (spec §6 / task-4
+            // brief Step 3), directly under the sync-now / permission controls.
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            DeviceIdRow(deviceId = deviceId)
+        }
+    }
+}
+
+private fun openAppSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+        data = Uri.fromParts("package", context.packageName, null)
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+    }
+    runCatching { context.startActivity(intent) }
 }
 
 @Composable
@@ -643,8 +551,15 @@ private fun LinkRow(label: String, onClick: () -> Unit) {
     }
 }
 
+/**
+ * A toggle row with an optional dependency: when [enabled] is false (a
+ * parent toggle in the same "同步內容" screen is off), the row is greyed
+ * out and non-interactive rather than hidden — see
+ * `cloud_sync_course_colours`'s `enabled = syncCourses` dependency, the one
+ * piece of the old ClassTableSyncScreen this rule specifically preserves.
+ */
 @Composable
-private fun SyncToggleRow(label: String, checked: Boolean, enabled: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
+internal fun SyncToggleRow(label: String, checked: Boolean, enabled: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()

@@ -5,8 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import android.util.Log
@@ -72,6 +76,20 @@ class SettingsViewModel @Inject constructor(
     val serverPushOn: StateFlow<Boolean> = _serverPushOn
 
     private val _isTogglingPush = MutableStateFlow(false)
+    val isTogglingServerPush: StateFlow<Boolean> = _isTogglingPush
+
+    /**
+     * One-shot signal for [CloudSyncSettingsScreen] to surface
+     * `settings_server_push_update_failed` (e.g. via a Toast) when the
+     * server rejects a server-push preference change. Not a [StateFlow]:
+     * there is no "current" failure to replay to a screen that
+     * recomposes after the fact, only an event to react to once.
+     */
+    private val _serverPushUpdateFailed = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val serverPushUpdateFailed: SharedFlow<Unit> = _serverPushUpdateFailed.asSharedFlow()
 
     init {
         pushRegistration.diagnostic
@@ -79,13 +97,26 @@ class SettingsViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
+    /**
+     * Optimistically flips the switch, then reverts it to [previous] if the
+     * backend rejects the change — a rejected PATCH must not leave the UI
+     * claiming a preference took effect when it didn't.
+     */
     fun setServerPushOn(isOn: Boolean) {
         if (_isTogglingPush.value || _serverPushOn.value == isOn) return
+        val previous = _serverPushOn.value
         _serverPushOn.value = isOn
         _isTogglingPush.value = true
         viewModelScope.launch {
-            try { pushRegistration.updateServerPushOptOut(optOut = !isOn) }
-            finally { _isTogglingPush.value = false }
+            try {
+                val success = pushRegistration.updateServerPushOptOut(optOut = !isOn)
+                if (!success) {
+                    _serverPushOn.value = previous
+                    _serverPushUpdateFailed.tryEmit(Unit)
+                }
+            } finally {
+                _isTogglingPush.value = false
+            }
         }
     }
 
@@ -128,6 +159,8 @@ class SettingsViewModel @Inject constructor(
                 syncCourseColors = prefs.syncCourseColors,
                 syncCourseNames = prefs.syncCourseNames,
                 syncAssignments = prefs.syncAssignments,
+                syncAssignmentReminders = prefs.syncAssignmentReminders,
+                syncLiveActivity = prefs.syncLiveActivity,
             )
         }
     }
