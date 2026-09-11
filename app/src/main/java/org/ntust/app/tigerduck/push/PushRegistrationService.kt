@@ -195,13 +195,15 @@ class PushRegistrationService @Inject constructor(
      * any of the other preference PATCHes below.
      *
      * Silent and non-fatal by design: a failure here is never shown to the
-     * user, and self-heals on the next registration.
+     * user. Both lookups above sit inside the same runCatching as the PATCH
+     * itself, so a failure here can't kill the appLanguageChanged collector
+     * in init — it stays alive and retries on the next language change.
      */
     private suspend fun syncLocalePreference() {
         if (!authTokenManager.isLoggedIn) return
-        val locale = currentLocaleTag() ?: return
-        val deviceId = identity.uuid()
         runCatching {
+            val locale = currentLocaleTag() ?: return@runCatching
+            val deviceId = identity.uuid()
             api.updateDevicePreferences(deviceId, locale = locale)
         }.onFailure { e ->
             if (e is CancellationException) throw e
