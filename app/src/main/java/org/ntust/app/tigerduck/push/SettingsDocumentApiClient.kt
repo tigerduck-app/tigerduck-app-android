@@ -7,6 +7,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONException
 import org.json.JSONObject
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -151,8 +152,8 @@ class SettingsDocumentApiClient @Inject constructor(
             val text = response.body.string()
             if (response.code == 409) {
                 if (text.isBlank()) throw SettingsDocumentApiException("write $namespace: empty conflict body")
-                val server = JSONObject(text).getJSONObject("server")
-                return@use SettingsWriteResult.Conflict(parseEnvelope(server.toString(), type))
+                val serverJson = extractConflictServerJson(text, namespace)
+                return@use SettingsWriteResult.Conflict(parseEnvelope(serverJson, type))
             }
             if (!response.isSuccessful) {
                 throw SettingsDocumentApiException(
@@ -177,3 +178,30 @@ class SettingsDocumentApiClient @Inject constructor(
             throw SettingsDocumentApiException("settings document: malformed response: ${e.message}")
         }
 }
+
+/**
+ * Extracts the `"server"` object from a 409 write-conflict body — shape is
+ * `{"error", "namespace", "server": {document, revision, ...}}`, see
+ * `server/routes/settings_docs.py`'s `_conflict_response` — and returns it
+ * as JSON text for [SettingsDocumentApiClient]'s private `parseEnvelope` to
+ * decode.
+ *
+ * This app points at user-configured self-hosted backends (see
+ * `ApiEndpointOverride.kt`), so a 409 body that isn't exactly
+ * `{"server": {...}}` — a reverse proxy's own error page, a different
+ * server build, or valid JSON simply missing the `server` key — is
+ * reachable in normal use, not just a theoretical malformed response. It
+ * must surface as [SettingsDocumentApiException], never a raw
+ * [org.json.JSONException] that would sail straight past a caller's
+ * `catch (e: SettingsDocumentApiException)` rebase-and-retry handler.
+ *
+ * `internal` rather than `private` solely so a unit test can exercise this
+ * exact parsing without driving a whole [SettingsDocumentApiClient] through
+ * a real network stack.
+ */
+internal fun extractConflictServerJson(text: String, namespace: String): String =
+    try {
+        JSONObject(text).getJSONObject("server").toString()
+    } catch (e: JSONException) {
+        throw SettingsDocumentApiException("write $namespace: malformed conflict body: ${e.message}")
+    }

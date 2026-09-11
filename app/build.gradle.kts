@@ -261,6 +261,11 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    // Android's bundled org.json classes are stubbed out (return null / no-op)
+    // under the default JVM unit-test runner — see SettingsDocumentApiClientTest's
+    // KDoc. The real reference implementation shares the org.json.* package name
+    // and shadows the stub on the unit-test classpath.
+    testImplementation(libs.json)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
