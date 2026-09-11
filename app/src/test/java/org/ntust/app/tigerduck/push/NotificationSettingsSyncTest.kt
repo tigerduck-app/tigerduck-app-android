@@ -822,13 +822,13 @@ class NotificationSettingsSyncTest {
     // ── 10. A pull must not silently discard an unconfirmed local edit ─────
 
     /**
-     * The hazard the brief's "not data loss, only propagation delay" premise
-     * missed: with no protection, "edit a value, the push fails, reopen the
-     * screen" ends with the pull's stale server value silently overwriting the
-     * user's own edit — no error, no trace. `isLocalDirty` is
-     * `NotificationSettingsSync.hasUnconfirmedLocalEdit` at the production call
-     * site; this drives it directly since the Hilt class cannot be constructed
-     * here.
+     * With no protection, "edit a value, the push fails, reopen the screen"
+     * ends with the pull's stale server value silently overwriting the user's
+     * own edit — no error, no trace. That is data loss, not merely a delayed
+     * propagation, which is why the guard has to persist rather than live in
+     * memory. `isLocalDirty` is [LiveActivityPreferences.hasUnconfirmedSyncEdit]
+     * at the production call site; this drives it directly since the Hilt class
+     * cannot be constructed here.
      */
     @Test
     fun `pull does not overwrite local values while a push has not yet been confirmed`() = runBlocking {
