@@ -18,11 +18,18 @@ import javax.inject.Singleton
  * between platforms.
  */
 @Singleton
-class LiveActivityPreferences @Inject constructor(
-    @ApplicationContext context: Context,
+class LiveActivityPreferences internal constructor(
+    private val prefs: SharedPreferences,
 ) {
-    private val prefs: SharedPreferences =
+    // The real entry point: Hilt calls this (the @Inject constructor), which
+    // resolves the SharedPreferences and delegates to the primary
+    // constructor above. Splitting it this way lets tests hand in an
+    // in-memory SharedPreferences fake directly — the project has no
+    // Robolectric dependency, so a real Context isn't available in a plain
+    // JVM unit test.
+    @Inject constructor(@ApplicationContext context: Context) : this(
         context.getSharedPreferences("tigerduck_live_activity", Context.MODE_PRIVATE)
+    )
 
     private val _changeEvent =
         MutableSharedFlow<Unit>(
@@ -69,7 +76,10 @@ class LiveActivityPreferences @Inject constructor(
 
     /** Seconds before an assignment due date when the Live Update starts showing. */
     var assignmentLeadTimeSec: Long
-        get() = prefs.getLong(KEY_ASSIGNMENT_LEAD, DEFAULT_ASSIGNMENT_LEAD_SEC)
+        get() = readClampedLong(
+            KEY_ASSIGNMENT_LEAD, DEFAULT_ASSIGNMENT_LEAD_SEC,
+            MIN_ASSIGNMENT_LEAD_SEC, MAX_ASSIGNMENT_LEAD_SEC,
+        )
         set(value) = writeLong(
             KEY_ASSIGNMENT_LEAD,
             value.coerceIn(MIN_ASSIGNMENT_LEAD_SEC, MAX_ASSIGNMENT_LEAD_SEC)
@@ -77,7 +87,10 @@ class LiveActivityPreferences @Inject constructor(
 
     /** Seconds before class start when the "即將上課" scenario activates. */
     var classPreparingLeadTimeSec: Long
-        get() = prefs.getLong(KEY_CLASS_LEAD, DEFAULT_CLASS_LEAD_SEC)
+        get() = readClampedLong(
+            KEY_CLASS_LEAD, DEFAULT_CLASS_LEAD_SEC,
+            MIN_CLASS_LEAD_SEC, MAX_CLASS_LEAD_SEC,
+        )
         set(value) = writeLong(
             KEY_CLASS_LEAD,
             value.coerceIn(MIN_CLASS_LEAD_SEC, MAX_CLASS_LEAD_SEC)
@@ -98,13 +111,48 @@ class LiveActivityPreferences @Inject constructor(
         _changeEvent.tryEmit(Unit)
     }
 
+    /**
+     * Reads [key] and clamps it into [min]..[max], the way
+     * `LiveActivityPreferencesStore.init()` clamps on load on iOS
+     * (`LiveActivityPreferencesStore.swift:116-125`).
+     *
+     * Needed because the MIN_ and MAX_ constants narrowed in v2.1.0 when the
+     * 自訂 escape hatch was removed — assignment lead time used to allow 5 min..7 days,
+     * class-preparing 1 min..3 h. An install that persisted a value only
+     * reachable through 自訂 (e.g. "1 day before") would otherwise hold a
+     * value the new slider can neither display nor produce, forever, since
+     * nothing else in this class rewrites an existing value.
+     *
+     * The clamped value is written straight back rather than only clamping
+     * what's returned, for two reasons: so anything that syncs this raw pref
+     * (e.g. a cloud copy) doesn't disagree with what the slider displays,
+     * and so the clamp only runs once per stale value instead of on every
+     * single read.
+     */
+    private fun readClampedLong(key: String, default: Long, min: Long, max: Long): Long {
+        val raw = prefs.getLong(key, default)
+        val clamped = raw.coerceIn(min, max)
+        if (clamped != raw) writeLong(key, clamped)
+        return clamped
+    }
+
     companion object {
         const val DEFAULT_ASSIGNMENT_LEAD_SEC = 8L * 3600
         const val DEFAULT_CLASS_LEAD_SEC = 15L * 60
-        const val MIN_ASSIGNMENT_LEAD_SEC = 5L * 60          // 5 min floor
-        const val MAX_ASSIGNMENT_LEAD_SEC = 7L * 24 * 3600    // 7 days ceiling
-        const val MIN_CLASS_LEAD_SEC = 60L                   // 1 min floor
-        const val MAX_CLASS_LEAD_SEC = 3L * 3600              // 3 hours ceiling
+
+        // v2.1.0: narrowed to match the iOS slider ranges when the Android
+        // 自訂 dialogs were removed (spec §5 W6). See readClampedLong's KDoc
+        // for why existing out-of-range values need clamping, not just a UI
+        // change, and grep these four constants before touching them again —
+        // ClassPreparingNotificationScheduler, LiveActivityResolver and
+        // LiveActivityManager all schedule/resolve off the *properties*
+        // above (which apply these bounds), not off these constants
+        // directly, so they pick up a changed range for free — but any new
+        // caller that hardcodes an assumption about the old range wouldn't.
+        const val MIN_ASSIGNMENT_LEAD_SEC = 1L * 3600         // 1 hour floor
+        const val MAX_ASSIGNMENT_LEAD_SEC = 8L * 3600         // 8 hour ceiling
+        const val MIN_CLASS_LEAD_SEC = 5L * 60                // 5 min floor
+        const val MAX_CLASS_LEAD_SEC = 4L * 3600              // 4 hour ceiling — matches iOS maximumClassPreparingLeadTime
 
         private const val KEY_ENABLED = "enabled"
         private const val KEY_SHOW_IN_CLASS = "show_in_class"
@@ -114,7 +162,13 @@ class LiveActivityPreferences @Inject constructor(
         private const val KEY_SOUND_IN_CLASS = "sound_in_class"
         private const val KEY_SOUND_CLASS_PREPARING = "sound_class_preparing"
         private const val KEY_SOUND_ASSIGNMENT = "sound_assignment"
-        private const val KEY_ASSIGNMENT_LEAD = "assignment_lead_sec"
-        private const val KEY_CLASS_LEAD = "class_lead_sec"
+
+        // Not private: LiveActivityPreferencesTest seeds a fake
+        // SharedPreferences directly under these keys to simulate a value
+        // persisted by an older build, without duplicating the literal
+        // strings (which must stay byte-for-byte identical to what a real
+        // prior install wrote to disk).
+        internal const val KEY_ASSIGNMENT_LEAD = "assignment_lead_sec"
+        internal const val KEY_CLASS_LEAD = "class_lead_sec"
     }
 }

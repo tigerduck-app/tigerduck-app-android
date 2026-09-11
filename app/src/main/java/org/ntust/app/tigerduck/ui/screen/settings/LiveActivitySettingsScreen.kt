@@ -6,9 +6,12 @@
 // open.
 //
 // The widgets live next door: LiveActivityLeadTimeRow (slider + duration
-// label), LiveActivityCustomTimeDialogs (the 自訂 entry sheets) and
-// LiveActivityPermissionRow (status dots + tap routing). The plain on/off
-// rows reuse SettingsToggleRow from SettingsRows.kt.
+// label) and LiveActivityPermissionRow (status dots + tap routing). The
+// plain on/off rows reuse SettingsToggleRow from SettingsRows.kt.
+//
+// v2.1.0 removed the 自訂 ("custom") lead-time dialogs to match iOS, which
+// only ever offered a slider — see LiveActivityLeadTimeRow and
+// LiveActivityPreferences for the slider-range and clamping side of that.
 
 package org.ntust.app.tigerduck.ui.screen.settings
 
@@ -53,7 +56,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
@@ -69,8 +71,6 @@ fun LiveActivitySettingsScreen(
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showResetConfirm by remember { mutableStateOf(false) }
-    var assignmentCustomOpen by remember { mutableStateOf(false) }
-    var classCustomOpen by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -228,11 +228,15 @@ fun LiveActivitySettingsScreen(
                             label = stringResource(R.string.live_activity_settings_assignment_warning),
                             valueLabel = formatLeadDuration(state.assignmentLeadMinutes),
                             value = state.assignmentLeadMinutes.toFloat(),
-                            range = 60f..(8f * 60f),
-                            steps = 0,
+                            // 1h..8h, half-hour steps to match iOS. Compose's `steps`
+                            // is the number of dividers BETWEEN the two endpoints, not
+                            // the number of segments: (480-60)/30 = 14 segments, so
+                            // steps = 14 - 1 = 13. Re-derive this if the range or step
+                            // size ever changes — don't just eyeball a new number.
+                            range = 60f..480f,
+                            steps = 13,
                             enabled = state.enabled,
                             onValueChange = { viewModel.setAssignmentLeadMinutes(it.toInt()) },
-                            onCustomClick = { assignmentCustomOpen = true },
                         )
                         HorizontalDivider()
                         LeadTimeRow(
@@ -242,22 +246,16 @@ fun LiveActivitySettingsScreen(
                                 state.classLeadMinutes
                             ),
                             value = state.classLeadMinutes.toFloat(),
-                            range = 5f..60f,
-                            steps = 0,
+                            // 5min..4h, 5-minute steps to match iOS
+                            // (maximumClassPreparingLeadTime): (240-5)/5 = 47
+                            // segments, so steps = 47 - 1 = 46.
+                            range = 5f..240f,
+                            steps = 46,
                             enabled = state.enabled,
                             onValueChange = { viewModel.setClassLeadMinutes(it.toInt()) },
-                            onCustomClick = { classCustomOpen = true },
                         )
                     }
                 }
-            }
-            item {
-                Text(
-                    stringResource(R.string.live_activity_settings_timing_hint),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                )
             }
 
             item { SectionHeader(stringResource(R.string.live_activity_settings_section_system_permissions)) }
@@ -324,39 +322,6 @@ fun LiveActivitySettingsScreen(
             },
             dismissText = stringResource(R.string.action_cancel),
             onDismiss = { showResetConfirm = false },
-        )
-    }
-
-    if (assignmentCustomOpen) {
-        CustomHoursMinutesDialog(
-            title = stringResource(R.string.live_activity_settings_custom_assignment_title),
-            description = stringResource(R.string.live_activity_settings_custom_assignment_description),
-            initialMinutes = state.assignmentLeadMinutes,
-            minMinutes = (LiveActivityPreferences.MIN_ASSIGNMENT_LEAD_SEC / 60).toInt(),
-            maxMinutes = (LiveActivityPreferences.MAX_ASSIGNMENT_LEAD_SEC / 60).toInt(),
-            onConfirm = {
-                viewModel.setAssignmentLeadMinutes(it)
-                assignmentCustomOpen = false
-            },
-            onDismiss = { assignmentCustomOpen = false },
-        )
-    }
-    if (classCustomOpen) {
-        CustomMinutesDialog(
-            title = stringResource(R.string.live_activity_settings_custom_class_title),
-            description = stringResource(R.string.live_activity_settings_custom_class_description),
-            initialMinutes = state.classLeadMinutes,
-            minMinutes = (LiveActivityPreferences.MIN_CLASS_LEAD_SEC / 60).toInt().coerceAtLeast(1),
-            maxMinutes = (LiveActivityPreferences.MAX_CLASS_LEAD_SEC / 60).toInt(),
-            unitHint = stringResource(
-                R.string.live_activity_settings_custom_class_unit_hint,
-                (LiveActivityPreferences.MAX_CLASS_LEAD_SEC / 60).toInt()
-            ),
-            onConfirm = {
-                viewModel.setClassLeadMinutes(it)
-                classCustomOpen = false
-            },
-            onDismiss = { classCustomOpen = false },
         )
     }
 }
