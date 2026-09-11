@@ -134,9 +134,11 @@ class LiveActivityPreferences internal constructor(
      * snapshot rather than five independently-timed reads.
      *
      * Seconds narrow to `Int` because that is the document's type (§4.6).
-     * Safe: both lead times are clamped on read to at most 8 h (28 800),
-     * nowhere near overflowing — and because they are clamped, a snapshot
-     * can never carry a value the slider itself couldn't produce.
+     * Safe: both lead times are clamped on read to their own ceiling —
+     * [MAX_ASSIGNMENT_LEAD_SEC] is 8 h (28 800) and [MAX_CLASS_LEAD_SEC]
+     * is 4 h (14 400), not 8 h as this once claimed — both nowhere near
+     * overflowing. And because they are clamped, a snapshot can never
+     * carry a value the slider itself couldn't produce.
      */
     fun syncSnapshot(): LiveActivitySyncValues = LiveActivitySyncValues(
         showInClass = showInClass,
