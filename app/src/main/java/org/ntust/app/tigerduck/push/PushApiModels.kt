@@ -28,6 +28,12 @@ data class DeviceRegisterRequest(
     @SerializedName("os_version") val osVersion: String? = null,
     @SerializedName("push_token") val pushToken: PushTokenIn? = null,
     @SerializedName("cloud_sync_enabled") val cloudSyncEnabled: Boolean? = null,
+    /**
+     * BCP-47 tag for the language the app is actually rendering, so the
+     * server can compose push copy in it. Sent unconditionally — a device
+     * fact, not a preference.
+     */
+    @SerializedName("locale") val locale: String? = null,
 )
 
 data class DeviceRegisterResponse(

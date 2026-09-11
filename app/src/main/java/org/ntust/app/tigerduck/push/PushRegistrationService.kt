@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.push
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.core.os.ConfigurationCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -18,6 +19,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
 import javax.inject.Inject
@@ -42,7 +44,7 @@ data class PushDiagnostic(
  */
 @Singleton
 class PushRegistrationService @Inject constructor(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
     private val identity: PushIdentity,
     private val api: PushApiClient,
     private val authTokenManager: AuthTokenManager,
@@ -145,6 +147,17 @@ class PushRegistrationService @Inject constructor(
         }
     }
 
+    /**
+     * BCP-47 tag for the language the app is actually displaying, mirroring
+     * `TigerDuckApp.createNotificationChannels()`'s resolution of
+     * [AppPreferences.appLanguage]. Falls back to the system locale only
+     * when the preference means "follow system" — see
+     * [AppLanguageManager.resolveExplicitLocale].
+     */
+    private fun currentLocaleTag(): String? =
+        AppLanguageManager.resolveExplicitLocale(appPreferences.appLanguage)?.toLanguageTag()
+            ?: ConfigurationCompat.getLocales(context.resources.configuration)[0]?.toLanguageTag()
+
     private suspend fun performRegister(): Boolean {
         // Snapshot token under the mutex so a concurrent token rotation or
         // updateServerPushOptOut can't flip state between read and POST.
@@ -199,6 +212,7 @@ class PushRegistrationService @Inject constructor(
                     osVersion = "Android ${android.os.Build.VERSION.RELEASE}",
                     pushToken = PushTokenIn(tokenValue = token),
                     cloudSyncEnabled = appPreferences.cloudSyncEnabled,
+                    locale = currentLocaleTag(),
                 )
             )
         }.fold(
