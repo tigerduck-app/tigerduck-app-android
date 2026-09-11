@@ -153,6 +153,7 @@ class PushApiClient @Inject constructor(
         syncCourseNames: Boolean? = null,
         syncAssignments: Boolean? = null,
         cloudSyncEnabled: Boolean? = null,
+        locale: String? = null,
     ): DevicePreferencesResponse = withContext(Dispatchers.IO) {
         val payload = UpdateDevicePreferencesRequest(
             serverPushEnabled = serverPushEnabled,
@@ -161,6 +162,7 @@ class PushApiClient @Inject constructor(
             syncCourseNames = syncCourseNames,
             syncAssignments = syncAssignments,
             cloudSyncEnabled = cloudSyncEnabled,
+            locale = locale,
         )
         val body = gson.toJson(payload).toRequestBody(jsonType)
         val request = Request.Builder()

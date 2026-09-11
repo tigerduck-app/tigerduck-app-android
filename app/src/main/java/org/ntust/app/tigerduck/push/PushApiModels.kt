@@ -84,6 +84,19 @@ data class UpdateDevicePreferencesRequest(
     @SerializedName("sync_course_names") val syncCourseNames: Boolean? = null,
     @SerializedName("sync_assignments") val syncAssignments: Boolean? = null,
     @SerializedName("cloud_sync_enabled") val cloudSyncEnabled: Boolean? = null,
+    /**
+     * BCP-47 tag for the language the in-app picker just switched to, sent
+     * so server-composed push copy (the Moodle-reauth notification most of
+     * all) stops arriving in the language the device happened to register
+     * with. `@SerializedName` is mandatory here, same as every other field
+     * in this file: `push` has no R8 keep rule, so an unannotated field
+     * would serialize under a renamed key in release builds and the
+     * backend would never see it. The backend applies `locale` only when
+     * non-null (`server/routes/user_devices.py`), so every other PATCH
+     * that omits it — every call site but the one that sends this — leaves
+     * a previously-set value alone.
+     */
+    @SerializedName("locale") val locale: String? = null,
 )
 
 data class DevicePreferencesResponse(

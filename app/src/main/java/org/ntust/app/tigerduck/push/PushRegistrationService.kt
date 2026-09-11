@@ -66,6 +66,23 @@ class PushRegistrationService @Inject constructor(
     private val _diagnostic = MutableStateFlow(loadInitialDiagnostic())
     val diagnostic: StateFlow<PushDiagnostic> = _diagnostic.asStateFlow()
 
+    init {
+        // The in-app language picker (SettingsViewModel.setAppLanguage) only
+        // flips the local preference — nothing else re-registers the device,
+        // so without this the server would keep composing push copy (the
+        // Moodle-reauth notification most of all — it targets a device the
+        // user hasn't opened lately, exactly the device most likely to be
+        // stale) in the language the device happened to register with.
+        // Mirrors the wear-bridge collector on this same signal at
+        // TigerDuckApp.kt's onCreate. PushRegistrationService is always
+        // constructed at app start (AuthService depends on it and
+        // TigerDuckApp field-injects AuthService eagerly), on both flavors,
+        // so this collector is live before the language picker can fire.
+        scope.launch {
+            appPreferences.appLanguageChanged.collect { syncLocalePreference() }
+        }
+    }
+
     suspend fun update(fcmToken: String) {
         val changed = mutex.withLock {
             if (isUnregistering) return@withLock false
@@ -157,6 +174,40 @@ class PushRegistrationService @Inject constructor(
     private fun currentLocaleTag(): String? =
         AppLanguageManager.resolveExplicitLocale(appPreferences.appLanguage)?.toLanguageTag()
             ?: ConfigurationCompat.getLocales(context.resources.configuration)[0]?.toLanguageTag()
+
+    /**
+     * PATCH the device's locale alone in response to an in-app language
+     * change, so server-composed push copy stops arriving in the old
+     * language before the next unrelated registration event.
+     *
+     * Signed in only: the PATCH needs a session, and a signed-out device
+     * has no `user_devices` row for `locale` to live on — a signed-out
+     * device's next real registration (`announceDevice`) will reach the
+     * server anyway once it signs in, and `performRegister` always carries
+     * the current tag.
+     *
+     * Deliberately a locale-only PATCH rather than a full [syncNow]: a full
+     * re-register also re-sends the FCM token and re-announces the
+     * anonymous device row on every language toggle, and reuses a
+     * debounce/mutex built around the token/sign-in coalescing use case for
+     * an unrelated trigger. The backend applies `locale` only when
+     * non-null, so this narrow PATCH can't be clobbered by — or clobber —
+     * any of the other preference PATCHes below.
+     *
+     * Silent and non-fatal by design: a failure here is never shown to the
+     * user, and self-heals on the next registration.
+     */
+    private suspend fun syncLocalePreference() {
+        if (!authTokenManager.isLoggedIn) return
+        val locale = currentLocaleTag() ?: return
+        val deviceId = identity.uuid()
+        runCatching {
+            api.updateDevicePreferences(deviceId, locale = locale)
+        }.onFailure { e ->
+            if (e is CancellationException) throw e
+            Log.w(TAG, "locale preference PATCH failed", e)
+        }
+    }
 
     private suspend fun performRegister(): Boolean {
         // Snapshot token under the mutex so a concurrent token rotation or
