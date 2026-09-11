@@ -129,7 +129,7 @@ class AuthService @Inject constructor(
             runCatching { pushRegistration.onSignedIn() }
             // Catch up any live_activity edit made while signed out (or while
             // the v3 JWT had lapsed) — see NotificationSettingsSync's
-            // isLoggedIn gate and task-5-review.md Important 1(a).
+            // isLoggedIn gate.
             notificationSettingsSync.enqueueLiveActivityPush()
             true
         } catch (e: Exception) {
@@ -173,8 +173,8 @@ class AuthService @Inject constructor(
             android.util.Log.i("AuthService", "v3 migration: JWT obtained")
             runCatching { pushRegistration.onSignedIn() }
                 .onFailure { e -> if (e is CancellationException) throw e }
-            // See the matching comment in attemptRelogin(): closing
-            // task-5-review.md Important 1(a) for the v2->v3 migration path too.
+            // Same catch-up push as attemptRelogin(), for the v2->v3 migration
+            // path too.
             notificationSettingsSync.enqueueLiveActivityPush()
         }.onFailure { e ->
             if (e is CancellationException) throw e
@@ -225,10 +225,9 @@ class AuthService @Inject constructor(
                 }
                 runCatching { pushRegistration.onSignedIn() }
                     .onFailure { e -> if (e is CancellationException) throw e }
-                // See the matching comment in attemptRelogin(): a fresh SSO
-                // login is the third of the three sign-in paths that used to
-                // leave live_activity edits made while signed out unpushed
-                // forever (task-5-review.md Important 1(a)).
+                // Same catch-up push as attemptRelogin(): a fresh SSO login is
+                // the third of the three sign-in paths that used to leave
+                // live_activity edits made while signed out unpushed forever.
                 notificationSettingsSync.enqueueLiveActivityPush()
             }
 

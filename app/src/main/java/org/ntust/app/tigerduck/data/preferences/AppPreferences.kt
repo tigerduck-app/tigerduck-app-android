@@ -114,9 +114,8 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
 
     // Flips so NotificationSettingsSync can reconcile: turning this switch
     // back on doesn't itself change any of the five live_activity values,
-    // so nothing else would ever notice and (re-)push them (task-5-review.md
-    // Important 1, gap 3). Emitted only on an actual change, same as
-    // appLanguageChanged above.
+    // so nothing else would ever notice and (re-)push them. Emitted only on
+    // an actual change, same as appLanguageChanged above.
     private val _syncLiveActivityChanged = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,

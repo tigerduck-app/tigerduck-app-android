@@ -6,14 +6,14 @@
 // newer build of either platform adds to the same namespace.
 //
 // The read half ([pullLiveActivitySettings]) is what makes this sync
-// rather than one-way replication: until it existed, an iOS user's edits
-// to their Live Activity lead times were invisible on Android (plan gap,
-// see task-7-brief.md). Every field it reads degrades to "keep the local
-// value" when the document can't express it — missing, null, or the wrong
-// JSON type — never to `false`/`0`. The two lead times are additionally
-// clamped into this build's local range: `MAX_CLASS_LEAD_SEC` narrowed to
-// 4h in v2.1.0, iOS's ceiling is different again, so the document can
-// easily hold a value this build's own slider could never produce.
+// rather than one-way replication: without it, an iOS user's edits to
+// their Live Activity lead times are invisible on Android. Every field it
+// reads degrades to "keep the local value" when the document can't express
+// it — missing, null, or the wrong JSON type — never to `false`/`0`. The
+// two lead times are additionally clamped into this build's local range:
+// `MAX_CLASS_LEAD_SEC` narrowed to 4h in v2.1.0, iOS's ceiling is
+// different again, so the document can easily hold a value this build's
+// own slider could never produce.
 //
 // Writes therefore **merge at the JSON level** rather than re-encoding a
 // typed struct: read whatever the server currently holds as a `JsonObject`,
@@ -51,7 +51,6 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
-import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -137,8 +136,8 @@ internal fun merging(updates: JsonObject, into: JsonObject): JsonObject {
  * owns — the sections it doesn't own never appear in `updates`, so the merge
  * cannot touch them.
  *
- * Field-by-field mapping, fixed by the task-5 brief's table (do not add or
- * infer fields beyond these five):
+ * Field-by-field mapping — the fixed set of five (do not add or infer
+ * fields beyond these):
  *
  * | local ([LiveActivitySyncValues]) | document field                         |
  * |----------------------------------|----------------------------------------|
@@ -162,42 +161,45 @@ internal fun LiveActivitySyncValues.documentUpdates(): JsonObject =
     ).asJsonObject
 
 /**
- * The wire key [type]'s `@SerializedName` annotation assigns to the
- * property named [propertyName] — read via reflection instead of
- * restated as a string literal, so [pullLiveActivitySettings]'s five
- * field lookups and its `live_activity` section-name lookup can never
- * drift from the very same annotations [documentUpdates] already derives
- * the write side from.
+ * The `live_activity` section's wire keys, restated as literals rather
+ * than derived from [LiveActivitySection]/[NotificationSettingsDocument]'s
+ * `@SerializedName` values at runtime.
  *
- * `push` has no R8 keep rule (see this file's header), so a rename on
- * either side that only one half picked up would otherwise be a silent,
- * release-only wire failure: the pull would validate nothing, degrade to
- * "keep local" for every field, and cross-device sync would quietly stop
- * working with every test still green — precisely the failure mode this
- * file exists to prevent. A typo in [propertyName] now fails loudly
- * instead, the moment this file is first loaded (the properties below are
- * eagerly initialized at class-load), because [propertyName] itself comes
- * from a compile-checked Kotlin property reference (`Type::property.name`)
- * rather than a second hand-typed string.
+ * A by-name reflective lookup (`Class.getDeclaredField`) was tried here and
+ * reverted: `Type::property.name` resolves to the property's
+ * *pre-obfuscation* Kotlin source name (`kotlin-reflect` is not on this
+ * project's classpath, so it comes from the lightweight `PropertyReference`
+ * machinery, which embeds that name as a compile-time constant, not a
+ * runtime-derived one), and `app/proguard-rules.pro`'s
+ * `-keepclassmembers,allowobfuscation` rule for `@SerializedName` fields
+ * protects them from *removal*, not from *renaming*. `push` has no
+ * package-specific keep rule, so a real release build is free to rename
+ * every one of these fields, `getDeclaredField("showInClass")` would throw
+ * `NoSuchFieldException` the first time this file is touched, and — since
+ * these would be eagerly-initialized top-level properties — every push and
+ * pull would fail for the rest of the process, permanently, from the very
+ * first attempt. That is strictly worse than the divergence risk it was
+ * meant to close, and no test here can see it: this suite runs on
+ * unobfuscated bytecode.
+ *
+ * These are plain `JsonObject.get(key)` string lookups on an already-parsed
+ * tree, not reflection of any kind — a `String` literal cannot be renamed
+ * by R8, obfuscated or not, the same reasoning [merging] and this file's
+ * header already give for why the JSON-level merge itself is
+ * obfuscation-proof. What protects these six literals from drifting away
+ * from [documentUpdates]'s `@SerializedName`s is
+ * `a document written by the push path round-trips through the pull path
+ * unchanged` in `NotificationSettingsSyncTest` — it pushes real values
+ * through the real write path and feeds the exact result back through
+ * these exact literals, so a hand-typo'd key here fails that test rather
+ * than shipping silently.
  */
-private fun wireKeyOf(type: Class<*>, propertyName: String): String {
-    val annotation = type.getDeclaredField(propertyName).getAnnotation(SerializedName::class.java)
-        ?: error("${type.name}.$propertyName has no @SerializedName")
-    return annotation.value
-}
-
-private val LIVE_ACTIVITY_SECTION_KEY =
-    wireKeyOf(NotificationSettingsDocument::class.java, NotificationSettingsDocument::liveActivity.name)
-private val SHOW_IN_CLASS_KEY =
-    wireKeyOf(LiveActivitySection::class.java, LiveActivitySection::showInClass.name)
-private val SHOW_CLASS_PREPARING_KEY =
-    wireKeyOf(LiveActivitySection::class.java, LiveActivitySection::showClassPreparing.name)
-private val SHOW_ASSIGNMENT_KEY =
-    wireKeyOf(LiveActivitySection::class.java, LiveActivitySection::showAssignment.name)
-private val CLASS_PREPARING_LEAD_SECONDS_KEY =
-    wireKeyOf(LiveActivitySection::class.java, LiveActivitySection::classPreparingLeadSeconds.name)
-private val ASSIGNMENT_LEAD_SECONDS_KEY =
-    wireKeyOf(LiveActivitySection::class.java, LiveActivitySection::assignmentLeadSeconds.name)
+private const val LIVE_ACTIVITY_SECTION_KEY = "live_activity"
+private const val SHOW_IN_CLASS_KEY = "show_in_class"
+private const val SHOW_CLASS_PREPARING_KEY = "show_class_preparing"
+private const val SHOW_ASSIGNMENT_KEY = "show_assignment"
+private const val CLASS_PREPARING_LEAD_SECONDS_KEY = "class_preparing_lead_seconds"
+private const val ASSIGNMENT_LEAD_SECONDS_KEY = "assignment_lead_seconds"
 
 /**
  * Read-modify-write cycle for the document's `live_activity` section.
@@ -222,13 +224,13 @@ private val ASSIGNMENT_LEAD_SECONDS_KEY =
  *
  * [isLoggedIn] used to be checked only in [NotificationSettingsSync]'s
  * Hilt-constructed `pushNow()`, which no plain-JVM test can reach — folded
- * in here so all three gates sit under the same tests (task-5-review.md
- * Minor 3). It is also what closes task-5-review.md Important 1(a): the
- * Live Activity settings screen works without an account, so a user who
- * edits these settings while signed out used to have every one of those
- * pushes silently no-op forever. [NotificationSettingsSync] re-enqueues a
- * push on sign-in (see its `init`), so the same gate that used to block
- * silently now lets that catch-up push through.
+ * in here so all three gates sit under the same tests. It is also what
+ * makes the catch-up push on sign-in effective: the Live Activity settings
+ * screen works without an account, so a user who edits these settings
+ * while signed out used to have every one of those pushes silently no-op
+ * forever. [NotificationSettingsSync] re-enqueues a push on sign-in (see
+ * its `init`), so the same gate that used to block silently now lets that
+ * catch-up push through.
  *
  * A second conflict throws rather than returning false: it is a genuine
  * failure to write (two other devices wrote in the time this one took to
@@ -322,8 +324,7 @@ private fun JsonElement?.asValidatedIntOrNull(): Int? {
 /**
  * Read-and-apply half of the `live_activity` section — the mirror of
  * [pushLiveActivitySettings], and what makes this cross-platform *sync*
- * rather than Android-writes-only replication (task-7-brief.md; Task 5
- * only ever wrote this section).
+ * rather than Android-writes-only replication.
  *
  * Every one of the five fields is independently optional: a missing
  * `live_activity` section, a JSON `null` section, a missing field, or a
@@ -456,7 +457,7 @@ internal suspend fun pullLiveActivitySettingsCatching(
  * loop makes after a push fails, before giving up until the next real
  * trigger — an edit, a sign-in, or the live-activity sync switch turning
  * on. Bounded so a persistent failure (offline, server down) cannot retry
- * forever (task-5-review.md Important 1(b)).
+ * forever.
  */
 internal const val MAX_PUSH_RETRIES = 2
 
@@ -541,23 +542,6 @@ class NotificationSettingsSync @Inject constructor(
     // it never needs its own lock.
     private var consecutiveFailures = 0
 
-    // editVersion/lastPushedVersion together answer "does local hold an
-    // edit that has not been confirmed to have reached the server" without
-    // a boolean dirty flag that a concurrent edit could race:
-    // enqueueLiveActivityPush() bumps editVersion for every real trigger
-    // (a user edit, a sign-in, the sync switch turning on — never the
-    // internal retry, which re-sends the SAME edit rather than a new one);
-    // pushNow() records which version it actually sent, and only that
-    // exact version counts as confirmed. If a second edit lands while a
-    // push for the first is still in flight, that push's success advances
-    // lastPushedVersion only to the version it started with — editVersion
-    // has already moved past it — so the second edit is correctly still
-    // seen as unconfirmed. Both start equal (both 0), so a fresh process
-    // with no edits yet correctly reads as "nothing to protect".
-    private var editVersion = 0L
-    private var lastPushedVersion = 0L
-    private val hasUnconfirmedLocalEdit: Boolean get() = editVersion != lastPushedVersion
-
     init {
         scope.launch {
             for (unused in pending) {
@@ -585,7 +569,8 @@ class NotificationSettingsSync @Inject constructor(
                         // would. Giving up here is not the end of the story
                         // either — pullNow() re-enqueues once more on behalf
                         // of a still-unconfirmed edit the next time the
-                        // settings screen opens (see hasUnconfirmedLocalEdit).
+                        // settings screen opens (see
+                        // LiveActivityPreferences.hasUnconfirmedSyncEdit).
                         if (shouldRetryAfterPushFailure(consecutiveFailures)) {
                             delay(pushRetryBackoffMillis(consecutiveFailures))
                             pending.trySend(Unit)
@@ -628,7 +613,7 @@ class NotificationSettingsSync @Inject constructor(
      * attempt and zero retries.
      */
     fun enqueueLiveActivityPush() {
-        editVersion++
+        liveActivityPreferences.hasUnconfirmedSyncEdit = true
         consecutiveFailures = 0
         pending.trySend(Unit)
     }
@@ -638,10 +623,10 @@ class NotificationSettingsSync @Inject constructor(
      * `live_activity` section to [liveActivityPreferences] — see
      * [pullLiveActivitySettings] for exactly what happens when the section
      * is missing, null, or individually malformed, and for what
-     * [hasUnconfirmedLocalEdit] protects against. A transport failure
-     * (offline, a non-2xx/404 status) is caught and logged rather than
-     * thrown — see [pullLiveActivitySettingsCatching] — so this can never
-     * be the thing that crashes the caller.
+     * [LiveActivityPreferences.hasUnconfirmedSyncEdit] protects against. A
+     * transport failure (offline, a non-2xx/404 status) is caught and
+     * logged rather than thrown — see [pullLiveActivitySettingsCatching] —
+     * so this can never be the thing that crashes the caller.
      *
      * Called when the Live Activity settings screen opens
      * ([org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsViewModel]),
@@ -655,25 +640,23 @@ class NotificationSettingsSync @Inject constructor(
         cloudSyncEnabled = appPreferences.cloudSyncEnabled,
         syncLiveActivity = appPreferences.syncLiveActivity,
         isLoggedIn = authTokenManager.isLoggedIn,
-        isLocalDirty = { hasUnconfirmedLocalEdit },
+        isLocalDirty = { liveActivityPreferences.hasUnconfirmedSyncEdit },
         onLocalDirty = { enqueueLiveActivityPush() },
         onFailure = { e -> Log.w(TAG, "pulling live_activity settings failed", e) },
     )
 
     private suspend fun pushNow(): Boolean {
-        // Captured before the network call, together, so a concurrent edit
-        // (racing the in-flight PUT) is never mistaken for having been
-        // included in it — see the property's own KDoc.
-        val versionAtStart = editVersion
-        val snapshot = liveActivityPreferences.syncSnapshot()
         val succeeded = pushLiveActivitySettings(
-            local = snapshot,
+            local = liveActivityPreferences.syncSnapshot(),
             transport = transport,
             cloudSyncEnabled = appPreferences.cloudSyncEnabled,
             syncLiveActivity = appPreferences.syncLiveActivity,
             isLoggedIn = authTokenManager.isLoggedIn,
         )
-        if (succeeded) lastPushedVersion = versionAtStart
+        // Only a push that actually landed clears the flag — a gate-closed
+        // `false` or a thrown failure must leave it set, or the edit it is
+        // protecting would read as confirmed when nothing was ever sent.
+        if (succeeded) liveActivityPreferences.hasUnconfirmedSyncEdit = false
         return succeeded
     }
 

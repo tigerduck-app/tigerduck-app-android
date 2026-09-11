@@ -873,6 +873,42 @@ class NotificationSettingsSyncTest {
         )
     }
 
+    /**
+     * The signal `pullNow()` reads via `isLocalDirty` above
+     * (`LiveActivityPreferences.hasUnconfirmedSyncEdit`) has to survive the
+     * process being killed between an edit and its confirmation — an
+     * in-memory-only flag or counter cannot, and silently reopens the exact
+     * defect the previous test pins. A JVM test cannot literally restart a
+     * process, but constructing a *second*, independent
+     * [LiveActivityPreferences] instance over the *same* backing
+     * [SharedPreferences] is exactly what that looks like against real
+     * Android storage: a fresh object, the same on-disk key-value store.
+     */
+    @Test
+    fun `hasUnconfirmedSyncEdit survives a new LiveActivityPreferences instance over the same storage`() {
+        val storage = FakeLiveActivitySharedPreferences()
+        val beforeRestart = LiveActivityPreferences(storage)
+        assertFalse(
+            "a fresh install (or a build that never wrote this key) has nothing to protect",
+            beforeRestart.hasUnconfirmedSyncEdit,
+        )
+
+        beforeRestart.hasUnconfirmedSyncEdit = true
+
+        val afterRestart = LiveActivityPreferences(storage)
+        assertTrue(
+            "an edit must still be flagged unconfirmed after the process that made it is gone",
+            afterRestart.hasUnconfirmedSyncEdit,
+        )
+
+        afterRestart.hasUnconfirmedSyncEdit = false
+        val afterConfirmedPush = LiveActivityPreferences(storage)
+        assertFalse(
+            "clearing the flag must also survive a restart, or every device would look permanently dirty",
+            afterConfirmedPush.hasUnconfirmedSyncEdit,
+        )
+    }
+
     // ── 11. The wire keys must not be able to silently drift from the DTO ──
 
     /**

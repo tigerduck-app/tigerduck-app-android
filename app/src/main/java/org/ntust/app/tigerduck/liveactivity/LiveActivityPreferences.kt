@@ -148,6 +148,47 @@ class LiveActivityPreferences internal constructor(
     }
 
     /**
+     * Whether the five values [syncSnapshot] would currently produce have
+     * *not* yet been confirmed to have reached the server: set the moment
+     * any of them changes, cleared only once a push carrying exactly that
+     * state has actually succeeded. `NotificationSettingsSync` consults
+     * this before letting a pull apply a freshly-read document — a value
+     * that never got the chance to push must not be silently overwritten
+     * by an older server copy.
+     *
+     * Persisted rather than kept in memory, on purpose: an in-memory flag
+     * (or counter) resets the moment the process is killed, which is
+     * exactly what can happen between an edit and its confirmation —
+     * background eviction, not just a crash. Losing the signal there would
+     * silently reopen the exact defect this property exists to close, just
+     * behind a narrower, luck-dependent window instead of a wide-open one.
+     *
+     * A plain [Boolean] rather than a version counter: this repo has
+     * shipped two upgrade crashes from persisted state that assumed too
+     * much about what a Gson-deserialized field looks like on first read
+     * after an upgrade (see the project's CLAUDE.md). Nothing here is
+     * Gson-deserialized — this is a single hand-written
+     * `getBoolean`/`putBoolean` pair, not a field on a class Gson
+     * constructs — so that specific hazard does not apply, but a second,
+     * simpler one would if this were two counters instead of one flag:
+     * two values that must be written and read in lockstep are two things
+     * that can end up disagreeing with each other after a process dies
+     * mid-write, in a way one primitive cannot. A fresh install, and an
+     * upgrade from a build that never wrote this key at all (every build
+     * before this one), both read the default `false` — correctly, since
+     * neither has an edit in flight to protect either.
+     *
+     * Deliberately independent of *whether* local is stale: this flag only
+     * ever means "this device has a change of its own it has not confirmed
+     * sending". A local value that is merely old — nothing pending, just
+     * never updated — reads `false` here and a pull is free to overwrite it
+     * with a newer value from another platform, exactly as it should.
+     */
+    var hasUnconfirmedSyncEdit: Boolean
+        get() = prefs.getBoolean(KEY_HAS_UNCONFIRMED_SYNC_EDIT, false)
+        set(value) = prefs.edit().putBoolean(KEY_HAS_UNCONFIRMED_SYNC_EDIT, value).apply()
+
+    /**
      * The five values the `notification` settings document's `live_activity`
      * section carries, read in one pass — see [LiveActivitySyncValues] and
      * `NotificationSettingsSync`. Read together so one push sends a coherent
@@ -252,6 +293,7 @@ class LiveActivityPreferences internal constructor(
         private const val KEY_SOUND_IN_CLASS = "sound_in_class"
         private const val KEY_SOUND_CLASS_PREPARING = "sound_class_preparing"
         private const val KEY_SOUND_ASSIGNMENT = "sound_assignment"
+        private const val KEY_HAS_UNCONFIRMED_SYNC_EDIT = "has_unconfirmed_sync_edit"
 
         // Not private: LiveActivityPreferencesTest seeds a fake
         // SharedPreferences directly under these keys to simulate a value
