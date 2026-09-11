@@ -512,10 +512,16 @@ class PushRegistrationService @Inject constructor(
  * tells the user the change did not take effect while the persisted value
  * kept the rejected one — surviving a screen revisit or process death and
  * still feeding `announceDevice`'s reconciliation. Mirrors
- * `SettingsViewModel.pushCloudSyncEnabled`'s "fail closed" enable branch,
- * the only other place in this codebase with the same shape (a switch that
- * both persists locally and tells the server): record a preference only
- * once the thing it claims has actually happened.
+ * `SettingsViewModel.pushCloudSyncEnabled`'s "fail closed" enable branch:
+ * record a preference only once the thing it claims has actually happened.
+ *
+ * That branch is the pattern to copy, but it is NOT the only other switch
+ * of this shape -- it is the only one that gets it right. `SyncContentScreen`
+ * has four more (syncCourses / syncCourseColors / syncCourseNames /
+ * syncAssignments) that also persist locally and then PATCH, but persist
+ * unconditionally and never revert, so a rejected PATCH leaves them silently
+ * and permanently diverged from the server. They are untouched here and
+ * still carry the exact defect this function exists to remove.
  *
  * @return `null` on success, the causing [Throwable] on failure.
  */
