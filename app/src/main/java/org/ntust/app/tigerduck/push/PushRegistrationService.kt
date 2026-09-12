@@ -380,13 +380,10 @@ class PushRegistrationService @Inject constructor(
     private suspend fun recordRegistrationAttempt(landed: Boolean, countsAsFailure: Boolean = true) {
         mutex.withLock {
             lastRegistrationAttemptAt = SystemClock.elapsedRealtime()
-            when {
-                landed -> {
-                    registrationOwed = false
-                    consecutiveRegistrationFailures = 0
-                }
-                countsAsFailure -> consecutiveRegistrationFailures++
-            }
+            val next = RegistrationAttemptState(registrationOwed, consecutiveRegistrationFailures)
+                .afterRegistrationAttempt(landed, countsAsFailure)
+            registrationOwed = next.registrationOwed
+            consecutiveRegistrationFailures = next.consecutiveFailures
         }
     }
 
@@ -644,6 +641,47 @@ internal fun isRegistrationRetryDue(
     if (flavor.equals("fdroid", ignoreCase = true)) return false
     if (!hasCompletedOnboarding || !registrationOwed || registrationPending) return false
     return millisSinceLastAttempt >= registrationRetryBackoffMillis(consecutiveFailures)
+}
+
+/**
+ * The two pieces of bookkeeping [isRegistrationRetryDue] reads, as
+ * [PushRegistrationService] holds them: whether a registration asked for in
+ * this process still has not landed, and how many attempts have failed in a
+ * row.
+ */
+internal data class RegistrationAttemptState(
+    val registrationOwed: Boolean,
+    val consecutiveFailures: Int,
+)
+
+/**
+ * [RegistrationAttemptState] after one pass through the registration path.
+ *
+ * - [landed]: a registration reached the server. The debt is paid and the
+ *   streak resets — this is what makes the retry a no-op afterwards.
+ * - a failure that [countsAsFailure] (no FCM token, or a rejected POST): the
+ *   debt stands and the streak grows, so [registrationRetryBackoffMillis]
+ *   spaces the next attempt further out.
+ * - a failure that does not (the consent gate): nothing changes but the
+ *   caller's clock. No retry can open that gate — only the user finishing
+ *   onboarding, which registers immediately — so climbing the ladder there
+ *   would leave the first attempt after consent half an hour away.
+ *
+ * Extracted as a pure function, like [applyOptOutIfAccepted] and
+ * [isRegistrationRetryDue] itself, so this state→flag mapping is testable
+ * without [PushRegistrationService], which this module cannot construct
+ * (real OkHttp / Android-Keystore dependencies, and neither Robolectric nor
+ * a mocking library here). Only the mapping: the wiring that feeds it — the
+ * `.also { recordRegistrationAttempt(...) }` on each registration path —
+ * still has no test.
+ */
+internal fun RegistrationAttemptState.afterRegistrationAttempt(
+    landed: Boolean,
+    countsAsFailure: Boolean = true,
+): RegistrationAttemptState = when {
+    landed -> copy(registrationOwed = false, consecutiveFailures = 0)
+    countsAsFailure -> copy(consecutiveFailures = consecutiveFailures + 1)
+    else -> this
 }
 
 /**

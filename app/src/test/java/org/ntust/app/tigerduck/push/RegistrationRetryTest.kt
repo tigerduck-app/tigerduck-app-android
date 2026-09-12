@@ -53,13 +53,57 @@ class RegistrationRetryTest {
         assertFalse("fdroid has no FCM token and never registers", due(flavor = "fdroid"))
     }
 
+    /** What a process starts with: one registration owed, nothing failed yet. */
+    private val atStart = RegistrationAttemptState(registrationOwed = true, consecutiveFailures = 0)
+
     @Test
     fun `the retry is a no-op once a registration has landed`() {
-        assertFalse(due(registrationOwed = false))
+        val after = atStart.copy(consecutiveFailures = 2).afterRegistrationAttempt(landed = true)
+
+        assertFalse("a landed registration pays off the debt the rule reads", after.registrationOwed)
+        assertEquals("...and clears the streak that was spacing the retries out", 0, after.consecutiveFailures)
+        assertFalse(
+            "so nothing retries on top of it",
+            due(registrationOwed = after.registrationOwed, consecutiveFailures = after.consecutiveFailures),
+        )
     }
 
     @Test
-    fun `a registration already pending is not retried on top of itself`() {
+    fun `a failed registration keeps the debt and spaces the next attempt further out`() {
+        val once = atStart.afterRegistrationAttempt(landed = false)
+        val twice = once.afterRegistrationAttempt(landed = false)
+
+        assertTrue("a failure leaves the registration owed, or nothing would retry it", once.registrationOwed)
+        assertTrue(
+            "each failure in a row must push the next attempt further out",
+            registrationRetryBackoffMillis(twice.consecutiveFailures) >
+                registrationRetryBackoffMillis(once.consecutiveFailures),
+        )
+    }
+
+    @Test
+    fun `the consent gate owes a registration without spacing out the one that follows it`() {
+        // Counted from a streak already running: the ladder's first two rungs
+        // are both 30 s, so starting from zero would hide a stray increment.
+        val running = atStart.copy(consecutiveFailures = 1)
+        val after = running.afterRegistrationAttempt(landed = false, countsAsFailure = false)
+
+        assertTrue("a device that has not consented still owes a registration", after.registrationOwed)
+        assertEquals("a gate no retry can open must not count as a failure", 1, after.consecutiveFailures)
+        assertEquals(
+            "...so it must not climb the backoff ladder either",
+            registrationRetryBackoffMillis(running.consecutiveFailures),
+            registrationRetryBackoffMillis(after.consecutiveFailures),
+        )
+    }
+
+    @Test
+    fun `a retry is refused while a registration is already pending`() {
+        // What "pending" means -- debounceJob spanning the 250 ms coalescing
+        // window and the POST behind it -- lives in
+        // PushRegistrationService.scheduleRegister, which this module cannot
+        // construct. This pins the half that is here: given the flag, the
+        // rule refuses.
         assertFalse(due(registrationPending = true))
     }
 
