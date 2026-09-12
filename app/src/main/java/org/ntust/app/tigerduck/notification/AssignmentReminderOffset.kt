@@ -59,11 +59,30 @@ enum class AssignmentReminderOffset(
         R.string.assignment_reminder_offset_5m,
         R.string.notification_assignment_reminder_body_5m);
 
+    /**
+     * This offset in whole minutes — the unit the `notification` settings
+     * document's `assignments.reminder_offsets_minutes` carries
+     * (`push/NotificationSettingsSync.kt`). Exact: every case above is a
+     * whole number of minutes, so this never truncates.
+     */
+    val reminderOffsetMinutes: Int
+        get() = (milliseconds / 60_000L).toInt()
+
     companion object {
         /** Default selection — matches iOS (6 high-signal offsets). */
         val DEFAULTS: Set<AssignmentReminderOffset> = setOf(HR48, HR24, HR8, HR2, HR1, MIN30)
 
         fun fromRawValue(raw: String?): AssignmentReminderOffset? =
             raw?.let { v -> entries.firstOrNull { it.rawValue == v } }
+
+        /**
+         * The case whose [reminderOffsetMinutes] equals [minutes], or `null`
+         * if no case matches — the document carries arbitrary integers (a
+         * value from a future build's enum, or malformed data), and this
+         * build can only represent the fixed set above. Mirrors iOS's
+         * `NotificationSettingsSync.offset(forMinutes:)`.
+         */
+        fun fromMinutes(minutes: Int): AssignmentReminderOffset? =
+            entries.firstOrNull { it.reminderOffsetMinutes == minutes }
     }
 }
