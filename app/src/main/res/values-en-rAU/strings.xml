@@ -519,7 +519,7 @@
     <string name="onboarding_analytics_description">Help improve TigerDuck by sharing anonymised page visits and widget usage. You can change this anytime in Settings.</string>
     <string name="onboarding_analytics_label">Usage analytics (optional)</string>
     <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
-    <string name="onboarding_flavor_fdroid_description">You\'re using the F-Droid build. Because F-Droid policy forbids depending on Google\'s services (Firebase FCM, GMS, etc.), the following two features are unavailable in this build:\n\n1. Wear OS companion app\n2. Real-time push announcements</string>
+    <string name="onboarding_flavor_fdroid_description">You\'re using the F-Droid build. Because F-Droid policy forbids depending on Google\'s services (Firebase FCM, GMS, etc.), the following features are unavailable in this build:\n\n1. Wear OS companion app\n2. Real-time push announcements\n3. TigerSync: Sync course information\n4. TigerSync: Receive additional server notifications</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid build notice</string>
     <string name="onboarding_flavor_play_description">TigerDuck includes a Wear OS companion. View class messages on your watch — Wear TigerDuck syncs information from your phone.</string>
     <string name="onboarding_flavor_play_title">Wear OS support</string>
@@ -564,7 +564,7 @@
     <string name="permission_not_granted_tap_settings">Not allowed · Tap to open settings</string>
     <string name="permission_notifications_description">Allow the app to show notifications; otherwise notifications and Live Updates will not appear.</string>
     <string name="permission_notifications_name">Notification permission</string>
-    <string name="permission_promoted_notifications_description">Allow the class countdown to show as a chip in the status bar. If disabled, the Live Update still appears when you pull down the notification shade.</string>
+    <string name="permission_promoted_notifications_description">Allow the class countdown to show as a chip in the status bar. If disabled, you can still see Live Updates by pulling down the notification shade.</string>
     <string name="permission_promoted_notifications_name">Status bar chip</string>
     <string name="permission_warning_action_later">Maybe later</string>
     <string name="permission_warning_description">The following permissions were previously enabled but are now disabled. Related notifications and Live Updates may not display correctly.</string>
@@ -780,11 +780,10 @@
     <string name="sync_content_class_table_colors">Class table – course colours</string>
     <string name="sync_content_class_table_names">Class table – custom course names</string>
     <string name="sync_content_live_activity">Live Updates</string>
-    <string name="sync_content_live_activity_settings_nav">Live Updates settings</string>
     <string name="sync_content_nav_label">Synced content</string>
     <string name="sync_courses_footer">Sends your custom timetable and assignment completion state to the server for use across your devices. Choose what to include below.</string>
     <string name="sync_courses_toggle">Sync course information</string>
-    <string name="sync_essential_footer">Semester dates, the calendar, and the bulletin board.</string>
+    <string name="sync_essential_footer">Semester dates, the calendar, and announcements.</string>
     <string name="sync_essential_toggle">Essential information</string>
     <string name="sync_fdroid_unavailable_body">TigerSync requires Google Play Services and is not available in the F-Droid build.</string>
     <string name="sync_fdroid_unavailable_title">Not available on F-Droid</string>
