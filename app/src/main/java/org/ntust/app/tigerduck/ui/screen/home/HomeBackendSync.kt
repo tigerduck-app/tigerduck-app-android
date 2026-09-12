@@ -143,13 +143,28 @@ class HomeBackendSync @Inject constructor(
             prefs.setLastSyncSource(SyncSource.BACKEND)
             widgetUpdater.requestUpdate()
             // A full sync that just succeeded proves a session and a network,
-            // so this is where a Live Update edit whose push never landed —
-            // made while sync was off or the phone was offline, or one whose
-            // retries ran out — gets sent again. Catch-up only: it must never
-            // mark the device dirty, or every sync would push this phone's
-            // values over the other devices'. iOS re-sends at every full sync
-            // too.
+            // so this is where a notification-settings edit (Live Update or
+            // assignment reminders) whose push never landed — made while sync
+            // was off or the phone was offline, or one whose retries ran out —
+            // gets sent again. Catch-up only: it must never mark the device
+            // dirty, or every sync would push this phone's values over the
+            // other devices'. iOS re-sends at every full sync too.
             notificationSettingsSync.pushIfUnconfirmed()
+            // ...and where a change another device made to those settings is
+            // picked up. Android fires assignment reminders itself, so without
+            // this an iPhone change reached this phone's alarms only once the
+            // user opened one of the two settings screens. iOS reconciles
+            // after every full sync as well. pullNow() applies nothing over
+            // an edit still waiting for its push, cannot interleave with that
+            // push, and cancels or re-arms the reminders armed here when a
+            // value changes. It already catches its own transport failures;
+            // the guard is so nothing else it throws can turn this successful
+            // sync into a failed one.
+            runCatching { notificationSettingsSync.pullNow() }
+                .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    Log.w(TAG, "[Sync] notification settings pull failed", e)
+                }
         } catch (e: CancellationException) {
             // Leaving Home mid-sync cancels viewModelScope, which lands here.
             // The writes below are not suspending, so they would run even in a

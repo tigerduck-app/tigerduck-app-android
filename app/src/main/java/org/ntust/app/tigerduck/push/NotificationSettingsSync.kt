@@ -1178,12 +1178,16 @@ class NotificationSettingsSync internal constructor(
      * keeps working unchanged.
      *
      * Called when the Live Activity settings screen opens
-     * ([org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsViewModel])
-     * and, identically, when the assignment-reminder settings screen opens
+     * ([org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsViewModel]),
+     * identically when the assignment-reminder settings screen opens
      * ([org.ntust.app.tigerduck.ui.screen.settings.AssignmentReminderSettingsViewModel]),
-     * each of which additionally wraps this call itself: two independent
-     * guards against the one failure mode this repo has already documented
-     * twice as a process kill.
+     * and after every successful full sync
+     * ([org.ntust.app.tigerduck.ui.screen.home.HomeBackendSync.pull], right
+     * after its [pushIfUnconfirmed]), so another device's change reaches this
+     * device's alarms without either screen being opened. Each caller
+     * additionally wraps this call itself: two independent guards against the
+     * one failure mode this repo has already documented twice as a process
+     * kill.
      */
     suspend fun pullNow(): Boolean {
         var assignmentsChanged = false
