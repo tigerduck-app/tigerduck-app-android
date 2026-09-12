@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">کلاس کی تیاری کے یاددہانی</string>
     <string name="notification_class_preparing_content_fallback">کلاس شروع ہونے والی ہے</string>
     <string name="notification_class_preparing_title">کلاس جلد شروع ہو رہی ہے: %1$s</string>
+    <string name="notification_permission_settings_nav_title">اطلاع کی اجازتیں</string>
     <string name="notification_setup_description">درج ذیل اجازتیں فعال کریں تاکہ اسائنمنٹ کی یاددہانی، کلاس کی تیاری کے الرٹ، اور Live Updates وقت پر پہنچیں چاہے ایپ بند ہو۔</string>
     <string name="notification_setup_title">اطلاعات دوبارہ ترتیب دیں</string>
     <string name="notification_system_channel_description">اکاؤنٹ اور سنک کے مسائل جن پر آپ کی توجہ درکار ہے</string>

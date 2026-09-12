@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Recordatorios de preparación de clase</string>
     <string name="notification_class_preparing_content_fallback">La clase está por comenzar</string>
     <string name="notification_class_preparing_title">La clase comienza pronto: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Permisos de notificaciones</string>
     <string name="notification_setup_description">Habilita los permisos a continuación para garantizar que los recordatorios de tareas, las alertas de preparación de clase y Live Updates lleguen a tiempo, incluso cuando la app esté cerrada.</string>
     <string name="notification_setup_title">Reconfigurar notificaciones</string>
     <string name="notification_system_channel_description">Problemas de cuenta y sincronización que requieren tu atención</string>

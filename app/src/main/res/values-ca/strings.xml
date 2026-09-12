@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Recordatoris de classe</string>
     <string name="notification_class_preparing_content_fallback">La classe està a punt de començar</string>
     <string name="notification_class_preparing_title">La classe comença aviat: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Permisos de notificacions</string>
     <string name="notification_setup_description">Activeu els permisos següents per garantir que els recordatoris de tasques, les alertes de classe i Live Updates arribin a temps fins i tot quan l\'aplicació estigui tancada.</string>
     <string name="notification_setup_title">Reconfigura les notificacions</string>
     <string name="notification_system_channel_description">Problemes de compte i de sincronització que requereixen la vostra atenció</string>

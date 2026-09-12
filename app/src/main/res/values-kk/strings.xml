@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Сабақ басталу еске салулары</string>
     <string name="notification_class_preparing_content_fallback">Сабақ жақын басталады</string>
     <string name="notification_class_preparing_title">Сабақ жақын басталады: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Хабарландыру рұқсаттары</string>
     <string name="notification_setup_description">Қолданба жабық болса да тапсырма еске салулары, сабақ басталу ескертулері және Live Updates уақытында жетуі үшін төмендегі рұқсаттарды қосыңыз.</string>
     <string name="notification_setup_title">Хабарландыруларды қайта орнату</string>
     <string name="notification_system_channel_description">Назарыңызды қажет ететін тіркелгі және синхрондау мәселелері</string>

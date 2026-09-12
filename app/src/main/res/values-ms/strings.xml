@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Peringatan kelas akan bermula</string>
     <string name="notification_class_preparing_content_fallback">Kelas akan bermula sebentar lagi</string>
     <string name="notification_class_preparing_title">Kelas akan bermula: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Tetapan kebenaran pemberitahuan</string>
     <string name="notification_setup_description">Aktifkan kebenaran di bawah untuk memastikan peringatan tugasan, amaran kelas akan bermula, dan Live Updates tiba tepat pada masanya walaupun aplikasi ditutup.</string>
     <string name="notification_setup_title">Konfigurasi semula pemberitahuan</string>
     <string name="notification_system_channel_description">Masalah akaun dan penyegerakan yang memerlukan perhatian anda</string>

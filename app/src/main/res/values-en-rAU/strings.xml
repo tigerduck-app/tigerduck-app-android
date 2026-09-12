@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Class preparing reminders</string>
     <string name="notification_class_preparing_content_fallback">Class is about to start</string>
     <string name="notification_class_preparing_title">Class starting soon: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Notification permission settings</string>
     <string name="notification_setup_description">Enable the permissions below to ensure assignment reminders, class-preparing alerts, and Live Updates arrive on time even when the app is closed.</string>
     <string name="notification_setup_title">Reconfigure notifications</string>
     <string name="notification_system_channel_description">Account and sync problems that need your attention</string>

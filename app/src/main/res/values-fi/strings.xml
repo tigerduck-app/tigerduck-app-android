@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Tunnin alkamismuistutukset</string>
     <string name="notification_class_preparing_content_fallback">Tunti alkaa pian</string>
     <string name="notification_class_preparing_title">Tunti alkaa pian: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Ilmoitusluvat</string>
     <string name="notification_setup_description">Ota alla olevat luvat käyttöön varmistaaksesi, että tehtävämuistutukset, tunnin alkamisvaroitukset ja Live Updates saapuvat ajoissa myös sovelluksen ollessa suljettuna.</string>
     <string name="notification_setup_title">Määritä ilmoitukset uudelleen</string>
     <string name="notification_system_channel_description">Tiliin ja synkronointiin liittyvät ongelmat, jotka vaativat huomiotasi</string>

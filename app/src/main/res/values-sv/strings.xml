@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Påminnelser inför lektion</string>
     <string name="notification_class_preparing_content_fallback">Lektionen håller på att börja</string>
     <string name="notification_class_preparing_title">Lektionen börjar snart: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Aviseringsbehörigheter</string>
     <string name="notification_setup_description">Aktivera behörigheterna nedan för att säkerställa att påminnelser om uppgifter, förlektion-varningar och Live Updates levereras i tid även när appen är stängd.</string>
     <string name="notification_setup_title">Konfigurera om aviseringar</string>
     <string name="notification_system_channel_description">Konto- och synkroniseringsproblem som kräver din uppmärksamhet</string>

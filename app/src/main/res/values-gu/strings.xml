@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">ક્લાસ તૈયારી રિમાઇન્ડર</string>
     <string name="notification_class_preparing_content_fallback">ક્લાસ શરૂ થવાની તૈયારીમાં છે</string>
     <string name="notification_class_preparing_title">વર્ગ ટૂંક સમયમાં શરૂ: %1$s</string>
+    <string name="notification_permission_settings_nav_title">નોટિફિકેશન પરમિશન સેટિંગ્સ</string>
     <string name="notification_setup_description">નીચેની પરમિશન ચાલુ કરો જેથી App બંધ હોય ત્યારે પણ અસાઇનમેન્ટ રિમાઇન્ડર, ક્લાસ-તૈયારી એલર્ટ અને Live Updates સમયસર આવે.</string>
     <string name="notification_setup_title">નોટિફિકેશન ફરીથી ગોઠવો</string>
     <string name="notification_system_channel_description">એકાઉન્ટ અને સિંક સંબંધિત સમસ્યાઓ, જેમાં તમારું ધ્યાન જરૂરી છે</string>

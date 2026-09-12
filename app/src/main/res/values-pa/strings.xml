@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">ਕਲਾਸ ਸ਼ੁਰੂ ਹੋਣ ਦੇ ਰੀਮਾਈਂਡਰ</string>
     <string name="notification_class_preparing_content_fallback">ਕਲਾਸ ਸ਼ੁਰੂ ਹੋਣ ਵਾਲੀ ਹੈ</string>
     <string name="notification_class_preparing_title">ਕਲਾਸ ਜਲਦੀ ਸ਼ੁਰੂ ਹੋਵੇਗੀ: %1$s</string>
+    <string name="notification_permission_settings_nav_title">ਸੂਚਨਾ ਅਨੁਮਤੀਆਂ</string>
     <string name="notification_setup_description">ਹੇਠ ਲਿਖੀਆਂ ਅਨੁਮਤੀਆਂ ਚਾਲੂ ਕਰੋ ਤਾਂ ਜੋ ਅਸਾਈਨਮੈਂਟ ਰੀਮਾਈਂਡਰ, ਕਲਾਸ-ਸ਼ੁਰੂ ਹੋਣ ਦੀਆਂ ਸੂਚਨਾਵਾਂ, ਅਤੇ Live Updates ਐਪ ਬੰਦ ਹੋਣ \'ਤੇ ਵੀ ਸਮੇਂ \'ਤੇ ਪਹੁੰਚ ਸਕਣ।</string>
     <string name="notification_setup_title">ਸੂਚਨਾਵਾਂ ਦੁਬਾਰਾ ਸੈੱਟ ਕਰੋ</string>
     <string name="notification_system_channel_description">ਖਾਤੇ ਅਤੇ ਸਿੰਕ ਦੀਆਂ ਸਮੱਸਿਆਵਾਂ, ਜਿਨ੍ਹਾਂ ਵੱਲ ਤੁਹਾਡਾ ਧਿਆਨ ਲੋੜੀਂਦਾ ਹੈ</string>

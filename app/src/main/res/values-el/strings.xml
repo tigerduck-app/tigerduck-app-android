@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Υπενθυμίσεις έναρξης μαθήματος</string>
     <string name="notification_class_preparing_content_fallback">Το μάθημα πρόκειται να ξεκινήσει</string>
     <string name="notification_class_preparing_title">Το μάθημα ξεκινά σύντομα: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Άδειες ειδοποιήσεων</string>
     <string name="notification_setup_description">Ενεργοποιήστε τις παρακάτω άδειες για να διασφαλίσετε ότι οι υπενθυμίσεις εργασιών, οι ειδοποιήσεις έναρξης μαθήματος και το Live Updates παραδίδονται έγκαιρα ακόμα και όταν η εφαρμογή είναι κλειστή.</string>
     <string name="notification_setup_title">Επαναδιαμόρφωση ειδοποιήσεων</string>
     <string name="notification_system_channel_description">Προβλήματα λογαριασμού και συγχρονισμού που χρειάζονται την προσοχή σας</string>

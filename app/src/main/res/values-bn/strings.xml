@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">ক্লাস শুরুর স্মরণিকা</string>
     <string name="notification_class_preparing_content_fallback">ক্লাস শুরু হতে চলেছে</string>
     <string name="notification_class_preparing_title">ক্লাস শুরু হতে চলেছে: %1$s</string>
+    <string name="notification_permission_settings_nav_title">বিজ্ঞপ্তির অনুমতি সেটিংস</string>
     <string name="notification_setup_description">নিচের অনুমতিগুলি চালু করুন যাতে অ্যাপ বন্ধ থাকলেও অ্যাসাইনমেন্টের স্মরণিকা, ক্লাসের প্রস্তুতি সতর্কতা এবং Live Updates সময়মতো আসে।</string>
     <string name="notification_setup_title">বিজ্ঞপ্তি পুনরায় কনফিগার করুন</string>
     <string name="notification_system_channel_description">অ্যাকাউন্ট ও সিঙ্ক সংক্রান্ত সমস্যা, যেগুলিতে আপনার নজর দেওয়া দরকার</string>

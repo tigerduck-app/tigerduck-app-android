@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Mga paalala bago mag-klase</string>
     <string name="notification_class_preparing_content_fallback">Malapit nang magsimula ang klase</string>
     <string name="notification_class_preparing_title">Magsisimula na ang klase: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Mga pahintulot sa notification</string>
     <string name="notification_setup_description">I-enable ang mga pahintulot sa ibaba para matiyak na darating sa tamang oras ang mga paalala sa takdang-aralin, bago mag-klase, at Live Updates kahit naka-close ang app.</string>
     <string name="notification_setup_title">I-reconfigure ang mga notification</string>
     <string name="notification_system_channel_description">Mga problema sa account at sync na kailangan mong asikasuhin</string>

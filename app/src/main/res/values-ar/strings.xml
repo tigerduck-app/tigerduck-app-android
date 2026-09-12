@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">تذكيرات بدء المحاضرات</string>
     <string name="notification_class_preparing_content_fallback">ستبدأ المحاضرة قريبًا</string>
     <string name="notification_class_preparing_title">ستبدأ المحاضرة قريبًا: %1$s</string>
+    <string name="notification_permission_settings_nav_title">أذونات الإشعارات</string>
     <string name="notification_setup_description">فعّل الأذونات أدناه لضمان وصول تذكيرات الواجبات وتنبيهات بدء المحاضرات و Live Updates في وقتها حتى عند إغلاق التطبيق.</string>
     <string name="notification_setup_title">إعادة ضبط الإشعارات</string>
     <string name="notification_system_channel_description">مشكلات الحساب والمزامنة التي تتطلب انتباهك</string>

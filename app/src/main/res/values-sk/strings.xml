@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Pripomienky pred hodinou</string>
     <string name="notification_class_preparing_content_fallback">Hodina čoskoro začína</string>
     <string name="notification_class_preparing_title">Čoskoro začína hodina: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Povolenia notifikácií</string>
     <string name="notification_setup_description">Povoľte nižšie uvedené oprávnenia, aby pripomienky úloh, upozornenia pred hodinou a Live Updates prichádzali včas aj keď je aplikácia zatvorená.</string>
     <string name="notification_setup_title">Znovu nastaviť notifikácie</string>
     <string name="notification_system_channel_description">Problémy s účtom a synchronizáciou, ktoré si vyžadujú vašu pozornosť</string>

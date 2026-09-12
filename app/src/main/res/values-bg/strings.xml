@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Напомняния за предстоящ час</string>
     <string name="notification_class_preparing_content_fallback">Часът е на път да започне</string>
     <string name="notification_class_preparing_title">Час започва скоро: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Разрешения за известия</string>
     <string name="notification_setup_description">Активирайте разрешенията по-долу, за да се гарантира, че напомнянията за задания, предупрежденията за предстоящ час и Live Updates пристигат навреме дори когато приложението е затворено.</string>
     <string name="notification_setup_title">Преконфигуриране на известия</string>
     <string name="notification_system_channel_description">Проблеми с акаунта и синхронизирането, които изискват вниманието Ви</string>

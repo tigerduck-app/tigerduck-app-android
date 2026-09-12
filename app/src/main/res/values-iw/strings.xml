@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">תזכורות לפני שיעור</string>
     <string name="notification_class_preparing_content_fallback">השיעור עומד להתחיל</string>
     <string name="notification_class_preparing_title">השיעור מתחיל בקרוב: %1$s</string>
+    <string name="notification_permission_settings_nav_title">הרשאות התראות</string>
     <string name="notification_setup_description">הפעל את ההרשאות שלהלן כדי להבטיח שתזכורות מטלות, התראות לפני שיעור ו-Live Updates יגיעו בזמן גם כשהאפליקציה סגורה.</string>
     <string name="notification_setup_title">הגדר מחדש התראות</string>
     <string name="notification_system_channel_description">בעיות בחשבון ובסנכרון שדורשות טיפול</string>

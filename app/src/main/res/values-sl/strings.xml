@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Opomniki za začetek ure</string>
     <string name="notification_class_preparing_content_fallback">Ura se bo kmalu začela</string>
     <string name="notification_class_preparing_title">Ura se kmalu začne: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Dovoljenja za obvestila</string>
     <string name="notification_setup_description">Omogočite spodnja dovoljenja, da zagotovite pravočasno dostavo opomnikov za naloge, opozoril pred poukom in Live Updates, tudi ko je aplikacija zaprta.</string>
     <string name="notification_setup_title">Ponovna nastavitev obvestil</string>
     <string name="notification_system_channel_description">Težave z računom in sinhronizacijo, ki zahtevajo vašo pozornost</string>

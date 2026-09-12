@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Áminningar um komandi tíma</string>
     <string name="notification_class_preparing_content_fallback">Tíminn er að byrja</string>
     <string name="notification_class_preparing_title">Tími byrjar bráðum: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Tilkynningaleyfisstillingar</string>
     <string name="notification_setup_description">Virkjaðu leyfi hér að neðan til að tryggja að verkefnaáminningar, tímaviðvaranir og Live Updates berist á réttum tíma jafnvel þegar forritið er lokað.</string>
     <string name="notification_setup_title">Endursetja tilkynningar</string>
     <string name="notification_system_channel_description">Vandamál með reikning og samstillingu sem þarfnast athygli þinnar</string>

@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">वर्ग सुरू होण्याची स्मरणपत्रे</string>
     <string name="notification_class_preparing_content_fallback">वर्ग सुरू होणार आहे</string>
     <string name="notification_class_preparing_title">वर्ग लवकरच सुरू होणार: %1$s</string>
+    <string name="notification_permission_settings_nav_title">अधिसूचना परवानग्या</string>
     <string name="notification_setup_description">असाइनमेंट स्मरणपत्रे, वर्ग सुरू होण्याच्या सूचना आणि Live Updates ॲप बंद असतानाही वेळेवर येण्यासाठी खालील परवानग्या सक्षम करा.</string>
     <string name="notification_setup_title">अधिसूचना पुन्हा सेट करा</string>
     <string name="notification_system_channel_description">खाते आणि सिंक संबंधित समस्या, ज्यांकडे तुमचे लक्ष आवश्यक आहे</string>

@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Erinnerungen vor Unterrichtsbeginn</string>
     <string name="notification_class_preparing_content_fallback">Der Unterricht beginnt gleich</string>
     <string name="notification_class_preparing_title">Unterricht beginnt bald: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Benachrichtigungsberechtigungen</string>
     <string name="notification_setup_description">Aktivieren Sie die folgenden Berechtigungen, damit Aufgabenerinnerungen, Unterrichtsvorwarnungen und Live Updates auch bei geschlossener App rechtzeitig eintreffen.</string>
     <string name="notification_setup_title">Benachrichtigungen neu einrichten</string>
     <string name="notification_system_channel_description">Konto- und Synchronisierungsprobleme, die Ihre Aufmerksamkeit erfordern</string>

@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Lembretes de aulas a começar</string>
     <string name="notification_class_preparing_content_fallback">A aula está prestes a começar</string>
     <string name="notification_class_preparing_title">Aula a começar em breve: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Permissões de notificações</string>
     <string name="notification_setup_description">Ativa as permissões abaixo para garantir que os lembretes de trabalhos, os alertas de aulas a começar e Live Updates chegam a tempo, mesmo com a aplicação fechada.</string>
     <string name="notification_setup_title">Reconfigurar notificações</string>
     <string name="notification_system_channel_description">Problemas de conta e de sincronização que precisam da sua atenção</string>

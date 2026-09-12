@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">就快上堂提醒</string>
     <string name="notification_class_preparing_content_fallback">就快開始上堂</string>
     <string name="notification_class_preparing_title">就快上堂：%1$s</string>
+    <string name="notification_permission_settings_nav_title">通知權限設定</string>
     <string name="notification_setup_description">設定以下權限可確保功課提醒、就快上堂、即時更新喺 App 關閉時都可以準時送達。</string>
     <string name="notification_setup_title">重新設定通知</string>
     <string name="notification_system_channel_description">需要你處理嘅帳號同埋同步問題</string>

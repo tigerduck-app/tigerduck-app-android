@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Nhắc sắp vào lớp</string>
     <string name="notification_class_preparing_content_fallback">Lớp học sắp bắt đầu</string>
     <string name="notification_class_preparing_title">Sắp vào lớp: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Cài đặt quyền thông báo</string>
     <string name="notification_setup_description">Bật các quyền dưới đây để đảm bảo nhắc bài tập, cảnh báo sắp vào lớp và Live Updates đến đúng giờ ngay cả khi ứng dụng đã đóng.</string>
     <string name="notification_setup_title">Cài đặt lại thông báo</string>
     <string name="notification_system_channel_description">Sự cố tài khoản và đồng bộ cần bạn xử lý</string>

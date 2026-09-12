@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Påmindelser om kommende undervisning</string>
     <string name="notification_class_preparing_content_fallback">Undervisningen er ved at begynde</string>
     <string name="notification_class_preparing_title">Undervisning begynder snart: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Notifikationstilladelser</string>
     <string name="notification_setup_description">Aktivér nedenstående tilladelser for at sikre, at opgavepåmindelser, advarsler om kommende undervisning og Live Updates ankommer til tiden, selv når appen er lukket.</string>
     <string name="notification_setup_title">Rekonfigurer notifikationer</string>
     <string name="notification_system_channel_description">Problemer med konto og synkronisering, der kræver din opmærksomhed</string>

@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">การแจ้งเตือนก่อนเข้าเรียน</string>
     <string name="notification_class_preparing_content_fallback">ใกล้ถึงเวลาเข้าเรียนแล้ว</string>
     <string name="notification_class_preparing_title">กำลังจะเข้าเรียน: %1$s</string>
+    <string name="notification_permission_settings_nav_title">การตั้งค่าสิทธิ์การแจ้งเตือน</string>
     <string name="notification_setup_description">เปิดใช้งานสิทธิ์ด้านล่างเพื่อให้แน่ใจว่าการแจ้งเตือนการบ้าน การแจ้งเตือนก่อนเข้าเรียน และ Live Updates จะมาถึงตรงเวลาแม้ในขณะที่ปิดแอปอยู่</string>
     <string name="notification_setup_title">ตั้งค่าการแจ้งเตือนใหม่</string>
     <string name="notification_system_channel_description">ปัญหาบัญชีและการซิงค์ที่ต้องให้คุณจัดการ</string>

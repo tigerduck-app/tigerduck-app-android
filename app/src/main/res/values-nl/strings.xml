@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Herinneringen voor lessen die zo beginnen</string>
     <string name="notification_class_preparing_content_fallback">Les begint zo</string>
     <string name="notification_class_preparing_title">Les begint zo: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Meldingsmachtigingen</string>
     <string name="notification_setup_description">Schakel de onderstaande machtigingen in zodat opdrachtherinneringen, meldingen voor lessen die zo beginnen en Live Updates op tijd binnenkomen, ook als de app gesloten is.</string>
     <string name="notification_setup_title">Meldingen opnieuw configureren</string>
     <string name="notification_system_channel_description">Problemen met je account en synchronisatie die aandacht nodig hebben</string>

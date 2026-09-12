@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Órakezdés emlékeztetők</string>
     <string name="notification_class_preparing_content_fallback">Az óra hamarosan kezdődik</string>
     <string name="notification_class_preparing_title">Hamarosan kezdődik az óra: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Értesítési engedélyek</string>
     <string name="notification_setup_description">Az alábbi engedélyek engedélyezésével biztosítható, hogy a házi feladat emlékeztetők, az órakezdés figyelmeztetések és a Live Updates akkor is időben megérkezzenek, amikor az alkalmazás be van zárva.</string>
     <string name="notification_setup_title">Értesítések újrakonfigurálása</string>
     <string name="notification_system_channel_description">Fiókkal és szinkronizálással kapcsolatos problémák, amelyek figyelmet igényelnek</string>

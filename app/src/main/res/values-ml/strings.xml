@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">ക്ലാസ് ഒരുക്കം ഓർമ്മപ്പെടുത്തലുകൾ</string>
     <string name="notification_class_preparing_content_fallback">ക്ലാസ് ആരംഭിക്കാൻ പോകുന്നു</string>
     <string name="notification_class_preparing_title">ക്ലാസ് ആരംഭിക്കാൻ പോകുന്നു: %1$s</string>
+    <string name="notification_permission_settings_nav_title">അറിയിപ്പ് അനുമതികൾ</string>
     <string name="notification_setup_description">ആപ്പ് അടച്ചിരിക്കുമ്പോഴും അസൈൻമെന്റ് ഓർമ്മപ്പെടുത്തലുകൾ, ക്ലാസ് ഒരുക്കം അലേർട്ടുകൾ, Live Updates സമയത്ത് ലഭിക്കുന്നതിന് ചുവടെ ഉള്ള അനുമതികൾ പ്രവർത്തനക്ഷമമാക്കുക.</string>
     <string name="notification_setup_title">അറിയിപ്പുകൾ പുനഃക്രമീകരിക്കുക</string>
     <string name="notification_system_channel_description">നിങ്ങളുടെ ശ്രദ്ധ ആവശ്യമുള്ള അക്കൗണ്ട്, സിങ്ക് പ്രശ്നങ്ങൾ</string>

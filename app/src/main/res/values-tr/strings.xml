@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Ders başlangıç hatırlatıcıları</string>
     <string name="notification_class_preparing_content_fallback">Ders birazdan başlayacak</string>
     <string name="notification_class_preparing_title">Ders birazdan başlıyor: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Bildirim izinleri</string>
     <string name="notification_setup_description">Aşağıdaki izinleri etkinleştirerek ödev hatırlatıcılarının, ders başlangıç uyarılarının ve Live Updates özelliğinin uygulama kapalıyken bile zamanında ulaşmasını sağlayın.</string>
     <string name="notification_setup_title">Bildirimleri yeniden yapılandır</string>
     <string name="notification_system_channel_description">İlginizi gerektiren hesap ve eşitleme sorunları</string>

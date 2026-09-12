@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">कक्षा तैयारी अनुस्मारक</string>
     <string name="notification_class_preparing_content_fallback">कक्षा शुरू होने वाली है</string>
     <string name="notification_class_preparing_title">कक्षा जल्द शुरू होगी: %1$s</string>
+    <string name="notification_permission_settings_nav_title">नोटिफिकेशन अनुमतियाँ</string>
     <string name="notification_setup_description">नीचे दी गई अनुमतियाँ सक्षम करें ताकि असाइनमेंट अनुस्मारक, कक्षा तैयारी अलर्ट और Live Updates ऐप बंद होने पर भी समय पर आ सकें।</string>
     <string name="notification_setup_title">नोटिफिकेशन पुनः कॉन्फ़िगर करें</string>
     <string name="notification_system_channel_description">खाते और सिंक से जुड़ी समस्याएँ, जिन पर आपका ध्यान ज़रूरी है</string>

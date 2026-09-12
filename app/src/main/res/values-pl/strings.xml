@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Przypomnienia o nadchodzących zajęciach</string>
     <string name="notification_class_preparing_content_fallback">Zajęcia wkrótce się rozpoczną</string>
     <string name="notification_class_preparing_title">Wkrótce zajęcia: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Uprawnienia do powiadomień</string>
     <string name="notification_setup_description">Włączyć poniższe uprawnienia, aby przypomnienia o zadaniach, alerty o nadchodzących zajęciach oraz Live Updates docierały na czas, nawet gdy aplikacja jest zamknięta.</string>
     <string name="notification_setup_title">Skonfiguruj powiadomienia ponownie</string>
     <string name="notification_system_channel_description">Problemy z kontem i synchronizacją, które wymagają Twojej uwagi</string>

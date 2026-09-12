@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Напоминания о начале занятий</string>
     <string name="notification_class_preparing_content_fallback">Занятие скоро начнётся</string>
     <string name="notification_class_preparing_title">Скоро начнётся занятие: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Разрешения на уведомления</string>
     <string name="notification_setup_description">Включите указанные ниже разрешения, чтобы напоминания о заданиях, оповещения о начале занятий и Live Updates приходили вовремя, даже когда приложение закрыто.</string>
     <string name="notification_setup_title">Настроить уведомления заново</string>
     <string name="notification_system_channel_description">Проблемы с аккаунтом и синхронизацией, требующие вашего внимания</string>

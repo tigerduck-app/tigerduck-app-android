@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Rappels avant le cours</string>
     <string name="notification_class_preparing_content_fallback">Le cours va bientôt commencer</string>
     <string name="notification_class_preparing_title">Cours imminent : %1$s</string>
+    <string name="notification_permission_settings_nav_title">Autorisations des notifications</string>
     <string name="notification_setup_description">Activez les autorisations ci-dessous pour vous assurer que les rappels de devoirs, les alertes avant les cours et Live Updates arrivent à temps, même lorsque l\'application est fermée.</string>
     <string name="notification_setup_title">Reconfigurer les notifications</string>
     <string name="notification_system_channel_description">Problèmes de compte et de synchronisation qui nécessitent votre attention</string>

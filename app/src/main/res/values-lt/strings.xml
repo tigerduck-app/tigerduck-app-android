@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Paskaitų pradžios priminimai</string>
     <string name="notification_class_preparing_content_fallback">Paskaita tuoj prasidės</string>
     <string name="notification_class_preparing_title">Paskaita prasideda: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Pranešimų leidimai</string>
     <string name="notification_setup_description">Įjunkite toliau nurodytus leidimus, kad užduočių priminimai, paskaitų įspėjimai ir Live Updates būtų pristatomi laiku net uždarius programą.</string>
     <string name="notification_setup_title">Iš naujo konfigūruoti pranešimus</string>
     <string name="notification_system_channel_description">Paskyros ir sinchronizavimo problemos, kurioms reikia jūsų dėmesio</string>

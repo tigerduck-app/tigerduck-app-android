@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">即将上课提醒</string>
     <string name="notification_class_preparing_content_fallback">课程即将开始</string>
     <string name="notification_class_preparing_title">即将上课：%1$s</string>
+    <string name="notification_permission_settings_nav_title">通知权限设置</string>
     <string name="notification_setup_description">设置以下权限可确保作业提醒、即将上课、实时更新在 App 关闭时也能准时送达。</string>
     <string name="notification_setup_title">重新设置通知</string>
     <string name="notification_system_channel_description">需要您处理的账号与同步问题</string>

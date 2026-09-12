@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Upozornění na blížící se hodinu</string>
     <string name="notification_class_preparing_content_fallback">Hodina brzy začne</string>
     <string name="notification_class_preparing_title">Hodina brzy začne: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Nastavení oprávnění k oznámením</string>
     <string name="notification_setup_description">Povolte níže uvedená oprávnění, abyste zajistili, že upozornění na úkoly, na blížící se hodinu a Live Updates budou doručena včas, i když je aplikace zavřená.</string>
     <string name="notification_setup_title">Znovu nastavit oznámení</string>
     <string name="notification_system_channel_description">Problémy s účtem a synchronizací, které vyžadují vaši pozornost</string>

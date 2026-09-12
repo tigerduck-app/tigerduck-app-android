@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">授業開始前のリマインダー</string>
     <string name="notification_class_preparing_content_fallback">まもなく授業が始まります</string>
     <string name="notification_class_preparing_title">まもなく授業開始：%1$s</string>
+    <string name="notification_permission_settings_nav_title">通知の許可設定</string>
     <string name="notification_setup_description">以下の権限を有効にすると、アプリを閉じていても課題リマインダー、授業開始前の通知、Live Updates を時間どおりに受け取れます。</string>
     <string name="notification_setup_title">通知を再設定</string>
     <string name="notification_system_channel_description">対応が必要なアカウントと同期の問題</string>

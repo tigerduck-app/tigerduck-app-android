@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Подсетници за почетак часа</string>
     <string name="notification_class_preparing_content_fallback">Час ускоро почиње</string>
     <string name="notification_class_preparing_title">Час ускоро почиње: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Дозволе за обавештења</string>
     <string name="notification_setup_description">Омогућите следеће дозволе да бисте осигурали да подсетници за задатке, упозорења о почетку часа и Live Updates стижу на вријеме чак и кад је апликација затворена.</string>
     <string name="notification_setup_title">Поново подеси обавештења</string>
     <string name="notification_system_channel_description">Проблеми са налогом и синхронизацијом који захтевају Вашу пажњу</string>

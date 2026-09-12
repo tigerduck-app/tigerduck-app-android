@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">یادآورهای شروع کلاس</string>
     <string name="notification_class_preparing_content_fallback">کلاس در شُرف شروع است</string>
     <string name="notification_class_preparing_title">کلاس به‌زودی شروع می‌شود: %1$s</string>
+    <string name="notification_permission_settings_nav_title">مجوزهای اعلان‌ها</string>
     <string name="notification_setup_description">برای اینکه یادآورهای تکلیف، هشدارهای شروع کلاس و Live Updates حتی وقتی برنامه بسته است به‌موقع برسند، مجوزهای زیر را فعال کنید.</string>
     <string name="notification_setup_title">پیکربندی مجدد اعلان‌ها</string>
     <string name="notification_system_channel_description">مشکلات حساب و همگام‌سازی که به توجه شما نیاز دارند</string>

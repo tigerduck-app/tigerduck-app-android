@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Нагадування про початок заняття</string>
     <string name="notification_class_preparing_content_fallback">Заняття незабаром розпочнеться</string>
     <string name="notification_class_preparing_title">Скоро початок заняття: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Дозволи на сповіщення</string>
     <string name="notification_setup_description">Увімкніть наведені нижче дозволи, щоб нагадування про завдання, сповіщення про початок заняття та Live Updates надходили вчасно навіть тоді, коли застосунок закрито.</string>
     <string name="notification_setup_title">Переналаштувати сповіщення</string>
     <string name="notification_system_channel_description">Проблеми з обліковим записом і синхронізацією, які потребують вашої уваги</string>

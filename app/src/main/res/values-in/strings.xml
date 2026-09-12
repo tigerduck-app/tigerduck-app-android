@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Pengingat sebelum kelas</string>
     <string name="notification_class_preparing_content_fallback">Kelas akan segera dimulai</string>
     <string name="notification_class_preparing_title">Kelas akan segera dimulai: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Pengaturan izin notifikasi</string>
     <string name="notification_setup_description">Aktifkan izin di bawah ini untuk memastikan pengingat tugas, peringatan sebelum kelas, dan Live Updates tiba tepat waktu meskipun aplikasi ditutup.</string>
     <string name="notification_setup_title">Konfigurasi ulang notifikasi</string>
     <string name="notification_system_channel_description">Masalah akun dan sinkronisasi yang perlu Anda tangani</string>

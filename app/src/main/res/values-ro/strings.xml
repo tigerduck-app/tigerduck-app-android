@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Remindere pregătire curs</string>
     <string name="notification_class_preparing_content_fallback">Cursul este pe cale să înceapă</string>
     <string name="notification_class_preparing_title">Curs începe în curând: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Permisiuni notificări</string>
     <string name="notification_setup_description">Activează permisiunile de mai jos pentru a asigura că reminderele pentru teme, alertele de pregătire curs și Live Updates ajung la timp chiar și când aplicația este închisă.</string>
     <string name="notification_setup_title">Reconfigurează notificările</string>
     <string name="notification_system_channel_description">Probleme de cont și de sincronizare care necesită atenția dvs.</string>

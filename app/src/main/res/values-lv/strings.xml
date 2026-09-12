@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Nodarbības atgādinājumi</string>
     <string name="notification_class_preparing_content_fallback">Nodarbība drīz sāksies</string>
     <string name="notification_class_preparing_title">Drīz sāksies: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Paziņojumu atļaujas</string>
     <string name="notification_setup_description">Iespējojiet tālāk minētās atļaujas, lai uzdevumu atgādinājumi, nodarbību brīdinājumi un Live Updates tiktu piegādāti laikā arī tad, kad lietotne ir aizvērta.</string>
     <string name="notification_setup_title">Pārkonfigurēt paziņojumus</string>
     <string name="notification_system_channel_description">Konta un sinhronizācijas problēmas, kurām nepieciešama jūsu uzmanība</string>

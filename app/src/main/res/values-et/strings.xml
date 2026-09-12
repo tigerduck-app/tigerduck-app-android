@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Tunni alguse meeldetuletused</string>
     <string name="notification_class_preparing_content_fallback">Tund on kohe algamas</string>
     <string name="notification_class_preparing_title">Tund algab varsti: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Teavituste load</string>
     <string name="notification_setup_description">Lubage allpool olevad load, et ülesande meeldetuletused, tunni alguse teavitused ja Live Updates jõuaksid õigel ajal kohale isegi siis, kui rakendus on suletud.</string>
     <string name="notification_setup_title">Seadista teavitused uuesti</string>
     <string name="notification_system_channel_description">Konto ja sünkroonimise probleemid, mis vajavad teie tähelepanu</string>

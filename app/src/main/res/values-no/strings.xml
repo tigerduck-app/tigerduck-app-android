@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Påminnelser om kommende timer</string>
     <string name="notification_class_preparing_content_fallback">Timen er i ferd med å starte</string>
     <string name="notification_class_preparing_title">Timen starter snart: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Varslingstillatelser</string>
     <string name="notification_setup_description">Aktiver tillatelsene nedenfor for å sikre at oppgavepåminnelser, timevarsler og Live Updates kommer frem i tide selv når appen er lukket.</string>
     <string name="notification_setup_title">Konfigurer varsler på nytt</string>
     <string name="notification_system_channel_description">Konto- og synkroniseringsproblemer som krever oppmerksomheten din</string>

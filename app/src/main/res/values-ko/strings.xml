@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">수업 시작 알림</string>
     <string name="notification_class_preparing_content_fallback">수업이 곧 시작됩니다</string>
     <string name="notification_class_preparing_title">곧 수업 시작: %1$s</string>
+    <string name="notification_permission_settings_nav_title">알림 권한 설정</string>
     <string name="notification_setup_description">아래 권한을 허용하면 앱이 닫혀 있어도 과제 알림, 수업 시작 알림, Live Updates가 제때 도착합니다.</string>
     <string name="notification_setup_title">알림 다시 설정</string>
     <string name="notification_system_channel_description">확인이 필요한 계정 및 동기화 문제</string>

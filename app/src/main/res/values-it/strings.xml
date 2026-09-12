@@ -512,6 +512,7 @@
     <string name="notification_class_preparing_channel_name">Promemoria preparazione lezioni</string>
     <string name="notification_class_preparing_content_fallback">La lezione sta per iniziare</string>
     <string name="notification_class_preparing_title">La lezione sta per iniziare: %1$s</string>
+    <string name="notification_permission_settings_nav_title">Autorizzazioni notifiche</string>
     <string name="notification_setup_description">Abilita le autorizzazioni qui sotto per assicurarti che i promemoria dei compiti, gli avvisi di preparazione lezione e Live Updates arrivino in tempo anche quando l\'app è chiusa.</string>
     <string name="notification_setup_title">Riconfigura le notifiche</string>
     <string name="notification_system_channel_description">Problemi di account e sincronizzazione che richiedono la tua attenzione</string>
