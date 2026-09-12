@@ -13,9 +13,8 @@ import javax.inject.Singleton
  *
  * It throws rather than answering with a synthetic response on purpose. An
  * `IOException` out of the call is exactly what the app sees with the radio
- * off, which is the state store screenshots were already being taken in — so
- * every screen's no-network path is the one that has been exercised all along,
- * rather than a new one where a 503 or an empty body reaches a parser that has
+ * off, so every screen takes the no-network path it has always had, rather
+ * than a new one where a 503 or an empty body reaches a parser that has
  * never been handed one.
  *
  * Installed on all three OkHttp clients: the shared one from [NetworkModule],

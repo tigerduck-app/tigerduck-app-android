@@ -59,9 +59,9 @@ class LibraryViewModel @Inject constructor(
 
     /**
      * Whether to render the screen as signed in on the strength of the
-     * override alone. Without this the sign-in form shows and the QR — the
-     * thing worth screenshotting — never appears unless a real library
-     * account happens to be signed in on the device.
+     * override alone. Without this the sign-in form shows and the demo QR
+     * never appears unless a real library account happens to be signed in on
+     * the device.
      */
     private val fixtureSignedIn: Boolean
         get() = fixtureQr != null && debugFixtures.libraryFakeSignedIn

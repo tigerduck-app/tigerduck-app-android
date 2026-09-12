@@ -71,16 +71,11 @@ class AppState @Inject constructor(
     private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
 ) {
     /**
-     * Whether this process started on fixture data: the demo account signed
-     * in, or a store-screenshot session.
+     * Whether the demo account was signed in when this process started.
      *
-     * Sampled once, here, rather than read where it is used: demo mode
-     * changes what the network layer does and what the app believes about
-     * sign-in, and letting that flip under a running process leaves an
-     * in-flight sync still writing over the fixture. The screenshot script
-     * force-stops the app after loading one, so a fresh process is the only
-     * way a screenshot session turns on. The demo sign-in switches the network
-     * and the status dots itself, so it never needs this to change mid-run.
+     * Sampled once, for what is decided once per process — the onboarding
+     * skip below, and rewriting the demo data. The demo sign-in switches the
+     * network and the status dots itself, without waiting for a restart.
      */
     private val demoMode = demoAccount.isActive
 
@@ -134,9 +129,8 @@ class AppState @Inject constructor(
 
     /**
      * Demo mode reports the wizard as done without writing the preference.
-     * A screenshot device is often signed out, and the wizard is the first
-     * thing it would show; skipping it is also the only way past it, because
-     * with every server refused there is no sign-in for the user to complete.
+     * A demo session restarted before the wizard was finished is not sent back
+     * through it: the sign-in it would ask for has already happened.
      * Not persisting it keeps a device that leaves demo mode showing the
      * wizard again, which is what a signed-out install should do.
      */
@@ -159,7 +153,7 @@ class AppState @Inject constructor(
      * for why this is not done by clearing [hasCompletedOnboarding].
      *
      * Demo mode is excluded for the same reason it reports the wizard as done
-     * — a screenshot device must not be interrupted by it.
+     * — a demo session must not be interrupted by it.
      */
     val needsOnboardingRerun: Boolean
         get() = hasCompletedOnboardingState && !demoMode &&

@@ -21,7 +21,7 @@ import javax.inject.Singleton
  * Play review has no NTUST account to sign in with and a real one cannot be
  * handed out, so without this a reviewer sees nothing past the sign-in page.
  *
- * Built on the store-screenshot machinery: [DebugFixtureStore.demoMode] makes
+ * How: [DebugFixtureStore.demoMode] makes
  * [org.ntust.app.tigerduck.debug.DemoModeInterceptor] refuse every request on
  * every OkHttp client, the file's data goes into the same caches the real
  * fetches fill, and [ServerStatusTracker] holds every status dot at OK. Each

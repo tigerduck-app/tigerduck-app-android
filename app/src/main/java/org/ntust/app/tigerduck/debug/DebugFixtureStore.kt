@@ -6,19 +6,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Display-only overrides used when capturing store screenshots.
+ * The demo account's state: whether it is signed in, and the display
+ * overrides its bundled file carries — the student ID to show, the library
+ * QR payload, and whether the library screen renders as signed in.
  *
- * These exist so a screenshot can show a made-up student ID and a chosen
- * library QR payload without touching the real credentials behind them.
- * Writing the actual [org.ntust.app.tigerduck.data.preferences.CredentialManager]
- * fields would have been fewer moving parts, but it would also break the
- * signed-in session the screenshots are being taken from — every network call
- * keys off the stored student ID — and leave the install in a state that only
- * a re-login fixes. An override that only the display sites consult is
- * reversible by clearing one preferences file.
- *
- * Written by [org.ntust.app.tigerduck.demo.DemoAccount] at the demo sign-in,
- * in every build, and by `DebugFixtureReceiver` (debug source set only).
+ * Written by [org.ntust.app.tigerduck.demo.DemoAccount] at the demo sign-in
+ * and cleared at sign-out. Only the display sites consult the overrides, so
+ * clearing this one preferences file is all it takes to leave.
  *
  * Backed by its own SharedPreferences file, for the same reason
  * [DebugClockPrefsStore] is: it must never end up inside an AppPreferences
@@ -42,8 +36,8 @@ class DebugFixtureStore @Inject constructor(
 
     /**
      * Payload to encode into the library QR instead of asking the backend for
-     * a real one. Any string; a URL is the point — it makes the QR in a store
-     * screenshot scannable to somewhere deliberate.
+     * a real one. Any string; a URL makes the demo QR scannable to somewhere
+     * deliberate.
      */
     var libraryQrContent: String?
         get() = prefs.getString(KEY_QR_CONTENT, null)
@@ -54,8 +48,8 @@ class DebugFixtureStore @Inject constructor(
     /**
      * Whether the library screen should render as signed in while
      * [libraryQrContent] is set. Without this the screen shows its sign-in
-     * form, and the QR — the thing being screenshotted — never appears unless
-     * a real library account is signed in on the device.
+     * form, and the demo QR never appears unless a real library account is
+     * signed in on the device.
      */
     var libraryFakeSignedIn: Boolean
         get() = prefs.getBoolean(KEY_QR_FAKE_SIGNED_IN, false)
@@ -72,18 +66,13 @@ class DebugFixtureStore @Inject constructor(
      * stay: [DemoModeInterceptor] fails every request before it leaves the
      * device, so there is nothing left to overwrite it with.
      *
-     * Read once per process, at [org.ntust.app.tigerduck.ui.AppState] init and
-     * when each OkHttp client makes a call. Flipping it on a running app would
-     * leave an in-flight sync still writing, so the screenshot script
-     * force-stops the app after loading a demo fixture.
+     * Read live by [DemoModeInterceptor] on every call, so the demo sign-in
+     * takes hold at once; [org.ntust.app.tigerduck.ui.AppState] and
+     * `AuthService` sample it at process start for what they decide once.
      */
     var demoMode: Boolean
         get() = prefs.getBoolean(KEY_DEMO_MODE, false)
         set(value) = prefs.edit().putBoolean(KEY_DEMO_MODE, value).apply()
-
-    /** True when anything is overridden — used to log a warning banner in the app. */
-    val hasAnyOverride: Boolean
-        get() = studentIdOverride != null || libraryQrContent != null || demoMode
 
     fun clear() {
         prefs.edit().clear().apply()
