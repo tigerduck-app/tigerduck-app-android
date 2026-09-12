@@ -1,11 +1,14 @@
 // Covers the v2.1.0 "自訂" removal: LiveActivityPreferences.MIN_*/MAX_*
-// narrowed to match the new slider ranges (assignment 1h..8h, class-prep
-// 5min..4h), which is strictly inside the old ranges (5min..7days,
-// 1min..3h). An install that persisted a value only reachable through the
-// removed 自訂 dialog would otherwise be stuck holding a value the new
-// slider can neither display nor produce. These tests pin the clamp-on-read
-// behavior that fixes that — see LiveActivityPreferences.readClampedLong's
-// KDoc, and LiveActivityPreferencesStore.init() on iOS for the prior art.
+// moved to the new slider ranges (assignment 1h..8h, class-prep 5min..4h)
+// from the old ones (5min..7days, 1min..3h). The assignment range shrank at
+// both ends. The class-prep range moved up: its floor rose from 1 min to
+// 5 min and its ceiling from 3 h to 4 h, so an upgrader can hold a class
+// lead outside the new range only below it (60-299 s), and an assignment
+// lead on either side. A value only reachable through the removed 自訂
+// dialog would otherwise stay stuck where the new slider can neither display
+// nor produce it. These tests pin the clamp-on-read behavior that fixes that
+// — see LiveActivityPreferences.readClampedLong's KDoc, and
+// LiveActivityPreferencesStore.init() on iOS for the prior art.
 
 package org.ntust.app.tigerduck.liveactivity
 
@@ -32,11 +35,25 @@ class LiveActivityPreferencesTest {
     }
 
     @Test
-    fun `class lead time within the new 5min-4h range is read back unchanged`() {
-        val fake = FakeSharedPreferences(initialLongs = mapOf(LiveActivityPreferences.KEY_CLASS_LEAD to 10_800L)) // 3h, inside the new 4h ceiling
+    fun `class lead time above the old 3h ceiling but within the new 4h one is read back unchanged`() {
+        // 4h: the new ceiling, an hour past the old one, so a clamp still
+        // using the pre-v2.1.0 bounds would cut it down to 3h.
+        val fake = FakeSharedPreferences(initialLongs = mapOf(LiveActivityPreferences.KEY_CLASS_LEAD to 14_400L))
         val prefs = LiveActivityPreferences(fake)
 
-        assertEquals(10_800L, prefs.classPreparingLeadTimeSec)
+        assertEquals("4h is inside the new range and must not be clamped", 14_400L, prefs.classPreparingLeadTimeSec)
+    }
+
+    @Test
+    fun `class lead time below the new 5min floor is clamped up on read`() {
+        // 1 min: the pre-v2.1.0 floor, reachable through the removed 自訂
+        // dialog, and the only way an upgrader holds a class lead outside the
+        // new range.
+        val fake = FakeSharedPreferences(initialLongs = mapOf(LiveActivityPreferences.KEY_CLASS_LEAD to 60L))
+        val prefs = LiveActivityPreferences(fake)
+
+        assertEquals("clamped up to the 5 min floor", 300L, prefs.classPreparingLeadTimeSec)
+        assertEquals("and written back", 300L, fake.getLong(LiveActivityPreferences.KEY_CLASS_LEAD, -1))
     }
 
     @Test

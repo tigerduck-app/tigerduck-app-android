@@ -439,10 +439,13 @@ class NotificationSettingsSyncTest {
     // [LiveActivityPreferences] (backed by the in-memory [FakeLiveActivitySharedPreferences]
     // below), not a mock -- the whole point is proving the *stored* value
     // after applying, including the real clamping [LiveActivityPreferences]'s
-    // own setters do. Every "keep local" case below starts from a value that
-    // is deliberately neither the property's default nor whatever a plausible
-    // bug would coerce the bad input to, so a reset-to-default or a silent
-    // coercion would each be caught rather than passing by coincidence.
+    // own setters do. Every "keep local" lead time below starts from a value
+    // that is neither the property's default nor what a plausible bug would
+    // coerce the bad input to. A boolean has only two values, so no single
+    // starting value dodges both; the cases that keep several booleans start
+    // them on both sides -- at least one `true`, which the forbidden "missing
+    // or null means false" fallback would flip, and at least one `false`,
+    // which a reset to the default (`true`) would.
 
     private fun freshPreferences(): LiveActivityPreferences = LiveActivityPreferences(FakeLiveActivitySharedPreferences())
 
@@ -540,9 +543,9 @@ class NotificationSettingsSyncTest {
     @Test
     fun `pull leaves every local value untouched when live_activity is absent`() = runBlocking {
         val prefs = freshPreferences()
-        prefs.showInClass = false
+        prefs.showInClass = true
         prefs.showClassPreparing = false
-        prefs.showAssignment = false
+        prefs.showAssignment = true
         prefs.classPreparingLeadTimeSec = 1_800
         prefs.assignmentLeadTimeSec = 7_200
         val transport = RecordingTransport(
@@ -555,9 +558,9 @@ class NotificationSettingsSyncTest {
         val result = pullLiveActivitySettings(prefs, transport, cloudSyncEnabled = true, syncLiveActivity = true, isLoggedIn = true)
 
         assertTrue("an absent section is not a failure", result)
-        assertFalse(prefs.showInClass)
+        assertTrue("absent must not read as false", prefs.showInClass)
         assertFalse(prefs.showClassPreparing)
-        assertFalse(prefs.showAssignment)
+        assertTrue("absent must not read as false", prefs.showAssignment)
         assertEquals(1_800L, prefs.classPreparingLeadTimeSec)
         assertEquals(7_200L, prefs.assignmentLeadTimeSec)
     }
@@ -565,9 +568,9 @@ class NotificationSettingsSyncTest {
     @Test
     fun `pull leaves every local value untouched when live_activity is JSON null`() = runBlocking {
         val prefs = freshPreferences()
-        prefs.showInClass = false
+        prefs.showInClass = true
         prefs.showClassPreparing = false
-        prefs.showAssignment = false
+        prefs.showAssignment = true
         prefs.classPreparingLeadTimeSec = 1_800
         prefs.assignmentLeadTimeSec = 7_200
         val transport = RecordingTransport(
@@ -577,9 +580,9 @@ class NotificationSettingsSyncTest {
         val result = pullLiveActivitySettings(prefs, transport, cloudSyncEnabled = true, syncLiveActivity = true, isLoggedIn = true)
 
         assertTrue("a null section is not a failure", result)
-        assertFalse(prefs.showInClass)
+        assertTrue("a null section must not read as false", prefs.showInClass)
         assertFalse(prefs.showClassPreparing)
-        assertFalse(prefs.showAssignment)
+        assertTrue("a null section must not read as false", prefs.showAssignment)
         assertEquals(1_800L, prefs.classPreparingLeadTimeSec)
         assertEquals(7_200L, prefs.assignmentLeadTimeSec)
     }
@@ -588,7 +591,7 @@ class NotificationSettingsSyncTest {
     fun `pull leaves just the missing fields untouched when live_activity has only some of them`() = runBlocking {
         val prefs = freshPreferences()
         prefs.showInClass = true
-        prefs.showClassPreparing = false
+        prefs.showClassPreparing = true
         prefs.showAssignment = false
         prefs.classPreparingLeadTimeSec = 1_800
         prefs.assignmentLeadTimeSec = 7_200
@@ -602,7 +605,7 @@ class NotificationSettingsSyncTest {
         pullLiveActivitySettings(prefs, transport, cloudSyncEnabled = true, syncLiveActivity = true, isLoggedIn = true)
 
         assertFalse("the one present, valid field is applied", prefs.showInClass)
-        assertFalse("a missing field keeps the local value", prefs.showClassPreparing)
+        assertTrue("a missing field keeps the local value, never false", prefs.showClassPreparing)
         assertFalse("a missing field keeps the local value", prefs.showAssignment)
         assertEquals(1_800L, prefs.classPreparingLeadTimeSec)
         assertEquals(7_200L, prefs.assignmentLeadTimeSec)
