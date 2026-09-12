@@ -1406,6 +1406,84 @@ class NotificationSettingsSyncTest {
         assertEquals("nothing changed, so nothing is re-armed", 1, device.alarms.reschedules)
     }
 
+    // ── 7e. A pull that spans a logout belongs to the account that left ─────
+    //
+    // The read goes out carrying A's bearer and comes back after the user has
+    // signed out and signed in as B. Neither guard the apply already has
+    // notices: cancelPendingPushes() clears both unconfirmed flags, and a
+    // logout leaves the local values exactly where A left them, so the
+    // snapshot comparison reads "clean" too. Only the generation the read was
+    // issued under separates A's document from B's session — the same
+    // isCurrentGeneration() the two push halves already re-check.
+
+    @Test
+    fun `a pull whose read spans a logout does not apply the departing account's assignment settings`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        // A's own settings, still on the wire when A signs out.
+        device.server("A").document =
+            json("""{"assignments": {"enabled": true, "reminder_offsets_minutes": [1440]}}""")
+        device.assignments.enabled = false
+        val response = CompletableDeferred<Unit>()
+        device.server("A").holdRead = response
+        val pull = launch { device.sync.pullNow() }
+        runCurrent() // A's GET is out; its response is on the wire
+
+        device.logOut()
+        device.signIn("B")
+        runCurrent()
+        response.complete(Unit)
+        pull.join()
+        runQueue()
+
+        assertFalse(
+            "account A's master switch must not be applied under account B's session",
+            device.assignments.enabled,
+        )
+        assertEquals(
+            "account A's offsets must not be applied under account B's session",
+            AssignmentReminderOffset.DEFAULTS,
+            device.assignments.offsets,
+        )
+        assertEquals(
+            "logout cancelled the reminders; A's stale response must not re-arm them",
+            0,
+            device.alarms.reschedules,
+        )
+        assertTrue(
+            "nothing was applied, so nothing may be pushed into B's document either",
+            device.server("B").writes.isEmpty(),
+        )
+    }
+
+    @Test
+    fun `a pull whose read spans a logout does not apply the departing account's live update settings`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncAssignmentReminders = false
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.signIn("A")
+        device.server("A").document = json("""{"live_activity": {"class_preparing_lead_seconds": 3600}}""")
+        val response = CompletableDeferred<Unit>()
+        device.server("A").holdRead = response
+        val pull = launch { device.sync.pullNow() }
+        runCurrent()
+
+        device.logOut()
+        device.signIn("B")
+        runCurrent()
+        response.complete(Unit)
+        pull.join()
+        runQueue()
+
+        assertEquals(
+            "account A's lead time must not be applied under account B's session",
+            1_800L,
+            device.prefs.classPreparingLeadTimeSec,
+        )
+        assertTrue(device.server("B").writes.isEmpty())
+    }
+
     // ── 8. Bounded retry after a push failure ───────────────────────────────
 
     @Test

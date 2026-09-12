@@ -409,6 +409,18 @@ private fun JsonElement?.asValidatedIntOrNull(): Int? {
  * "never dirty" so a caller that has no such concept — every existing
  * caller before this — is unaffected.
  *
+ * [isCurrentGeneration] is the account guard [pushLiveActivitySettings]
+ * already applies, on the read half: checked before the read and again once
+ * it comes back, and `false` abandons the pull without applying anything.
+ * The document was fetched with the bearer of whoever was signed in when the
+ * request went out, and a logout in the meantime means it describes an
+ * account that has left — [isLocalDirty] cannot see that, because a logout
+ * clears the unconfirmed flags and leaves the local values exactly where the
+ * departing account had them, so both halves of that guard read "clean".
+ * Applying it anyway writes one user's settings into another's, on a shared
+ * phone, one edit away from being pushed into the new account's document.
+ * iOS makes the same `isCurrent()` check after every round trip.
+ *
  * A thrown exception from [transport] (offline, a non-2xx/404 status, a
  * malformed body) is **not** caught here, matching [pushLiveActivitySettings]:
  * both are plain suspend functions with no opinion on how a caller wants a
@@ -423,14 +435,18 @@ internal suspend fun pullLiveActivitySettings(
     isLoggedIn: Boolean,
     isLocalDirty: () -> Boolean = { false },
     onLocalDirty: () -> Unit = {},
+    isCurrentGeneration: () -> Boolean = { true },
 ): Boolean {
     if (!cloudSyncEnabled || !syncLiveActivity || !isLoggedIn) return false
+    if (!isCurrentGeneration()) return false
 
     val section = transport.read()?.document
         ?.get(LIVE_ACTIVITY_SECTION_KEY)
         ?.takeIf { it.isJsonObject }
         ?.asJsonObject
-        ?: return true
+
+    if (!isCurrentGeneration()) return false
+    if (section == null) return true
 
     if (isLocalDirty()) {
         onLocalDirty()
@@ -487,10 +503,18 @@ internal suspend fun pullLiveActivitySettingsCatching(
     isLoggedIn: Boolean,
     isLocalDirty: () -> Boolean = { false },
     onLocalDirty: () -> Unit = {},
+    isCurrentGeneration: () -> Boolean = { true },
     onFailure: (Throwable) -> Unit = {},
 ): Boolean = try {
     pullLiveActivitySettings(
-        preferences, transport, cloudSyncEnabled, syncLiveActivity, isLoggedIn, isLocalDirty, onLocalDirty,
+        preferences,
+        transport,
+        cloudSyncEnabled,
+        syncLiveActivity,
+        isLoggedIn,
+        isLocalDirty,
+        onLocalDirty,
+        isCurrentGeneration,
     )
 } catch (e: CancellationException) {
     throw e
@@ -687,17 +711,22 @@ internal suspend fun pushAssignmentSettings(
  * [current], or `null` when there is nothing to apply:
  * - a gate is closed, so no request is made (matching
  *   [pullLiveActivitySettings]'s `false`);
+ * - [isCurrentGeneration] reports that the account the read was issued under
+ *   has since left;
  * - the document has no `assignments` object (missing, or JSON `null`);
  * - [isLocalDirty] reports that a local edit must win.
  *
- * In the last two cases `null` is the whole answer, never "[current],
+ * In the last three cases `null` is the whole answer, never "[current],
  * unchanged": [current] is a snapshot taken before the read, and handing it
  * back would have the caller write it over an edit made while the read was
  * on the wire.
  *
- * [isLocalDirty] is asked once the read has come back, as in
- * [pullLiveActivitySettings]. When it reports `true`, [onLocalDirty] runs so
- * the caller can have that edit's push sent.
+ * [isLocalDirty] and [isCurrentGeneration] are both asked once the read has
+ * come back, as in [pullLiveActivitySettings] — see that function for what
+ * the account guard catches that the dirty check structurally cannot. When
+ * [isLocalDirty] reports `true`, [onLocalDirty] runs so the caller can have
+ * that edit's push sent; a departed account gets no such courtesy, since its
+ * edit is not this session's to send.
  */
 internal suspend fun pullAssignmentSettings(
     current: AssignmentSyncValues,
@@ -707,14 +736,17 @@ internal suspend fun pullAssignmentSettings(
     isLoggedIn: Boolean,
     isLocalDirty: () -> Boolean = { false },
     onLocalDirty: () -> Unit = {},
+    isCurrentGeneration: () -> Boolean = { true },
 ): AssignmentSyncValues? {
     if (!cloudSyncEnabled || !syncAssignmentReminders || !isLoggedIn) return null
+    if (!isCurrentGeneration()) return null
 
     val section = transport.read()?.document
         ?.get(ASSIGNMENTS_SECTION_KEY)
         ?.takeIf { it.isJsonObject }
         ?.asJsonObject
 
+    if (!isCurrentGeneration()) return null
     if (isLocalDirty()) {
         onLocalDirty()
         return null
@@ -746,10 +778,18 @@ internal suspend fun pullAssignmentSettingsCatching(
     isLoggedIn: Boolean,
     isLocalDirty: () -> Boolean = { false },
     onLocalDirty: () -> Unit = {},
+    isCurrentGeneration: () -> Boolean = { true },
     onFailure: (Throwable) -> Unit = {},
 ): AssignmentSyncValues? = try {
     pullAssignmentSettings(
-        current, transport, cloudSyncEnabled, syncAssignmentReminders, isLoggedIn, isLocalDirty, onLocalDirty,
+        current,
+        transport,
+        cloudSyncEnabled,
+        syncAssignmentReminders,
+        isLoggedIn,
+        isLocalDirty,
+        onLocalDirty,
+        isCurrentGeneration,
     )
 } catch (e: CancellationException) {
     throw e
@@ -1169,6 +1209,14 @@ class NotificationSettingsSync internal constructor(
      * caller runs this on the main thread, where the settings screens make
      * their edits, so no edit can land between the two either.
      *
+     * Both sections are additionally abandoned, applying nothing, if the
+     * account changed while their read was on the wire — the generation
+     * [cancelPendingPushes] bumps, captured here and re-checked by each pull
+     * exactly as each push re-checks it. Neither of the two guards above can
+     * stand in for it: a logout clears both unconfirmed flags and leaves the
+     * local values untouched, so both read "clean" for a document that
+     * belongs to the account that has left.
+     *
      * A pull that changes the assignment values also brings the reminders
      * already armed on this device into line, through [assignmentAlarms]:
      * cancelled when reminders are now off, re-armed from the assignment
@@ -1197,6 +1245,13 @@ class NotificationSettingsSync internal constructor(
     suspend fun pullNow(): Boolean {
         var assignmentsChanged = false
         val attempted = documentLock.withLock {
+            // The account this pull belongs to, captured alongside the local
+            // snapshot below and re-checked once each read comes back. A
+            // logout bumps it, so a response that arrives after one is
+            // abandoned instead of applied — see pullLiveActivitySettings.
+            val pulledGeneration = generation.get()
+            val isCurrentGeneration = { pulledGeneration == generation.get() }
+
             val liveActivityAttempted = pullLiveActivitySettingsCatching(
                 preferences = liveActivityPreferences,
                 transport = transport,
@@ -1205,6 +1260,7 @@ class NotificationSettingsSync internal constructor(
                 isLoggedIn = isLoggedIn(),
                 isLocalDirty = { liveActivityPreferences.hasUnconfirmedSyncEdit },
                 onLocalDirty = { pushIfUnconfirmed() },
+                isCurrentGeneration = isCurrentGeneration,
                 onFailure = { e -> Log.w(TAG, "pulling live_activity settings failed", e) },
             )
 
@@ -1221,6 +1277,7 @@ class NotificationSettingsSync internal constructor(
                 isLoggedIn = loggedIn,
                 isLocalDirty = { assignmentStore.hasUnconfirmedEdit || assignmentValues() != expected },
                 onLocalDirty = { pushIfUnconfirmed() },
+                isCurrentGeneration = isCurrentGeneration,
                 onFailure = { e ->
                     assignmentReadFailed = true
                     Log.w(TAG, "pulling assignment settings failed", e)
@@ -1232,7 +1289,12 @@ class NotificationSettingsSync internal constructor(
                 assignmentsChanged = true
             }
 
-            val assignmentsAttempted = cloudSync && assignmentsSynced && loggedIn && !assignmentReadFailed
+            // A response the account guard abandoned is not an applied read,
+            // whatever the gates said when it went out — and the alarm work
+            // below hangs off assignmentsChanged, which that abandon leaves
+            // false, so a logout's cancelled reminders stay cancelled.
+            val assignmentsAttempted =
+                cloudSync && assignmentsSynced && loggedIn && !assignmentReadFailed && isCurrentGeneration()
             liveActivityAttempted || assignmentsAttempted
         }
 
