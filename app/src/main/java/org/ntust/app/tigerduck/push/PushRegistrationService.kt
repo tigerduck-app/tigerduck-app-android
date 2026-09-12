@@ -356,9 +356,12 @@ class PushRegistrationService @Inject constructor(
     )
 
     /** Current value of the user-facing server-push opt-out. Default `false`
-     *  (i.e. opted in). Reads SharedPreferences synchronously — safe for
-     *  initial UI hydration in the settings screen. */
-    fun isServerPushOptedOut(): Boolean = prefs.getBoolean(KEY_SERVER_PUSH_OPT_OUT, false)
+     *  (i.e. opted in) on every flavor except fdroid, which is always read as
+     *  opted out regardless of what is stored — see
+     *  [effectiveServerPushOptedOut]. Reads SharedPreferences synchronously —
+     *  safe for initial UI hydration in the settings screen. */
+    fun isServerPushOptedOut(): Boolean =
+        effectiveServerPushOptedOut(prefs.getBoolean(KEY_SERVER_PUSH_OPT_OUT, false))
 
     /** PATCH the backend, and persist the opt-out locally only once the
      *  backend has accepted it — a rejected change must not survive
@@ -368,8 +371,14 @@ class PushRegistrationService @Inject constructor(
      *  on full success (backend + local), `false` if the call failed, in
      *  which case the pref is left exactly where it was. `lastError` is
      *  surfaced via the diagnostic for the status card either way. See
-     *  [applyOptOutIfAccepted] for the extracted, unit-tested invariant. */
+     *  [applyOptOutIfAccepted] for the extracted, unit-tested invariant.
+     *  No-ops on fdroid: the toggle that leads here is greyed out and off
+     *  (`CloudSyncSettingsScreen`), but this is the actual boundary to the
+     *  network call, so it is guarded here too rather than trusted to stay
+     *  unreachable from the UI alone — the signed-in branch below has no FCM
+     *  token dependency to fall back on the way [performRegister] does. */
     suspend fun updateServerPushOptOut(optOut: Boolean): Boolean {
+        if (BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return false
         val deviceId = identity.uuid()
         // Hold the mutex across the PATCH AND the pref write so a concurrent
         // performRegister (which snapshots under the same mutex) can't read
@@ -486,6 +495,22 @@ class PushRegistrationService @Inject constructor(
         const val KEY_SERVER_PUSH_OPT_OUT = "server_push_user_opt_out"
     }
 }
+
+/**
+ * The effective server-push opt-out: fdroid is always read as opted out — it
+ * never completes a device registration to opt in or out of in the first
+ * place (no FCM token) — regardless of what [storedOptOut] says.
+ *
+ * [flavor] defaults to [BuildConfig.FLAVOR] for the one production call
+ * site, [PushRegistrationService.isServerPushOptedOut]. Tests pass it
+ * explicitly instead, for the same reason
+ * [org.ntust.app.tigerduck.data.preferences.effectiveCloudSyncEnabled] does:
+ * this module's tests can't construct [PushRegistrationService] (real OkHttp
+ * / Keystore dependencies), and a literal expectation on `BuildConfig.FLAVOR`
+ * would only hold under one Gradle variant's unit-test task.
+ */
+internal fun effectiveServerPushOptedOut(storedOptOut: Boolean, flavor: String = BuildConfig.FLAVOR): Boolean =
+    storedOptOut || flavor.equals("fdroid", ignoreCase = true)
 
 /**
  * Commits [optOut] to [prefs] under [key] only once [attempt] — the PATCH /
