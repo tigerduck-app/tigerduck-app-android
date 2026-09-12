@@ -10,10 +10,12 @@
 // their Live Activity lead times are invisible on Android. Every field it
 // reads degrades to "keep the local value" when the document can't express
 // it — missing, null, or the wrong JSON type — never to `false`/`0`. The
-// two lead times are additionally clamped into this build's local range:
-// `MAX_CLASS_LEAD_SEC` narrowed to 4h in v2.1.0, iOS's ceiling is
-// different again, so the document can easily hold a value this build's
-// own slider could never produce.
+// two lead times are additionally clamped into this build's local range.
+// That range equals iOS's slider ranges (1 h–8 h, 5 min–4 h), but nothing
+// holds the document to it: the backend does not validate these fields,
+// and iOS applies no floor to its assignment lead time when it loads or
+// pulls one. So the document can hold a value this build's own slider
+// could never produce.
 //
 // Writes therefore **merge at the JSON level** rather than re-encoding a
 // typed struct: read whatever the server currently holds as a `JsonObject`,
@@ -334,11 +336,10 @@ private fun JsonElement?.asValidatedIntOrNull(): Int? {
  * safer than a guess. The two lead-time fields are additionally clamped
  * into this build's local range by [LiveActivityPreferences.applySyncUpdate]
  * (via [LiveActivityPreferences.assignmentLeadTimeSec] /
- * [LiveActivityPreferences.classPreparingLeadTimeSec]'s own setters),
- * because those ceilings differ from iOS's and a document value this
- * build's own slider could never produce is completely reachable —
- * `MAX_CLASS_LEAD_SEC` alone narrowed within Android's own history (see
- * [LiveActivityPreferences.readClampedLong]'s KDoc).
+ * [LiveActivityPreferences.classPreparingLeadTimeSec]'s own setters). The
+ * range matches iOS's sliders, but the document is not held to it (see this
+ * file's header), so a value this build's slider could never produce can
+ * still arrive here.
  *
  * Same three gates as [pushLiveActivitySettings], for the same reasons:
  * pulling a document into local prefs when the user has not opted into

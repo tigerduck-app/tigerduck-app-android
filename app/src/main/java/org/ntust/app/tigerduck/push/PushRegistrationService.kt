@@ -511,17 +511,21 @@ class PushRegistrationService @Inject constructor(
  * `SettingsViewModel.setServerPushOn`'s revert-and-Toast on failure, which
  * tells the user the change did not take effect while the persisted value
  * kept the rejected one — surviving a screen revisit or process death and
- * still feeding `announceDevice`'s reconciliation. Mirrors
- * `SettingsViewModel.pushCloudSyncEnabled`'s "fail closed" enable branch:
- * record a preference only once the thing it claims has actually happened.
+ * still feeding `announceDevice`'s reconciliation. The rule: record a
+ * preference only once the thing it claims has actually happened.
  *
- * That branch is the pattern to copy, but it is NOT the only other switch
- * of this shape -- it is the only one that gets it right. `SyncContentScreen`
- * has four more (syncCourses / syncCourseColors / syncCourseNames /
- * syncAssignments) that also persist locally and then PATCH, but persist
- * unconditionally and never revert, so a rejected PATCH leaves them silently
- * and permanently diverged from the server. They are untouched here and
- * still carry the exact defect this function exists to remove.
+ * `setServerPushOn`, through this function, is the switch that follows that
+ * rule end to end, and the pattern to copy. `SettingsViewModel.pushCloudSyncEnabled`
+ * only looks like it: its enable branch writes `cloudSyncEnabled` on success
+ * alone, but its one enabling caller, the TigerSync master switch, has
+ * already persisted the value through `AppState.cloudSyncEnabled` before
+ * calling it, so a rejected enable still leaves the preference on.
+ * `SyncContentScreen`'s six switches (syncAssignments /
+ * syncAssignmentReminders / syncLiveActivity / syncCourses /
+ * syncCourseColors / syncCourseNames) persist locally and then PATCH,
+ * unconditionally and with no revert, so a rejected PATCH leaves them
+ * silently and permanently diverged from the server — the exact defect this
+ * function exists to remove.
  *
  * @return `null` on success, the causing [Throwable] on failure.
  */

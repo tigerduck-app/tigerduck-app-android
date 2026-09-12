@@ -125,9 +125,14 @@ fun SyncContentScreen(
                         }
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-                        // 作業到期提醒 — a local notification preference, not
-                        // content with a server-vs-local conflict concept, so
-                        // no markCategoryReenabled/checkPendingConflicts here.
+                        // 作業到期提醒 — does nothing on Android today. Android
+                        // schedules its assignment reminders locally, and
+                        // nothing on this device reads this flag: the PATCH
+                        // below only stores it on this device's backend row,
+                        // and the backend reads the flag solely to deliver
+                        // reminders to iPhone and iPad. It is not content with
+                        // a server-vs-local conflict either, so no
+                        // markCategoryReenabled/checkPendingConflicts here.
                         SyncToggleRow(
                             stringResource(R.string.sync_content_assignment_reminders),
                             syncAssignmentReminders,

@@ -110,9 +110,9 @@ class LiveActivitySettingsViewModel @Inject constructor(
 
     fun resetDefaults() {
         prefs.resetToDefaults()
-        // Resets three of the five synced values back to their defaults, which
-        // is a change the user's other devices have to hear about like any
-        // other.
+        // Resets all five synced values (and every device-local one) to
+        // their defaults, which is a change the user's other devices have to
+        // hear about like any other.
         emitAndSync()
     }
 

@@ -60,8 +60,9 @@ data class LiveActivitySyncUpdate(
  * Preferences for the Android Live Update feature — the dynamic-island-style
  * ongoing notification that mirrors the iOS Live Activity.
  *
- * Defaults intentionally match the iOS target so behavior stays consistent
- * between platforms.
+ * The defaults it shares with iOS match the iOS target, except the
+ * class-preparing lead time: 15 min here ([DEFAULT_CLASS_LEAD_SEC]), 1 h on
+ * iOS (`LiveActivityPreferencesStore.defaultClassPreparingLeadTime`).
  */
 @Singleton
 class LiveActivityPreferences internal constructor(
@@ -219,10 +220,11 @@ class LiveActivityPreferences internal constructor(
      *
      * The two lead-time fields go through [assignmentLeadTimeSec] and
      * [classPreparingLeadTimeSec]'s own setters, so they are clamped into
-     * this build's local range exactly as if the slider had produced them
-     * — those ceilings differ from iOS's and have even narrowed within
-     * Android's own history (see [readClampedLong]'s KDoc), so a document
-     * value must never be written back unclamped.
+     * this build's local range exactly as if the slider had produced them.
+     * The range equals iOS's slider ranges, but nothing holds the document
+     * to it — the backend does not validate it, and iOS applies no floor to
+     * the assignment lead time it loads or pulls — so a document value must
+     * never be written back unclamped.
      */
     fun applySyncUpdate(update: LiveActivitySyncUpdate) {
         update.showInClass?.let { showInClass = it }
@@ -247,10 +249,13 @@ class LiveActivityPreferences internal constructor(
      * `LiveActivityPreferencesStore.init()` clamps on load on iOS
      * (`LiveActivityPreferencesStore.swift:116-125`).
      *
-     * Needed because the MIN_ and MAX_ constants narrowed in v2.1.0 when the
-     * 自訂 escape hatch was removed — assignment lead time used to allow 5 min..7 days,
-     * class-preparing 1 min..3 h. An install that persisted a value only
-     * reachable through 自訂 (e.g. "1 day before") would otherwise hold a
+     * Needed because the MIN_ and MAX_ constants moved in v2.1.0 when the
+     * 自訂 escape hatch was removed. Assignment lead time went from
+     * 5 min..7 days to 1 h..8 h, narrowed at both ends; class-preparing went
+     * from 1 min..3 h to 5 min..4 h, a higher floor and a higher ceiling. An
+     * install that persisted a value the new range excludes — an assignment
+     * lead under 1 h or over 8 h (e.g. "1 day before", only reachable
+     * through 自訂), or a class lead under 5 min — would otherwise hold a
      * value the new slider can neither display nor produce, forever, since
      * nothing else in this class rewrites an existing value.
      *
@@ -271,8 +276,8 @@ class LiveActivityPreferences internal constructor(
         const val DEFAULT_ASSIGNMENT_LEAD_SEC = 8L * 3600
         const val DEFAULT_CLASS_LEAD_SEC = 15L * 60
 
-        // v2.1.0: narrowed to match the iOS slider ranges when the Android
-        // 自訂 dialogs were removed (spec §5 W6). See readClampedLong's KDoc
+        // v2.1.0: set to the iOS slider ranges when the Android 自訂
+        // dialogs were removed (spec §5 W6). See readClampedLong's KDoc
         // for why existing out-of-range values need clamping, not just a UI
         // change, and grep these four constants before touching them again —
         // ClassPreparingNotificationScheduler, LiveActivityResolver and
