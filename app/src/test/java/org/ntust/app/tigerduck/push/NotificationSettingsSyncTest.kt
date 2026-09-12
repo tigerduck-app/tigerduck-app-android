@@ -4,9 +4,11 @@ import android.content.SharedPreferences
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -757,6 +759,13 @@ class NotificationSettingsSyncTest {
         var offline = false
         var beforeRead: () -> Unit = {}
         var duringWrite: () -> Unit = {}
+
+        /**
+         * When set, the next read answers with the document as it stood when
+         * the request went out, but only once this completes: a response
+         * still on the wire while other requests land. One-shot.
+         */
+        var holdRead: CompletableDeferred<Unit>? = null
         var reads = 0
             private set
         val writes = mutableListOf<JsonObject>()
@@ -766,7 +775,12 @@ class NotificationSettingsSyncTest {
             if (offline) throw SettingsDocumentApiException("read notification: offline")
             reads++
             beforeRead()
-            return document?.let { SettingsDocumentEnvelope(document = it, revision = revision) }
+            val served = document?.let { SettingsDocumentEnvelope(document = it, revision = revision) }
+            holdRead?.let { response ->
+                holdRead = null
+                response.await()
+            }
+            return served
         }
 
         override suspend fun write(document: JsonObject, baseRevision: Long?): SettingsWriteResult<JsonObject> {
@@ -1185,6 +1199,145 @@ class NotificationSettingsSyncTest {
 
         assertEquals(1, device.server("A").writes.size)
         assertFalse(device.assignments.hasUnconfirmedEdit)
+    }
+
+    // ── 7c. A pull never reverts an edit, or lands between an edit's push and its apply ──
+    //
+    // Driven through the real pullNow(), not the pure pull function: the
+    // edit has to land while the pull's GET is on the wire, and what goes
+    // wrong is pullNow() writing back values it read before that. Live-
+    // activity sync is off in each, so the one GET a pull makes is the
+    // assignments one.
+
+    private val defaultsDocument = """
+        {"assignments": {
+          "enabled": true,
+          "reminder_offsets_hours": [48, 24, 8, 2, 1],
+          "reminder_offsets_minutes": [2880, 1440, 480, 120, 60, 30]
+        }}
+    """.trimIndent()
+
+    private fun FakeDocumentServer.lastAssignments(): JsonObject = writes.last().getAsJsonObject("assignments")
+
+    private fun FakeDocumentServer.lastAssignmentMinutes(): List<Int> =
+        lastAssignments().getAsJsonArray("reminder_offsets_minutes").map { it.asInt }
+
+    @Test
+    fun `pull does not overwrite assignment values while a push has not yet been confirmed`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        device.server("A").document = json(defaultsDocument)
+        // The user turns 10 分鐘 on while the screen's pull is reading.
+        device.server("A").beforeRead = {
+            device.server("A").beforeRead = {}
+            device.assignments.offsets = AssignmentReminderOffset.DEFAULTS + AssignmentReminderOffset.MIN10
+            device.sync.markAssignmentUnconfirmedAndPush()
+        }
+
+        device.sync.pullNow()
+
+        assertEquals(
+            "the tap must survive the pull that was reading when it landed",
+            AssignmentReminderOffset.DEFAULTS + AssignmentReminderOffset.MIN10,
+            device.assignments.offsets,
+        )
+        runQueue()
+        assertEquals(
+            "the edit, not the values from before it, must reach the user's other devices",
+            listOf(2_880, 1_440, 480, 120, 60, 30, 10),
+            device.server("A").lastAssignmentMinutes(),
+        )
+        assertFalse(device.assignments.hasUnconfirmedEdit)
+    }
+
+    @Test
+    fun `turning assignment reminders off while a pull is reading is not reverted`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        device.server("A").document = json(defaultsDocument)
+        device.server("A").beforeRead = {
+            device.server("A").beforeRead = {}
+            device.assignments.enabled = false
+            device.sync.markAssignmentUnconfirmedAndPush()
+        }
+
+        device.sync.pullNow()
+
+        assertFalse("the switch must stay off, not flip back on", device.assignments.enabled)
+        runQueue()
+        assertEquals(false, device.server("A").lastAssignments().get("enabled").asBoolean)
+        assertFalse(device.assignments.hasUnconfirmedEdit)
+    }
+
+    /**
+     * The pull's GET goes out before an edit, and its response is still on
+     * the wire when the edit's push has landed and cleared the flag. That
+     * response is older than the edit and must not be applied over it.
+     */
+    @Test
+    fun `a pull response still on the wire when an edit's push lands is not applied over that edit`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        // What the iPhone wrote before this pull started: 24 小時 only.
+        device.server("A").document = json("""{"assignments": {"enabled": true, "reminder_offsets_minutes": [1440]}}""")
+        val response = CompletableDeferred<Unit>()
+        device.server("A").holdRead = response
+        val pull = launch { device.sync.pullNow() }
+        runCurrent() // the GET is out; its response is on the wire
+
+        device.assignments.offsets = AssignmentReminderOffset.DEFAULTS + AssignmentReminderOffset.MIN10
+        device.sync.markAssignmentUnconfirmedAndPush()
+        runQueue()
+        response.complete(Unit)
+        pull.join()
+        runQueue()
+
+        assertEquals(
+            "a response read before the edit must not be applied over it",
+            AssignmentReminderOffset.DEFAULTS + AssignmentReminderOffset.MIN10,
+            device.assignments.offsets,
+        )
+        assertEquals(listOf(2_880, 1_440, 480, 120, 60, 30, 10), device.server("A").lastAssignmentMinutes())
+    }
+
+    /**
+     * Same window, but the edit is undone before its push runs, so the
+     * values end where the pull's snapshot had them and comparing against
+     * that snapshot cannot notice anything happened. Only running the pull
+     * on the same queue as the push keeps the edit's push from landing
+     * between the pull's read and its apply.
+     */
+    @Test
+    fun `a push cannot land between a pull's read and its apply`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        device.server("A").document = json("""{"assignments": {"enabled": true, "reminder_offsets_minutes": [1440]}}""")
+        val response = CompletableDeferred<Unit>()
+        device.server("A").holdRead = response
+        val pull = launch { device.sync.pullNow() }
+        runCurrent()
+
+        // 10 分鐘 on and straight back off: an edit all the same, whose push
+        // carries this phone's values over the iPhone's.
+        device.assignments.offsets = AssignmentReminderOffset.DEFAULTS + AssignmentReminderOffset.MIN10
+        device.sync.markAssignmentUnconfirmedAndPush()
+        device.assignments.offsets = AssignmentReminderOffset.DEFAULTS
+        device.sync.markAssignmentUnconfirmedAndPush()
+        runQueue()
+        response.complete(Unit)
+        pull.join()
+        runQueue()
+
+        assertEquals(listOf(2_880, 1_440, 480, 120, 60, 30), device.server("A").lastAssignmentMinutes())
+        assertEquals(
+            "the phone must hold what its own push left on the server, not the response it read before",
+            AssignmentReminderOffset.DEFAULTS,
+            device.assignments.offsets,
+        )
     }
 
     // ── 8. Bounded retry after a push failure ───────────────────────────────
@@ -1742,7 +1895,7 @@ class NotificationSettingsSyncTest {
 
         val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
 
-        assertEquals("an absent section must not reset to defaults", current, resolved)
+        assertNull("an absent section has nothing to apply; the local values stand as they are", resolved)
     }
 
     @Test
@@ -1754,7 +1907,7 @@ class NotificationSettingsSyncTest {
 
         val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
 
-        assertEquals("a null section must not reset to defaults", current, resolved)
+        assertNull("a null section has nothing to apply; the local values stand as they are", resolved)
     }
 
     @Test
@@ -1849,7 +2002,7 @@ class NotificationSettingsSyncTest {
     }
 
     @Test
-    fun `pull does not overwrite assignment values while a push has not yet been confirmed`() = runBlocking {
+    fun `pull resolves nothing, and asks for the pending push, while a local edit must win`() = runBlocking {
         val current = nonDefaultAssignments()
         val transport = RecordingTransport(
             existing = SettingsDocumentEnvelope(document = json("""{"assignments": {"enabled": true}}"""), revision = 1L)
@@ -1862,7 +2015,10 @@ class NotificationSettingsSyncTest {
         )
 
         assertTrue("the caller must be told to re-push rather than silently losing the edit", onLocalDirtyCalled)
-        assertEquals("an unconfirmed local edit must survive a pull", current, resolved)
+        assertNull(
+            "nothing may be applied over an edit that must win, not even the values from before it",
+            resolved,
+        )
     }
 
     @Test

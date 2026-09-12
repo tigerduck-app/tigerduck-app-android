@@ -65,6 +65,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
@@ -668,19 +670,30 @@ internal suspend fun pushAssignmentSettings(
 }
 
 /**
- * Read-and-apply half of the `assignments` section — the
- * [pullLiveActivitySettings] of this section. `enabled` degrades to
- * [current]'s value exactly like the five live_activity fields; the offset
- * set goes through [resolveOffsets] instead of a plain validated-or-keep
- * check, since what "the document can't express it, keep local" means for
- * offsets depends on *which* of the two offset fields is present (see that
- * function's KDoc).
+ * Read half of the `assignments` section — the [pullLiveActivitySettings]
+ * of this section, except that it returns what to apply instead of applying
+ * it, because the store it would apply to is the caller's. `enabled`
+ * degrades to [current]'s value exactly like the five live_activity fields;
+ * the offset set goes through [resolveOffsets] instead of a plain
+ * validated-or-keep check, since what "the document can't express it, keep
+ * local" means for offsets depends on *which* of the two offset fields is
+ * present (see that function's KDoc).
  *
- * Returns `null` when a gate is closed (no request was attempted, matching
- * [pullLiveActivitySettings]'s `false`); otherwise the resolved values —
- * equal to [current] when the section is missing, JSON `null`, or
- * [isLocalDirty] reports an edit still in flight, and the caller applies the
- * result unconditionally either way.
+ * Returns the values the local store should now hold, resolved against
+ * [current], or `null` when there is nothing to apply:
+ * - a gate is closed, so no request is made (matching
+ *   [pullLiveActivitySettings]'s `false`);
+ * - the document has no `assignments` object (missing, or JSON `null`);
+ * - [isLocalDirty] reports that a local edit must win.
+ *
+ * In the last two cases `null` is the whole answer, never "[current],
+ * unchanged": [current] is a snapshot taken before the read, and handing it
+ * back would have the caller write it over an edit made while the read was
+ * on the wire.
+ *
+ * [isLocalDirty] is asked once the read has come back, as in
+ * [pullLiveActivitySettings]. When it reports `true`, [onLocalDirty] runs so
+ * the caller can have that edit's push sent.
  */
 internal suspend fun pullAssignmentSettings(
     current: AssignmentSyncValues,
@@ -700,9 +713,9 @@ internal suspend fun pullAssignmentSettings(
 
     if (isLocalDirty()) {
         onLocalDirty()
-        return current
+        return null
     }
-    if (section == null) return current
+    if (section == null) return null
 
     return AssignmentSyncValues(
         enabled = section.get(ASSIGNMENTS_ENABLED_KEY).asValidatedBooleanOrNull() ?: current.enabled,
@@ -897,6 +910,16 @@ class NotificationSettingsSync internal constructor(
     // by the time it runs.
     private val generation = AtomicInteger(0)
 
+    // Held by each queued push for the whole of its read-modify-write, and
+    // by pullNow() from its snapshot of the local values to its apply, so
+    // neither can land in the middle of the other. Without it, an edit's
+    // push could clear the unconfirmed flag while a pull's GET, sent before
+    // the edit, was still on the wire, and that pull would then apply the
+    // older document over the confirmed edit. iOS gets the same guarantee by
+    // running its reconcile as a link on the one chain its pushes run on
+    // (NotificationSettingsPushQueue.enqueueReconcile).
+    private val documentLock = Mutex()
+
     // How many pushes in a row have failed outright (an exception from
     // pushNow(), never a closed-gate no-op — see the init loop below). The
     // loop bumps and reads it on the application scope's dispatcher, while
@@ -918,7 +941,7 @@ class NotificationSettingsSync internal constructor(
                 delay(DEBOUNCE_MS)
                 // Queued before a logout: it belongs to the account that left.
                 if (queuedGeneration != generation.get()) continue
-                runCatching { pushNow(queuedGeneration) }.fold(
+                runCatching { documentLock.withLock { pushNow(queuedGeneration) } }.fold(
                     onSuccess = { succeeded ->
                         // A `false` here means a gate was closed (not logged
                         // in, cloud sync off, or live-activity sync off) — an
@@ -1090,6 +1113,21 @@ class NotificationSettingsSync internal constructor(
      * [pullAssignmentSettingsCatching] — so this can never be the thing that
      * crashes the caller.
      *
+     * Runs under [documentLock], so a queued push cannot land between a read
+     * here and the apply that follows it: a push that comes due while this
+     * runs waits for it, and this waits for a push already under way.
+     *
+     * The assignment values are applied only if, once the read has come
+     * back, no edit is waiting to be pushed and the store still holds
+     * exactly what it held when this pull started — the pair iOS checks
+     * after every round trip (`!isPushPending()` and
+     * `LocalPreferences(from: store) == expected`). The flag catches an edit
+     * made while the read was on the wire; the comparison catches one whose
+     * values are written but whose flag is not set yet. That check and the
+     * writes after it have no suspension point between them, and every
+     * caller runs this on the main thread, where the settings screens make
+     * their edits, so no edit can land between the two either.
+     *
      * The two pulls are independent: each is gated on its own switch and
      * dirty flag, and one failing or being gated off does not stop the
      * other. Returns `true` if *either* was actually attempted (matching
@@ -1105,7 +1143,7 @@ class NotificationSettingsSync internal constructor(
      * guards against the one failure mode this repo has already documented
      * twice as a process kill.
      */
-    suspend fun pullNow(): Boolean {
+    suspend fun pullNow(): Boolean = documentLock.withLock {
         val liveActivityAttempted = pullLiveActivitySettingsCatching(
             preferences = liveActivityPreferences,
             transport = transport,
@@ -1117,27 +1155,35 @@ class NotificationSettingsSync internal constructor(
             onFailure = { e -> Log.w(TAG, "pulling live_activity settings failed", e) },
         )
 
-        val resolvedAssignments = pullAssignmentSettingsCatching(
-            current = AssignmentSyncValues(enabled = assignmentStore.enabled, offsets = assignmentStore.offsets),
+        val cloudSync = cloudSyncEnabled()
+        val assignmentsSynced = syncAssignmentReminders()
+        val loggedIn = isLoggedIn()
+        var assignmentReadFailed = false
+        val expected = assignmentValues()
+        val pulled = pullAssignmentSettingsCatching(
+            current = expected,
             transport = transport,
-            cloudSyncEnabled = cloudSyncEnabled(),
-            syncAssignmentReminders = syncAssignmentReminders(),
-            isLoggedIn = isLoggedIn(),
-            isLocalDirty = { assignmentStore.hasUnconfirmedEdit },
+            cloudSyncEnabled = cloudSync,
+            syncAssignmentReminders = assignmentsSynced,
+            isLoggedIn = loggedIn,
+            isLocalDirty = { assignmentStore.hasUnconfirmedEdit || assignmentValues() != expected },
             onLocalDirty = { pushIfUnconfirmed() },
-            onFailure = { e -> Log.w(TAG, "pulling assignment settings failed", e) },
+            onFailure = { e ->
+                assignmentReadFailed = true
+                Log.w(TAG, "pulling assignment settings failed", e)
+            },
         )
-        if (resolvedAssignments != null) {
-            if (resolvedAssignments.enabled != assignmentStore.enabled) {
-                assignmentStore.enabled = resolvedAssignments.enabled
-            }
-            if (resolvedAssignments.offsets != assignmentStore.offsets) {
-                assignmentStore.offsets = resolvedAssignments.offsets
-            }
+        if (pulled != null) {
+            if (pulled.enabled != expected.enabled) assignmentStore.enabled = pulled.enabled
+            if (pulled.offsets != expected.offsets) assignmentStore.offsets = pulled.offsets
         }
 
-        return liveActivityAttempted || resolvedAssignments != null
+        val assignmentsAttempted = cloudSync && assignmentsSynced && loggedIn && !assignmentReadFailed
+        liveActivityAttempted || assignmentsAttempted
     }
+
+    private fun assignmentValues() =
+        AssignmentSyncValues(enabled = assignmentStore.enabled, offsets = assignmentStore.offsets)
 
     /**
      * Pushes whichever of the two sections this class owns is actually
