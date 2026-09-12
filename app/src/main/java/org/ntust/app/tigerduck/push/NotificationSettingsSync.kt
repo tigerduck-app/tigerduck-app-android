@@ -55,6 +55,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -62,6 +63,7 @@ import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncUpdate
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncValues
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.floor
@@ -222,15 +224,12 @@ private const val ASSIGNMENT_LEAD_SECONDS_KEY = "assignment_lead_seconds"
  * gates its own write on the sync pair. Closed means no request at all,
  * not a request whose result is discarded.
  *
- * [isLoggedIn] used to be checked only in [NotificationSettingsSync]'s
- * Hilt-constructed `pushNow()`, which no plain-JVM test can reach — folded
- * in here so all three gates sit under the same tests. It is also what
- * makes the catch-up push on sign-in effective: the Live Activity settings
- * screen works without an account, so a user who edits these settings
- * while signed out used to have every one of those pushes silently no-op
- * forever. [NotificationSettingsSync] re-enqueues a push on sign-in (see
- * its `init`), so the same gate that used to block silently now lets that
- * catch-up push through.
+ * [isLoggedIn] is checked here with the other two so all three gates sit
+ * under the same plain-JVM tests. The Live Activity settings screen works
+ * without an account, so an edit made while signed out is refused by this
+ * gate and stays unconfirmed
+ * ([LiveActivityPreferences.hasUnconfirmedSyncEdit]); the next sign-in
+ * delivers it through [NotificationSettingsSync.pushIfUnconfirmed].
  *
  * A second conflict throws rather than returning false: it is a genuine
  * failure to write (two other devices wrote in the time this one took to
@@ -454,10 +453,11 @@ internal suspend fun pullLiveActivitySettingsCatching(
 
 /**
  * How many additional attempts [NotificationSettingsSync]'s coalesced push
- * loop makes after a push fails, before giving up until the next real
- * trigger — an edit, a sign-in, or the live-activity sync switch turning
- * on. Bounded so a persistent failure (offline, server down) cannot retry
- * forever.
+ * loop makes after a push fails, before giving up until the next trigger:
+ * an edit, the live-activity sync switch turning on, or — while the edit
+ * is still unconfirmed — a sign-in, a successful full sync, or the Live
+ * Activity settings screen opening. Bounded so a persistent failure
+ * (offline, server down) cannot retry forever.
  */
 internal const val MAX_PUSH_RETRIES = 2
 
@@ -511,45 +511,88 @@ internal fun pushRetryBackoffMillis(consecutiveFailures: Int): Long =
  * The document is a copy of it, not the record of it — unlike
  * `applyOptOutIfAccepted`, where the local pref *is* the thing the server
  * has to accept first.
+ *
+ * Every push is queued through one of two entry points, and which one a
+ * caller uses is the protocol: [markUnconfirmedAndPush] for a change this
+ * device made, which the other devices must now see, and
+ * [pushIfUnconfirmed] for everything that only wants a change still
+ * pending delivered. [cancelPendingPushes] ends both at logout.
  */
 @Singleton
-class NotificationSettingsSync @Inject constructor(
-    private val client: SettingsDocumentApiClient,
+class NotificationSettingsSync internal constructor(
+    private val transport: SettingsDocumentTransport,
     private val liveActivityPreferences: LiveActivityPreferences,
-    private val appPreferences: AppPreferences,
-    private val authTokenManager: AuthTokenManager,
-    @param:ApplicationScope private val scope: CoroutineScope,
+    private val cloudSyncEnabled: () -> Boolean,
+    private val syncLiveActivity: () -> Boolean,
+    private val isLoggedIn: () -> Boolean,
+    syncLiveActivityChanged: Flow<Unit>,
+    scope: CoroutineScope,
 ) {
+    // The real entry point: Hilt calls this (the @Inject constructor), which
+    // adapts the app's singletons to the plain types of the primary
+    // constructor above. Split this way so NotificationSettingsSyncTest can
+    // build the real class on the plain JVM: SettingsDocumentApiClient,
+    // AppPreferences and AuthTokenManager all need a real Context or the
+    // Android Keystore. Same split, for the same reason, as
+    // LiveActivityPreferences.
+    @Inject constructor(
+        client: SettingsDocumentApiClient,
+        liveActivityPreferences: LiveActivityPreferences,
+        appPreferences: AppPreferences,
+        authTokenManager: AuthTokenManager,
+        @ApplicationScope scope: CoroutineScope,
+    ) : this(
+        transport = object : SettingsDocumentTransport {
+            override suspend fun read(): SettingsDocumentEnvelope<JsonObject>? =
+                client.read(NOTIFICATION_SETTINGS_NAMESPACE, JsonObject::class.java)
+
+            override suspend fun write(
+                document: JsonObject,
+                baseRevision: Long?,
+            ): SettingsWriteResult<JsonObject> =
+                client.write(NOTIFICATION_SETTINGS_NAMESPACE, document, baseRevision, JsonObject::class.java)
+        },
+        liveActivityPreferences = liveActivityPreferences,
+        cloudSyncEnabled = { appPreferences.cloudSyncEnabled },
+        syncLiveActivity = { appPreferences.syncLiveActivity },
+        isLoggedIn = { authTokenManager.isLoggedIn },
+        syncLiveActivityChanged = appPreferences.syncLiveActivityChanged,
+        scope = scope,
+    )
+
     // CONFLATED: a slider's onValueChange fires on every pointer move, so
     // dozens of enqueue calls collapse into one pending push, and the one
-    // that runs always reads the newest preference values.
-    private val pending = Channel<Unit>(Channel.CONFLATED)
+    // that runs always reads the newest preference values. Each item is the
+    // `generation` it was queued under.
+    private val pending = Channel<Int>(Channel.CONFLATED)
 
-    private val transport = object : SettingsDocumentTransport {
-        override suspend fun read(): SettingsDocumentEnvelope<JsonObject>? =
-            client.read(NOTIFICATION_SETTINGS_NAMESPACE, JsonObject::class.java)
-
-        override suspend fun write(
-            document: JsonObject,
-            baseRevision: Long?,
-        ): SettingsWriteResult<JsonObject> =
-            client.write(NOTIFICATION_SETTINGS_NAMESPACE, document, baseRevision, JsonObject::class.java)
-    }
+    // Bumped by cancelPendingPushes() at logout. A push queued under an
+    // older generation belongs to the account that signed out, so the loop
+    // drops it rather than sending it over whichever account is signed in
+    // by the time it runs.
+    private val generation = AtomicInteger(0)
 
     // How many pushes in a row have failed outright (an exception from
-    // pushNow(), never a closed-gate no-op — see the init loop below).
-    // Reset to 0 on a success; read and bumped only from that same loop, so
-    // it never needs its own lock.
+    // pushNow(), never a closed-gate no-op — see the init loop below). The
+    // loop bumps and reads it on the application scope's dispatcher, while
+    // both entry points reset it from whichever thread calls them: the main
+    // thread, a sync coroutine, or a relogin running inside some request.
+    // There is no lock, and the race is benign: an interleaving can lose one
+    // bump or one reset, which moves the retry budget by at most one
+    // attempt. It cannot make retries unbounded, because only an entry point
+    // resets it and the retry never goes through one.
     private var consecutiveFailures = 0
 
     init {
         scope.launch {
-            for (unused in pending) {
+            for (queuedGeneration in pending) {
                 // Settle before reading the preferences: a drag that is still
                 // in progress should produce one PUT carrying its final value,
                 // not one per step. Same 250 ms coalescing window
                 // PushRegistrationService.scheduleRegister uses.
                 delay(DEBOUNCE_MS)
+                // Queued before a logout: it belongs to the account that left.
+                if (queuedGeneration != generation.get()) continue
                 runCatching { pushNow() }.fold(
                     onSuccess = { succeeded ->
                         // A `false` here means a gate was closed (not logged
@@ -566,14 +609,18 @@ class NotificationSettingsSync @Inject constructor(
                         // out: a persistent failure (offline, server down)
                         // must neither retry forever nor burn all its
                         // attempts in the same second a transient blip
-                        // would. Giving up here is not the end of the story
-                        // either — pullNow() re-enqueues once more on behalf
-                        // of a still-unconfirmed edit the next time the
-                        // settings screen opens (see
-                        // LiveActivityPreferences.hasUnconfirmedSyncEdit).
+                        // would. Straight into the queue rather than through
+                        // an entry point, which would reset
+                        // consecutiveFailures and make this unbounded — and
+                        // only if no logout came during the wait, or it
+                        // would displace a push the next account queued.
+                        // Giving up is not the end of the story either: the
+                        // edit stays unconfirmed, so the next sign-in, full
+                        // sync or settings-screen visit sends it again
+                        // through pushIfUnconfirmed().
                         if (shouldRetryAfterPushFailure(consecutiveFailures)) {
                             delay(pushRetryBackoffMillis(consecutiveFailures))
-                            pending.trySend(Unit)
+                            if (queuedGeneration == generation.get()) pending.trySend(queuedGeneration)
                         } else {
                             Log.w(
                                 TAG,
@@ -589,33 +636,85 @@ class NotificationSettingsSync @Inject constructor(
         // and (re-)push them. Mirrors the appLanguageChanged collector in
         // PushRegistrationService.init.
         scope.launch {
-            appPreferences.syncLiveActivityChanged.collect {
-                if (appPreferences.syncLiveActivity) enqueueLiveActivityPush()
+            syncLiveActivityChanged.collect {
+                if (syncLiveActivity()) markUnconfirmedAndPush()
             }
         }
     }
 
     /**
-     * Ask for a push of the current Live Update preferences. Returns
-     * immediately; the write happens on the application scope.
+     * Marks this device's Live Update values unconfirmed
+     * ([LiveActivityPreferences.hasUnconfirmedSyncEdit]) and queues a push
+     * of them. Returns immediately; the write happens on the application
+     * scope.
      *
-     * This is also the one shared reconcile trigger: a user edit
+     * For exactly the two triggers that make this device's values the ones
+     * the user's other devices should now see: an edit to one of the five
+     * synced values
      * ([org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsViewModel]),
-     * a sign-in ([org.ntust.app.tigerduck.auth.AuthService]), the sync
-     * switch turning on (this class's `init`), a pull that found an
-     * unconfirmed local edit (this class's `pullNow`), and a bounded retry
-     * after a failure (this class's `init`) all funnel through this same
-     * method rather than each having their own push path.
+     * and "同步內容 → 即時更新" turning on (this class's `init`), which
+     * republishes values that stopped syncing while it was off — iOS pushes
+     * on that same off-to-on edge. Nothing else may call this. A marked
+     * device keeps its values through every pull and pushes them over
+     * whatever the other devices wrote, so a sign-in or a sync that marked
+     * would overwrite the shared settings with this device's stale ones.
+     * Those use [pushIfUnconfirmed].
      *
      * Resets [consecutiveFailures] so every fresh trigger gets its own full
      * retry budget — without this, a bad streak left the counter stuck at
      * [MAX_PUSH_RETRIES] forever, and every later trigger got exactly one
      * attempt and zero retries.
      */
-    fun enqueueLiveActivityPush() {
+    fun markUnconfirmedAndPush() {
         liveActivityPreferences.hasUnconfirmedSyncEdit = true
         consecutiveFailures = 0
-        pending.trySend(Unit)
+        pending.trySend(generation.get())
+    }
+
+    /**
+     * Queues a push only if an earlier edit is still unconfirmed, and never
+     * marks anything: with nothing pending it does nothing at all, and the
+     * next pull is free to adopt what another device wrote.
+     *
+     * The catch-up for an edit whose push has not landed — one made while
+     * signed out, or while cloud sync or "同步內容 → 即時更新" was off, or one
+     * whose retries ran out. Called from each of
+     * [org.ntust.app.tigerduck.auth.AuthService]'s sign-in paths (a fresh
+     * login, the v2→v3 migration and the silent relogin), after every
+     * successful full sync (`HomeBackendSync.pull`), and by [pullNow] when it
+     * finds an edit it must not overwrite.
+     *
+     * The relogin is one more reason this must never mark: a lapsed refresh
+     * token sends `AuthTokenManager.authHeader()` into
+     * `AuthService.attemptRelogin` from inside whatever request is being
+     * built, a pull's included, and a pull whose own relogin had marked the
+     * device would skip applying the document it had just read.
+     *
+     * Resets [consecutiveFailures] when it queues, for the same reason
+     * [markUnconfirmedAndPush] does.
+     */
+    fun pushIfUnconfirmed() {
+        if (!liveActivityPreferences.hasUnconfirmedSyncEdit) return
+        consecutiveFailures = 0
+        pending.trySend(generation.get())
+    }
+
+    /**
+     * Drops every queued push and clears the unconfirmed-edit flag. Called
+     * from `AuthService.logout()`: both belong to the account that is
+     * leaving, and neither may reach whoever signs in next. The flag would
+     * make that sign-in push this device's values into the new account's
+     * document, and a queued push — one still in its debounce, or a retry
+     * still in its backoff — would run under the new session. Mirrors iOS's
+     * `cancelNotificationSettingsPushes()`.
+     *
+     * A push already past its generation check is not stopped. Its next
+     * request is built after logout has wiped the tokens, so it goes out
+     * without one and fails, and the retry it schedules is dropped.
+     */
+    fun cancelPendingPushes() {
+        generation.incrementAndGet()
+        liveActivityPreferences.hasUnconfirmedSyncEdit = false
     }
 
     /**
@@ -637,11 +736,11 @@ class NotificationSettingsSync @Inject constructor(
     suspend fun pullNow(): Boolean = pullLiveActivitySettingsCatching(
         preferences = liveActivityPreferences,
         transport = transport,
-        cloudSyncEnabled = appPreferences.cloudSyncEnabled,
-        syncLiveActivity = appPreferences.syncLiveActivity,
-        isLoggedIn = authTokenManager.isLoggedIn,
+        cloudSyncEnabled = cloudSyncEnabled(),
+        syncLiveActivity = syncLiveActivity(),
+        isLoggedIn = isLoggedIn(),
         isLocalDirty = { liveActivityPreferences.hasUnconfirmedSyncEdit },
-        onLocalDirty = { enqueueLiveActivityPush() },
+        onLocalDirty = { pushIfUnconfirmed() },
         onFailure = { e -> Log.w(TAG, "pulling live_activity settings failed", e) },
     )
 
@@ -649,9 +748,9 @@ class NotificationSettingsSync @Inject constructor(
         val succeeded = pushLiveActivitySettings(
             local = liveActivityPreferences.syncSnapshot(),
             transport = transport,
-            cloudSyncEnabled = appPreferences.cloudSyncEnabled,
-            syncLiveActivity = appPreferences.syncLiveActivity,
-            isLoggedIn = authTokenManager.isLoggedIn,
+            cloudSyncEnabled = cloudSyncEnabled(),
+            syncLiveActivity = syncLiveActivity(),
+            isLoggedIn = isLoggedIn(),
         )
         // Only a push that actually landed clears the flag — a gate-closed
         // `false` or a thrown failure must leave it set, or the edit it is

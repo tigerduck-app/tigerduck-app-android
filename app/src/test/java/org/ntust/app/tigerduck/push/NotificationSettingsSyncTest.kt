@@ -4,7 +4,14 @@ import android.content.SharedPreferences
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -37,6 +44,7 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncValues
  * this module has neither Robolectric nor a mocking library — the same
  * constraint that shaped `applyOptOutIfAccepted` and `parseEnvelope`.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class NotificationSettingsSyncTest {
 
     /**
@@ -384,6 +392,25 @@ class NotificationSettingsSyncTest {
         assertTrue(transport.writtenDocuments.isEmpty())
     }
 
+    @Test
+    fun `signed out sends no request at all`() = runBlocking {
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(document = json(serverDocumentJson), revision = 7L)
+        )
+
+        val written = pushLiveActivitySettings(
+            local = local,
+            transport = transport,
+            cloudSyncEnabled = true,
+            syncLiveActivity = true,
+            isLoggedIn = false,
+        )
+
+        assertFalse("nothing was written, so this must not report success", written)
+        assertEquals("must not even read the document", 0, transport.readCount)
+        assertTrue(transport.writtenDocuments.isEmpty())
+    }
+
     // ── 5. The merge itself ───────────────────────────────────────────────
 
     /**
@@ -659,66 +686,230 @@ class NotificationSettingsSyncTest {
         )
     }
 
-    // ── 7. Reconcile gates: signing in / the sync switch turning on ────────
+    // ── 7. The push queue: which triggers may mark this device dirty ───────
     //
-    // These pin the gate behavior at the level this module can unit test --
-    // see pushLiveActivitySettings's KDoc. The production trigger itself
-    // (AuthService calling NotificationSettingsSync.enqueueLiveActivityPush()
-    // on sign-in; AppPreferences.syncLiveActivityChanged doing the same when
-    // the switch turns on) is glue that needs a real Context/Keystore to
-    // construct and is verified by reading the diff, the same way
-    // PushRegistrationService.onSignedIn()'s call sites are today.
+    // Driven through NotificationSettingsSync's real entry points on the real
+    // class, with virtual time standing in for its 250 ms debounce and its
+    // retry backoffs. AuthService itself needs a real Context and the Android
+    // Keystore to construct, so [Device.signIn] and [Device.logOut] replay
+    // what its sign-in paths and logout() do to this class, in the same
+    // order: the session appears, then pushIfUnconfirmed(); the session goes,
+    // then cancelPendingPushes().
+
+    /**
+     * One account's `notification` document on the backend. Every write
+     * lands (no conflicts), and [offline] makes every call throw the way
+     * `SettingsDocumentApiClient` does on an `IOException`.
+     */
+    private class FakeDocumentServer : SettingsDocumentTransport {
+        var document: JsonObject? = null
+        var offline = false
+        var beforeRead: () -> Unit = {}
+        var duringWrite: () -> Unit = {}
+        var reads = 0
+            private set
+        val writes = mutableListOf<JsonObject>()
+        private var revision = 0L
+
+        override suspend fun read(): SettingsDocumentEnvelope<JsonObject>? {
+            if (offline) throw SettingsDocumentApiException("read notification: offline")
+            reads++
+            beforeRead()
+            return document?.let { SettingsDocumentEnvelope(document = it, revision = revision) }
+        }
+
+        override suspend fun write(document: JsonObject, baseRevision: Long?): SettingsWriteResult<JsonObject> {
+            if (offline) throw SettingsDocumentApiException("write notification: offline")
+            duringWrite()
+            writes += document
+            this.document = document
+            revision++
+            return SettingsWriteResult.Written(revision)
+        }
+    }
+
+    /**
+     * One phone: its Live Update preferences, the real
+     * [NotificationSettingsSync] running on [scope], and one
+     * [FakeDocumentServer] per account, reached through whichever account is
+     * signed in at the moment a request goes out.
+     */
+    private class Device(scope: CoroutineScope) {
+        val prefs = LiveActivityPreferences(FakeLiveActivitySharedPreferences())
+        var syncLiveActivity = true
+        val syncLiveActivityChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        private var signedInAs: String? = null
+        private val servers = mutableMapOf<String, FakeDocumentServer>()
+
+        fun server(account: String): FakeDocumentServer = servers.getOrPut(account) { FakeDocumentServer() }
+
+        private fun session(): FakeDocumentServer =
+            server(checkNotNull(signedInAs) { "a request went out with no session" })
+
+        val sync = NotificationSettingsSync(
+            transport = object : SettingsDocumentTransport {
+                override suspend fun read(): SettingsDocumentEnvelope<JsonObject>? = session().read()
+
+                override suspend fun write(
+                    document: JsonObject,
+                    baseRevision: Long?,
+                ): SettingsWriteResult<JsonObject> = session().write(document, baseRevision)
+            },
+            liveActivityPreferences = prefs,
+            cloudSyncEnabled = { true },
+            syncLiveActivity = { syncLiveActivity },
+            isLoggedIn = { signedInAs != null },
+            syncLiveActivityChanged = syncLiveActivityChanged,
+            scope = scope,
+        )
+
+        /** Each of AuthService's sign-in paths: the v3 session exists, then the catch-up. */
+        fun signIn(account: String) {
+            signedInAs = account
+            sync.pushIfUnconfirmed()
+        }
+
+        /** AuthService.logout(): the tokens are wiped, then the queue is cancelled. */
+        fun logOut() {
+            signedInAs = null
+            sync.cancelPendingPushes()
+        }
+    }
+
+    /**
+     * Runs the queue until it has nothing left to do. `advanceUntilIdle()`
+     * cannot: it returns as soon as only [TestScope.backgroundScope] work is
+     * left, which is where the queue runs, so it would never run the queue at
+     * all — and every test below that expects nothing to happen would pass
+     * for that reason alone. An hour of virtual time is far past the
+     * debounce, both retry backoffs and every attempt between them.
+     */
+    private fun TestScope.runQueue() {
+        advanceTimeBy(60 * 60 * 1_000L)
+        runCurrent()
+    }
+
+    private fun FakeDocumentServer.lastClassLeadSeconds(): Int =
+        writes.last().getAsJsonObject("live_activity").get("class_preparing_lead_seconds").asInt
 
     @Test
-    fun `signing in lets a previously blocked push through`() = runBlocking {
-        val transport = RecordingTransport(existing = null)
+    fun `signing in with nothing pending leaves the account's document alone`() = runTest {
+        val device = Device(backgroundScope)
+        // What the user's iPhone wrote before this phone ever signed in.
+        device.server("A").document = json("""{"live_activity": {"class_preparing_lead_seconds": 3600}}""")
 
-        val blockedWhileLoggedOut = pushLiveActivitySettings(
-            local = local,
-            transport = transport,
-            cloudSyncEnabled = true,
-            syncLiveActivity = true,
-            isLoggedIn = false,
-        )
-        assertFalse("not signed in yet, so this must not report success", blockedWhileLoggedOut)
-        assertEquals("must not even read the document while signed out", 0, transport.readCount)
+        device.signIn("A")
+        runQueue()
 
-        val pushedAfterSignIn = pushLiveActivitySettings(
-            local = local,
-            transport = transport,
-            cloudSyncEnabled = true,
-            syncLiveActivity = true,
-            isLoggedIn = true,
-        )
-
-        assertTrue("the exact same call now succeeds once signed in", pushedAfterSignIn)
-        assertEquals(1, transport.writtenDocuments.size)
+        assertEquals("nothing was pending, so signing in must not even read the document", 0, device.server("A").reads)
+        assertTrue(device.server("A").writes.isEmpty())
+        // ...so the first pull adopts the iPhone's value, instead of reading
+        // back this phone's own default after a sign-in had pushed it.
+        device.sync.pullNow()
+        assertEquals(3_600L, device.prefs.classPreparingLeadTimeSec)
     }
 
     @Test
-    fun `turning the live-activity sync switch on lets a previously blocked push through`() = runBlocking {
-        val transport = RecordingTransport(existing = null)
-
-        val blockedWhileOff = pushLiveActivitySettings(
-            local = local,
-            transport = transport,
-            cloudSyncEnabled = true,
-            syncLiveActivity = false,
-            isLoggedIn = true,
-        )
-        assertFalse("the switch is off, so this must not report success", blockedWhileOff)
-        assertEquals("must not even read the document while the switch is off", 0, transport.readCount)
-
-        val pushedAfterSwitchOn = pushLiveActivitySettings(
-            local = local,
-            transport = transport,
-            cloudSyncEnabled = true,
-            syncLiveActivity = true,
-            isLoggedIn = true,
+    fun `signing in pushes an edit made while signed out`() = runTest {
+        val device = Device(backgroundScope)
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.sync.markUnconfirmedAndPush()
+        runQueue()
+        assertTrue(
+            "signed out, the push had nowhere to go, so the edit stays unconfirmed",
+            device.prefs.hasUnconfirmedSyncEdit,
         )
 
-        assertTrue("the exact same call now succeeds once the switch is on", pushedAfterSwitchOn)
-        assertEquals(1, transport.writtenDocuments.size)
+        device.signIn("A")
+        runQueue()
+
+        assertEquals("the pending edit must be pushed on sign-in", 1, device.server("A").writes.size)
+        assertEquals(1_800, device.server("A").lastClassLeadSeconds())
+        assertFalse("the push landed, so the edit is now confirmed", device.prefs.hasUnconfirmedSyncEdit)
+    }
+
+    @Test
+    fun `an edit still unconfirmed at logout is not pushed into the next account's document`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").offline = true
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.sync.markUnconfirmedAndPush()
+        runQueue() // the push fails, both retries fail, and the queue gives up
+        assertTrue(device.prefs.hasUnconfirmedSyncEdit)
+
+        device.logOut()
+        device.signIn("B")
+        runQueue()
+
+        assertTrue("account A's settings must not reach account B's document", device.server("B").writes.isEmpty())
+    }
+
+    @Test
+    fun `a push still in its debounce at logout is dropped, not sent as the next account`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.sync.markUnconfirmedAndPush()
+        runCurrent() // the queue has taken the push and is waiting out the debounce
+
+        device.logOut()
+        device.signIn("B")
+        runQueue()
+
+        assertTrue("a push queued as account A must not run as account B", device.server("B").writes.isEmpty())
+    }
+
+    @Test
+    fun `a retry still in its backoff at logout is dropped, not sent as the next account`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").offline = true
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.sync.markUnconfirmedAndPush()
+        advanceTimeBy(1_000) // the first attempt has failed; its retry waits 5 s
+
+        device.logOut()
+        device.signIn("B")
+        runQueue()
+
+        assertTrue("a retry scheduled as account A must not run as account B", device.server("B").writes.isEmpty())
+    }
+
+    @Test
+    fun `a relogin that fires inside a pull does not stop that pull from applying`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").document = json("""{"live_activity": {"class_preparing_lead_seconds": 3600}}""")
+        // A lapsed refresh token sends AuthTokenManager.authHeader() into
+        // AuthService.attemptRelogin while the pull's own request is being
+        // built, and the relogin ends with the catch-up every sign-in makes.
+        device.server("A").beforeRead = { device.sync.pushIfUnconfirmed() }
+
+        val pulled = device.sync.pullNow()
+        runQueue()
+
+        assertTrue(pulled)
+        assertEquals(
+            "the pull must apply what it read, not mistake its own relogin for a local edit",
+            3_600L,
+            device.prefs.classPreparingLeadTimeSec,
+        )
+        assertTrue("nothing was pending, so nothing is pushed", device.server("A").writes.isEmpty())
+    }
+
+    @Test
+    fun `turning live-activity sync on pushes this device's values even with nothing pending`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        runQueue()
+
+        device.syncLiveActivity = true
+        device.syncLiveActivityChanged.emit(Unit)
+        runQueue()
+
+        assertEquals("the switch turning on republishes this device's values", 1, device.server("A").writes.size)
     }
 
     // ── 8. Bounded retry after a push failure ───────────────────────────────

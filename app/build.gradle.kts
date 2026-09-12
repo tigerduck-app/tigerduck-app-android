@@ -266,6 +266,9 @@ dependencies {
     // KDoc. The real reference implementation shares the org.json.* package name
     // and shadows the stub on the unit-test classpath.
     testImplementation(libs.json)
+    // Virtual time for NotificationSettingsSync's push queue, whose debounce
+    // and retry backoffs are real delays (250 ms, 5 s, 30 s).
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

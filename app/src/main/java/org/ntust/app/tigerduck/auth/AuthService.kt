@@ -127,10 +127,13 @@ class AuthService @Inject constructor(
             )
             android.util.Log.i("AuthService", "auto-relogin: v3 JWT refreshed")
             runCatching { pushRegistration.onSignedIn() }
-            // Catch up any live_activity edit made while signed out (or while
-            // the v3 JWT had lapsed) — see NotificationSettingsSync's
-            // isLoggedIn gate.
-            notificationSettingsSync.enqueueLiveActivityPush()
+            // Deliver a live_activity edit that is still unconfirmed: one made
+            // while signed out, or while the v3 JWT had lapsed. With nothing
+            // pending this sends nothing, so this device's values never
+            // overwrite what another device wrote. It must not mark anything
+            // either, because this relogin can run from inside a pull's own
+            // request — see NotificationSettingsSync.pushIfUnconfirmed.
+            notificationSettingsSync.pushIfUnconfirmed()
             true
         } catch (e: Exception) {
             if (e is CancellationException) throw e
@@ -173,9 +176,8 @@ class AuthService @Inject constructor(
             android.util.Log.i("AuthService", "v3 migration: JWT obtained")
             runCatching { pushRegistration.onSignedIn() }
                 .onFailure { e -> if (e is CancellationException) throw e }
-            // Same catch-up push as attemptRelogin(), for the v2->v3 migration
-            // path too.
-            notificationSettingsSync.enqueueLiveActivityPush()
+            // Same catch-up as attemptRelogin(), for the v2->v3 migration.
+            notificationSettingsSync.pushIfUnconfirmed()
         }.onFailure { e ->
             if (e is CancellationException) throw e
             android.util.Log.w("AuthService", "v3 migration: login failed", e)
@@ -225,10 +227,8 @@ class AuthService @Inject constructor(
                 }
                 runCatching { pushRegistration.onSignedIn() }
                     .onFailure { e -> if (e is CancellationException) throw e }
-                // Same catch-up push as attemptRelogin(): a fresh SSO login is
-                // the third of the three sign-in paths that used to leave
-                // live_activity edits made while signed out unpushed forever.
-                notificationSettingsSync.enqueueLiveActivityPush()
+                // Same catch-up as attemptRelogin(), for a fresh SSO login.
+                notificationSettingsSync.pushIfUnconfirmed()
             }
 
             _isLoggingIn.value = false
@@ -299,6 +299,10 @@ class AuthService @Inject constructor(
         credentials.clearNtustCredentials()
         credentials.clearLibraryCredentials()
         authTokenManager.logout()
+        // A queued live_activity push, and an edit still waiting to be
+        // confirmed, both belong to the account that is leaving. Neither may
+        // reach whoever signs in next.
+        notificationSettingsSync.cancelPendingPushes()
         sessionManager.invalidateSession()
         bulletinReadStateStore.clear()
         _loginError.value = null

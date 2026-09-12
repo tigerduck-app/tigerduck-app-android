@@ -138,7 +138,7 @@ class LiveActivitySettingsViewModel @Inject constructor(
      */
     private fun emitAndSync() {
         emit()
-        notificationSettingsSync.enqueueLiveActivityPush()
+        notificationSettingsSync.markUnconfirmedAndPush()
     }
 
     private fun snapshot() = State(
