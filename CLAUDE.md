@@ -59,7 +59,10 @@ default is silently dropped and the field is null at runtime.
   `:app:copyGeneratedAndroidLocalizations` to refresh — that is the task that
   writes `app/src/main/res`. `:app:syncLocalizations` on its own only runs the
   submodule's generator into `app-translation/generated/android`, so calling it
-  alone finishes green while leaving `app/src/main/res` stale.
+  alone finishes green while leaving `app/src/main/res` stale. `:wear` has its
+  own, separate `:wear:copyGeneratedAndroidLocalizations` task that writes
+  `wear/src/main/res` — run both whenever the `app-translation` pin moves, or
+  the watch keeps shipping whatever text it last had.
 - **`name-abbr/` submodule must be present** — `verifyNameAbbrSubmodule`
   fails the build if it's missing. CI checks out submodules explicitly;
   don't drop `submodules: true` from new workflows.
