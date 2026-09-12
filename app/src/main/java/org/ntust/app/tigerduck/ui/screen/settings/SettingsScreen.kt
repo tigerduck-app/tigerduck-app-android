@@ -41,7 +41,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -371,35 +370,22 @@ fun SettingsScreen(
             }
 
             // --- Cloud Sync ---
+            // fdroid gets the same link as Play: TigerSync's essential-info
+            // sync always runs there, so the entry point is never hidden.
+            // The value label reads correctly on its own — cloudSyncEnabled
+            // is false at its source on fdroid (AppPreferences.kt), so this
+            // reads "Off" there, matching course-sync and server-push
+            // actually being off (see CloudSyncSettingsScreen).
             item { SectionHeader(stringResource(R.string.cloud_sync_title)) }
             item {
                 ContentCard {
-                    if (BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Text(
-                                stringResource(R.string.sync_fdroid_unavailable_title),
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                            )
-                            Text(
-                                stringResource(R.string.sync_fdroid_unavailable_body),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                            )
-                        }
-                    } else {
-                        SettingsLinkRowWithValue(
-                            label = stringResource(R.string.cloud_sync_title),
-                            value = if (viewModel.appState.cloudSyncEnabled)
-                                stringResource(R.string.settings_sync_status_on)
-                            else stringResource(R.string.settings_sync_status_off),
-                            onClick = onNavigateToCloudSync,
-                        )
-                    }
+                    SettingsLinkRowWithValue(
+                        label = stringResource(R.string.cloud_sync_title),
+                        value = if (viewModel.appState.cloudSyncEnabled)
+                            stringResource(R.string.settings_sync_status_on)
+                        else stringResource(R.string.settings_sync_status_off),
+                        onClick = onNavigateToCloudSync,
+                    )
                 }
             }
 
@@ -417,8 +403,10 @@ fun SettingsScreen(
                         // non-fdroid flavors (its FCM pipeline isn't compiled
                         // into fdroid). It's gone: the opt-out toggle it led
                         // to now lives on the TigerSync settings screen
-                        // itself (see CloudSyncSettingsScreen), which is
-                        // already fdroid-gated at the Cloud Sync entry above.
+                        // itself (see CloudSyncSettingsScreen). fdroid can
+                        // open that screen too — the entry point above is no
+                        // longer hidden — so the toggle is greyed out and off
+                        // there instead of the whole screen being unreachable.
                     }
                 }
             }

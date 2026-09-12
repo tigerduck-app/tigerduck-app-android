@@ -61,12 +61,25 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import android.text.format.DateUtils
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.push.PushDiagnostic
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+
+/**
+ * F-Droid ships without Google Play Services and so cannot run TigerSync's
+ * course-sync or server-push pipeline — see `effectiveCloudSyncEnabled` /
+ * `effectiveServerPushOptedOut`, which force those two off at their source
+ * regardless of what is stored. This screen additionally greys out and
+ * relabels the two toggles that would otherwise claim to be interactive, and
+ * hides the status rows that can never report anything real there (no FCM
+ * token ever arrives, so device registration never completes).
+ */
+private val isFdroidFlavor: Boolean
+    get() = BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)
 
 /**
  * Whether any 同步內容 switch that gives TigerSync something to do for this
@@ -96,7 +109,9 @@ internal fun hasSyncContentLeft(
  * toggle (nested "同步內容" entry when on), the server-push opt-out (moved
  * here from the now-removed ServerPushScreen — see
  * [SubscriptionSettingsScreen][org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsScreen]'s
- * comment for that history), and the TigerSync status card.
+ * comment for that history), and the TigerSync status card. On fdroid the
+ * essential-info row is unchanged, but the course-sync and server-push rows
+ * are greyed out and off — see [isFdroidFlavor].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -227,12 +242,21 @@ fun CloudSyncSettingsScreen(
             }
 
             // ── 同步課程資訊 (the pre-existing cloudSyncEnabled master) ───
+            // `checked` needs no fdroid check of its own: `syncEnabled` is
+            // seeded from `viewModel.appState.cloudSyncEnabled`, which reads
+            // false on fdroid at its source (AppPreferences.kt). `enabled`
+            // and the footer are the only fdroid-specific pieces here.
             item {
                 ContentCard {
                     ToggleWithFooterRow(
                         label = stringResource(R.string.sync_courses_toggle),
-                        footer = stringResource(R.string.sync_courses_footer),
+                        footer = if (isFdroidFlavor) {
+                            stringResource(R.string.sync_fdroid_unavailable_title)
+                        } else {
+                            stringResource(R.string.sync_courses_footer)
+                        },
                         checked = syncEnabled,
+                        enabled = !isFdroidFlavor,
                         onCheckedChange = {
                             if (it && !syncEnabled) {
                                 if (viewModel.prefs.syncCourses) viewModel.markCategoryReenabled("courses")
@@ -290,13 +314,22 @@ fun CloudSyncSettingsScreen(
             }
 
             // ── 接收額外伺服器推播 (moved from the removed ServerPushScreen) ─
+            // `checked` needs no fdroid check of its own, matching the
+            // course-sync row above: `serverPushOn` mirrors
+            // PushRegistrationService.isServerPushOptedOut, which reads
+            // fdroid as opted out at its source regardless of what is
+            // stored.
             item {
                 ContentCard {
                     ToggleWithFooterRow(
                         label = stringResource(R.string.settings_server_push_label),
-                        footer = stringResource(R.string.settings_server_push_footer),
+                        footer = if (isFdroidFlavor) {
+                            stringResource(R.string.sync_fdroid_unavailable_title)
+                        } else {
+                            stringResource(R.string.settings_server_push_footer)
+                        },
                         checked = serverPushOn,
-                        enabled = !isTogglingServerPush,
+                        enabled = !isFdroidFlavor && !isTogglingServerPush,
                         onCheckedChange = viewModel::setServerPushOn,
                     )
                 }
@@ -426,53 +459,61 @@ private fun SyncStatusCard(
                     okText = stringResource(R.string.permission_granted),
                     badText = stringResource(R.string.bulletin_push_status_denied),
                 )
-                Spacer(Modifier.height(8.dp))
-                StatusRow(
-                    label = stringResource(R.string.push_server_status_device_registration),
-                    ok = diagnostic.isRegistered,
-                    okText = stringResource(R.string.bulletin_push_status_registration_done),
-                    badText = if (diagnostic.hasFcmToken) {
-                        stringResource(R.string.push_server_status_waiting_token)
-                    } else {
-                        stringResource(R.string.bulletin_push_status_registration_pending)
-                    },
-                )
-                diagnostic.lastRegistrationAt?.let { ts ->
-                    Spacer(Modifier.height(10.dp))
-                    LabeledText(
-                        label = stringResource(R.string.push_server_last_registration),
-                        value = DateUtils.getRelativeTimeSpanString(ts, System.currentTimeMillis(), DateUtils.SECOND_IN_MILLIS).toString(),
+                // Device registration, its timestamps, the latest error, and
+                // Sync Now are all downstream of an FCM token this build
+                // never gets, so on fdroid they can never report anything
+                // but "pending" forever — hidden outright rather than shown
+                // stuck. The permission row above and the device ID below
+                // are unrelated to registration and stay on every flavor.
+                if (!isFdroidFlavor) {
+                    Spacer(Modifier.height(8.dp))
+                    StatusRow(
+                        label = stringResource(R.string.push_server_status_device_registration),
+                        ok = diagnostic.isRegistered,
+                        okText = stringResource(R.string.bulletin_push_status_registration_done),
+                        badText = if (diagnostic.hasFcmToken) {
+                            stringResource(R.string.push_server_status_waiting_token)
+                        } else {
+                            stringResource(R.string.bulletin_push_status_registration_pending)
+                        },
                     )
-                }
-                diagnostic.lastSyncAt?.let { ts ->
-                    Spacer(Modifier.height(10.dp))
-                    LabeledText(
-                        label = stringResource(R.string.push_server_last_sync),
-                        value = DateUtils.getRelativeTimeSpanString(ts, System.currentTimeMillis(), DateUtils.SECOND_IN_MILLIS).toString(),
-                    )
-                }
-                diagnostic.lastError?.let { msg ->
-                    Spacer(Modifier.height(10.dp))
-                    LabeledText(
-                        label = stringResource(R.string.push_server_latest_error),
-                        value = msg,
-                        valueColor = MaterialTheme.colorScheme.error,
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-                Button(
-                    onClick = onSyncNow,
-                    enabled = !isSyncing,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    if (isSyncing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary,
+                    diagnostic.lastRegistrationAt?.let { ts ->
+                        Spacer(Modifier.height(10.dp))
+                        LabeledText(
+                            label = stringResource(R.string.push_server_last_registration),
+                            value = DateUtils.getRelativeTimeSpanString(ts, System.currentTimeMillis(), DateUtils.SECOND_IN_MILLIS).toString(),
                         )
-                    } else {
-                        Text(stringResource(R.string.cloud_sync_sync_now))
+                    }
+                    diagnostic.lastSyncAt?.let { ts ->
+                        Spacer(Modifier.height(10.dp))
+                        LabeledText(
+                            label = stringResource(R.string.push_server_last_sync),
+                            value = DateUtils.getRelativeTimeSpanString(ts, System.currentTimeMillis(), DateUtils.SECOND_IN_MILLIS).toString(),
+                        )
+                    }
+                    diagnostic.lastError?.let { msg ->
+                        Spacer(Modifier.height(10.dp))
+                        LabeledText(
+                            label = stringResource(R.string.push_server_latest_error),
+                            value = msg,
+                            valueColor = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = onSyncNow,
+                        enabled = !isSyncing,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (isSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                            )
+                        } else {
+                            Text(stringResource(R.string.cloud_sync_sync_now))
+                        }
                     }
                 }
                 if (!permissionGranted) {
