@@ -356,7 +356,7 @@ fun CloudSyncSettingsScreen(
                         LinkRow(
                             label = stringResource(R.string.settings_learn_more_backend),
                             onClick = {
-                                val intent = Intent(Intent.ACTION_VIEW, "https://tigerduck.app/learn-more-about-backend".toUri())
+                                val intent = Intent(Intent.ACTION_VIEW, "https://tigerduck.app/tigersync".toUri())
                                 context.startActivity(intent)
                             },
                         )

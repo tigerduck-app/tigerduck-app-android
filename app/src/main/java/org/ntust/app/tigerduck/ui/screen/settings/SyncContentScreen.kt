@@ -243,7 +243,7 @@ fun SyncContentScreen(
                         }
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SyncToggleRow(
-                            stringResource(R.string.cloud_sync_courses),
+                            stringResource(R.string.sync_content_class_table_all),
                             syncCourses,
                             enabled = classTableOn,
                             indent = true,
