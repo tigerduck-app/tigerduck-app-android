@@ -16,6 +16,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -26,6 +27,7 @@ import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CourseNameScale
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.data.preferences.effectiveCloudSyncEnabled
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
@@ -34,6 +36,25 @@ import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * What [AppState.cloudSyncEnabled]'s setter should actually apply when asked
+ * to write [requested] on [flavor] — the writer-side mirror of
+ * [effectiveCloudSyncEnabled]. fdroid ships without Google Play Services and
+ * can never run TigerSync's course-sync / server-push pipeline regardless of
+ * what is stored (see that function's doc); [effectiveCloudSyncEnabled]
+ * already guarantees every *reader* agrees on that. Without this, a future
+ * caller setting [AppState.cloudSyncEnabled] to `true` on fdroid would make
+ * every reader of it see sync as on, since the setter otherwise just mirrors
+ * whatever it is given. A request to turn it *off* always takes effect, on
+ * every flavor.
+ *
+ * [flavor] defaults to [BuildConfig.FLAVOR] for the one production call
+ * site; tests pass it explicitly, the same reason
+ * [effectiveCloudSyncEnabled] does.
+ */
+internal fun effectiveCloudSyncWrite(requested: Boolean, flavor: String = BuildConfig.FLAVOR): Boolean =
+    effectiveCloudSyncEnabled(storedValue = requested, flavor = flavor)
 
 @Singleton
 class AppState @Inject constructor(
@@ -364,9 +385,10 @@ class AppState @Inject constructor(
     var cloudSyncEnabled: Boolean
         get() = cloudSyncEnabledState
         set(value) {
-            if (cloudSyncEnabledState == value) return
-            cloudSyncEnabledState = value
-            prefs.cloudSyncEnabled = value
+            val effective = effectiveCloudSyncWrite(requested = value)
+            if (cloudSyncEnabledState == effective) return
+            cloudSyncEnabledState = effective
+            prefs.cloudSyncEnabled = effective
         }
 
     private var disableScreenCaptureProtectionState by
