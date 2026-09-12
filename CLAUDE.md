@@ -4,7 +4,8 @@ Multi-module Gradle project: `:app` (phone), `:wear` (watch OS), `:shared`
 (domain models reused on both). Phone has `play` and `fdroid` flavors;
 `:wear` is play-only. Localization strings come from the `app-translation/`
 submodule and are generated via `tools/localization/sync_localizations.py`
-(also wired into the `syncLocalizations` Gradle task).
+(the `syncLocalizations` Gradle task), then copied into `app/src/main/res` by
+`copyGeneratedAndroidLocalizations`, which depends on it.
 
 For human-facing contributor guidance see `CONTRIBUTING.md`. This file
 exists to surface project-specific invariants AI agents have to know
@@ -54,8 +55,11 @@ default is silently dropped and the field is null at runtime.
   `app/src/play/`. Don't sprinkle Play-Services imports into `main/`.
 - **Localization strings are generated** from the `app-translation/` submodule.
   Edit the JSON in the submodule, not `app/src/main/res/values*/strings.xml`
-  (those are regenerated and would be clobbered). Run `:app:syncLocalizations`
-  to refresh.
+  (those are regenerated and would be clobbered). Run
+  `:app:copyGeneratedAndroidLocalizations` to refresh — that is the task that
+  writes `app/src/main/res`. `:app:syncLocalizations` on its own only runs the
+  submodule's generator into `app-translation/generated/android`, so calling it
+  alone finishes green while leaving `app/src/main/res` stale.
 - **`name-abbr/` submodule must be present** — `verifyNameAbbrSubmodule`
   fails the build if it's missing. CI checks out submodules explicitly;
   don't drop `submodules: true` from new workflows.
