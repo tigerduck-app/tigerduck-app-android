@@ -98,6 +98,33 @@ class RegistrationRetryTest {
     }
 
     @Test
+    fun `a sign-in that lands inside the unregister DELETE still owes a registration`() {
+        // unregister() clears the debt and the streak before its DELETE goes
+        // out and latches isUnregistering until it comes back, so this is the
+        // bookkeeping a sign-out-then-straight-back-in finds.
+        val duringDelete = RegistrationAttemptState(registrationOwed = false, consecutiveFailures = 0)
+        assertFalse(
+            "nothing is owed while the DELETE is on the wire",
+            due(registrationOwed = duringDelete.registrationOwed),
+        )
+
+        val request = duringDelete.onRegistrationRequested(isUnregistering = true)
+
+        assertFalse("a POST now would re-announce the row the DELETE is removing", request.startNow)
+        assertTrue(
+            "but the request has to survive the window it cannot be served in",
+            request.state.registrationOwed,
+        )
+        assertTrue(
+            "so the first trigger after the DELETE registers the device",
+            due(
+                registrationOwed = request.state.registrationOwed,
+                consecutiveFailures = request.state.consecutiveFailures,
+            ),
+        )
+    }
+
+    @Test
     fun `a retry is refused while a registration is already pending`() {
         // What "pending" means -- debounceJob spanning the 250 ms coalescing
         // window and the POST behind it -- lives in

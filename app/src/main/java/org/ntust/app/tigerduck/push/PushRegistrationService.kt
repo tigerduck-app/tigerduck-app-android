@@ -174,8 +174,10 @@ class PushRegistrationService @Inject constructor(
 
     private suspend fun scheduleRegister() {
         mutex.withLock {
-            if (isUnregistering) return@withLock
-            registrationOwed = true
+            val request = RegistrationAttemptState(registrationOwed, consecutiveRegistrationFailures)
+                .onRegistrationRequested(isUnregistering)
+            registrationOwed = request.state.registrationOwed
+            if (!request.startNow) return@withLock
             debounceJob?.cancel()
             debounceJob = scope.launch {
                 // Coalesce the token + sign-in arrivals so we only POST once.
@@ -683,6 +685,31 @@ internal fun RegistrationAttemptState.afterRegistrationAttempt(
     countsAsFailure -> copy(consecutiveFailures = consecutiveFailures + 1)
     else -> this
 }
+
+/**
+ * What a registration request does: the bookkeeping it leaves behind, and
+ * whether it may start a POST right now.
+ */
+internal data class RegistrationRequest(
+    val state: RegistrationAttemptState,
+    val startNow: Boolean,
+)
+
+/**
+ * What [PushRegistrationService.scheduleRegister] does with a registration
+ * request — a sign-in, an FCM token arriving, or consent landing — given
+ * whether an unregister's DELETE is still in flight.
+ *
+ * [RegistrationRequest.startNow] is false for the duration of that DELETE:
+ * a POST then would re-announce the `user_devices` row the DELETE is
+ * removing under `anon-$deviceId`. The debt is recorded either way, which is
+ * the whole point — a user who signs out and straight back in inside that
+ * window has asked for a registration that cannot be served yet, and unless
+ * the request is remembered the window swallows it, leaving neither a
+ * registration nor anything for [isRegistrationRetryDue] to pick up.
+ */
+internal fun RegistrationAttemptState.onRegistrationRequested(isUnregistering: Boolean): RegistrationRequest =
+    RegistrationRequest(state = copy(registrationOwed = true), startNow = !isUnregistering)
 
 /**
  * How long the automatic registration retry waits after the last attempt:
