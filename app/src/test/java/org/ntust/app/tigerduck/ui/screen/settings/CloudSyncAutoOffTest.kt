@@ -14,7 +14,7 @@ class CloudSyncAutoOffTest {
     fun `with every sync content switch off, TigerSync has nothing left to do`() {
         assertFalse(
             "with nothing left to sync, TigerSync must switch itself off",
-            hasSyncContentLeft(false, false, false, false, syncLiveActivity = false),
+            hasSyncContentLeft(false, false, false, false, syncAssignmentReminders = false, syncLiveActivity = false),
         )
     }
 
@@ -27,16 +27,41 @@ class CloudSyncAutoOffTest {
                 syncCourseColors = false,
                 syncCourseNames = false,
                 syncAssignments = false,
+                syncAssignmentReminders = false,
                 syncLiveActivity = true,
+            ),
+        )
+    }
+
+    /**
+     * `syncAssignmentReminders` now carries this device's assignment-reminder
+     * `enabled`/offsets through the shared `notification` document
+     * (`NotificationSettingsSync`), which needs TigerSync on — the same
+     * reason `syncLiveActivity` alone already kept it on above. Before that
+     * sync existed, this switch gave TigerSync nothing to do and was
+     * deliberately excluded; the assertion below is the opposite of what
+     * that earlier, now-incorrect version of this function would return.
+     */
+    @Test
+    fun `assignment-reminder sync alone keeps TigerSync on`() {
+        assertTrue(
+            "a user who keeps only 作業到期提醒 sync must be able to keep TigerSync on for it",
+            hasSyncContentLeft(
+                syncCourses = false,
+                syncCourseColors = false,
+                syncCourseNames = false,
+                syncAssignments = false,
+                syncAssignmentReminders = true,
+                syncLiveActivity = false,
             ),
         )
     }
 
     @Test
     fun `each course and assignment switch alone still keeps TigerSync on`() {
-        assertTrue("syncCourses", hasSyncContentLeft(true, false, false, false, false))
-        assertTrue("syncCourseColors", hasSyncContentLeft(false, true, false, false, false))
-        assertTrue("syncCourseNames", hasSyncContentLeft(false, false, true, false, false))
-        assertTrue("syncAssignments", hasSyncContentLeft(false, false, false, true, false))
+        assertTrue("syncCourses", hasSyncContentLeft(true, false, false, false, false, false))
+        assertTrue("syncCourseColors", hasSyncContentLeft(false, true, false, false, false, false))
+        assertTrue("syncCourseNames", hasSyncContentLeft(false, false, true, false, false, false))
+        assertTrue("syncAssignments", hasSyncContentLeft(false, false, false, true, false, false))
     }
 }

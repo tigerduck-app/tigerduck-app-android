@@ -86,21 +86,29 @@ private val isFdroidFlavor: Boolean
  * device is still on. When none is, the TigerSync screen switches TigerSync
  * itself off (`refreshSyncStates` in [CloudSyncSettingsScreen]).
  *
- * `syncLiveActivity` counts: it gates this device's Live Update settings
- * sync, which also needs TigerSync on, so a user who keeps only 即時更新 must
- * be able to keep TigerSync on for it. `syncAssignmentReminders` does not
- * count: nothing on this device reads it (Android schedules its assignment
- * reminders locally), and the backend reads it only when delivering
- * reminders to iPhone and iPad, so on its own it gives TigerSync nothing to
- * do here.
+ * `syncLiveActivity` and `syncAssignmentReminders` both count, for the same
+ * reason: each gates this device's own settings sync through the shared
+ * `notification` document (`NotificationSettingsSync`), which needs
+ * TigerSync (`cloudSyncEnabled`) on regardless of whether `syncAssignments`
+ * (the assignment *data* category) or `syncCourses`/`syncCourseColors`/
+ * `syncCourseNames` are. A user who keeps only 作業到期提醒 or only 即時更新
+ * must be able to keep TigerSync on for it — `syncAssignmentReminders` used
+ * to be excluded here because nothing on this device read it (Android
+ * scheduled its own reminders locally and the backend only consulted it for
+ * iPhone/iPad delivery); it now also carries this device's `enabled` +
+ * offsets to and from the shared document, so the same reasoning
+ * `syncLiveActivity` already had applies to it too.
  */
 internal fun hasSyncContentLeft(
     syncCourses: Boolean,
     syncCourseColors: Boolean,
     syncCourseNames: Boolean,
     syncAssignments: Boolean,
+    syncAssignmentReminders: Boolean,
     syncLiveActivity: Boolean,
-): Boolean = syncCourses || syncCourseColors || syncCourseNames || syncAssignments || syncLiveActivity
+): Boolean =
+    syncCourses || syncCourseColors || syncCourseNames || syncAssignments ||
+        syncAssignmentReminders || syncLiveActivity
 
 /**
  * TigerSync settings — spec §6. Root-level rows, each a [ToggleWithFooterRow]:
@@ -143,6 +151,7 @@ fun CloudSyncSettingsScreen(
             syncCourseColors = syncCourseColors,
             syncCourseNames = syncCourseNames,
             syncAssignments = syncAssignments,
+            syncAssignmentReminders = viewModel.prefs.syncAssignmentReminders,
             syncLiveActivity = viewModel.prefs.syncLiveActivity,
         )
         if (syncEnabled && !anythingLeftToSync) {
