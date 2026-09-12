@@ -18,6 +18,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.data.preferences.effectiveCloudSyncEnabled
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncValues
 
@@ -409,6 +410,52 @@ class NotificationSettingsSyncTest {
         assertFalse("nothing was written, so this must not report success", written)
         assertEquals("must not even read the document", 0, transport.readCount)
         assertTrue(transport.writtenDocuments.isEmpty())
+    }
+
+    /**
+     * Ties the fdroid gate to this class's actual push path: even with the
+     * *stored* preference on, signed in, and live-activity sync on,
+     * [effectiveCloudSyncEnabled] forces the boolean this function gates on
+     * to false on fdroid, so [NotificationSettingsSync] (whose `@Inject`
+     * constructor wires `cloudSyncEnabled = { appPreferences.cloudSyncEnabled }`)
+     * never pushes there.
+     */
+    @Test
+    fun `fdroid sends no push at all even with a stored preference of true`() = runBlocking {
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(document = json(serverDocumentJson), revision = 7L)
+        )
+
+        val written = pushLiveActivitySettings(
+            local = local,
+            transport = transport,
+            cloudSyncEnabled = effectiveCloudSyncEnabled(storedValue = true, flavor = "fdroid"),
+            syncLiveActivity = true,
+            isLoggedIn = true,
+        )
+
+        assertFalse("fdroid can never push, whatever is stored", written)
+        assertEquals("must not even read the document", 0, transport.readCount)
+        assertTrue(transport.writtenDocuments.isEmpty())
+    }
+
+    /** The pull-side mirror of the push test above. */
+    @Test
+    fun `fdroid pulls nothing at all even with a stored preference of true`() = runBlocking {
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(document = json(serverDocumentJson), revision = 7L)
+        )
+
+        val result = pullLiveActivitySettings(
+            preferences = freshPreferences(),
+            transport = transport,
+            cloudSyncEnabled = effectiveCloudSyncEnabled(storedValue = true, flavor = "fdroid"),
+            syncLiveActivity = true,
+            isLoggedIn = true,
+        )
+
+        assertFalse("fdroid can never pull, whatever is stored", result)
+        assertEquals("must not even read the document", 0, transport.readCount)
     }
 
     // ── 5. The merge itself ───────────────────────────────────────────────

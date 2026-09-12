@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
@@ -21,6 +22,31 @@ import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * The effective value of the `cloudSyncEnabled` preference: [storedValue] on
+ * every flavor except fdroid, which ships without Google Play Services and
+ * can never run TigerSync's course-sync / server-push pipeline regardless of
+ * what is stored. [AppPreferences.cloudSyncEnabled]'s getter is the one call
+ * site that applies this, so every reader — direct (`PushApiClient`,
+ * `NotificationSettingsSync`'s gates, `HomeBackendSync`, ...) or through
+ * [org.ntust.app.tigerduck.ui.AppState.cloudSyncEnabled], which seeds its
+ * in-memory mirror from this same getter — agrees on fdroid without each one
+ * re-deriving the flavor check itself.
+ *
+ * [flavor] defaults to [BuildConfig.FLAVOR] for that one production call
+ * site. Tests pass it explicitly instead: [AppPreferences] can't be
+ * constructed on the plain JVM this module's tests run on (its constructor
+ * calls the real `Context.getSharedPreferences`, and there is neither
+ * Robolectric nor a mocking library here), so this pure function — not the
+ * getter itself — is what a unit test exercises. Taking the flavor as a
+ * parameter also means the same test passes under both
+ * `testPlayDebugUnitTest` and `testFdroidDebugUnitTest`, instead of a literal
+ * expectation on `BuildConfig.FLAVOR` that would only be true under one of
+ * them.
+ */
+fun effectiveCloudSyncEnabled(storedValue: Boolean, flavor: String = BuildConfig.FLAVOR): Boolean =
+    storedValue && !flavor.equals("fdroid", ignoreCase = true)
 
 @Singleton
 class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
@@ -87,8 +113,14 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     // without interaction. The 2.0.1 "What's new" entry names cross-device
     // sync and says where to turn it off, which is what makes that
     // defensible rather than silent.
+    //
+    // The getter runs the stored value through effectiveCloudSyncEnabled, so
+    // fdroid reads false here no matter what is stored — see that function's
+    // doc. The setter still writes the raw value: it is the user's stored
+    // choice, not the effective one, and every reader goes through the
+    // getter anyway.
     var cloudSyncEnabled: Boolean
-        get() = prefs.getBoolean("cloudSyncEnabled", true)
+        get() = effectiveCloudSyncEnabled(prefs.getBoolean("cloudSyncEnabled", true))
         set(value) = prefs.edit().putBoolean("cloudSyncEnabled", value).apply()
 
     var syncCourses: Boolean
