@@ -54,6 +54,7 @@
 
 package org.ntust.app.tigerduck.push
 
+import android.os.Looper
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonArray
@@ -67,6 +68,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -1207,7 +1209,8 @@ class NotificationSettingsSync internal constructor(
      * values are written but whose flag is not set yet. That check and the
      * writes after it have no suspension point between them, and every
      * caller runs this on the main thread, where the settings screens make
-     * their edits, so no edit can land between the two either.
+     * their edits, so no edit can land between the two either — enforced by
+     * [requireMainThread] rather than left to a caller to remember.
      *
      * Both sections are additionally abandoned, applying nothing, if the
      * account changed while their read was on the wire — the generation
@@ -1243,6 +1246,7 @@ class NotificationSettingsSync internal constructor(
      * kill.
      */
     suspend fun pullNow(): Boolean {
+        requireMainThread()
         var assignmentsChanged = false
         val attempted = documentLock.withLock {
             // The account this pull belongs to, captured alongside the local
@@ -1307,6 +1311,35 @@ class NotificationSettingsSync internal constructor(
 
     private fun assignmentValues() =
         AssignmentSyncValues(enabled = assignmentStore.enabled, offsets = assignmentStore.offsets)
+
+    /**
+     * Fails loudly, in debug builds, if [pullNow] runs anywhere but the main
+     * thread.
+     *
+     * [pullNow]'s dirty check and the writes that follow it have no
+     * suspension point between them, which makes them atomic against
+     * anything else on the *same* thread — and both settings screens make
+     * their edits on the main thread. Against a second thread they are not
+     * atomic at all, and [documentLock] does not help: a queued push takes
+     * it, a user's tap does not. All three call sites are on
+     * `Dispatchers.Main` today; one added later from `BackgroundSyncWorker`,
+     * or straight off the application scope (whose dispatcher is `Default`),
+     * would silently reopen that window. Hence a check rather than the KDoc
+     * line this used to be.
+     *
+     * Debug only — a release build degrades rather than crashing over a
+     * settings sync. This module's plain-JVM unit tests have no Looper at
+     * all (`testOptions.unitTests.isReturnDefaultValues`), so the check
+     * stands down there; they drive [pullNow] from a single test thread,
+     * which is the property being protected.
+     */
+    private fun requireMainThread() {
+        if (!BuildConfig.DEBUG) return
+        val mainLooper = Looper.getMainLooper() ?: return
+        check(Looper.myLooper() === mainLooper) {
+            "pullNow() must run on the main thread, not ${Thread.currentThread().name}"
+        }
+    }
 
     /**
      * Pushes whichever of the two sections this class owns is actually
