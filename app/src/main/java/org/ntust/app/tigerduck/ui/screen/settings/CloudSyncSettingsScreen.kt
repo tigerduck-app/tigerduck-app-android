@@ -289,7 +289,13 @@ fun CloudSyncSettingsScreen(
             // that state is still true, so it stays. Re-added per
             // task-4-review.md Important 2 after being dropped on the false
             // premise that no all-off state remained reachable.
-            if (!syncEnabled) {
+            //
+            // Excluded on fdroid: `syncEnabled` is always false there, so
+            // the note would be permanent, and it would be wrong regardless
+            // — 取得必要資訊 stays checked and active just above it, and a
+            // signed-in device still syncs its locale to the backend (see
+            // PushRegistrationService.syncLocalePreference).
+            if (!syncEnabled && !isFdroidFlavor) {
                 item {
                     ContentCard {
                         Row(
