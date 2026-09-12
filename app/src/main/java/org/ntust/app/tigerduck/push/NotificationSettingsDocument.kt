@@ -15,17 +15,22 @@ import com.google.gson.annotations.SerializedName
 // `live_activity` is new in v2.1.0 — every document written before it exists
 // lacks the key entirely, so a non-null type here (even with a Kotlin
 // default) would read back null anyway via Gson's Unsafe-allocate path and
-// crash the first caller that assumes otherwise. `assignments`/`courses`
-// are owned by iOS/the backend (§4.2) — Android only round-trips them so a
-// write here never drops a section another platform wrote — so they get
-// the same treatment rather than an assumed-present non-null type.
+// crash the first caller that assumes otherwise. `courses` is owned by
+// iOS/the backend (§4.2) — Android only round-trips it so a write here
+// never drops what another platform wrote — so it gets the same treatment
+// rather than an assumed-present non-null type.
 
 /**
  * The `notification` settings document.
  *
- * Android only ever mutates [liveActivity]; [assignments] and [courses] are
- * read back and re-sent unchanged so a write from this client never
- * clobbers what iOS/the backend wrote there.
+ * Android mutates [assignments] and [liveActivity] (each gated on its own
+ * "同步內容" switch, `AppPreferences.syncAssignmentReminders` /
+ * `syncLiveActivity`, plus `cloudSyncEnabled`); [courses] is read back and
+ * re-sent unchanged so a write from this client never clobbers what
+ * iOS/the backend wrote there. See `NotificationSettingsSync` for the
+ * read-modify-write cycle that keeps every section this client does not
+ * own — [courses], and any key a newer build of either platform adds —
+ * untouched.
  */
 data class NotificationSettingsDocument(
     @SerializedName("assignments") val assignments: AssignmentsSection? = null,
@@ -33,10 +38,22 @@ data class NotificationSettingsDocument(
     @SerializedName("live_activity") val liveActivity: LiveActivitySection? = null,
 )
 
-/** Assignment-due reminders — iOS/iPadOS only (§4.2). Android never writes this section. */
+/**
+ * Assignment due-date reminders (§4.2), shared with iOS/iPadOS.
+ *
+ * [reminderOffsetsMinutes] is the lossless, authoritative mirror of the
+ * selected offsets (sub-hour ones included) — a reader that knows this key
+ * prefers it over [reminderOffsetsHours] whenever it is a list, including an
+ * empty one (`server/push/reminders.py:_offsets_hours`). Without this field,
+ * an Android write that only knew [reminderOffsetsHours] would replace the
+ * whole `assignments` section update it sends with the hours-only shape,
+ * losing the sub-hour precision an iPhone wrote. [reminderOffsetsHours]
+ * stays for readers older than this field.
+ */
 data class AssignmentsSection(
     @SerializedName("enabled") val enabled: Boolean? = null,
     @SerializedName("reminder_offsets_hours") val reminderOffsetsHours: List<Int>? = null,
+    @SerializedName("reminder_offsets_minutes") val reminderOffsetsMinutes: List<Int>? = null,
 )
 
 /** Course-start reminders. Android never writes this section (§4.2). */

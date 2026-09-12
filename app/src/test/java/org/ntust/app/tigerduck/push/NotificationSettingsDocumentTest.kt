@@ -23,7 +23,11 @@ class NotificationSettingsDocumentTest {
 
     private val fullJson = """
         {
-          "assignments": { "enabled": true, "reminder_offsets_hours": [24, 2] },
+          "assignments": {
+            "enabled": true,
+            "reminder_offsets_hours": [24, 2],
+            "reminder_offsets_minutes": [1440, 120, 30]
+          },
           "courses":     { "enabled": true, "reminder_offsets_minutes": [10] },
           "live_activity": {
             "show_class_preparing": true,
@@ -48,6 +52,7 @@ class NotificationSettingsDocumentTest {
         // reading/writing nothing the server understands.
         assertEquals(true, decoded.assignments?.enabled)
         assertEquals(listOf(24, 2), decoded.assignments?.reminderOffsetsHours)
+        assertEquals(listOf(1440, 120, 30), decoded.assignments?.reminderOffsetsMinutes)
         assertEquals(true, decoded.courses?.enabled)
         assertEquals(listOf(10), decoded.courses?.reminderOffsetsMinutes)
         assertEquals(true, decoded.liveActivity?.showClassPreparing)
@@ -73,6 +78,10 @@ class NotificationSettingsDocumentTest {
         val decoded = gson.fromJson(legacyJson, NotificationSettingsDocument::class.java)
         assertNull(decoded.liveActivity)
         assertNotNull(decoded.assignments)
+        assertNull(
+            "a client older than reminder_offsets_minutes never wrote it -- must decode as absent, not crash",
+            decoded.assignments?.reminderOffsetsMinutes,
+        )
         assertNotNull(decoded.courses)
     }
 
@@ -92,6 +101,7 @@ class NotificationSettingsDocumentTest {
             AssignmentsSection::class to mapOf(
                 "enabled" to "enabled",
                 "reminderOffsetsHours" to "reminder_offsets_hours",
+                "reminderOffsetsMinutes" to "reminder_offsets_minutes",
             ),
             CoursesSection::class to mapOf(
                 "enabled" to "enabled",
