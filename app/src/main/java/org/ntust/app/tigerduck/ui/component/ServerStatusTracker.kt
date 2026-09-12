@@ -99,20 +99,27 @@ object ServerStatusTracker {
     }
 
     /**
-     * Debug-only: hold every source at OK and ignore what the network says.
+     * While the demo account is signed in: hold every source at OK and ignore
+     * what the network says.
      *
-     * A screenshot session refuses every request
+     * A demo session refuses every request
      * ([org.ntust.app.tigerduck.debug.DemoModeInterceptor]), so without this
-     * the header dot on five screens goes red and every store screenshot
-     * carries a sync error the shipped app does not have. Set once, from
-     * `AppState` init, and never unset — leaving demo mode means restarting
-     * the process.
+     * the header dot on five screens goes red and the reviewer sees a sync
+     * error the real app does not have. Entered at the demo sign-in and from
+     * `AppState` init after a restart; left at sign-out.
      */
+    @Volatile
     private var demoMode = false
 
     fun enterDemoMode() {
         demoMode = true
         _statuses.value = ServerKind.entries.associateWith { ServerStatus.OK }
+    }
+
+    /** Sign-out: drop the held OKs so real results fill the dots in again. */
+    fun exitDemoMode() {
+        demoMode = false
+        _statuses.value = emptyMap()
     }
 
     fun set(status: ServerStatus, server: ServerKind) {

@@ -1,0 +1,108 @@
+{
+  "studentId": "B11308964",
+  "password": "its-my-duty",
+
+  "libraryQr": {
+    "content": "https://youtu.be/dQw4w9WgXcQ?si=CQQ7LP-6WHftwFCZ",
+    "fakeLoggedIn": true
+  },
+
+  "courses": [
+    {
+      "courseNo": "AB1234567",
+      "name": { "zh": "還我茶覺", "en": "Give me 茶覺" },
+      "instructor": { "zh": "台科大", "en": "NTUST" },
+      "credits": 1,
+      "classroom": "T3 Cafeteria",
+      "colorHex": "#BA68C8",
+      "schedule": { "2": ["8", "9"]}
+    },
+    {
+      "courseNo": "CS3005301",
+      "name": { "zh": "資料結構", "en": "Data Structures" },
+      "instructor": { "zh": "王小明", "en": "Wang Hsiao-Ming" },
+      "credits": 3,
+      "classroom": "TR-513",
+      "colorHex": "#E57373",
+      "schedule": { "1": ["2", "3", "4"], "3": ["6", "7"] },
+      "classroomMap": { "3-6": "TR-215", "3-7": "TR-215" }
+    },
+    {
+      "courseNo": "CS3204301",
+      "name": { "zh": "作業系統", "en": "Operating Systems" },
+      "instructor": { "zh": "李美華", "en": "Li Mei-Hua" },
+      "credits": 3,
+      "classroom": "TR-311",
+      "colorHex": "#64B5F6",
+      "schedule": { "2": ["3", "4"], "4": ["3", "4"] }
+    },
+    {
+      "courseNo": "GE1001301",
+      "name": { "zh": "藝術與生活", "en": "Art and Life" },
+      "instructor": { "zh": "陳大文", "en": "Chen Ta-Wen" },
+      "credits": 2,
+      "classroom": "IB-101",
+      "colorHex": "#81C784",
+      "schedule": { "5": ["6", "7"] }
+    },
+    {
+      "courseNo": "EE2004301",
+      "name": { "zh": "線性代數", "en": "Linear Algebra" },
+      "instructor": { "zh": "張志豪", "en": "Chang Chih-Hao" },
+      "credits": 3,
+      "classroom": "EE-201",
+      "colorHex": "#FFB74D",
+      "schedule": { "2": ["6", "7"], "4": ["8"] }
+    }
+  ],
+
+  "assignments": [
+    {
+      "id": "900001",
+      "courseNo": "CS3005301",
+      "courseName": "Data Structures",
+      "title": "Homework 3: Balanced Binary Trees",
+      "due": "2026-09-15T23:59",
+      "completed": false
+    },
+    {
+      "id": "900002",
+      "courseNo": "CS3204301",
+      "courseName": "Operating Systems",
+      "title": "Lab 2: Process Scheduling",
+      "due": "2026-09-18T18:00",
+      "completed": false
+    },
+    {
+      "id": "900003",
+      "courseNo": "EE2004301",
+      "courseName": "Linear Algebra",
+      "title": "Exercises 4.1 – 4.3",
+      "due": "2026-09-12T23:59",
+      "completed": true
+    }
+  ],
+
+  "bulletins": [
+    {
+      "title": "圖書館換證系統維護通知",
+      "org": "圖書館",
+      "summary": "9 月 14 日 02:00–06:00 進行系統維護，期間虛擬證無法使用。",
+      "tags": ["圖書館"],
+      "postedAt": "2026-09-07T14:30:00Z"
+    },
+    {
+      "title": "校園徵才博覽會報名開始",
+      "org": "學務處",
+      "summary": "本年度校園徵才博覽會將於 10 月 22 日舉行，即日起開放報名。",
+      "tags": ["活動", "就業"],
+      "postedAt": "2026-09-05T11:00:00Z"
+    }
+  ],
+
+  "calendar": [
+    { "title": "開學日", "date": "2026-09-14", "source": "semester" },
+    { "title": "中秋節", "date": "2026-09-25", "source": "holiday" },
+    { "title": "期中考週", "date": "2026-11-09", "source": "exam" }
+  ]
+}

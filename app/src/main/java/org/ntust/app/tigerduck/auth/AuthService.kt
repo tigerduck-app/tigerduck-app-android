@@ -41,10 +41,10 @@ class AuthService @Inject constructor(
     private val bulletinCache: BulletinCache,
     private val bulletinReadStateStore: BulletinReadStateStore,
     @param:ApplicationScope private val appScope: CoroutineScope,
-    debugFixtures: org.ntust.app.tigerduck.debug.DebugFixtureStore,
+    private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
 ) {
     /**
-     * A screenshot session presents as signed in without an account.
+     * A demo session presents as signed in, with or without an account.
      *
      * `authState` is what every screen asks, so a device that skipped the
      * wizard replaced its whole content with "not signed in" and no fixture
@@ -61,8 +61,7 @@ class AuthService @Inject constructor(
      *
      * Sampled once, at process start, like the rest of demo mode.
      */
-    private val demoMode =
-        org.ntust.app.tigerduck.BuildConfig.DEBUG && debugFixtures.demoMode
+    private val demoMode = demoAccount.isActive
 
     private val _isLoggingIn = MutableStateFlow(false)
     val isLoggingIn: StateFlow<Boolean> = _isLoggingIn
@@ -99,6 +98,7 @@ class AuthService @Inject constructor(
     }
 
     suspend fun attemptRelogin(): Boolean {
+        if (demoAccount.isActive) return false
         val studentId = credentials.ntustStudentId ?: return false
         val password = credentials.ntustPassword
         // Harvest a FRESH Moodle token before the v3 login — the backend
@@ -153,6 +153,7 @@ class AuthService @Inject constructor(
      * Safe to call on every launch — no-ops if already signed in or no creds.
      */
     suspend fun migrateToV3IfNeeded() {
+        if (demoAccount.isActive) return
         if (authTokenManager.isLoggedIn) return
         val studentId = credentials.ntustStudentId ?: return
         val password = credentials.ntustPassword ?: return
@@ -190,6 +191,19 @@ class AuthService @Inject constructor(
 
         try {
             val normalizedId = studentId.trim().uppercase()
+
+            // The store-review account signs in without a server — see
+            // DemoAccount. Checked before anything goes out, so these
+            // credentials never reach NTUST.
+            if (demoAccount.matches(normalizedId, password)) {
+                demoAccount.enter()
+                credentials.ntustStudentId = normalizedId
+                credentials.ntustPassword = password
+                _authState.value = true
+                _isLoggingIn.value = false
+                return@withLock true
+            }
+
             val success = performSsoLoginUnlocked(normalizedId, password)
 
             if (success) {
@@ -248,6 +262,9 @@ class AuthService @Inject constructor(
     }
 
     suspend fun ensureAuthenticated(): Boolean = loginMutex.withLock {
+        // No session to build: every caller then reads its cache, which is
+        // where the demo data is.
+        if (demoAccount.isActive) return@withLock false
         val studentId = credentials.ntustStudentId ?: return@withLock false
         val password = credentials.ntustPassword ?: return@withLock false
 
@@ -308,6 +325,9 @@ class AuthService @Inject constructor(
         _loginError.value = null
         _authState.value = false
         pushRegistration.unregister(authHeader)
+        // Last, so everything above still sees the demo account and keeps
+        // its requests on the device.
+        demoAccount.exit()
         // Wipe persisted user data on the application scope so a coroutine
         // launched from a transient ViewModel scope can't be cancelled mid-
         // delete when the user backs out of Settings or the activity dies.

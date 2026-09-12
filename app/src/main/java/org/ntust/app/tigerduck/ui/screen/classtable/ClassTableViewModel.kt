@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.shared.OngoingCourseInfo
@@ -276,7 +275,7 @@ class ClassTableViewModel @Inject constructor(
      * branch away and recomposing anyway.
      */
     val studentId: String?
-        get() = (if (BuildConfig.DEBUG) debugFixtures.studentIdOverride else null)
+        get() = debugFixtures.studentIdOverride
             ?: authService.storedStudentId
 
     /**

@@ -55,6 +55,7 @@ class PushRegistrationService @Inject constructor(
     private val authTokenManager: AuthTokenManager,
     private val appPreferences: AppPreferences,
     @param:ApplicationScope private val scope: CoroutineScope,
+    private val fixtures: org.ntust.app.tigerduck.debug.DebugFixtureStore,
 ) {
     private val mutex = Mutex()
     private var fcmToken: String? = null
@@ -188,6 +189,13 @@ class PushRegistrationService @Inject constructor(
     }
 
     fun unregister(authHeaderOverride: String? = null) {
+        // The demo account registered nothing, so there is nothing to delete
+        // and no server to tell. Read now rather than in the coroutine:
+        // sign-out leaves demo mode straight after calling this.
+        if (fixtures.demoMode) {
+            scope.launch { updateDiagnostic { it.copy(isRegistered = false, lastError = null) } }
+            return
+        }
         scope.launch {
             // Clear fcmToken and latch isUnregistering in the same critical
             // section that cancels the debounce so a token rotation or
@@ -275,6 +283,14 @@ class PushRegistrationService @Inject constructor(
     }
 
     private suspend fun performRegister(): Boolean {
+        // The demo account contacts no server, so there is nothing to
+        // register; report what a registered device reports, rather than the
+        // refusal every request gets.
+        if (fixtures.demoMode) {
+            recordRegistrationAttempt(landed = true)
+            updateDiagnostic { it.copy(isRegistered = true, lastError = null) }
+            return true
+        }
         // Snapshot token under the mutex so a concurrent token rotation or
         // updateServerPushOptOut can't flip state between read and POST.
         val token = mutex.withLock {
@@ -471,6 +487,12 @@ class PushRegistrationService @Inject constructor(
      *  on the way [performRegister] does. */
     suspend fun updateServerPushOptOut(optOut: Boolean): Boolean {
         if (BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return false
+        // Demo account: kept on the device, and reported as accepted.
+        if (fixtures.demoMode) {
+            prefs.edit().putBoolean(KEY_SERVER_PUSH_OPT_OUT, optOut).apply()
+            updateDiagnostic { it.copy(lastError = null) }
+            return true
+        }
         val deviceId = identity.uuid()
         // Hold the mutex across the PATCH AND the pref write so a concurrent
         // performRegister (which snapshots under the same mutex) can't read
@@ -554,6 +576,7 @@ class PushRegistrationService @Inject constructor(
      * [PushApiClient.updateDevicePreferences] — see `preferencesPatchBlockedOnFdroid`.
      */
     suspend fun updateCloudSyncEnabled(enabled: Boolean) {
+        if (fixtures.demoMode) return
         val deviceId = identity.uuid()
         api.updateDevicePreferences(deviceId, cloudSyncEnabled = enabled)
     }
@@ -567,6 +590,7 @@ class PushRegistrationService @Inject constructor(
         syncAssignmentReminders: Boolean,
         syncLiveActivity: Boolean,
     ) {
+        if (fixtures.demoMode) return
         val deviceId = identity.uuid()
         runCatching {
             api.updateDevicePreferences(

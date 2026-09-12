@@ -68,22 +68,21 @@ class AppState @Inject constructor(
     private val dataMigration: DataMigration,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val pushRegistration: org.ntust.app.tigerduck.push.PushRegistrationService,
-    debugFixtures: org.ntust.app.tigerduck.debug.DebugFixtureStore,
+    private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
 ) {
     /**
-     * Whether this process is a screenshot session running on fixture data.
+     * Whether this process started on fixture data: the demo account signed
+     * in, or a store-screenshot session.
      *
      * Sampled once, here, rather than read where it is used: demo mode
      * changes what the network layer does and what the app believes about
      * sign-in, and letting that flip under a running process leaves an
      * in-flight sync still writing over the fixture. The screenshot script
      * force-stops the app after loading one, so a fresh process is the only
-     * way it ever turns on.
-     *
-     * Constant false in release builds, where R8 folds every branch below.
+     * way a screenshot session turns on. The demo sign-in switches the network
+     * and the status dots itself, so it never needs this to change mid-run.
      */
-    private val demoMode =
-        org.ntust.app.tigerduck.BuildConfig.DEBUG && debugFixtures.demoMode
+    private val demoMode = demoAccount.isActive
 
     init {
         if (demoMode) {
@@ -93,6 +92,10 @@ class AppState @Inject constructor(
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var syncJob: Job? = null
+
+    init {
+        if (demoMode) scope.launch { demoAccount.reapply() }
+    }
 
     private val _loadingState = MutableStateFlow(LoadingState.IDLE)
 

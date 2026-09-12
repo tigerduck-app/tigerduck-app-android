@@ -26,7 +26,6 @@ import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
-import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.network.CourseService
@@ -476,7 +475,7 @@ class SettingsViewModel @Inject constructor(
     val libraryUsername: String? get() = credentials.libraryUsername
     val libraryTokenExpiry: Long get() = credentials.libraryTokenExpiry
     val ntustStudentId: String?
-        get() = (if (BuildConfig.DEBUG) debugFixtures.studentIdOverride else null)
+        get() = debugFixtures.studentIdOverride
             ?: authService.storedStudentId
 
     fun clearNtustLoginError() = authService.clearLoginError()

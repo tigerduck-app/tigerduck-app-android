@@ -17,10 +17,8 @@ import javax.inject.Singleton
  * a re-login fixes. An override that only the display sites consult is
  * reversible by clearing one preferences file.
  *
- * Written by `DebugFixtureReceiver` (debug source set only). Read from a
- * handful of `BuildConfig.DEBUG` branches in the ViewModels; in a release
- * build those branches are constant-false and R8 removes them, so this class
- * is unreachable there.
+ * Written by [org.ntust.app.tigerduck.demo.DemoAccount] at the demo sign-in,
+ * in every build, and by `DebugFixtureReceiver` (debug source set only).
  *
  * Backed by its own SharedPreferences file, for the same reason
  * [DebugClockPrefsStore] is: it must never end up inside an AppPreferences

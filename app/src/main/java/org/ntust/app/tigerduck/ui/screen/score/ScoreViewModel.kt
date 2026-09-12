@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.model.CourseGrade
@@ -29,6 +30,7 @@ class ScoreViewModel @Inject constructor(
     private val authService: AuthService,
     private val scoreService: NtustScoreService,
     private val networkChecker: NetworkChecker,
+    private val demoAccount: DemoAccount,
     private val prefs: AppPreferences,
 ) : ViewModel() {
 
@@ -107,6 +109,9 @@ class ScoreViewModel @Inject constructor(
             return
         }
         if (!networkChecker.isAvailable()) return
+        // The demo account has no scores and no server to ask for them: the
+        // empty state, not the refusal reported as a load failure.
+        if (demoAccount.isActive) return
 
         _isRefreshing.value = true
         _errorMessage.value = null

@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
@@ -52,12 +51,11 @@ class LibraryViewModel @Inject constructor(
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
 
     /**
-     * Screenshot override for the QR payload, or null to ask the backend for a
-     * real one. Constant-null in release builds, so R8 folds every branch
-     * below it away. See [DebugFixtureStore].
+     * The demo account's QR payload, or null to ask the backend for a real
+     * one. See [DebugFixtureStore].
      */
     private val fixtureQr: String?
-        get() = if (BuildConfig.DEBUG) debugFixtures.libraryQrContent else null
+        get() = debugFixtures.libraryQrContent
 
     /**
      * Whether to render the screen as signed in on the strength of the
@@ -66,7 +64,7 @@ class LibraryViewModel @Inject constructor(
      * account happens to be signed in on the device.
      */
     private val fixtureSignedIn: Boolean
-        get() = if (BuildConfig.DEBUG) fixtureQr != null && debugFixtures.libraryFakeSignedIn else false
+        get() = fixtureQr != null && debugFixtures.libraryFakeSignedIn
 
     private fun resolveSignedIn(): Boolean = fixtureSignedIn || credentials.isLibraryTokenValid
 
