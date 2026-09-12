@@ -26,6 +26,8 @@ data class DeviceRegisterRequest(
     @SerializedName("device_class") val deviceClass: String? = null,
     @SerializedName("app_version") val appVersion: String? = null,
     @SerializedName("os_version") val osVersion: String? = null,
+    /** Hardware model, for the portal — see [deviceModelName]. */
+    @SerializedName("device_model") val deviceModel: String? = null,
     @SerializedName("push_token") val pushToken: PushTokenIn? = null,
     @SerializedName("cloud_sync_enabled") val cloudSyncEnabled: Boolean? = null,
     /**

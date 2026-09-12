@@ -344,6 +344,7 @@ class PushRegistrationService @Inject constructor(
                     deviceClass = identity.deviceClass(),
                     appVersion = BuildConfig.VERSION_NAME,
                     osVersion = "Android ${android.os.Build.VERSION.RELEASE}",
+                    deviceModel = currentDeviceModel(),
                     pushToken = PushTokenIn(tokenValue = token),
                     cloudSyncEnabled = appPreferences.cloudSyncEnabled,
                     locale = currentLocaleTag(),
