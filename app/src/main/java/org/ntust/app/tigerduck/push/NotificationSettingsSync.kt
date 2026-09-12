@@ -212,8 +212,21 @@ private const val ASSIGNMENT_LEAD_SECONDS_KEY = "assignment_lead_seconds"
  * revision and retries **exactly once** — never loops.
  *
  * Returns true only when a write actually landed; false when the gates below
- * are closed and nothing was attempted, so a caller can never read "didn't
- * run" as "succeeded".
+ * are closed and nothing was attempted, or when [isCurrentGeneration] turns
+ * false partway through and the push is abandoned, so a caller can never
+ * read "didn't land" as "succeeded".
+ *
+ * [isCurrentGeneration] is re-checked before the read and before every
+ * write — the read, the write, and the one retry write a 409 can cause —
+ * not just once before this function is called. Each of those requests can
+ * itself trigger a token refresh or a full relogin, and a stalled network
+ * can stretch that to tens of seconds; if another account finishes signing
+ * in inside that window, this push must not land in its document. Mirrors
+ * iOS's reconcile, which checks `isCurrent()` after every round trip for
+ * the same reason. `NotificationSettingsSync.pushNow` — the only
+ * production caller — closes over the generation this push was queued
+ * under. Defaults to "always current" so every other caller, including
+ * this file's tests, is unaffected.
  *
  * All three gates come from spec §6: cloud sync is the master switch,
  * "同步內容 → 即時更新" (`AppPreferences.syncLiveActivity`) decides whether
@@ -244,10 +257,13 @@ internal suspend fun pushLiveActivitySettings(
     cloudSyncEnabled: Boolean,
     syncLiveActivity: Boolean,
     isLoggedIn: Boolean,
+    isCurrentGeneration: () -> Boolean = { true },
 ): Boolean {
     if (!cloudSyncEnabled || !syncLiveActivity || !isLoggedIn) return false
+    if (!isCurrentGeneration()) return false
 
     val current = transport.read()
+    if (!isCurrentGeneration()) return false
     // No document yet (404) is the normal state for every user who has never
     // written this namespace: merge over an empty object and PUT with a null
     // base revision, which is the API's "create" case.
@@ -257,6 +273,7 @@ internal suspend fun pushLiveActivitySettings(
     val updates = local.documentUpdates()
     var conflicts = 0
     while (true) {
+        if (!isCurrentGeneration()) return false
         val result = transport.write(merging(updates, into = existing), baseRevision)
         when (result) {
             is SettingsWriteResult.Written -> return true
@@ -594,7 +611,7 @@ class NotificationSettingsSync internal constructor(
                 delay(DEBOUNCE_MS)
                 // Queued before a logout: it belongs to the account that left.
                 if (queuedGeneration != generation.get()) continue
-                runCatching { pushNow() }.fold(
+                runCatching { pushNow(queuedGeneration) }.fold(
                     onSuccess = { succeeded ->
                         // A `false` here means a gate was closed (not logged
                         // in, cloud sync off, or live-activity sync off) — an
@@ -709,9 +726,15 @@ class NotificationSettingsSync internal constructor(
      * still in its backoff — would run under the new session. Mirrors iOS's
      * `cancelNotificationSettingsPushes()`.
      *
-     * A push already past its generation check is not stopped. Its next
-     * request is built after logout has wiped the tokens, so it goes out
-     * without one and fails, and the retry it schedules is dropped.
+     * A push already past the loop's own generation check above is not
+     * stopped here, but it still cannot land under whoever signs in next:
+     * [pushLiveActivitySettings] re-checks the generation this bump just
+     * changed before its read and before every write, and abandons the push
+     * the instant it no longer matches — the same way iOS's reconcile
+     * checks `isCurrent()` after every round trip. That check is what
+     * actually stops it; a request that somehow slipped past every one of
+     * those checks would in any case be built after logout has wiped the
+     * tokens, and go out without one and fail.
      */
     fun cancelPendingPushes() {
         generation.incrementAndGet()
@@ -745,7 +768,7 @@ class NotificationSettingsSync internal constructor(
         onFailure = { e -> Log.w(TAG, "pulling live_activity settings failed", e) },
     )
 
-    private suspend fun pushNow(): Boolean {
+    private suspend fun pushNow(queuedGeneration: Int): Boolean {
         val sent = liveActivityPreferences.syncSnapshot()
         val succeeded = pushLiveActivitySettings(
             local = sent,
@@ -753,15 +776,18 @@ class NotificationSettingsSync internal constructor(
             cloudSyncEnabled = cloudSyncEnabled(),
             syncLiveActivity = syncLiveActivity(),
             isLoggedIn = isLoggedIn(),
+            isCurrentGeneration = { queuedGeneration == generation.get() },
         )
         // Cleared only by a push that landed, and only if the five values
-        // still equal what it sent. A gate-closed `false` or a thrown failure
-        // leaves the flag set, or the edit would read as confirmed when
-        // nothing was sent. So does an edit that landed while the request was
-        // in flight: the server holds the older values, and that edit's own
-        // push, queued behind this one, must still find the flag set — or a
-        // process death before it runs would lose the edit with the flag
-        // already reading "confirmed". Mirrors iOS's canClearPendingMarker.
+        // still equal what it sent. A gate-closed `false`, an abandoned push
+        // (the account changed mid-flight — see pushLiveActivitySettings) or
+        // a thrown failure all leave the flag set, or the edit would read as
+        // confirmed when nothing was sent. So does an edit that landed while
+        // the request was in flight: the server holds the older values, and
+        // that edit's own push, queued behind this one, must still find the
+        // flag set — or a process death before it runs would lose the edit
+        // with the flag already reading "confirmed". Mirrors iOS's
+        // canClearPendingMarker.
         if (succeeded && liveActivityPreferences.syncSnapshot() == sent) {
             liveActivityPreferences.hasUnconfirmedSyncEdit = false
         }

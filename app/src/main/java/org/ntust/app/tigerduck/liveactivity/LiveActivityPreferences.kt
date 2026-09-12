@@ -151,11 +151,14 @@ class LiveActivityPreferences internal constructor(
     /**
      * Whether the five values [syncSnapshot] would currently produce have
      * *not* yet been confirmed to have reached the server: set the moment
-     * any of them changes, cleared only once a push carrying exactly that
-     * state has actually succeeded. `NotificationSettingsSync` consults
-     * this before letting a pull apply a freshly-read document — a value
-     * that never got the chance to push must not be silently overwritten
-     * by an older server copy.
+     * any of them changes, cleared once a push carrying exactly that state
+     * has actually succeeded — and also by `NotificationSettingsSync`'s
+     * `cancelPendingPushes()` at logout, since a push that reaches the
+     * server after that point belongs to the account that just signed out,
+     * not to whoever confirms anything next. `NotificationSettingsSync`
+     * consults this before letting a pull apply a freshly-read document — a
+     * value that never got the chance to push must not be silently
+     * overwritten by an older server copy.
      *
      * Persisted rather than kept in memory, on purpose: an in-memory flag
      * (or counter) resets the moment the process is killed, which is

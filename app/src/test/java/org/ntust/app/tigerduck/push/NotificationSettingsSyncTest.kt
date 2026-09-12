@@ -926,6 +926,68 @@ class NotificationSettingsSyncTest {
         assertTrue("a retry scheduled as account A must not run as account B", device.server("B").writes.isEmpty())
     }
 
+    /**
+     * After the loop's own generation check (just above, at the top of this
+     * `for` block), a push can still make up to three requests — a read, a
+     * write, and a second write after a 409 — and each can trigger a token
+     * refresh or a full relogin first. If another account finishes signing
+     * in inside that window, this device's values must not land in its
+     * document. Simulated here by switching accounts from inside the fake
+     * server's [FakeDocumentServer.beforeRead] hook, the same technique
+     * `a relogin that fires inside a pull...` below uses for a relogin.
+     */
+    @Test
+    fun `a push mid-flight is abandoned, not written into either account's document, if the account changes before its write`() =
+        runTest {
+            val device = Device(backgroundScope)
+            device.signIn("A")
+            device.prefs.classPreparingLeadTimeSec = 1_800
+            // The account switch completes while this push's read is on the
+            // wire, landing squarely in the window between the read and the
+            // write.
+            device.server("A").beforeRead = {
+                device.logOut()
+                device.signIn("B")
+            }
+
+            device.sync.markUnconfirmedAndPush()
+            runQueue()
+
+            assertTrue(
+                "the push must not write account A's values into B's document",
+                device.server("B").writes.isEmpty(),
+            )
+            assertTrue(
+                "a push whose account changed mid-flight must not write at all",
+                device.server("A").writes.isEmpty(),
+            )
+        }
+
+    /**
+     * The counterpart to the account-switch tests above: nothing about
+     * closing that window may stop an ordinary retry that stays within the
+     * same signed-in session. Guards `NotificationSettingsSync`'s retry
+     * re-queue (`if (queuedGeneration == generation.get()) ...`): inverting
+     * that comparison, or deleting the `trySend`, silently disables every
+     * retry while every other test in this file stays green, because they
+     * only ever exercise the *stale*-generation half of that line.
+     */
+    @Test
+    fun `a retry within the same generation still fires and delivers the edit`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").offline = true
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.sync.markUnconfirmedAndPush()
+        advanceTimeBy(1_000) // debounce elapses and the first attempt fails while offline; its retry waits 5 s
+        device.server("A").offline = false // the network recovers before the retry fires; no account change at all
+        runQueue()
+
+        assertEquals("the same-generation retry must actually reach the server", 1, device.server("A").writes.size)
+        assertEquals(1_800, device.server("A").lastClassLeadSeconds())
+        assertFalse("the retry's push landed, so the edit is now confirmed", device.prefs.hasUnconfirmedSyncEdit)
+    }
+
     @Test
     fun `a relogin that fires inside a pull does not stop that pull from applying`() = runTest {
         val device = Device(backgroundScope)
