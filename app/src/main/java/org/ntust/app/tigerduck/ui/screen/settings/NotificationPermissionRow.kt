@@ -123,7 +123,11 @@ internal fun PermissionRow(
     state: org.ntust.app.tigerduck.notification.PermissionState,
     onClick: () -> Unit,
 ) {
-    val clickable = state.applicable && !state.granted
+    // A granted row opens the same settings page a missing one does, so a
+    // permission can be turned off from here as well as on. Only a row for a
+    // permission this Android version does not have stays inert: there is no
+    // page to send it to.
+    val clickable = state.applicable
     Row(
         modifier = Modifier
             .fillMaxWidth()
