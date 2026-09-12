@@ -745,17 +745,25 @@ class NotificationSettingsSync internal constructor(
     )
 
     private suspend fun pushNow(): Boolean {
+        val sent = liveActivityPreferences.syncSnapshot()
         val succeeded = pushLiveActivitySettings(
-            local = liveActivityPreferences.syncSnapshot(),
+            local = sent,
             transport = transport,
             cloudSyncEnabled = cloudSyncEnabled(),
             syncLiveActivity = syncLiveActivity(),
             isLoggedIn = isLoggedIn(),
         )
-        // Only a push that actually landed clears the flag — a gate-closed
-        // `false` or a thrown failure must leave it set, or the edit it is
-        // protecting would read as confirmed when nothing was ever sent.
-        if (succeeded) liveActivityPreferences.hasUnconfirmedSyncEdit = false
+        // Cleared only by a push that landed, and only if the five values
+        // still equal what it sent. A gate-closed `false` or a thrown failure
+        // leaves the flag set, or the edit would read as confirmed when
+        // nothing was sent. So does an edit that landed while the request was
+        // in flight: the server holds the older values, and that edit's own
+        // push, queued behind this one, must still find the flag set — or a
+        // process death before it runs would lose the edit with the flag
+        // already reading "confirmed". Mirrors iOS's canClearPendingMarker.
+        if (succeeded && liveActivityPreferences.syncSnapshot() == sent) {
+            liveActivityPreferences.hasUnconfirmedSyncEdit = false
+        }
         return succeeded
     }
 

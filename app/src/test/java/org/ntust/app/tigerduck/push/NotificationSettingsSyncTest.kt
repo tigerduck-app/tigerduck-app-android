@@ -912,6 +912,35 @@ class NotificationSettingsSyncTest {
         assertEquals("the switch turning on republishes this device's values", 1, device.server("A").writes.size)
     }
 
+    @Test
+    fun `an edit that lands while its push is in flight stays unconfirmed until its own push lands`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        // A second edit lands while the first push's PUT is on the wire. Its
+        // own push is queued behind this one, and if the process dies before
+        // that runs, the flag is all that remembers the edit.
+        device.server("A").duringWrite = {
+            device.server("A").duringWrite = {}
+            device.prefs.classPreparingLeadTimeSec = 2_700
+        }
+        device.sync.markUnconfirmedAndPush()
+        runQueue()
+
+        assertEquals(1_800, device.server("A").lastClassLeadSeconds())
+        assertTrue(
+            "the server holds 1800 while this phone holds 2700, so the edit must stay unconfirmed",
+            device.prefs.hasUnconfirmedSyncEdit,
+        )
+
+        // The next catch-up delivers it, and only then is it confirmed.
+        device.sync.pushIfUnconfirmed()
+        runQueue()
+
+        assertEquals(2_700, device.server("A").lastClassLeadSeconds())
+        assertFalse(device.prefs.hasUnconfirmedSyncEdit)
+    }
+
     // ── 8. Bounded retry after a push failure ───────────────────────────────
 
     @Test
