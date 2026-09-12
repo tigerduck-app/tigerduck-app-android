@@ -34,8 +34,16 @@ import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 
 /**
  * "同步內容" (Synced content) — spec §6's second-level menu nested under
- * TigerSync's "同步課程資訊" toggle. Six [SyncToggleRow]s plus a navigation
- * row into Live Activity/Live Updates settings.
+ * TigerSync's "同步課程資訊" toggle, in three groups: 作業 (assignment
+ * status and assignment due reminders), 即時更新 on its own, and 課表 (all
+ * courses, course colours, custom course names), then a navigation row into
+ * Live Updates settings, set apart below them.
+ *
+ * 作業 and 課表 are parent switches with no stored value of their own: each
+ * reads on while any of its rows is on, and flipping it sets every row it
+ * covers, so nothing new is persisted or sent to the backend. While one
+ * reads off, its rows are greyed out, since turning it back on is how they
+ * return.
  *
  * Two deliberate Android deviations from iOS: there is no platform-
  * limitation footnote here (`sync_courses_footer_platform_note` is an
@@ -63,6 +71,68 @@ fun SyncContentScreen(
     var syncCourseColors by remember { mutableStateOf(viewModel.prefs.syncCourseColors) }
     var syncCourseNames by remember { mutableStateOf(viewModel.prefs.syncCourseNames) }
     val reenableConflict by viewModel.reenableConflict.collectAsState()
+
+    // Each setter writes one flag and, when a category comes back on, marks
+    // it for the re-enable conflict check, returning whether it did. Callers
+    // push the flags and run that check once, after every row they change
+    // has been written.
+    fun setAssignments(on: Boolean): Boolean {
+        val reenabled = on && !syncAssignments
+        if (reenabled) viewModel.markCategoryReenabled("assignments")
+        syncAssignments = on
+        viewModel.prefs.syncAssignments = on
+        return reenabled
+    }
+
+    // 作業到期提醒 gates NotificationSettingsSync's `assignments` section in
+    // both directions: while it is off, this device neither pushes its
+    // reminder settings nor adopts another device's, and turning it back on
+    // republishes them (its syncAssignmentRemindersChanged collector). The
+    // PATCH also stores the flag on this device's backend row, which the
+    // backend reads only to deliver reminders to iPhone and iPad; Android
+    // fires its own. Nor is it content with a server-vs-local conflict prompt
+    // (an unconfirmed local edit simply wins), so it marks nothing.
+    fun setAssignmentReminders(on: Boolean) {
+        syncAssignmentReminders = on
+        viewModel.prefs.syncAssignmentReminders = on
+    }
+
+    fun setCourses(on: Boolean): Boolean {
+        val reenabled = on && !syncCourses
+        if (reenabled) viewModel.markCategoryReenabled("courses")
+        syncCourses = on
+        viewModel.prefs.syncCourses = on
+        // Course colours only apply on top of synced courses.
+        if (!on) {
+            syncCourseColors = false
+            viewModel.prefs.syncCourseColors = false
+        }
+        return reenabled
+    }
+
+    fun setCourseColors(on: Boolean): Boolean {
+        val reenabled = on && !syncCourseColors
+        if (reenabled) viewModel.markCategoryReenabled("course_colors")
+        syncCourseColors = on
+        viewModel.prefs.syncCourseColors = on
+        return reenabled
+    }
+
+    fun setCourseNames(on: Boolean): Boolean {
+        val reenabled = on && !syncCourseNames
+        if (reenabled) viewModel.markCategoryReenabled("course_names")
+        syncCourseNames = on
+        viewModel.prefs.syncCourseNames = on
+        return reenabled
+    }
+
+    fun commit(reenabled: Boolean) {
+        viewModel.pushSyncPreferences()
+        if (reenabled) viewModel.checkPendingConflicts()
+    }
+
+    val assignmentsOn = syncAssignments || syncAssignmentReminders
+    val classTableOn = syncCourses || syncCourseColors || syncCourseNames
 
     if (reenableConflict != null) {
         androidx.compose.material3.AlertDialog(
@@ -116,111 +186,94 @@ fun SyncContentScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // ── 作業 ─────────────────────────────────────────────────
             item {
                 ContentCard {
                     Column {
-                        // 作業狀態
-                        SyncToggleRow(stringResource(R.string.cloud_sync_assignments), syncAssignments) {
-                            if (it && !syncAssignments) {
-                                viewModel.markCategoryReenabled("assignments")
-                                viewModel.checkPendingConflicts()
-                            }
-                            syncAssignments = it
-                            viewModel.prefs.syncAssignments = it
-                            viewModel.pushSyncPreferences()
+                        SyncToggleRow(stringResource(R.string.cloud_sync_assignments), assignmentsOn) {
+                            val reenabled = setAssignments(it)
+                            setAssignmentReminders(it)
+                            commit(reenabled)
                         }
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                        // 作業到期提醒 — gates NotificationSettingsSync's
-                        // `assignments` section in both directions: while it is
-                        // off, this device neither pushes its reminder settings
-                        // nor adopts another device's, and turning it back on
-                        // republishes them (its syncAssignmentRemindersChanged
-                        // collector). The PATCH below also stores the flag on
-                        // this device's backend row, which the backend reads
-                        // only to deliver reminders to iPhone and iPad; Android
-                        // fires its own. Nor is it content with a
-                        // server-vs-local conflict prompt (an unconfirmed local
-                        // edit simply wins), so no
-                        // markCategoryReenabled/checkPendingConflicts here.
+                        // The assignment list and its done / ignored marks.
+                        SyncToggleRow(
+                            stringResource(R.string.cloud_sync_assignments),
+                            syncAssignments,
+                            enabled = assignmentsOn,
+                            indent = true,
+                        ) { commit(setAssignments(it)) }
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SyncToggleRow(
                             stringResource(R.string.sync_content_assignment_reminders),
                             syncAssignmentReminders,
+                            enabled = assignmentsOn,
+                            indent = true,
                         ) {
-                            syncAssignmentReminders = it
-                            viewModel.prefs.syncAssignmentReminders = it
-                            viewModel.pushSyncPreferences()
+                            setAssignmentReminders(it)
+                            commit(reenabled = false)
+                        }
+                    }
+                }
+            }
+
+            // ── 即時更新 (renders "即時動態" on iOS; Android uses the
+            // sync_content_live_activity android-group value.) ─────────
+            item {
+                ContentCard {
+                    SyncToggleRow(
+                        stringResource(R.string.sync_content_live_activity),
+                        syncLiveActivity,
+                    ) {
+                        syncLiveActivity = it
+                        viewModel.prefs.syncLiveActivity = it
+                        viewModel.pushSyncPreferences()
+                    }
+                }
+            }
+
+            // ── 課表 ─────────────────────────────────────────────────
+            item {
+                ContentCard {
+                    Column {
+                        SyncToggleRow(stringResource(R.string.cloud_sync_class_table), classTableOn) {
+                            // Courses first: colours only turn on over synced courses.
+                            val reenabled = listOf(setCourses(it), setCourseColors(it), setCourseNames(it))
+                            commit(reenabled.any { r -> r })
                         }
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                        // 即時更新 (renders "即時動態" on iOS; Android uses the
-                        // sync_content_live_activity android-group value.)
                         SyncToggleRow(
-                            stringResource(R.string.sync_content_live_activity),
-                            syncLiveActivity,
-                        ) {
-                            syncLiveActivity = it
-                            viewModel.prefs.syncLiveActivity = it
-                            viewModel.pushSyncPreferences()
-                        }
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                        // 課表 – 所有課程
-                        SyncToggleRow(
-                            stringResource(R.string.sync_content_class_table_all),
+                            stringResource(R.string.cloud_sync_courses),
                             syncCourses,
-                        ) {
-                            if (it && !syncCourses) {
-                                viewModel.markCategoryReenabled("courses")
-                                viewModel.checkPendingConflicts()
-                            }
-                            syncCourses = it
-                            viewModel.prefs.syncCourses = it
-                            if (!it) {
-                                syncCourseColors = false
-                                viewModel.prefs.syncCourseColors = false
-                            }
-                            viewModel.pushSyncPreferences()
-                        }
+                            enabled = classTableOn,
+                            indent = true,
+                        ) { commit(setCourses(it)) }
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                        // 課表 – 課程顏色 (depends on "所有課程" being on)
                         SyncToggleRow(
-                            stringResource(R.string.sync_content_class_table_colors),
+                            stringResource(R.string.cloud_sync_course_colours),
                             syncCourseColors,
-                            enabled = syncCourses,
-                        ) {
-                            if (it && !syncCourseColors) {
-                                viewModel.markCategoryReenabled("course_colors")
-                                viewModel.checkPendingConflicts()
-                            }
-                            syncCourseColors = it
-                            viewModel.prefs.syncCourseColors = it
-                            viewModel.pushSyncPreferences()
-                        }
+                            enabled = classTableOn && syncCourses,
+                            indent = true,
+                        ) { commit(setCourseColors(it)) }
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                        // 課表 – 自定義課程名稱
                         SyncToggleRow(
-                            stringResource(R.string.sync_content_class_table_names),
+                            stringResource(R.string.cloud_sync_custom_course_names),
                             syncCourseNames,
-                        ) {
-                            if (it && !syncCourseNames) {
-                                viewModel.markCategoryReenabled("course_names")
-                                viewModel.checkPendingConflicts()
-                            }
-                            syncCourseNames = it
-                            viewModel.prefs.syncCourseNames = it
-                            viewModel.pushSyncPreferences()
-                        }
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            enabled = classTableOn,
+                            indent = true,
+                        ) { commit(setCourseNames(it)) }
+                    }
+                }
+            }
 
-                        // 跳轉：即時更新 (the destination screen's own name —
-                        // see this file's top KDoc for why this isn't its
-                        // own dedicated nav string)
-                        SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) {
-                            onNavigateToLiveActivitySettings()
-                        }
+            item { Spacer(Modifier.height(16.dp)) }
+
+            // 跳轉：即時更新 (the destination screen's own name — see this
+            // file's top KDoc for why this isn't its own dedicated nav string)
+            item {
+                ContentCard {
+                    SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) {
+                        onNavigateToLiveActivitySettings()
                     }
                 }
             }

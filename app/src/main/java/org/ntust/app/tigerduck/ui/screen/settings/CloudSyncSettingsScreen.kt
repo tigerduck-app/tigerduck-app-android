@@ -564,17 +564,23 @@ private fun LinkRow(label: String, onClick: () -> Unit) {
 /**
  * A toggle row with an optional dependency: when [enabled] is false (a
  * parent toggle in the same "同步內容" screen is off), the row is greyed
- * out and non-interactive rather than hidden — see
- * `cloud_sync_course_colours`'s `enabled = syncCourses` dependency, the one
- * piece of the old ClassTableSyncScreen this rule specifically preserves.
+ * out and non-interactive rather than hidden — the 作業 / 課表 parent rows
+ * and course colours' own dependency on courses both work this way.
+ * [indent] sets a row under the parent it belongs to.
  */
 @Composable
-internal fun SyncToggleRow(label: String, checked: Boolean, enabled: Boolean = true, onCheckedChange: (Boolean) -> Unit) {
+internal fun SyncToggleRow(
+    label: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    indent: Boolean = false,
+    onCheckedChange: (Boolean) -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = SettingRowHeight)
-            .padding(horizontal = 16.dp),
+            .padding(start = if (indent) 32.dp else 16.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
