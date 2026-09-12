@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import android.util.Log
-import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.PushApiClient
@@ -65,7 +64,10 @@ class CourseColorStore @Inject constructor(
         widgetUpdater.requestUpdate()
         _changeEvent.tryEmit(Unit)
 
-        if (prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+        // cloudSyncEnabled already reads false on fdroid at its source
+        // (AppPreferences.cloudSyncEnabled), so no separate flavor check
+        // is needed here.
+        if (prefs.cloudSyncEnabled) {
             for (course in updated) {
                 val hex = course.customColorHex ?: continue
                 val moodleId = course.moodleIdNumber ?: continue

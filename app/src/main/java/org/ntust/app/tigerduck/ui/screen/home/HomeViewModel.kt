@@ -406,8 +406,11 @@ class HomeViewModel @Inject constructor(
         revisionPollingJob = viewModelScope.launch {
             while (true) {
                 delay(10_000)
-                if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
-                    Log.d("RevisionPoll", "[poll] tick skipped — cloudSyncEnabled=false or fdroid")
+                // cloudSyncEnabled already reads false on fdroid at its
+                // source (AppPreferences.cloudSyncEnabled), so no separate
+                // flavor check is needed here.
+                if (!prefs.cloudSyncEnabled) {
+                    Log.d("RevisionPoll", "[poll] tick skipped — cloudSyncEnabled=false")
                     continue
                 }
                 if (!authTokenManager.isLoggedIn) {

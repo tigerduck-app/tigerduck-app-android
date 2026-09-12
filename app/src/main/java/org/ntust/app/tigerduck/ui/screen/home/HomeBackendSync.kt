@@ -109,7 +109,10 @@ class HomeBackendSync @Inject constructor(
      * produces a 401 gives up rather than recursing.
      */
     suspend fun pull(state: HomeSyncState, retried: Boolean = false) {
-        if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+        // cloudSyncEnabled already reads false on fdroid at its source
+        // (AppPreferences.cloudSyncEnabled), so no separate flavor check
+        // is needed here.
+        if (!prefs.cloudSyncEnabled) {
             markBackendIdle()
             return
         }

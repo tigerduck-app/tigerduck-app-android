@@ -16,7 +16,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.push.BackendSyncResult
@@ -74,7 +73,10 @@ class BackgroundSyncWorker @AssistedInject constructor(
     }
 
     private suspend fun syncOverridesFromBackend() {
-        if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+        // cloudSyncEnabled already reads false on fdroid at its source
+        // (AppPreferences.cloudSyncEnabled), so no separate flavor check
+        // is needed here.
+        if (!prefs.cloudSyncEnabled) {
             prefs.setLastSyncSource(SyncSource.NONE)
             return
         }

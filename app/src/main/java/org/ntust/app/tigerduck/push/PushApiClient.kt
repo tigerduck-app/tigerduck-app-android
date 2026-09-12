@@ -29,8 +29,11 @@ class PushApiClient @Inject constructor(
     private val authTokenManager: AuthTokenManager,
 ) {
 
+    // prefs.cloudSyncEnabled already reads false on fdroid at its source
+    // (AppPreferences.cloudSyncEnabled -> effectiveCloudSyncEnabled), so
+    // ANDing a second flavor check here would only ever restate it.
     private val isSyncCapable: Boolean
-        get() = prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)
+        get() = prefs.cloudSyncEnabled
 
     private val baseUrl: String
         get() = resolveAnnouncementEndpoint(prefs).url.trimEnd('/')
