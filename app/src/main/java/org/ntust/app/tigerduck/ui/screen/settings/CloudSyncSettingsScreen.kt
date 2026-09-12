@@ -116,9 +116,12 @@ internal fun hasSyncContentLeft(
  * toggle (nested "同步內容" entry when on), the server-push opt-out (moved
  * here from the now-removed ServerPushScreen — see
  * [SubscriptionSettingsScreen][org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsScreen]'s
- * comment for that history), and the TigerSync status card. On fdroid the
- * essential-info row is unchanged, but the course-sync and server-push rows
- * are greyed out and off — see [isFdroidFlavor].
+ * comment for that history), and "TigerSync 狀態": a plain title
+ * ([TigerSyncStatusSummary] — registration status, then the latest error
+ * when there is one) followed by [SyncStatusCard] for the rest (push
+ * permission, Sync Now, device ID). On fdroid the essential-info row is
+ * unchanged, but the course-sync and server-push rows are greyed out and
+ * off — see [isFdroidFlavor].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -350,10 +353,13 @@ fun CloudSyncSettingsScreen(
             }
 
             // ── TigerSync 狀態 ─────────────────────────────────────────
+            // A title, not a row that goes somewhere (spec §6): the
+            // registration status and, when there is one, the error sit
+            // directly under the heading rather than behind a nav target.
             item { SectionHeader(stringResource(R.string.sync_status_nav_label)) }
+            item { TigerSyncStatusSummary(diagnostic = diagnostic) }
             item {
                 SyncStatusCard(
-                    diagnostic = diagnostic,
                     isSyncing = isSyncing,
                     deviceId = deviceId,
                     onSyncNow = viewModel::syncNow,
@@ -427,9 +433,41 @@ private fun ToggleWithFooterRow(
     }
 }
 
+/**
+ * "TigerSync 狀態" itself (spec §6): a title, not a row that goes anywhere —
+ * just the device-registration status directly under the [SectionHeader],
+ * and the latest error under that when there is one. Hidden on fdroid for
+ * the same reason [SyncStatusCard] hides its own registration-dependent
+ * pieces: without an FCM token, registration never completes, so this would
+ * only ever be able to show "pending" forever.
+ */
+@Composable
+private fun TigerSyncStatusSummary(diagnostic: PushDiagnostic) {
+    if (isFdroidFlavor) return
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        StatusRow(
+            label = stringResource(R.string.push_server_status_device_registration),
+            ok = diagnostic.isRegistered,
+            okText = stringResource(R.string.bulletin_push_status_registration_done),
+            badText = if (diagnostic.hasFcmToken) {
+                stringResource(R.string.push_server_status_waiting_token)
+            } else {
+                stringResource(R.string.bulletin_push_status_registration_pending)
+            },
+        )
+        diagnostic.lastError?.let { msg ->
+            Spacer(Modifier.height(4.dp))
+            LabeledText(
+                label = stringResource(R.string.push_server_latest_error),
+                value = msg,
+                valueColor = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
 @Composable
 private fun SyncStatusCard(
-    diagnostic: PushDiagnostic,
     isSyncing: Boolean,
     deviceId: String,
     onSyncNow: () -> Unit,
@@ -473,33 +511,14 @@ private fun SyncStatusCard(
                     okText = stringResource(R.string.permission_granted),
                     badText = stringResource(R.string.bulletin_push_status_denied),
                 )
-                // Device registration, the latest error, and Sync Now are all
-                // downstream of an FCM token this build never gets, so on
-                // fdroid they can never report anything but "pending"
-                // forever — hidden outright rather than shown stuck. The
-                // permission row above and the device ID below are unrelated
-                // to registration and stay on every flavor.
+                // Sync Now is downstream of an FCM token this build never
+                // gets, so on fdroid it would never do anything but spin —
+                // hidden outright rather than shown stuck, same as the
+                // registration status and error in TigerSyncStatusSummary
+                // above. The permission row above and the device ID below
+                // are unrelated to registration and stay on every flavor.
                 if (!isFdroidFlavor) {
                     Spacer(Modifier.height(8.dp))
-                    StatusRow(
-                        label = stringResource(R.string.push_server_status_device_registration),
-                        ok = diagnostic.isRegistered,
-                        okText = stringResource(R.string.bulletin_push_status_registration_done),
-                        badText = if (diagnostic.hasFcmToken) {
-                            stringResource(R.string.push_server_status_waiting_token)
-                        } else {
-                            stringResource(R.string.bulletin_push_status_registration_pending)
-                        },
-                    )
-                    diagnostic.lastError?.let { msg ->
-                        Spacer(Modifier.height(10.dp))
-                        LabeledText(
-                            label = stringResource(R.string.push_server_latest_error),
-                            value = msg,
-                            valueColor = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                    Spacer(Modifier.height(12.dp))
                     Button(
                         onClick = onSyncNow,
                         enabled = !isSyncing,
