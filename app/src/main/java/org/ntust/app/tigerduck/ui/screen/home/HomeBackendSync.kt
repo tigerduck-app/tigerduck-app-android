@@ -41,6 +41,7 @@ import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.CourseOverrideResult
+import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.Course
@@ -94,6 +95,7 @@ class HomeBackendSync @Inject constructor(
     private val authTokenManager: AuthTokenManager,
     private val syncApiClient: SyncApiClient,
     private val pushApiClient: PushApiClient,
+    private val notificationSettingsSync: NotificationSettingsSync,
     private val courseService: CourseService,
     private val semesterCatalog: SemesterCatalog,
     private val widgetUpdater: WidgetUpdater,
@@ -137,6 +139,14 @@ class HomeBackendSync @Inject constructor(
             ServerStatusTracker.set(ServerStatus.OK, ServerKind.BACKEND)
             prefs.setLastSyncSource(SyncSource.BACKEND)
             widgetUpdater.requestUpdate()
+            // A full sync that just succeeded proves a session and a network,
+            // so this is where a Live Update edit whose push never landed —
+            // made while sync was off or the phone was offline, or one whose
+            // retries ran out — gets sent again. Catch-up only: it must never
+            // mark the device dirty, or every sync would push this phone's
+            // values over the other devices'. iOS re-sends at every full sync
+            // too.
+            notificationSettingsSync.pushIfUnconfirmed()
         } catch (e: CancellationException) {
             // Leaving Home mid-sync cancels viewModelScope, which lands here.
             // The writes below are not suspending, so they would run even in a
