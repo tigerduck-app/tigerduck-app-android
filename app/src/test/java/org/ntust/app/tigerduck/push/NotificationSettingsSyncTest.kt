@@ -1949,6 +1949,38 @@ class NotificationSettingsSyncTest {
     }
 
     @Test
+    fun `zero and negative foreign minutes stay out of the legacy hours field`() = runBlocking {
+        // 0 and -120 divide by 60 cleanly, so a whole-hour test alone lets them
+        // through into reminder_offsets_hours -- the field a pre-2.1.0 reader
+        // acts on, and which has never carried anything below one hour.
+        val server = json(
+            """{"assignments": {"enabled": true, "reminder_offsets_minutes": [1440, 0, -120]}}"""
+        )
+        val local = AssignmentSyncValues(enabled = true, offsets = setOf(AssignmentReminderOffset.HR24))
+        val transport = RecordingTransport(existing = SettingsDocumentEnvelope(document = server, revision = 4L))
+
+        pushAssignmentSettings(
+            local = local,
+            transport = transport,
+            cloudSyncEnabled = true,
+            syncAssignmentReminders = true,
+            isLoggedIn = true,
+        )
+
+        val section = transport.writtenDocuments.single().getAsJsonObject("assignments")
+        assertEquals(
+            "minutes still preserves every foreign value, including the nonsensical ones",
+            listOf(1_440, 0, -120),
+            section.getAsJsonArray("reminder_offsets_minutes").map { it.asInt },
+        )
+        assertEquals(
+            "hours must carry only real offsets -- never 0, never a negative",
+            listOf(24),
+            section.getAsJsonArray("reminder_offsets_hours").map { it.asInt },
+        )
+    }
+
+    @Test
     fun `an assignments push conflict adopts the server document and retries exactly once`() = runBlocking {
         val local = AssignmentSyncValues(enabled = true, offsets = setOf(AssignmentReminderOffset.HR24))
         val winner = json("""{"assignments": {"enabled": false}, "written_by_another_device": true}""")

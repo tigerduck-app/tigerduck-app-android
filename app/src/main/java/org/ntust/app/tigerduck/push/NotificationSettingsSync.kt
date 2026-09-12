@@ -685,7 +685,12 @@ internal fun AssignmentSyncValues.documentUpdates(existing: JsonObject): JsonObj
         .orEmpty()
         .filter { AssignmentReminderOffset.fromMinutes(it) == null }
     val minutes = (knownMinutes + foreignMinutes).sortedDescending()
-    val hours = minutes.filter { it % 60 == 0 }.map { it / 60 }.sortedDescending()
+    // `>= 60` as well as whole-hour: 0 and negatives divide cleanly too, and a
+    // foreign minute value of either shape would otherwise be mirrored into
+    // reminder_offsets_hours, which is the field a pre-2.1.0 reader acts on and
+    // has never carried anything below one hour. They stay in minutes, where a
+    // reader that understands the newer field can see them for what they are.
+    val hours = minutes.filter { it >= 60 && it % 60 == 0 }.map { it / 60 }.sortedDescending()
 
     val section = JsonObject()
     section.addProperty(ASSIGNMENTS_ENABLED_KEY, enabled)
