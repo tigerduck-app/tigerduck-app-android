@@ -2,8 +2,9 @@
 // screen, plus the routing that decides what tapping one does. Lived on the
 // Live Updates settings screen before spec §6 moved the whole
 // system-permissions section out to its own screen — Live Updates keeps its
-// display/sound/lock-screen/timing settings and shows no permissions at all
-// now.
+// display/sound/lock-screen/timing settings and shows no permission *states*
+// at all now, only the one-line PermissionGapLinkRow below that points back
+// here when something it needs is off.
 //
 // The routing is the part worth reading: for notifications on API 33+ we ask
 // for the runtime permission first, because the settings deep link is a worse
@@ -26,6 +27,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,12 +38,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.notification.AppPermission
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+
+/** iOS systemRed, the "off" dot on every permission surface in the app. */
+private val NotGrantedDotColor = Color(0xFFFF3B30)
 
 internal fun openPermissionPrompt(
     context: android.content.Context,
@@ -57,6 +67,55 @@ internal fun openPermissionPrompt(
         return
     }
     systemPermissions.openSettings(permission)
+}
+
+/**
+ * The single row the Live Updates screen shows above its settings while a
+ * permission a Live Update depends on is off — see
+ * [org.ntust.app.tigerduck.liveactivity.LiveActivityPermissions] for which
+ * ones and why.
+ *
+ * It is a way in to 通知權限設定, not a second permission list: the states,
+ * the runtime prompt and the settings deep links all stay on that screen, so
+ * there is only ever one place that asks for a permission. The red dot is
+ * [PermissionRow]'s, the chevron [SettingsLinkRow]'s — the row reads as both
+ * a warning and a destination because it is both.
+ */
+@Composable
+internal fun PermissionGapLinkRow(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) { role = Role.Button }
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(NotGrantedDotColor)
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stringResource(R.string.notification_permission_settings_nav_title),
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            )
+            Text(
+                stringResource(R.string.permission_not_granted_tap_settings),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+            )
+        }
+        Icon(
+            Icons.Filled.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
+            modifier = Modifier.size(18.dp),
+        )
+    }
 }
 
 @Composable
@@ -80,7 +139,7 @@ internal fun PermissionRow(
                     when {
                         !state.applicable -> Color(0xFFB0B0B0)
                         state.granted -> Color(0xFF34C759)
-                        else -> Color(0xFFFF3B30)
+                        else -> NotGrantedDotColor
                     }
                 )
         )

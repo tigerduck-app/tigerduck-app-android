@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
+import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import javax.inject.Inject
 
@@ -31,6 +32,11 @@ class LiveActivitySettingsViewModel @Inject constructor(
     val prefs: LiveActivityPreferences,
     private val manager: LiveActivityManager,
     private val notificationSettingsSync: NotificationSettingsSync,
+    // Exposed, not projected into [State]: permission grants change while the
+    // app is in the background, so the screen re-reads the singleton on
+    // ON_RESUME the way NotificationPermissionSettingsScreen does, rather than
+    // holding a snapshot this StateFlow would have to be told to refresh.
+    val systemPermissions: SystemPermissions,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(snapshot())

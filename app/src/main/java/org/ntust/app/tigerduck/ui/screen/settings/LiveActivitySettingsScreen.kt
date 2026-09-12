@@ -15,7 +15,12 @@
 // The same version moved the system-permissions section (and the
 // permission-refresh/request plumbing behind it) out to its own
 // 通知權限設定 screen — see NotificationPermissionSettingsScreen and
-// NotificationPermissionRow. This screen shows no permissions anymore.
+// NotificationPermissionRow. This screen shows no permission states anymore;
+// what it does show, and only while a permission a Live Update depends on is
+// off, is a single link row back to that screen, so a user whose notifications
+// are denied isn't left with a page of settings that cannot produce anything
+// and nowhere to go. Which permissions count is LiveActivityPermissions'
+// decision, not this screen's.
 
 package org.ntust.app.tigerduck.ui.screen.settings
 
@@ -39,6 +44,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,7 +54,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.liveactivity.LiveActivityPermissions
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
@@ -59,10 +69,32 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 @Composable
 fun LiveActivitySettingsScreen(
     onBack: () -> Unit,
+    onNavigateToNotificationPermissionSettings: () -> Unit = {},
     viewModel: LiveActivitySettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showResetConfirm by remember { mutableStateOf(false) }
+
+    val systemPermissions = viewModel.systemPermissions
+    var missingPermissions by remember {
+        mutableStateOf(LiveActivityPermissions.missing(systemPermissions.states()))
+    }
+
+    // Same ON_RESUME re-read NotificationPermissionSettingsScreen does, for the
+    // same reason: the user leaves to grant something and comes back, and the
+    // row has to have noticed. Read-only on purpose — recordCurrentGrants()
+    // belongs to the screen that actually asks for a permission, so the
+    // revocation warning keeps its single writer.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                missingPermissions = LiveActivityPermissions.missing(systemPermissions.states())
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold(
         topBar = {
@@ -88,6 +120,15 @@ fun LiveActivitySettingsScreen(
                 .padding(scaffoldPadding),
             contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp),
         ) {
+            if (missingPermissions.isNotEmpty()) {
+                item {
+                    ContentCard {
+                        PermissionGapLinkRow(
+                            onClick = onNavigateToNotificationPermissionSettings
+                        )
+                    }
+                }
+            }
             item {
                 ContentCard {
                     SettingsToggleRow(

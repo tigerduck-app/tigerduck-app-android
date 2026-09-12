@@ -505,7 +505,12 @@ fun MainNavigation(
                 )
             }
             composable(Screen.LiveActivitySettings.route) {
-                LiveActivitySettingsScreen(onBack = { navController.popBackStack() })
+                LiveActivitySettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToNotificationPermissionSettings = {
+                        navController.navigate(Screen.NotificationPermissionSettings.route)
+                    },
+                )
             }
             composable(Screen.NotificationPermissionSettings.route) {
                 NotificationPermissionSettingsScreen(onBack = { navController.popBackStack() })
