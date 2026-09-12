@@ -1,47 +1,52 @@
-// Writes this device's Live Update preferences into the `notification`
-// settings-document namespace (`GET/PUT /v3/settings/notification`, design
-// spec §4.6), and reads them back. Android owns exactly one key in that
-// document — `live_activity`. Everything else belongs to somebody else:
-// `assignments` and `courses` to iOS/the backend, plus whatever sections a
-// newer build of either platform adds to the same namespace.
+// Writes this device's Live Update preferences AND its assignment-reminder
+// settings into the `notification` settings-document namespace (`GET/PUT
+// /v3/settings/notification`, design spec §4.6), and reads them back.
+// Android owns two keys in that document — `live_activity` and
+// `assignments` — each gated on its own "同步內容" switch
+// (`syncLiveActivity` / `syncAssignmentReminders`) plus `cloudSyncEnabled`.
+// `courses` belongs to somebody else — the course-reminder feature — and so
+// does whatever section a newer build of either platform adds to the same
+// namespace; this file only ever round-trips those unchanged.
 //
-// The read half ([pullLiveActivitySettings]) is what makes this sync
-// rather than one-way replication: without it, an iOS user's edits to
-// their Live Activity lead times are invisible on Android. Every field it
-// reads degrades to "keep the local value" when the document can't express
-// it — missing, null, or the wrong JSON type — never to `false`/`0`. The
-// two lead times are additionally clamped into this build's local range.
-// That range equals iOS's slider ranges (1 h–8 h, 5 min–4 h), but nothing
-// holds the document to it: the backend does not validate these fields,
-// and iOS applies no floor to its assignment lead time when it loads or
-// pulls one. So the document can hold a value this build's own slider
-// could never produce.
+// The read half ([pullLiveActivitySettings], [pullAssignmentSettings]) is
+// what makes this sync rather than one-way replication: without it, an
+// iOS user's edits are invisible on Android. Every field degrades to "keep
+// the local value" when the document can't express it — missing, null, or
+// the wrong JSON type — never to `false`/`0`/an empty set. The live-activity
+// lead times are additionally clamped into this build's local range. That
+// range equals iOS's slider ranges (1 h–8 h, 5 min–4 h), but nothing holds
+// the document to it: the backend does not validate these fields, and iOS
+// applies no floor to its assignment lead time when it loads or pulls one.
+// So the document can hold a value this build's own slider could never
+// produce.
 //
 // Writes therefore **merge at the JSON level** rather than re-encoding a
 // typed struct: read whatever the server currently holds as a `JsonObject`,
-// splice the one key this app owns over it, and PUT the result. Every other
+// splice the keys this app owns over it, and PUT the result. Every other
 // key travels back exactly as it arrived — top level *and* nested inside a
 // section — including keys this build has never heard of. Mirrors iOS's
 // `NotificationSettingsSync.merging(_:into:)`
 // (`AppState+NotificationSettings.swift`).
 //
 // This is not a stylistic preference; a typed re-encode here is a live
-// data-loss bug in both directions:
+// data-loss bug:
 //
-//   * iOS added `assignments.reminder_offsets_minutes` (the lossless mirror
-//     of `reminder_offsets_hours`, sub-hour offsets included) and
-//     [AssignmentsSection] does not model it. Re-encoding the typed document
-//     would delete it on every write from this device, so a user's 30-minute
-//     assignment reminder would silently stop syncing between their own
-//     devices. Android schedules its reminders locally, so nothing surfaces
-//     until a reminder one day simply fails to arrive.
 //   * `reminder_offsets_hours` is `list[float]` on the backend — `0.5`
 //     schedules fine — while [AssignmentsSection] declares it `List<Int>?`.
 //     A fractional value there fails the *whole* typed document decode.
 //     Merging as JSON never decodes it, so the value round-trips untouched.
+//   * [AssignmentsSection] models a fixed `List<Int>?` for
+//     `reminder_offsets_minutes`, but the *values* inside it are arbitrary
+//     integers, not just the ones [org.ntust.app.tigerduck.notification.AssignmentReminderOffset]
+//     has cases for (a future build's extra offset, or malformed data).
+//     [AssignmentSyncValues.documentUpdates] folds any such value already in
+//     the document back into what it writes, rather than silently deleting
+//     it because this build's enum cannot represent it — see that function's
+//     KDoc.
 //
 // Nothing here needs an R8 keep rule of its own: the only reflective Gson
-// call is [LiveActivitySyncValues.documentUpdates], which encodes
+// calls are [LiveActivitySyncValues.documentUpdates] and
+// [AssignmentSyncValues.documentUpdates], which encode
 // [NotificationSettingsDocument] — a class whose every field carries
 // `@SerializedName` (pinned by `NotificationSettingsDocumentTest`). The
 // merge itself is `JsonObject` key manipulation, which obfuscation cannot
@@ -51,6 +56,7 @@ package org.ntust.app.tigerduck.push
 
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import kotlinx.coroutines.CancellationException
@@ -65,6 +71,7 @@ import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncUpdate
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncValues
+import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -74,6 +81,23 @@ import kotlin.math.floor
 internal const val NOTIFICATION_SETTINGS_NAMESPACE = "notification"
 
 private val syncGson = Gson()
+
+/**
+ * Exactly the assignment-reminder values the `notification` settings
+ * document's `assignments` section carries — the local half of the
+ * cross-device mapping, mirroring [LiveActivitySyncValues] and iOS's
+ * `NotificationSettingsSync.LocalPreferences` (`isAssignmentReminderEnabled`
+ * / `assignmentReminderOffsets`).
+ *
+ * Not persisted and never Gson-*de*serialized — built from
+ * [org.ntust.app.tigerduck.data.preferences.AppPreferences] and immediately
+ * encoded onto the wire — so CLAUDE.md's upgrade-safe-persistence rule does
+ * not apply here, the same reasoning [LiveActivitySyncValues]'s KDoc gives.
+ */
+internal data class AssignmentSyncValues(
+    val enabled: Boolean,
+    val offsets: Set<AssignmentReminderOffset>,
+)
 
 /**
  * The two calls [pushLiveActivitySettings] makes, as an interface rather
@@ -467,6 +491,254 @@ internal suspend fun pullLiveActivitySettingsCatching(
 } catch (e: Exception) {
     onFailure(e)
     false
+}
+
+// ─────────────────────────── Assignments section ───────────────────────────
+//
+// Same push/pull shape as live_activity above, gated on its own switch
+// (`syncAssignmentReminders`) instead of `syncLiveActivity`, sharing
+// [merging] and [SettingsDocumentTransport]. Kept as independent functions
+// (and an independent read-modify-write cycle) rather than folded into the
+// live_activity ones so neither section's push can fail because of the
+// other's — [NotificationSettingsSync.pushNow] runs both, in sequence, under
+// one queued trigger, which is the "reuse the queue, not the request" this
+// was asked to do.
+
+private const val ASSIGNMENTS_SECTION_KEY = "assignments"
+private const val ASSIGNMENTS_ENABLED_KEY = "enabled"
+private const val REMINDER_OFFSETS_HOURS_KEY = "reminder_offsets_hours"
+private const val REMINDER_OFFSETS_MINUTES_KEY = "reminder_offsets_minutes"
+
+/**
+ * [element]'s elements as a validated `List<Int>`, or `null` if [element] is
+ * missing, JSON `null`, or anything other than a genuine JSON array.
+ *
+ * Deliberately per-element tolerant rather than all-or-nothing: an element
+ * that is not a valid whole number ([asValidatedIntOrNull]) is dropped, not
+ * treated as invalidating the whole array — matching the backend's own
+ * `reminders.py:_numbers`, which filters non-numeric entries out of an
+ * otherwise-valid list rather than discarding the list. This is what makes
+ * the *presence* of the array (a JSON list, however messy its contents)
+ * the authority for precedence, independent of whether every element in it
+ * happens to be clean — the same "is a list" test §4.6 and the backend use
+ * for `reminder_offsets_minutes` vs. `reminder_offsets_hours`.
+ */
+private fun JsonElement?.asValidatedIntListOrNull(): List<Int>? {
+    if (this == null || !isJsonArray) return null
+    return asJsonArray.mapNotNull { it.asValidatedIntOrNull() }
+}
+
+/**
+ * Document offsets → the local `Set<AssignmentReminderOffset>` to store.
+ * Mirrors iOS's `NotificationSettingsSync.resolveOffsets`
+ * (`Services/Sync/NotificationSettingsDocument.swift`) field for field:
+ *
+ * - [documentMinutes] present (a list, including empty): authoritative and
+ *   complete, sub-hour offsets included. An entry matching no case in this
+ *   build (a future client's extra offset, or malformed data) is dropped
+ *   rather than failing the pull — see [AssignmentReminderOffset.fromMinutes].
+ *   An empty list is a real answer: the user turned every offset off.
+ * - only [documentHours] present: a reader older than `reminder_offsets_minutes`
+ *   wrote this document, or wrote it before this offset existed. The
+ *   whole-hour offsets come from the document; this build's own sub-hour
+ *   selections are **kept**, because a field that cannot structurally carry
+ *   them is not evidence the user turned them off. Without this, a
+ *   30-minute reminder would be silently deleted the first time any client
+ *   that only understands hours touched the document.
+ * - neither: the document says nothing about offsets, so [currentLocal] is
+ *   returned unchanged.
+ */
+internal fun resolveOffsets(
+    documentMinutes: List<Int>?,
+    documentHours: List<Int>?,
+    currentLocal: Set<AssignmentReminderOffset>,
+): Set<AssignmentReminderOffset> {
+    if (documentMinutes != null) {
+        return documentMinutes.mapNotNull(AssignmentReminderOffset::fromMinutes).toSet()
+    }
+    if (documentHours == null) return currentLocal
+    val fromDocument = documentHours.mapNotNull { hours ->
+        // hours comes straight off a document the backend does not validate
+        // (`SettingsPut.document: dict`); `hours * 60` overflowing Int would
+        // otherwise be an arithmetic crash rather than a values-that-don't-
+        // match degradation.
+        val minutes = hours.toLong() * 60
+        if (minutes < Int.MIN_VALUE || minutes > Int.MAX_VALUE) null
+        else AssignmentReminderOffset.fromMinutes(minutes.toInt())
+    }.toSet()
+    val localSubHour = currentLocal.filter { it.reminderOffsetMinutes < 60 }
+    return fromDocument + localSubHour
+}
+
+/**
+ * The `assignments` section update: `enabled` plus both offset lists, ready
+ * to splice over whatever [existing] currently holds via [merging].
+ *
+ * [reminderOffsetsMinutes] is written as the complete set this device
+ * selected **plus** any minute value already in [existing]'s
+ * `reminder_offsets_minutes` that no local [AssignmentReminderOffset] can
+ * represent. Without this, a value only a different (future, or foreign)
+ * client's enum understands would be permanently deleted the moment this
+ * device edits *any* offset and pushes — `reminder_offsets_minutes` is a
+ * key this build explicitly writes, so unlike a section it doesn't own,
+ * [merging]'s "leave keys you don't mention alone" safety net does not
+ * apply to it. [reminderOffsetsHours] is derived from that same merged
+ * minutes set (only the whole-hour-divisible values), so it never drifts
+ * out of step with it — including for a preserved foreign value that
+ * happens to be a whole number of hours.
+ *
+ * A foreign value that exists *only* in a legacy `reminder_offsets_hours`
+ * entry with no `reminder_offsets_minutes` counterpart at all (a pre-2.1.0
+ * write) is not separately preserved: every 2.1.0+ writer mirrors a value
+ * it cares about into minutes, so that shape can only come from a client
+ * older than this whole feature, and `reminder_offsets_hours` has always
+ * been the lossy field by design (see [AssignmentsSection]'s KDoc).
+ */
+internal fun AssignmentSyncValues.documentUpdates(existing: JsonObject): JsonObject {
+    val existingAssignments = existing.get(ASSIGNMENTS_SECTION_KEY)
+        ?.takeIf { it.isJsonObject }
+        ?.asJsonObject
+    val knownMinutes = offsets.map { it.reminderOffsetMinutes }.toSet()
+    val foreignMinutes = existingAssignments?.get(REMINDER_OFFSETS_MINUTES_KEY).asValidatedIntListOrNull()
+        .orEmpty()
+        .filter { AssignmentReminderOffset.fromMinutes(it) == null }
+    val minutes = (knownMinutes + foreignMinutes).sortedDescending()
+    val hours = minutes.filter { it % 60 == 0 }.map { it / 60 }.sortedDescending()
+
+    val section = JsonObject()
+    section.addProperty(ASSIGNMENTS_ENABLED_KEY, enabled)
+    section.add(REMINDER_OFFSETS_HOURS_KEY, JsonArray().apply { hours.forEach { add(it) } })
+    section.add(REMINDER_OFFSETS_MINUTES_KEY, JsonArray().apply { minutes.forEach { add(it) } })
+
+    val root = JsonObject()
+    root.add(ASSIGNMENTS_SECTION_KEY, section)
+    return root
+}
+
+/**
+ * Read-modify-write cycle for the document's `assignments` section —
+ * the [pushLiveActivitySettings] of this section. Everything else in the
+ * document, `courses` and any section this build has never heard of
+ * included, travels back exactly as read (see [merging]). On a 409,
+ * adopts the server's document and its revision and retries **exactly
+ * once** — never loops. See [pushLiveActivitySettings] for why each of the
+ * three gates below sits where it does and why the generation is re-checked
+ * before the read and before every write.
+ *
+ * The update is recomputed from the freshly-read [merging] target on every
+ * loop iteration (including after a conflict rebase), not built once up
+ * front: the foreign-minute preservation [documentUpdates] does depends on
+ * what the *current* document holds, and after a 409 that is the winner's
+ * document, not the stale one this call started with.
+ */
+internal suspend fun pushAssignmentSettings(
+    local: AssignmentSyncValues,
+    transport: SettingsDocumentTransport,
+    cloudSyncEnabled: Boolean,
+    syncAssignmentReminders: Boolean,
+    isLoggedIn: Boolean,
+    isCurrentGeneration: () -> Boolean = { true },
+): Boolean {
+    if (!cloudSyncEnabled || !syncAssignmentReminders || !isLoggedIn) return false
+    if (!isCurrentGeneration()) return false
+
+    val current = transport.read()
+    if (!isCurrentGeneration()) return false
+    var existing = current?.document ?: JsonObject()
+    var baseRevision = current?.revision
+
+    var conflicts = 0
+    while (true) {
+        if (!isCurrentGeneration()) return false
+        val result = transport.write(merging(local.documentUpdates(existing), into = existing), baseRevision)
+        when (result) {
+            is SettingsWriteResult.Written -> return true
+            is SettingsWriteResult.Conflict -> {
+                conflicts++
+                if (conflicts > 1) {
+                    throw SettingsDocumentApiException(
+                        "write $NOTIFICATION_SETTINGS_NAMESPACE: still conflicting after one rebase"
+                    )
+                }
+                existing = result.server.document
+                baseRevision = result.server.revision
+            }
+        }
+    }
+}
+
+/**
+ * Read-and-apply half of the `assignments` section — the
+ * [pullLiveActivitySettings] of this section. `enabled` degrades to
+ * [current]'s value exactly like the five live_activity fields; the offset
+ * set goes through [resolveOffsets] instead of a plain validated-or-keep
+ * check, since what "the document can't express it, keep local" means for
+ * offsets depends on *which* of the two offset fields is present (see that
+ * function's KDoc).
+ *
+ * Returns `null` when a gate is closed (no request was attempted, matching
+ * [pullLiveActivitySettings]'s `false`); otherwise the resolved values —
+ * equal to [current] when the section is missing, JSON `null`, or
+ * [isLocalDirty] reports an edit still in flight, and the caller applies the
+ * result unconditionally either way.
+ */
+internal suspend fun pullAssignmentSettings(
+    current: AssignmentSyncValues,
+    transport: SettingsDocumentTransport,
+    cloudSyncEnabled: Boolean,
+    syncAssignmentReminders: Boolean,
+    isLoggedIn: Boolean,
+    isLocalDirty: () -> Boolean = { false },
+    onLocalDirty: () -> Unit = {},
+): AssignmentSyncValues? {
+    if (!cloudSyncEnabled || !syncAssignmentReminders || !isLoggedIn) return null
+
+    val section = transport.read()?.document
+        ?.get(ASSIGNMENTS_SECTION_KEY)
+        ?.takeIf { it.isJsonObject }
+        ?.asJsonObject
+
+    if (isLocalDirty()) {
+        onLocalDirty()
+        return current
+    }
+    if (section == null) return current
+
+    return AssignmentSyncValues(
+        enabled = section.get(ASSIGNMENTS_ENABLED_KEY).asValidatedBooleanOrNull() ?: current.enabled,
+        offsets = resolveOffsets(
+            documentMinutes = section.get(REMINDER_OFFSETS_MINUTES_KEY).asValidatedIntListOrNull(),
+            documentHours = section.get(REMINDER_OFFSETS_HOURS_KEY).asValidatedIntListOrNull(),
+            currentLocal = current.offsets,
+        ),
+    )
+}
+
+/**
+ * [pullAssignmentSettings], with a transport failure caught and reported
+ * through [onFailure] instead of left to propagate — the assignments mirror
+ * of [pullLiveActivitySettingsCatching]; see that function's KDoc for why
+ * this distinction (a degraded-but-successful read vs. the transport itself
+ * failing to answer) matters and for the crash this shape prevents.
+ */
+internal suspend fun pullAssignmentSettingsCatching(
+    current: AssignmentSyncValues,
+    transport: SettingsDocumentTransport,
+    cloudSyncEnabled: Boolean,
+    syncAssignmentReminders: Boolean,
+    isLoggedIn: Boolean,
+    isLocalDirty: () -> Boolean = { false },
+    onLocalDirty: () -> Unit = {},
+    onFailure: (Throwable) -> Unit = {},
+): AssignmentSyncValues? = try {
+    pullAssignmentSettings(
+        current, transport, cloudSyncEnabled, syncAssignmentReminders, isLoggedIn, isLocalDirty, onLocalDirty,
+    )
+} catch (e: CancellationException) {
+    throw e
+} catch (e: Exception) {
+    onFailure(e)
+    null
 }
 
 /**

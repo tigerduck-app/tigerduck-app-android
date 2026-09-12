@@ -21,6 +21,7 @@ import org.junit.Test
 import org.ntust.app.tigerduck.data.preferences.effectiveCloudSyncEnabled
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncValues
+import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 
 /**
  * Covers [pushLiveActivitySettings] — the write half of the `notification`
@@ -1311,6 +1312,484 @@ class NotificationSettingsSyncTest {
             7_200L,
             prefs.assignmentLeadTimeSec,
         )
+    }
+
+    // ── 13. resolveOffsets: document offsets -> the local enum set ─────────
+
+    @Test
+    fun `resolveOffsets keeps the local set when neither document field is present`() {
+        val local = setOf(AssignmentReminderOffset.HR16, AssignmentReminderOffset.MIN10)
+        assertEquals(local, resolveOffsets(documentMinutes = null, documentHours = null, currentLocal = local))
+    }
+
+    @Test
+    fun `resolveOffsets prefers minutes over hours whenever minutes is a list`() {
+        val resolved = resolveOffsets(
+            documentMinutes = listOf(30),
+            documentHours = listOf(24, 2),
+            currentLocal = setOf(AssignmentReminderOffset.HR16),
+        )
+        assertEquals(setOf(AssignmentReminderOffset.MIN30), resolved)
+    }
+
+    @Test
+    fun `resolveOffsets treats an empty minutes list as the user turning everything off`() {
+        val local = setOf(AssignmentReminderOffset.HR48, AssignmentReminderOffset.MIN30)
+        val resolved = resolveOffsets(documentMinutes = emptyList(), documentHours = listOf(24), currentLocal = local)
+        assertEquals(emptySet<AssignmentReminderOffset>(), resolved)
+    }
+
+    @Test
+    fun `resolveOffsets falls back to hours and keeps the local sub-hour offsets when minutes is absent`() {
+        // HR16 is not among the document's hours, so it must be dropped;
+        // MIN10 (sub-hour) must survive, because the hours field cannot
+        // express it either way -- its absence is not evidence it was
+        // turned off.
+        val local = setOf(AssignmentReminderOffset.HR16, AssignmentReminderOffset.MIN10)
+        val resolved = resolveOffsets(documentMinutes = null, documentHours = listOf(24, 2), currentLocal = local)
+        assertEquals(
+            setOf(AssignmentReminderOffset.HR24, AssignmentReminderOffset.HR2, AssignmentReminderOffset.MIN10),
+            resolved,
+        )
+    }
+
+    @Test
+    fun `resolveOffsets drops a minute value no local case represents`() {
+        val resolved = resolveOffsets(documentMinutes = listOf(2_880, 999), documentHours = null, currentLocal = emptySet())
+        assertEquals(setOf(AssignmentReminderOffset.HR48), resolved)
+    }
+
+    // ── 14. pushAssignmentSettings: local -> document mapping ──────────────
+
+    /** Deliberately non-default: enabled=false (default true), and a mixed hour/sub-hour selection. */
+    private val localAssignments = AssignmentSyncValues(
+        enabled = false,
+        offsets = setOf(AssignmentReminderOffset.HR48, AssignmentReminderOffset.HR1, AssignmentReminderOffset.MIN30),
+    )
+
+    @Test
+    fun `assignment local values map onto the assignments keys, both lists populated`() = runBlocking {
+        val transport = RecordingTransport(existing = null)
+
+        val written = pushAssignmentSettings(
+            local = localAssignments,
+            transport = transport,
+            cloudSyncEnabled = true,
+            syncAssignmentReminders = true,
+            isLoggedIn = true,
+        )
+
+        assertTrue("the write landed", written)
+        val document = transport.writtenDocuments.single()
+        assertEquals(setOf("assignments"), document.keySet())
+        val section = document.getAsJsonObject("assignments")
+        assertEquals(setOf("enabled", "reminder_offsets_hours", "reminder_offsets_minutes"), section.keySet())
+        assertEquals(false, section.get("enabled").asBoolean)
+        assertEquals(
+            "the complete set, sub-hour included, descending",
+            listOf(2_880, 60, 30),
+            section.getAsJsonArray("reminder_offsets_minutes").map { it.asInt },
+        )
+        assertEquals(
+            "MIN30 has no whole-hour representation, so it must be excluded from hours",
+            listOf(48, 1),
+            section.getAsJsonArray("reminder_offsets_hours").map { it.asInt },
+        )
+    }
+
+    @Test
+    fun `an assignments push leaves every section it does not own untouched`() = runBlocking {
+        val server = json(serverDocumentJson)
+        val transport = RecordingTransport(existing = SettingsDocumentEnvelope(document = server, revision = 7L))
+
+        pushAssignmentSettings(
+            local = localAssignments,
+            transport = transport,
+            cloudSyncEnabled = true,
+            syncAssignmentReminders = true,
+            isLoggedIn = true,
+        )
+
+        val document = transport.writtenDocuments.single()
+        assertEquals(7L, transport.baseRevisions.single())
+        assertEquals("courses must come back exactly as it went in", server.getAsJsonObject("courses"), document.getAsJsonObject("courses"))
+        assertEquals(
+            "live_activity must come back exactly as it went in",
+            server.getAsJsonObject("live_activity"),
+            document.getAsJsonObject("live_activity"),
+        )
+        assertEquals(
+            "an unknown top-level section must come back exactly as it went in",
+            server.getAsJsonObject("some_future_section"),
+            document.getAsJsonObject("some_future_section"),
+        )
+        assertEquals("nothing invented or dropped at the top level", server.keySet(), document.keySet())
+    }
+
+    @Test
+    fun `an unknown key nested inside assignments survives a push`() = runBlocking {
+        val server = json(
+            """
+            {
+              "assignments": {
+                "enabled": true,
+                "reminder_offsets_hours": [24],
+                "reminder_offsets_minutes": [1440],
+                "snooze_minutes": 5
+              }
+            }
+            """.trimIndent()
+        )
+        val transport = RecordingTransport(existing = SettingsDocumentEnvelope(document = server, revision = 3L))
+
+        pushAssignmentSettings(
+            local = localAssignments,
+            transport = transport,
+            cloudSyncEnabled = true,
+            syncAssignmentReminders = true,
+            isLoggedIn = true,
+        )
+
+        val section = transport.writtenDocuments.single().getAsJsonObject("assignments")
+        assertTrue("an unknown key nested inside assignments must survive", section.has("snooze_minutes"))
+        assertEquals(5, section.get("snooze_minutes").asInt)
+    }
+
+    @Test
+    fun `a minute value no local case represents survives an assignments push, kept in step with hours when whole-hour`() = runBlocking {
+        val server = json(
+            """{"assignments": {"enabled": true, "reminder_offsets_minutes": [2880, 180, 47]}}"""
+        )
+        // Local selection is just HR48 (2880), already in the document -- this
+        // push's only "intent" is to confirm enabled/HR48, not to touch 180
+        // (3h, a value no fixed case represents) or 47 (not even a whole hour).
+        val local = AssignmentSyncValues(enabled = true, offsets = setOf(AssignmentReminderOffset.HR48))
+        val transport = RecordingTransport(existing = SettingsDocumentEnvelope(document = server, revision = 5L))
+
+        pushAssignmentSettings(
+            local = local,
+            transport = transport,
+            cloudSyncEnabled = true,
+            syncAssignmentReminders = true,
+            isLoggedIn = true,
+        )
+
+        val section = transport.writtenDocuments.single().getAsJsonObject("assignments")
+        assertEquals(
+            "both foreign values must survive in minutes, not just the one this build's enum knows",
+            listOf(2_880, 180, 47),
+            section.getAsJsonArray("reminder_offsets_minutes").map { it.asInt },
+        )
+        assertEquals(
+            "180 (3h, a whole hour) must be kept in step in hours too; 47 must not, since it isn't one",
+            listOf(48, 3),
+            section.getAsJsonArray("reminder_offsets_hours").map { it.asInt },
+        )
+    }
+
+    @Test
+    fun `an assignments push conflict adopts the server document and retries exactly once`() = runBlocking {
+        val local = AssignmentSyncValues(enabled = true, offsets = setOf(AssignmentReminderOffset.HR24))
+        val winner = json("""{"assignments": {"enabled": false}, "written_by_another_device": true}""")
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(document = json(serverDocumentJson), revision = 7L),
+            outcomes = listOf(
+                SettingsWriteResult.Conflict(SettingsDocumentEnvelope(document = winner, revision = 9L)),
+                SettingsWriteResult.Written(10L),
+            ),
+        )
+
+        val written = pushAssignmentSettings(
+            local = local,
+            transport = transport,
+            cloudSyncEnabled = true,
+            syncAssignmentReminders = true,
+            isLoggedIn = true,
+        )
+
+        assertTrue("the retry landed", written)
+        assertEquals(2, transport.writtenDocuments.size)
+        assertEquals(listOf(7L, 9L), transport.baseRevisions)
+        val retried = transport.writtenDocuments[1]
+        assertEquals(
+            "this device's own edit must overwrite the winner's stale enabled, not the other way round",
+            true,
+            retried.getAsJsonObject("assignments").get("enabled").asBoolean,
+        )
+        assertTrue(
+            "a key only the winning document had must survive the rebase",
+            retried.has("written_by_another_device"),
+        )
+    }
+
+    @Test
+    fun `a second assignments push conflict gives up instead of retrying forever`() {
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(document = json(serverDocumentJson), revision = 7L),
+            outcomes = listOf(
+                SettingsWriteResult.Conflict(
+                    SettingsDocumentEnvelope(document = json("""{"assignments": {"enabled": false}}"""), revision = 9L)
+                )
+            ),
+        )
+
+        val thrown = assertThrows(SettingsDocumentApiException::class.java) {
+            runBlocking {
+                pushAssignmentSettings(
+                    local = localAssignments,
+                    transport = transport,
+                    cloudSyncEnabled = true,
+                    syncAssignmentReminders = true,
+                    isLoggedIn = true,
+                )
+            }
+        }
+
+        assertEquals(2, transport.writtenDocuments.size)
+        assertTrue(thrown.message.orEmpty().contains(NOTIFICATION_SETTINGS_NAMESPACE))
+    }
+
+    @Test
+    fun `assignment reminders switch off sends no push request at all`() = runBlocking {
+        val transport = RecordingTransport(existing = SettingsDocumentEnvelope(document = json(serverDocumentJson), revision = 7L))
+
+        val written = pushAssignmentSettings(
+            local = localAssignments, transport = transport,
+            cloudSyncEnabled = true, syncAssignmentReminders = false, isLoggedIn = true,
+        )
+
+        assertFalse(written)
+        assertEquals("must not even read the document", 0, transport.readCount)
+        assertTrue(transport.writtenDocuments.isEmpty())
+    }
+
+    @Test
+    fun `cloud sync off sends no assignments push request at all`() = runBlocking {
+        val transport = RecordingTransport(existing = SettingsDocumentEnvelope(document = json(serverDocumentJson), revision = 7L))
+
+        val written = pushAssignmentSettings(
+            local = localAssignments, transport = transport,
+            cloudSyncEnabled = false, syncAssignmentReminders = true, isLoggedIn = true,
+        )
+
+        assertFalse(written)
+        assertEquals(0, transport.readCount)
+    }
+
+    @Test
+    fun `signed out sends no assignments push request at all`() = runBlocking {
+        val transport = RecordingTransport(existing = SettingsDocumentEnvelope(document = json(serverDocumentJson), revision = 7L))
+
+        val written = pushAssignmentSettings(
+            local = localAssignments, transport = transport,
+            cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = false,
+        )
+
+        assertFalse(written)
+        assertEquals(0, transport.readCount)
+    }
+
+    // ── 15. pullAssignmentSettings: the four degrade-to-local cases ────────
+    //
+    // Each starts from a deliberately non-default local value -- enabled is
+    // false (default true) and the offsets are neither DEFAULTS nor empty --
+    // so "kept local" and "reset to default" cannot look alike.
+
+    private fun nonDefaultAssignments() = AssignmentSyncValues(
+        enabled = false,
+        offsets = setOf(AssignmentReminderOffset.HR16, AssignmentReminderOffset.MIN10),
+    )
+
+    @Test
+    fun `pull keeps local assignment values when the section is absent`() = runBlocking {
+        val current = nonDefaultAssignments()
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(document = json("""{"live_activity": {"show_in_class": true}}"""), revision = 1L)
+        )
+
+        val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
+
+        assertEquals("an absent section must not reset to defaults", current, resolved)
+    }
+
+    @Test
+    fun `pull keeps local assignment values when the section is JSON null`() = runBlocking {
+        val current = nonDefaultAssignments()
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(document = json("""{"assignments": null}"""), revision = 1L)
+        )
+
+        val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
+
+        assertEquals("a null section must not reset to defaults", current, resolved)
+    }
+
+    @Test
+    fun `pull keeps local values for fields the section omits`() = runBlocking {
+        val current = nonDefaultAssignments()
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(document = json("""{"assignments": {}}"""), revision = 1L)
+        )
+
+        val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
+
+        assertEquals("a field missing from an otherwise-present section must not reset to defaults", current, resolved)
+    }
+
+    @Test
+    fun `pull keeps local values when fields are the wrong JSON type`() = runBlocking {
+        val current = nonDefaultAssignments()
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(
+                document = json(
+                    """
+                    {"assignments": {
+                        "enabled": "true",
+                        "reminder_offsets_minutes": {"not": "a list"},
+                        "reminder_offsets_hours": "24"
+                    }}
+                    """.trimIndent()
+                ),
+                revision = 1L,
+            )
+        )
+
+        val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
+
+        assertEquals(
+            "a JSON string is not a JSON boolean or a JSON array, however each reads -- keep local",
+            current,
+            resolved,
+        )
+    }
+
+    // ── 16. pullAssignmentSettings: precedence and gates ────────────────────
+
+    @Test
+    fun `pull applies enabled and prefers minutes over hours`() = runBlocking {
+        val current = AssignmentSyncValues(enabled = false, offsets = setOf(AssignmentReminderOffset.HR16))
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(
+                document = json(
+                    """{"assignments": {"enabled": true, "reminder_offsets_hours": [24, 2], "reminder_offsets_minutes": [30]}}"""
+                ),
+                revision = 1L,
+            )
+        )
+
+        val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
+
+        assertEquals(AssignmentSyncValues(enabled = true, offsets = setOf(AssignmentReminderOffset.MIN30)), resolved)
+    }
+
+    @Test
+    fun `pull falls back to hours when minutes is absent, keeping local sub-hour offsets`() = runBlocking {
+        val current = AssignmentSyncValues(
+            enabled = true,
+            offsets = setOf(AssignmentReminderOffset.HR16, AssignmentReminderOffset.MIN10),
+        )
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(document = json("""{"assignments": {"reminder_offsets_hours": [24, 2]}}"""), revision = 1L)
+        )
+
+        val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
+
+        assertEquals(
+            setOf(AssignmentReminderOffset.HR24, AssignmentReminderOffset.HR2, AssignmentReminderOffset.MIN10),
+            resolved?.offsets,
+        )
+    }
+
+    @Test
+    fun `pull treats an empty minutes list as every offset turned off`() = runBlocking {
+        val current = AssignmentSyncValues(
+            enabled = true,
+            offsets = setOf(AssignmentReminderOffset.HR48, AssignmentReminderOffset.MIN30),
+        )
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(document = json("""{"assignments": {"reminder_offsets_minutes": []}}"""), revision = 1L)
+        )
+
+        val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
+
+        assertEquals(emptySet<AssignmentReminderOffset>(), resolved?.offsets)
+    }
+
+    @Test
+    fun `pull does not overwrite assignment values while a push has not yet been confirmed`() = runBlocking {
+        val current = nonDefaultAssignments()
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(document = json("""{"assignments": {"enabled": true}}"""), revision = 1L)
+        )
+        var onLocalDirtyCalled = false
+
+        val resolved = pullAssignmentSettings(
+            current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true,
+            isLocalDirty = { true }, onLocalDirty = { onLocalDirtyCalled = true },
+        )
+
+        assertTrue("the caller must be told to re-push rather than silently losing the edit", onLocalDirtyCalled)
+        assertEquals("an unconfirmed local edit must survive a pull", current, resolved)
+    }
+
+    @Test
+    fun `pull attempts nothing when the assignment reminders switch is off`() = runBlocking {
+        val transport = RecordingTransport(existing = SettingsDocumentEnvelope(document = json(serverDocumentJson), revision = 7L))
+
+        val resolved = pullAssignmentSettings(
+            current = AssignmentSyncValues(enabled = true, offsets = AssignmentReminderOffset.DEFAULTS),
+            transport = transport, cloudSyncEnabled = true, syncAssignmentReminders = false, isLoggedIn = true,
+        )
+
+        assertNull("a closed gate must not report as an attempted pull", resolved)
+        assertEquals("must not even read the document", 0, transport.readCount)
+    }
+
+    @Test
+    fun `pullAssignmentSettingsCatching survives a transport failure and leaves local values untouched`() = runBlocking {
+        val current = nonDefaultAssignments()
+        var reportedFailure: Throwable? = null
+
+        val resolved = pullAssignmentSettingsCatching(
+            current = current,
+            transport = throwingTransport(SettingsDocumentApiException("read notification failed: HTTP 000 offline")),
+            cloudSyncEnabled = true,
+            syncAssignmentReminders = true,
+            isLoggedIn = true,
+            onFailure = { e -> reportedFailure = e },
+        )
+
+        assertNull("a caught transport failure must not report a resolved value", resolved)
+        assertTrue(
+            "the caller must be told what failed, not have it silently swallowed",
+            reportedFailure is SettingsDocumentApiException,
+        )
+    }
+
+    @Test
+    fun `a document written by the assignments push path round-trips through the pull path unchanged`() = runBlocking {
+        val pushTransport = RecordingTransport(existing = null)
+        pushAssignmentSettings(
+            local = localAssignments,
+            transport = pushTransport,
+            cloudSyncEnabled = true,
+            syncAssignmentReminders = true,
+            isLoggedIn = true,
+        )
+        val written = pushTransport.writtenDocuments.single()
+
+        val pullTransport = RecordingTransport(existing = SettingsDocumentEnvelope(document = written, revision = 1L))
+        val resolved = pullAssignmentSettings(
+            // Deliberately opposite of localAssignments, so this proves the
+            // round trip actually moved data.
+            current = AssignmentSyncValues(enabled = !localAssignments.enabled, offsets = setOf(AssignmentReminderOffset.HR4)),
+            transport = pullTransport,
+            cloudSyncEnabled = true,
+            syncAssignmentReminders = true,
+            isLoggedIn = true,
+        )
+
+        assertEquals(localAssignments, resolved)
     }
 }
 
