@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
+import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,11 +25,13 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
+import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
@@ -41,10 +44,46 @@ class AssignmentReminderSettingsViewModel @Inject constructor(
     val appState: AppState,
     private val scheduler: AssignmentNotificationScheduler,
     private val dataCache: DataCache,
+    private val notificationSettingsSync: NotificationSettingsSync,
 ) : ViewModel() {
+
+    init {
+        // Read-and-apply half of the notification-document sync: pick up
+        // whatever another device (most likely iOS) has written to the
+        // shared assignments section before this screen shows anything, the
+        // same pattern LiveActivitySettingsViewModel uses for live_activity.
+        //
+        // Must not let a transport failure escape: NotificationSettingsSync.pullNow()
+        // catches transport failures for both sections internally, but
+        // re-reads AppPreferences through appState below regardless, so an
+        // unrelated exception here still must not reach viewModelScope (no
+        // CoroutineExceptionHandler) and kill the process.
+        viewModelScope.launch {
+            runCatching { notificationSettingsSync.pullNow() }
+                .onSuccess { applied ->
+                    if (applied) {
+                        // appState caches notifyAssignments/notifyAssignmentOffsets in
+                        // mutableStateOf, seeded once at construction; pullNow() writes
+                        // straight to the underlying AppPreferences (the same split
+                        // NotificationSettingsSync uses for LiveActivityPreferences,
+                        // which needs no such refresh because its screen reads the
+                        // preferences object directly, not through AppState's cache).
+                        // Re-reading through appState's own setters both refreshes
+                        // that cache and keeps this device's own write path.
+                        appState.notifyAssignments = appState.prefs.notifyAssignments
+                        appState.notifyAssignmentOffsets = appState.prefs.notifyAssignmentOffsets
+                    }
+                }
+                .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    Log.w(TAG, "pulling assignment settings failed", e)
+                }
+        }
+    }
 
     fun setEnabled(value: Boolean) {
         appState.notifyAssignments = value
+        notificationSettingsSync.markAssignmentUnconfirmedAndPush()
         if (value) {
             rescheduleFromCache()
         } else {
@@ -55,6 +94,7 @@ class AssignmentReminderSettingsViewModel @Inject constructor(
     fun setOffsetEnabled(offset: AssignmentReminderOffset, enabled: Boolean) {
         val current = appState.notifyAssignmentOffsets
         appState.notifyAssignmentOffsets = if (enabled) current + offset else current - offset
+        notificationSettingsSync.markAssignmentUnconfirmedAndPush()
         if (appState.notifyAssignments) rescheduleFromCache()
     }
 
@@ -75,6 +115,10 @@ class AssignmentReminderSettingsViewModel @Inject constructor(
                 appState.notifyAssignmentOffsets,
             )
         }
+    }
+
+    private companion object {
+        const val TAG = "AssignmentReminderSettings"
     }
 }
 
