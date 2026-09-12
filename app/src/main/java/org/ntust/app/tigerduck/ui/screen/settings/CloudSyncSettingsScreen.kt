@@ -69,6 +69,27 @@ import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /**
+ * Whether any 同步內容 switch that gives TigerSync something to do for this
+ * device is still on. When none is, the TigerSync screen switches TigerSync
+ * itself off (`refreshSyncStates` in [CloudSyncSettingsScreen]).
+ *
+ * `syncLiveActivity` counts: it gates this device's Live Update settings
+ * sync, which also needs TigerSync on, so a user who keeps only 即時更新 must
+ * be able to keep TigerSync on for it. `syncAssignmentReminders` does not
+ * count: nothing on this device reads it (Android schedules its assignment
+ * reminders locally), and the backend reads it only when delivering
+ * reminders to iPhone and iPad, so on its own it gives TigerSync nothing to
+ * do here.
+ */
+internal fun hasSyncContentLeft(
+    syncCourses: Boolean,
+    syncCourseColors: Boolean,
+    syncCourseNames: Boolean,
+    syncAssignments: Boolean,
+    syncLiveActivity: Boolean,
+): Boolean = syncCourses || syncCourseColors || syncCourseNames || syncAssignments || syncLiveActivity
+
+/**
  * TigerSync settings — spec §6. Root-level rows, each a [ToggleWithFooterRow]:
  * an always-on "essential info" indicator (no persisted setting — it is
  * bound to a constant, see its call site below), the course-sync master
@@ -102,7 +123,14 @@ fun CloudSyncSettingsScreen(
         syncCourseColors = viewModel.prefs.syncCourseColors
         syncCourseNames = viewModel.prefs.syncCourseNames
         syncAssignments = viewModel.prefs.syncAssignments
-        if (syncEnabled && !syncCourses && !syncCourseColors && !syncCourseNames && !syncAssignments) {
+        val anythingLeftToSync = hasSyncContentLeft(
+            syncCourses = syncCourses,
+            syncCourseColors = syncCourseColors,
+            syncCourseNames = syncCourseNames,
+            syncAssignments = syncAssignments,
+            syncLiveActivity = viewModel.prefs.syncLiveActivity,
+        )
+        if (syncEnabled && !anythingLeftToSync) {
             syncEnabled = false
             viewModel.appState.cloudSyncEnabled = false
             viewModel.pushCloudSyncEnabled(false)
