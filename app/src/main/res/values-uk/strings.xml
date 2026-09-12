@@ -29,7 +29,7 @@
     <string name="action_remove">Видалити</string>
     <string name="action_reset">Скинути</string>
     <string name="action_retry">Спробувати ще раз</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">Зберегти</string>
     <string name="action_search">Пошук</string>
     <string name="action_sign_in">Увійти</string>
     <string name="action_sign_in_again">Увійти знову</string>
@@ -125,7 +125,7 @@
     <string name="bulletin_rule_editor_mode_or_footer">Сповіщати якщо відповідає відділ або категорія.</string>
     <string name="bulletin_rule_editor_mode_section">Режим</string>
     <string name="bulletin_rule_editor_name_placeholder">Напр.: Academics + Scholarship</string>
-    <string name="bulletin_rule_editor_name_section">Name</string>
+    <string name="bulletin_rule_editor_name_section">Назва</string>
     <string name="bulletin_rule_editor_selected_count">%1$d вибрано</string>
     <string name="bulletin_rule_editor_tag_section">Категорія</string>
     <string name="bulletin_rule_filter_separator">, </string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">Цього дня немає подій</string>
     <string name="calendar_no_events_today">Сьогодні подій немає</string>
     <string name="calendar_previous_month">Попередній місяць</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">Кінець %1$s</string>
+    <string name="calendar_semester_start">Початок %1$s</string>
     <string name="calendar_source_exam">Іспит</string>
     <string name="calendar_source_holiday">Свято</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -178,7 +178,7 @@
     <string name="class_table_reset_message">Розклад буде перебудовано за даними Moodle, системи вибору курсів і системи оцінок. Курси, додані, видалені або перейменовані вручну, буде втрачено.</string>
     <string name="class_table_reset_title">Скинути розклад</string>
     <string name="class_table_reset_title_with_semester">Скинути розклад %1$s</string>
-    <string name="class_table_semester_picker_label">Semester</string>
+    <string name="class_table_semester_picker_label">Семестр</string>
     <string name="class_table_sign_in_required_message">Увійдіть, щоб переглянути розклад занять</string>
     <string name="class_table_total_credits_value">%1$d кредитів</string>
     <string name="cloud_sync_assignments">Завдання</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">Виберіть, які дані розкладу синхронізувати між пристроями.</string>
     <string name="cloud_sync_class_table_sync">Синхронізація розкладу</string>
     <string name="cloud_sync_course_colours">Кольори курсів</string>
-    <string name="cloud_sync_courses">Курси</string>
     <string name="cloud_sync_custom_course_names">Власні назви курсів</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">ID пристрою</string>
     <string name="cloud_sync_device_section">Пристрій</string>
     <string name="cloud_sync_disable_button">Вимкнути TigerSync</string>
     <string name="cloud_sync_disable_confirm_action">Вимкнути</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">Вимкнути TigerSync?</string>
     <string name="cloud_sync_disabled_footer">Синхронізуйте зміни розкладу, стани завдань та налаштування між пристроями, а сервер періодично отримуватиме завдання Moodle за вас.</string>
     <string name="cloud_sync_enable_button">Увімкнути TigerSync</string>
-    <string name="cloud_sync_last_synced_label">Остання синхронізація</string>
-    <string name="cloud_sync_last_synced_never">Ще не синхронізовано</string>
     <string name="cloud_sync_privacy_body">Коли TigerSync увімкнено, ваш пароль від шкільної системи та токен Moodle шифруються та завантажуються на сервер TigerDuck, де використовуються для періодичного отримання завдань Moodle від вашого імені та синхронізації змін розкладу, станів завдань та налаштувань між вашими пристроями.\n\nВи можете вимкнути TigerSync у будь-який час. Вимкнення здійснить вихід з цього пристрою та скасує його реєстрацію на сервері (включно з push-даними); завантажені облікові дані залишаються на сервері лише доки їх використовують інші синхронізовані пристрої. Локальні дані не постраждають.</string>
     <string name="cloud_sync_privacy_confirm">Погодитись та увімкнути</string>
     <string name="cloud_sync_privacy_title">TigerSync та конфіденційність</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">Вхід…</string>
     <string name="cloud_sync_step_register">Реєстрація пристрою…</string>
     <string name="cloud_sync_step_upload">Завантаження даних…</string>
-    <string name="cloud_sync_sync_now">Синхронізувати</string>
     <string name="cloud_sync_sync_options">Параметри синхронізації</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">Синій</string>
@@ -243,8 +239,8 @@
     <string name="course_color_picker_title">Змінити колір</string>
     <string name="course_credits_value">Кредити: %1$d</string>
     <string name="course_detail_classroom_label">Аудиторія</string>
-    <string name="course_detail_code_label">Code</string>
-    <string name="course_detail_credits_label">Credits</string>
+    <string name="course_detail_code_label">Код</string>
+    <string name="course_detail_credits_label">Кредити</string>
     <string name="course_detail_due_prefix">Термін: %1$s</string>
     <string name="course_detail_enrollment_label">Зарахування</string>
     <string name="course_detail_incomplete_assignments">Незавершені завдання</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">Системні сповіщення</string>
     <string name="onboarding_analytics_description">Допоможи покращити TigerDuck, ділячись анонімними даними про відвідані сторінки та використання віджетів. Це можна змінити будь-коли в Налаштуваннях.</string>
     <string name="onboarding_analytics_label">Аналітика використання (необов\'язково)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">Використати власну кінцеву точку API</string>
     <string name="onboarding_flavor_fdroid_description">Ви використовуєте збірку F-Droid. Оскільки правила F-Droid забороняють залежність від сервісів Google (Firebase FCM, GMS тощо), у цій збірці недоступні наведені нижче функції:\n\n1. Супутній застосунок Wear OS\n2. Push-сповіщення в реальному часі\n3. TigerSync: Синхронізувати інформацію про курси\n4. TigerSync: Отримувати додаткові сповіщення сервера</string>
     <string name="onboarding_flavor_fdroid_title">Сповіщення про збірку F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck містить супутній застосунок Wear OS. Переглядайте повідомлення занять на годиннику — Wear TigerDuck синхронізує дані з вашого телефона.</string>
@@ -543,7 +539,7 @@
     <string name="onboarding_sync_note">Коли синхронізацію вимкнено, усі дані залишаються лише на цьому пристрої. Push-сповіщення для нагадувань про домашні завдання працюють локально без TigerSync.</string>
     <string name="onboarding_sync_shared_assignments">Дані завдань</string>
     <string name="onboarding_sync_shared_courses">Дані курсів</string>
-    <string name="onboarding_sync_shared_device_id">Device ID</string>
+    <string name="onboarding_sync_shared_device_id">ID пристрою</string>
     <string name="onboarding_sync_shared_moodle_token">Токен Moodle (зашифрований)</string>
     <string name="onboarding_sync_shared_student_id">Студентський ID</string>
     <string name="onboarding_sync_title">TigerSync</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">Увімкнути серверні push-сповіщення</string>
     <string name="push_server_footer">Використовується для отримання сповіщень шкільних оголошень у реальному часі та активного запуску нагадувань.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">Остання реєстрація</string>
-    <string name="push_server_last_sync">Остання синхронізація</string>
     <string name="push_server_latest_error">Остання помилка</string>
     <string name="push_server_notification_status_authorized">Авторизовано</string>
     <string name="push_server_notification_status_denied_hint">Відхилено (відкрийте системні налаштування для повторного увімкнення)</string>
@@ -588,9 +582,8 @@
     <string name="push_server_status_device_registration">Реєстрація пристрою</string>
     <string name="push_server_status_done">Завершено</string>
     <string name="push_server_status_enabled">Увімкнено</string>
-    <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_section">Статус</string>
     <string name="push_server_status_waiting_token">Очікування призначення token системою</string>
-    <string name="push_server_sync_now_action">Синхронізувати зараз</string>
     <string name="refreshing_message">Оновлення… зачекайте</string>
     <string name="score_academic_year_semester">%1$s навчальний рік %2$s</string>
     <string name="score_course_credits">%1$d кредитів</string>
@@ -602,7 +595,7 @@
     <string name="score_credit_summary_title">Підсумок кредитів</string>
     <string name="score_credit_total">Загалом</string>
     <string name="score_credit_type_education_program">Освітня програма</string>
-    <string name="score_credit_type_education_program_short">EP</string>
+    <string name="score_credit_type_education_program_short">ОП</string>
     <string name="score_credit_type_not_counted">Не враховано</string>
     <string name="score_credit_type_not_counted_short">Пропуск</string>
     <string name="score_credit_type_not_earned">Не здобуто</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_language_follow_system">Слідувати системі (запасна: англійська)</string>
     <string name="settings_language_traditional_chinese">Традиційна китайська</string>
-    <string name="settings_learn_more_backend">Дізнатися більше про сервер TigerDuck</string>
+    <string name="settings_learn_more_backend">Дізнатися більше про TigerSync</string>
     <string name="settings_library_account_subtitle">Пароль може відрізнятися від шкільної системи; типово — номер вашого посвідчення особи</string>
     <string name="settings_library_feature_disabled_message">Спочатку увімкніть «Бібліотека та пов\'язані функції», а потім використовуйте ярлик QR бібліотеки.</string>
     <string name="settings_library_feature_disabled_title">Функцію бібліотеки вимкнено</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">Переклад інтерфейсу</string>
     <string name="source_code_picker_repo_web_description">Офіційна веб-сторінка</string>
     <string name="source_code_picker_section_repositories">Репозиторії</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">Локально: %1$s → Сервер: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Деякі елементи відрізняються між цим пристроєм та сервером:</string>
     <string name="sync_conflict_reenable_assignments_differ">Стан завдань: відрізняється на сервері</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">Використати локальне</string>
     <string name="sync_conflict_use_server">Використати сервер</string>
     <string name="sync_content_assignment_reminders">Нагадування про дедлайн завдань</string>
-    <string name="sync_content_class_table_all">Розклад – усі курси</string>
-    <string name="sync_content_class_table_colors">Розклад – кольори курсів</string>
-    <string name="sync_content_class_table_names">Розклад – власні назви курсів</string>
+    <string name="sync_content_class_table_all">Усі курси</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">Синхронізований вміст</string>
     <string name="sync_courses_footer">Надсилає ваш власний розклад і стан виконання завдань на сервер для використання на всіх ваших пристроях. Виберіть нижче, що включити.</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">Курс</string>
     <string name="watch_course_instructor_label">Викладач</string>
     <string name="watch_empty_not_signed_in">Не виконано вхід. Відкрийте TigerDuck на телефоні.</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">Щойно</string>
     <string name="watch_last_synced_never">Ніколи не синхронізувалося</string>
     <string name="watch_last_synced_relative">Остання синхронізація %1$s</string>
     <string name="watch_next">ДАЛІ</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">Синхронізувати зараз</string>
     <string name="watch_starts_at">Починається %1$s</string>
     <string name="watch_starts_in_minutes">Через %1$d хв</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">Сьогодні</string>
     <string name="watch_tomorrow_at">Завтра · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">Наступне заняття</string>

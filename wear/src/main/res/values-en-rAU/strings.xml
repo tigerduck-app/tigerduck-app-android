@@ -186,7 +186,6 @@
     <string name="cloud_sync_class_table_footer">Choose which class table data to sync across devices.</string>
     <string name="cloud_sync_class_table_sync">Class table sync</string>
     <string name="cloud_sync_course_colours">Course colours</string>
-    <string name="cloud_sync_courses">Courses</string>
     <string name="cloud_sync_custom_course_names">Custom course names</string>
     <string name="cloud_sync_device_id">Device ID</string>
     <string name="cloud_sync_device_section">Device</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">Disable TigerSync?</string>
     <string name="cloud_sync_disabled_footer">Sync timetable edits, assignment states, and settings across your devices, with the server periodically fetching Moodle assignments for you.</string>
     <string name="cloud_sync_enable_button">Enable TigerSync</string>
-    <string name="cloud_sync_last_synced_label">Last synced</string>
-    <string name="cloud_sync_last_synced_never">Not synced yet</string>
     <string name="cloud_sync_privacy_body">When TigerSync is enabled, your school-system password and Moodle token are encrypted and uploaded to the TigerDuck server, where they are used to periodically fetch Moodle assignments on your behalf and to sync timetable edits, assignment states, and settings across your devices.\n\nYou can disable TigerSync at any time. Disabling signs this device out and revokes its registration on the server (including push credentials); uploaded account credentials stay on the server only while other synced devices still use them. Local data is not affected.</string>
     <string name="cloud_sync_privacy_confirm">Agree and Enable</string>
     <string name="cloud_sync_privacy_title">TigerSync &amp; Privacy</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">Signing in…</string>
     <string name="cloud_sync_step_register">Registering device…</string>
     <string name="cloud_sync_step_upload">Uploading data…</string>
-    <string name="cloud_sync_sync_now">Sync Now</string>
     <string name="cloud_sync_sync_options">Sync options</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">Blue</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">Enable server push</string>
     <string name="push_server_footer">Used to receive real-time school bulletin notifications and to actively trigger reminders.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">Last registration</string>
-    <string name="push_server_last_sync">Last sync</string>
     <string name="push_server_latest_error">Recent error</string>
     <string name="push_server_notification_status_authorized">Authorized</string>
     <string name="push_server_notification_status_denied_hint">Denied (open system Settings to re-enable)</string>
@@ -590,7 +584,6 @@
     <string name="push_server_status_enabled">Enabled</string>
     <string name="push_server_status_section">Status</string>
     <string name="push_server_status_waiting_token">Waiting for System to assign a token</string>
-    <string name="push_server_sync_now_action">Sync now</string>
     <string name="refreshing_message">Refreshing… hold on</string>
     <string name="score_academic_year_semester">Academic Year %1$s %2$s</string>
     <string name="score_course_credits">%1$d credits</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_language_follow_system">Follow system (Fallback English)</string>
     <string name="settings_language_traditional_chinese">Traditional Chinese</string>
-    <string name="settings_learn_more_backend">Learn more about the TigerDuck Backend</string>
+    <string name="settings_learn_more_backend">Learn more about TigerSync</string>
     <string name="settings_library_account_subtitle">Password may differ from the school system; defaults to your national ID number</string>
     <string name="settings_library_feature_disabled_message">Enable \"Library and related features\" first, then use the library QR shortcut.</string>
     <string name="settings_library_feature_disabled_title">Library feature is disabled</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">Use Local</string>
     <string name="sync_conflict_use_server">Use Server</string>
     <string name="sync_content_assignment_reminders">Assignment due reminders</string>
-    <string name="sync_content_class_table_all">Class table – all courses</string>
-    <string name="sync_content_class_table_colors">Class table – course colours</string>
-    <string name="sync_content_class_table_names">Class table – custom course names</string>
+    <string name="sync_content_class_table_all">All courses</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">Synced content</string>
     <string name="sync_courses_footer">Sends your custom timetable and assignment completion state to the server for use across your devices. Choose what to include below.</string>

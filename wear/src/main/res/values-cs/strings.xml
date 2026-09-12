@@ -29,7 +29,7 @@
     <string name="action_remove">Odebrat</string>
     <string name="action_reset">Obnovit</string>
     <string name="action_retry">Zkuste to znovu</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">Uložit</string>
     <string name="action_search">Hledat</string>
     <string name="action_sign_in">Přihlásit se</string>
     <string name="action_sign_in_again">Znovu se přihlaste</string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">V tento den nejsou žádné události</string>
     <string name="calendar_no_events_today">Dnes žádné události</string>
     <string name="calendar_previous_month">Předchozí měsíc</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">Konec %1$s</string>
+    <string name="calendar_semester_start">Začátek %1$s</string>
     <string name="calendar_source_exam">Zkouška</string>
     <string name="calendar_source_holiday">Svátek</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">Vyberte, která data rozvrhu se mají synchronizovat mezi zařízeními.</string>
     <string name="cloud_sync_class_table_sync">Synchronizace rozvrhu</string>
     <string name="cloud_sync_course_colours">Barvy předmětů</string>
-    <string name="cloud_sync_courses">Předměty</string>
     <string name="cloud_sync_custom_course_names">Vlastní názvy předmětů</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">ID zařízení</string>
     <string name="cloud_sync_device_section">Zařízení</string>
     <string name="cloud_sync_disable_button">Vypnout TigerSync</string>
     <string name="cloud_sync_disable_confirm_action">Vypnout</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">Vypnout TigerSync?</string>
     <string name="cloud_sync_disabled_footer">Synchronizujte úpravy rozvrhu, stavy úkolů a nastavení mezi svými zařízeními, přičemž server pravidelně stahuje úkoly z Moodle za vás.</string>
     <string name="cloud_sync_enable_button">Zapnout TigerSync</string>
-    <string name="cloud_sync_last_synced_label">Naposledy synchronizováno</string>
-    <string name="cloud_sync_last_synced_never">Zatím nesynchronizováno</string>
     <string name="cloud_sync_privacy_body">Když je TigerSync zapnutý, vaše heslo ke školnímu systému a token Moodle jsou zašifrovány a nahrány na server TigerDuck, kde se používají k pravidelnému stahování úkolů z Moodle vaším jménem a k synchronizaci úprav rozvrhu, stavů úkolů a nastavení mezi vašimi zařízeními.\n\nTigerSync můžete kdykoli vypnout. Vypnutí odhlásí toto zařízení a zruší jeho registraci na serveru (včetně push přihlašovacích údajů); nahrané přihlašovací údaje zůstanou na serveru pouze dokud je používají jiná synchronizovaná zařízení. Místní data nebudou ovlivněna.</string>
     <string name="cloud_sync_privacy_confirm">Souhlasím a zapnout</string>
     <string name="cloud_sync_privacy_title">TigerSync a soukromí</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">Přihlašování…</string>
     <string name="cloud_sync_step_register">Registrace zařízení…</string>
     <string name="cloud_sync_step_upload">Nahrávání dat…</string>
-    <string name="cloud_sync_sync_now">Synchronizovat</string>
     <string name="cloud_sync_sync_options">Možnosti synchronizace</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">Modrá</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">Systémová oznámení</string>
     <string name="onboarding_analytics_description">Pomoz nám vylepšit TigerDuck sdílením anonymních dat o navštívených stránkách a používání widgetů. Kdykoli to můžeš změnit v Nastavení.</string>
     <string name="onboarding_analytics_label">Analytika používání (volitelné)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">Použít vlastní koncový bod API</string>
     <string name="onboarding_flavor_fdroid_description">Používáte sestavení F-Droid. Protože pravidla F-Droid zakazují závislost na službách Google (Firebase FCM, GMS atd.), nejsou v tomto sestavení dostupné následující funkce:\n\n1. Doprovodná aplikace Wear OS\n2. Push oznámení v reálném čase\n3. TigerSync: Synchronizovat informace o předmětech\n4. TigerSync: Přijímat další oznámení ze serveru</string>
     <string name="onboarding_flavor_fdroid_title">Upozornění k sestavení F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck obsahuje doprovodnou aplikaci Wear OS. Prohlížejte si zprávy z výuky na hodinkách — Wear TigerDuck synchronizuje informace z vašeho telefonu.</string>
@@ -543,7 +539,7 @@
     <string name="onboarding_sync_note">Když je synchronizace vypnutá, všechna data zůstávají pouze na tomto zařízení. Push notifikace pro připomenutí úkolů fungují lokálně bez TigerSync.</string>
     <string name="onboarding_sync_shared_assignments">Data úkolů</string>
     <string name="onboarding_sync_shared_courses">Data kurzů</string>
-    <string name="onboarding_sync_shared_device_id">Device ID</string>
+    <string name="onboarding_sync_shared_device_id">ID zařízení</string>
     <string name="onboarding_sync_shared_moodle_token">Moodle token (šifrovaný)</string>
     <string name="onboarding_sync_shared_student_id">Studentské ID</string>
     <string name="onboarding_sync_title">TigerSync</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">Povolit server push</string>
     <string name="push_server_footer">Používá se k přijímání upozornění na školní bulletiny v reálném čase a k aktivnímu spouštění připomenutí.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">Poslední registrace</string>
-    <string name="push_server_last_sync">Poslední synchronizace</string>
     <string name="push_server_latest_error">Nedávná chyba</string>
     <string name="push_server_notification_status_authorized">Autorizovaný</string>
     <string name="push_server_notification_status_denied_hint">Odepřeno (opětovné povolení otevřete nastavením systému)</string>
@@ -584,13 +578,12 @@
     <string name="push_server_notification_status_undetermined">Ještě nezeptal</string>
     <string name="push_server_notification_status_unknown">Neznámý</string>
     <string name="push_server_pending_incomplete">Ještě ne</string>
-    <string name="push_server_settings_title">Server push</string>
+    <string name="push_server_settings_title">Push ze serveru</string>
     <string name="push_server_status_device_registration">Registrace zařízení</string>
     <string name="push_server_status_done">Kompletní</string>
     <string name="push_server_status_enabled">Povoleno</string>
     <string name="push_server_status_section">Postavení</string>
     <string name="push_server_status_waiting_token">Čeká, až systém přidělí token</string>
-    <string name="push_server_sync_now_action">Synchronizovat nyní</string>
     <string name="refreshing_message">Probíhá obnovování… vydržte</string>
     <string name="score_academic_year_semester">Akademický rok %1$s %2$s</string>
     <string name="score_course_credits">%1$d kreditů</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">Angličtina</string>
     <string name="settings_language_follow_system">Podle systému (záložní angličtina)</string>
     <string name="settings_language_traditional_chinese">Tradiční čínština</string>
-    <string name="settings_learn_more_backend">Více informací o serveru TigerDuck</string>
+    <string name="settings_learn_more_backend">Více informací o TigerSync</string>
     <string name="settings_library_account_subtitle">Heslo se může lišit od školního systému; výchozí je vaše rodné číslo</string>
     <string name="settings_library_feature_disabled_message">Nejprve zapněte „Knihovna a související funkce“ a poté použijte zkratku QR knihovny.</string>
     <string name="settings_library_feature_disabled_title">Funkce knihovny je vypnutá</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">Překlad rozhraní</string>
     <string name="source_code_picker_repo_web_description">Oficiální webová stránka</string>
     <string name="source_code_picker_section_repositories">Repozitáře</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">Místní: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Některé položky se liší mezi tímto zařízením a serverem:</string>
     <string name="sync_conflict_reenable_assignments_differ">Stav úkolů: odlišný na serveru</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">Použít místní</string>
     <string name="sync_conflict_use_server">Použít server</string>
     <string name="sync_content_assignment_reminders">Upozornění na blížící se termín úkolu</string>
-    <string name="sync_content_class_table_all">Rozvrh – všechny předměty</string>
-    <string name="sync_content_class_table_colors">Rozvrh – barvy předmětů</string>
-    <string name="sync_content_class_table_names">Rozvrh – vlastní názvy předmětů</string>
+    <string name="sync_content_class_table_all">Všechny předměty</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">Synchronizovaný obsah</string>
     <string name="sync_courses_footer">Odesílá váš vlastní rozvrh a stav dokončení úkolů na server pro použití na všech vašich zařízeních. Níže vyberte, co chcete zahrnout.</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">Předmět</string>
     <string name="watch_course_instructor_label">Vyučující</string>
     <string name="watch_empty_not_signed_in">Nejste přihlášeni. Otevřete TigerDuck v telefonu.</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">právě teď</string>
     <string name="watch_last_synced_never">Nikdy nesynchronizováno</string>
     <string name="watch_last_synced_relative">Naposledy synchronizováno %1$s</string>
     <string name="watch_next">DALŠÍ</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">Synchronizovat nyní</string>
     <string name="watch_starts_at">Začíná %1$s</string>
     <string name="watch_starts_in_minutes">Za %1$d min</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">Dnes</string>
     <string name="watch_tomorrow_at">Zítra · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">Další hodina</string>

@@ -19,7 +19,7 @@
     <string name="action_allow">Tillat</string>
     <string name="action_back">Tilbake</string>
     <string name="action_cancel">Avbryt</string>
-    <string name="action_clear_text">Clear text</string>
+    <string name="action_clear_text">Tøm tekst</string>
     <string name="action_close">Lukk</string>
     <string name="action_confirm">Bekreft</string>
     <string name="action_done">Ferdig</string>
@@ -29,7 +29,7 @@
     <string name="action_remove">Fjern</string>
     <string name="action_reset">Tilbakestill</string>
     <string name="action_retry">Prøv igjen</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">Lagre</string>
     <string name="action_search">Søk</string>
     <string name="action_sign_in">Logg inn</string>
     <string name="action_sign_in_again">Logg inn igjen</string>
@@ -125,7 +125,7 @@
     <string name="bulletin_rule_editor_mode_or_footer">Varsle når enten avdeling eller kategori samsvarer.</string>
     <string name="bulletin_rule_editor_mode_section">Modus</string>
     <string name="bulletin_rule_editor_name_placeholder">F.eks.: Akademisk + Stipend</string>
-    <string name="bulletin_rule_editor_name_section">Name</string>
+    <string name="bulletin_rule_editor_name_section">Navn</string>
     <string name="bulletin_rule_editor_selected_count">%1$d valgt</string>
     <string name="bulletin_rule_editor_tag_section">Kategori</string>
     <string name="bulletin_rule_filter_separator">, </string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">Ingen hendelser denne dagen</string>
     <string name="calendar_no_events_today">Ingen hendelser i dag</string>
     <string name="calendar_previous_month">Forrige måned</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">Slutt på %1$s</string>
+    <string name="calendar_semester_start">Start på %1$s</string>
     <string name="calendar_source_exam">Eksamen</string>
     <string name="calendar_source_holiday">Helligdag</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">Velg hvilke timeplandata som skal synkroniseres mellom enheter.</string>
     <string name="cloud_sync_class_table_sync">Timeplansynkronisering</string>
     <string name="cloud_sync_course_colours">Emnefarger</string>
-    <string name="cloud_sync_courses">Emner</string>
     <string name="cloud_sync_custom_course_names">Egendefinerte emnenavn</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">Enhets-ID</string>
     <string name="cloud_sync_device_section">Enhet</string>
     <string name="cloud_sync_disable_button">Deaktiver TigerSync</string>
     <string name="cloud_sync_disable_confirm_action">Deaktiver</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">Deaktivere TigerSync?</string>
     <string name="cloud_sync_disabled_footer">Synkroniser timeplanendringer, oppgavestatus og innstillinger mellom enhetene dine, mens serveren periodisk henter Moodle-oppgaver for deg.</string>
     <string name="cloud_sync_enable_button">Aktiver TigerSync</string>
-    <string name="cloud_sync_last_synced_label">Sist synkronisert</string>
-    <string name="cloud_sync_last_synced_never">Ikke synkronisert ennå</string>
     <string name="cloud_sync_privacy_body">Når TigerSync er aktivert, krypteres passordet ditt for skolesystemet og Moodle-tokenet og lastes opp til TigerDuck-serveren, der de brukes til å periodisk hente Moodle-oppgaver på dine vegne og synkronisere timeplanendringer, oppgavestatus og innstillinger mellom enhetene dine.\n\nDu kan deaktivere TigerSync når som helst. Deaktivering logger denne enheten ut og tilbakekaller registreringen på serveren (inkludert push-legitimasjon); opplastede kontoopplysninger forblir på serveren kun så lenge andre synkroniserte enheter bruker dem. Lokale data påvirkes ikke.</string>
     <string name="cloud_sync_privacy_confirm">Godta og aktiver</string>
     <string name="cloud_sync_privacy_title">TigerSync og personvern</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">Logger inn…</string>
     <string name="cloud_sync_step_register">Registrerer enhet…</string>
     <string name="cloud_sync_step_upload">Laster opp data…</string>
-    <string name="cloud_sync_sync_now">Synkroniser nå</string>
     <string name="cloud_sync_sync_options">Synkroniseringsalternativer</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">Blå</string>
@@ -243,8 +239,8 @@
     <string name="course_color_picker_title">Rediger farge</string>
     <string name="course_credits_value">Studiepoeng: %1$d</string>
     <string name="course_detail_classroom_label">Klasserom</string>
-    <string name="course_detail_code_label">Code</string>
-    <string name="course_detail_credits_label">Credits</string>
+    <string name="course_detail_code_label">Fagkode</string>
+    <string name="course_detail_credits_label">Studiepoeng</string>
     <string name="course_detail_due_prefix">Frist: %1$s</string>
     <string name="course_detail_enrollment_label">Påmelding</string>
     <string name="course_detail_incomplete_assignments">Ufullførte oppgaver</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">Systemvarsler</string>
     <string name="onboarding_analytics_description">Hjelp til å forbedre TigerDuck ved å dele anonyme sidebesøk og bruk av widgets. Du kan endre dette når som helst i Innstillinger.</string>
     <string name="onboarding_analytics_label">Bruksanalyse (valgfritt)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">Bruk egendefinert API-endepunkt</string>
     <string name="onboarding_flavor_fdroid_description">Du bruker F-Droid-versjonen. Siden F-Droids retningslinjer forbyr avhengighet av Googles tjenester (Firebase FCM, GMS osv.), er følgende funksjoner ikke tilgjengelige i denne versjonen:\n\n1. Wear OS-følgeapp\n2. Push-varsler i sanntid\n3. TigerSync: Synkroniser emneinformasjon\n4. TigerSync: Motta flere servervarsler</string>
     <string name="onboarding_flavor_fdroid_title">Merknad om F-Droid-versjonen</string>
     <string name="onboarding_flavor_play_description">TigerDuck inkluderer en Wear OS-følgeapp. Se klassemeldinger på klokken din — Wear TigerDuck synkroniserer informasjon fra telefonen din.</string>
@@ -543,7 +539,7 @@
     <string name="onboarding_sync_note">Når synkronisering er av, forblir alle data kun på denne enheten. Push-varsler for leksepåminnelser fungerer lokalt uten TigerSync.</string>
     <string name="onboarding_sync_shared_assignments">Oppgavedata</string>
     <string name="onboarding_sync_shared_courses">Kursdata</string>
-    <string name="onboarding_sync_shared_device_id">Device ID</string>
+    <string name="onboarding_sync_shared_device_id">Enhets-ID</string>
     <string name="onboarding_sync_shared_moodle_token">Moodle-token (kryptert)</string>
     <string name="onboarding_sync_shared_student_id">Student-ID</string>
     <string name="onboarding_sync_title">TigerSync</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">Aktiver server-push</string>
     <string name="push_server_footer">Brukes til å motta sanntidsvarsler fra skolens oppslagstavle og aktivt utløse påminnelser.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">Siste registrering</string>
-    <string name="push_server_last_sync">Siste synkronisering</string>
     <string name="push_server_latest_error">Nylig feil</string>
     <string name="push_server_notification_status_authorized">Autorisert</string>
     <string name="push_server_notification_status_denied_hint">Avvist (åpne systeminnstillinger for å aktivere på nytt)</string>
@@ -590,7 +584,6 @@
     <string name="push_server_status_enabled">Aktivert</string>
     <string name="push_server_status_section">Status</string>
     <string name="push_server_status_waiting_token">Venter på at systemet skal tildele en token</string>
-    <string name="push_server_sync_now_action">Synkroniser nå</string>
     <string name="refreshing_message">Oppdaterer… vent litt</string>
     <string name="score_academic_year_semester">Studieår %1$s %2$s</string>
     <string name="score_course_credits">%1$d studiepoeng</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">Engelsk</string>
     <string name="settings_language_follow_system">Følg system (reserve: engelsk)</string>
     <string name="settings_language_traditional_chinese">Tradisjonell kinesisk</string>
-    <string name="settings_learn_more_backend">Les mer om TigerDuck-serveren</string>
+    <string name="settings_learn_more_backend">Les mer om TigerSync</string>
     <string name="settings_library_account_subtitle">Passordet kan avvike fra studentportalen; standard er ditt nasjonale ID-nummer</string>
     <string name="settings_library_feature_disabled_message">Aktiver «Bibliotek og relaterte funksjoner» først, og bruk deretter bibliotek-QR-snarveien.</string>
     <string name="settings_library_feature_disabled_title">Bibliotekfunksjon er deaktivert</string>
@@ -759,8 +752,8 @@
     <string name="source_code_picker_repo_name_abbr_description">Forkortelser for kurs- og klasseromsnavn</string>
     <string name="source_code_picker_repo_translation_description">UI-oversettelse</string>
     <string name="source_code_picker_repo_web_description">Offisiell nettside</string>
-    <string name="source_code_picker_section_repositories">Repositories</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="source_code_picker_section_repositories">Kodearkiver</string>
+    <string name="sync_conflict_item_detail">Lokal: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Noen elementer er forskjellige mellom denne enheten og serveren:</string>
     <string name="sync_conflict_reenable_assignments_differ">Oppgavestatus: forskjellig på serveren</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">Bruk lokal</string>
     <string name="sync_conflict_use_server">Bruk server</string>
     <string name="sync_content_assignment_reminders">Påminnelser om oppgavefrist</string>
-    <string name="sync_content_class_table_all">Timeplan – alle emner</string>
-    <string name="sync_content_class_table_colors">Timeplan – emnefarger</string>
-    <string name="sync_content_class_table_names">Timeplan – egendefinerte emnenavn</string>
+    <string name="sync_content_class_table_all">Alle emner</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">Synkronisert innhold</string>
     <string name="sync_courses_footer">Sender din egendefinerte timeplan og fullføringsstatus for oppgavene dine til serveren for bruk på tvers av enhetene dine. Velg hva som skal inkluderes nedenfor.</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">Kurs</string>
     <string name="watch_course_instructor_label">Foreleser</string>
     <string name="watch_empty_not_signed_in">Ikke logget inn. Åpne TigerDuck på telefonen.</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">Akkurat nå</string>
     <string name="watch_last_synced_never">Aldri synkronisert</string>
     <string name="watch_last_synced_relative">Sist synkronisert %1$s</string>
     <string name="watch_next">NESTE</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">Synkroniser nå</string>
     <string name="watch_starts_at">Starter %1$s</string>
     <string name="watch_starts_in_minutes">Starter om %1$d min</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">I dag</string>
     <string name="watch_tomorrow_at">I morgen · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">Neste klasse</string>

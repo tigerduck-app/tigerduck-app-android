@@ -29,7 +29,7 @@
     <string name="action_remove">हटाएँ</string>
     <string name="action_reset">रीसेट करें</string>
     <string name="action_retry">पुनः प्रयास करें</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">सेव करें</string>
     <string name="action_search">खोजें</string>
     <string name="action_sign_in">साइन इन</string>
     <string name="action_sign_in_again">फिर से लॉगिन करें</string>
@@ -125,7 +125,7 @@
     <string name="bulletin_rule_editor_mode_or_footer">सूचित करें जब विभाग या श्रेणी में से कोई एक मेल खाए।</string>
     <string name="bulletin_rule_editor_mode_section">मोड</string>
     <string name="bulletin_rule_editor_name_placeholder">उदा.: शिक्षाविद + छात्रवृत्ति</string>
-    <string name="bulletin_rule_editor_name_section">Name</string>
+    <string name="bulletin_rule_editor_name_section">नाम</string>
     <string name="bulletin_rule_editor_selected_count">%1$d चयनित</string>
     <string name="bulletin_rule_editor_tag_section">श्रेणी</string>
     <string name="bulletin_rule_filter_separator">, </string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">इस दिन कोई इवेंट नहीं</string>
     <string name="calendar_no_events_today">आज कोई इवेंट नहीं</string>
     <string name="calendar_previous_month">पिछला महीना</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">%1$s की समाप्ति</string>
+    <string name="calendar_semester_start">%1$s की शुरुआत</string>
     <string name="calendar_source_exam">परीक्षा</string>
     <string name="calendar_source_holiday">छुट्टी</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -178,7 +178,7 @@
     <string name="class_table_reset_message">कोर्स टेबल को Moodle, कोर्स चयन सिस्टम और अंक सिस्टम के अनुसार फिर से बनाया जाएगा। मैन्युअल रूप से जोड़े, हटाए या नाम बदले गए कोर्स खो जाएँगे।</string>
     <string name="class_table_reset_title">कोर्स टेबल रीसेट करें</string>
     <string name="class_table_reset_title_with_semester">%1$s कोर्स टेबल रीसेट करें</string>
-    <string name="class_table_semester_picker_label">Semester</string>
+    <string name="class_table_semester_picker_label">सेमेस्टर</string>
     <string name="class_table_sign_in_required_message">अपनी क्लास टेबल देखने के लिए साइन इन करें</string>
     <string name="class_table_total_credits_value">%1$d क्रेडिट</string>
     <string name="cloud_sync_assignments">असाइनमेंट</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">चुनें कि कौन सा क्लास टेबल डेटा डिवाइसों के बीच सिंक करना है।</string>
     <string name="cloud_sync_class_table_sync">क्लास टेबल सिंक</string>
     <string name="cloud_sync_course_colours">कोर्स के रंग</string>
-    <string name="cloud_sync_courses">कोर्स</string>
     <string name="cloud_sync_custom_course_names">कस्टम कोर्स नाम</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">डिवाइस ID</string>
     <string name="cloud_sync_device_section">डिवाइस</string>
     <string name="cloud_sync_disable_button">TigerSync बंद करें</string>
     <string name="cloud_sync_disable_confirm_action">बंद करें</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">TigerSync बंद करें?</string>
     <string name="cloud_sync_disabled_footer">अपने डिवाइसों के बीच टाइमटेबल संपादन, असाइनमेंट स्थिति और सेटिंग्स सिंक करें, सर्वर समय-समय पर आपके लिए Moodle असाइनमेंट लाएगा।</string>
     <string name="cloud_sync_enable_button">TigerSync चालू करें</string>
-    <string name="cloud_sync_last_synced_label">आखिरी सिंक</string>
-    <string name="cloud_sync_last_synced_never">अभी तक सिंक नहीं हुआ</string>
     <string name="cloud_sync_privacy_body">जब TigerSync चालू होता है, तो आपका स्कूल-सिस्टम पासवर्ड और Moodle टोकन एन्क्रिप्ट होकर TigerDuck सर्वर पर अपलोड किए जाते हैं, जहाँ उनका उपयोग आपकी ओर से समय-समय पर Moodle असाइनमेंट लाने और आपके डिवाइसों के बीच टाइमटेबल संपादन, असाइनमेंट स्थिति और सेटिंग्स सिंक करने के लिए किया जाता है।\n\nआप किसी भी समय TigerSync बंद कर सकते हैं। बंद करने से यह डिवाइस साइन आउट हो जाएगा और सर्वर पर इसका पंजीकरण रद्द हो जाएगा (पुश क्रेडेंशियल सहित); अपलोड किए गए अकाउंट क्रेडेंशियल सर्वर पर तभी तक रहेंगे जब तक अन्य सिंक किए गए डिवाइस उनका उपयोग करते हैं। स्थानीय डेटा प्रभावित नहीं होगा।</string>
     <string name="cloud_sync_privacy_confirm">सहमत हों और चालू करें</string>
     <string name="cloud_sync_privacy_title">TigerSync और गोपनीयता</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">साइन इन हो रहा है…</string>
     <string name="cloud_sync_step_register">डिवाइस पंजीकृत हो रहा है…</string>
     <string name="cloud_sync_step_upload">डेटा अपलोड हो रहा है…</string>
-    <string name="cloud_sync_sync_now">अभी सिंक करें</string>
     <string name="cloud_sync_sync_options">सिंक विकल्प</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">नीला</string>
@@ -243,8 +239,8 @@
     <string name="course_color_picker_title">रंग संपादित करें</string>
     <string name="course_credits_value">क्रेडिट: %1$d</string>
     <string name="course_detail_classroom_label">कक्षा</string>
-    <string name="course_detail_code_label">Code</string>
-    <string name="course_detail_credits_label">Credits</string>
+    <string name="course_detail_code_label">कोड</string>
+    <string name="course_detail_credits_label">क्रेडिट</string>
     <string name="course_detail_due_prefix">देय: %1$s</string>
     <string name="course_detail_enrollment_label">नामांकन</string>
     <string name="course_detail_incomplete_assignments">अधूरे असाइनमेंट</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">सिस्टम नोटिफिकेशन</string>
     <string name="onboarding_analytics_description">गुमनाम पेज विज़िट और विजेट उपयोग साझा करके TigerDuck को बेहतर बनाने में मदद करें। आप इसे कभी भी सेटिंग में बदल सकते हैं।</string>
     <string name="onboarding_analytics_label">उपयोग विश्लेषण (वैकल्पिक)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">कस्टम API एंडपॉइंट का उपयोग करें</string>
     <string name="onboarding_flavor_fdroid_description">आप F-Droid बिल्ड का उपयोग कर रहे हैं। चूँकि F-Droid नीति Google की सेवाओं (Firebase FCM, GMS आदि) पर निर्भरता निषिद्ध करती है, इसलिए निम्नलिखित सुविधाएँ इस बिल्ड में उपलब्ध नहीं हैं:\n\n1. Wear OS साथी ऐप\n2. रीयल-टाइम पुश सूचनाएँ\n3. TigerSync: कोर्स जानकारी सिंक करें\n4. TigerSync: अतिरिक्त सर्वर सूचनाएँ प्राप्त करें</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid बिल्ड सूचना</string>
     <string name="onboarding_flavor_play_description">TigerDuck में Wear OS साथी ऐप शामिल है। अपनी घड़ी पर कक्षा संदेश देखें — Wear TigerDuck आपके फ़ोन से जानकारी सिंक करता है।</string>
@@ -543,7 +539,7 @@
     <string name="onboarding_sync_note">जब सिंक बंद हो, तो सभी डेटा केवल इस डिवाइस पर ही रहता है। होमवर्क रिमाइंडर के लिए पुश नोटिफिकेशन TigerSync के बिना स्थानीय रूप से काम करते हैं।</string>
     <string name="onboarding_sync_shared_assignments">असाइनमेंट डेटा</string>
     <string name="onboarding_sync_shared_courses">कोर्स डेटा</string>
-    <string name="onboarding_sync_shared_device_id">Device ID</string>
+    <string name="onboarding_sync_shared_device_id">डिवाइस ID</string>
     <string name="onboarding_sync_shared_moodle_token">Moodle टोकन (एन्क्रिप्टेड)</string>
     <string name="onboarding_sync_shared_student_id">छात्र आईडी</string>
     <string name="onboarding_sync_title">TigerSync</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">सर्वर पुश सक्षम करें</string>
     <string name="push_server_footer">वास्तविक समय स्कूल बुलेटिन सूचनाएं प्राप्त करने और सक्रिय रूप से रिमाइंडर ट्रिगर करने के लिए उपयोग किया जाता है।</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">अंतिम पंजीकरण</string>
-    <string name="push_server_last_sync">अंतिम सिंक</string>
     <string name="push_server_latest_error">हालिया त्रुटि</string>
     <string name="push_server_notification_status_authorized">अधिकृत</string>
     <string name="push_server_notification_status_denied_hint">अस्वीकृत (पुनः सक्षम करने के लिए सिस्टम सेटिंग्स खोलें)</string>
@@ -588,9 +582,8 @@
     <string name="push_server_status_device_registration">डिवाइस पंजीकरण</string>
     <string name="push_server_status_done">पूर्ण</string>
     <string name="push_server_status_enabled">सक्षम</string>
-    <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_section">स्थिति</string>
     <string name="push_server_status_waiting_token">सिस्टम द्वारा token असाइन होने का इंतज़ार</string>
-    <string name="push_server_sync_now_action">अभी सिंक करें</string>
     <string name="refreshing_message">रिफ्रेश हो रहा है… थोड़ा रुकें</string>
     <string name="score_academic_year_semester">शैक्षणिक वर्ष %1$s %2$s</string>
     <string name="score_course_credits">%1$d क्रेडिट</string>
@@ -602,7 +595,7 @@
     <string name="score_credit_summary_title">क्रेडिट सारांश</string>
     <string name="score_credit_total">कुल</string>
     <string name="score_credit_type_education_program">शिक्षा कार्यक्रम</string>
-    <string name="score_credit_type_education_program_short">EP</string>
+    <string name="score_credit_type_education_program_short">शिक्षा</string>
     <string name="score_credit_type_not_counted">गिना नहीं गया</string>
     <string name="score_credit_type_not_counted_short">छोड़ें</string>
     <string name="score_credit_type_not_earned">अर्जित नहीं</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_language_follow_system">सिस्टम का अनुसरण करें (फ़ॉलबैक अंग्रेज़ी)</string>
     <string name="settings_language_traditional_chinese">परंपरागत चीनी</string>
-    <string name="settings_learn_more_backend">TigerDuck बैकएंड के बारे में अधिक जानें</string>
+    <string name="settings_learn_more_backend">TigerSync के बारे में अधिक जानें</string>
     <string name="settings_library_account_subtitle">पासवर्ड शैक्षणिक प्रणाली से अलग हो सकता है; डिफ़ॉल्ट रूप से आपका राष्ट्रीय ID नंबर है</string>
     <string name="settings_library_feature_disabled_message">पहले \"पुस्तकालय और संबंधित फीचर\" सक्षम करें, फिर पुस्तकालय QR Code शॉर्टकट का उपयोग करें।</string>
     <string name="settings_library_feature_disabled_title">पुस्तकालय फीचर अक्षम है</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">UI अनुवाद</string>
     <string name="source_code_picker_repo_web_description">आधिकारिक वेबपेज</string>
     <string name="source_code_picker_section_repositories">रिपॉजिटरी</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">स्थानीय: %1$s → सर्वर: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">इस डिवाइस और सर्वर के बीच कुछ आइटम भिन्न हैं:</string>
     <string name="sync_conflict_reenable_assignments_differ">असाइनमेंट स्थिति: सर्वर पर भिन्न</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">स्थानीय उपयोग करें</string>
     <string name="sync_conflict_use_server">सर्वर उपयोग करें</string>
     <string name="sync_content_assignment_reminders">असाइनमेंट देय अनुस्मारक</string>
-    <string name="sync_content_class_table_all">क्लास टेबल – सभी कोर्स</string>
-    <string name="sync_content_class_table_colors">क्लास टेबल – कोर्स के रंग</string>
-    <string name="sync_content_class_table_names">क्लास टेबल – कस्टम कोर्स नाम</string>
+    <string name="sync_content_class_table_all">सभी कोर्स</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">सिंक सामग्री</string>
     <string name="sync_courses_footer">आपकी कस्टम क्लास टेबल और असाइनमेंट पूर्णता स्थिति को आपके सभी डिवाइस पर उपयोग के लिए सर्वर पर भेजता है। नीचे चुनें कि इसमें क्या शामिल करना है।</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">कोर्स</string>
     <string name="watch_course_instructor_label">शिक्षक</string>
     <string name="watch_empty_not_signed_in">साइन इन नहीं है। अपने फोन पर TigerDuck खोलें।</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">अभी-अभी</string>
     <string name="watch_last_synced_never">कभी सिंक नहीं हुआ</string>
     <string name="watch_last_synced_relative">अंतिम सिंक %1$s</string>
     <string name="watch_next">अगला</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">अभी सिंक करें</string>
     <string name="watch_starts_at">%1$s को शुरू</string>
     <string name="watch_starts_in_minutes">%1$d मिनट में</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">आज</string>
     <string name="watch_tomorrow_at">कल · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">अगली क्लास</string>

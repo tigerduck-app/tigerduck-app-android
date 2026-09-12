@@ -29,7 +29,7 @@
     <string name="action_remove">Kaldır</string>
     <string name="action_reset">Sıfırla</string>
     <string name="action_retry">Yeniden dene</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">Kaydet</string>
     <string name="action_search">Ara</string>
     <string name="action_sign_in">Giriş yap</string>
     <string name="action_sign_in_again">Yeniden oturum aç</string>
@@ -125,7 +125,7 @@
     <string name="bulletin_rule_editor_mode_or_footer">Bölüm veya kategori eşleştiğinde bildir.</string>
     <string name="bulletin_rule_editor_mode_section">Mod</string>
     <string name="bulletin_rule_editor_name_placeholder">Örn.: Akademik + Burs</string>
-    <string name="bulletin_rule_editor_name_section">Name</string>
+    <string name="bulletin_rule_editor_name_section">Ad</string>
     <string name="bulletin_rule_editor_selected_count">%1$d seçildi</string>
     <string name="bulletin_rule_editor_tag_section">Kategori</string>
     <string name="bulletin_rule_filter_separator">, </string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">Bu gün için etkinlik yok</string>
     <string name="calendar_no_events_today">Bugün etkinlik yok</string>
     <string name="calendar_previous_month">Önceki ay</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">Bitiş: %1$s</string>
+    <string name="calendar_semester_start">Başlangıç: %1$s</string>
     <string name="calendar_source_exam">Sınav</string>
     <string name="calendar_source_holiday">Tatil</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -178,7 +178,7 @@
     <string name="class_table_reset_message">Ders programı Moodle, ders seçim sistemi ve not sistemine göre yeniden oluşturulacak. Elle eklenen, silinen ve yeniden adlandırılan dersler kaybolacak.</string>
     <string name="class_table_reset_title">Ders programını sıfırla</string>
     <string name="class_table_reset_title_with_semester">%1$s ders programını sıfırla</string>
-    <string name="class_table_semester_picker_label">Semester</string>
+    <string name="class_table_semester_picker_label">Dönem</string>
     <string name="class_table_sign_in_required_message">Ders programınızı görmek için oturum açın</string>
     <string name="class_table_total_credits_value">%1$d kredi</string>
     <string name="cloud_sync_assignments">Ödevler</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">Cihazlar arasında hangi ders programı verilerinin senkronize edileceğini seçin.</string>
     <string name="cloud_sync_class_table_sync">Ders programı senkronizasyonu</string>
     <string name="cloud_sync_course_colours">Ders renkleri</string>
-    <string name="cloud_sync_courses">Dersler</string>
     <string name="cloud_sync_custom_course_names">Özel ders adları</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">Cihaz kimliği</string>
     <string name="cloud_sync_device_section">Cihaz</string>
     <string name="cloud_sync_disable_button">TigerSync\'i devre dışı bırak</string>
     <string name="cloud_sync_disable_confirm_action">Devre dışı bırak</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">TigerSync devre dışı bırakılsın mı?</string>
     <string name="cloud_sync_disabled_footer">Cihazlarınız arasında ders programı düzenlemelerini, ödev durumlarını ve ayarları senkronize edin; sunucu sizin için düzenli olarak Moodle ödevlerini alır.</string>
     <string name="cloud_sync_enable_button">TigerSync\'i etkinleştir</string>
-    <string name="cloud_sync_last_synced_label">Son senkronizasyon</string>
-    <string name="cloud_sync_last_synced_never">Henüz senkronize edilmedi</string>
     <string name="cloud_sync_privacy_body">TigerSync etkinleştirildiğinde, okul sistemi şifreniz ve Moodle jetonunuz şifrelenerek TigerDuck sunucusuna yüklenir; burada sizin adınıza düzenli olarak Moodle ödevlerini almak ve cihazlarınız arasında ders programı düzenlemelerini, ödev durumlarını ve ayarları senkronize etmek için kullanılır.\n\nTigerSync\'i istediğiniz zaman devre dışı bırakabilirsiniz. Devre dışı bırakmak bu cihazın oturumunu kapatır ve sunucudaki kaydını iptal eder (push kimlik bilgileri dahil); yüklenen hesap kimlik bilgileri yalnızca diğer senkronize cihazlar bunları kullandığı sürece sunucuda kalır. Yerel veriler etkilenmez.</string>
     <string name="cloud_sync_privacy_confirm">Kabul et ve etkinleştir</string>
     <string name="cloud_sync_privacy_title">TigerSync ve Gizlilik</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">Giriş yapılıyor…</string>
     <string name="cloud_sync_step_register">Cihaz kaydediliyor…</string>
     <string name="cloud_sync_step_upload">Veriler yükleniyor…</string>
-    <string name="cloud_sync_sync_now">Şimdi senkronize et</string>
     <string name="cloud_sync_sync_options">Senkronizasyon seçenekleri</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">Mavi</string>
@@ -243,8 +239,8 @@
     <string name="course_color_picker_title">Rengi düzenle</string>
     <string name="course_credits_value">Kredi: %1$d</string>
     <string name="course_detail_classroom_label">Derslik</string>
-    <string name="course_detail_code_label">Code</string>
-    <string name="course_detail_credits_label">Credits</string>
+    <string name="course_detail_code_label">Kod</string>
+    <string name="course_detail_credits_label">Kredi</string>
     <string name="course_detail_due_prefix">Son tarih: %1$s</string>
     <string name="course_detail_enrollment_label">Kayıt</string>
     <string name="course_detail_incomplete_assignments">Tamamlanmamış ödevler</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">Sistem bildirimleri</string>
     <string name="onboarding_analytics_description">Ziyaret edilen sayfalar ve widget kullanımına ilişkin anonim verileri paylaşarak TigerDuck\'ı geliştirmeye yardımcı ol. Bunu istediğin zaman Ayarlar\'dan değiştirebilirsin.</string>
     <string name="onboarding_analytics_label">Kullanım analitiği (isteğe bağlı)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">Özel API uç noktası kullan</string>
     <string name="onboarding_flavor_fdroid_description">F-Droid sürümünü kullanıyorsunuz. F-Droid politikası Google hizmetlerine (Firebase FCM, GMS vb.) bağımlılığa izin vermediği için bu sürümde aşağıdaki özellikler kullanılamaz:\n\n1. Wear OS eşlik uygulaması\n2. Gerçek zamanlı push duyuruları\n3. TigerSync: Ders bilgilerini senkronize et\n4. TigerSync: Ek sunucu bildirimlerini al</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid sürümü hakkında bilgi</string>
     <string name="onboarding_flavor_play_description">TigerDuck bir Wear OS eşlik uygulaması içerir. Ders mesajlarını saatinizden görüntüleyin — Wear TigerDuck telefonunuzdaki bilgileri eşitler.</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">Sunucu push bildirimlerini etkinleştir</string>
     <string name="push_server_footer">Gerçek zamanlı okul duyurusu bildirimleri almak ve hatırlatıcıları aktif olarak tetiklemek için kullanılır.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">Son kayıt</string>
-    <string name="push_server_last_sync">Son senkronizasyon</string>
     <string name="push_server_latest_error">Son hata</string>
     <string name="push_server_notification_status_authorized">Yetkilendirildi</string>
     <string name="push_server_notification_status_denied_hint">Reddedildi (yeniden etkinleştirmek için sistem Ayarlarını açın)</string>
@@ -588,9 +582,8 @@
     <string name="push_server_status_device_registration">Cihaz kaydı</string>
     <string name="push_server_status_done">Tamamlandı</string>
     <string name="push_server_status_enabled">Etkin</string>
-    <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_section">Durum</string>
     <string name="push_server_status_waiting_token">Sistemin token ataması bekleniyor</string>
-    <string name="push_server_sync_now_action">Şimdi senkronize et</string>
     <string name="refreshing_message">Yenileniyor… lütfen bekleyin</string>
     <string name="score_academic_year_semester">%1$s Akademik Yılı %2$s</string>
     <string name="score_course_credits">%1$d kredi</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">İngilizce</string>
     <string name="settings_language_follow_system">Sistemi takip et (Yedek: İngilizce)</string>
     <string name="settings_language_traditional_chinese">Geleneksel Çince</string>
-    <string name="settings_learn_more_backend">TigerDuck Sunucusu hakkında daha fazla bilgi edinin</string>
+    <string name="settings_learn_more_backend">TigerSync hakkında daha fazla bilgi edinin</string>
     <string name="settings_library_account_subtitle">Parola, öğrenci bilgi sisteminden farklı olabilir; varsayılan olarak kimlik numaranızdır</string>
     <string name="settings_library_feature_disabled_message">Önce \"Kütüphane ve ilgili özellikler\"i etkinleştirin, ardından kütüphane QR kısayolunu kullanın.</string>
     <string name="settings_library_feature_disabled_title">Kütüphane özelliği devre dışı</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">Arayüz çevirisi</string>
     <string name="source_code_picker_repo_web_description">Resmi web sayfası</string>
     <string name="source_code_picker_section_repositories">Depolar</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">Yerel: %1$s → Sunucu: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Bu cihaz ile sunucu arasında bazı öğeler farklı:</string>
     <string name="sync_conflict_reenable_assignments_differ">Ödev durumu: sunucuda farklı</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">Yereli Kullan</string>
     <string name="sync_conflict_use_server">Sunucuyu Kullan</string>
     <string name="sync_content_assignment_reminders">Ödev teslim hatırlatıcıları</string>
-    <string name="sync_content_class_table_all">Ders programı – tüm dersler</string>
-    <string name="sync_content_class_table_colors">Ders programı – ders renkleri</string>
-    <string name="sync_content_class_table_names">Ders programı – özel ders adları</string>
+    <string name="sync_content_class_table_all">Tüm dersler</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">Senkronize edilen içerik</string>
     <string name="sync_courses_footer">Tüm cihazlarınızda kullanabilmeniz için özel ders programınızı ve ödev tamamlanma durumunuzu sunucuya gönderir. Aşağıda nelerin dahil edileceğini seçin.</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">Ders</string>
     <string name="watch_course_instructor_label">Eğitmen</string>
     <string name="watch_empty_not_signed_in">Giriş yapılmadı. Telefonda TigerDuck\'ı açın.</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">Az önce</string>
     <string name="watch_last_synced_never">Hiç eşitlenmedi</string>
     <string name="watch_last_synced_relative">Son eşitleme %1$s</string>
     <string name="watch_next">SONRAKI</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">Şimdi eşitle</string>
     <string name="watch_starts_at">Başlangıç %1$s</string>
     <string name="watch_starts_in_minutes">%1$d dk içinde başlar</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">Bugün</string>
     <string name="watch_tomorrow_at">Yarın · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">Sonraki ders</string>

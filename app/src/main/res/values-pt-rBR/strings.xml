@@ -29,7 +29,7 @@
     <string name="action_remove">Remover</string>
     <string name="action_reset">Redefinir</string>
     <string name="action_retry">Tentar novamente</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">Salvar</string>
     <string name="action_search">Buscar</string>
     <string name="action_sign_in">Entrar</string>
     <string name="action_sign_in_again">Faça login novamente</string>
@@ -125,7 +125,7 @@
     <string name="bulletin_rule_editor_mode_or_footer">Notificar quando departamento ou categoria corresponder.</string>
     <string name="bulletin_rule_editor_mode_section">Modo</string>
     <string name="bulletin_rule_editor_name_placeholder">Ex.: Acadêmico + Bolsa</string>
-    <string name="bulletin_rule_editor_name_section">Name</string>
+    <string name="bulletin_rule_editor_name_section">Nome</string>
     <string name="bulletin_rule_editor_selected_count">%1$d selecionado(s)</string>
     <string name="bulletin_rule_editor_tag_section">Categoria</string>
     <string name="bulletin_rule_filter_separator">, </string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">Nenhum evento neste dia</string>
     <string name="calendar_no_events_today">Nenhum evento hoje</string>
     <string name="calendar_previous_month">Mês anterior</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">Fim de %1$s</string>
+    <string name="calendar_semester_start">Início de %1$s</string>
     <string name="calendar_source_exam">Prova</string>
     <string name="calendar_source_holiday">Feriado</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -178,7 +178,7 @@
     <string name="class_table_reset_message">A grade será reconstruída a partir do Moodle, do sistema de matrícula e do sistema de notas. Disciplinas adicionadas, removidas ou renomeadas manualmente serão perdidas.</string>
     <string name="class_table_reset_title">Redefinir grade de cursos</string>
     <string name="class_table_reset_title_with_semester">Redefinir grade de %1$s</string>
-    <string name="class_table_semester_picker_label">Semester</string>
+    <string name="class_table_semester_picker_label">Semestre</string>
     <string name="class_table_sign_in_required_message">Faça login para ver sua grade de aulas</string>
     <string name="class_table_total_credits_value">%1$d créditos</string>
     <string name="cloud_sync_assignments">Tarefas</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">Escolha quais dados da grade sincronizar entre dispositivos.</string>
     <string name="cloud_sync_class_table_sync">Sincronização da grade</string>
     <string name="cloud_sync_course_colours">Cores das disciplinas</string>
-    <string name="cloud_sync_courses">Disciplinas</string>
     <string name="cloud_sync_custom_course_names">Nomes personalizados das disciplinas</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">ID do dispositivo</string>
     <string name="cloud_sync_device_section">Dispositivo</string>
     <string name="cloud_sync_disable_button">Desativar TigerSync</string>
     <string name="cloud_sync_disable_confirm_action">Desativar</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">Desativar TigerSync?</string>
     <string name="cloud_sync_disabled_footer">Sincronize edições da grade, status de tarefas e configurações entre seus dispositivos, com o servidor buscando tarefas do Moodle periodicamente para você.</string>
     <string name="cloud_sync_enable_button">Ativar TigerSync</string>
-    <string name="cloud_sync_last_synced_label">Última sincronização</string>
-    <string name="cloud_sync_last_synced_never">Ainda não sincronizado</string>
     <string name="cloud_sync_privacy_body">Quando o TigerSync está ativado, sua senha do sistema escolar e o token do Moodle são criptografados e enviados ao servidor TigerDuck, onde são usados para buscar tarefas do Moodle periodicamente em seu nome e para sincronizar edições da grade, status de tarefas e configurações entre seus dispositivos.\n\nVocê pode desativar o TigerSync a qualquer momento. Desativar faz logout deste dispositivo e revoga seu registro no servidor (incluindo credenciais push); as credenciais da conta enviadas permanecem no servidor apenas enquanto outros dispositivos sincronizados as utilizarem. Os dados locais não serão afetados.</string>
     <string name="cloud_sync_privacy_confirm">Concordar e ativar</string>
     <string name="cloud_sync_privacy_title">TigerSync e Privacidade</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">Entrando…</string>
     <string name="cloud_sync_step_register">Registrando dispositivo…</string>
     <string name="cloud_sync_step_upload">Enviando dados…</string>
-    <string name="cloud_sync_sync_now">Sincronizar agora</string>
     <string name="cloud_sync_sync_options">Opções de sincronização</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">Azul</string>
@@ -243,8 +239,8 @@
     <string name="course_color_picker_title">Editar cor</string>
     <string name="course_credits_value">Créditos: %1$d</string>
     <string name="course_detail_classroom_label">Sala de aula</string>
-    <string name="course_detail_code_label">Code</string>
-    <string name="course_detail_credits_label">Credits</string>
+    <string name="course_detail_code_label">Código</string>
+    <string name="course_detail_credits_label">Créditos</string>
     <string name="course_detail_due_prefix">Prazo: %1$s</string>
     <string name="course_detail_enrollment_label">Matrícula</string>
     <string name="course_detail_incomplete_assignments">Tarefas incompletas</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">Notificações do sistema</string>
     <string name="onboarding_analytics_description">Ajude a melhorar o TigerDuck compartilhando visitas de páginas e uso de widgets de forma anônima. Você pode alterar isso a qualquer momento nas Configurações.</string>
     <string name="onboarding_analytics_label">Análise de uso (opcional)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">Usar endpoint de API personalizado</string>
     <string name="onboarding_flavor_fdroid_description">Você está usando a versão F-Droid. Como a política do F-Droid proíbe a dependência dos serviços do Google (Firebase FCM, GMS etc.), os recursos a seguir não estão disponíveis nesta versão:\n\n1. App complementar para Wear OS\n2. Notificações push em tempo real\n3. TigerSync: Sincronizar informações das disciplinas\n4. TigerSync: Receber notificações adicionais do servidor</string>
     <string name="onboarding_flavor_fdroid_title">Aviso da versão F-Droid</string>
     <string name="onboarding_flavor_play_description">O TigerDuck inclui um complementar para Wear OS. Veja mensagens das aulas no seu relógio — o Wear TigerDuck sincroniza as informações do seu celular.</string>
@@ -543,7 +539,7 @@
     <string name="onboarding_sync_note">Quando a sincronização está desativada, todos os dados ficam apenas neste dispositivo. As notificações push para lembretes de tarefas funcionam localmente sem o TigerSync.</string>
     <string name="onboarding_sync_shared_assignments">Dados das tarefas</string>
     <string name="onboarding_sync_shared_courses">Dados dos cursos</string>
-    <string name="onboarding_sync_shared_device_id">Device ID</string>
+    <string name="onboarding_sync_shared_device_id">ID do dispositivo</string>
     <string name="onboarding_sync_shared_moodle_token">Token Moodle (criptografado)</string>
     <string name="onboarding_sync_shared_student_id">Matrícula</string>
     <string name="onboarding_sync_title">TigerSync</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">Ativar push do servidor</string>
     <string name="push_server_footer">Usado para receber notificações de avisos escolares em tempo real e para acionar lembretes ativamente.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">Último registro</string>
-    <string name="push_server_last_sync">Última sincronização</string>
     <string name="push_server_latest_error">Erro recente</string>
     <string name="push_server_notification_status_authorized">Autorizado</string>
     <string name="push_server_notification_status_denied_hint">Negado (abra as Configurações do sistema para reativar)</string>
@@ -590,7 +584,6 @@
     <string name="push_server_status_enabled">Ativado</string>
     <string name="push_server_status_section">Status</string>
     <string name="push_server_status_waiting_token">Aguardando o sistema atribuir um token</string>
-    <string name="push_server_sync_now_action">Sincronizar agora</string>
     <string name="refreshing_message">Atualizando… aguarde</string>
     <string name="score_academic_year_semester">Ano letivo %1$s %2$s</string>
     <string name="score_course_credits">%1$d créditos</string>
@@ -608,7 +601,7 @@
     <string name="score_credit_type_not_earned">Não obtido</string>
     <string name="score_credit_type_not_earned_short">Reprov</string>
     <string name="score_credit_type_not_required">Não obrigatório</string>
-    <string name="score_credit_type_not_required_short">Opt</string>
+    <string name="score_credit_type_not_required_short">Opc</string>
     <string name="score_distance_learning">Remoto</string>
     <string name="score_empty_message">Ainda não há dados de notas disponíveis.</string>
     <string name="score_empty_pull_to_refresh">Puxe para atualizar ou tente novamente mais tarde</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">Inglês</string>
     <string name="settings_language_follow_system">Seguir o sistema (Inglês como reserva)</string>
     <string name="settings_language_traditional_chinese">Chinês tradicional</string>
-    <string name="settings_learn_more_backend">Saiba mais sobre o servidor TigerDuck</string>
+    <string name="settings_learn_more_backend">Saiba mais sobre TigerSync</string>
     <string name="settings_library_account_subtitle">A senha pode ser diferente da do sistema acadêmico; o padrão é o número do seu documento de identidade</string>
     <string name="settings_library_feature_disabled_message">Ative \"Biblioteca e recursos relacionados\" primeiro, depois use o atalho do QR da biblioteca.</string>
     <string name="settings_library_feature_disabled_title">Recurso da biblioteca desativado</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">Tradução da interface</string>
     <string name="source_code_picker_repo_web_description">Página web oficial</string>
     <string name="source_code_picker_section_repositories">Repositórios</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">Local: %1$s → Servidor: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Alguns itens diferem entre este dispositivo e o servidor:</string>
     <string name="sync_conflict_reenable_assignments_differ">Status das tarefas: diferente no servidor</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">Usar local</string>
     <string name="sync_conflict_use_server">Usar servidor</string>
     <string name="sync_content_assignment_reminders">Lembretes de prazo de atividades</string>
-    <string name="sync_content_class_table_all">Grade de horários – todas as disciplinas</string>
-    <string name="sync_content_class_table_colors">Grade de horários – cores das disciplinas</string>
-    <string name="sync_content_class_table_names">Grade de horários – nomes personalizados das disciplinas</string>
+    <string name="sync_content_class_table_all">Todas as disciplinas</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">Conteúdo sincronizado</string>
     <string name="sync_courses_footer">Envia sua grade de horários personalizada e o estado de conclusão das tarefas para o servidor, para uso em todos os seus dispositivos. Escolha abaixo o que deseja incluir.</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">Disciplina</string>
     <string name="watch_course_instructor_label">Professor</string>
     <string name="watch_empty_not_signed_in">Não conectado. Abra o TigerDuck no celular.</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">Agora mesmo</string>
     <string name="watch_last_synced_never">Nunca sincronizado</string>
     <string name="watch_last_synced_relative">Última sincronização %1$s</string>
     <string name="watch_next">PRÓXIMO</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">Sincronizar agora</string>
     <string name="watch_starts_at">Começa às %1$s</string>
     <string name="watch_starts_in_minutes">Começa em %1$d min</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">Hoje</string>
     <string name="watch_tomorrow_at">Amanhã · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">Próxima aula</string>

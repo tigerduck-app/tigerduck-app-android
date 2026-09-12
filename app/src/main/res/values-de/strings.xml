@@ -29,7 +29,7 @@
     <string name="action_remove">Entfernen</string>
     <string name="action_reset">Zurücksetzen</string>
     <string name="action_retry">Wiederholen</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">Speichern</string>
     <string name="action_search">Suchen</string>
     <string name="action_sign_in">Anmelden</string>
     <string name="action_sign_in_again">Melden Sie sich erneut an</string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">Keine Termine an diesem Tag</string>
     <string name="calendar_no_events_today">Heute keine Termine</string>
     <string name="calendar_previous_month">Vorheriger Monat</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">Ende von %1$s</string>
+    <string name="calendar_semester_start">Beginn von %1$s</string>
     <string name="calendar_source_exam">Prüfung</string>
     <string name="calendar_source_holiday">Feiertag</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">Wähle aus, welche Stundenplan-Daten zwischen Geräten synchronisiert werden sollen.</string>
     <string name="cloud_sync_class_table_sync">Stundenplan-Synchronisierung</string>
     <string name="cloud_sync_course_colours">Kursfarben</string>
-    <string name="cloud_sync_courses">Kurse</string>
     <string name="cloud_sync_custom_course_names">Eigene Kursnamen</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">Geräte-ID</string>
     <string name="cloud_sync_device_section">Gerät</string>
     <string name="cloud_sync_disable_button">TigerSync deaktivieren</string>
     <string name="cloud_sync_disable_confirm_action">Deaktivieren</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">TigerSync deaktivieren?</string>
     <string name="cloud_sync_disabled_footer">Synchronisiere Stundenplan-Änderungen, Aufgabenstatus und Einstellungen zwischen deinen Geräten, wobei der Server regelmäßig Moodle-Aufgaben für dich abruft.</string>
     <string name="cloud_sync_enable_button">TigerSync aktivieren</string>
-    <string name="cloud_sync_last_synced_label">Zuletzt synchronisiert</string>
-    <string name="cloud_sync_last_synced_never">Noch nicht synchronisiert</string>
     <string name="cloud_sync_privacy_body">Wenn TigerSync aktiviert ist, werden dein Passwort für das Schulsystem und dein Moodle-Token verschlüsselt auf den TigerDuck-Server hochgeladen, wo sie verwendet werden, um regelmäßig Moodle-Aufgaben in deinem Namen abzurufen und Stundenplan-Änderungen, Aufgabenstatus und Einstellungen zwischen deinen Geräten zu synchronisieren.\n\nDu kannst TigerSync jederzeit deaktivieren. Durch Deaktivierung wird dieses Gerät abgemeldet und seine Registrierung auf dem Server widerrufen (einschließlich Push-Zugangsdaten); hochgeladene Kontodaten bleiben nur so lange auf dem Server, wie andere synchronisierte Geräte sie verwenden. Lokale Daten sind nicht betroffen.</string>
     <string name="cloud_sync_privacy_confirm">Zustimmen und aktivieren</string>
     <string name="cloud_sync_privacy_title">TigerSync &amp; Datenschutz</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">Anmeldung…</string>
     <string name="cloud_sync_step_register">Gerät wird registriert…</string>
     <string name="cloud_sync_step_upload">Daten werden hochgeladen…</string>
-    <string name="cloud_sync_sync_now">Jetzt synchronisieren</string>
     <string name="cloud_sync_sync_options">Synchronisierungsoptionen</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">Blau</string>
@@ -244,7 +240,7 @@
     <string name="course_credits_value">Leistungspunkte: %1$d</string>
     <string name="course_detail_classroom_label">Klassenzimmer</string>
     <string name="course_detail_code_label">Code</string>
-    <string name="course_detail_credits_label">Credits</string>
+    <string name="course_detail_credits_label">Leistungspunkte</string>
     <string name="course_detail_due_prefix">Fällig: %1$s</string>
     <string name="course_detail_enrollment_label">Einschreibung</string>
     <string name="course_detail_incomplete_assignments">Unvollständige Aufgaben</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">Systembenachrichtigungen</string>
     <string name="onboarding_analytics_description">Hilf dabei, TigerDuck zu verbessern, indem du anonyme Seitenaufrufe und Widget-Nutzung teilst. Du kannst das jederzeit in den Einstellungen ändern.</string>
     <string name="onboarding_analytics_label">Nutzungsanalyse (optional)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">Eigenen API-Endpunkt verwenden</string>
     <string name="onboarding_flavor_fdroid_description">Du verwendest die F-Droid-Version. Da die F-Droid-Richtlinie eine Abhängigkeit von Google-Diensten (Firebase FCM, GMS usw.) untersagt, sind die folgenden Funktionen in dieser Version nicht verfügbar:\n\n1. Wear-OS-Begleit-App\n2. Echtzeit-Push-Ankündigungen\n3. TigerSync: Kursinformationen synchronisieren\n4. TigerSync: Zusätzliche Serverbenachrichtigungen erhalten</string>
     <string name="onboarding_flavor_fdroid_title">Hinweis zur F-Droid-Version</string>
     <string name="onboarding_flavor_play_description">TigerDuck enthält eine Wear-OS-Begleit-App. Sieh dir Kursnachrichten auf deiner Uhr an — Wear TigerDuck synchronisiert Informationen von deinem Telefon.</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">Server-Push aktivieren</string>
     <string name="push_server_footer">Wird verwendet, um Schulbulletin-Benachrichtigungen in Echtzeit zu erhalten und Erinnerungen aktiv auszulösen.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">Letzte Anmeldung</string>
-    <string name="push_server_last_sync">Letzte Synchronisierung</string>
     <string name="push_server_latest_error">Aktueller Fehler</string>
     <string name="push_server_notification_status_authorized">Autorisiert</string>
     <string name="push_server_notification_status_denied_hint">Verweigert (Systemeinstellungen öffnen, um sie erneut zu aktivieren)</string>
@@ -590,7 +584,6 @@
     <string name="push_server_status_enabled">Ermöglicht</string>
     <string name="push_server_status_section">Status</string>
     <string name="push_server_status_waiting_token">Warte auf Token-Zuweisung durch das System</string>
-    <string name="push_server_sync_now_action">Jetzt synchronisieren</string>
     <string name="refreshing_message">Wird aktualisiert … einen Moment</string>
     <string name="score_academic_year_semester">Akademisches Jahr %1$s %2$s</string>
     <string name="score_course_credits">%1$d Leistungspunkte</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">Englisch</string>
     <string name="settings_language_follow_system">System folgen (Ersatz: Englisch)</string>
     <string name="settings_language_traditional_chinese">Traditionelles Chinesisch</string>
-    <string name="settings_learn_more_backend">Mehr über den TigerDuck-Server erfahren</string>
+    <string name="settings_learn_more_backend">Mehr über TigerSync erfahren</string>
     <string name="settings_library_account_subtitle">Das Passwort kann sich vom Hochschulsystem unterscheiden; Standard ist Ihre nationale Ausweisnummer</string>
     <string name="settings_library_feature_disabled_message">Aktivieren Sie zuerst „Bibliothek und zugehörige Funktionen“, dann verwenden Sie die Bibliothek-QR-Verknüpfung.</string>
     <string name="settings_library_feature_disabled_title">Bibliotheksfunktion ist deaktiviert</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">UI-Übersetzung</string>
     <string name="source_code_picker_repo_web_description">Offizielle Webseite</string>
     <string name="source_code_picker_section_repositories">Repositories</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">Lokal: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Einige Einträge unterscheiden sich zwischen diesem Gerät und dem Server:</string>
     <string name="sync_conflict_reenable_assignments_differ">Aufgabenstatus: auf dem Server abweichend</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">Lokal verwenden</string>
     <string name="sync_conflict_use_server">Server verwenden</string>
     <string name="sync_content_assignment_reminders">Erinnerungen an fällige Aufgaben</string>
-    <string name="sync_content_class_table_all">Stundenplan – alle Kurse</string>
-    <string name="sync_content_class_table_colors">Stundenplan – Kursfarben</string>
-    <string name="sync_content_class_table_names">Stundenplan – Eigene Kursnamen</string>
+    <string name="sync_content_class_table_all">Alle Kurse</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">Synchronisierte Inhalte</string>
     <string name="sync_courses_footer">Sendet deinen individuellen Stundenplan und den Bearbeitungsstatus deiner Aufgaben an den Server zur geräteübergreifenden Nutzung. Wähle unten aus, was enthalten sein soll.</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">Kurs</string>
     <string name="watch_course_instructor_label">Dozent</string>
     <string name="watch_empty_not_signed_in">Nicht angemeldet. Öffnen Sie TigerDuck auf Ihrem Telefon.</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">Gerade eben</string>
     <string name="watch_last_synced_never">Nie synchronisiert</string>
     <string name="watch_last_synced_relative">Zuletzt synchronisiert %1$s</string>
     <string name="watch_next">NÄCHSTE</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">Jetzt synchronisieren</string>
     <string name="watch_starts_at">Beginnt %1$s</string>
     <string name="watch_starts_in_minutes">Beginnt in %1$d Min.</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">Heute</string>
     <string name="watch_tomorrow_at">Morgen · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">Nächste Stunde</string>

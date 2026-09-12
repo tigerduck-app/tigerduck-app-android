@@ -29,7 +29,7 @@
     <string name="action_remove">Удалить</string>
     <string name="action_reset">Сбросить</string>
     <string name="action_retry">Повторить</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">Сохранить</string>
     <string name="action_search">Поиск</string>
     <string name="action_sign_in">Войти</string>
     <string name="action_sign_in_again">Войти снова</string>
@@ -125,7 +125,7 @@
     <string name="bulletin_rule_editor_mode_or_footer">Уведомлять при совпадении отдела или категории.</string>
     <string name="bulletin_rule_editor_mode_section">Режим</string>
     <string name="bulletin_rule_editor_name_placeholder">Напр.: Учёба + Стипендия</string>
-    <string name="bulletin_rule_editor_name_section">Name</string>
+    <string name="bulletin_rule_editor_name_section">Название</string>
     <string name="bulletin_rule_editor_selected_count">Выбрано: %1$d</string>
     <string name="bulletin_rule_editor_tag_section">Категория</string>
     <string name="bulletin_rule_filter_separator">, </string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">В этот день событий нет</string>
     <string name="calendar_no_events_today">Сегодня нет событий</string>
     <string name="calendar_previous_month">Предыдущий месяц</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">Конец %1$s</string>
+    <string name="calendar_semester_start">Начало %1$s</string>
     <string name="calendar_source_exam">Экзамен</string>
     <string name="calendar_source_holiday">Праздник</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -178,7 +178,7 @@
     <string name="class_table_reset_message">Расписание будет пересобрано по данным Moodle, системы выбора курсов и системы оценок. Курсы, добавленные, удалённые или переименованные вручную, будут потеряны.</string>
     <string name="class_table_reset_title">Сбросить расписание</string>
     <string name="class_table_reset_title_with_semester">Сбросить расписание %1$s</string>
-    <string name="class_table_semester_picker_label">Semester</string>
+    <string name="class_table_semester_picker_label">Семестр</string>
     <string name="class_table_sign_in_required_message">Войдите, чтобы просмотреть расписание занятий</string>
     <string name="class_table_total_credits_value">%1$d кредитов</string>
     <string name="cloud_sync_assignments">Задания</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">Выберите, какие данные расписания синхронизировать между устройствами.</string>
     <string name="cloud_sync_class_table_sync">Синхронизация расписания</string>
     <string name="cloud_sync_course_colours">Цвета курсов</string>
-    <string name="cloud_sync_courses">Курсы</string>
     <string name="cloud_sync_custom_course_names">Пользовательские названия курсов</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">ID устройства</string>
     <string name="cloud_sync_device_section">Устройство</string>
     <string name="cloud_sync_disable_button">Отключить TigerSync</string>
     <string name="cloud_sync_disable_confirm_action">Отключить</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">Отключить TigerSync?</string>
     <string name="cloud_sync_disabled_footer">Синхронизируйте изменения расписания, статусы заданий и настройки между устройствами, а сервер будет периодически получать задания Moodle за вас.</string>
     <string name="cloud_sync_enable_button">Включить TigerSync</string>
-    <string name="cloud_sync_last_synced_label">Последняя синхронизация</string>
-    <string name="cloud_sync_last_synced_never">Ещё не синхронизировано</string>
     <string name="cloud_sync_privacy_body">При включённом TigerSync ваш пароль от школьной системы и токен Moodle шифруются и загружаются на сервер TigerDuck, где используются для периодического получения заданий Moodle от вашего имени и синхронизации изменений расписания, статусов заданий и настроек между вашими устройствами.\n\nВы можете отключить TigerSync в любое время. Отключение выполнит выход с этого устройства и отзовёт его регистрацию на сервере (включая push-данные); загруженные учётные данные остаются на сервере только пока их используют другие синхронизированные устройства. Локальные данные не будут затронуты.</string>
     <string name="cloud_sync_privacy_confirm">Принять и включить</string>
     <string name="cloud_sync_privacy_title">TigerSync и конфиденциальность</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">Вход…</string>
     <string name="cloud_sync_step_register">Регистрация устройства…</string>
     <string name="cloud_sync_step_upload">Загрузка данных…</string>
-    <string name="cloud_sync_sync_now">Синхронизировать</string>
     <string name="cloud_sync_sync_options">Параметры синхронизации</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">Синий</string>
@@ -243,8 +239,8 @@
     <string name="course_color_picker_title">Изменить цвет</string>
     <string name="course_credits_value">Кредиты: %1$d</string>
     <string name="course_detail_classroom_label">Аудитория</string>
-    <string name="course_detail_code_label">Code</string>
-    <string name="course_detail_credits_label">Credits</string>
+    <string name="course_detail_code_label">Код</string>
+    <string name="course_detail_credits_label">Кредиты</string>
     <string name="course_detail_due_prefix">Срок: %1$s</string>
     <string name="course_detail_enrollment_label">Запись</string>
     <string name="course_detail_incomplete_assignments">Незавершённые задания</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">Системные уведомления</string>
     <string name="onboarding_analytics_description">Помоги улучшить TigerDuck, делясь анонимными данными о посещённых страницах и использовании виджетов. Изменить это можно в любой момент в Настройках.</string>
     <string name="onboarding_analytics_label">Аналитика использования (необязательно)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">Использовать собственную конечную точку API</string>
     <string name="onboarding_flavor_fdroid_description">Вы используете сборку F-Droid. Поскольку политика F-Droid запрещает зависимость от сервисов Google (Firebase FCM, GMS и т.д.), в этой сборке недоступны следующие функции:\n\n1. Сопутствующее приложение Wear OS\n2. Push-уведомления в реальном времени\n3. TigerSync: Синхронизировать информацию о курсах\n4. TigerSync: Получать дополнительные уведомления сервера</string>
     <string name="onboarding_flavor_fdroid_title">Уведомление о сборке F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck включает приложение для Wear OS. Просматривайте сообщения о занятиях на часах — Wear TigerDuck синхронизирует информацию с вашего телефона.</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">Включить серверный push</string>
     <string name="push_server_footer">Используется для получения push-уведомлений школьных объявлений в реальном времени и активного запуска напоминаний.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">Последняя регистрация</string>
-    <string name="push_server_last_sync">Последняя синхронизация</string>
     <string name="push_server_latest_error">Последняя ошибка</string>
     <string name="push_server_notification_status_authorized">Авторизовано</string>
     <string name="push_server_notification_status_denied_hint">Запрещено (откройте системные настройки, чтобы включить снова)</string>
@@ -584,13 +578,12 @@
     <string name="push_server_notification_status_undetermined">Ещё не запрошено</string>
     <string name="push_server_notification_status_unknown">Неизвестно</string>
     <string name="push_server_pending_incomplete">Ещё не выполнено</string>
-    <string name="push_server_settings_title">Server push</string>
+    <string name="push_server_settings_title">Серверный push</string>
     <string name="push_server_status_device_registration">Регистрация устройства</string>
     <string name="push_server_status_done">Завершено</string>
     <string name="push_server_status_enabled">Включено</string>
-    <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_section">Статус</string>
     <string name="push_server_status_waiting_token">Ожидание назначения token системой</string>
-    <string name="push_server_sync_now_action">Синхронизировать сейчас</string>
     <string name="refreshing_message">Обновляется… подождите</string>
     <string name="score_academic_year_semester">Учебный год %1$s, %2$s семестр</string>
     <string name="score_course_credits">%1$d кредитов</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_language_follow_system">Как в системе (резервный: английский)</string>
     <string name="settings_language_traditional_chinese">Традиционный китайский</string>
-    <string name="settings_learn_more_backend">Узнайте больше о сервере TigerDuck</string>
+    <string name="settings_learn_more_backend">Узнайте больше о TigerSync</string>
     <string name="settings_library_account_subtitle">Пароль может отличаться от пароля школьной системы; по умолчанию используется номер удостоверения личности</string>
     <string name="settings_library_feature_disabled_message">Сначала включите «Библиотека и связанные функции», а затем используйте ярлык QR библиотеки.</string>
     <string name="settings_library_feature_disabled_title">Функция библиотеки отключена</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">Перевод интерфейса</string>
     <string name="source_code_picker_repo_web_description">Официальный сайт</string>
     <string name="source_code_picker_section_repositories">Репозитории</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">Локально: %1$s → Сервер: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Некоторые элементы отличаются между этим устройством и сервером:</string>
     <string name="sync_conflict_reenable_assignments_differ">Статус заданий: отличается на сервере</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">Использовать локальное</string>
     <string name="sync_conflict_use_server">Использовать сервер</string>
     <string name="sync_content_assignment_reminders">Напоминания о сроках сдачи заданий</string>
-    <string name="sync_content_class_table_all">Расписание – все курсы</string>
-    <string name="sync_content_class_table_colors">Расписание – цвета курсов</string>
-    <string name="sync_content_class_table_names">Расписание – пользовательские названия курсов</string>
+    <string name="sync_content_class_table_all">Все курсы</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">Синхронизируемый контент</string>
     <string name="sync_courses_footer">Отправляет ваше персональное расписание и статус выполнения заданий на сервер для использования на всех ваших устройствах. Выберите ниже, что включить.</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">Курс</string>
     <string name="watch_course_instructor_label">Преподаватель</string>
     <string name="watch_empty_not_signed_in">Не выполнен вход. Откройте TigerDuck на телефоне.</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">Только что</string>
     <string name="watch_last_synced_never">Никогда не синхронизировалось</string>
     <string name="watch_last_synced_relative">Синхронизировано %1$s</string>
     <string name="watch_next">СЛЕД.</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">Синхронизировать сейчас</string>
     <string name="watch_starts_at">Начало %1$s</string>
     <string name="watch_starts_in_minutes">Через %1$d мин</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">Сегодня</string>
     <string name="watch_tomorrow_at">Завтра · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">Следующее занятие</string>

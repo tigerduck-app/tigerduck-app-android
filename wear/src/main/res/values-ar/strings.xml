@@ -29,7 +29,7 @@
     <string name="action_remove">إزالة</string>
     <string name="action_reset">إعادة الضبط</string>
     <string name="action_retry">أعد المحاولة</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">حفظ</string>
     <string name="action_search">بحث</string>
     <string name="action_sign_in">تسجيل الدخول</string>
     <string name="action_sign_in_again">قم بتسجيل الدخول مرة أخرى</string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">لا توجد أحداث في هذا اليوم</string>
     <string name="calendar_no_events_today">لا توجد أحداث اليوم</string>
     <string name="calendar_previous_month">الشهر السابق</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">نهاية %1$s</string>
+    <string name="calendar_semester_start">بداية %1$s</string>
     <string name="calendar_source_exam">اختبار</string>
     <string name="calendar_source_holiday">عطلة</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">اختر بيانات جدول الحصص التي تريد مزامنتها بين الأجهزة.</string>
     <string name="cloud_sync_class_table_sync">مزامنة جدول الحصص</string>
     <string name="cloud_sync_course_colours">ألوان المقررات</string>
-    <string name="cloud_sync_courses">المقررات</string>
     <string name="cloud_sync_custom_course_names">أسماء المقررات المخصصة</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">معرّف الجهاز</string>
     <string name="cloud_sync_device_section">الجهاز</string>
     <string name="cloud_sync_disable_button">تعطيل TigerSync</string>
     <string name="cloud_sync_disable_confirm_action">تعطيل</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">تعطيل TigerSync؟</string>
     <string name="cloud_sync_disabled_footer">مزامنة تعديلات الجدول وحالات الواجبات والإعدادات بين أجهزتك، مع قيام الخادم بجلب واجبات Moodle دوريًا نيابةً عنك.</string>
     <string name="cloud_sync_enable_button">تفعيل TigerSync</string>
-    <string name="cloud_sync_last_synced_label">آخر مزامنة</string>
-    <string name="cloud_sync_last_synced_never">لم تتم المزامنة بعد</string>
     <string name="cloud_sync_privacy_body">عند تفعيل TigerSync، يتم تشفير كلمة مرور نظام المدرسة ورمز Moodle الخاص بك ورفعهما إلى خادم TigerDuck، حيث يُستخدمان لجلب واجبات Moodle دوريًا نيابةً عنك ولمزامنة تعديلات الجدول وحالات الواجبات والإعدادات بين أجهزتك.\n\nيمكنك تعطيل TigerSync في أي وقت. سيؤدي التعطيل إلى تسجيل الخروج من هذا الجهاز وإلغاء تسجيله على الخادم (بما في ذلك بيانات الإشعارات)؛ تبقى بيانات الحساب المرفوعة على الخادم فقط طالما تستخدمها أجهزة أخرى مفعّلة للمزامنة. لن تتأثر البيانات المحلية.</string>
     <string name="cloud_sync_privacy_confirm">الموافقة والتفعيل</string>
     <string name="cloud_sync_privacy_title">TigerSync والخصوصية</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">جارٍ تسجيل الدخول…</string>
     <string name="cloud_sync_step_register">جارٍ تسجيل الجهاز…</string>
     <string name="cloud_sync_step_upload">جارٍ رفع البيانات…</string>
-    <string name="cloud_sync_sync_now">مزامنة الآن</string>
     <string name="cloud_sync_sync_options">خيارات المزامنة</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">أزرق</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">إشعارات النظام</string>
     <string name="onboarding_analytics_description">ساعد في تحسين TigerDuck بمشاركة زيارات الصفحات واستخدام الأدوات بشكل مجهول. يمكنك تغيير هذا في أي وقت من الإعدادات.</string>
     <string name="onboarding_analytics_label">تحليلات الاستخدام (اختياري)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">استخدام نقطة نهاية API مخصصة</string>
     <string name="onboarding_flavor_fdroid_description">أنت تستخدم نسخة F-Droid. بما أن سياسة F-Droid تحظر الاعتماد على خدمات Google (Firebase FCM وGMS وغيرها)، فإن الميزات التالية غير متاحة في هذه النسخة:\n\n1. تطبيق Wear OS المرافق\n2. إشعارات الإعلانات الفورية\n3. TigerSync: مزامنة معلومات المقررات\n4. TigerSync: تلقي إشعارات إضافية من الخادم</string>
     <string name="onboarding_flavor_fdroid_title">إشعار نسخة F-Droid</string>
     <string name="onboarding_flavor_play_description">يتضمن TigerDuck تطبيقًا مرافقًا لـ Wear OS. اعرض رسائل الدروس على ساعتك — يقوم Wear TigerDuck بمزامنة المعلومات من هاتفك.</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">تمكين دفع الخادم</string>
     <string name="push_server_footer">يُستخدم لتلقي إشعارات النشرات المدرسية في الوقت الفعلي ولتنشيط التذكيرات.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">التسجيل الأخير</string>
-    <string name="push_server_last_sync">آخر مزامنة</string>
     <string name="push_server_latest_error">خطأ حديث</string>
     <string name="push_server_notification_status_authorized">أذن</string>
     <string name="push_server_notification_status_denied_hint">مرفوض (افتح إعدادات النظام لإعادة التمكين)</string>
@@ -590,7 +584,6 @@
     <string name="push_server_status_enabled">ممكّن</string>
     <string name="push_server_status_section">حالة</string>
     <string name="push_server_status_waiting_token">في انتظار تعيين token من النظام</string>
-    <string name="push_server_sync_now_action">مزامنة الآن</string>
     <string name="refreshing_message">جارٍ التحديث… انتظر قليلًا</string>
     <string name="score_academic_year_semester">العام الدراسي %1$s %2$s</string>
     <string name="score_course_credits">%1$d ساعات معتمدة</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">الإنجليزية</string>
     <string name="settings_language_follow_system">اتباع النظام (الإنجليزية كلغة احتياطية)</string>
     <string name="settings_language_traditional_chinese">الصينية التقليدية</string>
-    <string name="settings_learn_more_backend">تعرّف على المزيد حول خادم TigerDuck</string>
+    <string name="settings_learn_more_backend">تعرّف على المزيد حول TigerSync</string>
     <string name="settings_library_account_subtitle">قد تختلف كلمة المرور عن النظام الأكاديمي؛ افتراضيًا هي رقم الهوية الوطنية</string>
     <string name="settings_library_feature_disabled_message">فعّل أولًا \"المكتبة والميزات ذات الصلة\"، ثم استخدم اختصار QR Code للمكتبة.</string>
     <string name="settings_library_feature_disabled_title">ميزة المكتبة معطّلة</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">ترجمة الواجهة</string>
     <string name="source_code_picker_repo_web_description">الموقع الرسمي</string>
     <string name="source_code_picker_section_repositories">المستودعات</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">محلي: %1$s → الخادم: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">بعض العناصر تختلف بين هذا الجهاز والخادم:</string>
     <string name="sync_conflict_reenable_assignments_differ">حالة الواجبات: مختلفة على الخادم</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">استخدام المحلي</string>
     <string name="sync_conflict_use_server">استخدام الخادم</string>
     <string name="sync_content_assignment_reminders">تذكيرات استحقاق الواجبات</string>
-    <string name="sync_content_class_table_all">جدول الحصص – جميع المقررات</string>
-    <string name="sync_content_class_table_colors">جدول الحصص – ألوان المقررات</string>
-    <string name="sync_content_class_table_names">جدول الحصص – أسماء المقررات المخصصة</string>
+    <string name="sync_content_class_table_all">جميع المقررات</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">المحتوى المتزامن</string>
     <string name="sync_courses_footer">يرسل جدول حصصك المخصص وحالة إنجاز واجباتك إلى الخادم لاستخدامها عبر جميع أجهزتك. اختر ما تريد تضمينه أدناه.</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">المقرر</string>
     <string name="watch_course_instructor_label">المُدرِّس</string>
     <string name="watch_empty_not_signed_in">غير مسجّل الدخول. افتح TigerDuck على هاتفك.</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">للتو</string>
     <string name="watch_last_synced_never">لم تتم المزامنة قط</string>
     <string name="watch_last_synced_relative">آخر مزامنة %1$s</string>
     <string name="watch_next">التالي</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">مزامنة الآن</string>
     <string name="watch_starts_at">يبدأ %1$s</string>
     <string name="watch_starts_in_minutes">يبدأ خلال %1$d دقيقة</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">اليوم</string>
     <string name="watch_tomorrow_at">غدًا · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">المحاضرة التالية</string>

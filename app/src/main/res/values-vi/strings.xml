@@ -29,7 +29,7 @@
     <string name="action_remove">Xóa</string>
     <string name="action_reset">Đặt lại</string>
     <string name="action_retry">Thử lại</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">Lưu</string>
     <string name="action_search">Tìm kiếm</string>
     <string name="action_sign_in">Đăng nhập</string>
     <string name="action_sign_in_again">Đăng nhập lại</string>
@@ -125,7 +125,7 @@
     <string name="bulletin_rule_editor_mode_or_footer">Thông báo khi phòng ban hoặc danh mục khớp.</string>
     <string name="bulletin_rule_editor_mode_section">Chế độ</string>
     <string name="bulletin_rule_editor_name_placeholder">Ví dụ: Học vụ + Học bổng</string>
-    <string name="bulletin_rule_editor_name_section">Name</string>
+    <string name="bulletin_rule_editor_name_section">Tên</string>
     <string name="bulletin_rule_editor_selected_count">%1$d đã chọn</string>
     <string name="bulletin_rule_editor_tag_section">Danh mục</string>
     <string name="bulletin_rule_filter_separator">, </string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">Không có sự kiện vào ngày này</string>
     <string name="calendar_no_events_today">Hôm nay không có sự kiện</string>
     <string name="calendar_previous_month">Tháng trước</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">Kết thúc %1$s</string>
+    <string name="calendar_semester_start">Bắt đầu %1$s</string>
     <string name="calendar_source_exam">Kỳ thi</string>
     <string name="calendar_source_holiday">Ngày nghỉ</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -178,7 +178,7 @@
     <string name="class_table_reset_message">Lịch học sẽ được dựng lại từ Moodle, hệ thống đăng ký môn học và hệ thống điểm. Các môn được thêm, xoá hoặc đổi tên thủ công sẽ bị mất.</string>
     <string name="class_table_reset_title">Đặt lại lịch học</string>
     <string name="class_table_reset_title_with_semester">Đặt lại lịch học %1$s</string>
-    <string name="class_table_semester_picker_label">Semester</string>
+    <string name="class_table_semester_picker_label">Học kỳ</string>
     <string name="class_table_sign_in_required_message">Đăng nhập để xem thời khóa biểu</string>
     <string name="class_table_total_credits_value">%1$d tín chỉ</string>
     <string name="cloud_sync_assignments">Bài tập</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">Chọn dữ liệu thời khoá biểu nào để đồng bộ giữa các thiết bị.</string>
     <string name="cloud_sync_class_table_sync">Đồng bộ thời khoá biểu</string>
     <string name="cloud_sync_course_colours">Màu sắc môn học</string>
-    <string name="cloud_sync_courses">Môn học</string>
     <string name="cloud_sync_custom_course_names">Tên môn học tuỳ chỉnh</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">ID thiết bị</string>
     <string name="cloud_sync_device_section">Thiết bị</string>
     <string name="cloud_sync_disable_button">Tắt TigerSync</string>
     <string name="cloud_sync_disable_confirm_action">Tắt</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">Tắt TigerSync?</string>
     <string name="cloud_sync_disabled_footer">Đồng bộ các chỉnh sửa thời khoá biểu, trạng thái bài tập và cài đặt giữa các thiết bị của bạn, máy chủ sẽ định kỳ lấy bài tập Moodle cho bạn.</string>
     <string name="cloud_sync_enable_button">Bật TigerSync</string>
-    <string name="cloud_sync_last_synced_label">Đồng bộ lần cuối</string>
-    <string name="cloud_sync_last_synced_never">Chưa đồng bộ</string>
     <string name="cloud_sync_privacy_body">Khi TigerSync được bật, mật khẩu hệ thống trường và token Moodle của bạn được mã hoá và tải lên máy chủ TigerDuck, nơi chúng được sử dụng để định kỳ lấy bài tập Moodle thay bạn và đồng bộ các chỉnh sửa thời khoá biểu, trạng thái bài tập và cài đặt giữa các thiết bị của bạn.\n\nBạn có thể tắt TigerSync bất cứ lúc nào. Tắt sẽ đăng xuất thiết bị này và thu hồi đăng ký trên máy chủ (bao gồm thông tin push); thông tin tài khoản đã tải lên chỉ được giữ trên máy chủ khi các thiết bị đồng bộ khác còn sử dụng. Dữ liệu cục bộ không bị ảnh hưởng.</string>
     <string name="cloud_sync_privacy_confirm">Đồng ý và bật</string>
     <string name="cloud_sync_privacy_title">TigerSync &amp; Quyền riêng tư</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">Đang đăng nhập…</string>
     <string name="cloud_sync_step_register">Đang đăng ký thiết bị…</string>
     <string name="cloud_sync_step_upload">Đang tải dữ liệu lên…</string>
-    <string name="cloud_sync_sync_now">Đồng bộ ngay</string>
     <string name="cloud_sync_sync_options">Tuỳ chọn đồng bộ</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">Xanh dương</string>
@@ -243,8 +239,8 @@
     <string name="course_color_picker_title">Chỉnh sửa màu</string>
     <string name="course_credits_value">Tín chỉ: %1$d</string>
     <string name="course_detail_classroom_label">Phòng học</string>
-    <string name="course_detail_code_label">Code</string>
-    <string name="course_detail_credits_label">Credits</string>
+    <string name="course_detail_code_label">Mã</string>
+    <string name="course_detail_credits_label">Tín chỉ</string>
     <string name="course_detail_due_prefix">Hạn nộp: %1$s</string>
     <string name="course_detail_enrollment_label">Đăng ký học</string>
     <string name="course_detail_incomplete_assignments">Bài tập chưa hoàn thành</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">Thông báo hệ thống</string>
     <string name="onboarding_analytics_description">Giúp cải thiện TigerDuck bằng cách chia sẻ lượt truy cập trang và sử dụng widget ẩn danh. Bạn có thể thay đổi điều này bất cứ lúc nào trong Cài đặt.</string>
     <string name="onboarding_analytics_label">Phân tích sử dụng (tùy chọn)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">Dùng điểm cuối API tùy chỉnh</string>
     <string name="onboarding_flavor_fdroid_description">Bạn đang sử dụng bản F-Droid. Vì chính sách F-Droid không cho phép phụ thuộc vào các dịch vụ của Google (Firebase FCM, GMS, v.v.), nên các tính năng sau không có sẵn trong bản này:\n\n1. Ứng dụng đồng hành Wear OS\n2. Thông báo đẩy theo thời gian thực\n3. TigerSync: Đồng bộ thông tin môn học\n4. TigerSync: Nhận thêm thông báo từ máy chủ</string>
     <string name="onboarding_flavor_fdroid_title">Lưu ý về bản F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck đi kèm ứng dụng đồng hành Wear OS. Xem tin nhắn lớp học trên đồng hồ của bạn — Wear TigerDuck đồng bộ thông tin từ điện thoại.</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">Bật đẩy thông báo từ máy chủ</string>
     <string name="push_server_footer">Dùng để nhận thông báo bảng tin trường theo thời gian thực và chủ động kích hoạt nhắc nhở.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">Lần đăng ký cuối</string>
-    <string name="push_server_last_sync">Lần đồng bộ cuối</string>
     <string name="push_server_latest_error">Lỗi gần đây</string>
     <string name="push_server_notification_status_authorized">Đã được cấp phép</string>
     <string name="push_server_notification_status_denied_hint">Bị từ chối (mở Cài đặt hệ thống để bật lại)</string>
@@ -588,9 +582,8 @@
     <string name="push_server_status_device_registration">Đăng ký thiết bị</string>
     <string name="push_server_status_done">Hoàn tất</string>
     <string name="push_server_status_enabled">Đã bật</string>
-    <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_section">Trạng thái</string>
     <string name="push_server_status_waiting_token">Đang chờ hệ thống gán token</string>
-    <string name="push_server_sync_now_action">Đồng bộ ngay</string>
     <string name="refreshing_message">Đang làm mới… vui lòng chờ</string>
     <string name="score_academic_year_semester">Năm học %1$s %2$s</string>
     <string name="score_course_credits">%1$d tín chỉ</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_language_follow_system">Theo hệ thống (Dự phòng: tiếng Anh)</string>
     <string name="settings_language_traditional_chinese">Tiếng Trung phồn thể</string>
-    <string name="settings_learn_more_backend">Tìm hiểu thêm về máy chủ TigerDuck</string>
+    <string name="settings_learn_more_backend">Tìm hiểu thêm về TigerSync</string>
     <string name="settings_library_account_subtitle">Mật khẩu có thể khác với hệ thống học vụ; mặc định là số CMND của bạn</string>
     <string name="settings_library_feature_disabled_message">Hãy bật \"Thư viện và các tính năng liên quan\" trước, sau đó dùng lối tắt QR thư viện.</string>
     <string name="settings_library_feature_disabled_title">Tính năng thư viện đã bị tắt</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">Bản dịch giao diện</string>
     <string name="source_code_picker_repo_web_description">Trang web chính thức</string>
     <string name="source_code_picker_section_repositories">Kho lưu trữ</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">Cục bộ: %1$s → Máy chủ: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Một số mục khác nhau giữa thiết bị này và máy chủ:</string>
     <string name="sync_conflict_reenable_assignments_differ">Trạng thái bài tập: khác trên máy chủ</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">Dùng cục bộ</string>
     <string name="sync_conflict_use_server">Dùng máy chủ</string>
     <string name="sync_content_assignment_reminders">Lời nhắc hạn nộp bài tập</string>
-    <string name="sync_content_class_table_all">Thời khoá biểu – tất cả môn học</string>
-    <string name="sync_content_class_table_colors">Thời khoá biểu – màu sắc môn học</string>
-    <string name="sync_content_class_table_names">Thời khoá biểu – tên môn học tuỳ chỉnh</string>
+    <string name="sync_content_class_table_all">Tất cả môn học</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">Nội dung đồng bộ</string>
     <string name="sync_courses_footer">Gửi thời khoá biểu tuỳ chỉnh và trạng thái hoàn thành bài tập của bạn lên máy chủ để dùng trên mọi thiết bị. Chọn nội dung cần đồng bộ bên dưới.</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">Khóa học</string>
     <string name="watch_course_instructor_label">Giảng viên</string>
     <string name="watch_empty_not_signed_in">Chưa đăng nhập. Mở TigerDuck trên điện thoại.</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">Vừa xong</string>
     <string name="watch_last_synced_never">Chưa bao giờ đồng bộ</string>
     <string name="watch_last_synced_relative">Đồng bộ lần cuối %1$s</string>
     <string name="watch_next">TIẾP</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">Đồng bộ ngay</string>
     <string name="watch_starts_at">Bắt đầu %1$s</string>
     <string name="watch_starts_in_minutes">Bắt đầu sau %1$d phút</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">Hôm nay</string>
     <string name="watch_tomorrow_at">Ngày mai · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">Lớp tiếp theo</string>

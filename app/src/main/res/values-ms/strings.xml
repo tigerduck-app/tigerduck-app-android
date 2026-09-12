@@ -29,7 +29,7 @@
     <string name="action_remove">Buang</string>
     <string name="action_reset">Set Semula</string>
     <string name="action_retry">Coba Lagi</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">Simpan</string>
     <string name="action_search">Cari</string>
     <string name="action_sign_in">Log masuk</string>
     <string name="action_sign_in_again">Log Masuk Lagi</string>
@@ -125,7 +125,7 @@
     <string name="bulletin_rule_editor_mode_or_footer">Beritahu apabila jabatan atau kategori sepadan.</string>
     <string name="bulletin_rule_editor_mode_section">Mod</string>
     <string name="bulletin_rule_editor_name_placeholder">Cth.: Akademik + Biasiswa</string>
-    <string name="bulletin_rule_editor_name_section">Name</string>
+    <string name="bulletin_rule_editor_name_section">Nama</string>
     <string name="bulletin_rule_editor_selected_count">%1$d dipilih</string>
     <string name="bulletin_rule_editor_tag_section">Kategori</string>
     <string name="bulletin_rule_filter_separator">, </string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">Tiada acara pada hari ini</string>
     <string name="calendar_no_events_today">Tiada acara hari ini</string>
     <string name="calendar_previous_month">Bulan sebelumnya</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">Akhir %1$s</string>
+    <string name="calendar_semester_start">Mula %1$s</string>
     <string name="calendar_source_exam">Peperiksaan</string>
     <string name="calendar_source_holiday">Cuti</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">Pilih data jadual kelas yang hendak disegerakkan antara peranti.</string>
     <string name="cloud_sync_class_table_sync">Penyegerakan jadual kelas</string>
     <string name="cloud_sync_course_colours">Warna kursus</string>
-    <string name="cloud_sync_courses">Kursus</string>
     <string name="cloud_sync_custom_course_names">Nama kursus tersuai</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">ID peranti</string>
     <string name="cloud_sync_device_section">Peranti</string>
     <string name="cloud_sync_disable_button">Nyahaktifkan TigerSync</string>
     <string name="cloud_sync_disable_confirm_action">Nyahaktifkan</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">Nyahaktifkan TigerSync?</string>
     <string name="cloud_sync_disabled_footer">Segerakkan suntingan jadual, status tugasan dan tetapan antara peranti anda, dengan pelayan memuat turun tugasan Moodle secara berkala untuk anda.</string>
     <string name="cloud_sync_enable_button">Aktifkan TigerSync</string>
-    <string name="cloud_sync_last_synced_label">Kali terakhir disegerakkan</string>
-    <string name="cloud_sync_last_synced_never">Belum disegerakkan</string>
     <string name="cloud_sync_privacy_body">Apabila TigerSync diaktifkan, kata laluan sistem sekolah dan token Moodle anda disulitkan dan dimuat naik ke pelayan TigerDuck, di mana ia digunakan untuk memuat turun tugasan Moodle secara berkala bagi pihak anda dan untuk menyegerakkan suntingan jadual, status tugasan dan tetapan antara peranti anda.\n\nAnda boleh menyahaktifkan TigerSync pada bila-bila masa. Menyahaktifkan akan mengeluarkan peranti ini dan membatalkan pendaftarannya di pelayan (termasuk kelayakan push); kelayakan akaun yang dimuat naik kekal di pelayan hanya selagi peranti yang disegerakkan lain masih menggunakannya. Data tempatan tidak terjejas.</string>
     <string name="cloud_sync_privacy_confirm">Setuju dan aktifkan</string>
     <string name="cloud_sync_privacy_title">TigerSync &amp; Privasi</string>
@@ -209,13 +206,12 @@
     <string name="cloud_sync_step_login">Melog masuk…</string>
     <string name="cloud_sync_step_register">Mendaftarkan peranti…</string>
     <string name="cloud_sync_step_upload">Memuat naik data…</string>
-    <string name="cloud_sync_sync_now">Segerakkan Sekarang</string>
     <string name="cloud_sync_sync_options">Pilihan penyegerakan</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">Biru</string>
     <string name="color_name_cyan">Sian</string>
     <string name="color_name_green">Hijau</string>
-    <string name="color_name_indigo">Indigo</string>
+    <string name="color_name_indigo">Nila</string>
     <string name="color_name_orange">Jingga</string>
     <string name="color_name_pink">Merah jambu</string>
     <string name="color_name_purple">Ungu</string>
@@ -243,8 +239,8 @@
     <string name="course_color_picker_title">Edit warna</string>
     <string name="course_credits_value">Kredit: %1$d</string>
     <string name="course_detail_classroom_label">Bilik darjah</string>
-    <string name="course_detail_code_label">Code</string>
-    <string name="course_detail_credits_label">Credits</string>
+    <string name="course_detail_code_label">Kod</string>
+    <string name="course_detail_credits_label">Kredit</string>
     <string name="course_detail_due_prefix">Tarikh akhir: %1$s</string>
     <string name="course_detail_enrollment_label">Pendaftaran</string>
     <string name="course_detail_incomplete_assignments">Tugasan tidak lengkap</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">Pemberitahuan sistem</string>
     <string name="onboarding_analytics_description">Bantu tingkatkan TigerDuck dengan berkongsi lawatan halaman dan penggunaan widget secara tanpa nama. Anda boleh ubah ini bila-bila masa dalam Tetapan.</string>
     <string name="onboarding_analytics_label">Analitik penggunaan (pilihan)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">Guna titik akhir API tersuai</string>
     <string name="onboarding_flavor_fdroid_description">Anda menggunakan binaan F-Droid. Oleh sebab dasar F-Droid melarang pergantungan pada perkhidmatan Google (Firebase FCM, GMS, dll.), ciri-ciri berikut tidak tersedia dalam binaan ini:\n\n1. Aplikasi pendamping Wear OS\n2. Pemberitahuan tolak masa nyata\n3. TigerSync: Segerakkan maklumat kursus\n4. TigerSync: Terima pemberitahuan tambahan daripada pelayan</string>
     <string name="onboarding_flavor_fdroid_title">Notis binaan F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck merangkumi pendamping Wear OS. Lihat mesej kelas pada jam tangan anda — Wear TigerDuck menyegerakkan maklumat dari telefon anda.</string>
@@ -543,7 +539,7 @@
     <string name="onboarding_sync_note">Apabila segerak dimatikan, semua data kekal pada peranti ini sahaja. Pemberitahuan tolak untuk peringatan kerja rumah berfungsi secara tempatan tanpa TigerSync.</string>
     <string name="onboarding_sync_shared_assignments">Data tugasan</string>
     <string name="onboarding_sync_shared_courses">Data kursus</string>
-    <string name="onboarding_sync_shared_device_id">Device ID</string>
+    <string name="onboarding_sync_shared_device_id">ID peranti</string>
     <string name="onboarding_sync_shared_moodle_token">Token Moodle (disulitkan)</string>
     <string name="onboarding_sync_shared_student_id">ID Pelajar</string>
     <string name="onboarding_sync_title">TigerSync</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">Aktifkan tolakan pelayan</string>
     <string name="push_server_footer">Digunakan untuk menerima pemberitahuan buletin sekolah secara masa nyata dan mencetuskan peringatan secara aktif.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">Pendaftaran terakhir</string>
-    <string name="push_server_last_sync">Sinkronisasi terakhir</string>
     <string name="push_server_latest_error">Ralat terkini</string>
     <string name="push_server_notification_status_authorized">Dibenarkan</string>
     <string name="push_server_notification_status_denied_hint">Dinafikan (buka Tetapan sistem untuk mengaktifkan semula)</string>
@@ -590,7 +584,6 @@
     <string name="push_server_status_enabled">Diaktifkan</string>
     <string name="push_server_status_section">Status</string>
     <string name="push_server_status_waiting_token">Menunggu Sistem menetapkan token</string>
-    <string name="push_server_sync_now_action">Segerak sekarang</string>
     <string name="refreshing_message">Menyegar semula… sila tunggu</string>
     <string name="score_academic_year_semester">Tahun Akademik %1$s %2$s</string>
     <string name="score_course_credits">%1$d kredit</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_language_follow_system">Ikut sistem (Sandaran: Inggeris)</string>
     <string name="settings_language_traditional_chinese">Cina Tradisional</string>
-    <string name="settings_learn_more_backend">Ketahui lebih lanjut tentang Pelayan TigerDuck</string>
+    <string name="settings_learn_more_backend">Ketahui lebih lanjut tentang TigerSync</string>
     <string name="settings_library_account_subtitle">Kata laluan mungkin berbeza daripada sistem akademik; lalai ialah nombor kad pengenalan anda</string>
     <string name="settings_library_feature_disabled_message">Aktifkan \"Perpustakaan dan ciri berkaitan\" dahulu, kemudian gunakan pintasan Kod QR perpustakaan.</string>
     <string name="settings_library_feature_disabled_title">Ciri perpustakaan dilumpuhkan</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">Terjemahan UI</string>
     <string name="source_code_picker_repo_web_description">Laman web rasmi</string>
     <string name="source_code_picker_section_repositories">Repositori</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">Setempat: %1$s → Pelayan: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Beberapa item berbeza antara peranti ini dan pelayan:</string>
     <string name="sync_conflict_reenable_assignments_differ">Status tugasan: berbeza di pelayan</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">Guna Setempat</string>
     <string name="sync_conflict_use_server">Guna Pelayan</string>
     <string name="sync_content_assignment_reminders">Peringatan tugasan tamat tempoh</string>
-    <string name="sync_content_class_table_all">Jadual kelas – semua kursus</string>
-    <string name="sync_content_class_table_colors">Jadual kelas – warna kursus</string>
-    <string name="sync_content_class_table_names">Jadual kelas – nama kursus tersuai</string>
+    <string name="sync_content_class_table_all">Semua kursus</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">Kandungan disegerakkan</string>
     <string name="sync_courses_footer">Menghantar jadual kelas tersuai dan status penyiapan tugasan anda ke pelayan untuk digunakan pada semua peranti anda. Pilih perkara yang hendak disertakan di bawah.</string>
@@ -827,15 +818,15 @@
     <string name="watch_course_detail_title">Kursus</string>
     <string name="watch_course_instructor_label">Pengajar</string>
     <string name="watch_empty_not_signed_in">Belum log masuk. Buka TigerDuck di telefon anda.</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">Baru sahaja</string>
     <string name="watch_last_synced_never">Belum pernah disegerak</string>
     <string name="watch_last_synced_relative">Disegerakkan kali terakhir %1$s</string>
-    <string name="watch_next">NEXT</string>
+    <string name="watch_next">SETERUSNYA</string>
     <string name="watch_next_label">Seterusnya: %1$s · %2$s</string>
     <string name="watch_no_courses_synced">Tiada kursus disegerakkan.</string>
     <string name="watch_no_upcoming_classes">Tiada kelas akan datang.</string>
     <string name="watch_not_found">Tidak dijumpai</string>
-    <string name="watch_now">NOW</string>
+    <string name="watch_now">SEKARANG</string>
     <string name="watch_now_ends_at">NOW · Tamat %1$s</string>
     <string name="watch_now_next_title">Sekarang &amp; seterusnya</string>
     <string name="watch_open_phone_to_sync">Buka TigerDuck pada telefon untuk menyegerakkan.</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">Segerak sekarang</string>
     <string name="watch_starts_at">Mula %1$s</string>
     <string name="watch_starts_in_minutes">Bermula dalam %1$d min</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">Hari ini</string>
     <string name="watch_tomorrow_at">Esok · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">Kelas seterusnya</string>

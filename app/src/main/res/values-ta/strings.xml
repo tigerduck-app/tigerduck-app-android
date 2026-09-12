@@ -13,7 +13,7 @@
     <string name="a11y_rankings_trend_no_selection">பருவம் தேர்வு செய்யப்படவில்லை</string>
     <string name="a11y_rankings_trend_point">%1$@ GPA %2$@</string>
     <string name="a11y_time_slider_swipe_hint">நேரத்தை மாற்ற இடது அல்லது வலது பக்கமாக ஸ்வைப் செய்யவும்</string>
-    <string name="a11y_timetable_cell">%1$@ period %2$@: %3$@</string>
+    <string name="a11y_timetable_cell">%1$@ பீரியட் %2$@: %3$@</string>
     <string name="account_id_use_standard_keyboard">நிலையான விசைப்பலகை</string>
     <string name="action_add">சேர்</string>
     <string name="action_allow">அனுமதி</string>
@@ -29,7 +29,7 @@
     <string name="action_remove">அகற்று</string>
     <string name="action_reset">மீட்டமை</string>
     <string name="action_retry">மீண்டும் முயற்சி செய்யவும்</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">சேமி</string>
     <string name="action_search">தேடு</string>
     <string name="action_sign_in">உள்நுழைவு</string>
     <string name="action_sign_in_again">மீண்டும் உள்நுழைக</string>
@@ -125,7 +125,7 @@
     <string name="bulletin_rule_editor_mode_or_footer">துறை அல்லது வகை பொருந்தும்போது தெரிவிக்கவும்.</string>
     <string name="bulletin_rule_editor_mode_section">பயன்முறை</string>
     <string name="bulletin_rule_editor_name_placeholder">எ.கா.: கல்வி + உதவித்தொகை</string>
-    <string name="bulletin_rule_editor_name_section">Name</string>
+    <string name="bulletin_rule_editor_name_section">பெயர்</string>
     <string name="bulletin_rule_editor_selected_count">%1$d தேர்ந்தெடுக்கப்பட்டது</string>
     <string name="bulletin_rule_editor_tag_section">வகை</string>
     <string name="bulletin_rule_filter_separator">, </string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">இந்த நாளில் நிகழ்வுகள் இல்லை</string>
     <string name="calendar_no_events_today">இன்று நிகழ்வுகள் இல்லை</string>
     <string name="calendar_previous_month">கடந்த மாதம்</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">%1$s முடிவு</string>
+    <string name="calendar_semester_start">%1$s தொடக்கம்</string>
     <string name="calendar_source_exam">தேர்வு</string>
     <string name="calendar_source_holiday">விடுமுறை</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">சாதனங்களுக்கிடையில் எந்த வகுப்பு அட்டவணை தரவை ஒத்திசைக்க வேண்டும் என்பதைத் தேர்ந்தெடுக்கவும்.</string>
     <string name="cloud_sync_class_table_sync">வகுப்பு அட்டவணை ஒத்திசைவு</string>
     <string name="cloud_sync_course_colours">பாடநெறி நிறங்கள்</string>
-    <string name="cloud_sync_courses">பாடநெறிகள்</string>
     <string name="cloud_sync_custom_course_names">தனிப்பயன் பாடநெறி பெயர்கள்</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">சாதன ID</string>
     <string name="cloud_sync_device_section">சாதனம்</string>
     <string name="cloud_sync_disable_button">TigerSync முடக்கு</string>
     <string name="cloud_sync_disable_confirm_action">முடக்கு</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">TigerSync முடக்கவா?</string>
     <string name="cloud_sync_disabled_footer">உங்கள் சாதனங்களுக்கிடையில் அட்டவணை திருத்தங்கள், பணி நிலைகள் மற்றும் அமைப்புகளை ஒத்திசைக்கவும், சேவையகம் உங்களுக்காக அவ்வப்போது Moodle பணிகளைப் பெறும்.</string>
     <string name="cloud_sync_enable_button">TigerSync இயக்கு</string>
-    <string name="cloud_sync_last_synced_label">கடைசி ஒத்திசைவு</string>
-    <string name="cloud_sync_last_synced_never">இன்னும் ஒத்திசைக்கப்படவில்லை</string>
     <string name="cloud_sync_privacy_body">TigerSync இயக்கப்பட்டால், உங்கள் பள்ளி-அமைப்பு கடவுச்சொல் மற்றும் Moodle டோக்கன் மறைகுறியாக்கம் செய்யப்பட்டு TigerDuck சேவையகத்தில் பதிவேற்றப்படும், அங்கு அவை உங்கள் சார்பாக அவ்வப்போது Moodle பணிகளைப் பெறவும், உங்கள் சாதனங்களுக்கிடையில் அட்டவணை திருத்தங்கள், பணி நிலைகள் மற்றும் அமைப்புகளை ஒத்திசைக்கவும் பயன்படுத்தப்படும்.\n\nTigerSync எந்த நேரத்திலும் முடக்கலாம். முடக்குவது இந்த சாதனத்தை வெளியேற்றி, சேவையகத்தில் அதன் பதிவை ரத்து செய்யும் (புஷ் சான்றுகள் உட்பட); பதிவேற்றப்பட்ட கணக்கு சான்றுகள் மற்ற ஒத்திசைக்கப்பட்ட சாதனங்கள் பயன்படுத்தும் வரை மட்டுமே சேவையகத்தில் இருக்கும். உள்ளூர் தரவு பாதிக்கப்படாது.</string>
     <string name="cloud_sync_privacy_confirm">ஏற்று இயக்கு</string>
     <string name="cloud_sync_privacy_title">TigerSync &amp; தனியுரிமை</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">உள்நுழைகிறது…</string>
     <string name="cloud_sync_step_register">சாதனத்தைப் பதிவு செய்கிறது…</string>
     <string name="cloud_sync_step_upload">தரவைப் பதிவேற்றுகிறது…</string>
-    <string name="cloud_sync_sync_now">இப்போது ஒத்திசை</string>
     <string name="cloud_sync_sync_options">ஒத்திசைவு விருப்பங்கள்</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">நீலம்</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">சிஸ்டம் அறிவிப்புகள்</string>
     <string name="onboarding_analytics_description">அநாமதேய பக்க வருகைகள் மற்றும் விட்ஜெட் பயன்பாட்டை பகிர்ந்து TigerDuck-ஐ மேம்படுத்த உதவுங்கள். இதை எப்போது வேண்டுமானாலும் அமைப்புகளில் மாற்றலாம்.</string>
     <string name="onboarding_analytics_label">பயன்பாட்டு பகுப்பாய்வு (விரும்பினால்)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">தனிப்பயன் API எண்ட்பாயிண்டைப் பயன்படுத்து</string>
     <string name="onboarding_flavor_fdroid_description">நீங்கள் F-Droid பதிப்பைப் பயன்படுத்துகிறீர்கள். F-Droid கொள்கை Google சேவைகளை (Firebase FCM, GMS போன்றவை) சார்ந்திருப்பதைத் தடைசெய்வதால், கீழ்க்கண்ட அம்சங்கள் இந்தப் பதிப்பில் கிடைக்கவில்லை:\n\n1. Wear OS துணை ஆப்\n2. நேரடி புஷ் அறிவிப்புகள்\n3. TigerSync: பாடநெறி தகவலை ஒத்திசை\n4. TigerSync: கூடுதல் சேவையக அறிவிப்புகளைப் பெறு</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid பதிப்பு அறிவிப்பு</string>
     <string name="onboarding_flavor_play_description">TigerDuck இல் Wear OS துணை ஆப் உள்ளது. உங்கள் கடிகாரத்தில் வகுப்புச் செய்திகளைப் பாருங்கள் — Wear TigerDuck உங்கள் தொலைபேசியிலிருந்து தகவல்களை ஒத்திசைக்கிறது.</string>
@@ -543,7 +539,7 @@
     <string name="onboarding_sync_note">ஒத்திசைவு முடக்கப்பட்டிருக்கும்போது, எல்லா தரவும் இந்தச் சாதனத்தில் மட்டுமே இருக்கும். வீட்டுப்பாட நினைவூட்டல்களுக்கான புஷ் அறிவிப்புகள் TigerSync இல்லாமல் உள்ளூரில் செயல்படும்.</string>
     <string name="onboarding_sync_shared_assignments">பணி தரவு</string>
     <string name="onboarding_sync_shared_courses">பாடநெறி தரவு</string>
-    <string name="onboarding_sync_shared_device_id">Device ID</string>
+    <string name="onboarding_sync_shared_device_id">சாதன ID</string>
     <string name="onboarding_sync_shared_moodle_token">Moodle டோக்கன் (குறியாக்கம்)</string>
     <string name="onboarding_sync_shared_student_id">மாணவர் ID</string>
     <string name="onboarding_sync_title">TigerSync</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">சர்வர் புஷ் இயக்கு</string>
     <string name="push_server_footer">நிகழ்நேர பள்ளி அறிவிப்பு அறிவிப்புகளை பெறவும் மற்றும் நினைவூட்டல்களை தீவிரமாக தூண்டவும் பயன்படுகிறது.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">கடைசி பதிவு</string>
-    <string name="push_server_last_sync">கடைசி ஒத்திசைவு</string>
     <string name="push_server_latest_error">சமீபத்திய பிழை</string>
     <string name="push_server_notification_status_authorized">அங்கீகரிக்கப்பட்டது</string>
     <string name="push_server_notification_status_denied_hint">மறுக்கப்பட்டது (மீண்டும் இயக்க கணினி அமைப்புகளைத் திறக்கவும்)</string>
@@ -588,9 +582,8 @@
     <string name="push_server_status_device_registration">சாதன பதிவு</string>
     <string name="push_server_status_done">முடிந்தது</string>
     <string name="push_server_status_enabled">இயக்கப்பட்டது</string>
-    <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_section">நிலை</string>
     <string name="push_server_status_waiting_token">கணினி token வழங்குவதற்காக காத்திருக்கிறது</string>
-    <string name="push_server_sync_now_action">இப்போது ஒத்திசை</string>
     <string name="refreshing_message">புதுப்பிக்கிறோம்… கொஞ்சம் காத்திருங்கள்</string>
     <string name="score_academic_year_semester">கல்வியாண்டு %1$s %2$s</string>
     <string name="score_course_credits">%1$d கிரெடிட்கள்</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_language_follow_system">கணினியைப் பின்பற்று (மாற்று: ஆங்கிலம்)</string>
     <string name="settings_language_traditional_chinese">பாரம்பரிய சீனம்</string>
-    <string name="settings_learn_more_backend">TigerDuck பின்தளம் பற்றி மேலும் அறிக</string>
+    <string name="settings_learn_more_backend">TigerSync பற்றி மேலும் அறிக</string>
     <string name="settings_library_account_subtitle">பாஸ்வேர்ட் கல்வி அமைப்பிலிருந்து வேறுபடலாம்; இயல்புநிலை உங்கள் தேசிய அடையாள எண்</string>
     <string name="settings_library_feature_disabled_message">நூலக QR Code குறுக்குவழியை பயன்படுத்த முதலில் \"நூலகம் மற்றும் தொடர்பான அம்சங்கள்\" இயக்கவும்.</string>
     <string name="settings_library_feature_disabled_title">நூலக அம்சம் முடக்கப்பட்டுள்ளது</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">UI மொழிபெயர்ப்பு</string>
     <string name="source_code_picker_repo_web_description">அதிகாரப்பூர்வ வலைத்தளம்</string>
     <string name="source_code_picker_section_repositories">களஞ்சியங்கள்</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">உள்ளூர்: %1$s → சேவையகம்: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">இந்த சாதனத்திற்கும் சேவையகத்திற்கும் இடையே சில உருப்படிகள் வேறுபடுகின்றன:</string>
     <string name="sync_conflict_reenable_assignments_differ">பணி நிலை: சேவையகத்தில் வேறுபட்டது</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">உள்ளூர் பயன்படுத்து</string>
     <string name="sync_conflict_use_server">சேவையகம் பயன்படுத்து</string>
     <string name="sync_content_assignment_reminders">ஒப்படைப்பு காலக்கெடு நினைவூட்டல்கள்</string>
-    <string name="sync_content_class_table_all">வகுப்பு அட்டவணை – அனைத்து பாடநெறிகள்</string>
-    <string name="sync_content_class_table_colors">வகுப்பு அட்டவணை – பாடநெறி நிறங்கள்</string>
-    <string name="sync_content_class_table_names">வகுப்பு அட்டவணை – தனிப்பயன் பாடநெறி பெயர்கள்</string>
+    <string name="sync_content_class_table_all">அனைத்து பாடநெறிகள்</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">ஒத்திசைக்கப்பட்ட உள்ளடக்கம்</string>
     <string name="sync_courses_footer">உங்கள் தனிப்பயன் அட்டவணை மற்றும் பணி நிறைவு நிலையை உங்கள் சாதனங்கள் முழுவதும் பயன்படுத்த சேவையகத்திற்கு அனுப்புகிறது. கீழே என்ன சேர்க்க வேண்டும் என்பதைத் தேர்ந்தெடுக்கவும்.</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">இப்போது ஒத்திசை</string>
     <string name="watch_starts_at">%1$s மணிக்கு தொடங்கும்</string>
     <string name="watch_starts_in_minutes">%1$d நிமிடங்களில் தொடங்கும்</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">இன்று</string>
     <string name="watch_tomorrow_at">நாளை · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">அடுத்த வகுப்பு</string>

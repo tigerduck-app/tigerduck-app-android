@@ -29,7 +29,7 @@
     <string name="action_remove">Verwijderen</string>
     <string name="action_reset">Resetten</string>
     <string name="action_retry">Opnieuw proberen</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">Opslaan</string>
     <string name="action_search">Zoeken</string>
     <string name="action_sign_in">Inloggen</string>
     <string name="action_sign_in_again">Opnieuw aanmelden</string>
@@ -125,7 +125,7 @@
     <string name="bulletin_rule_editor_mode_or_footer">Meld wanneer afdeling of categorie overeenkomt.</string>
     <string name="bulletin_rule_editor_mode_section">Modus</string>
     <string name="bulletin_rule_editor_name_placeholder">Bijv.: Academisch + Beurs</string>
-    <string name="bulletin_rule_editor_name_section">Name</string>
+    <string name="bulletin_rule_editor_name_section">Naam</string>
     <string name="bulletin_rule_editor_selected_count">%1$d geselecteerd</string>
     <string name="bulletin_rule_editor_tag_section">Categorie</string>
     <string name="bulletin_rule_filter_separator">, </string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">Geen activiteiten op deze dag</string>
     <string name="calendar_no_events_today">Geen evenementen vandaag</string>
     <string name="calendar_previous_month">Vorige maand</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">Einde van %1$s</string>
+    <string name="calendar_semester_start">Begin van %1$s</string>
     <string name="calendar_source_exam">Tentamen</string>
     <string name="calendar_source_holiday">Feestdag</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">Kies welke lesroostergegevens tussen apparaten gesynchroniseerd worden.</string>
     <string name="cloud_sync_class_table_sync">Lesrooster synchronisatie</string>
     <string name="cloud_sync_course_colours">Vakkleuren</string>
-    <string name="cloud_sync_courses">Vakken</string>
     <string name="cloud_sync_custom_course_names">Aangepaste vaknamen</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">Apparaat-ID</string>
     <string name="cloud_sync_device_section">Apparaat</string>
     <string name="cloud_sync_disable_button">TigerSync uitschakelen</string>
     <string name="cloud_sync_disable_confirm_action">Uitschakelen</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">TigerSync uitschakelen?</string>
     <string name="cloud_sync_disabled_footer">Synchroniseer roosterwijzigingen, opdrachtstatussen en instellingen tussen je apparaten, terwijl de server periodiek Moodle-opdrachten ophaalt voor jou.</string>
     <string name="cloud_sync_enable_button">TigerSync inschakelen</string>
-    <string name="cloud_sync_last_synced_label">Laatst gesynchroniseerd</string>
-    <string name="cloud_sync_last_synced_never">Nog niet gesynchroniseerd</string>
     <string name="cloud_sync_privacy_body">Wanneer TigerSync is ingeschakeld, worden je schoolsysteemwachtwoord en Moodle-token versleuteld en geüpload naar de TigerDuck-server, waar ze worden gebruikt om periodiek Moodle-opdrachten op te halen namens jou en om roosterwijzigingen, opdrachtstatussen en instellingen te synchroniseren tussen je apparaten.\n\nJe kunt TigerSync op elk moment uitschakelen. Uitschakelen logt dit apparaat uit en trekt de registratie op de server in (inclusief push-inloggegevens); geüploade accountgegevens blijven alleen op de server zolang andere gesynchroniseerde apparaten ze gebruiken. Lokale gegevens worden niet beïnvloed.</string>
     <string name="cloud_sync_privacy_confirm">Akkoord en inschakelen</string>
     <string name="cloud_sync_privacy_title">TigerSync en privacy</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">Inloggen…</string>
     <string name="cloud_sync_step_register">Apparaat registreren…</string>
     <string name="cloud_sync_step_upload">Gegevens uploaden…</string>
-    <string name="cloud_sync_sync_now">Nu synchroniseren</string>
     <string name="cloud_sync_sync_options">Synchronisatieopties</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">Blauw</string>
@@ -244,7 +240,7 @@
     <string name="course_credits_value">Studiepunten: %1$d</string>
     <string name="course_detail_classroom_label">Lokaal</string>
     <string name="course_detail_code_label">Code</string>
-    <string name="course_detail_credits_label">Credits</string>
+    <string name="course_detail_credits_label">Studiepunten</string>
     <string name="course_detail_due_prefix">Deadline: %1$s</string>
     <string name="course_detail_enrollment_label">Inschrijving</string>
     <string name="course_detail_incomplete_assignments">Onvoltooide opdrachten</string>
@@ -475,7 +471,7 @@
     <string name="live_activity_settings_section_lock_screen">Vergrendelscherm</string>
     <string name="live_activity_settings_section_sound">Geluid</string>
     <string name="live_activity_settings_section_system_permissions">Systeemmachtigingen</string>
-    <string name="live_activity_settings_section_timing">Timing</string>
+    <string name="live_activity_settings_section_timing">Tijdstip</string>
     <string name="live_activity_settings_show_on_lock_screen">Gedetailleerde inhoud op vergrendelscherm tonen</string>
     <string name="live_activity_settings_sound_assignment">Geluid afspelen voor Opdrachtwaarschuwing</string>
     <string name="live_activity_settings_sound_class_preparing">Geluid afspelen voor Les begint zo</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">Systeemmeldingen</string>
     <string name="onboarding_analytics_description">Help TigerDuck te verbeteren door anoniem paginabezoeken en widgetgebruik te delen. Je kunt dit altijd wijzigen in Instellingen.</string>
     <string name="onboarding_analytics_label">Gebruiksanalyse (optioneel)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">Aangepast API-eindpunt gebruiken</string>
     <string name="onboarding_flavor_fdroid_description">Je gebruikt de F-Droid-versie. Omdat het F-Droid-beleid afhankelijkheid van Google-services (Firebase FCM, GMS enz.) verbiedt, zijn de volgende functies niet beschikbaar in deze versie:\n\n1. Wear OS-begeleidingsapp\n2. Realtime push-meldingen\n3. TigerSync: Vakinformatie synchroniseren\n4. TigerSync: Extra servermeldingen ontvangen</string>
     <string name="onboarding_flavor_fdroid_title">Mededeling over F-Droid-versie</string>
     <string name="onboarding_flavor_play_description">TigerDuck bevat een Wear OS-begeleider. Bekijk lesberichten op je horloge — Wear TigerDuck synchroniseert informatie vanaf je telefoon.</string>
@@ -543,7 +539,7 @@
     <string name="onboarding_sync_note">Wanneer synchronisatie uit staat, blijven alle gegevens alleen op dit apparaat. Pushmeldingen voor huiswerkherinneringen werken lokaal zonder TigerSync.</string>
     <string name="onboarding_sync_shared_assignments">Opdrachtgegevens</string>
     <string name="onboarding_sync_shared_courses">Cursusgegevens</string>
-    <string name="onboarding_sync_shared_device_id">Device ID</string>
+    <string name="onboarding_sync_shared_device_id">Apparaat-ID</string>
     <string name="onboarding_sync_shared_moodle_token">Moodle-token (versleuteld)</string>
     <string name="onboarding_sync_shared_student_id">Studentnummer</string>
     <string name="onboarding_sync_title">TigerSync</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">Serverpush inschakelen</string>
     <string name="push_server_footer">Gebruikt om realtime schoolbulletinmeldingen te ontvangen en herinneringen actief te activeren.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">Laatste registratie</string>
-    <string name="push_server_last_sync">Laatste synchronisatie</string>
     <string name="push_server_latest_error">Recente fout</string>
     <string name="push_server_notification_status_authorized">Geautoriseerd</string>
     <string name="push_server_notification_status_denied_hint">Geweigerd (open systeeminstellingen om opnieuw in te schakelen)</string>
@@ -590,7 +584,6 @@
     <string name="push_server_status_enabled">Ingeschakeld</string>
     <string name="push_server_status_section">Status</string>
     <string name="push_server_status_waiting_token">Wachten tot het systeem een token toewijst</string>
-    <string name="push_server_sync_now_action">Nu synchroniseren</string>
     <string name="refreshing_message">Bezig met vernieuwen… momentje</string>
     <string name="score_academic_year_semester">Studiejaar %1$s %2$s</string>
     <string name="score_course_credits">%1$d studiepunten</string>
@@ -620,7 +613,7 @@
     <string name="score_gpa_cumulative_to">Cumulatief GPA tot %1$s</string>
     <string name="score_gpa_latest">Laatste GPA</string>
     <string name="score_gpa_provisional">Voorlopig</string>
-    <string name="score_gpa_term_label">Semester GPA (%1$s)</string>
+    <string name="score_gpa_term_label">Semester-GPA (%1$s)</string>
     <string name="score_gpa_trend_title">GPA-trend</string>
     <string name="score_grade_exempted">Vrijgesteld</string>
     <string name="score_grade_failed">Niet geslaagd</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_language_follow_system">Systeem volgen (Reserve Engels)</string>
     <string name="settings_language_traditional_chinese">Traditioneel Chinees</string>
-    <string name="settings_learn_more_backend">Meer informatie over de TigerDuck-server</string>
+    <string name="settings_learn_more_backend">Meer informatie over TigerSync</string>
     <string name="settings_library_account_subtitle">Wachtwoord kan afwijken van het studentenportaal; standaard je nationale ID-nummer</string>
     <string name="settings_library_feature_disabled_message">Schakel eerst \"Bibliotheek en gerelateerde functies\" in en gebruik daarna de bibliotheek QR-snelkoppeling.</string>
     <string name="settings_library_feature_disabled_title">Bibliotheekfunctie is uitgeschakeld</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">UI-vertaling</string>
     <string name="source_code_picker_repo_web_description">Officiële webpagina</string>
     <string name="source_code_picker_section_repositories">Repositories</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">Lokaal: %1$s → Server: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Sommige items verschillen tussen dit apparaat en de server:</string>
     <string name="sync_conflict_reenable_assignments_differ">Opdrachtstatus: anders op de server</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">Lokaal gebruiken</string>
     <string name="sync_conflict_use_server">Server gebruiken</string>
     <string name="sync_content_assignment_reminders">Herinneringen voor opdrachtdeadlines</string>
-    <string name="sync_content_class_table_all">Lesrooster – alle vakken</string>
-    <string name="sync_content_class_table_colors">Lesrooster – vakkleuren</string>
-    <string name="sync_content_class_table_names">Lesrooster – aangepaste vaknamen</string>
+    <string name="sync_content_class_table_all">Alle vakken</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">Gesynchroniseerde inhoud</string>
     <string name="sync_courses_footer">Stuurt je aangepaste lesrooster en de voltooiingsstatus van je opdrachten naar de server voor gebruik op al je apparaten. Kies hieronder wat je wilt opnemen.</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">Cursus</string>
     <string name="watch_course_instructor_label">Docent</string>
     <string name="watch_empty_not_signed_in">Niet ingelogd. Open TigerDuck op uw telefoon.</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">Zojuist</string>
     <string name="watch_last_synced_never">Nooit gesynchroniseerd</string>
     <string name="watch_last_synced_relative">Laatst gesynchroniseerd %1$s</string>
     <string name="watch_next">VOLGENDE</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">Nu synchroniseren</string>
     <string name="watch_starts_at">Begint %1$s</string>
     <string name="watch_starts_in_minutes">Begint over %1$d min</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">Vandaag</string>
     <string name="watch_tomorrow_at">Morgen · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">Volgende les</string>

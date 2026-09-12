@@ -29,7 +29,7 @@
     <string name="action_remove">นำออก</string>
     <string name="action_reset">รีเซ็ต</string>
     <string name="action_retry">ลองอีกครั้ง</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">บันทึก</string>
     <string name="action_search">ค้นหา</string>
     <string name="action_sign_in">เข้าสู่ระบบ</string>
     <string name="action_sign_in_again">เข้าสู่ระบบอีกครั้ง</string>
@@ -103,7 +103,7 @@
     <string name="bulletin_push_status_denied">ถูกปฏิเสธ</string>
     <string name="bulletin_push_status_ephemeral">ชั่วคราว</string>
     <string name="bulletin_push_status_label">การแจ้งเตือนแบบพุช</string>
-    <string name="bulletin_push_status_provisional">ทดลองใช้</string>
+    <string name="bulletin_push_status_provisional">เบื้องต้น</string>
     <string name="bulletin_push_status_registration_done">เสร็จสิ้น</string>
     <string name="bulletin_push_status_registration_pending">รอ token</string>
     <string name="bulletin_push_status_undetermined">ยังไม่ได้ตัดสินใจ</string>
@@ -125,7 +125,7 @@
     <string name="bulletin_rule_editor_mode_or_footer">แจ้งเตือนเมื่อภาควิชาหรือหมวดหมู่ตรงกัน</string>
     <string name="bulletin_rule_editor_mode_section">โหมด</string>
     <string name="bulletin_rule_editor_name_placeholder">เช่น: วิชาการ + ทุนการศึกษา</string>
-    <string name="bulletin_rule_editor_name_section">Name</string>
+    <string name="bulletin_rule_editor_name_section">ชื่อ</string>
     <string name="bulletin_rule_editor_selected_count">%1$d รายการที่เลือก</string>
     <string name="bulletin_rule_editor_tag_section">หมวดหมู่</string>
     <string name="bulletin_rule_filter_separator">, </string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">ไม่มีกิจกรรมในวันนี้</string>
     <string name="calendar_no_events_today">ไม่มีกิจกรรมวันนี้</string>
     <string name="calendar_previous_month">เดือนก่อนหน้า</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">สิ้นสุด %1$s</string>
+    <string name="calendar_semester_start">เริ่มต้น %1$s</string>
     <string name="calendar_source_exam">สอบ</string>
     <string name="calendar_source_holiday">วันหยุด</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -178,7 +178,7 @@
     <string name="class_table_reset_message">ตารางเรียนจะถูกสร้างใหม่ตามข้อมูลจาก Moodle ระบบลงทะเบียนเรียน และระบบผลการเรียน วิชาที่เพิ่ม ลบ หรือเปลี่ยนชื่อด้วยตนเองจะหายไป</string>
     <string name="class_table_reset_title">รีเซ็ตตารางเรียน</string>
     <string name="class_table_reset_title_with_semester">รีเซ็ตตารางเรียน %1$s</string>
-    <string name="class_table_semester_picker_label">Semester</string>
+    <string name="class_table_semester_picker_label">ภาคการศึกษา</string>
     <string name="class_table_sign_in_required_message">เข้าสู่ระบบเพื่อดูตารางเรียนของคุณ</string>
     <string name="class_table_total_credits_value">%1$d หน่วยกิต</string>
     <string name="cloud_sync_assignments">งานที่ได้รับมอบหมาย</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">เลือกข้อมูลตารางเรียนที่จะซิงค์ระหว่างอุปกรณ์</string>
     <string name="cloud_sync_class_table_sync">ซิงค์ตารางเรียน</string>
     <string name="cloud_sync_course_colours">สีรายวิชา</string>
-    <string name="cloud_sync_courses">รายวิชา</string>
     <string name="cloud_sync_custom_course_names">ชื่อรายวิชาที่กำหนดเอง</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">รหัสอุปกรณ์</string>
     <string name="cloud_sync_device_section">อุปกรณ์</string>
     <string name="cloud_sync_disable_button">ปิด TigerSync</string>
     <string name="cloud_sync_disable_confirm_action">ปิด</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">ปิด TigerSync?</string>
     <string name="cloud_sync_disabled_footer">ซิงค์การแก้ไขตารางเรียน สถานะงาน และการตั้งค่าระหว่างอุปกรณ์ของคุณ โดยเซิร์ฟเวอร์จะดึงงาน Moodle ให้คุณเป็นระยะ</string>
     <string name="cloud_sync_enable_button">เปิด TigerSync</string>
-    <string name="cloud_sync_last_synced_label">ซิงค์ล่าสุด</string>
-    <string name="cloud_sync_last_synced_never">ยังไม่ได้ซิงค์</string>
     <string name="cloud_sync_privacy_body">เมื่อ TigerSync เปิดอยู่ รหัสผ่านระบบโรงเรียนและโทเค็น Moodle ของคุณจะถูกเข้ารหัสและอัปโหลดไปยังเซิร์ฟเวอร์ TigerDuck ซึ่งจะใช้เพื่อดึงงาน Moodle เป็นระยะในนามของคุณ และซิงค์การแก้ไขตารางเรียน สถานะงาน และการตั้งค่าระหว่างอุปกรณ์ของคุณ\n\nคุณสามารถปิด TigerSync ได้ตลอดเวลา การปิดจะออกจากระบบอุปกรณ์นี้และเพิกถอนการลงทะเบียนบนเซิร์ฟเวอร์ (รวมถึงข้อมูลรับรอง push) ข้อมูลรับรองบัญชีที่อัปโหลดจะยังอยู่บนเซิร์ฟเวอร์เฉพาะขณะที่อุปกรณ์ที่ซิงค์อื่นยังใช้งานอยู่ ข้อมูลในเครื่องจะไม่ได้รับผลกระทบ</string>
     <string name="cloud_sync_privacy_confirm">ยอมรับและเปิด</string>
     <string name="cloud_sync_privacy_title">TigerSync และความเป็นส่วนตัว</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">กำลังลงชื่อเข้า…</string>
     <string name="cloud_sync_step_register">กำลังลงทะเบียนอุปกรณ์…</string>
     <string name="cloud_sync_step_upload">กำลังอัปโหลดข้อมูล…</string>
-    <string name="cloud_sync_sync_now">ซิงค์เดี๋ยวนี้</string>
     <string name="cloud_sync_sync_options">ตัวเลือกการซิงค์</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">น้ำเงิน</string>
@@ -243,8 +239,8 @@
     <string name="course_color_picker_title">แก้ไขสี</string>
     <string name="course_credits_value">หน่วยกิต: %1$d</string>
     <string name="course_detail_classroom_label">ห้องเรียน</string>
-    <string name="course_detail_code_label">Code</string>
-    <string name="course_detail_credits_label">Credits</string>
+    <string name="course_detail_code_label">รหัส</string>
+    <string name="course_detail_credits_label">หน่วยกิต</string>
     <string name="course_detail_due_prefix">ครบกำหนด: %1$s</string>
     <string name="course_detail_enrollment_label">จำนวนผู้ลงทะเบียน</string>
     <string name="course_detail_incomplete_assignments">การบ้านที่ยังไม่เสร็จ</string>
@@ -423,7 +419,7 @@
     <string name="home_time_slider_sign_in_required_message">เข้าสู่ระบบเพื่อดูคาบเรียนวันนี้</string>
     <string name="home_time_slider_title">ไทม์แมชชีน</string>
     <string name="home_widget_edit_added_section">เพิ่มแล้ว</string>
-    <string name="home_widget_edit_available_section">ที่เพิ่มได้</string>
+    <string name="home_widget_edit_available_section">เพิ่มได้</string>
     <string name="home_widget_edit_title">แก้ไขวิดเจ็ต</string>
     <string name="language_picker_ai_translation_note">คำแปลส่วนใหญ่สร้างโดย AI จึงอาจมีข้อผิดพลาด หากพบจุดที่ไม่ถูกต้อง กรุณาเปิด PR ที่ repo การแปลภาษา</string>
     <string name="library_coming_soon_badge">เร็ว ๆ นี้</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">การแจ้งเตือนของระบบ</string>
     <string name="onboarding_analytics_description">ช่วยพัฒนา TigerDuck ด้วยการแชร์ข้อมูลการเข้าชมหน้าและการใช้วิดเจ็ตแบบไม่ระบุตัวตน คุณสามารถเปลี่ยนได้ทุกเมื่อในการตั้งค่า</string>
     <string name="onboarding_analytics_label">การวิเคราะห์การใช้งาน (ไม่บังคับ)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">ใช้ปลายทาง API ที่กำหนดเอง</string>
     <string name="onboarding_flavor_fdroid_description">คุณกำลังใช้บิลด์ F-Droid เนื่องจากนโยบายของ F-Droid ห้ามการพึ่งพาบริการของ Google (Firebase FCM, GMS ฯลฯ) ฟีเจอร์ต่อไปนี้จึงไม่มีในบิลด์นี้:\n\n1. แอปคู่กับ Wear OS\n2. การแจ้งเตือนแบบพุชเรียลไทม์\n3. TigerSync: ซิงค์ข้อมูลรายวิชา\n4. TigerSync: รับการแจ้งเตือนเซิร์ฟเวอร์เพิ่มเติม</string>
     <string name="onboarding_flavor_fdroid_title">ประกาศเกี่ยวกับบิลด์ F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck มาพร้อมแอปคู่กับ Wear OS ดูข้อความในชั้นเรียนบนนาฬิกาของคุณ — Wear TigerDuck จะซิงค์ข้อมูลจากโทรศัพท์ของคุณ</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">เปิดใช้งานพุชจากเซิร์ฟเวอร์</string>
     <string name="push_server_footer">ใช้เพื่อรับการแจ้งเตือนประกาศของมหาวิทยาลัยแบบเรียลไทม์ และเพื่อส่งการเตือนความจำเชิงรุก</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">การลงทะเบียนครั้งล่าสุด</string>
-    <string name="push_server_last_sync">ซิงค์ล่าสุด</string>
     <string name="push_server_latest_error">ข้อผิดพลาดล่าสุด</string>
     <string name="push_server_notification_status_authorized">ได้รับอนุญาต</string>
     <string name="push_server_notification_status_denied_hint">ถูกปฏิเสธ (เปิดการตั้งค่าระบบเพื่อเปิดใช้งานอีกครั้ง)</string>
@@ -584,13 +578,12 @@
     <string name="push_server_notification_status_undetermined">ยังไม่ได้ถาม</string>
     <string name="push_server_notification_status_unknown">ไม่ทราบ</string>
     <string name="push_server_pending_incomplete">ยังไม่เสร็จสิ้น</string>
-    <string name="push_server_settings_title">Server push</string>
+    <string name="push_server_settings_title">พุชจากเซิร์ฟเวอร์</string>
     <string name="push_server_status_device_registration">การลงทะเบียนอุปกรณ์</string>
     <string name="push_server_status_done">เสร็จสมบูรณ์</string>
     <string name="push_server_status_enabled">เปิดใช้งาน</string>
-    <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_section">สถานะ</string>
     <string name="push_server_status_waiting_token">รอให้ระบบกำหนด token</string>
-    <string name="push_server_sync_now_action">ซิงค์เดี๋ยวนี้</string>
     <string name="refreshing_message">กำลังรีเฟรช… โปรดรอสักครู่</string>
     <string name="score_academic_year_semester">ปีการศึกษา %1$s %2$s</string>
     <string name="score_course_credits">%1$d หน่วยกิต</string>
@@ -602,7 +595,7 @@
     <string name="score_credit_summary_title">สรุปหน่วยกิต</string>
     <string name="score_credit_total">รวม</string>
     <string name="score_credit_type_education_program">หลักสูตรครุศาสตร์</string>
-    <string name="score_credit_type_education_program_short">EP</string>
+    <string name="score_credit_type_education_program_short">ครุ</string>
     <string name="score_credit_type_not_counted">ไม่นับรวม</string>
     <string name="score_credit_type_not_counted_short">ข้าม</string>
     <string name="score_credit_type_not_earned">ยังไม่ได้รับ</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_language_follow_system">ตามระบบ (ภาษาสำรอง: อังกฤษ)</string>
     <string name="settings_language_traditional_chinese">จีนตัวเต็ม</string>
-    <string name="settings_learn_more_backend">เรียนรู้เพิ่มเติมเกี่ยวกับเซิร์ฟเวอร์ TigerDuck</string>
+    <string name="settings_learn_more_backend">เรียนรู้เพิ่มเติมเกี่ยวกับ TigerSync</string>
     <string name="settings_library_account_subtitle">รหัสผ่านอาจแตกต่างจากระบบสารสนเทศนักศึกษา ค่าเริ่มต้นคือเลขบัตรประชาชนของคุณ</string>
     <string name="settings_library_feature_disabled_message">เปิด \"ห้องสมุดและฟีเจอร์ที่เกี่ยวข้อง\" ก่อน จากนั้นจึงใช้ทางลัด QR ห้องสมุดได้</string>
     <string name="settings_library_feature_disabled_title">ฟีเจอร์ห้องสมุดถูกปิดอยู่</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">การแปล UI</string>
     <string name="source_code_picker_repo_web_description">เว็บไซต์อย่างเป็นทางการ</string>
     <string name="source_code_picker_section_repositories">รีโพซิทอรี</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">เครื่อง: %1$s → เซิร์ฟเวอร์: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">บางรายการแตกต่างระหว่างอุปกรณ์นี้กับเซิร์ฟเวอร์:</string>
     <string name="sync_conflict_reenable_assignments_differ">สถานะงาน: แตกต่างบนเซิร์ฟเวอร์</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">ใช้ของเครื่อง</string>
     <string name="sync_conflict_use_server">ใช้ของเซิร์ฟเวอร์</string>
     <string name="sync_content_assignment_reminders">การแจ้งเตือนกำหนดส่งการบ้าน</string>
-    <string name="sync_content_class_table_all">ตารางเรียน – รายวิชาทั้งหมด</string>
-    <string name="sync_content_class_table_colors">ตารางเรียน – สีรายวิชา</string>
-    <string name="sync_content_class_table_names">ตารางเรียน – ชื่อรายวิชาที่กำหนดเอง</string>
+    <string name="sync_content_class_table_all">รายวิชาทั้งหมด</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">เนื้อหาที่ซิงค์</string>
     <string name="sync_courses_footer">ส่งตารางเรียนที่กำหนดเองและสถานะการทำงานที่ได้รับมอบหมายเสร็จสิ้นของคุณไปยังเซิร์ฟเวอร์เพื่อใช้งานในทุกอุปกรณ์ เลือกรายการที่ต้องการรวมไว้ด้านล่าง</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">วิชา</string>
     <string name="watch_course_instructor_label">ผู้สอน</string>
     <string name="watch_empty_not_signed_in">ยังไม่ได้เข้าสู่ระบบ เปิด TigerDuck บนโทรศัพท์</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">เมื่อกี้</string>
     <string name="watch_last_synced_never">ยังไม่เคยซิงก์</string>
     <string name="watch_last_synced_relative">ซิงค์ล่าสุด %1$s</string>
     <string name="watch_next">ถัดไป</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">ซิงก์เดี๋ยวนี้</string>
     <string name="watch_starts_at">เริ่ม %1$s</string>
     <string name="watch_starts_in_minutes">เริ่มในอีก %1$d นาที</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">วันนี้</string>
     <string name="watch_tomorrow_at">พรุ่งนี้ · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">คลาสถัดไป</string>

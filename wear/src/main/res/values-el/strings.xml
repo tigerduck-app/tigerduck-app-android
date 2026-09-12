@@ -29,7 +29,7 @@
     <string name="action_remove">Αφαίρεση</string>
     <string name="action_reset">Επαναφορά</string>
     <string name="action_retry">Δοκιμάζω πάλι</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">Αποθήκευση</string>
     <string name="action_search">Αναζήτηση</string>
     <string name="action_sign_in">Σύνδεση</string>
     <string name="action_sign_in_again">Συνδεθείτε ξανά</string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">Δεν υπάρχουν εκδηλώσεις αυτή την ημέρα</string>
     <string name="calendar_no_events_today">Δεν υπάρχουν εκδηλώσεις σήμερα</string>
     <string name="calendar_previous_month">Προηγούμενος μήνας</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">Τέλος %1$s</string>
+    <string name="calendar_semester_start">Έναρξη %1$s</string>
     <string name="calendar_source_exam">Εξέταση</string>
     <string name="calendar_source_holiday">Αργία</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">Επιλέξτε ποια δεδομένα προγράμματος θα συγχρονίζονται μεταξύ συσκευών.</string>
     <string name="cloud_sync_class_table_sync">Συγχρονισμός προγράμματος</string>
     <string name="cloud_sync_course_colours">Χρώματα μαθημάτων</string>
-    <string name="cloud_sync_courses">Μαθήματα</string>
     <string name="cloud_sync_custom_course_names">Προσαρμοσμένα ονόματα μαθημάτων</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">Αναγνωριστικό συσκευής</string>
     <string name="cloud_sync_device_section">Συσκευή</string>
     <string name="cloud_sync_disable_button">Απενεργοποίηση TigerSync</string>
     <string name="cloud_sync_disable_confirm_action">Απενεργοποίηση</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">Απενεργοποίηση TigerSync;</string>
     <string name="cloud_sync_disabled_footer">Συγχρονίστε αλλαγές προγράμματος, καταστάσεις εργασιών και ρυθμίσεις μεταξύ των συσκευών σας, ενώ ο διακομιστής ανακτά περιοδικά εργασίες Moodle για εσάς.</string>
     <string name="cloud_sync_enable_button">Ενεργοποίηση TigerSync</string>
-    <string name="cloud_sync_last_synced_label">Τελευταίος συγχρονισμός</string>
-    <string name="cloud_sync_last_synced_never">Δεν έχει συγχρονιστεί ακόμα</string>
     <string name="cloud_sync_privacy_body">Όταν το TigerSync είναι ενεργοποιημένο, ο κωδικός πρόσβασης του σχολικού συστήματος και το token Moodle κρυπτογραφούνται και ανεβαίνουν στον διακομιστή TigerDuck, όπου χρησιμοποιούνται για περιοδική ανάκτηση εργασιών Moodle για λογαριασμό σας και για συγχρονισμό αλλαγών προγράμματος, καταστάσεων εργασιών και ρυθμίσεων μεταξύ των συσκευών σας.\n\nΜπορείτε να απενεργοποιήσετε το TigerSync ανά πάσα στιγμή. Η απενεργοποίηση αποσυνδέει αυτή τη συσκευή και ανακαλεί την εγγραφή της στον διακομιστή (συμπεριλαμβανομένων των διαπιστευτηρίων push). Τα ανεβασμένα διαπιστευτήρια λογαριασμού παραμένουν στον διακομιστή μόνο όσο τα χρησιμοποιούν άλλες συγχρονισμένες συσκευές. Τα τοπικά δεδομένα δεν επηρεάζονται.</string>
     <string name="cloud_sync_privacy_confirm">Αποδοχή και ενεργοποίηση</string>
     <string name="cloud_sync_privacy_title">TigerSync &amp; Απόρρητο</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">Σύνδεση…</string>
     <string name="cloud_sync_step_register">Εγγραφή συσκευής…</string>
     <string name="cloud_sync_step_upload">Μεταφόρτωση δεδομένων…</string>
-    <string name="cloud_sync_sync_now">Συγχρονισμός τώρα</string>
     <string name="cloud_sync_sync_options">Επιλογές συγχρονισμού</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">Μπλε</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">Ειδοποιήσεις συστήματος</string>
     <string name="onboarding_analytics_description">Βοήθησε στη βελτίωση του TigerDuck μοιράζοντας ανώνυμα δεδομένα για τις σελίδες που επισκέπτεσαι και τη χρήση widget. Μπορείς να το αλλάξεις οποιαδήποτε στιγμή από τις Ρυθμίσεις.</string>
     <string name="onboarding_analytics_label">Ανάλυση χρήσης (προαιρετικό)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">Χρήση προσαρμοσμένου τελικού σημείου API</string>
     <string name="onboarding_flavor_fdroid_description">Χρησιμοποιείτε την έκδοση F-Droid. Επειδή η πολιτική του F-Droid απαγορεύει την εξάρτηση από υπηρεσίες της Google (Firebase FCM, GMS κ.λπ.), οι ακόλουθες λειτουργίες δεν είναι διαθέσιμες σε αυτή την έκδοση:\n\n1. Συνοδευτική εφαρμογή Wear OS\n2. Ειδοποιήσεις σε πραγματικό χρόνο\n3. TigerSync: Συγχρονισμός πληροφοριών μαθήματος\n4. TigerSync: Λήψη πρόσθετων ειδοποιήσεων διακομιστή</string>
     <string name="onboarding_flavor_fdroid_title">Σημείωση για την έκδοση F-Droid</string>
     <string name="onboarding_flavor_play_description">Το TigerDuck περιλαμβάνει συνοδευτική εφαρμογή Wear OS. Δείτε μηνύματα μαθημάτων στο ρολόι σας — το Wear TigerDuck συγχρονίζει πληροφορίες από το κινητό σας.</string>
@@ -543,7 +539,7 @@
     <string name="onboarding_sync_note">Όταν ο συγχρονισμός είναι απενεργοποιημένος, όλα τα δεδομένα παραμένουν μόνο σε αυτή τη συσκευή. Οι ειδοποιήσεις push για υπενθυμίσεις εργασιών λειτουργούν τοπικά χωρίς TigerSync.</string>
     <string name="onboarding_sync_shared_assignments">Δεδομένα εργασιών</string>
     <string name="onboarding_sync_shared_courses">Δεδομένα μαθημάτων</string>
-    <string name="onboarding_sync_shared_device_id">Device ID</string>
+    <string name="onboarding_sync_shared_device_id">Αναγνωριστικό συσκευής</string>
     <string name="onboarding_sync_shared_moodle_token">Token Moodle (κρυπτογραφημένο)</string>
     <string name="onboarding_sync_shared_student_id">Αριθμός φοιτητή</string>
     <string name="onboarding_sync_title">TigerSync</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">Ενεργοποίηση προώθησης διακομιστή</string>
     <string name="push_server_footer">Χρησιμοποιείται για τη λήψη ειδοποιήσεων σχολικού δελτίου σε πραγματικό χρόνο και για την ενεργή ενεργοποίηση υπενθυμίσεων.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">Τελευταία εγγραφή</string>
-    <string name="push_server_last_sync">Τελευταίος συγχρονισμός</string>
     <string name="push_server_latest_error">Πρόσφατο σφάλμα</string>
     <string name="push_server_notification_status_authorized">Εξουσιοδοτημένος</string>
     <string name="push_server_notification_status_denied_hint">Απορρίφθηκε (ανοίξτε τις Ρυθμίσεις συστήματος για επανενεργοποίηση)</string>
@@ -590,7 +584,6 @@
     <string name="push_server_status_enabled">Ενεργοποιημένο</string>
     <string name="push_server_status_section">Κατάσταση</string>
     <string name="push_server_status_waiting_token">Αναμονή για ανάθεση token από το σύστημα</string>
-    <string name="push_server_sync_now_action">Συγχρονισμός τώρα</string>
     <string name="refreshing_message">Ανανέωση… παρακαλώ περιμένετε</string>
     <string name="score_academic_year_semester">Ακαδημαϊκό Έτος %1$s %2$s</string>
     <string name="score_course_credits">%1$d πιστωτικές μονάδες</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">Αγγλικά</string>
     <string name="settings_language_follow_system">Ακολουθεί σύστημα (Εφεδρικά Αγγλικά)</string>
     <string name="settings_language_traditional_chinese">Παραδοσιακά Κινεζικά</string>
-    <string name="settings_learn_more_backend">Μάθετε περισσότερα για τον διακομιστή TigerDuck</string>
+    <string name="settings_learn_more_backend">Μάθετε περισσότερα για το TigerSync</string>
     <string name="settings_library_account_subtitle">Ο κωδικός μπορεί να διαφέρει από το ακαδημαϊκό σύστημα· προεπιλογή είναι ο αριθμός ταυτότητάς σας</string>
     <string name="settings_library_feature_disabled_message">Ενεργοποιήστε πρώτα «Βιβλιοθήκη και σχετικές λειτουργίες», στη συνέχεια χρησιμοποιήστε τη συντόμευση QR βιβλιοθήκης.</string>
     <string name="settings_library_feature_disabled_title">Η λειτουργία βιβλιοθήκης είναι απενεργοποιημένη</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">Μετάφραση διεπαφής</string>
     <string name="source_code_picker_repo_web_description">Επίσημη ιστοσελίδα</string>
     <string name="source_code_picker_section_repositories">Αποθετήρια</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">Τοπικά: %1$s → Διακομιστής: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Ορισμένα στοιχεία διαφέρουν μεταξύ αυτής της συσκευής και του διακομιστή:</string>
     <string name="sync_conflict_reenable_assignments_differ">Κατάσταση εργασιών: διαφορετική στον διακομιστή</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">Τοπικά</string>
     <string name="sync_conflict_use_server">Από διακομιστή</string>
     <string name="sync_content_assignment_reminders">Υπενθυμίσεις λήξης εργασίας</string>
-    <string name="sync_content_class_table_all">Πρόγραμμα μαθημάτων – όλα τα μαθήματα</string>
-    <string name="sync_content_class_table_colors">Πρόγραμμα μαθημάτων – χρώματα μαθημάτων</string>
-    <string name="sync_content_class_table_names">Πρόγραμμα μαθημάτων – προσαρμοσμένα ονόματα μαθημάτων</string>
+    <string name="sync_content_class_table_all">Όλα τα μαθήματα</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">Συγχρονισμένο περιεχόμενο</string>
     <string name="sync_courses_footer">Στέλνει το προσαρμοσμένο πρόγραμμά σας και την κατάσταση ολοκλήρωσης εργασιών στον διακομιστή για χρήση σε όλες τις συσκευές σας. Επιλέξτε παρακάτω τι θα συμπεριληφθεί.</string>
@@ -792,7 +783,7 @@
     <string name="sync_status_failed">Απέτυχε</string>
     <string name="sync_status_minimal">Περιορισμένο</string>
     <string name="sync_status_nav_label">Κατάσταση TigerSync</string>
-    <string name="sync_status_ok">OK</string>
+    <string name="sync_status_ok">Εντάξει</string>
     <string name="sync_status_syncing">Συγχρονισμός…</string>
     <string name="sync_status_title">Κατάσταση συγχρονισμού</string>
     <string name="sync_success_content_description">Επιτυχής συγχρονισμός</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">Μάθημα</string>
     <string name="watch_course_instructor_label">Διδάσκων</string>
     <string name="watch_empty_not_signed_in">Δεν έχετε συνδεθεί. Ανοίξτε το TigerDuck στο τηλέφωνό σας.</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">Μόλις τώρα</string>
     <string name="watch_last_synced_never">Ποτέ δεν συγχρονίστηκε</string>
     <string name="watch_last_synced_relative">Τελευταίος συγχρονισμός %1$s</string>
     <string name="watch_next">ΕΠΌΜΕΝΟ</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">Συγχρονισμός τώρα</string>
     <string name="watch_starts_at">Αρχίζει %1$s</string>
     <string name="watch_starts_in_minutes">Αρχίζει σε %1$d λεπ.</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">Σήμερα</string>
     <string name="watch_tomorrow_at">Αύριο · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">Επόμενο μάθημα</string>

@@ -186,7 +186,6 @@
     <string name="cloud_sync_class_table_footer">選擇要在裝置間同步的課表資料。</string>
     <string name="cloud_sync_class_table_sync">課表同步</string>
     <string name="cloud_sync_course_colours">課程顏色</string>
-    <string name="cloud_sync_courses">課程</string>
     <string name="cloud_sync_custom_course_names">自訂課程名稱</string>
     <string name="cloud_sync_device_id">裝置 ID</string>
     <string name="cloud_sync_device_section">裝置</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">停用 TigerSync？</string>
     <string name="cloud_sync_disabled_footer">在多部裝置間同步課表編輯、作業狀態與設定，並由伺服器定期代抓 Moodle 作業。</string>
     <string name="cloud_sync_enable_button">啟用 TigerSync</string>
-    <string name="cloud_sync_last_synced_label">上次同步</string>
-    <string name="cloud_sync_last_synced_never">尚未同步</string>
     <string name="cloud_sync_privacy_body">啟用 TigerSync 後，你的校務系統密碼與 Moodle token 將加密上傳至 TigerDuck 伺服器，用於伺服器端定期代抓 Moodle 作業，並在多部裝置間同步課表編輯、作業狀態與設定。\n\n你可以隨時停用 TigerSync。停用後會登出並撤銷此裝置在伺服器上的註冊（包含推播憑證）；已上傳的帳號憑證僅在其他已啟用同步的裝置仍使用時保留於伺服器。本機資料不受影響。</string>
     <string name="cloud_sync_privacy_confirm">同意並啟用</string>
     <string name="cloud_sync_privacy_title">TigerSync 與隱私</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">登入帳號…</string>
     <string name="cloud_sync_step_register">註冊裝置…</string>
     <string name="cloud_sync_step_upload">上傳資料…</string>
-    <string name="cloud_sync_sync_now">立即同步</string>
     <string name="cloud_sync_sync_options">同步選項</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">藍</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">啟用伺服器推播</string>
     <string name="push_server_footer">用於接收學校即時公告訊息、主動觸發動態島等提醒。</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">上次註冊</string>
-    <string name="push_server_last_sync">上次同步</string>
     <string name="push_server_latest_error">最近錯誤</string>
     <string name="push_server_notification_status_authorized">已授權</string>
     <string name="push_server_notification_status_denied_hint">被拒(至系統設定開啟)</string>
@@ -590,7 +584,6 @@
     <string name="push_server_status_enabled">已啟用</string>
     <string name="push_server_status_section">狀態</string>
     <string name="push_server_status_waiting_token">等系統指派 token</string>
-    <string name="push_server_sync_now_action">立即同步一次</string>
     <string name="refreshing_message">頁面正在刷新，別急～</string>
     <string name="score_academic_year_semester">%1$s 學年度 %2$s學期</string>
     <string name="score_course_credits">%1$d 學分</string>
@@ -778,8 +771,6 @@
     <string name="sync_conflict_use_server">使用伺服器</string>
     <string name="sync_content_assignment_reminders">作業到期提醒</string>
     <string name="sync_content_class_table_all">所有課程</string>
-    <string name="sync_content_class_table_colors">課表 – 課程顏色</string>
-    <string name="sync_content_class_table_names">課表 – 自訂課程名稱</string>
     <string name="sync_content_live_activity">即時更新</string>
     <string name="sync_content_nav_label">同步內容</string>
     <string name="sync_courses_footer">將自訂課表、作業完成狀態推送至伺服器，用於跨裝置同步。你可以在下列選單選擇同步項目</string>

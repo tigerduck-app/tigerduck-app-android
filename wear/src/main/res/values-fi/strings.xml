@@ -29,7 +29,7 @@
     <string name="action_remove">Poista</string>
     <string name="action_reset">Nollaa</string>
     <string name="action_retry">Yritä uudelleen</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">Tallenna</string>
     <string name="action_search">Hae</string>
     <string name="action_sign_in">Kirjaudu</string>
     <string name="action_sign_in_again">Kirjaudu uudelleen sisään</string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">Ei tapahtumia tänä päivänä</string>
     <string name="calendar_no_events_today">Ei tapahtumia tänään</string>
     <string name="calendar_previous_month">Edellinen kuukausi</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">%1$s päättyy</string>
+    <string name="calendar_semester_start">%1$s alkaa</string>
     <string name="calendar_source_exam">Koe</string>
     <string name="calendar_source_holiday">Vapaapäivä</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">Valitse, mitkä lukujärjestystiedot synkronoidaan laitteiden välillä.</string>
     <string name="cloud_sync_class_table_sync">Lukujärjestyksen synkronointi</string>
     <string name="cloud_sync_course_colours">Kurssien värit</string>
-    <string name="cloud_sync_courses">Kurssit</string>
     <string name="cloud_sync_custom_course_names">Mukautetut kurssinimet</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">Laitteen ID</string>
     <string name="cloud_sync_device_section">Laite</string>
     <string name="cloud_sync_disable_button">Poista TigerSync käytöstä</string>
     <string name="cloud_sync_disable_confirm_action">Poista käytöstä</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">Poista TigerSync käytöstä?</string>
     <string name="cloud_sync_disabled_footer">Synkronoi lukujärjestyksen muutokset, tehtävien tilat ja asetukset laitteidesi välillä, ja palvelin hakee Moodle-tehtäviä säännöllisesti puolestasi.</string>
     <string name="cloud_sync_enable_button">Ota TigerSync käyttöön</string>
-    <string name="cloud_sync_last_synced_label">Viimeksi synkronoitu</string>
-    <string name="cloud_sync_last_synced_never">Ei vielä synkronoitu</string>
     <string name="cloud_sync_privacy_body">Kun TigerSync on käytössä, koulujärjestelmän salasanasi ja Moodle-tunnuksesi salataan ja ladataan TigerDuck-palvelimelle, missä niitä käytetään Moodle-tehtävien säännölliseen hakemiseen puolestasi sekä lukujärjestyksen muutosten, tehtävien tilojen ja asetusten synkronointiin laitteidesi välillä.\n\nVoit poistaa TigerSync\'in käytöstä milloin tahansa. Poistaminen kirjaa tämän laitteen ulos ja peruuttaa sen rekisteröinnin palvelimella (mukaan lukien push-tunnukset); ladatut tilitiedot pysyvät palvelimella vain niin kauan kuin muut synkronoidut laitteet käyttävät niitä. Paikalliset tiedot eivät muutu.</string>
     <string name="cloud_sync_privacy_confirm">Hyväksy ja ota käyttöön</string>
     <string name="cloud_sync_privacy_title">TigerSync ja yksityisyys</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">Kirjaudutaan…</string>
     <string name="cloud_sync_step_register">Rekisteröidään laitetta…</string>
     <string name="cloud_sync_step_upload">Ladataan tietoja…</string>
-    <string name="cloud_sync_sync_now">Synkronoi nyt</string>
     <string name="cloud_sync_sync_options">Synkronointiasetukset</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">Sininen</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">Järjestelmäilmoitukset</string>
     <string name="onboarding_analytics_description">Auta kehittämään TigerDuckia jakamalla anonyymejä sivuvierailuja ja widgetien käyttötietoja. Voit muuttaa tätä milloin tahansa Asetuksista.</string>
     <string name="onboarding_analytics_label">Käyttöanalytiikka (valinnainen)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">Käytä mukautettua API-päätepistettä</string>
     <string name="onboarding_flavor_fdroid_description">Käytät F-Droid-versiota. Koska F-Droidin käytäntö kieltää riippuvuuden Googlen palveluista (Firebase FCM, GMS jne.), seuraavat ominaisuudet eivät ole käytettävissä tässä versiossa:\n\n1. Wear OS -kumppanisovellus\n2. Reaaliaikaiset push-ilmoitukset\n3. TigerSync: Synkronoi kurssitiedot\n4. TigerSync: Vastaanota lisäilmoituksia palvelimelta</string>
     <string name="onboarding_flavor_fdroid_title">F-Droid-version huomautus</string>
     <string name="onboarding_flavor_play_description">TigerDuck sisältää Wear OS -kumppanisovelluksen. Katso oppituntien viestit kellostasi — Wear TigerDuck synkronoi tiedot puhelimestasi.</string>
@@ -543,7 +539,7 @@
     <string name="onboarding_sync_note">Kun synkronointi on pois päältä, kaikki tiedot pysyvät vain tässä laitteessa. Kotitehtävämuistutusten push-ilmoitukset toimivat paikallisesti ilman TigerSync -palvelua.</string>
     <string name="onboarding_sync_shared_assignments">Tehtävätiedot</string>
     <string name="onboarding_sync_shared_courses">Kurssitiedot</string>
-    <string name="onboarding_sync_shared_device_id">Device ID</string>
+    <string name="onboarding_sync_shared_device_id">Laitteen ID</string>
     <string name="onboarding_sync_shared_moodle_token">Moodle-tunniste (salattu)</string>
     <string name="onboarding_sync_shared_student_id">Opiskelijanumero</string>
     <string name="onboarding_sync_title">TigerSync</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">Ota palvelimen push käyttöön</string>
     <string name="push_server_footer">Käytetään vastaanottamaan reaaliaikaisia ​​koulutiedotteita ja käynnistämään aktiivisesti muistutuksia.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">Viimeinen rekisteröinti</string>
-    <string name="push_server_last_sync">Viimeisin synkronointi</string>
     <string name="push_server_latest_error">Viimeaikainen virhe</string>
     <string name="push_server_notification_status_authorized">Valtuutettu</string>
     <string name="push_server_notification_status_denied_hint">Kielletty (ota uudelleen käyttöön avaamalla järjestelmän asetukset)</string>
@@ -588,9 +582,8 @@
     <string name="push_server_status_device_registration">Laitteen rekisteröinti</string>
     <string name="push_server_status_done">Täydellinen</string>
     <string name="push_server_status_enabled">Käytössä</string>
-    <string name="push_server_status_section">Status</string>
+    <string name="push_server_status_section">Tila</string>
     <string name="push_server_status_waiting_token">Odottaa järjestelmän tokenin määrittämistä</string>
-    <string name="push_server_sync_now_action">Synkronoi nyt</string>
     <string name="refreshing_message">Päivitetään… odota hetki</string>
     <string name="score_academic_year_semester">Lukuvuosi %1$s %2$s</string>
     <string name="score_course_credits">%1$d opintopistettä</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">Englanti</string>
     <string name="settings_language_follow_system">Seuraa järjestelmää (varakieli: englanti)</string>
     <string name="settings_language_traditional_chinese">Perinteinen kiina</string>
-    <string name="settings_learn_more_backend">Lue lisää TigerDuck-palvelimesta</string>
+    <string name="settings_learn_more_backend">Lue lisää TigerSync\'istä</string>
     <string name="settings_library_account_subtitle">Salasana voi olla eri kuin opiskelijaportaalissa; oletuksena on henkilötunnuksesi</string>
     <string name="settings_library_feature_disabled_message">Ota ensin käyttöön \"Kirjasto ja siihen liittyvät ominaisuudet\", sitten käytä kirjaston QR-koodi-pikakuvaketta.</string>
     <string name="settings_library_feature_disabled_title">Kirjasto-ominaisuus on poistettu käytöstä</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">Käyttöliittymän käännös</string>
     <string name="source_code_picker_repo_web_description">Virallinen verkkosivu</string>
     <string name="source_code_picker_section_repositories">Repositoriot</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">Paikallinen: %1$s → Palvelin: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">Jotkin kohteet eroavat tämän laitteen ja palvelimen välillä:</string>
     <string name="sync_conflict_reenable_assignments_differ">Tehtävien tila: eri palvelimella</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">Käytä paikallista</string>
     <string name="sync_conflict_use_server">Käytä palvelinta</string>
     <string name="sync_content_assignment_reminders">Tehtävän palautusmuistutukset</string>
-    <string name="sync_content_class_table_all">Lukujärjestys – kaikki kurssit</string>
-    <string name="sync_content_class_table_colors">Lukujärjestys – kurssien värit</string>
-    <string name="sync_content_class_table_names">Lukujärjestys – mukautetut kurssinimet</string>
+    <string name="sync_content_class_table_all">Kaikki kurssit</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">Synkronoitu sisältö</string>
     <string name="sync_courses_footer">Lähettää mukautetun lukujärjestyksesi ja tehtävien suoritustilan palvelimelle, jotta voit käyttää niitä kaikilla laitteillasi. Valitse alta, mitä haluat sisällyttää.</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">Kurssi</string>
     <string name="watch_course_instructor_label">Opettaja</string>
     <string name="watch_empty_not_signed_in">Et ole kirjautunut. Avaa TigerDuck puhelimellasi.</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">Juuri nyt</string>
     <string name="watch_last_synced_never">Ei koskaan synkronoitu</string>
     <string name="watch_last_synced_relative">Viimeksi synkronoitu %1$s</string>
     <string name="watch_next">SEURAAVA</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">Synkronoi nyt</string>
     <string name="watch_starts_at">Alkaa %1$s</string>
     <string name="watch_starts_in_minutes">Alkaa %1$d min kuluttua</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">Tänään</string>
     <string name="watch_tomorrow_at">Huomenna · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">Seuraava tunti</string>

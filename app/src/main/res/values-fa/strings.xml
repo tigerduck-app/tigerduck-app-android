@@ -29,7 +29,7 @@
     <string name="action_remove">حذف</string>
     <string name="action_reset">بازنشانی</string>
     <string name="action_retry">دوباره امتحان کنید</string>
-    <string name="action_save">Save</string>
+    <string name="action_save">ذخیره</string>
     <string name="action_search">جست‌وجو</string>
     <string name="action_sign_in">ورود</string>
     <string name="action_sign_in_again">دوباره وارد شوید</string>
@@ -158,8 +158,8 @@
     <string name="calendar_no_events_on_day">در این روز رویدادی وجود ندارد</string>
     <string name="calendar_no_events_today">امروز رویدادی نیست</string>
     <string name="calendar_previous_month">ماه قبل</string>
-    <string name="calendar_semester_end">End of %1$s</string>
-    <string name="calendar_semester_start">Start of %1$s</string>
+    <string name="calendar_semester_end">پایان %1$s</string>
+    <string name="calendar_semester_start">شروع %1$s</string>
     <string name="calendar_source_exam">آزمون</string>
     <string name="calendar_source_holiday">تعطیلی</string>
     <string name="calendar_source_moodle">Moodle</string>
@@ -186,9 +186,8 @@
     <string name="cloud_sync_class_table_footer">انتخاب کنید کدام داده‌های جدول کلاس بین دستگاه‌ها همگام‌سازی شود.</string>
     <string name="cloud_sync_class_table_sync">همگام‌سازی جدول کلاس</string>
     <string name="cloud_sync_course_colours">رنگ‌های دروس</string>
-    <string name="cloud_sync_courses">دروس</string>
     <string name="cloud_sync_custom_course_names">نام‌های سفارشی دروس</string>
-    <string name="cloud_sync_device_id">Device ID</string>
+    <string name="cloud_sync_device_id">شناسه دستگاه</string>
     <string name="cloud_sync_device_section">دستگاه</string>
     <string name="cloud_sync_disable_button">غیرفعال کردن TigerSync</string>
     <string name="cloud_sync_disable_confirm_action">غیرفعال کردن</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">TigerSync غیرفعال شود؟</string>
     <string name="cloud_sync_disabled_footer">ویرایش‌های جدول، وضعیت تکالیف و تنظیمات را بین دستگاه‌هایتان همگام‌سازی کنید، در حالی که سرور به‌صورت دوره‌ای تکالیف Moodle را برای شما دریافت می‌کند.</string>
     <string name="cloud_sync_enable_button">فعال کردن TigerSync</string>
-    <string name="cloud_sync_last_synced_label">آخرین همگام‌سازی</string>
-    <string name="cloud_sync_last_synced_never">هنوز همگام‌سازی نشده</string>
     <string name="cloud_sync_privacy_body">وقتی TigerSync فعال است، رمز عبور سیستم مدرسه و توکن Moodle شما رمزنگاری شده و به سرور TigerDuck آپلود می‌شوند، جایی که برای دریافت دوره‌ای تکالیف Moodle از طرف شما و همگام‌سازی ویرایش‌های جدول، وضعیت تکالیف و تنظیمات بین دستگاه‌هایتان استفاده می‌شوند.\n\nمی‌توانید TigerSync را در هر زمانی غیرفعال کنید. غیرفعال کردن باعث خروج این دستگاه و لغو ثبت‌نام آن در سرور می‌شود (شامل اعتبارنامه‌های پوش)؛ اعتبارنامه‌های حساب آپلود شده فقط تا زمانی که دستگاه‌های همگام‌سازی شده دیگر از آنها استفاده می‌کنند در سرور باقی می‌مانند. داده‌های محلی تأثیر نمی‌پذیرند.</string>
     <string name="cloud_sync_privacy_confirm">موافقت و فعال‌سازی</string>
     <string name="cloud_sync_privacy_title">TigerSync و حریم خصوصی</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">ورود به سیستم…</string>
     <string name="cloud_sync_step_register">ثبت دستگاه…</string>
     <string name="cloud_sync_step_upload">آپلود داده‌ها…</string>
-    <string name="cloud_sync_sync_now">همگام‌سازی</string>
     <string name="cloud_sync_sync_options">گزینه‌های همگام‌سازی</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">آبی</string>
@@ -519,7 +515,7 @@
     <string name="notification_system_channel_name">اعلان‌های سیستم</string>
     <string name="onboarding_analytics_description">با به اشتراک گذاشتن بازدید ناشناس صفحات و استفاده از ویجت، به بهبود TigerDuck کمک کنید. هر زمان می‌توانید این را در تنظیمات تغییر دهید.</string>
     <string name="onboarding_analytics_label">آمار استفاده (اختیاری)</string>
-    <string name="onboarding_custom_endpoint_button">Use custom API endpoint</string>
+    <string name="onboarding_custom_endpoint_button">استفاده از نقطه پایانی API سفارشی</string>
     <string name="onboarding_flavor_fdroid_description">شما در حال استفاده از نسخه F-Droid هستید. از آنجا که سیاست F-Droid وابستگی به سرویس‌های Google (Firebase FCM، GMS و غیره) را ممنوع می‌کند، ویژگی‌های زیر در این نسخه در دسترس نیستند:\n\n1. برنامه همراه Wear OS\n2. اعلان‌های لحظه‌ای\n3. TigerSync: همگام‌سازی اطلاعات دروس\n4. TigerSync: دریافت اعلان‌های اضافی سرور</string>
     <string name="onboarding_flavor_fdroid_title">اطلاعیه نسخه F-Droid</string>
     <string name="onboarding_flavor_play_description">TigerDuck شامل یک برنامه همراه Wear OS است. پیام‌های کلاس را روی ساعت خود ببینید — Wear TigerDuck اطلاعات را از تلفن شما همگام‌سازی می‌کند.</string>
@@ -543,7 +539,7 @@
     <string name="onboarding_sync_note">وقتی همگام‌سازی خاموش است، همه داده‌ها فقط در این دستگاه باقی می‌مانند. اعلان‌های فوری برای یادآوری تکالیف بدون TigerSync به صورت محلی کار می‌کنند.</string>
     <string name="onboarding_sync_shared_assignments">داده‌های تکالیف</string>
     <string name="onboarding_sync_shared_courses">داده‌های دروس</string>
-    <string name="onboarding_sync_shared_device_id">Device ID</string>
+    <string name="onboarding_sync_shared_device_id">شناسه دستگاه</string>
     <string name="onboarding_sync_shared_moodle_token">توکن Moodle (رمزگذاری شده)</string>
     <string name="onboarding_sync_shared_student_id">شماره دانشجویی</string>
     <string name="onboarding_sync_title">TigerSync</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">فعال کردن فشار سرور</string>
     <string name="push_server_footer">برای دریافت بی‌درنگ اعلان‌های بولتن مدرسه و فعال کردن یادآورها استفاده می‌شود.</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">آخرین ثبت نام</string>
-    <string name="push_server_last_sync">آخرین همگام سازی</string>
     <string name="push_server_latest_error">خطای اخیر</string>
     <string name="push_server_notification_status_authorized">مجاز</string>
     <string name="push_server_notification_status_denied_hint">رد شد (تنظیمات سیستم را برای فعال کردن مجدد باز کنید)</string>
@@ -590,7 +584,6 @@
     <string name="push_server_status_enabled">فعال شد</string>
     <string name="push_server_status_section">وضعیت</string>
     <string name="push_server_status_waiting_token">در انتظار تخصیص token توسط سیستم</string>
-    <string name="push_server_sync_now_action">اکنون همگام سازی کنید</string>
     <string name="refreshing_message">در حال به‌روزرسانی… کمی صبر کنید</string>
     <string name="score_academic_year_semester">سال تحصیلی %1$s %2$s</string>
     <string name="score_course_credits">%1$d واحد</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_language_follow_system">همگام با سیستم (زبان جایگزین: انگلیسی)</string>
     <string name="settings_language_traditional_chinese">چینی سنتی</string>
-    <string name="settings_learn_more_backend">اطلاعات بیشتر درباره سرور TigerDuck</string>
+    <string name="settings_learn_more_backend">اطلاعات بیشتر درباره TigerSync</string>
     <string name="settings_library_account_subtitle">گذرواژه ممکن است با سیستم دانشگاه متفاوت باشد؛ مقدار پیش‌فرض معمولاً شماره ملی شماست</string>
     <string name="settings_library_feature_disabled_message">ابتدا «قابلیت‌های کتابخانه و مرتبط» را فعال کنید، سپس از میانبر QR کتابخانه استفاده کنید.</string>
     <string name="settings_library_feature_disabled_title">قابلیت کتابخانه غیرفعال است</string>
@@ -760,7 +753,7 @@
     <string name="source_code_picker_repo_translation_description">ترجمه رابط کاربری</string>
     <string name="source_code_picker_repo_web_description">صفحه وب رسمی</string>
     <string name="source_code_picker_section_repositories">مخازن</string>
-    <string name="sync_conflict_item_detail">Local: %1$s → Server: %2$s</string>
+    <string name="sync_conflict_item_detail">محلی: %1$s → سرور: %2$s</string>
     <string name="sync_conflict_item_header">%1$s: %2$s</string>
     <string name="sync_conflict_message">برخی موارد بین این دستگاه و سرور متفاوت هستند:</string>
     <string name="sync_conflict_reenable_assignments_differ">وضعیت تکالیف: در سرور متفاوت است</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">استفاده از محلی</string>
     <string name="sync_conflict_use_server">استفاده از سرور</string>
     <string name="sync_content_assignment_reminders">یادآورهای موعد تکلیف</string>
-    <string name="sync_content_class_table_all">جدول کلاس‌ها – همه دروس</string>
-    <string name="sync_content_class_table_colors">جدول کلاس‌ها – رنگ‌های دروس</string>
-    <string name="sync_content_class_table_names">جدول کلاس‌ها – نام‌های سفارشی دروس</string>
+    <string name="sync_content_class_table_all">همه دروس</string>
     <string name="sync_content_live_activity">Live Updates</string>
     <string name="sync_content_nav_label">محتوای همگام‌شده</string>
     <string name="sync_courses_footer">جدول کلاس‌های سفارشی و وضعیت تکمیل تکالیف شما را برای استفاده در همه دستگاه‌هایتان به سرور ارسال می‌کند. در زیر مشخص کنید چه مواردی لحاظ شوند.</string>
@@ -827,7 +818,7 @@
     <string name="watch_course_detail_title">درس</string>
     <string name="watch_course_instructor_label">مدرس</string>
     <string name="watch_empty_not_signed_in">وارد نشده‌اید. TigerDuck را در گوشی خود باز کنید.</string>
-    <string name="watch_just_now">Just now</string>
+    <string name="watch_just_now">همین الان</string>
     <string name="watch_last_synced_never">هرگز همگام‌سازی نشده</string>
     <string name="watch_last_synced_relative">آخرین همگام‌سازی %1$s</string>
     <string name="watch_next">بعدی</string>
@@ -853,7 +844,7 @@
     <string name="watch_settings_sync_now">همگام‌سازی اکنون</string>
     <string name="watch_starts_at">شروع %1$s</string>
     <string name="watch_starts_in_minutes">%1$d دقیقه دیگر</string>
-    <string name="watch_today">Today</string>
+    <string name="watch_today">امروز</string>
     <string name="watch_tomorrow_at">فردا · %1$s</string>
     <string name="watch_weekday_at">%1$s · %2$s</string>
     <string name="watch_widget_next_class">کلاس بعدی</string>

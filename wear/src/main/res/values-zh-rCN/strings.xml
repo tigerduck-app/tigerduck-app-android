@@ -186,7 +186,6 @@
     <string name="cloud_sync_class_table_footer">选择要在设备间同步的课表数据。</string>
     <string name="cloud_sync_class_table_sync">课表同步</string>
     <string name="cloud_sync_course_colours">课程颜色</string>
-    <string name="cloud_sync_courses">课程</string>
     <string name="cloud_sync_custom_course_names">自定义课程名称</string>
     <string name="cloud_sync_device_id">设备 ID</string>
     <string name="cloud_sync_device_section">设备</string>
@@ -196,8 +195,6 @@
     <string name="cloud_sync_disable_confirm_title">停用 TigerSync？</string>
     <string name="cloud_sync_disabled_footer">在多台设备间同步课表编辑、作业状态与设置，并由服务器定期代抓 Moodle 作业。</string>
     <string name="cloud_sync_enable_button">启用 TigerSync</string>
-    <string name="cloud_sync_last_synced_label">上次同步</string>
-    <string name="cloud_sync_last_synced_never">尚未同步</string>
     <string name="cloud_sync_privacy_body">启用 TigerSync 后，你的校务系统密码与 Moodle token 将加密上传至 TigerDuck 服务器，用于服务器端定期代抓 Moodle 作业，并在多台设备间同步课表编辑、作业状态与设置。\n\n你可以随时停用 TigerSync。停用后会登出并撤销此设备在服务器上的注册（包含推送凭证）；已上传的账号凭证仅在其他已启用同步的设备仍使用时保留于服务器。本机数据不受影响。</string>
     <string name="cloud_sync_privacy_confirm">同意并启用</string>
     <string name="cloud_sync_privacy_title">TigerSync 与隐私</string>
@@ -209,7 +206,6 @@
     <string name="cloud_sync_step_login">登录账号…</string>
     <string name="cloud_sync_step_register">注册设备…</string>
     <string name="cloud_sync_step_upload">上传数据…</string>
-    <string name="cloud_sync_sync_now">立即同步</string>
     <string name="cloud_sync_sync_options">同步选项</string>
     <string name="cloud_sync_title">TigerSync</string>
     <string name="color_name_blue">蓝</string>
@@ -574,8 +570,6 @@
     <string name="push_server_enable_toggle">启用服务器推送</string>
     <string name="push_server_footer">用于接收学校实时公告消息、主动触发动态岛等提醒。</string>
     <string name="push_server_ids_section">ID</string>
-    <string name="push_server_last_registration">上次注册</string>
-    <string name="push_server_last_sync">上次同步</string>
     <string name="push_server_latest_error">最近错误</string>
     <string name="push_server_notification_status_authorized">已授权</string>
     <string name="push_server_notification_status_denied_hint">已拒绝（前往系统设置重新开启）</string>
@@ -590,7 +584,6 @@
     <string name="push_server_status_enabled">已启用</string>
     <string name="push_server_status_section">状态</string>
     <string name="push_server_status_waiting_token">等待系统分配 token</string>
-    <string name="push_server_sync_now_action">立即同步一次</string>
     <string name="refreshing_message">页面正在刷新，别急～</string>
     <string name="score_academic_year_semester">%1$s 学年度 %2$s学期</string>
     <string name="score_course_credits">%1$d 学分</string>
@@ -705,7 +698,7 @@
     <string name="settings_language_english">English</string>
     <string name="settings_language_follow_system">跟随系统（备用英文）</string>
     <string name="settings_language_traditional_chinese">繁体中文</string>
-    <string name="settings_learn_more_backend">了解更多关于 TigerDuck 后端服务器的信息</string>
+    <string name="settings_learn_more_backend">了解更多关于 TigerSync 的信息</string>
     <string name="settings_library_account_subtitle">密码可能与校务系统不同，缺省为身分证字号</string>
     <string name="settings_library_feature_disabled_message">请先打开「图书馆及相关功能」后，再使用图书馆 QR 捷径。</string>
     <string name="settings_library_feature_disabled_title">图书馆功能未激活</string>
@@ -777,9 +770,7 @@
     <string name="sync_conflict_use_local">使用本机</string>
     <string name="sync_conflict_use_server">使用服务器</string>
     <string name="sync_content_assignment_reminders">作业到期提醒</string>
-    <string name="sync_content_class_table_all">课表 – 所有课程</string>
-    <string name="sync_content_class_table_colors">课表 – 课程颜色</string>
-    <string name="sync_content_class_table_names">课表 – 自定义课程名称</string>
+    <string name="sync_content_class_table_all">所有课程</string>
     <string name="sync_content_live_activity">实时更新</string>
     <string name="sync_content_nav_label">同步内容</string>
     <string name="sync_courses_footer">将自定义课表、作业完成状态推送至服务器，用于跨设备同步。您可以在下方菜单中选择同步项目</string>
