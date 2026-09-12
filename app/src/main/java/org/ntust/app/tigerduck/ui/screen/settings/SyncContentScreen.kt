@@ -37,11 +37,17 @@ import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
  * TigerSync's "同步課程資訊" toggle. Six [SyncToggleRow]s plus a navigation
  * row into Live Activity/Live Updates settings.
  *
- * Two deliberate Android deviations from iOS, both from the task-4 brief:
- * there is no platform-limitation footnote here (`sync_courses_footer_platform_note`
- * is an `apple`-group-only key Android cannot resolve), and the live-activity
- * row renders as "即時更新" (`sync_content_live_activity`'s `android` value),
- * not iOS's "即時動態".
+ * Two deliberate Android deviations from iOS: there is no platform-
+ * limitation footnote here (`sync_courses_footer_platform_note` is an
+ * `apple`-group-only key Android cannot resolve), and the live-activity
+ * toggle renders as "即時更新" (`sync_content_live_activity`'s `android`
+ * value), not iOS's "即時動態".
+ *
+ * The navigation row carries [R.string.live_activity_channel_name] — the
+ * destination screen's own name, the same string `SettingsScreen`'s
+ * Notifications-section entry into it and that screen's own top bar use —
+ * rather than a nav-only string of its own, so the shortcut and the one
+ * screen it leads to are never two different names for the same thing.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -205,8 +211,10 @@ fun SyncContentScreen(
                         }
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-                        // 跳轉：即時更新設定
-                        SettingsLinkRow(stringResource(R.string.sync_content_live_activity_settings_nav)) {
+                        // 跳轉：即時更新 (the destination screen's own name —
+                        // see this file's top KDoc for why this isn't its
+                        // own dedicated nav string)
+                        SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) {
                             onNavigateToLiveActivitySettings()
                         }
                     }
