@@ -76,6 +76,7 @@ fun SettingsScreen(
     onNavigateToTabEditor: () -> Unit = {},
     onNavigateToLanguagePicker: () -> Unit = {},
     onNavigateToLiveActivity: () -> Unit = {},
+    onNavigateToNotificationPermissionSettings: () -> Unit = {},
     onNavigateToAssignmentReminders: () -> Unit = {},
     onNavigateToCloudSync: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
@@ -399,6 +400,10 @@ fun SettingsScreen(
                         ) { onNavigateToAssignmentReminders() }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) { onNavigateToLiveActivity() }
+                        HorizontalDivider()
+                        SettingsLinkRow(
+                            stringResource(R.string.notification_permission_settings_nav_title)
+                        ) { onNavigateToNotificationPermissionSettings() }
                         // The "Server push" row used to live here, gated to
                         // non-fdroid flavors (its FCM pipeline isn't compiled
                         // into fdroid). It's gone: the opt-out toggle it led

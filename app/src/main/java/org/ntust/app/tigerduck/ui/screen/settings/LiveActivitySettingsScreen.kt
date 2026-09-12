@@ -5,20 +5,20 @@
 // each write — so the screen itself holds no state beyond which dialog is
 // open.
 //
-// The widgets live next door: LiveActivityLeadTimeRow (slider + duration
-// label) and LiveActivityPermissionRow (status dots + tap routing). The
-// plain on/off rows reuse SettingsToggleRow from SettingsRows.kt.
+// The widget living next door is LiveActivityLeadTimeRow (slider + duration
+// label). The plain on/off rows reuse SettingsToggleRow from
+// SettingsRows.kt.
 //
 // v2.1.0 removed the 自訂 ("custom") lead-time dialogs to match iOS, which
 // only ever offered a slider — see LiveActivityLeadTimeRow and
 // LiveActivityPreferences for the slider-range and clamping side of that.
+// The same version moved the system-permissions section (and the
+// permission-refresh/request plumbing behind it) out to its own
+// 通知權限設定 screen — see NotificationPermissionSettingsScreen and
+// NotificationPermissionRow. This screen shows no permissions anymore.
 
 package org.ntust.app.tigerduck.ui.screen.settings
 
-import android.Manifest
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -39,22 +39,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
@@ -68,39 +61,8 @@ fun LiveActivitySettingsScreen(
     onBack: () -> Unit,
     viewModel: LiveActivitySettingsViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showResetConfirm by remember { mutableStateOf(false) }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) viewModel.systemPermissions.recordCurrentGrants()
-        viewModel.refreshPermissions()
-    }
-
-    LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val granted = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.POST_NOTIFICATIONS
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-            if (!granted) permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
-
-    // Refresh permission rows each time the user returns to this screen, e.g.
-    // after flipping a toggle in the system settings page we deep-linked to.
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.systemPermissions.recordCurrentGrants()
-                viewModel.refreshPermissions()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
 
     Scaffold(
         topBar = {
@@ -256,40 +218,6 @@ fun LiveActivitySettingsScreen(
                         )
                     }
                 }
-            }
-
-            item { SectionHeader(stringResource(R.string.live_activity_settings_section_system_permissions)) }
-            item {
-                ContentCard {
-                    Column {
-                        state.permissions.forEachIndexed { idx, ps ->
-                            if (idx > 0) HorizontalDivider()
-                            PermissionRow(
-                                state = ps,
-                                onClick = {
-                                    openPermissionPrompt(
-                                        context = context,
-                                        permission = ps.permission,
-                                        systemPermissions = viewModel.systemPermissions,
-                                        askNotification = {
-                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                            }
-                                        },
-                                    )
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-            item {
-                Text(
-                    stringResource(R.string.live_activity_settings_permissions_hint),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                )
             }
 
             item {

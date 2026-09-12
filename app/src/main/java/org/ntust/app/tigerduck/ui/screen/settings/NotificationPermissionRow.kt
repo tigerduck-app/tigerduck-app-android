@@ -1,5 +1,9 @@
-// The system-permission rows at the bottom of the Live Activity settings
-// screen, plus the routing that decides what tapping one does.
+// The system-permission rows shown on the notification-permission settings
+// screen, plus the routing that decides what tapping one does. Lived on the
+// Live Updates settings screen before spec §6 moved the whole
+// system-permissions section out to its own screen — Live Updates keeps its
+// display/sound/lock-screen/timing settings and shows no permissions at all
+// now.
 //
 // The routing is the part worth reading: for notifications on API 33+ we ask
 // for the runtime permission first, because the settings deep link is a worse

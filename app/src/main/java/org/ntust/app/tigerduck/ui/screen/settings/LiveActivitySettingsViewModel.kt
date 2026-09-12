@@ -23,14 +23,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
-import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import javax.inject.Inject
 
 @HiltViewModel
 class LiveActivitySettingsViewModel @Inject constructor(
     val prefs: LiveActivityPreferences,
-    val systemPermissions: SystemPermissions,
     private val manager: LiveActivityManager,
     private val notificationSettingsSync: NotificationSettingsSync,
 ) : ViewModel() {
@@ -116,11 +114,6 @@ class LiveActivitySettingsViewModel @Inject constructor(
         emitAndSync()
     }
 
-    /** Called when the screen resumes so the permission rows reflect reality. */
-    fun refreshPermissions() {
-        _state.value = _state.value.copy(permissions = systemPermissions.states())
-    }
-
     private fun emit() {
         _state.value = snapshot()
         viewModelScope.launch { manager.refresh() }
@@ -152,7 +145,6 @@ class LiveActivitySettingsViewModel @Inject constructor(
         soundAssignment = prefs.soundAssignment,
         assignmentLeadMinutes = (prefs.assignmentLeadTimeSec / 60).toInt(),
         classLeadMinutes = (prefs.classPreparingLeadTimeSec / 60).toInt(),
-        permissions = systemPermissions.states(),
     )
 
     data class State(
@@ -166,7 +158,6 @@ class LiveActivitySettingsViewModel @Inject constructor(
         val soundAssignment: Boolean,
         val assignmentLeadMinutes: Int,
         val classLeadMinutes: Int,
-        val permissions: List<org.ntust.app.tigerduck.notification.PermissionState>,
     )
 
     private companion object {
