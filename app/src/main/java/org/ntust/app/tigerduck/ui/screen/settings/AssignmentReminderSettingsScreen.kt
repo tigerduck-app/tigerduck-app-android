@@ -52,28 +52,16 @@ class AssignmentReminderSettingsViewModel @Inject constructor(
         // whatever another device (most likely iOS) has written to the
         // shared assignments section before this screen shows anything, the
         // same pattern LiveActivitySettingsViewModel uses for live_activity.
+        // Nothing to copy back afterwards: AppState's copy of these settings
+        // re-reads AppPreferences whenever they change, a pull's writes
+        // included, whichever screen started it (AssignmentReminderSettingsState).
         //
         // Must not let a transport failure escape: NotificationSettingsSync.pullNow()
-        // catches transport failures for both sections internally, but
-        // re-reads AppPreferences through appState below regardless, so an
+        // catches transport failures for both sections internally, but an
         // unrelated exception here still must not reach viewModelScope (no
         // CoroutineExceptionHandler) and kill the process.
         viewModelScope.launch {
             runCatching { notificationSettingsSync.pullNow() }
-                .onSuccess { applied ->
-                    if (applied) {
-                        // appState caches notifyAssignments/notifyAssignmentOffsets in
-                        // mutableStateOf, seeded once at construction; pullNow() writes
-                        // straight to the underlying AppPreferences (the same split
-                        // NotificationSettingsSync uses for LiveActivityPreferences,
-                        // which needs no such refresh because its screen reads the
-                        // preferences object directly, not through AppState's cache).
-                        // Re-reading through appState's own setters both refreshes
-                        // that cache and keeps this device's own write path.
-                        appState.notifyAssignments = appState.prefs.notifyAssignments
-                        appState.notifyAssignmentOffsets = appState.prefs.notifyAssignmentOffsets
-                    }
-                }
                 .onFailure { e ->
                     if (e is CancellationException) throw e
                     Log.w(TAG, "pulling assignment settings failed", e)
@@ -92,17 +80,18 @@ class AssignmentReminderSettingsViewModel @Inject constructor(
     }
 
     fun setOffsetEnabled(offset: AssignmentReminderOffset, enabled: Boolean) {
-        val current = appState.notifyAssignmentOffsets
-        appState.notifyAssignmentOffsets = if (enabled) current + offset else current - offset
+        appState.setNotifyAssignmentOffsetEnabled(offset, enabled)
         notificationSettingsSync.markAssignmentUnconfirmedAndPush()
-        if (appState.notifyAssignments) rescheduleFromCache()
+        if (appState.prefs.notifyAssignments) rescheduleFromCache()
     }
 
     /**
      * Rebuild every pending reminder against the on-disk assignment cache.
      * Called whenever the master toggle or any offset toggle changes so the
      * user sees immediate effect instead of waiting for the next sync to
-     * re-arm alarms with the new preference set.
+     * re-arm alarms with the new preference set. Reads the stored offsets,
+     * not AppState's copy of them, for the reason
+     * AssignmentReminderSettingsState gives.
      */
     private fun rescheduleFromCache() {
         viewModelScope.launch {
@@ -112,7 +101,7 @@ class AssignmentReminderSettingsViewModel @Inject constructor(
             scheduler.scheduleAll(
                 assignments,
                 safetyNetIds,
-                appState.notifyAssignmentOffsets,
+                appState.prefs.notifyAssignmentOffsets,
             )
         }
     }

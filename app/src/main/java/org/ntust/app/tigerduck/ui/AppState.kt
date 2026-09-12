@@ -340,25 +340,23 @@ class AppState @Inject constructor(
             prefs.rotationMode = value
         }
 
-    private var notifyAssignmentsState by mutableStateOf(prefs.notifyAssignments)
+    // AppPreferences is the record for these two, and NotificationSettingsSync's
+    // pull writes it directly. This copy re-reads it on every change, and an
+    // offset toggle is computed from it: see AssignmentReminderSettingsState.
+    private val assignmentReminderSettings = AssignmentReminderSettingsState(prefs, scope)
 
     var notifyAssignments: Boolean
-        get() = notifyAssignmentsState
+        get() = assignmentReminderSettings.enabled
         set(value) {
-            if (notifyAssignmentsState == value) return
-            notifyAssignmentsState = value
-            prefs.notifyAssignments = value
+            assignmentReminderSettings.enabled = value
         }
 
-    private var notifyAssignmentOffsetsState by mutableStateOf(prefs.notifyAssignmentOffsets)
+    val notifyAssignmentOffsets: Set<AssignmentReminderOffset>
+        get() = assignmentReminderSettings.offsets
 
-    var notifyAssignmentOffsets: Set<AssignmentReminderOffset>
-        get() = notifyAssignmentOffsetsState
-        set(value) {
-            if (notifyAssignmentOffsetsState == value) return
-            notifyAssignmentOffsetsState = value
-            prefs.notifyAssignmentOffsets = value
-        }
+    /** Turns [offset] on or off in the stored set of assignment reminder offsets. */
+    fun setNotifyAssignmentOffsetEnabled(offset: AssignmentReminderOffset, enabled: Boolean) =
+        assignmentReminderSettings.setOffsetEnabled(offset, enabled)
 
     private var libraryFeatureEnabledState by mutableStateOf(prefs.libraryFeatureEnabled)
 
@@ -531,8 +529,7 @@ class AppState @Inject constructor(
                 TigerDuckTheme.setCourseNameScale(it)
             }
             rotationModeState = prefs.rotationMode
-            notifyAssignmentsState = prefs.notifyAssignments
-            notifyAssignmentOffsetsState = prefs.notifyAssignmentOffsets
+            assignmentReminderSettings.reload()
             libraryFeatureEnabledState = prefs.libraryFeatureEnabled
             flipToLibraryEnabledState = prefs.flipToLibraryEnabled
             cloudSyncEnabledState = prefs.cloudSyncEnabled

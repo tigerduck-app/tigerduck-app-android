@@ -50,7 +50,7 @@ fun effectiveCloudSyncEnabled(storedValue: Boolean, flavor: String = BuildConfig
 
 @Singleton
 class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
-    FirstTriggerSeenStore {
+    FirstTriggerSeenStore, AssignmentReminderPrefs {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences("tigerduck_prefs", Context.MODE_PRIVATE)
@@ -450,9 +450,23 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         }.apply()
     }
 
-    var notifyAssignments: Boolean
+    // Emitted on an actual change to either setting below, whoever made it.
+    // AppState's copy of them re-reads on it, because a pull of the shared
+    // `notification` document writes these directly, not through AppState.
+    private val _assignmentReminderSettingsChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    override val assignmentReminderSettingsChanged: SharedFlow<Unit> =
+        _assignmentReminderSettingsChanged.asSharedFlow()
+
+    override var notifyAssignments: Boolean
         get() = prefs.getBoolean("notifyAssignments", true)
-        set(value) = prefs.edit().putBoolean("notifyAssignments", value).apply()
+        set(value) {
+            val previous = notifyAssignments
+            prefs.edit().putBoolean("notifyAssignments", value).apply()
+            if (value != previous) _assignmentReminderSettingsChanged.tryEmit(Unit)
+        }
 
     /**
      * Per-offset opt-in for assignment due reminders. Persisted as raw-value
@@ -462,16 +476,18 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
      * Absent key (fresh install or upgrade from <= v1.4.x where only a single
      * 1h-before reminder existed) → seed with [AssignmentReminderOffset.DEFAULTS].
      */
-    var notifyAssignmentOffsets: Set<AssignmentReminderOffset>
+    override var notifyAssignmentOffsets: Set<AssignmentReminderOffset>
         get() {
             val stored = prefs.getStringSet("notifyAssignmentOffsets", null)
                 ?: return AssignmentReminderOffset.DEFAULTS
             return stored.mapNotNullTo(mutableSetOf()) { AssignmentReminderOffset.fromRawValue(it) }
         }
         set(value) {
+            val previous = notifyAssignmentOffsets
             prefs.edit()
                 .putStringSet("notifyAssignmentOffsets", value.map { it.rawValue }.toSet())
                 .apply()
+            if (value != previous) _assignmentReminderSettingsChanged.tryEmit(Unit)
         }
 
     /**
