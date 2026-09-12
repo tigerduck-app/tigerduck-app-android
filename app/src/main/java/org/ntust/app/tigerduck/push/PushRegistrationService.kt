@@ -28,12 +28,15 @@ import javax.inject.Singleton
 /**
  * Snapshot consumed by the bulletin notification settings screen so users
  * (and us in support) can see whether the push pipeline is healthy.
+ *
+ * Carries no timestamps: the "last registration" / "last sync" times this
+ * used to hold were display-only fields for the TigerSync status card's
+ * relative-time rows, which spec §6 removes. Registration success/failure
+ * is still tracked live via [isRegistered] / [lastError].
  */
 data class PushDiagnostic(
     val hasFcmToken: Boolean,
     val isRegistered: Boolean,
-    val lastRegistrationAt: Long?,
-    val lastSyncAt: Long?,
     val lastError: String?,
 )
 
@@ -156,8 +159,6 @@ class PushRegistrationService @Inject constructor(
                 PushDiagnostic(
                     hasFcmToken = false,
                     isRegistered = false,
-                    lastRegistrationAt = null,
-                    lastSyncAt = null,
                     lastError = null,
                 )
             }
@@ -246,11 +247,6 @@ class PushRegistrationService @Inject constructor(
                     // Not isRegistered: no account row exists, and the settings
                     // screen reads that flag to mean cloud sync is live. Custom
                     // push reaches this device; user-scoped push does not.
-                    lastRegistrationAt = if (announceError == null) {
-                        System.currentTimeMillis()
-                    } else {
-                        it.lastRegistrationAt
-                    },
                     lastError = announceError?.let { e -> e.message ?: e::class.java.simpleName },
                 )
             }
@@ -274,7 +270,6 @@ class PushRegistrationService @Inject constructor(
                     it.copy(
                         hasFcmToken = true,
                         isRegistered = true,
-                        lastRegistrationAt = System.currentTimeMillis(),
                         lastError = null,
                     )
                 }
@@ -290,20 +285,16 @@ class PushRegistrationService @Inject constructor(
     }
 
     /**
-     * User-triggered re-registration from the Server Push settings screen.
-     * Bumps `lastSyncAt` on success so the operator can see a "last sync"
-     * timestamp separate from the FCM-token / sign-in driven registrations
-     * — mirrors iOS PushServerSettingsView's "Sync now" button.
-     *
-     * On a no-op return (no FCM token yet, or unregister in flight)
-     * surfaces the reason via `lastError` so the UI's spinner-stops-without-
-     * feedback doesn't silently lie about success.
+     * User-triggered re-registration retry from the TigerSync status card's
+     * "Sync now" button. `performRegister` already updates `isRegistered` /
+     * `lastError` on both the success and the API-failure path; this only
+     * has to cover the no-op paths performRegister itself stays silent
+     * about, so the button's spinner-stops-without-feedback doesn't
+     * silently lie about success.
      */
     suspend fun syncNow(): Boolean {
         val ok = performRegister()
-        if (ok) {
-            updateDiagnostic { it.copy(lastSyncAt = System.currentTimeMillis()) }
-        } else {
+        if (!ok) {
             // No "not signed in" case: signed out is a supported outcome now
             // that the announce registers the device on its own, and a failed
             // announce has already written the real error to the diagnostic —
@@ -337,10 +328,6 @@ class PushRegistrationService @Inject constructor(
             val editor = prefs.edit()
                 .putBoolean(KEY_HAS_TOKEN, next.hasFcmToken)
                 .putBoolean(KEY_REGISTERED, next.isRegistered)
-            if (next.lastRegistrationAt == null) editor.remove(KEY_LAST_REG)
-            else editor.putLong(KEY_LAST_REG, next.lastRegistrationAt)
-            if (next.lastSyncAt == null) editor.remove(KEY_LAST_SYNC)
-            else editor.putLong(KEY_LAST_SYNC, next.lastSyncAt)
             if (next.lastError == null) editor.remove(KEY_LAST_ERR)
             else editor.putString(KEY_LAST_ERR, next.lastError)
             editor.apply()
@@ -350,8 +337,6 @@ class PushRegistrationService @Inject constructor(
     private fun loadInitialDiagnostic(): PushDiagnostic = PushDiagnostic(
         hasFcmToken = prefs.getBoolean(KEY_HAS_TOKEN, false),
         isRegistered = prefs.getBoolean(KEY_REGISTERED, false),
-        lastRegistrationAt = prefs.getLong(KEY_LAST_REG, 0L).takeIf { it > 0 },
-        lastSyncAt = prefs.getLong(KEY_LAST_SYNC, 0L).takeIf { it > 0 },
         lastError = prefs.getString(KEY_LAST_ERR, null),
     )
 
@@ -497,8 +482,6 @@ class PushRegistrationService @Inject constructor(
         const val PREFS_NAME = "push_diagnostics"
         const val KEY_HAS_TOKEN = "has_token"
         const val KEY_REGISTERED = "registered"
-        const val KEY_LAST_REG = "last_registration_at"
-        const val KEY_LAST_SYNC = "last_sync_at"
         const val KEY_LAST_ERR = "last_error"
         const val KEY_SERVER_PUSH_OPT_OUT = "server_push_user_opt_out"
     }

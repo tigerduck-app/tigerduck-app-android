@@ -66,7 +66,7 @@ class SettingsViewModel @Inject constructor(
         const val TAG = "SyncReenable"
     }
 
-    private val _syncDiagnostic = MutableStateFlow(PushDiagnostic(false, false, null, null, null))
+    private val _syncDiagnostic = MutableStateFlow(PushDiagnostic(false, false, null))
     val syncDiagnostic: StateFlow<PushDiagnostic> = _syncDiagnostic
 
     private val _isSyncing = MutableStateFlow(false)

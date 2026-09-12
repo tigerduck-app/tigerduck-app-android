@@ -59,7 +59,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
-import android.text.format.DateUtils
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
@@ -474,12 +473,12 @@ private fun SyncStatusCard(
                     okText = stringResource(R.string.permission_granted),
                     badText = stringResource(R.string.bulletin_push_status_denied),
                 )
-                // Device registration, its timestamps, the latest error, and
-                // Sync Now are all downstream of an FCM token this build
-                // never gets, so on fdroid they can never report anything
-                // but "pending" forever — hidden outright rather than shown
-                // stuck. The permission row above and the device ID below
-                // are unrelated to registration and stay on every flavor.
+                // Device registration, the latest error, and Sync Now are all
+                // downstream of an FCM token this build never gets, so on
+                // fdroid they can never report anything but "pending"
+                // forever — hidden outright rather than shown stuck. The
+                // permission row above and the device ID below are unrelated
+                // to registration and stay on every flavor.
                 if (!isFdroidFlavor) {
                     Spacer(Modifier.height(8.dp))
                     StatusRow(
@@ -492,20 +491,6 @@ private fun SyncStatusCard(
                             stringResource(R.string.bulletin_push_status_registration_pending)
                         },
                     )
-                    diagnostic.lastRegistrationAt?.let { ts ->
-                        Spacer(Modifier.height(10.dp))
-                        LabeledText(
-                            label = stringResource(R.string.push_server_last_registration),
-                            value = DateUtils.getRelativeTimeSpanString(ts, System.currentTimeMillis(), DateUtils.SECOND_IN_MILLIS).toString(),
-                        )
-                    }
-                    diagnostic.lastSyncAt?.let { ts ->
-                        Spacer(Modifier.height(10.dp))
-                        LabeledText(
-                            label = stringResource(R.string.push_server_last_sync),
-                            value = DateUtils.getRelativeTimeSpanString(ts, System.currentTimeMillis(), DateUtils.SECOND_IN_MILLIS).toString(),
-                        )
-                    }
                     diagnostic.lastError?.let { msg ->
                         Spacer(Modifier.height(10.dp))
                         LabeledText(
