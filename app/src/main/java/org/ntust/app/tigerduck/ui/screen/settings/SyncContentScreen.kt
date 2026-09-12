@@ -131,13 +131,17 @@ fun SyncContentScreen(
                         }
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-                        // 作業到期提醒 — does nothing on Android today. Android
-                        // schedules its assignment reminders locally, and
-                        // nothing on this device reads this flag: the PATCH
-                        // below only stores it on this device's backend row,
-                        // and the backend reads the flag solely to deliver
-                        // reminders to iPhone and iPad. It is not content with
-                        // a server-vs-local conflict either, so no
+                        // 作業到期提醒 — gates NotificationSettingsSync's
+                        // `assignments` section in both directions: while it is
+                        // off, this device neither pushes its reminder settings
+                        // nor adopts another device's, and turning it back on
+                        // republishes them (its syncAssignmentRemindersChanged
+                        // collector). The PATCH below also stores the flag on
+                        // this device's backend row, which the backend reads
+                        // only to deliver reminders to iPhone and iPad; Android
+                        // fires its own. Nor is it content with a
+                        // server-vs-local conflict prompt (an unconfirmed local
+                        // edit simply wins), so no
                         // markCategoryReenabled/checkPendingConflicts here.
                         SyncToggleRow(
                             stringResource(R.string.sync_content_assignment_reminders),

@@ -157,15 +157,17 @@ internal fun merging(updates: JsonObject, into: JsonObject): JsonObject {
 }
 
 /**
- * The keys this client owns, as a JSON object ready to splice over whatever
- * the server currently holds — i.e. `{"live_activity": {...}}` and nothing
- * else.
+ * The `live_activity` keys this client owns, as a JSON object ready to
+ * splice over whatever the server currently holds — i.e.
+ * `{"live_activity": {...}}` and nothing else.
  *
  * Encoded from [NotificationSettingsDocument] rather than assembled from
  * string literals so the wire keys come from one place, the model's
  * `@SerializedName`s. `assignments` and `courses` are left null and Gson
- * omits nulls, which is what keeps this object to the single key Android
- * owns — the sections it doesn't own never appear in `updates`, so the merge
+ * omits nulls, which is what keeps this object to `live_activity` alone:
+ * `assignments`, which Android also owns, goes out in its own push
+ * ([AssignmentSyncValues.documentUpdates]), and `courses` belongs to
+ * somebody else, so neither appears in these `updates` and this merge
  * cannot touch them.
  *
  * Field-by-field mapping — the fixed set of five (do not add or infer
@@ -759,10 +761,10 @@ internal suspend fun pullAssignmentSettingsCatching(
 /**
  * How many additional attempts [NotificationSettingsSync]'s coalesced push
  * loop makes after a push fails, before giving up until the next trigger:
- * an edit, the live-activity sync switch turning on, or — while the edit
- * is still unconfirmed — a sign-in, a successful full sync, or the Live
- * Activity settings screen opening. Bounded so a persistent failure
- * (offline, server down) cannot retry forever.
+ * an edit, either section's 同步內容 switch turning on, or — while the edit
+ * is still unconfirmed — a sign-in, a successful full sync, or either
+ * settings screen opening. Bounded so a persistent failure (offline,
+ * server down) cannot retry forever.
  */
 internal const val MAX_PUSH_RETRIES = 2
 
@@ -979,15 +981,18 @@ class NotificationSettingsSync internal constructor(
                 if (queuedGeneration != generation.get()) continue
                 runCatching { documentLock.withLock { pushNow(queuedGeneration) } }.fold(
                     onSuccess = { succeeded ->
-                        // A `false` here means a gate was closed (not logged
-                        // in, cloud sync off, or live-activity sync off) — an
-                        // intentional no-op, not a failure to retry. The next
-                        // real trigger re-enqueues.
+                        // A `false` here means nothing was sent, on purpose:
+                        // no section had an unconfirmed edit, every dirty
+                        // section's gate was closed (not logged in, cloud
+                        // sync off, or that section's 同步內容 switch off), or
+                        // a logout abandoned the push. An intentional no-op,
+                        // not a failure to retry. The next real trigger
+                        // re-enqueues.
                         if (succeeded) consecutiveFailures = 0
                     },
                     onFailure = { e ->
                         if (e is CancellationException) throw e
-                        Log.w(TAG, "live_activity settings push failed", e)
+                        Log.w(TAG, "notification settings push failed", e)
                         consecutiveFailures++
                         // Re-enqueue for another attempt, bounded and spaced
                         // out: a persistent failure (offline, server down)
@@ -1256,10 +1261,11 @@ class NotificationSettingsSync internal constructor(
      * or requires at least one of the two flags first, so this never skips
      * a push that was actually asked for. What it does prevent: one
      * section's trigger (an assignments edit, say) re-sending the *other*
-     * section's already-confirmed, unchanged values on every unrelated
-     * queue run — which, beside the wasted request, would silently move
-     * this file's tests off "exactly N writes for this one edit" the moment
-     * a second section shared the queue.
+     * section's values on every unrelated queue run. Those values are only
+     * this device's copy, and another device may have changed that section
+     * since this one last pulled: an unconditional push would write the
+     * stale copy over the newer values on every device. It would also cost
+     * a request per section on every run.
      *
      * Each clears only its own flag, only if it both succeeded and nothing
      * changed locally while it ran — see [pushLiveActivitySettings]'s KDoc
