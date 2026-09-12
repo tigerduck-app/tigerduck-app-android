@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.push
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.os.ConfigurationCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -43,7 +44,8 @@ data class PushDiagnostic(
 /**
  * Coalesces the two events that trigger a server-side device registration —
  * an FCM token arriving and the user signing in — and POSTs once both are
- * available. Mirrors the iOS PushRegistrationService actor.
+ * available. Mirrors the iOS PushRegistrationService actor. A registration
+ * that does not land is retried automatically; see [retryRegistrationIfDue].
  */
 @Singleton
 class PushRegistrationService @Inject constructor(
@@ -62,6 +64,14 @@ class PushRegistrationService @Inject constructor(
     // FcmBootstrap restart between mutex release and HTTP completion can't
     // resurrect the row we're deleting under anon-$deviceId.
     private var isUnregistering = false
+
+    // Bookkeeping for retryRegistrationIfDue(), guarded by [mutex]. Owed from
+    // process start: the startup registration has not landed yet and, if
+    // fetching its token fails, nothing else asks again. Timed on the
+    // monotonic clock so a wall-clock change cannot shorten the backoff.
+    private var registrationOwed = true
+    private var consecutiveRegistrationFailures = 0
+    private var lastRegistrationAttemptAt = SystemClock.elapsedRealtime()
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -117,9 +127,47 @@ class PushRegistrationService @Inject constructor(
         scheduleRegister()
     }
 
+    /**
+     * Re-runs a device registration that has not landed in this process,
+     * when [isRegistrationRetryDue] says one is due: the automatic stand-in
+     * for the Sync Now button spec §6 removed. `FcmBootstrap` (play) calls it
+     * on app foreground, from `BackgroundSyncWorker`, and when connectivity
+     * returns; the fdroid `FcmBootstrap` never does.
+     *
+     * [currentToken] fetches the FCM token and is called only once a retry is
+     * known to be due, so before consent nothing at all happens. The token is
+     * fetched each time rather than taken from memory because a fetch that
+     * failed at startup leaves none there. The registration itself goes
+     * through [scheduleRegister] and so through every gate [performRegister]
+     * applies to any registration: a token, consent, no unregister in flight.
+     */
+    suspend fun retryRegistrationIfDue(currentToken: suspend () -> String?) {
+        if (!registrationRetryDue()) return
+        val token = currentToken()?.takeIf { it.isNotBlank() } ?: return
+        // Again: a registration may have started or landed during the fetch.
+        if (!registrationRetryDue()) return
+        val changed = mutex.withLock {
+            if (isUnregistering) return
+            (token != fcmToken).also { fcmToken = token }
+        }
+        if (changed) updateDiagnostic { it.copy(hasFcmToken = true) }
+        scheduleRegister()
+    }
+
+    private suspend fun registrationRetryDue(): Boolean = mutex.withLock {
+        isRegistrationRetryDue(
+            hasCompletedOnboarding = appPreferences.hasCompletedOnboarding,
+            registrationOwed = registrationOwed && !isUnregistering,
+            registrationPending = debounceJob?.isActive == true,
+            consecutiveFailures = consecutiveRegistrationFailures,
+            millisSinceLastAttempt = SystemClock.elapsedRealtime() - lastRegistrationAttemptAt,
+        )
+    }
+
     private suspend fun scheduleRegister() {
         mutex.withLock {
             if (isUnregistering) return@withLock
+            registrationOwed = true
             debounceJob?.cancel()
             debounceJob = scope.launch {
                 // Coalesce the token + sign-in arrivals so we only POST once.
@@ -139,6 +187,10 @@ class PushRegistrationService @Inject constructor(
                 debounceJob?.cancel()
                 fcmToken = null
                 isUnregistering = true
+                // A sign-out owes no registration: the row is being deleted on
+                // purpose, and the next sign-in or token asks for a new one.
+                registrationOwed = false
+                consecutiveRegistrationFailures = 0
             }
             val deviceId = identity.uuid()
             try {
@@ -250,7 +302,7 @@ class PushRegistrationService @Inject constructor(
                     lastError = announceError?.let { e -> e.message ?: e::class.java.simpleName },
                 )
             }
-            return announceError == null
+            return (announceError == null).also { recordRegistrationAttempt(landed = it) }
         }
         return runCatching {
             api.register(
@@ -281,7 +333,20 @@ class PushRegistrationService @Inject constructor(
                 updateDiagnostic { it.copy(lastError = e.message ?: e::class.java.simpleName) }
                 false
             },
-        )
+        ).also { recordRegistrationAttempt(landed = it) }
+    }
+
+    /** Counts one real attempt (past the token and consent gates) for the retry's backoff. */
+    private suspend fun recordRegistrationAttempt(landed: Boolean) {
+        mutex.withLock {
+            lastRegistrationAttemptAt = SystemClock.elapsedRealtime()
+            if (landed) {
+                registrationOwed = false
+                consecutiveRegistrationFailures = 0
+            } else {
+                consecutiveRegistrationFailures++
+            }
+        }
     }
 
     /**
@@ -503,6 +568,55 @@ class PushRegistrationService @Inject constructor(
  */
 internal fun effectiveServerPushOptedOut(storedOptOut: Boolean, flavor: String = BuildConfig.FLAVOR): Boolean =
     storedOptOut || flavor.equals("fdroid", ignoreCase = true)
+
+/**
+ * Whether [PushRegistrationService.retryRegistrationIfDue] should re-run a
+ * device registration now. Spec §6 removed the Sync Now button, and a
+ * registration that fails while the process stays warm (FCM, the hourly
+ * worker and daily use all keep it warm) would otherwise wait for a sign-in,
+ * a token rotation or the process dying, with no bound on how long that is.
+ *
+ * Due only when every one of these holds:
+ * - [flavor] is not fdroid, which has no FCM token and never registers;
+ * - [hasCompletedOnboarding]: nothing identifying leaves the device before
+ *   the user has been through onboarding and seen the privacy page, the
+ *   same gate `performRegister` applies to every registration;
+ * - [registrationOwed]: a registration was asked for in this process and
+ *   none has landed since, so the retry is a no-op once one has;
+ * - not [registrationPending]: one already debouncing or on the wire is not
+ *   retried on top of itself;
+ * - [millisSinceLastAttempt] has reached [registrationRetryBackoffMillis]
+ *   for [consecutiveFailures], so a trigger that fires often (every resume)
+ *   cannot turn into a loop.
+ *
+ * [flavor] defaults to [BuildConfig.FLAVOR]; tests pass it explicitly, for
+ * the reason [effectiveServerPushOptedOut] gives.
+ */
+internal fun isRegistrationRetryDue(
+    hasCompletedOnboarding: Boolean,
+    registrationOwed: Boolean,
+    registrationPending: Boolean,
+    consecutiveFailures: Int,
+    millisSinceLastAttempt: Long,
+    flavor: String = BuildConfig.FLAVOR,
+): Boolean {
+    if (flavor.equals("fdroid", ignoreCase = true)) return false
+    if (!hasCompletedOnboarding || !registrationOwed || registrationPending) return false
+    return millisSinceLastAttempt >= registrationRetryBackoffMillis(consecutiveFailures)
+}
+
+/**
+ * How long the automatic registration retry waits after the last attempt:
+ * 30 s after the first failure, 5 min after the second, then every 30 min
+ * for as long as it keeps failing. [consecutiveFailures] of 0 is the wait
+ * after the process starts, counted from then, which gives the startup
+ * registration time to land before anything retries it.
+ */
+internal fun registrationRetryBackoffMillis(consecutiveFailures: Int): Long = when {
+    consecutiveFailures <= 1 -> 30_000L
+    consecutiveFailures == 2 -> 5 * 60_000L
+    else -> 30 * 60_000L
+}
 
 /**
  * Commits [optOut] to [prefs] under [key] only once [attempt] — the PATCH /

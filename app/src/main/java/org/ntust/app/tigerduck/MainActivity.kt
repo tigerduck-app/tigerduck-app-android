@@ -45,6 +45,7 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.ApiVersionGate
 import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
+import org.ntust.app.tigerduck.push.FcmBootstrap
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.serverpush.ServerPopupRequest
 import org.ntust.app.tigerduck.serverpush.ServerPushIntentToken
@@ -106,6 +107,9 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var authTokenManager: AuthTokenManager
+
+    @Inject
+    lateinit var fcmBootstrap: FcmBootstrap
 
     private val widgetStartRoute = mutableStateOf<String?>(null)
     private val whatsNewContent = mutableStateOf<WhatsNewContent?>(null)
@@ -237,6 +241,10 @@ class MainActivity : AppCompatActivity() {
         updateChecker.resume(this)
         applyRotationPreference()
         refreshMoodleCredentials()
+        // Retries a device registration that failed while the process stayed
+        // warm. Whether one is due, and the consent and flavor gates, are
+        // decided inside; a no-op on fdroid.
+        fcmBootstrap.retryRegistrationIfDue()
     }
 
     /**
