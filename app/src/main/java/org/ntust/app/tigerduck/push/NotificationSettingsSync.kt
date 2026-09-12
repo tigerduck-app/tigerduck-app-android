@@ -127,6 +127,56 @@ internal interface SettingsDocumentTransport {
 }
 
 /**
+ * A [SettingsDocumentTransport] that goes to the network for the first
+ * [read] and answers every later one with what that read produced — the same
+ * envelope, or the same failure thrown again.
+ *
+ * [NotificationSettingsSync.pullNow] wraps one of these around the real
+ * transport for the span of a single pull. The two sections it applies,
+ * `live_activity` and `assignments`, are independent functions that each
+ * read the document they own a section of — which is the right shape for
+ * them, but it means the *same* document was fetched twice per pull, now on
+ * every successful full sync rather than only when a settings screen opens.
+ * One request answers both.
+ *
+ * Nothing else about either section changes: each still makes no request at
+ * all when its own gate is closed (whichever section reads first pays for
+ * it), still asks its dirty check and its generation check after the read
+ * has come back, and still degrades on its own terms.
+ *
+ * A failure is cached and rethrown rather than retried, so a pull cannot
+ * turn into two requests on exactly the path where requests are failing;
+ * both sections then report the same failure, which is what one shared read
+ * means. [CancellationException] is never cached — it belongs to the
+ * coroutine being cancelled, not to the document.
+ */
+private class SingleReadTransport(
+    private val delegate: SettingsDocumentTransport,
+) : SettingsDocumentTransport {
+    private var answered = false
+    private var envelope: SettingsDocumentEnvelope<JsonObject>? = null
+    private var failure: Exception? = null
+
+    override suspend fun read(): SettingsDocumentEnvelope<JsonObject>? {
+        if (!answered) {
+            try {
+                envelope = delegate.read()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failure = e
+            }
+            answered = true
+        }
+        failure?.let { throw it }
+        return envelope
+    }
+
+    override suspend fun write(document: JsonObject, baseRevision: Long?): SettingsWriteResult<JsonObject> =
+        delegate.write(document, baseRevision)
+}
+
+/**
  * Splices [updates] over [into], key by key, and returns the result. Any key
  * [updates] does not mention survives untouched — at the top level (a whole
  * section iOS or a newer build added) and, because this recurses into nested
@@ -1227,11 +1277,13 @@ class NotificationSettingsSync internal constructor(
      * a switch turned off on another device would keep firing here.
      *
      * The two pulls are independent: each is gated on its own switch and
-     * dirty flag, and one failing or being gated off does not stop the
-     * other. Returns `true` if *either* was actually attempted (matching
-     * each individual function's own "attempted" contract), so a caller that
-     * only cares about "did anything happen" (`LiveActivitySettingsViewModel`)
-     * keeps working unchanged.
+     * dirty flag, and one being gated off does not stop the other. They do
+     * share their read — one GET answers both, through [SingleReadTransport]
+     * — so a transport failure is now reported by both rather than by one,
+     * which is what a single request means. Returns `true` if *either* was
+     * actually attempted (matching each individual function's own
+     * "attempted" contract), so a caller that only cares about "did anything
+     * happen" (`LiveActivitySettingsViewModel`) keeps working unchanged.
      *
      * Called when the Live Activity settings screen opens
      * ([org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsViewModel]),
@@ -1255,10 +1307,16 @@ class NotificationSettingsSync internal constructor(
             // abandoned instead of applied — see pullLiveActivitySettings.
             val pulledGeneration = generation.get()
             val isCurrentGeneration = { pulledGeneration == generation.get() }
+            // One GET for both sections; see SingleReadTransport.
+            val pullTransport = SingleReadTransport(transport)
+            // Snapshotted before any read goes out, not between the two: what
+            // it is for is catching an edit that lands while one is on the
+            // wire, and a snapshot taken after the read already contains it.
+            val expected = assignmentValues()
 
             val liveActivityAttempted = pullLiveActivitySettingsCatching(
                 preferences = liveActivityPreferences,
-                transport = transport,
+                transport = pullTransport,
                 cloudSyncEnabled = cloudSyncEnabled(),
                 syncLiveActivity = syncLiveActivity(),
                 isLoggedIn = isLoggedIn(),
@@ -1272,10 +1330,9 @@ class NotificationSettingsSync internal constructor(
             val assignmentsSynced = syncAssignmentReminders()
             val loggedIn = isLoggedIn()
             var assignmentReadFailed = false
-            val expected = assignmentValues()
             val pulled = pullAssignmentSettingsCatching(
                 current = expected,
-                transport = transport,
+                transport = pullTransport,
                 cloudSyncEnabled = cloudSync,
                 syncAssignmentReminders = assignmentsSynced,
                 isLoggedIn = loggedIn,

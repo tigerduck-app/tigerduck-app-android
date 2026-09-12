@@ -1484,6 +1484,37 @@ class NotificationSettingsSyncTest {
         assertTrue(device.server("B").writes.isEmpty())
     }
 
+    // ── 7f. Both sections come out of one request ───────────────────────────
+
+    @Test
+    fun `a pull reads the document once however many sections it applies`() = runTest {
+        val device = Device(backgroundScope)
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.signIn("A")
+        device.server("A").document = json(
+            """
+            {
+              "live_activity": {"class_preparing_lead_seconds": 3600},
+              "assignments": {"enabled": true, "reminder_offsets_minutes": [1440]}
+            }
+            """.trimIndent()
+        )
+
+        device.sync.pullNow()
+
+        assertEquals(
+            "both sections are in the same document, so one GET has to answer both",
+            1,
+            device.server("A").reads,
+        )
+        assertEquals("...and live_activity is still applied from it", 3_600L, device.prefs.classPreparingLeadTimeSec)
+        assertEquals(
+            "...and so is assignments",
+            setOf(AssignmentReminderOffset.HR24),
+            device.assignments.offsets,
+        )
+    }
+
     // ── 8. Bounded retry after a push failure ───────────────────────────────
 
     @Test
