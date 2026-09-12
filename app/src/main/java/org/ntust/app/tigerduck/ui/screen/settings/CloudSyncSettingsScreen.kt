@@ -1,16 +1,11 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
-import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,7 +27,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.WarningAmber
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -56,7 +50,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.BuildConfig
@@ -115,10 +108,9 @@ internal fun hasSyncContentLeft(
  * toggle (nested "同步內容" entry when on), the server-push opt-out (moved
  * here from the now-removed ServerPushScreen — see
  * [SubscriptionSettingsScreen][org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsScreen]'s
- * comment for that history), and "TigerSync 狀態": a plain title
- * ([TigerSyncStatusSummary] — registration status, then the latest error
- * when there is one) followed by [SyncStatusCard] for the rest (push
- * permission, device ID). On fdroid the essential-info row is
+ * comment for that history), and "TigerSync 狀態": a plain title followed
+ * by one [SyncStatusCard] (registration status, the latest error when there
+ * is one, device ID). On fdroid the essential-info row is
  * unchanged, but the course-sync and server-push rows are greyed out and
  * off — see [isFdroidFlavor].
  */
@@ -355,8 +347,7 @@ fun CloudSyncSettingsScreen(
             // registration status and, when there is one, the error sit
             // directly under the heading rather than behind a nav target.
             item { SectionHeader(stringResource(R.string.sync_status_nav_label)) }
-            item { TigerSyncStatusSummary(diagnostic = diagnostic) }
-            item { SyncStatusCard(deviceId = deviceId) }
+            item { SyncStatusCard(diagnostic = diagnostic, deviceId = deviceId) }
 
             item { Spacer(Modifier.height(8.dp)) }
             item {
@@ -427,110 +418,44 @@ private fun ToggleWithFooterRow(
 
 /**
  * "TigerSync 狀態" itself (spec §6): a title, not a row that goes anywhere —
- * just the device-registration status directly under the [SectionHeader],
- * and the latest error under that when there is one. Hidden on fdroid:
- * without an FCM token, registration never completes, so this would only
- * ever be able to show "pending" forever.
+ * one card directly under the [SectionHeader] holding the device-registration
+ * status, the latest error under it when there is one, and the device ID.
+ * The registration half is hidden on fdroid: without an FCM token,
+ * registration never completes, so it could only ever show "pending".
  */
 @Composable
-private fun TigerSyncStatusSummary(diagnostic: PushDiagnostic) {
-    if (isFdroidFlavor) return
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        StatusRow(
-            label = stringResource(R.string.push_server_status_device_registration),
-            ok = diagnostic.isRegistered,
-            okText = stringResource(R.string.bulletin_push_status_registration_done),
-            badText = if (diagnostic.hasFcmToken) {
-                stringResource(R.string.push_server_status_waiting_token)
-            } else {
-                stringResource(R.string.bulletin_push_status_registration_pending)
-            },
-        )
-        diagnostic.lastError?.let { msg ->
-            Spacer(Modifier.height(4.dp))
-            LabeledText(
-                label = stringResource(R.string.push_server_latest_error),
-                value = msg,
-                valueColor = MaterialTheme.colorScheme.error,
-            )
-        }
-    }
-}
-
-@Composable
 private fun SyncStatusCard(
+    diagnostic: PushDiagnostic,
     deviceId: String,
 ) {
-    val context = LocalContext.current
-    fun checkNotificationGranted(): Boolean =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS,
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        } else true
-
-    var permissionGranted by remember { mutableStateOf(checkNotificationGranted()) }
-
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> permissionGranted = granted }
-
-    // Re-check on ON_RESUME so revoking POST_NOTIFICATIONS in system Settings
-    // and returning here reflects the current grant, not the stale value
-    // captured on first composition. Mirrors the removed ServerPushScreen's
-    // PushStatusCard.
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                permissionGranted = checkNotificationGranted()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
     ContentCard {
         Column {
-            Column(modifier = Modifier.padding(12.dp)) {
-                StatusRow(
-                    label = stringResource(R.string.bulletin_push_status_label),
-                    ok = permissionGranted,
-                    okText = stringResource(R.string.permission_granted),
-                    badText = stringResource(R.string.bulletin_push_status_denied),
-                )
-                if (!permissionGranted) {
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            } else {
-                                openAppSettings(context)
-                            }
+            if (!isFdroidFlavor) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    StatusRow(
+                        label = stringResource(R.string.push_server_status_device_registration),
+                        ok = diagnostic.isRegistered,
+                        okText = stringResource(R.string.bulletin_push_status_registration_done),
+                        badText = if (diagnostic.hasFcmToken) {
+                            stringResource(R.string.push_server_status_waiting_token)
+                        } else {
+                            stringResource(R.string.bulletin_push_status_registration_pending)
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.bulletin_push_reopen_settings))
+                    )
+                    diagnostic.lastError?.let { msg ->
+                        Spacer(Modifier.height(4.dp))
+                        LabeledText(
+                            label = stringResource(R.string.push_server_latest_error),
+                            value = msg,
+                            valueColor = MaterialTheme.colorScheme.error,
+                        )
                     }
                 }
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             }
-            // Device ID no longer forms its own "push_server_ids_section" —
-            // it stays visible as part of the status area (spec §6), directly
-            // under the permission controls.
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             DeviceIdRow(deviceId = deviceId)
         }
     }
-}
-
-private fun openAppSettings(context: Context) {
-    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-        data = Uri.fromParts("package", context.packageName, null)
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-    }
-    runCatching { context.startActivity(intent) }
 }
 
 @Composable
