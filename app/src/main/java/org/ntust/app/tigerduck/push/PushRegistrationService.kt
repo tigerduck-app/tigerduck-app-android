@@ -143,7 +143,15 @@ class PushRegistrationService @Inject constructor(
      */
     suspend fun retryRegistrationIfDue(currentToken: suspend () -> String?) {
         if (!registrationRetryDue()) return
-        val token = currentToken()?.takeIf { it.isNotBlank() } ?: return
+        val token = currentToken()?.takeIf { it.isNotBlank() } ?: run {
+            // The fetch itself came back empty — a device with no network at
+            // boot, which is the case this retry exists for. Recorded as a
+            // failed attempt, or `millisSinceLastAttempt` keeps growing past
+            // every backoff and each connectivity `onAvailable` fires a fresh
+            // token fetch the instant it arrives, on every handover.
+            recordRegistrationAttempt(landed = false)
+            return
+        }
         // Again: a registration may have started or landed during the fetch.
         if (!registrationRetryDue()) return
         val changed = mutex.withLock {
@@ -268,9 +276,21 @@ class PushRegistrationService @Inject constructor(
         // Snapshot token under the mutex so a concurrent token rotation or
         // updateServerPushOptOut can't flip state between read and POST.
         val token = mutex.withLock {
-            if (isUnregistering) null else fcmToken
+            // An unregister in flight is not an attempt at anything: the row
+            // is being deleted on purpose, nothing is owed while it is, and
+            // moving the retry's clock here would space out the registration
+            // the next sign-in asks for.
+            if (isUnregistering) return false
+            fcmToken
         }
-        if (token == null) return false
+        if (token == null) {
+            // No token in this process — the fetch has never succeeded. This
+            // pass failed as surely as a rejected POST does, so it has to
+            // climb the same backoff; without it the retry spins on every
+            // trigger for as long as the device stays offline.
+            recordRegistrationAttempt(landed = false)
+            return false
+        }
         // Nothing identifying leaves the device until the user has been
         // through onboarding and seen the privacy page. `fcmBootstrap.start()`
         // runs from Application.onCreate and an FCM token needs no permission,
@@ -279,7 +299,18 @@ class PushRegistrationService @Inject constructor(
         // AppState only calls `pushCoordinator.enable()` once
         // `hasCompletedOnboarding` is true. `onOnboardingCompleted()` re-fires
         // this the moment consent lands, so the token is not lost.
-        if (!appPreferences.hasCompletedOnboarding) return false
+        //
+        // Recorded as an attempt that is not a failure: a device that has not
+        // consented is not failing at anything, and no amount of retrying
+        // opens this gate — only the user finishing onboarding does, and that
+        // registers immediately through `onOnboardingCompleted()`. Climbing
+        // the backoff here would leave the first retry after consent spaced
+        // by half an hour for no reason. Moving the clock alone is still
+        // right: this process did just run the registration path.
+        if (!appPreferences.hasCompletedOnboarding) {
+            recordRegistrationAttempt(landed = false, countsAsFailure = false)
+            return false
+        }
         val clientDeviceId = identity.uuid()
         // Announce the hardware first, every time, signed in or not. The two
         // registrations answer different questions — "which device is this"
@@ -336,15 +367,25 @@ class PushRegistrationService @Inject constructor(
         ).also { recordRegistrationAttempt(landed = it) }
     }
 
-    /** Counts one real attempt (past the token and consent gates) for the retry's backoff. */
-    private suspend fun recordRegistrationAttempt(landed: Boolean) {
+    /**
+     * Records one pass through the registration path for the retry's backoff:
+     * always when it happened, and what it did to the debt and the failure
+     * streak.
+     *
+     * [countsAsFailure] `false` moves the clock without climbing the backoff
+     * ladder — for a gate that is closed for a reason no retry can change
+     * (consent), as opposed to one that failed and should be spaced out (no
+     * token, a rejected POST).
+     */
+    private suspend fun recordRegistrationAttempt(landed: Boolean, countsAsFailure: Boolean = true) {
         mutex.withLock {
             lastRegistrationAttemptAt = SystemClock.elapsedRealtime()
-            if (landed) {
-                registrationOwed = false
-                consecutiveRegistrationFailures = 0
-            } else {
-                consecutiveRegistrationFailures++
+            when {
+                landed -> {
+                    registrationOwed = false
+                    consecutiveRegistrationFailures = 0
+                }
+                countsAsFailure -> consecutiveRegistrationFailures++
             }
         }
     }
