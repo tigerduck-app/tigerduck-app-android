@@ -280,7 +280,7 @@ class LiveActivityPreferences internal constructor(
         const val DEFAULT_CLASS_LEAD_SEC = 15L * 60
 
         // v2.1.0: set to the iOS slider ranges when the Android 自訂
-        // dialogs were removed (spec §5 W6). See readClampedLong's KDoc
+        // dialogs were removed (spec §5). See readClampedLong's KDoc
         // for why existing out-of-range values need clamping, not just a UI
         // change, and grep these four constants before touching them again —
         // ClassPreparingNotificationScheduler, LiveActivityResolver and

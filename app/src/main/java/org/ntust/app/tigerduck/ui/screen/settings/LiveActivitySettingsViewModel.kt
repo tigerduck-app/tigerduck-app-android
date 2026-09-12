@@ -7,8 +7,8 @@
 // section carries (spec §4.6) additionally enqueue a push to the backend, so
 // they follow the user to their other devices — see NotificationSettingsSync.
 // The rest (the master switch, lock-screen visibility, the three per-scenario
-// sounds) are device-local: they are not in that section, and this task must
-// not invent document fields for them.
+// sounds) are device-local: they are not in that section, and must never be
+// turned into document fields.
 
 package org.ntust.app.tigerduck.ui.screen.settings
 

@@ -286,9 +286,9 @@ fun CloudSyncSettingsScreen(
             // common, intentional state (essential info + server push, no
             // course/assignment sync) — not something the restructure
             // removed. The disclosure that local-only data still applies in
-            // that state is still true, so it stays. Re-added per
-            // task-4-review.md Important 2 after being dropped on the false
-            // premise that no all-off state remained reachable.
+            // that state is still true, so it stays. Re-added after being
+            // dropped on the false premise that no all-off state remained
+            // reachable.
             //
             // Excluded on fdroid: `syncEnabled` is always false there, so
             // the note would be permanent, and it would be wrong regardless
@@ -539,8 +539,8 @@ private fun SyncStatusCard(
                 }
             }
             // Device ID no longer forms its own "push_server_ids_section" —
-            // it stays visible as part of the status area (spec §6 / task-4
-            // brief Step 3), directly under the sync-now / permission controls.
+            // it stays visible as part of the status area (spec §6), directly
+            // under the sync-now / permission controls.
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             DeviceIdRow(deviceId = deviceId)
         }

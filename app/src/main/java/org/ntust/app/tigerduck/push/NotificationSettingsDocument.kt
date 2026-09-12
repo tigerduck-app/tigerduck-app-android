@@ -23,9 +23,9 @@ import com.google.gson.annotations.SerializedName
 /**
  * The `notification` settings document.
  *
- * Android only ever mutates [liveActivity] (task W6); [assignments] and
- * [courses] are read back and re-sent unchanged so a write from this client
- * never clobbers what iOS/the backend wrote there.
+ * Android only ever mutates [liveActivity]; [assignments] and [courses] are
+ * read back and re-sent unchanged so a write from this client never
+ * clobbers what iOS/the backend wrote there.
  */
 data class NotificationSettingsDocument(
     @SerializedName("assignments") val assignments: AssignmentsSection? = null,
@@ -39,7 +39,7 @@ data class AssignmentsSection(
     @SerializedName("reminder_offsets_hours") val reminderOffsetsHours: List<Int>? = null,
 )
 
-/** Course-start reminders. Android never writes this section (this task). */
+/** Course-start reminders. Android never writes this section (§4.2). */
 data class CoursesSection(
     @SerializedName("enabled") val enabled: Boolean? = null,
     @SerializedName("reminder_offsets_minutes") val reminderOffsetsMinutes: List<Int>? = null,

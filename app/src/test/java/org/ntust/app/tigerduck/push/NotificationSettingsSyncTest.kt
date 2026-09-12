@@ -683,7 +683,7 @@ class NotificationSettingsSyncTest {
     }
 
     /**
-     * The trap this task exists to guard against: [SettingsDocumentTransport.read]
+     * The trap this test exists to guard against: [SettingsDocumentTransport.read]
      * hands back an already-parsed [JsonObject], so a fractional value here goes
      * through Gson's *parsed-tree* int path (`JsonPrimitive.getAsInt()` ->
      * `Number.intValue()`), which truncates `0.5` to `0` silently -- no

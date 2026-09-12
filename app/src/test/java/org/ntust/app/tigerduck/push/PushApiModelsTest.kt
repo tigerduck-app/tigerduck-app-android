@@ -12,7 +12,7 @@ import kotlin.reflect.KClass
 
 /**
  * Pins [UpdateDevicePreferencesRequest]'s wire shape — most importantly the
- * `locale` field fix-1 added.
+ * `locale` field.
  *
  * `push` carries no R8 keep rule (see CLAUDE.md / the upgrade-safe-persistence
  * skill's underlying concern): a field missing `@SerializedName` compiles and
@@ -52,8 +52,8 @@ class PushApiModelsTest {
 
     /**
      * Mirror check: a request that does not mention locale at all — every
-     * PATCH call site fix-1 did not touch — must not emit the key. This is
-     * what lets the brief claim those PATCHes "can't wipe" a locale the new
+     * PATCH call site other than the one that sets it — must not emit the
+     * key. That is what ensures those PATCHes can't wipe a locale the new
      * call site set: there is no `"locale": null` on the wire for the
      * backend's non-null guard to even need to catch.
      */
@@ -81,10 +81,9 @@ class PushApiModelsTest {
      * [DevicePreferencesResponse] carries `@SerializedName` with the exact
      * snake_case key the backend's `DevicePreferencesV3Request` /
      * `DevicePreferencesV3Response` expect — asserted by reflection over the
-     * compiled fields, not by eyeballing the source. Catches exactly the
-     * failure mode this task's binding constraint warns about: an
-     * unannotated field is invisible here in debug but silently renamed in
-     * release. Covers the task-4 `sync_assignment_reminders` /
+     * compiled fields, not by eyeballing the source. Guards against exactly
+     * this: an unannotated field is invisible here in debug but silently
+     * renamed in release. Covers the `sync_assignment_reminders` /
      * `sync_live_activity` fields on both DTOs.
      */
     @Test
@@ -138,11 +137,11 @@ class PushApiModelsTest {
     }
 
     /**
-     * Task-4 addition: a request that sets the two new "同步內容" fields
-     * serializes them under their snake_case wire names, alongside the
-     * existing sync toggles — and omits them (Gson's default "omit nulls")
-     * when left at their `null` default, same as every other optional field
-     * on this class.
+     * A request that sets the two new "同步內容" fields serializes them
+     * under their snake_case wire names, alongside the existing sync
+     * toggles — and omits them (Gson's default "omit nulls") when left at
+     * their `null` default, same as every other optional field on this
+     * class.
      */
     @Test
     fun `syncAssignmentReminders and syncLiveActivity serialize under their backend keys`() {
@@ -166,12 +165,11 @@ class PushApiModelsTest {
     }
 
     /**
-     * [DevicePreferencesResponse]'s new fields follow the same
-     * "`Boolean = true`, matching the five pre-existing sync fields'
-     * convention" the task-4 brief calls for. A backend response that omits
-     * them entirely (an older backend, or a device that predates the
-     * columns) must still read back `true` on decode — not the JVM
-     * zero-value `false` a naive reading of Gson's Kotlin-construction
+     * [DevicePreferencesResponse]'s new fields follow the same `Boolean =
+     * true` convention as the five pre-existing sync fields. A backend
+     * response that omits them entirely (an older backend, or a device that
+     * predates the columns) must still read back `true` on decode — not the
+     * JVM zero-value `false` a naive reading of Gson's Kotlin-construction
      * behavior might suggest. This is the concrete claim the
      * upgrade-safe-persistence checklist's "primitive types default safely"
      * bullet rests on for this class.

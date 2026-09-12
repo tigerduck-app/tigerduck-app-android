@@ -367,16 +367,16 @@ class PushRegistrationService @Inject constructor(
      *  backend has accepted it — a rejected change must not survive
      *  anywhere, not just in the in-memory switch
      *  (`SettingsViewModel.setServerPushOn` already reverts that half; this
-     *  is the other half, see task-4-review.md Important 1). Returns `true`
-     *  on full success (backend + local), `false` if the call failed, in
-     *  which case the pref is left exactly where it was. `lastError` is
-     *  surfaced via the diagnostic for the status card either way. See
-     *  [applyOptOutIfAccepted] for the extracted, unit-tested invariant.
-     *  No-ops on fdroid: the toggle that leads here is greyed out and off
-     *  (`CloudSyncSettingsScreen`), but this is the actual boundary to the
-     *  network call, so it is guarded here too rather than trusted to stay
-     *  unreachable from the UI alone — the signed-in branch below has no FCM
-     *  token dependency to fall back on the way [performRegister] does. */
+     *  is the other half). Returns `true` on full success (backend + local),
+     *  `false` if the call failed, in which case the pref is left exactly
+     *  where it was. `lastError` is surfaced via the diagnostic for the
+     *  status card either way. See [applyOptOutIfAccepted] for the
+     *  extracted, unit-tested invariant. No-ops on fdroid: the toggle that
+     *  leads here is greyed out and off (`CloudSyncSettingsScreen`), but
+     *  this is the actual boundary to the network call, so it is guarded
+     *  here too rather than trusted to stay unreachable from the UI alone —
+     *  the signed-in branch below has no FCM token dependency to fall back
+     *  on the way [performRegister] does. */
     suspend fun updateServerPushOptOut(optOut: Boolean): Boolean {
         if (BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return false
         val deviceId = identity.uuid()
@@ -537,15 +537,15 @@ internal fun effectiveServerPushOptedOut(storedOptOut: Boolean, flavor: String =
  * on demand — but this function can be handed a fake [SharedPreferences] and
  * a lambda that throws.
  *
- * Fixes task-4-review.md Important 1: `updateServerPushOptOut` used to write
- * [prefs] unconditionally *before* attempting the call, on the theory that a
- * failure would eventually reconcile via the next `performRegister` /
- * `announceDevice`. That silently contradicted
- * `SettingsViewModel.setServerPushOn`'s revert-and-Toast on failure, which
- * tells the user the change did not take effect while the persisted value
- * kept the rejected one — surviving a screen revisit or process death and
- * still feeding `announceDevice`'s reconciliation. The rule: record a
- * preference only once the thing it claims has actually happened.
+ * `updateServerPushOptOut` used to write [prefs] unconditionally *before*
+ * attempting the call, on the theory that a failure would eventually
+ * reconcile via the next `performRegister` / `announceDevice`. That
+ * silently contradicted `SettingsViewModel.setServerPushOn`'s
+ * revert-and-Toast on failure, which tells the user the change did not take
+ * effect while the persisted value kept the rejected one — surviving a
+ * screen revisit or process death and still feeding `announceDevice`'s
+ * reconciliation. The rule: record a preference only once the thing it
+ * claims has actually happened.
  *
  * `setServerPushOn`, through this function, is the switch that follows that
  * rule end to end, and the pattern to copy. `SettingsViewModel.pushCloudSyncEnabled`

@@ -11,9 +11,9 @@ import org.junit.Test
 
 /**
  * Covers [applyOptOutIfAccepted] — the invariant extracted out of
- * [PushRegistrationService.updateServerPushOptOut] to fix task-4-review.md
- * Important 1: a rejected server-push preference change must leave the
- * persisted opt-out exactly where it started, not the new (rejected) value.
+ * [PushRegistrationService.updateServerPushOptOut]: a rejected server-push
+ * preference change must leave the persisted opt-out exactly where it
+ * started, not the new (rejected) value.
  *
  * [PushRegistrationService] itself can't be constructed here to test this
  * end to end — [PushApiClient] and
@@ -32,13 +32,13 @@ class PushRegistrationServiceOptOutTest {
     private val key = "server_push_opt_out_test_key"
 
     /**
-     * The hazard task-4-review.md Important 1 found: after a failed toggle,
-     * `isServerPushOptedOut()` (a plain `prefs.getBoolean` read) must still
-     * answer with the pre-toggle value — not the rejected one — because that
-     * is what re-seeds `SettingsViewModel._serverPushOn` on the next
-     * construction and what `announceDevice` broadcasts on the next
-     * reconciliation pass. A test that only checks an in-memory flag would
-     * be exactly the bug the review called out, not a check for it.
+     * The hazard: after a failed toggle, `isServerPushOptedOut()` (a plain
+     * `prefs.getBoolean` read) must still answer with the pre-toggle value —
+     * not the rejected one — because that is what re-seeds
+     * `SettingsViewModel._serverPushOn` on the next construction and what
+     * `announceDevice` broadcasts on the next reconciliation pass. A test
+     * that only checks an in-memory flag would be exactly the bug this
+     * guards against, not a check for it.
      */
     @Test
     fun `a failed attempt leaves the persisted opt-out exactly where it started`() = runBlocking {
