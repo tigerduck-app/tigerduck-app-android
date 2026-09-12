@@ -780,15 +780,29 @@ class NotificationSettingsSyncTest {
     }
 
     /**
-     * One phone: its Live Update preferences, the real
-     * [NotificationSettingsSync] running on [scope], and one
+     * In-memory [AssignmentReminderSyncStore]: [Device] plays the role
+     * [AppPreferences] does in production, minus the parts that need a real
+     * `Context`.
+     */
+    private class FakeAssignmentReminderSyncStore : AssignmentReminderSyncStore {
+        override var enabled: Boolean = true
+        override var offsets: Set<AssignmentReminderOffset> = AssignmentReminderOffset.DEFAULTS
+        override var hasUnconfirmedEdit: Boolean = false
+    }
+
+    /**
+     * One phone: its Live Update preferences, its assignment-reminder store,
+     * the real [NotificationSettingsSync] running on [scope], and one
      * [FakeDocumentServer] per account, reached through whichever account is
      * signed in at the moment a request goes out.
      */
     private class Device(scope: CoroutineScope) {
         val prefs = LiveActivityPreferences(FakeLiveActivitySharedPreferences())
+        val assignments = FakeAssignmentReminderSyncStore()
         var syncLiveActivity = true
+        var syncAssignmentReminders = true
         val syncLiveActivityChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        val syncAssignmentRemindersChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         private var signedInAs: String? = null
         private val servers = mutableMapOf<String, FakeDocumentServer>()
 
@@ -807,10 +821,13 @@ class NotificationSettingsSyncTest {
                 ): SettingsWriteResult<JsonObject> = session().write(document, baseRevision)
             },
             liveActivityPreferences = prefs,
+            assignmentStore = assignments,
             cloudSyncEnabled = { true },
             syncLiveActivity = { syncLiveActivity },
+            syncAssignmentReminders = { syncAssignmentReminders },
             isLoggedIn = { signedInAs != null },
             syncLiveActivityChanged = syncLiveActivityChanged,
+            syncAssignmentRemindersChanged = syncAssignmentRemindersChanged,
             scope = scope,
         )
 
@@ -1052,6 +1069,122 @@ class NotificationSettingsSyncTest {
 
         assertEquals(2_700, device.server("A").lastClassLeadSeconds())
         assertFalse(device.prefs.hasUnconfirmedSyncEdit)
+    }
+
+    // ── 7b. The push queue: assignment-reminder settings go through it too ──
+    //
+    // Not a re-proof of the generation/backoff/offline machinery above —
+    // that machinery is shared code, already exercised there — just the
+    // branch-specific behavior this unit adds: an assignment edit actually
+    // triggers a push through the very same queue, one queued trigger can
+    // carry both sections, the assignments gate is independent of
+    // live_activity's, and both unconfirmed-edit flags are tracked and
+    // cleared independently.
+
+    @Test
+    fun `an assignment edit pushes through the same queue and confirms`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.assignments.enabled = false
+        device.assignments.offsets = setOf(AssignmentReminderOffset.HR2)
+
+        device.sync.markAssignmentUnconfirmedAndPush()
+        runQueue()
+
+        assertEquals("only the dirty section pushed", 1, device.server("A").writes.size)
+        val section = device.server("A").writes.single().getAsJsonObject("assignments")
+        assertEquals(false, section.get("enabled").asBoolean)
+        assertEquals(listOf(120), section.getAsJsonArray("reminder_offsets_minutes").map { it.asInt })
+        assertFalse("the push landed, so the edit is now confirmed", device.assignments.hasUnconfirmedEdit)
+    }
+
+    @Test
+    fun `one queued trigger carries both sections when both are dirty`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.assignments.enabled = false
+
+        // CONFLATED: both marks collapse into the one generation the queue
+        // is holding, so this is one queued trigger, not two.
+        device.sync.markUnconfirmedAndPush()
+        device.sync.markAssignmentUnconfirmedAndPush()
+        runQueue()
+
+        val writes = device.server("A").writes
+        assertEquals("one queued run makes two requests, one per dirty section", 2, writes.size)
+        assertTrue(writes.first().has("live_activity"))
+        assertTrue(writes.last().has("assignments"))
+        assertFalse(device.prefs.hasUnconfirmedSyncEdit)
+        assertFalse(device.assignments.hasUnconfirmedEdit)
+    }
+
+    @Test
+    fun `the assignments switch off leaves that edit unconfirmed without blocking the live_activity push`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.syncAssignmentReminders = false
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.assignments.enabled = false
+
+        device.sync.markUnconfirmedAndPush()
+        device.sync.markAssignmentUnconfirmedAndPush()
+        runQueue()
+
+        assertEquals("only live_activity's gate was open", 1, device.server("A").writes.size)
+        assertEquals(1_800, device.server("A").lastClassLeadSeconds())
+        assertFalse(device.prefs.hasUnconfirmedSyncEdit)
+        assertTrue(
+            "the switch is off, so this edit was never attempted and must stay unconfirmed for the next catch-up",
+            device.assignments.hasUnconfirmedEdit,
+        )
+    }
+
+    @Test
+    fun `turning assignment-reminder sync on pushes this device's values even with nothing pending`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncAssignmentReminders = false
+        device.signIn("A")
+        runQueue()
+
+        device.syncAssignmentReminders = true
+        device.syncAssignmentRemindersChanged.emit(Unit)
+        runQueue()
+
+        assertEquals("the switch turning on republishes this device's values", 1, device.server("A").writes.size)
+        assertTrue(device.server("A").writes.single().has("assignments"))
+    }
+
+    @Test
+    fun `an unconfirmed assignment edit at logout is not pushed into the next account's document`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").offline = true
+        device.assignments.enabled = false
+        device.sync.markAssignmentUnconfirmedAndPush()
+        runQueue() // the push fails, both retries fail, and the queue gives up
+        assertTrue(device.assignments.hasUnconfirmedEdit)
+
+        device.logOut()
+        device.signIn("B")
+        runQueue()
+
+        assertTrue("account A's settings must not reach account B's document", device.server("B").writes.isEmpty())
+    }
+
+    @Test
+    fun `pushIfUnconfirmed delivers a pending assignment edit with no live_activity edit involved`() = runTest {
+        val device = Device(backgroundScope)
+        device.assignments.enabled = false
+        device.sync.markAssignmentUnconfirmedAndPush()
+        runQueue()
+        assertTrue("signed out, the push had nowhere to go", device.assignments.hasUnconfirmedEdit)
+
+        device.signIn("A")
+        runQueue()
+
+        assertEquals(1, device.server("A").writes.size)
+        assertFalse(device.assignments.hasUnconfirmedEdit)
     }
 
     // ── 8. Bounded retry after a push failure ───────────────────────────────

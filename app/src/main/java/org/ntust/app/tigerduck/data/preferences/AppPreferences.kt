@@ -139,10 +139,24 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getBoolean("syncAssignments", true)
         set(value) = prefs.edit().putBoolean("syncAssignments", value).apply()
 
+    // Flips so NotificationSettingsSync can reconcile: turning this switch
+    // back on doesn't itself change notifyAssignments/notifyAssignmentOffsets,
+    // so nothing else would ever notice and (re-)push them. Emitted only on
+    // an actual change, mirroring syncLiveActivityChanged below.
+    private val _syncAssignmentRemindersChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val syncAssignmentRemindersChanged: SharedFlow<Unit> = _syncAssignmentRemindersChanged.asSharedFlow()
+
     /** "同步內容" (Synced content) toggle — assignment due-date reminders. */
     var syncAssignmentReminders: Boolean
         get() = prefs.getBoolean("syncAssignmentReminders", true)
-        set(value) = prefs.edit().putBoolean("syncAssignmentReminders", value).apply()
+        set(value) {
+            val previous = syncAssignmentReminders
+            prefs.edit().putBoolean("syncAssignmentReminders", value).apply()
+            if (value != previous) _syncAssignmentRemindersChanged.tryEmit(Unit)
+        }
 
     // Flips so NotificationSettingsSync can reconcile: turning this switch
     // back on doesn't itself change any of the five live_activity values,
@@ -459,6 +473,20 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
                 .putStringSet("notifyAssignmentOffsets", value.map { it.rawValue }.toSet())
                 .apply()
         }
+
+    /**
+     * Whether [notifyAssignments]/[notifyAssignmentOffsets] as they stand now
+     * have *not* yet been confirmed to have reached the server — the
+     * assignments-section mirror of `LiveActivityPreferences.hasUnconfirmedSyncEdit`;
+     * see that property's KDoc for why this has to be persisted rather than
+     * kept in memory, and why a plain `Boolean` rather than a version counter.
+     * A plain hand-written `getBoolean`/`putBoolean` pair, not a field on a
+     * Gson-deserialized class, so the upgrade-safe-persistence rule does not
+     * apply here.
+     */
+    var hasUnconfirmedAssignmentSyncEdit: Boolean
+        get() = prefs.getBoolean("hasUnconfirmedAssignmentSyncEdit", false)
+        set(value) = prefs.edit().putBoolean("hasUnconfirmedAssignmentSyncEdit", value).apply()
 
     var homeSections: List<HomeSection>
         get() {

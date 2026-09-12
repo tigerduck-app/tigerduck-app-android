@@ -803,19 +803,41 @@ internal fun pushRetryBackoffMillis(consecutiveFailures: Int): Long =
  * has to accept first.
  *
  * Every push is queued through one of two entry points, and which one a
- * caller uses is the protocol: [markUnconfirmedAndPush] for a change this
- * device made, which the other devices must now see, and
- * [pushIfUnconfirmed] for everything that only wants a change still
- * pending delivered. [cancelPendingPushes] ends both at logout.
+ * caller uses is the protocol: [markUnconfirmedAndPush] /
+ * [markAssignmentUnconfirmedAndPush] for a change this device made, which
+ * the other devices must now see, and [pushIfUnconfirmed] for everything
+ * that only wants a change still pending delivered, for either section.
+ * [cancelPendingPushes] ends all of it at logout.
  */
+/**
+ * The assignment-reminder values [NotificationSettingsSync] reads and writes
+ * — the `notification` document's `assignments` section is backed by
+ * [org.ntust.app.tigerduck.data.preferences.AppPreferences], which (like
+ * [SettingsDocumentApiClient]) needs a real `Context` and so cannot be
+ * constructed in this module's plain-JVM tests. A three-property interface
+ * rather than six separate get/set lambdas — the same information, but a
+ * test fake implements it as one small class instead of a constructor call
+ * with six trailing closures.
+ */
+internal interface AssignmentReminderSyncStore {
+    var enabled: Boolean
+    var offsets: Set<AssignmentReminderOffset>
+
+    /** The assignments-section mirror of `LiveActivityPreferences.hasUnconfirmedSyncEdit`. */
+    var hasUnconfirmedEdit: Boolean
+}
+
 @Singleton
 class NotificationSettingsSync internal constructor(
     private val transport: SettingsDocumentTransport,
     private val liveActivityPreferences: LiveActivityPreferences,
+    private val assignmentStore: AssignmentReminderSyncStore,
     private val cloudSyncEnabled: () -> Boolean,
     private val syncLiveActivity: () -> Boolean,
+    private val syncAssignmentReminders: () -> Boolean,
     private val isLoggedIn: () -> Boolean,
     syncLiveActivityChanged: Flow<Unit>,
+    syncAssignmentRemindersChanged: Flow<Unit>,
     scope: CoroutineScope,
 ) {
     // The real entry point: Hilt calls this (the @Inject constructor), which
@@ -843,10 +865,23 @@ class NotificationSettingsSync internal constructor(
                 client.write(NOTIFICATION_SETTINGS_NAMESPACE, document, baseRevision, JsonObject::class.java)
         },
         liveActivityPreferences = liveActivityPreferences,
+        assignmentStore = object : AssignmentReminderSyncStore {
+            override var enabled: Boolean
+                get() = appPreferences.notifyAssignments
+                set(value) { appPreferences.notifyAssignments = value }
+            override var offsets: Set<AssignmentReminderOffset>
+                get() = appPreferences.notifyAssignmentOffsets
+                set(value) { appPreferences.notifyAssignmentOffsets = value }
+            override var hasUnconfirmedEdit: Boolean
+                get() = appPreferences.hasUnconfirmedAssignmentSyncEdit
+                set(value) { appPreferences.hasUnconfirmedAssignmentSyncEdit = value }
+        },
         cloudSyncEnabled = { appPreferences.cloudSyncEnabled },
         syncLiveActivity = { appPreferences.syncLiveActivity },
+        syncAssignmentReminders = { appPreferences.syncAssignmentReminders },
         isLoggedIn = { authTokenManager.isLoggedIn },
         syncLiveActivityChanged = appPreferences.syncLiveActivityChanged,
+        syncAssignmentRemindersChanged = appPreferences.syncAssignmentRemindersChanged,
         scope = scope,
     )
 
@@ -914,7 +949,7 @@ class NotificationSettingsSync internal constructor(
                         } else {
                             Log.w(
                                 TAG,
-                                "live_activity settings push: giving up after $consecutiveFailures failures",
+                                "notification settings push: giving up after $consecutiveFailures failures",
                             )
                         }
                     },
@@ -928,6 +963,18 @@ class NotificationSettingsSync internal constructor(
         scope.launch {
             syncLiveActivityChanged.collect {
                 if (syncLiveActivity()) markUnconfirmedAndPush()
+            }
+        }
+        // Same reasoning, for "同步內容 → 作業到期提醒": turning it back on
+        // doesn't itself change notifyAssignments/notifyAssignmentOffsets, so
+        // without this the just-ungated section would stay stale server-side
+        // until some unrelated edit happened to trigger a push. Mirrors
+        // iOS's shouldPushOnDeviceSwitchChange (true only on the off->on
+        // transition, which is exactly what "a change arrived on this flow"
+        // means here since AppPreferences only emits on an actual change).
+        scope.launch {
+            syncAssignmentRemindersChanged.collect {
+                if (syncAssignmentReminders()) markAssignmentUnconfirmedAndPush()
             }
         }
     }
@@ -962,13 +1009,30 @@ class NotificationSettingsSync internal constructor(
     }
 
     /**
-     * Queues a push only if an earlier edit is still unconfirmed, and never
-     * marks anything: with nothing pending it does nothing at all, and the
-     * next pull is free to adopt what another device wrote.
+     * The assignments-section mirror of [markUnconfirmedAndPush]: marks
+     * [AssignmentReminderSyncStore.hasUnconfirmedEdit] and queues a push
+     * through the same channel. Called for exactly the two triggers that
+     * make this device's assignment-reminder settings the ones the user's
+     * other devices should now see: an edit to the master switch or an
+     * offset
+     * ([org.ntust.app.tigerduck.ui.screen.settings.AssignmentReminderSettingsViewModel]),
+     * and "同步內容 → 作業到期提醒" turning on (this class's `init`).
+     */
+    fun markAssignmentUnconfirmedAndPush() {
+        assignmentStore.hasUnconfirmedEdit = true
+        consecutiveFailures = 0
+        pending.trySend(generation.get())
+    }
+
+    /**
+     * Queues a push only if an earlier edit — live_activity's, assignments',
+     * or both — is still unconfirmed, and never marks anything: with nothing
+     * pending it does nothing at all, and the next pull is free to adopt
+     * what another device wrote.
      *
      * The catch-up for an edit whose push has not landed — one made while
-     * signed out, or while cloud sync or "同步內容 → 即時更新" was off, or one
-     * whose retries ran out. Called from each of
+     * signed out, or while cloud sync or the relevant "同步內容" switch was
+     * off, or one whose retries ran out. Called from each of
      * [org.ntust.app.tigerduck.auth.AuthService]'s sign-in paths (a fresh
      * login, the v2→v3 migration and the silent relogin), after every
      * successful full sync (`HomeBackendSync.pull`), and by [pullNow] when it
@@ -984,7 +1048,7 @@ class NotificationSettingsSync internal constructor(
      * [markUnconfirmedAndPush] does.
      */
     fun pushIfUnconfirmed() {
-        if (!liveActivityPreferences.hasUnconfirmedSyncEdit) return
+        if (!liveActivityPreferences.hasUnconfirmedSyncEdit && !assignmentStore.hasUnconfirmedEdit) return
         consecutiveFailures = 0
         pending.trySend(generation.get())
     }
@@ -1011,59 +1075,148 @@ class NotificationSettingsSync internal constructor(
     fun cancelPendingPushes() {
         generation.incrementAndGet()
         liveActivityPreferences.hasUnconfirmedSyncEdit = false
+        assignmentStore.hasUnconfirmedEdit = false
     }
 
     /**
      * Reads the shared `notification` document and applies its
-     * `live_activity` section to [liveActivityPreferences] — see
-     * [pullLiveActivitySettings] for exactly what happens when the section
-     * is missing, null, or individually malformed, and for what
-     * [LiveActivityPreferences.hasUnconfirmedSyncEdit] protects against. A
-     * transport failure (offline, a non-2xx/404 status) is caught and
-     * logged rather than thrown — see [pullLiveActivitySettingsCatching] —
-     * so this can never be the thing that crashes the caller.
+     * `live_activity` and `assignments` sections to [liveActivityPreferences]
+     * / [assignmentStore] — see [pullLiveActivitySettings] /
+     * [pullAssignmentSettings] for exactly what happens when a section is
+     * missing, null, or individually malformed, and for what each store's
+     * own unconfirmed-edit flag protects against. A transport failure
+     * (offline, a non-2xx/404 status) is caught and logged rather than
+     * thrown for either — see [pullLiveActivitySettingsCatching] /
+     * [pullAssignmentSettingsCatching] — so this can never be the thing that
+     * crashes the caller.
+     *
+     * The two pulls are independent: each is gated on its own switch and
+     * dirty flag, and one failing or being gated off does not stop the
+     * other. Returns `true` if *either* was actually attempted (matching
+     * each individual function's own "attempted" contract), so a caller that
+     * only cares about "did anything happen" (`LiveActivitySettingsViewModel`)
+     * keeps working unchanged.
      *
      * Called when the Live Activity settings screen opens
-     * ([org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsViewModel]),
-     * which additionally wraps this call itself: two independent guards
-     * against the one failure mode this repo has already documented twice
-     * as a process kill.
+     * ([org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsViewModel])
+     * and, identically, when the assignment-reminder settings screen opens
+     * ([org.ntust.app.tigerduck.ui.screen.settings.AssignmentReminderSettingsViewModel]),
+     * each of which additionally wraps this call itself: two independent
+     * guards against the one failure mode this repo has already documented
+     * twice as a process kill.
      */
-    suspend fun pullNow(): Boolean = pullLiveActivitySettingsCatching(
-        preferences = liveActivityPreferences,
-        transport = transport,
-        cloudSyncEnabled = cloudSyncEnabled(),
-        syncLiveActivity = syncLiveActivity(),
-        isLoggedIn = isLoggedIn(),
-        isLocalDirty = { liveActivityPreferences.hasUnconfirmedSyncEdit },
-        onLocalDirty = { pushIfUnconfirmed() },
-        onFailure = { e -> Log.w(TAG, "pulling live_activity settings failed", e) },
-    )
-
-    private suspend fun pushNow(queuedGeneration: Int): Boolean {
-        val sent = liveActivityPreferences.syncSnapshot()
-        val succeeded = pushLiveActivitySettings(
-            local = sent,
+    suspend fun pullNow(): Boolean {
+        val liveActivityAttempted = pullLiveActivitySettingsCatching(
+            preferences = liveActivityPreferences,
             transport = transport,
             cloudSyncEnabled = cloudSyncEnabled(),
             syncLiveActivity = syncLiveActivity(),
             isLoggedIn = isLoggedIn(),
-            isCurrentGeneration = { queuedGeneration == generation.get() },
+            isLocalDirty = { liveActivityPreferences.hasUnconfirmedSyncEdit },
+            onLocalDirty = { pushIfUnconfirmed() },
+            onFailure = { e -> Log.w(TAG, "pulling live_activity settings failed", e) },
         )
-        // Cleared only by a push that landed, and only if the five values
-        // still equal what it sent. A gate-closed `false`, an abandoned push
-        // (the account changed mid-flight — see pushLiveActivitySettings) or
-        // a thrown failure all leave the flag set, or the edit would read as
-        // confirmed when nothing was sent. So does an edit that landed while
-        // the request was in flight: the server holds the older values, and
-        // that edit's own push, queued behind this one, must still find the
-        // flag set — or a process death before it runs would lose the edit
-        // with the flag already reading "confirmed". Mirrors iOS's
-        // canClearPendingMarker.
-        if (succeeded && liveActivityPreferences.syncSnapshot() == sent) {
-            liveActivityPreferences.hasUnconfirmedSyncEdit = false
+
+        val resolvedAssignments = pullAssignmentSettingsCatching(
+            current = AssignmentSyncValues(enabled = assignmentStore.enabled, offsets = assignmentStore.offsets),
+            transport = transport,
+            cloudSyncEnabled = cloudSyncEnabled(),
+            syncAssignmentReminders = syncAssignmentReminders(),
+            isLoggedIn = isLoggedIn(),
+            isLocalDirty = { assignmentStore.hasUnconfirmedEdit },
+            onLocalDirty = { pushIfUnconfirmed() },
+            onFailure = { e -> Log.w(TAG, "pulling assignment settings failed", e) },
+        )
+        if (resolvedAssignments != null) {
+            if (resolvedAssignments.enabled != assignmentStore.enabled) {
+                assignmentStore.enabled = resolvedAssignments.enabled
+            }
+            if (resolvedAssignments.offsets != assignmentStore.offsets) {
+                assignmentStore.offsets = resolvedAssignments.offsets
+            }
         }
-        return succeeded
+
+        return liveActivityAttempted || resolvedAssignments != null
+    }
+
+    /**
+     * Pushes whichever of the two sections this class owns is actually
+     * unconfirmed, sequentially under the one queued trigger: live_activity
+     * first (unchanged from before assignments existed), then assignments.
+     * Sequential, not concurrent, so the assignments push's own read sees
+     * whatever the live_activity push just wrote rather than racing it into
+     * an avoidable 409.
+     *
+     * Each is gated on its own unconfirmed-edit flag *in addition to* its
+     * own sync switch: every path that enqueues a push — [markUnconfirmedAndPush],
+     * [markAssignmentUnconfirmedAndPush], [pushIfUnconfirmed], the off→on
+     * switch collectors, and the failure handler's own re-`trySend` — sets
+     * or requires at least one of the two flags first, so this never skips
+     * a push that was actually asked for. What it does prevent: one
+     * section's trigger (an assignments edit, say) re-sending the *other*
+     * section's already-confirmed, unchanged values on every unrelated
+     * queue run — which, beside the wasted request, would silently move
+     * this file's tests off "exactly N writes for this one edit" the moment
+     * a second section shared the queue.
+     *
+     * Each clears only its own flag, only if it both succeeded and nothing
+     * changed locally while it ran — see [pushLiveActivitySettings]'s KDoc
+     * (`canClearPendingMarker`) for why.
+     *
+     * Returns `true` if *either* section actually pushed, so the retry loop
+     * above only treats "neither was dirty, or every dirty gate was closed"
+     * as the no-op case; either section throwing propagates immediately
+     * (the other is not attempted that pass), and the whole call is
+     * retried together on the next attempt, exactly as a single-section
+     * push already was.
+     */
+    private suspend fun pushNow(queuedGeneration: Int): Boolean {
+        var liveActivitySucceeded = false
+        if (liveActivityPreferences.hasUnconfirmedSyncEdit) {
+            val sentLiveActivity = liveActivityPreferences.syncSnapshot()
+            liveActivitySucceeded = pushLiveActivitySettings(
+                local = sentLiveActivity,
+                transport = transport,
+                cloudSyncEnabled = cloudSyncEnabled(),
+                syncLiveActivity = syncLiveActivity(),
+                isLoggedIn = isLoggedIn(),
+                isCurrentGeneration = { queuedGeneration == generation.get() },
+            )
+            // Cleared only by a push that landed, and only if the five
+            // values still equal what it sent. A gate-closed `false`, an
+            // abandoned push (the account changed mid-flight — see
+            // pushLiveActivitySettings) or a thrown failure all leave the
+            // flag set, or the edit would read as confirmed when nothing
+            // was sent. So does an edit that landed while the request was
+            // in flight: the server holds the older values, and that
+            // edit's own push, queued behind this one, must still find the
+            // flag set — or a process death before it runs would lose the
+            // edit with the flag already reading "confirmed". Mirrors
+            // iOS's canClearPendingMarker.
+            if (liveActivitySucceeded && liveActivityPreferences.syncSnapshot() == sentLiveActivity) {
+                liveActivityPreferences.hasUnconfirmedSyncEdit = false
+            }
+        }
+
+        var assignmentsSucceeded = false
+        if (assignmentStore.hasUnconfirmedEdit) {
+            val sentAssignments = AssignmentSyncValues(enabled = assignmentStore.enabled, offsets = assignmentStore.offsets)
+            assignmentsSucceeded = pushAssignmentSettings(
+                local = sentAssignments,
+                transport = transport,
+                cloudSyncEnabled = cloudSyncEnabled(),
+                syncAssignmentReminders = syncAssignmentReminders(),
+                isLoggedIn = isLoggedIn(),
+                isCurrentGeneration = { queuedGeneration == generation.get() },
+            )
+            val currentAssignments =
+                AssignmentSyncValues(enabled = assignmentStore.enabled, offsets = assignmentStore.offsets)
+            if (assignmentsSucceeded && currentAssignments == sentAssignments) {
+                assignmentStore.hasUnconfirmedEdit = false
+            }
+        }
+
+        return liveActivitySucceeded || assignmentsSucceeded
     }
 
     private companion object {
