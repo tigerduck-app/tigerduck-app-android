@@ -68,11 +68,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncUpdate
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncValues
+import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -840,11 +842,33 @@ internal interface AssignmentReminderSyncStore {
     var hasUnconfirmedEdit: Boolean
 }
 
+/**
+ * What a pull that changes the assignment-reminder settings does to the
+ * reminders already armed on this device. Android fires these reminders
+ * itself (the backend delivers assignment reminders only to iPhone and
+ * iPad), so a setting adopted from another device has to reach
+ * [org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler]
+ * the way this device's own edits do. An interface for the same reason as
+ * [AssignmentReminderSyncStore]: the scheduler and the assignment cache
+ * both need a real `Context`.
+ */
+internal interface AssignmentReminderAlarms {
+    /** Cancels every assignment reminder armed on this device. */
+    fun cancelAll()
+
+    /**
+     * Re-arms a reminder for every cached, unfinished assignment, at the
+     * offsets stored at the moment it arms them.
+     */
+    suspend fun rescheduleFromCache()
+}
+
 @Singleton
 class NotificationSettingsSync internal constructor(
     private val transport: SettingsDocumentTransport,
     private val liveActivityPreferences: LiveActivityPreferences,
     private val assignmentStore: AssignmentReminderSyncStore,
+    private val assignmentAlarms: AssignmentReminderAlarms,
     private val cloudSyncEnabled: () -> Boolean,
     private val syncLiveActivity: () -> Boolean,
     private val syncAssignmentReminders: () -> Boolean,
@@ -857,14 +881,16 @@ class NotificationSettingsSync internal constructor(
     // adapts the app's singletons to the plain types of the primary
     // constructor above. Split this way so NotificationSettingsSyncTest can
     // build the real class on the plain JVM: SettingsDocumentApiClient,
-    // AppPreferences and AuthTokenManager all need a real Context or the
-    // Android Keystore. Same split, for the same reason, as
-    // LiveActivityPreferences.
+    // AppPreferences, AuthTokenManager, the scheduler and the cache all need
+    // a real Context or the Android Keystore. Same split, for the same
+    // reason, as LiveActivityPreferences.
     @Inject constructor(
         client: SettingsDocumentApiClient,
         liveActivityPreferences: LiveActivityPreferences,
         appPreferences: AppPreferences,
         authTokenManager: AuthTokenManager,
+        scheduler: AssignmentNotificationScheduler,
+        dataCache: DataCache,
         @ApplicationScope scope: CoroutineScope,
     ) : this(
         transport = object : SettingsDocumentTransport {
@@ -888,6 +914,16 @@ class NotificationSettingsSync internal constructor(
             override var hasUnconfirmedEdit: Boolean
                 get() = appPreferences.hasUnconfirmedAssignmentSyncEdit
                 set(value) { appPreferences.hasUnconfirmedAssignmentSyncEdit = value }
+        },
+        assignmentAlarms = object : AssignmentReminderAlarms {
+            override fun cancelAll() = scheduler.cancelAllTracked()
+
+            override suspend fun rescheduleFromCache() {
+                val assignments = dataCache.loadAssignments().filter { !it.isCompleted }
+                val safetyNetIds =
+                    dataCache.loadIgnoredAssignments() + dataCache.loadMarkedCompletedAssignments()
+                scheduler.scheduleAll(assignments, safetyNetIds, appPreferences.notifyAssignmentOffsets)
+            }
         },
         cloudSyncEnabled = { appPreferences.cloudSyncEnabled },
         syncLiveActivity = { appPreferences.syncLiveActivity },
@@ -1128,6 +1164,12 @@ class NotificationSettingsSync internal constructor(
      * caller runs this on the main thread, where the settings screens make
      * their edits, so no edit can land between the two either.
      *
+     * A pull that changes the assignment values also brings the reminders
+     * already armed on this device into line, through [assignmentAlarms]:
+     * cancelled when reminders are now off, re-armed from the assignment
+     * cache otherwise. Android fires these reminders itself, so without this
+     * a switch turned off on another device would keep firing here.
+     *
      * The two pulls are independent: each is gated on its own switch and
      * dirty flag, and one failing or being gated off does not stop the
      * other. Returns `true` if *either* was actually attempted (matching
@@ -1143,43 +1185,53 @@ class NotificationSettingsSync internal constructor(
      * guards against the one failure mode this repo has already documented
      * twice as a process kill.
      */
-    suspend fun pullNow(): Boolean = documentLock.withLock {
-        val liveActivityAttempted = pullLiveActivitySettingsCatching(
-            preferences = liveActivityPreferences,
-            transport = transport,
-            cloudSyncEnabled = cloudSyncEnabled(),
-            syncLiveActivity = syncLiveActivity(),
-            isLoggedIn = isLoggedIn(),
-            isLocalDirty = { liveActivityPreferences.hasUnconfirmedSyncEdit },
-            onLocalDirty = { pushIfUnconfirmed() },
-            onFailure = { e -> Log.w(TAG, "pulling live_activity settings failed", e) },
-        )
+    suspend fun pullNow(): Boolean {
+        var assignmentsChanged = false
+        val attempted = documentLock.withLock {
+            val liveActivityAttempted = pullLiveActivitySettingsCatching(
+                preferences = liveActivityPreferences,
+                transport = transport,
+                cloudSyncEnabled = cloudSyncEnabled(),
+                syncLiveActivity = syncLiveActivity(),
+                isLoggedIn = isLoggedIn(),
+                isLocalDirty = { liveActivityPreferences.hasUnconfirmedSyncEdit },
+                onLocalDirty = { pushIfUnconfirmed() },
+                onFailure = { e -> Log.w(TAG, "pulling live_activity settings failed", e) },
+            )
 
-        val cloudSync = cloudSyncEnabled()
-        val assignmentsSynced = syncAssignmentReminders()
-        val loggedIn = isLoggedIn()
-        var assignmentReadFailed = false
-        val expected = assignmentValues()
-        val pulled = pullAssignmentSettingsCatching(
-            current = expected,
-            transport = transport,
-            cloudSyncEnabled = cloudSync,
-            syncAssignmentReminders = assignmentsSynced,
-            isLoggedIn = loggedIn,
-            isLocalDirty = { assignmentStore.hasUnconfirmedEdit || assignmentValues() != expected },
-            onLocalDirty = { pushIfUnconfirmed() },
-            onFailure = { e ->
-                assignmentReadFailed = true
-                Log.w(TAG, "pulling assignment settings failed", e)
-            },
-        )
-        if (pulled != null) {
-            if (pulled.enabled != expected.enabled) assignmentStore.enabled = pulled.enabled
-            if (pulled.offsets != expected.offsets) assignmentStore.offsets = pulled.offsets
+            val cloudSync = cloudSyncEnabled()
+            val assignmentsSynced = syncAssignmentReminders()
+            val loggedIn = isLoggedIn()
+            var assignmentReadFailed = false
+            val expected = assignmentValues()
+            val pulled = pullAssignmentSettingsCatching(
+                current = expected,
+                transport = transport,
+                cloudSyncEnabled = cloudSync,
+                syncAssignmentReminders = assignmentsSynced,
+                isLoggedIn = loggedIn,
+                isLocalDirty = { assignmentStore.hasUnconfirmedEdit || assignmentValues() != expected },
+                onLocalDirty = { pushIfUnconfirmed() },
+                onFailure = { e ->
+                    assignmentReadFailed = true
+                    Log.w(TAG, "pulling assignment settings failed", e)
+                },
+            )
+            if (pulled != null && pulled != expected) {
+                if (pulled.enabled != expected.enabled) assignmentStore.enabled = pulled.enabled
+                if (pulled.offsets != expected.offsets) assignmentStore.offsets = pulled.offsets
+                assignmentsChanged = true
+            }
+
+            val assignmentsAttempted = cloudSync && assignmentsSynced && loggedIn && !assignmentReadFailed
+            liveActivityAttempted || assignmentsAttempted
         }
 
-        val assignmentsAttempted = cloudSync && assignmentsSynced && loggedIn && !assignmentReadFailed
-        liveActivityAttempted || assignmentsAttempted
+        // Outside the lock: local work that no push has to wait for.
+        if (assignmentsChanged) {
+            if (assignmentStore.enabled) assignmentAlarms.rescheduleFromCache() else assignmentAlarms.cancelAll()
+        }
+        return attempted
     }
 
     private fun assignmentValues() =

@@ -804,6 +804,22 @@ class NotificationSettingsSyncTest {
         override var hasUnconfirmedEdit: Boolean = false
     }
 
+    /** Records what the sync asks of the reminders armed on this device. */
+    private class FakeAssignmentReminderAlarms : AssignmentReminderAlarms {
+        var cancels = 0
+            private set
+        var reschedules = 0
+            private set
+
+        override fun cancelAll() {
+            cancels++
+        }
+
+        override suspend fun rescheduleFromCache() {
+            reschedules++
+        }
+    }
+
     /**
      * One phone: its Live Update preferences, its assignment-reminder store,
      * the real [NotificationSettingsSync] running on [scope], and one
@@ -813,6 +829,7 @@ class NotificationSettingsSyncTest {
     private class Device(scope: CoroutineScope) {
         val prefs = LiveActivityPreferences(FakeLiveActivitySharedPreferences())
         val assignments = FakeAssignmentReminderSyncStore()
+        val alarms = FakeAssignmentReminderAlarms()
         var syncLiveActivity = true
         var syncAssignmentReminders = true
         val syncLiveActivityChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -836,6 +853,7 @@ class NotificationSettingsSyncTest {
             },
             liveActivityPreferences = prefs,
             assignmentStore = assignments,
+            assignmentAlarms = alarms,
             cloudSyncEnabled = { true },
             syncLiveActivity = { syncLiveActivity },
             syncAssignmentReminders = { syncAssignmentReminders },
@@ -1338,6 +1356,48 @@ class NotificationSettingsSyncTest {
             AssignmentReminderOffset.DEFAULTS,
             device.assignments.offsets,
         )
+    }
+
+    // ── 7d. A pulled change reaches the reminders armed on this device ──────
+    //
+    // Android fires assignment reminders itself; the backend sends them only
+    // to iPhone and iPad. So a setting adopted from another device has to
+    // cancel or re-arm what is already scheduled here, whichever screen or
+    // sync ran the pull, which is why it happens inside pullNow().
+
+    @Test
+    fun `a pulled switch-off cancels the reminders already armed`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        // Turned off on the iPhone.
+        device.server("A").document = json(
+            """{"assignments": {"enabled": false, "reminder_offsets_minutes": [2880, 1440, 480, 120, 60, 30]}}"""
+        )
+
+        device.sync.pullNow()
+
+        assertFalse(device.assignments.enabled)
+        assertEquals("every reminder already armed must be cancelled", 1, device.alarms.cancels)
+        assertEquals(0, device.alarms.reschedules)
+    }
+
+    @Test
+    fun `a pulled offset change re-arms the reminders, and a pull that changes nothing leaves them alone`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        device.server("A").document = json("""{"assignments": {"enabled": true, "reminder_offsets_minutes": [1440]}}""")
+
+        device.sync.pullNow()
+
+        assertEquals(setOf(AssignmentReminderOffset.HR24), device.assignments.offsets)
+        assertEquals("the armed reminders must move to the new offsets", 1, device.alarms.reschedules)
+        assertEquals(0, device.alarms.cancels)
+
+        device.sync.pullNow()
+
+        assertEquals("nothing changed, so nothing is re-armed", 1, device.alarms.reschedules)
     }
 
     // ── 8. Bounded retry after a push failure ───────────────────────────────

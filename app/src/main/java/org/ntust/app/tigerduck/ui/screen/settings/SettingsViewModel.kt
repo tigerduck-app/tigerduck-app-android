@@ -479,8 +479,6 @@ class SettingsViewModel @Inject constructor(
         get() = (if (BuildConfig.DEBUG) debugFixtures.studentIdOverride else null)
             ?: authService.storedStudentId
 
-    fun cancelAllAssignmentNotifications() = notificationScheduler.cancelAllTracked()
-
     fun clearNtustLoginError() = authService.clearLoginError()
 
     fun resetCourseColors() {

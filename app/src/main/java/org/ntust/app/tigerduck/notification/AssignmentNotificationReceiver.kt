@@ -9,9 +9,16 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import dagger.hilt.android.AndroidEntryPoint
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class AssignmentNotificationReceiver : BroadcastReceiver() {
+
+    @Inject
+    lateinit var appPreferences: AppPreferences
 
     override fun onReceive(context: Context, intent: Intent) {
         val title = intent.getStringExtra(EXTRA_TITLE) ?: return
@@ -22,6 +29,11 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
         // a regular reminder so they keep firing the original body.
         val kind = intent.getIntExtra(EXTRA_KIND, KIND_REGULAR)
         val offset = AssignmentReminderOffset.fromRawValue(intent.getStringExtra(EXTRA_OFFSET))
+
+        // Every path that turns reminders off cancels the alarms already
+        // armed, but one armed in a race with that cancel would still fire
+        // here. The switch has the last word, so it is read again at fire time.
+        if (!appPreferences.notifyAssignments) return
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
