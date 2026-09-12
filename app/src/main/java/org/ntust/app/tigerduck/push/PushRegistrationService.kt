@@ -454,11 +454,19 @@ class PushRegistrationService @Inject constructor(
             },
         )
 
+    /**
+     * Unlike [updateServerPushOptOut], this has no fdroid check of its own —
+     * the toggle that reaches it is unreachable there (`CloudSyncSettingsScreen`),
+     * and the network boundary is guarded once, for this and
+     * [updateSyncPreferences] together, inside
+     * [PushApiClient.updateDevicePreferences] — see `preferencesPatchBlockedOnFdroid`.
+     */
     suspend fun updateCloudSyncEnabled(enabled: Boolean) {
         val deviceId = identity.uuid()
         api.updateDevicePreferences(deviceId, cloudSyncEnabled = enabled)
     }
 
+    /** See [updateCloudSyncEnabled]'s note on where the fdroid guard lives. */
     suspend fun updateSyncPreferences(
         syncCourses: Boolean,
         syncCourseColors: Boolean,
