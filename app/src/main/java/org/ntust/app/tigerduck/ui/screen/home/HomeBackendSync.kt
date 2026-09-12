@@ -26,7 +26,10 @@ import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import org.ntust.app.tigerduck.BuildConfig
@@ -36,6 +39,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.notification.SyncSource
@@ -100,6 +104,7 @@ class HomeBackendSync @Inject constructor(
     private val semesterCatalog: SemesterCatalog,
     private val widgetUpdater: WidgetUpdater,
     private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
+    @param:ApplicationScope private val appScope: CoroutineScope,
 ) {
 
     /**
@@ -160,11 +165,30 @@ class HomeBackendSync @Inject constructor(
             // value changes. It already catches its own transport failures;
             // the guard is so nothing else it throws can turn this successful
             // sync into a failed one.
-            runCatching { notificationSettingsSync.pullNow() }
-                .onFailure { e ->
-                    if (e is CancellationException) throw e
-                    Log.w(TAG, "[Sync] notification settings pull failed", e)
-                }
+            //
+            // Launched, never awaited: the sync this refresh is showing has
+            // already succeeded by here, and pullNow() waits for the document
+            // lock — which a queued push can hold for a whole read-modify-
+            // write — and then reads the document. On a degrading connection
+            // that is up to a minute of spinner (10 s connect / 20 s read,
+            // twice) for work Home is not showing. Nothing downstream needs
+            // the result: the pull re-arms the reminders itself, and
+            // `scheduleAll` is synchronized and reads the preferences at arm
+            // time, so whichever of it and Home's own arming runs last is
+            // correct either way.
+            //
+            // On the application scope rather than the caller's: the caller is
+            // a viewModelScope that a rotation or a swipe off Home cancels,
+            // which could land in the middle of the apply. On Dispatchers.Main
+            // because pullNow()'s check-and-apply requires it — the
+            // application scope's own dispatcher is Default.
+            appScope.launch(Dispatchers.Main) {
+                runCatching { notificationSettingsSync.pullNow() }
+                    .onFailure { e ->
+                        if (e is CancellationException) throw e
+                        Log.w(TAG, "[Sync] notification settings pull failed", e)
+                    }
+            }
         } catch (e: CancellationException) {
             // Leaving Home mid-sync cancels viewModelScope, which lands here.
             // The writes below are not suspending, so they would run even in a
