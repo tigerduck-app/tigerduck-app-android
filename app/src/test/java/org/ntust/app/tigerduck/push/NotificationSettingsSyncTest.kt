@@ -1141,7 +1141,11 @@ class NotificationSettingsSyncTest {
         // is holding, so this is one queued trigger, not two.
         device.sync.markUnconfirmedAndPush()
         device.sync.markAssignmentUnconfirmedAndPush()
-        runQueue()
+        // One 250 ms debounce and no more. A second trigger has to wait out a
+        // debounce of its own before it can send anything, so both sections
+        // being on the server already means the first trigger carried both.
+        advanceTimeBy(250)
+        runCurrent()
 
         val writes = device.server("A").writes
         assertEquals("one queued run makes two requests, one per dirty section", 2, writes.size)
@@ -1149,6 +1153,8 @@ class NotificationSettingsSyncTest {
         assertTrue(writes.last().has("assignments"))
         assertFalse(device.prefs.hasUnconfirmedSyncEdit)
         assertFalse(device.assignments.hasUnconfirmedEdit)
+        runQueue()
+        assertEquals("and nothing is left for a later run to send", 2, device.server("A").writes.size)
     }
 
     @Test
@@ -1937,76 +1943,88 @@ class NotificationSettingsSyncTest {
 
     // ── 15. pullAssignmentSettings: the four degrade-to-local cases ────────
     //
-    // Each starts from a deliberately non-default local value -- enabled is
-    // false (default true) and the offsets are neither DEFAULTS nor empty --
-    // so "kept local" and "reset to default" cannot look alike.
+    // Each runs from both [startingPoints]. Their offsets are neither
+    // DEFAULTS nor empty, so "kept local" and "reset to default" cannot look
+    // alike. `enabled` is false in one, which a reset to the default (true)
+    // would flip, and true in the other, which a "missing means false"
+    // fallback would flip; together they rule out both.
 
     private fun nonDefaultAssignments() = AssignmentSyncValues(
         enabled = false,
         offsets = setOf(AssignmentReminderOffset.HR16, AssignmentReminderOffset.MIN10),
     )
 
+    private val startingPoints = listOf(nonDefaultAssignments(), nonDefaultAssignments().copy(enabled = true))
+
     @Test
     fun `pull keeps local assignment values when the section is absent`() = runBlocking {
-        val current = nonDefaultAssignments()
-        val transport = RecordingTransport(
-            existing = SettingsDocumentEnvelope(document = json("""{"live_activity": {"show_in_class": true}}"""), revision = 1L)
-        )
+        for (current in startingPoints) {
+            val transport = RecordingTransport(
+                existing = SettingsDocumentEnvelope(document = json("""{"live_activity": {"show_in_class": true}}"""), revision = 1L)
+            )
 
-        val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
+            val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
 
-        assertNull("an absent section has nothing to apply; the local values stand as they are", resolved)
+            assertNull("an absent section has nothing to apply; the local values stand as they are (from $current)", resolved)
+        }
     }
 
     @Test
     fun `pull keeps local assignment values when the section is JSON null`() = runBlocking {
-        val current = nonDefaultAssignments()
-        val transport = RecordingTransport(
-            existing = SettingsDocumentEnvelope(document = json("""{"assignments": null}"""), revision = 1L)
-        )
+        for (current in startingPoints) {
+            val transport = RecordingTransport(
+                existing = SettingsDocumentEnvelope(document = json("""{"assignments": null}"""), revision = 1L)
+            )
 
-        val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
+            val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
 
-        assertNull("a null section has nothing to apply; the local values stand as they are", resolved)
+            assertNull("a null section has nothing to apply; the local values stand as they are (from $current)", resolved)
+        }
     }
 
     @Test
     fun `pull keeps local values for fields the section omits`() = runBlocking {
-        val current = nonDefaultAssignments()
-        val transport = RecordingTransport(
-            existing = SettingsDocumentEnvelope(document = json("""{"assignments": {}}"""), revision = 1L)
-        )
+        for (current in startingPoints) {
+            val transport = RecordingTransport(
+                existing = SettingsDocumentEnvelope(document = json("""{"assignments": {}}"""), revision = 1L)
+            )
 
-        val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
+            val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
 
-        assertEquals("a field missing from an otherwise-present section must not reset to defaults", current, resolved)
+            assertEquals(
+                "a field missing from an otherwise-present section must keep its local value (from $current)",
+                current,
+                resolved,
+            )
+        }
     }
 
     @Test
     fun `pull keeps local values when fields are the wrong JSON type`() = runBlocking {
-        val current = nonDefaultAssignments()
-        val transport = RecordingTransport(
-            existing = SettingsDocumentEnvelope(
-                document = json(
-                    """
-                    {"assignments": {
-                        "enabled": "true",
-                        "reminder_offsets_minutes": {"not": "a list"},
-                        "reminder_offsets_hours": "24"
-                    }}
-                    """.trimIndent()
-                ),
-                revision = 1L,
+        for (current in startingPoints) {
+            val transport = RecordingTransport(
+                existing = SettingsDocumentEnvelope(
+                    document = json(
+                        """
+                        {"assignments": {
+                            "enabled": "true",
+                            "reminder_offsets_minutes": {"not": "a list"},
+                            "reminder_offsets_hours": "24"
+                        }}
+                        """.trimIndent()
+                    ),
+                    revision = 1L,
+                )
             )
-        )
 
-        val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
+            val resolved = pullAssignmentSettings(current, transport, cloudSyncEnabled = true, syncAssignmentReminders = true, isLoggedIn = true)
 
-        assertEquals(
-            "a JSON string is not a JSON boolean or a JSON array, however each reads -- keep local",
-            current,
-            resolved,
-        )
+            assertEquals(
+                "a JSON string is not a JSON boolean or a JSON array, however each reads -- keep local (from $current)",
+                current,
+                resolved,
+            )
+        }
     }
 
     // ── 16. pullAssignmentSettings: precedence and gates ────────────────────
