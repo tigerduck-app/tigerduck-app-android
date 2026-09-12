@@ -69,9 +69,6 @@ class SettingsViewModel @Inject constructor(
     private val _syncDiagnostic = MutableStateFlow(PushDiagnostic(false, false, null))
     val syncDiagnostic: StateFlow<PushDiagnostic> = _syncDiagnostic
 
-    private val _isSyncing = MutableStateFlow(false)
-    val isSyncing: StateFlow<Boolean> = _isSyncing
-
     private val _serverPushOn = MutableStateFlow(!pushRegistration.isServerPushOptedOut())
     val serverPushOn: StateFlow<Boolean> = _serverPushOn
 
@@ -410,15 +407,6 @@ class SettingsViewModel @Inject constructor(
                     }
                 }
             }
-        }
-    }
-
-    fun syncNow() {
-        if (_isSyncing.value) return
-        _isSyncing.value = true
-        viewModelScope.launch {
-            try { pushRegistration.syncNow() }
-            finally { _isSyncing.value = false }
         }
     }
 

@@ -33,7 +33,6 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -119,7 +118,7 @@ internal fun hasSyncContentLeft(
  * comment for that history), and "TigerSync 狀態": a plain title
  * ([TigerSyncStatusSummary] — registration status, then the latest error
  * when there is one) followed by [SyncStatusCard] for the rest (push
- * permission, Sync Now, device ID). On fdroid the essential-info row is
+ * permission, device ID). On fdroid the essential-info row is
  * unchanged, but the course-sync and server-push rows are greyed out and
  * off — see [isFdroidFlavor].
  */
@@ -138,7 +137,6 @@ fun CloudSyncSettingsScreen(
     val context = LocalContext.current
     val deviceId = remember { viewModel.identity.uuid() }
     val diagnostic by viewModel.syncDiagnostic.collectAsState()
-    val isSyncing by viewModel.isSyncing.collectAsState()
     val reenableConflict by viewModel.reenableConflict.collectAsState()
     val serverPushOn by viewModel.serverPushOn.collectAsState()
     val isTogglingServerPush by viewModel.isTogglingServerPush.collectAsState()
@@ -358,13 +356,7 @@ fun CloudSyncSettingsScreen(
             // directly under the heading rather than behind a nav target.
             item { SectionHeader(stringResource(R.string.sync_status_nav_label)) }
             item { TigerSyncStatusSummary(diagnostic = diagnostic) }
-            item {
-                SyncStatusCard(
-                    isSyncing = isSyncing,
-                    deviceId = deviceId,
-                    onSyncNow = viewModel::syncNow,
-                )
-            }
+            item { SyncStatusCard(deviceId = deviceId) }
 
             item { Spacer(Modifier.height(8.dp)) }
             item {
@@ -436,10 +428,9 @@ private fun ToggleWithFooterRow(
 /**
  * "TigerSync 狀態" itself (spec §6): a title, not a row that goes anywhere —
  * just the device-registration status directly under the [SectionHeader],
- * and the latest error under that when there is one. Hidden on fdroid for
- * the same reason [SyncStatusCard] hides its own registration-dependent
- * pieces: without an FCM token, registration never completes, so this would
- * only ever be able to show "pending" forever.
+ * and the latest error under that when there is one. Hidden on fdroid:
+ * without an FCM token, registration never completes, so this would only
+ * ever be able to show "pending" forever.
  */
 @Composable
 private fun TigerSyncStatusSummary(diagnostic: PushDiagnostic) {
@@ -468,9 +459,7 @@ private fun TigerSyncStatusSummary(diagnostic: PushDiagnostic) {
 
 @Composable
 private fun SyncStatusCard(
-    isSyncing: Boolean,
     deviceId: String,
-    onSyncNow: () -> Unit,
 ) {
     val context = LocalContext.current
     fun checkNotificationGranted(): Boolean =
@@ -511,30 +500,6 @@ private fun SyncStatusCard(
                     okText = stringResource(R.string.permission_granted),
                     badText = stringResource(R.string.bulletin_push_status_denied),
                 )
-                // Sync Now is downstream of an FCM token this build never
-                // gets, so on fdroid it would never do anything but spin —
-                // hidden outright rather than shown stuck, same as the
-                // registration status and error in TigerSyncStatusSummary
-                // above. The permission row above and the device ID below
-                // are unrelated to registration and stay on every flavor.
-                if (!isFdroidFlavor) {
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = onSyncNow,
-                        enabled = !isSyncing,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        if (isSyncing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                            )
-                        } else {
-                            Text(stringResource(R.string.cloud_sync_sync_now))
-                        }
-                    }
-                }
                 if (!permissionGranted) {
                     Spacer(Modifier.height(8.dp))
                     Button(
@@ -553,7 +518,7 @@ private fun SyncStatusCard(
             }
             // Device ID no longer forms its own "push_server_ids_section" —
             // it stays visible as part of the status area (spec §6), directly
-            // under the sync-now / permission controls.
+            // under the permission controls.
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             DeviceIdRow(deviceId = deviceId)
         }

@@ -285,12 +285,13 @@ class PushRegistrationService @Inject constructor(
     }
 
     /**
-     * User-triggered re-registration retry from the TigerSync status card's
-     * "Sync now" button. `performRegister` already updates `isRegistered` /
-     * `lastError` on both the success and the API-failure path; this only
-     * has to cover the no-op paths performRegister itself stays silent
-     * about, so the button's spinner-stops-without-feedback doesn't
-     * silently lie about success.
+     * Re-registration retry, currently called by the debug API-endpoint
+     * override screen's Save/Reset actions so a changed backend URL gets a
+     * fresh registration immediately. `performRegister` already updates
+     * `isRegistered` / `lastError` on both the success and the API-failure
+     * path; this only has to cover the no-op paths performRegister itself
+     * stays silent about, so a caller showing progress doesn't silently lie
+     * about success once it stops.
      */
     suspend fun syncNow(): Boolean {
         val ok = performRegister()
