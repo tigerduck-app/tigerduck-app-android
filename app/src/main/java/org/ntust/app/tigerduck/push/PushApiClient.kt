@@ -29,8 +29,11 @@ class PushApiClient @Inject constructor(
     private val authTokenManager: AuthTokenManager,
 ) {
 
+    // prefs.cloudSyncEnabled already reads false on fdroid at its source
+    // (AppPreferences.cloudSyncEnabled -> effectiveCloudSyncEnabled), so
+    // ANDing a second flavor check here would only ever restate it.
     private val isSyncCapable: Boolean
-        get() = prefs.cloudSyncEnabled && !BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)
+        get() = prefs.cloudSyncEnabled
 
     private val baseUrl: String
         get() = resolveAnnouncementEndpoint(prefs).url.trimEnd('/')
@@ -152,7 +155,10 @@ class PushApiClient @Inject constructor(
         syncCourseColors: Boolean? = null,
         syncCourseNames: Boolean? = null,
         syncAssignments: Boolean? = null,
+        syncAssignmentReminders: Boolean? = null,
+        syncLiveActivity: Boolean? = null,
         cloudSyncEnabled: Boolean? = null,
+        locale: String? = null,
     ): DevicePreferencesResponse = withContext(Dispatchers.IO) {
         val payload = UpdateDevicePreferencesRequest(
             serverPushEnabled = serverPushEnabled,
@@ -160,8 +166,19 @@ class PushApiClient @Inject constructor(
             syncCourseColors = syncCourseColors,
             syncCourseNames = syncCourseNames,
             syncAssignments = syncAssignments,
+            syncAssignmentReminders = syncAssignmentReminders,
+            syncLiveActivity = syncLiveActivity,
             cloudSyncEnabled = cloudSyncEnabled,
+            locale = locale,
         )
+        // Guards updateCloudSyncEnabled and updateSyncPreferences, which
+        // have no fdroid check of their own — see preferencesPatchBlockedOnFdroid.
+        // Never trips for the locale-only call (syncLocalePreference) or for
+        // updateServerPushOptOut's PATCH, which already refuses itself
+        // before ever reaching here.
+        if (preferencesPatchBlockedOnFdroid(payload)) {
+            throw PushApiException("updateDevicePreferences refused: fdroid cannot change sync or push preferences")
+        }
         val body = gson.toJson(payload).toRequestBody(jsonType)
         val request = Request.Builder()
             .url("$baseUrl/devices/$deviceId/preferences")
@@ -360,4 +377,39 @@ class PushApiClient @Inject constructor(
             }
         }
     }
+}
+
+/**
+ * Whether a `PATCH .../preferences` [request] must be refused before it ever
+ * reaches the network, because [flavor] can never honor a sync- or
+ * push-preference change regardless of what the caller believes.
+ *
+ * `locale` is deliberately excluded from the fields checked below:
+ * [PushRegistrationService.syncLocalePreference] calls
+ * [PushApiClient.updateDevicePreferences] with only that field set, on every
+ * flavor including fdroid, and must keep working — a locale-only request
+ * always reads as not blocked, regardless of [flavor].
+ *
+ * [flavor] defaults to [BuildConfig.FLAVOR] for the one production call
+ * site, [PushApiClient.updateDevicePreferences]. Tests pass it explicitly,
+ * for the same reason
+ * [org.ntust.app.tigerduck.data.preferences.effectiveCloudSyncEnabled] does:
+ * [PushApiClient] can't be constructed on the plain JVM this module's tests
+ * run on (real OkHttp / [org.ntust.app.tigerduck.data.preferences.AppPreferences]
+ * dependencies, and this module has neither Robolectric nor a mocking
+ * library), so this pure function is what a unit test exercises.
+ */
+internal fun preferencesPatchBlockedOnFdroid(
+    request: UpdateDevicePreferencesRequest,
+    flavor: String = BuildConfig.FLAVOR,
+): Boolean {
+    val changesAPreference = request.serverPushEnabled != null ||
+        request.cloudSyncEnabled != null ||
+        request.syncCourses != null ||
+        request.syncCourseColors != null ||
+        request.syncCourseNames != null ||
+        request.syncAssignments != null ||
+        request.syncAssignmentReminders != null ||
+        request.syncLiveActivity != null
+    return changesAPreference && flavor.equals("fdroid", ignoreCase = true)
 }

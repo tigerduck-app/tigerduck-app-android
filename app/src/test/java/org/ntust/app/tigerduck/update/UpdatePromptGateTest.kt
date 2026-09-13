@@ -26,7 +26,7 @@ class UpdatePromptGateTest {
     @Test
     fun `prompts when staleness is unknown`() {
         // Play has already reported the update as available; missing staleness
-        // data must not suppress the prompt (issue #89 review).
+        // data must not suppress the prompt (issue #89).
         assertTrue(
             UpdatePromptGate.shouldStartFlow(
                 stalenessDays = null,

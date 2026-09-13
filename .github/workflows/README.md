@@ -62,16 +62,6 @@ The wear release build is there because `:wear` is minified with its own
 this step a missing keep rule would surface for the first time on release day.
 Unsigned because fork PRs cannot read the `KEYSTORE_*` secrets.
 
-### `pr-checklist.yaml`
-
-Posts the target-branch checklist as a PR comment and reports how many boxes
-are still unticked. Re-evaluates on PR edits and on comment activity.
-
-The `pr-checklist` commit status is **informational only** — it is always set to
-`success`, so it never blocks a merge. The real gate is the team-approval
-ruleset on `dev` / `main`; the status description just saves reviewers from
-expanding the bot comment to see whether the author ticked anything.
-
 ### `submodules-up-to-date.yaml`
 
 Runs on PRs to `main` and `dev`. Verifies every git submodule (e.g.

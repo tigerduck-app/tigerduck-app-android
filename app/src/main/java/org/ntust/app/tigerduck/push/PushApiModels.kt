@@ -26,8 +26,16 @@ data class DeviceRegisterRequest(
     @SerializedName("device_class") val deviceClass: String? = null,
     @SerializedName("app_version") val appVersion: String? = null,
     @SerializedName("os_version") val osVersion: String? = null,
+    /** Hardware model, for the portal — see [deviceModelName]. */
+    @SerializedName("device_model") val deviceModel: String? = null,
     @SerializedName("push_token") val pushToken: PushTokenIn? = null,
     @SerializedName("cloud_sync_enabled") val cloudSyncEnabled: Boolean? = null,
+    /**
+     * BCP-47 tag for the language the app is actually rendering, so the
+     * server can compose push copy in it. Sent unconditionally — a device
+     * fact, not a preference.
+     */
+    @SerializedName("locale") val locale: String? = null,
 )
 
 data class DeviceRegisterResponse(
@@ -77,7 +85,31 @@ data class UpdateDevicePreferencesRequest(
     @SerializedName("sync_course_colors") val syncCourseColors: Boolean? = null,
     @SerializedName("sync_course_names") val syncCourseNames: Boolean? = null,
     @SerializedName("sync_assignments") val syncAssignments: Boolean? = null,
+    /**
+     * The two "同步內容" (Synced content) toggles added alongside the
+     * TigerSync settings restructure (spec §6): whether this device wants
+     * assignment due-date reminders and Live Activity/Live Updates state
+     * synced across devices. Same wire names as the backend's
+     * `sync_assignment_reminders` / `sync_live_activity` device-preference
+     * columns (backend commit 67b03e3) — `@SerializedName` is mandatory,
+     * same as every other field in this file: `push` has no R8 keep rule.
+     */
+    @SerializedName("sync_assignment_reminders") val syncAssignmentReminders: Boolean? = null,
+    @SerializedName("sync_live_activity") val syncLiveActivity: Boolean? = null,
     @SerializedName("cloud_sync_enabled") val cloudSyncEnabled: Boolean? = null,
+    /**
+     * BCP-47 tag for the language the in-app picker just switched to, sent
+     * so server-composed push copy (the Moodle-reauth notification most of
+     * all) stops arriving in the language the device happened to register
+     * with. `@SerializedName` is mandatory here, same as every other field
+     * in this file: `push` has no R8 keep rule, so an unannotated field
+     * would serialize under a renamed key in release builds and the
+     * backend would never see it. The backend applies `locale` only when
+     * non-null (`server/routes/user_devices.py`), so every other PATCH
+     * that omits it — every call site but the one that sends this — leaves
+     * a previously-set value alone.
+     */
+    @SerializedName("locale") val locale: String? = null,
 )
 
 data class DevicePreferencesResponse(
@@ -87,5 +119,7 @@ data class DevicePreferencesResponse(
     @SerializedName("sync_course_colors") val syncCourseColors: Boolean = true,
     @SerializedName("sync_course_names") val syncCourseNames: Boolean = true,
     @SerializedName("sync_assignments") val syncAssignments: Boolean = true,
+    @SerializedName("sync_assignment_reminders") val syncAssignmentReminders: Boolean = true,
+    @SerializedName("sync_live_activity") val syncLiveActivity: Boolean = true,
     @SerializedName("cloud_sync_enabled") val cloudSyncEnabled: Boolean = true,
 )

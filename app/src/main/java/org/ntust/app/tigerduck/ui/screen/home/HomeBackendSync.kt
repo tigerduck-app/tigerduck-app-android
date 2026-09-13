@@ -26,7 +26,10 @@ import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import org.ntust.app.tigerduck.BuildConfig
@@ -36,11 +39,13 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.CourseOverrideResult
+import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.Course
@@ -94,10 +99,12 @@ class HomeBackendSync @Inject constructor(
     private val authTokenManager: AuthTokenManager,
     private val syncApiClient: SyncApiClient,
     private val pushApiClient: PushApiClient,
+    private val notificationSettingsSync: NotificationSettingsSync,
     private val courseService: CourseService,
     private val semesterCatalog: SemesterCatalog,
     private val widgetUpdater: WidgetUpdater,
     private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
+    @param:ApplicationScope private val appScope: CoroutineScope,
 ) {
 
     /**
@@ -107,7 +114,10 @@ class HomeBackendSync @Inject constructor(
      * produces a 401 gives up rather than recursing.
      */
     suspend fun pull(state: HomeSyncState, retried: Boolean = false) {
-        if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+        // cloudSyncEnabled already reads false on fdroid at its source
+        // (AppPreferences.cloudSyncEnabled), so no separate flavor check
+        // is needed here.
+        if (!prefs.cloudSyncEnabled) {
             markBackendIdle()
             return
         }
@@ -137,6 +147,48 @@ class HomeBackendSync @Inject constructor(
             ServerStatusTracker.set(ServerStatus.OK, ServerKind.BACKEND)
             prefs.setLastSyncSource(SyncSource.BACKEND)
             widgetUpdater.requestUpdate()
+            // A full sync that just succeeded proves a session and a network,
+            // so this is where a notification-settings edit (Live Update or
+            // assignment reminders) whose push never landed — made while sync
+            // was off or the phone was offline, or one whose retries ran out —
+            // gets sent again. Catch-up only: it must never mark the device
+            // dirty, or every sync would push this phone's values over the
+            // other devices'. iOS re-sends at every full sync too.
+            notificationSettingsSync.pushIfUnconfirmed()
+            // ...and where a change another device made to those settings is
+            // picked up. Android fires assignment reminders itself, so without
+            // this an iPhone change reached this phone's alarms only once the
+            // user opened one of the two settings screens. iOS reconciles
+            // after every full sync as well. pullNow() applies nothing over
+            // an edit still waiting for its push, cannot interleave with that
+            // push, and cancels or re-arms the reminders armed here when a
+            // value changes. It already catches its own transport failures;
+            // the guard is so nothing else it throws can turn this successful
+            // sync into a failed one.
+            //
+            // Launched, never awaited: the sync this refresh is showing has
+            // already succeeded by here, and pullNow() waits for the document
+            // lock — which a queued push can hold for a whole read-modify-
+            // write — and then reads the document. On a degrading connection
+            // that is up to a minute of spinner (10 s connect / 20 s read,
+            // twice) for work Home is not showing. Nothing downstream needs
+            // the result: the pull re-arms the reminders itself, and
+            // `scheduleAll` is synchronized and reads the preferences at arm
+            // time, so whichever of it and Home's own arming runs last is
+            // correct either way.
+            //
+            // On the application scope rather than the caller's: the caller is
+            // a viewModelScope that a rotation or a swipe off Home cancels,
+            // which could land in the middle of the apply. On Dispatchers.Main
+            // because pullNow()'s check-and-apply requires it — the
+            // application scope's own dispatcher is Default.
+            appScope.launch(Dispatchers.Main) {
+                runCatching { notificationSettingsSync.pullNow() }
+                    .onFailure { e ->
+                        if (e is CancellationException) throw e
+                        Log.w(TAG, "[Sync] notification settings pull failed", e)
+                    }
+            }
         } catch (e: CancellationException) {
             // Leaving Home mid-sync cancels viewModelScope, which lands here.
             // The writes below are not suspending, so they would run even in a

@@ -205,6 +205,18 @@ class TigerDuckApp : Application(), Configuration.Provider {
                 enableVibration(false)
             }
         )
+        // Account and sync failures the user has to act on — same importance
+        // as a force_ring bulletin, because a silently dead sync is worse
+        // than an interruption.
+        notificationManager.createNotificationChannel(
+            NotificationChannel(
+                NotificationChannels.SYSTEM,
+                ctx.getString(R.string.notification_system_channel_name),
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = ctx.getString(R.string.notification_system_channel_description)
+            }
+        )
     }
 
     @android.annotation.SuppressLint("AppBundleLocaleChanges")

@@ -13,6 +13,7 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.push.currentDeviceModel
 
 /**
  * Manages v3 JWT access and refresh tokens.
@@ -68,6 +69,7 @@ class AuthTokenManager(
                 put("platform", platform)
                 put("app_version", BuildConfig.VERSION_NAME)
                 put("os_version", "Android ${android.os.Build.VERSION.RELEASE}")
+                put("device_model", currentDeviceModel())
             })
         }
         val body = json.toString().toRequestBody(jsonType)

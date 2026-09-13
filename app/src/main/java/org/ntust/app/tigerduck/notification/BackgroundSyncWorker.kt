@@ -16,7 +16,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.push.BackendSyncResult
@@ -47,6 +46,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private val syncApiClient: org.ntust.app.tigerduck.push.SyncApiClient,
     private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
     private val authTokenManager: org.ntust.app.tigerduck.auth.AuthTokenManager,
+    private val fcmBootstrap: org.ntust.app.tigerduck.push.FcmBootstrap,
 ) : CoroutineWorker(context, params) {
 
     @Deprecated("Use prefs.lastSyncSource instead", level = DeprecationLevel.HIDDEN)
@@ -54,6 +54,11 @@ class BackgroundSyncWorker @AssistedInject constructor(
         private set
 
     override suspend fun doWork(): Result {
+        // Before the credentials check, so every run can retry a device
+        // registration that failed while the process stayed warm. Whether one
+        // is due, and the consent and flavor gates, are decided inside; a
+        // no-op on fdroid.
+        fcmBootstrap.retryRegistrationIfDue()
         val studentId = authService.storedStudentId
         val password = authService.storedPassword
         if (studentId.isNullOrBlank() || password.isNullOrBlank()) return Result.success()
@@ -74,7 +79,10 @@ class BackgroundSyncWorker @AssistedInject constructor(
     }
 
     private suspend fun syncOverridesFromBackend() {
-        if (!prefs.cloudSyncEnabled || BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) {
+        // cloudSyncEnabled already reads false on fdroid at its source
+        // (AppPreferences.cloudSyncEnabled), so no separate flavor check
+        // is needed here.
+        if (!prefs.cloudSyncEnabled) {
             prefs.setLastSyncSource(SyncSource.NONE)
             return
         }

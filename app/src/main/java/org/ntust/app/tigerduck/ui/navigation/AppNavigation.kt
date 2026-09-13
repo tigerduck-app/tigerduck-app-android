@@ -79,12 +79,12 @@ import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.AssignmentReminderSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.CourseNameSizeSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.NotificationPermissionSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
-import org.ntust.app.tigerduck.ui.screen.settings.ClassTableSyncScreen
 import org.ntust.app.tigerduck.ui.screen.settings.CloudSyncSettingsScreen
-import org.ntust.app.tigerduck.ui.screen.settings.ServerPushScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.SyncContentScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SourceCodePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.TabEditorScreen
 import org.ntust.app.tigerduck.ui.screen.settings.VibrationSettingsScreen
@@ -107,14 +107,14 @@ sealed class Screen(val route: String) {
     object TabEditor : Screen("tabEditor")
     object LanguagePicker : Screen("languagePicker")
     object LiveActivitySettings : Screen("liveActivitySettings")
+    object NotificationPermissionSettings : Screen("notificationPermissionSettings")
     object AssignmentReminderSettings : Screen("assignmentReminderSettings")
     object NotificationSetup : Screen("notificationSetup")
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
     object CourseNameSizeSettings : Screen("courseNameSizeSettings")
     object CloudSync : Screen("cloudSync")
-    object ClassTableSync : Screen("classTableSync")
-    object ServerPush : Screen("serverPush")
+    object SyncContent : Screen("syncContent")
     object VibrationSettings : Screen("vibrationSettings")
     object Debug : Screen("debug")
     object NotificationDebug : Screen("notificationDebug")
@@ -414,8 +414,10 @@ fun MainNavigation(
                     onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
+                    onNavigateToNotificationPermissionSettings = {
+                        navController.navigate(Screen.NotificationPermissionSettings.route)
+                    },
                     onNavigateToAssignmentReminders = { navController.navigate(Screen.AssignmentReminderSettings.route) },
-                    onNavigateToServerPush = { navController.navigate(Screen.ServerPush.route) },
                     onNavigateToCloudSync = { navController.navigate(Screen.CloudSync.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
                     // Debug-route navigation is no-op in release builds:
@@ -503,7 +505,15 @@ fun MainNavigation(
                 )
             }
             composable(Screen.LiveActivitySettings.route) {
-                LiveActivitySettingsScreen(onBack = { navController.popBackStack() })
+                LiveActivitySettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToNotificationPermissionSettings = {
+                        navController.navigate(Screen.NotificationPermissionSettings.route)
+                    },
+                )
+            }
+            composable(Screen.NotificationPermissionSettings.route) {
+                NotificationPermissionSettingsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.AssignmentReminderSettings.route) {
                 AssignmentReminderSettingsScreen(onBack = { navController.popBackStack() })
@@ -511,14 +521,14 @@ fun MainNavigation(
             composable(Screen.CloudSync.route) {
                 CloudSyncSettingsScreen(
                     onBack = { navController.popBackStack() },
-                    onNavigateToClassTableSync = { navController.navigate(Screen.ClassTableSync.route) },
+                    onNavigateToSyncContent = { navController.navigate(Screen.SyncContent.route) },
                 )
             }
-            composable(Screen.ClassTableSync.route) {
-                ClassTableSyncScreen(onBack = { navController.popBackStack() })
-            }
-            composable(Screen.ServerPush.route) {
-                ServerPushScreen(onBack = { navController.popBackStack() })
+            composable(Screen.SyncContent.route) {
+                SyncContentScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToLiveActivitySettings = { navController.navigate(Screen.LiveActivitySettings.route) },
+                )
             }
             composable(Screen.SourceCodePicker.route) {
                 SourceCodePickerScreen(onBack = { navController.popBackStack() })
