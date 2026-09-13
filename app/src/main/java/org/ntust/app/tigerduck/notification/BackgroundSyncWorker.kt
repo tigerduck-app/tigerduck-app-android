@@ -13,11 +13,14 @@ import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.data.CourseRosterMerge
@@ -47,6 +50,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
     private val authTokenManager: org.ntust.app.tigerduck.auth.AuthTokenManager,
     private val fcmBootstrap: org.ntust.app.tigerduck.push.FcmBootstrap,
+    private val notificationSettingsSync: org.ntust.app.tigerduck.push.NotificationSettingsSync,
+    @param:ApplicationScope private val appScope: CoroutineScope,
 ) : CoroutineWorker(context, params) {
 
     @Deprecated("Use prefs.lastSyncSource instead", level = DeprecationLevel.HIDDEN)
@@ -111,6 +116,22 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 reconcileCurrentSemester(result)
             }
             prefs.setLastSyncSource(SyncSource.BACKEND)
+            // Where a change another device made to the reminder settings
+            // reaches this phone while the app stays closed: syncAssignments()
+            // below arms reminders from the local values, so they have to be
+            // current first — otherwise a switch turned off on the iPhone
+            // keeps firing here until the app is opened. Awaited for that
+            // ordering, but run on the application scope so a stopped worker
+            // cannot cut the apply short, and on Main because pullNow()'s
+            // check-and-apply requires it. It catches its own transport
+            // failures; the guard keeps anything else from failing this sync.
+            appScope.async(Dispatchers.Main) {
+                runCatching { notificationSettingsSync.pullNow() }
+                    .onFailure { e ->
+                        if (e is CancellationException) throw e
+                        Log.w(TAG, "notification settings pull failed", e)
+                    }
+            }.await()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

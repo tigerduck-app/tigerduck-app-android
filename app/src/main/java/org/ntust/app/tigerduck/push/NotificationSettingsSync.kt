@@ -1315,10 +1315,13 @@ class NotificationSettingsSync internal constructor(
      * ([org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsViewModel]),
      * identically when the assignment-reminder settings screen opens
      * ([org.ntust.app.tigerduck.ui.screen.settings.AssignmentReminderSettingsViewModel]),
-     * and after every successful full sync
+     * after every successful full sync
      * ([org.ntust.app.tigerduck.ui.screen.home.HomeBackendSync.pull], right
-     * after its [pushIfUnconfirmed]), so another device's change reaches this
-     * device's alarms without either screen being opened. Each caller
+     * after its [pushIfUnconfirmed]), and by
+     * [org.ntust.app.tigerduck.notification.BackgroundSyncWorker] after its
+     * own, before it arms any reminder — so another device's change reaches
+     * this device's alarms without either screen, or the app, being opened.
+     * Each caller
      * additionally wraps this call itself: two independent guards against the
      * one failure mode this repo has already documented twice as a process
      * kill.
@@ -1404,10 +1407,10 @@ class NotificationSettingsSync internal constructor(
      * anything else on the *same* thread — and both settings screens make
      * their edits on the main thread. Against a second thread they are not
      * atomic at all, and [documentLock] does not help: a queued push takes
-     * it, a user's tap does not. All three call sites are on
-     * `Dispatchers.Main` today; one added later from `BackgroundSyncWorker`,
-     * or straight off the application scope (whose dispatcher is `Default`),
-     * would silently reopen that window. Hence a check rather than the KDoc
+     * it, a user's tap does not. Every call site switches to
+     * `Dispatchers.Main` first, `BackgroundSyncWorker`'s included; one that
+     * forgot to — a worker runs on its own executor, and the application
+     * scope's dispatcher is `Default` — would silently reopen that window. Hence a check rather than the KDoc
      * line this used to be.
      *
      * Debug only — a release build degrades rather than crashing over a
