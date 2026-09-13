@@ -117,7 +117,9 @@ class NotificationSettingsSyncTest {
         override suspend fun write(
             document: JsonObject,
             baseRevision: Long?,
+            isCurrent: () -> Boolean,
         ): SettingsWriteResult<JsonObject> {
+            if (!isCurrent()) return SettingsWriteResult.Abandoned
             writtenDocuments += document
             baseRevisions += baseRevision
             return outcomes[minOf(writtenDocuments.size - 1, outcomes.size - 1)]
@@ -783,7 +785,12 @@ class NotificationSettingsSyncTest {
             return served
         }
 
-        override suspend fun write(document: JsonObject, baseRevision: Long?): SettingsWriteResult<JsonObject> {
+        override suspend fun write(
+            document: JsonObject,
+            baseRevision: Long?,
+            isCurrent: () -> Boolean,
+        ): SettingsWriteResult<JsonObject> {
+            if (!isCurrent()) return SettingsWriteResult.Abandoned
             if (offline) throw SettingsDocumentApiException("write notification: offline")
             duringWrite()
             writes += document
@@ -834,6 +841,12 @@ class NotificationSettingsSyncTest {
         var syncAssignmentReminders = true
         val syncLiveActivityChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         val syncAssignmentRemindersChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        /**
+         * Runs while a PUT resolves its bearer — `AuthTokenManager.authHeader()`,
+         * which can refresh the token or run a full relogin. Whichever account
+         * holds the session once it returns is the one the PUT goes to.
+         */
+        var resolvingBearer: () -> Unit = {}
         private var signedInAs: String? = null
         private val servers = mutableMapOf<String, FakeDocumentServer>()
 
@@ -849,7 +862,11 @@ class NotificationSettingsSyncTest {
                 override suspend fun write(
                     document: JsonObject,
                     baseRevision: Long?,
-                ): SettingsWriteResult<JsonObject> = session().write(document, baseRevision)
+                    isCurrent: () -> Boolean,
+                ): SettingsWriteResult<JsonObject> {
+                    resolvingBearer()
+                    return session().write(document, baseRevision, isCurrent)
+                }
             },
             liveActivityPreferences = prefs,
             assignmentStore = assignments,
@@ -1101,6 +1118,43 @@ class NotificationSettingsSyncTest {
 
         assertEquals(2_700, device.server("A").lastClassLeadSeconds())
         assertFalse(device.prefs.hasUnconfirmedSyncEdit)
+    }
+
+    /** A signs out and B signs in while the PUT is still resolving its bearer. */
+    private fun Device.switchAccountWhileResolvingBearer() {
+        resolvingBearer = {
+            resolvingBearer = {}
+            logOut()
+            signIn("B")
+        }
+    }
+
+    @Test
+    fun `a live_activity push whose bearer resolves under the next account is not sent`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.switchAccountWhileResolvingBearer()
+
+        device.sync.markUnconfirmedAndPush()
+        runQueue()
+
+        assertTrue("A's settings must not land in B's document", device.server("B").writes.isEmpty())
+        assertTrue(device.server("A").writes.isEmpty())
+    }
+
+    @Test
+    fun `an assignments push whose bearer resolves under the next account is not sent`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.assignments.enabled = false
+        device.switchAccountWhileResolvingBearer()
+
+        device.sync.markAssignmentUnconfirmedAndPush()
+        runQueue()
+
+        assertTrue("A's settings must not land in B's document", device.server("B").writes.isEmpty())
+        assertTrue(device.server("A").writes.isEmpty())
     }
 
     // ── 7b. The push queue: assignment-reminder settings go through it too ──
@@ -1554,6 +1608,7 @@ class NotificationSettingsSyncTest {
             override suspend fun write(
                 document: JsonObject,
                 baseRevision: Long?,
+                isCurrent: () -> Boolean,
             ): SettingsWriteResult<JsonObject> = error("not used by this test")
         }
 

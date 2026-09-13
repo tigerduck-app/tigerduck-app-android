@@ -44,6 +44,12 @@ sealed interface SettingsWriteResult<out T> {
      * its change onto it and retry instead of silently losing the edit.
      */
     data class Conflict<T>(val server: SettingsDocumentEnvelope<T>) : SettingsWriteResult<T>
+
+    /**
+     * Nothing was sent: the caller's `isCurrent` guard turned false once the
+     * request carried its bearer. See [SettingsDocumentApiClient.write].
+     */
+    data object Abandoned : SettingsWriteResult<Nothing>
 }
 
 /**
@@ -131,12 +137,20 @@ class SettingsDocumentApiClient @Inject constructor(
      * back as [SettingsWriteResult.Conflict] rather than a thrown exception:
      * it is an expected outcome the caller is meant to handle (rebase and
      * retry), not a transport failure.
+     *
+     * [isCurrent] is asked once the Authorization header is on the request,
+     * with nothing left to suspend on before it is sent; false sends nothing
+     * and returns [SettingsWriteResult.Abandoned]. Resolving that header can
+     * refresh the token or run a full relogin with whichever credentials are
+     * stored by the time it does, so a caller whose account may change
+     * meanwhile needs its check here rather than before this call.
      */
     suspend fun <T> write(
         namespace: String,
         document: T,
         baseRevision: Long?,
         type: Class<T>,
+        isCurrent: () -> Boolean = { true },
     ): SettingsWriteResult<T> = withContext(Dispatchers.IO) {
         val payload = mapOf(
             "schema_version" to 1,
@@ -149,6 +163,7 @@ class SettingsDocumentApiClient @Inject constructor(
             .put(body)
             .addAuthHeader()
             .build()
+        if (!isCurrent()) return@withContext SettingsWriteResult.Abandoned
         client.newCall(request).execute().use { response ->
             val text = response.body.string()
             if (response.code == 409) {

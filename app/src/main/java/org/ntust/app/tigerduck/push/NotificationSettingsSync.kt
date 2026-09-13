@@ -122,8 +122,18 @@ internal interface SettingsDocumentTransport {
     /** `GET /v3/settings/notification`; null when the user has no document yet (404). */
     suspend fun read(): SettingsDocumentEnvelope<JsonObject>?
 
-    /** `PUT /v3/settings/notification` with [document], compare-and-swapping on [baseRevision]. */
-    suspend fun write(document: JsonObject, baseRevision: Long?): SettingsWriteResult<JsonObject>
+    /**
+     * `PUT /v3/settings/notification` with [document], compare-and-swapping on [baseRevision].
+     *
+     * [isCurrent] is asked once the request carries its bearer, just before it
+     * goes out; false sends nothing and returns [SettingsWriteResult.Abandoned].
+     * See [pushLiveActivitySettings] for why it cannot be asked any earlier.
+     */
+    suspend fun write(
+        document: JsonObject,
+        baseRevision: Long?,
+        isCurrent: () -> Boolean,
+    ): SettingsWriteResult<JsonObject>
 }
 
 /**
@@ -172,8 +182,11 @@ private class SingleReadTransport(
         return envelope
     }
 
-    override suspend fun write(document: JsonObject, baseRevision: Long?): SettingsWriteResult<JsonObject> =
-        delegate.write(document, baseRevision)
+    override suspend fun write(
+        document: JsonObject,
+        baseRevision: Long?,
+        isCurrent: () -> Boolean,
+    ): SettingsWriteResult<JsonObject> = delegate.write(document, baseRevision, isCurrent)
 }
 
 /**
@@ -298,14 +311,16 @@ private const val ASSIGNMENT_LEAD_SECONDS_KEY = "assignment_lead_seconds"
  * false partway through and the push is abandoned, so a caller can never
  * read "didn't land" as "succeeded".
  *
- * [isCurrentGeneration] is re-checked before the read and before every
- * write — the read, the write, and the one retry write a 409 can cause —
- * not just once before this function is called. Each of those requests can
- * itself trigger a token refresh or a full relogin, and a stalled network
- * can stretch that to tens of seconds; if another account finishes signing
- * in inside that window, this push must not land in its document. Mirrors
- * iOS's reconcile, which checks `isCurrent()` after every round trip for
- * the same reason. `NotificationSettingsSync.pushNow` — the only
+ * [isCurrentGeneration] is checked before the read, again once the read
+ * comes back, and — through [SettingsDocumentTransport.write] — for every
+ * write, the one retry a 409 can cause included, once that request carries
+ * its bearer and just before it is sent. Each request can itself trigger a
+ * token refresh or a full relogin, a stalled network can stretch that to
+ * tens of seconds, and a relogin signs in with whatever credentials are
+ * stored by the time it runs. A check made before the bearer is resolved
+ * would let a push queued under one account go out with the next
+ * account's token and land in its document. Mirrors iOS's reconcile, which
+ * checks `isCurrent()` after every round trip for the same reason. `NotificationSettingsSync.pushNow` — the only
  * production caller — closes over the generation this push was queued
  * under. Defaults to "always current" so every other caller, including
  * this file's tests, is unaffected.
@@ -355,10 +370,10 @@ internal suspend fun pushLiveActivitySettings(
     val updates = local.documentUpdates()
     var conflicts = 0
     while (true) {
-        if (!isCurrentGeneration()) return false
-        val result = transport.write(merging(updates, into = existing), baseRevision)
+        val result = transport.write(merging(updates, into = existing), baseRevision, isCurrentGeneration)
         when (result) {
             is SettingsWriteResult.Written -> return true
+            SettingsWriteResult.Abandoned -> return false
             is SettingsWriteResult.Conflict -> {
                 conflicts++
                 if (conflicts > 1) {
@@ -709,8 +724,8 @@ internal fun AssignmentSyncValues.documentUpdates(existing: JsonObject): JsonObj
  * included, travels back exactly as read (see [merging]). On a 409,
  * adopts the server's document and its revision and retries **exactly
  * once** — never loops. See [pushLiveActivitySettings] for why each of the
- * three gates below sits where it does and why the generation is re-checked
- * before the read and before every write.
+ * three gates below sits where it does, and where and why the generation is
+ * re-checked.
  *
  * The update is recomputed from the freshly-read [merging] target on every
  * loop iteration (including after a conflict rebase), not built once up
@@ -736,10 +751,14 @@ internal suspend fun pushAssignmentSettings(
 
     var conflicts = 0
     while (true) {
-        if (!isCurrentGeneration()) return false
-        val result = transport.write(merging(local.documentUpdates(existing), into = existing), baseRevision)
+        val result = transport.write(
+            merging(local.documentUpdates(existing), into = existing),
+            baseRevision,
+            isCurrentGeneration,
+        )
         when (result) {
             is SettingsWriteResult.Written -> return true
+            SettingsWriteResult.Abandoned -> return false
             is SettingsWriteResult.Conflict -> {
                 conflicts++
                 if (conflicts > 1) {
@@ -999,8 +1018,9 @@ class NotificationSettingsSync internal constructor(
             override suspend fun write(
                 document: JsonObject,
                 baseRevision: Long?,
+                isCurrent: () -> Boolean,
             ): SettingsWriteResult<JsonObject> =
-                client.write(NOTIFICATION_SETTINGS_NAMESPACE, document, baseRevision, JsonObject::class.java)
+                client.write(NOTIFICATION_SETTINGS_NAMESPACE, document, baseRevision, JsonObject::class.java, isCurrent)
         },
         liveActivityPreferences = liveActivityPreferences,
         assignmentStore = object : AssignmentReminderSyncStore {
@@ -1225,13 +1245,14 @@ class NotificationSettingsSync internal constructor(
      *
      * A push already past the loop's own generation check above is not
      * stopped here, but it still cannot land under whoever signs in next:
-     * [pushLiveActivitySettings] re-checks the generation this bump just
-     * changed before its read and before every write, and abandons the push
-     * the instant it no longer matches — the same way iOS's reconcile
-     * checks `isCurrent()` after every round trip. That check is what
-     * actually stops it; a request that somehow slipped past every one of
-     * those checks would in any case be built after logout has wiped the
-     * tokens, and go out without one and fail.
+     * [pushLiveActivitySettings] and [pushAssignmentSettings] re-check the
+     * generation this bump just changed around their read, and every write
+     * re-checks it once its bearer is resolved, just before it is sent —
+     * abandoning the push the instant it no longer matches, the same way
+     * iOS's reconcile checks `isCurrent()` after every round trip. The
+     * write's check is the one that counts: a request built after this
+     * logout can still carry a token, because resolving it may run a
+     * relogin with whoever's credentials are stored by then.
      */
     fun cancelPendingPushes() {
         generation.incrementAndGet()
