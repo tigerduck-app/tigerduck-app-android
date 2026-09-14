@@ -15,10 +15,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
+import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.shared.LibraryQRRenderer
 import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
@@ -30,6 +30,7 @@ class LibraryViewModel @Inject constructor(
     private val credentials: CredentialManager,
     private val wearBridge: WearScheduleBridge,
     private val debugFixtures: DebugFixtureStore,
+    private val demoAccount: DemoAccount,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -52,27 +53,25 @@ class LibraryViewModel @Inject constructor(
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
 
     /**
-     * Screenshot override for the QR payload, or null to ask the backend for a
-     * real one. Constant-null in release builds, so R8 folds every branch
-     * below it away. See [DebugFixtureStore].
+     * The demo account's QR payload, or null to ask the backend for a real
+     * one. See [DebugFixtureStore].
      */
     private val fixtureQr: String?
-        get() = if (BuildConfig.DEBUG) debugFixtures.libraryQrContent else null
+        get() = debugFixtures.libraryQrContent
 
     /**
      * Whether to render the screen as signed in on the strength of the
-     * override alone. Without this the sign-in form shows and the QR — the
-     * thing worth screenshotting — never appears unless a real library
-     * account happens to be signed in on the device.
+     * override alone. Without this the sign-in form shows and the demo QR
+     * never appears unless a real library account happens to be signed in on
+     * the device.
      */
     private val fixtureSignedIn: Boolean
-        get() = if (BuildConfig.DEBUG) fixtureQr != null && debugFixtures.libraryFakeSignedIn else false
+        get() = fixtureQr != null && debugFixtures.libraryFakeSignedIn
 
     private fun resolveSignedIn(): Boolean = fixtureSignedIn || credentials.isLibraryTokenValid
 
     private fun resolveUsername(): String? =
-        (if (fixtureSignedIn) debugFixtures.studentIdOverride else null)
-            ?: credentials.libraryUsername
+        demoAccount.libraryUsername ?: credentials.libraryUsername
 
     private val _storedUsername = MutableStateFlow(credentials.libraryUsername)
     val storedUsername: StateFlow<String?> = _storedUsername
@@ -97,7 +96,22 @@ class LibraryViewModel @Inject constructor(
             _isLoggingIn.value = true
             _errorMessage.value = null
             try {
+                // The demo library password signs in on the device, with or
+                // without the demo account; see [DemoAccount.signInLibrary].
+                if (demoAccount.signInLibrary(username, password)) {
+                    _isLoggedIn.value = true
+                    _storedUsername.value = resolveUsername()
+                    refreshQR()
+                    return@launch
+                }
+                // The demo account itself never reaches the library, so
+                // anything else fails there the way a wrong password would.
+                if (demoAccount.isActive) {
+                    _errorMessage.value = context.getString(R.string.error_sign_in_failed)
+                    return@launch
+                }
                 libraryService.login(username, password)
+                demoAccount.signOutLibrary()
                 _isLoggedIn.value = true
                 _storedUsername.value = username
                 // Push the fresh credentials to the paired watch so its

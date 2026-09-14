@@ -81,8 +81,9 @@ even more OAO!
 
 ### ☁️ **Cross-Device Sync** (TigerSync)
 
-- Pick **per item** what syncs: class table, courses, assignments, course colors, custom course names
-- **Cross-platform** — macOS, iPad, iPhone, and Android all sync together once TigerSync is on
+- Pick **per item** what syncs, in two groups: **Assignments** (assignments, assignment due reminders, Live Updates) and **Class table** (all courses, course colours, custom course names)
+- **Cross-platform** — macOS, iPad, iPhone, and Android all sync together once TigerSync is on, reminder and Live Updates settings included
+- The F-Droid build has no Google push service, so TigerSync there keeps to **Essential information**
 - Anything you leave off stays on this device; turn sync off and nothing leaves the device at all
 
 ### 🔄 **Auto-Update** (Play only)
@@ -158,6 +159,8 @@ even more OAO!
   screen recording
 - [x] **Account deletion entry** — Request deletion of the server-side push identity from
   Settings
+- [x] **Notification permission settings** — Notification permission, exact alarms and
+  background restrictions on one page, each a tap away from its system setting
 
 ### ⌚ Wear OS (Play only)
 

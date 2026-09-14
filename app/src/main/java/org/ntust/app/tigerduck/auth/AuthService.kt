@@ -18,6 +18,7 @@ import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.network.SsoLoginError
 import org.ntust.app.tigerduck.network.SsoLoginService
+import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.push.PushRegistrationService
 import org.ntust.app.tigerduck.shared.LibraryService
 import javax.inject.Inject
@@ -33,16 +34,17 @@ class AuthService @Inject constructor(
     private val libraryService: LibraryService,
     private val credentials: CredentialManager,
     private val pushRegistration: PushRegistrationService,
+    private val notificationSettingsSync: NotificationSettingsSync,
     private val authTokenManager: AuthTokenManager,
     private val moodleTokenService: MoodleTokenService,
     private val dataCache: DataCache,
     private val bulletinCache: BulletinCache,
     private val bulletinReadStateStore: BulletinReadStateStore,
     @param:ApplicationScope private val appScope: CoroutineScope,
-    debugFixtures: org.ntust.app.tigerduck.debug.DebugFixtureStore,
+    private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
 ) {
     /**
-     * A screenshot session presents as signed in without an account.
+     * A demo session presents as signed in, with or without an account.
      *
      * `authState` is what every screen asks, so a device that skipped the
      * wizard replaced its whole content with "not signed in" and no fixture
@@ -59,8 +61,7 @@ class AuthService @Inject constructor(
      *
      * Sampled once, at process start, like the rest of demo mode.
      */
-    private val demoMode =
-        org.ntust.app.tigerduck.BuildConfig.DEBUG && debugFixtures.demoMode
+    private val demoMode = demoAccount.isActive
 
     private val _isLoggingIn = MutableStateFlow(false)
     val isLoggingIn: StateFlow<Boolean> = _isLoggingIn
@@ -97,6 +98,7 @@ class AuthService @Inject constructor(
     }
 
     suspend fun attemptRelogin(): Boolean {
+        if (demoAccount.isActive) return false
         val studentId = credentials.ntustStudentId ?: return false
         val password = credentials.ntustPassword
         // Harvest a FRESH Moodle token before the v3 login — the backend
@@ -125,6 +127,13 @@ class AuthService @Inject constructor(
             )
             android.util.Log.i("AuthService", "auto-relogin: v3 JWT refreshed")
             runCatching { pushRegistration.onSignedIn() }
+            // Deliver a live_activity edit that is still unconfirmed: one made
+            // while signed out, or while the v3 JWT had lapsed. With nothing
+            // pending this sends nothing, so this device's values never
+            // overwrite what another device wrote. It must not mark anything
+            // either, because this relogin can run from inside a pull's own
+            // request — see NotificationSettingsSync.pushIfUnconfirmed.
+            notificationSettingsSync.pushIfUnconfirmed()
             true
         } catch (e: Exception) {
             if (e is CancellationException) throw e
@@ -144,6 +153,7 @@ class AuthService @Inject constructor(
      * Safe to call on every launch — no-ops if already signed in or no creds.
      */
     suspend fun migrateToV3IfNeeded() {
+        if (demoAccount.isActive) return
         if (authTokenManager.isLoggedIn) return
         val studentId = credentials.ntustStudentId ?: return
         val password = credentials.ntustPassword ?: return
@@ -167,6 +177,8 @@ class AuthService @Inject constructor(
             android.util.Log.i("AuthService", "v3 migration: JWT obtained")
             runCatching { pushRegistration.onSignedIn() }
                 .onFailure { e -> if (e is CancellationException) throw e }
+            // Same catch-up as attemptRelogin(), for the v2->v3 migration.
+            notificationSettingsSync.pushIfUnconfirmed()
         }.onFailure { e ->
             if (e is CancellationException) throw e
             android.util.Log.w("AuthService", "v3 migration: login failed", e)
@@ -179,6 +191,19 @@ class AuthService @Inject constructor(
 
         try {
             val normalizedId = studentId.trim().uppercase()
+
+            // The store-review account signs in without a server — see
+            // DemoAccount. Checked before anything goes out, so these
+            // credentials never reach NTUST.
+            if (demoAccount.matches(normalizedId, password)) {
+                demoAccount.enter()
+                credentials.ntustStudentId = normalizedId
+                credentials.ntustPassword = password
+                _authState.value = true
+                _isLoggingIn.value = false
+                return@withLock true
+            }
+
             val success = performSsoLoginUnlocked(normalizedId, password)
 
             if (success) {
@@ -216,6 +241,8 @@ class AuthService @Inject constructor(
                 }
                 runCatching { pushRegistration.onSignedIn() }
                     .onFailure { e -> if (e is CancellationException) throw e }
+                // Same catch-up as attemptRelogin(), for a fresh SSO login.
+                notificationSettingsSync.pushIfUnconfirmed()
             }
 
             _isLoggingIn.value = false
@@ -235,6 +262,9 @@ class AuthService @Inject constructor(
     }
 
     suspend fun ensureAuthenticated(): Boolean = loginMutex.withLock {
+        // No session to build: every caller then reads its cache, which is
+        // where the demo data is.
+        if (demoAccount.isActive) return@withLock false
         val studentId = credentials.ntustStudentId ?: return@withLock false
         val password = credentials.ntustPassword ?: return@withLock false
 
@@ -267,6 +297,9 @@ class AuthService @Inject constructor(
             // "library QR never works" is undiagnosable in the field.
             try {
                 libraryService.login(normalizedId, password)
+                // A library-only demo sign-in may still be standing in; see
+                // [org.ntust.app.tigerduck.demo.DemoAccount.signOutLibrary].
+                demoAccount.signOutLibrary()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -286,11 +319,18 @@ class AuthService @Inject constructor(
         credentials.clearNtustCredentials()
         credentials.clearLibraryCredentials()
         authTokenManager.logout()
+        // A queued live_activity push, and an edit still waiting to be
+        // confirmed, both belong to the account that is leaving. Neither may
+        // reach whoever signs in next.
+        notificationSettingsSync.cancelPendingPushes()
         sessionManager.invalidateSession()
         bulletinReadStateStore.clear()
         _loginError.value = null
         _authState.value = false
         pushRegistration.unregister(authHeader)
+        // Last, so everything above still sees the demo account and keeps
+        // its requests on the device.
+        demoAccount.exit()
         // Wipe persisted user data on the application scope so a coroutine
         // launched from a transient ViewModel scope can't be cancelled mid-
         // delete when the user backs out of Settings or the activity dies.

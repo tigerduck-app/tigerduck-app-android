@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
@@ -22,9 +23,34 @@ import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * The effective value of the `cloudSyncEnabled` preference: [storedValue] on
+ * every flavor except fdroid, which ships without Google Play Services and
+ * can never run TigerSync's course-sync / server-push pipeline regardless of
+ * what is stored. [AppPreferences.cloudSyncEnabled]'s getter is the one call
+ * site that applies this, so every reader — direct (`PushApiClient`,
+ * `NotificationSettingsSync`'s gates, `HomeBackendSync`, ...) or through
+ * [org.ntust.app.tigerduck.ui.AppState.cloudSyncEnabled], which seeds its
+ * in-memory mirror from this same getter — agrees on fdroid without each one
+ * re-deriving the flavor check itself.
+ *
+ * [flavor] defaults to [BuildConfig.FLAVOR] for that one production call
+ * site. Tests pass it explicitly instead: [AppPreferences] can't be
+ * constructed on the plain JVM this module's tests run on (its constructor
+ * calls the real `Context.getSharedPreferences`, and there is neither
+ * Robolectric nor a mocking library here), so this pure function — not the
+ * getter itself — is what a unit test exercises. Taking the flavor as a
+ * parameter also means the same test passes under both
+ * `testPlayDebugUnitTest` and `testFdroidDebugUnitTest`, instead of a literal
+ * expectation on `BuildConfig.FLAVOR` that would only be true under one of
+ * them.
+ */
+fun effectiveCloudSyncEnabled(storedValue: Boolean, flavor: String = BuildConfig.FLAVOR): Boolean =
+    storedValue && !flavor.equals("fdroid", ignoreCase = true)
+
 @Singleton
 class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
-    FirstTriggerSeenStore {
+    FirstTriggerSeenStore, AssignmentReminderPrefs {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences("tigerduck_prefs", Context.MODE_PRIVATE)
@@ -87,8 +113,14 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     // without interaction. The 2.0.1 "What's new" entry names cross-device
     // sync and says where to turn it off, which is what makes that
     // defensible rather than silent.
+    //
+    // The getter runs the stored value through effectiveCloudSyncEnabled, so
+    // fdroid reads false here no matter what is stored — see that function's
+    // doc. The setter still writes the raw value: it is the user's stored
+    // choice, not the effective one, and every reader goes through the
+    // getter anyway.
     var cloudSyncEnabled: Boolean
-        get() = prefs.getBoolean("cloudSyncEnabled", true)
+        get() = effectiveCloudSyncEnabled(prefs.getBoolean("cloudSyncEnabled", true))
         set(value) = prefs.edit().putBoolean("cloudSyncEnabled", value).apply()
 
     var syncCourses: Boolean
@@ -106,6 +138,44 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     var syncAssignments: Boolean
         get() = prefs.getBoolean("syncAssignments", true)
         set(value) = prefs.edit().putBoolean("syncAssignments", value).apply()
+
+    // Flips so NotificationSettingsSync can reconcile: turning this switch
+    // back on doesn't itself change notifyAssignments/notifyAssignmentOffsets,
+    // so nothing else would ever notice and (re-)push them. Emitted only on
+    // an actual change, mirroring syncLiveActivityChanged below.
+    private val _syncAssignmentRemindersChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val syncAssignmentRemindersChanged: SharedFlow<Unit> = _syncAssignmentRemindersChanged.asSharedFlow()
+
+    /** "同步內容" (Synced content) toggle — assignment due-date reminders. */
+    var syncAssignmentReminders: Boolean
+        get() = prefs.getBoolean("syncAssignmentReminders", true)
+        set(value) {
+            val previous = syncAssignmentReminders
+            prefs.edit().putBoolean("syncAssignmentReminders", value).apply()
+            if (value != previous) _syncAssignmentRemindersChanged.tryEmit(Unit)
+        }
+
+    // Flips so NotificationSettingsSync can reconcile: turning this switch
+    // back on doesn't itself change any of the five live_activity values,
+    // so nothing else would ever notice and (re-)push them. Emitted only on
+    // an actual change, same as appLanguageChanged above.
+    private val _syncLiveActivityChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val syncLiveActivityChanged: SharedFlow<Unit> = _syncLiveActivityChanged.asSharedFlow()
+
+    /** "同步內容" (Synced content) toggle — Live Activity / Live Updates state. */
+    var syncLiveActivity: Boolean
+        get() = prefs.getBoolean("syncLiveActivity", true)
+        set(value) {
+            val previous = syncLiveActivity
+            prefs.edit().putBoolean("syncLiveActivity", value).apply()
+            if (value != previous) _syncLiveActivityChanged.tryEmit(Unit)
+        }
 
     var pendingConflictCategories: Set<String>
         get() = prefs.getStringSet("pendingConflictCategories", emptySet()) ?: emptySet()
@@ -380,9 +450,23 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         }.apply()
     }
 
-    var notifyAssignments: Boolean
+    // Emitted on an actual change to either setting below, whoever made it.
+    // AppState's copy of them re-reads on it, because a pull of the shared
+    // `notification` document writes these directly, not through AppState.
+    private val _assignmentReminderSettingsChanged = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    override val assignmentReminderSettingsChanged: SharedFlow<Unit> =
+        _assignmentReminderSettingsChanged.asSharedFlow()
+
+    override var notifyAssignments: Boolean
         get() = prefs.getBoolean("notifyAssignments", true)
-        set(value) = prefs.edit().putBoolean("notifyAssignments", value).apply()
+        set(value) {
+            val previous = notifyAssignments
+            prefs.edit().putBoolean("notifyAssignments", value).apply()
+            if (value != previous) _assignmentReminderSettingsChanged.tryEmit(Unit)
+        }
 
     /**
      * Per-offset opt-in for assignment due reminders. Persisted as raw-value
@@ -392,17 +476,33 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
      * Absent key (fresh install or upgrade from <= v1.4.x where only a single
      * 1h-before reminder existed) → seed with [AssignmentReminderOffset.DEFAULTS].
      */
-    var notifyAssignmentOffsets: Set<AssignmentReminderOffset>
+    override var notifyAssignmentOffsets: Set<AssignmentReminderOffset>
         get() {
             val stored = prefs.getStringSet("notifyAssignmentOffsets", null)
                 ?: return AssignmentReminderOffset.DEFAULTS
             return stored.mapNotNullTo(mutableSetOf()) { AssignmentReminderOffset.fromRawValue(it) }
         }
         set(value) {
+            val previous = notifyAssignmentOffsets
             prefs.edit()
                 .putStringSet("notifyAssignmentOffsets", value.map { it.rawValue }.toSet())
                 .apply()
+            if (value != previous) _assignmentReminderSettingsChanged.tryEmit(Unit)
         }
+
+    /**
+     * Whether [notifyAssignments]/[notifyAssignmentOffsets] as they stand now
+     * have *not* yet been confirmed to have reached the server — the
+     * assignments-section mirror of `LiveActivityPreferences.hasUnconfirmedSyncEdit`;
+     * see that property's KDoc for why this has to be persisted rather than
+     * kept in memory, and why a plain `Boolean` rather than a version counter.
+     * A plain hand-written `getBoolean`/`putBoolean` pair, not a field on a
+     * Gson-deserialized class, so the upgrade-safe-persistence rule does not
+     * apply here.
+     */
+    var hasUnconfirmedAssignmentSyncEdit: Boolean
+        get() = prefs.getBoolean("hasUnconfirmedAssignmentSyncEdit", false)
+        set(value) = prefs.edit().putBoolean("hasUnconfirmedAssignmentSyncEdit", value).apply()
 
     var homeSections: List<HomeSection>
         get() {

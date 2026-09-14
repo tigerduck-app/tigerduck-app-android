@@ -5,8 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import android.util.Log
@@ -22,9 +26,9 @@ import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
-import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
+import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushDiagnostic
@@ -55,6 +59,7 @@ class SettingsViewModel @Inject constructor(
     private val courseService: CourseService,
     private val dataCache: DataCache,
     private val debugFixtures: DebugFixtureStore,
+    private val demoAccount: DemoAccount,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -62,16 +67,27 @@ class SettingsViewModel @Inject constructor(
         const val TAG = "SyncReenable"
     }
 
-    private val _syncDiagnostic = MutableStateFlow(PushDiagnostic(false, false, null, null, null))
+    private val _syncDiagnostic = MutableStateFlow(PushDiagnostic(false, false, null))
     val syncDiagnostic: StateFlow<PushDiagnostic> = _syncDiagnostic
-
-    private val _isSyncing = MutableStateFlow(false)
-    val isSyncing: StateFlow<Boolean> = _isSyncing
 
     private val _serverPushOn = MutableStateFlow(!pushRegistration.isServerPushOptedOut())
     val serverPushOn: StateFlow<Boolean> = _serverPushOn
 
     private val _isTogglingPush = MutableStateFlow(false)
+    val isTogglingServerPush: StateFlow<Boolean> = _isTogglingPush
+
+    /**
+     * One-shot signal for [CloudSyncSettingsScreen] to surface
+     * `settings_server_push_update_failed` (e.g. via a Toast) when the
+     * server rejects a server-push preference change. Not a [StateFlow]:
+     * there is no "current" failure to replay to a screen that
+     * recomposes after the fact, only an event to react to once.
+     */
+    private val _serverPushUpdateFailed = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val serverPushUpdateFailed: SharedFlow<Unit> = _serverPushUpdateFailed.asSharedFlow()
 
     init {
         pushRegistration.diagnostic
@@ -79,13 +95,30 @@ class SettingsViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
+    /**
+     * Optimistically flips the switch, then reverts it to [previous] if the
+     * backend rejects the change — a rejected PATCH must not leave the UI
+     * claiming a preference took effect when it didn't. This only needs to
+     * revert the in-memory flag: `PushRegistrationService.updateServerPushOptOut`
+     * defers its own persisted write until the backend accepts the change,
+     * so a rejected PATCH never reaches storage in the first place — see
+     * `applyOptOutIfAccepted`.
+     */
     fun setServerPushOn(isOn: Boolean) {
         if (_isTogglingPush.value || _serverPushOn.value == isOn) return
+        val previous = _serverPushOn.value
         _serverPushOn.value = isOn
         _isTogglingPush.value = true
         viewModelScope.launch {
-            try { pushRegistration.updateServerPushOptOut(optOut = !isOn) }
-            finally { _isTogglingPush.value = false }
+            try {
+                val success = pushRegistration.updateServerPushOptOut(optOut = !isOn)
+                if (!success) {
+                    _serverPushOn.value = previous
+                    _serverPushUpdateFailed.tryEmit(Unit)
+                }
+            } finally {
+                _isTogglingPush.value = false
+            }
         }
     }
 
@@ -128,6 +161,8 @@ class SettingsViewModel @Inject constructor(
                 syncCourseColors = prefs.syncCourseColors,
                 syncCourseNames = prefs.syncCourseNames,
                 syncAssignments = prefs.syncAssignments,
+                syncAssignmentReminders = prefs.syncAssignmentReminders,
+                syncLiveActivity = prefs.syncLiveActivity,
             )
         }
     }
@@ -376,15 +411,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun syncNow() {
-        if (_isSyncing.value) return
-        _isSyncing.value = true
-        viewModelScope.launch {
-            try { pushRegistration.syncNow() }
-            finally { _isSyncing.value = false }
-        }
-    }
-
     val isNtustLoggingIn = authService.isLoggingIn
     val ntustLoginError = authService.loginError
 
@@ -396,11 +422,14 @@ class SettingsViewModel @Inject constructor(
 
     val isNtustLoggedIn: StateFlow<Boolean> = authService.authState
 
-    private val _isLibraryLoggedIn = MutableStateFlow(credentials.isLibraryTokenValid)
+    private val _isLibraryLoggedIn = MutableStateFlow(librarySignedIn())
     val isLibraryLoggedIn: StateFlow<Boolean> = _isLibraryLoggedIn
 
+    private fun librarySignedIn(): Boolean =
+        credentials.isLibraryTokenValid || demoAccount.isLibrarySignedIn
+
     fun refreshLoginState() {
-        _isLibraryLoggedIn.value = credentials.isLibraryTokenValid
+        _isLibraryLoggedIn.value = librarySignedIn()
     }
 
     fun loginNtust(studentId: String, password: String) {
@@ -426,7 +455,20 @@ class SettingsViewModel @Inject constructor(
             _libIsLoggingIn.value = true
             _libLoginError.value = null
             try {
+                // The demo library password signs in on the device, with or
+                // without the demo account; see [DemoAccount.signInLibrary].
+                if (demoAccount.signInLibrary(username, password)) {
+                    _isLibraryLoggedIn.value = true
+                    return@launch
+                }
+                // The demo account itself never reaches the library, so
+                // anything else fails there the way a wrong password would.
+                if (demoAccount.isActive) {
+                    _libLoginError.value = context.getString(R.string.error_sign_in_failed)
+                    return@launch
+                }
                 libraryService.login(username, password)
+                demoAccount.signOutLibrary()
                 _isLibraryLoggedIn.value = true
                 // The NTUST authState collector in TigerDuckApp pushes library
                 // credentials on NTUST login/logout, but a Settings-only
@@ -443,18 +485,18 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun logoutLibrary() {
+        demoAccount.signOutLibrary()
         credentials.clearLibraryCredentials()
         _isLibraryLoggedIn.value = false
         viewModelScope.launch { wearBridge.publishLibraryCredentials() }
     }
 
-    val libraryUsername: String? get() = credentials.libraryUsername
+    val libraryUsername: String?
+        get() = demoAccount.libraryUsername ?: credentials.libraryUsername
     val libraryTokenExpiry: Long get() = credentials.libraryTokenExpiry
     val ntustStudentId: String?
-        get() = (if (BuildConfig.DEBUG) debugFixtures.studentIdOverride else null)
+        get() = debugFixtures.studentIdOverride
             ?: authService.storedStudentId
-
-    fun cancelAllAssignmentNotifications() = notificationScheduler.cancelAllTracked()
 
     fun clearNtustLoginError() = authService.clearLoginError()
 

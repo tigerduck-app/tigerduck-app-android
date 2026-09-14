@@ -1077,13 +1077,6 @@ FodyWeavers.xsd
 
 # End of https://www.toptal.com/developers/gitignore/api/linux,macos,kotlin,windows,intellij,visualstudio,visualstudiocode,python,pycharm,androidstudio,android,gradle,keystonejs,java
 
-# Screenshot captures (debug/screenshot/screenshot.sh). Shots are promoted into
-# fastlane/metadata by hand; the raw captures are never committed. Spelled out
-# even though the template's blanket `out/` rule above already covers it — the
-# script and fixture JSON living next to it are meant to be tracked, and that
-# distinction is worth stating where someone will look for it.
-debug/screenshot/out/
-
 # Kotlin build-tool session files (KGP 2.x writes these next to the project
 # root). Pure build state — they were briefly committed by an over-broad
 # `git add -A` and are here so that cannot repeat.

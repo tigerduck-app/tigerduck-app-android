@@ -16,6 +16,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -26,6 +27,7 @@ import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CourseNameScale
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.data.preferences.effectiveCloudSyncEnabled
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
@@ -34,6 +36,25 @@ import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * What [AppState.cloudSyncEnabled]'s setter should actually apply when asked
+ * to write [requested] on [flavor] — the writer-side mirror of
+ * [effectiveCloudSyncEnabled]. fdroid ships without Google Play Services and
+ * can never run TigerSync's course-sync / server-push pipeline regardless of
+ * what is stored (see that function's doc); [effectiveCloudSyncEnabled]
+ * already guarantees every *reader* agrees on that. Without this, a future
+ * caller setting [AppState.cloudSyncEnabled] to `true` on fdroid would make
+ * every reader of it see sync as on, since the setter otherwise just mirrors
+ * whatever it is given. A request to turn it *off* always takes effect, on
+ * every flavor.
+ *
+ * [flavor] defaults to [BuildConfig.FLAVOR] for the one production call
+ * site; tests pass it explicitly, the same reason
+ * [effectiveCloudSyncEnabled] does.
+ */
+internal fun effectiveCloudSyncWrite(requested: Boolean, flavor: String = BuildConfig.FLAVOR): Boolean =
+    effectiveCloudSyncEnabled(storedValue = requested, flavor = flavor)
 
 @Singleton
 class AppState @Inject constructor(
@@ -47,22 +68,16 @@ class AppState @Inject constructor(
     private val dataMigration: DataMigration,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val pushRegistration: org.ntust.app.tigerduck.push.PushRegistrationService,
-    debugFixtures: org.ntust.app.tigerduck.debug.DebugFixtureStore,
+    private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
 ) {
     /**
-     * Whether this process is a screenshot session running on fixture data.
+     * Whether the demo account was signed in when this process started.
      *
-     * Sampled once, here, rather than read where it is used: demo mode
-     * changes what the network layer does and what the app believes about
-     * sign-in, and letting that flip under a running process leaves an
-     * in-flight sync still writing over the fixture. The screenshot script
-     * force-stops the app after loading one, so a fresh process is the only
-     * way it ever turns on.
-     *
-     * Constant false in release builds, where R8 folds every branch below.
+     * Sampled once, for what is decided once per process — the onboarding
+     * skip below, and rewriting the demo data. The demo sign-in switches the
+     * network and the status dots itself, without waiting for a restart.
      */
-    private val demoMode =
-        org.ntust.app.tigerduck.BuildConfig.DEBUG && debugFixtures.demoMode
+    private val demoMode = demoAccount.isActive
 
     init {
         if (demoMode) {
@@ -72,6 +87,10 @@ class AppState @Inject constructor(
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var syncJob: Job? = null
+
+    init {
+        if (demoMode) scope.launch { demoAccount.reapply() }
+    }
 
     private val _loadingState = MutableStateFlow(LoadingState.IDLE)
 
@@ -110,9 +129,8 @@ class AppState @Inject constructor(
 
     /**
      * Demo mode reports the wizard as done without writing the preference.
-     * A screenshot device is often signed out, and the wizard is the first
-     * thing it would show; skipping it is also the only way past it, because
-     * with every server refused there is no sign-in for the user to complete.
+     * A demo session restarted before the wizard was finished is not sent back
+     * through it: the sign-in it would ask for has already happened.
      * Not persisting it keeps a device that leaves demo mode showing the
      * wizard again, which is what a signed-out install should do.
      */
@@ -135,7 +153,7 @@ class AppState @Inject constructor(
      * for why this is not done by clearing [hasCompletedOnboarding].
      *
      * Demo mode is excluded for the same reason it reports the wizard as done
-     * — a screenshot device must not be interrupted by it.
+     * — a demo session must not be interrupted by it.
      */
     val needsOnboardingRerun: Boolean
         get() = hasCompletedOnboardingState && !demoMode &&
@@ -319,25 +337,23 @@ class AppState @Inject constructor(
             prefs.rotationMode = value
         }
 
-    private var notifyAssignmentsState by mutableStateOf(prefs.notifyAssignments)
+    // AppPreferences is the record for these two, and NotificationSettingsSync's
+    // pull writes it directly. This copy re-reads it on every change, and an
+    // offset toggle is computed from it: see AssignmentReminderSettingsState.
+    private val assignmentReminderSettings = AssignmentReminderSettingsState(prefs, scope)
 
     var notifyAssignments: Boolean
-        get() = notifyAssignmentsState
+        get() = assignmentReminderSettings.enabled
         set(value) {
-            if (notifyAssignmentsState == value) return
-            notifyAssignmentsState = value
-            prefs.notifyAssignments = value
+            assignmentReminderSettings.enabled = value
         }
 
-    private var notifyAssignmentOffsetsState by mutableStateOf(prefs.notifyAssignmentOffsets)
+    val notifyAssignmentOffsets: Set<AssignmentReminderOffset>
+        get() = assignmentReminderSettings.offsets
 
-    var notifyAssignmentOffsets: Set<AssignmentReminderOffset>
-        get() = notifyAssignmentOffsetsState
-        set(value) {
-            if (notifyAssignmentOffsetsState == value) return
-            notifyAssignmentOffsetsState = value
-            prefs.notifyAssignmentOffsets = value
-        }
+    /** Turns [offset] on or off in the stored set of assignment reminder offsets. */
+    fun setNotifyAssignmentOffsetEnabled(offset: AssignmentReminderOffset, enabled: Boolean) =
+        assignmentReminderSettings.setOffsetEnabled(offset, enabled)
 
     private var libraryFeatureEnabledState by mutableStateOf(prefs.libraryFeatureEnabled)
 
@@ -364,9 +380,10 @@ class AppState @Inject constructor(
     var cloudSyncEnabled: Boolean
         get() = cloudSyncEnabledState
         set(value) {
-            if (cloudSyncEnabledState == value) return
-            cloudSyncEnabledState = value
-            prefs.cloudSyncEnabled = value
+            val effective = effectiveCloudSyncWrite(requested = value)
+            if (cloudSyncEnabledState == effective) return
+            cloudSyncEnabledState = effective
+            prefs.cloudSyncEnabled = effective
         }
 
     private var disableScreenCaptureProtectionState by
@@ -509,8 +526,7 @@ class AppState @Inject constructor(
                 TigerDuckTheme.setCourseNameScale(it)
             }
             rotationModeState = prefs.rotationMode
-            notifyAssignmentsState = prefs.notifyAssignments
-            notifyAssignmentOffsetsState = prefs.notifyAssignmentOffsets
+            assignmentReminderSettings.reload()
             libraryFeatureEnabledState = prefs.libraryFeatureEnabled
             flipToLibraryEnabledState = prefs.flipToLibraryEnabled
             cloudSyncEnabledState = prefs.cloudSyncEnabled

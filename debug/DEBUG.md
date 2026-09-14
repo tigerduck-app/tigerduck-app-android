@@ -8,7 +8,6 @@
 | `./debug/install-play.sh`         | Build + install `:app:playDebug` to a chosen phone; asks if you want `:wear:debug` on a paired watch too.                                                                                                                       |
 | `./debug/install-play-release.sh` | Build + install `:app:playRelease` (and optionally `:wear:release`) APK(s) via `adb install`. Use when you need to test release-mode behavior (R8/ProGuard, signing) without going through Internal Testing.                    |
 | `./debug/set-clock.sh`           | Set or clear the debug clock override over adb, non-interactively. Applies to the running app immediately — no restart, no tapping through Settings. See "Driving the clock from a shell" below.                          |
-| `./debug/screenshot/screenshot.sh` | Interactive menu for store screenshots: Enter-to-capture, plus fake timetable / student ID / library QR, the app clock, a clean status bar. See "Store screenshots" below. |
 | `./debug/sync-localizations.sh`   | Regenerate `app/` and `wear/` `values-*/strings.xml` from the app-translation submodule. Run after `git submodule update --remote app-translation` so committed resources match the new submodule pointer before you build or commit. |
 
 The `install-*` scripts:
@@ -148,23 +147,6 @@ anything scripted.
 Release builds have no such receiver: the `<receiver>` lives in
 `app/src/debug/AndroidManifest.xml`, which is merged only into
 `playDebug` / `fdroidDebug`.
-
-## Store screenshots
-
-`./debug/screenshot/screenshot.sh` — an interactive menu for capturing the
-images in `fastlane/metadata/android/<locale>/images/`. It does not drive the
-app: you navigate and press Enter, and the script sets up the *state* worth
-photographing (fake timetable, fake student ID, chosen library QR payload,
-frozen clock, clean status bar).
-
-Full documentation, including the fixture JSON reference and the three
-different clocks, lives next to it: **`debug/screenshot/README.md`**.
-
-One thing worth knowing from here: the app's clock (menu `4`, via
-`set-clock.sh`), the status bar clock (menu `5`, SystemUI demo mode) and the
-device's real system clock (menu `6`) are three independent things. The first
-two work anywhere; the third needs `su` or a userdebug build, which a Play
-Store emulator image is not.
 
 ## Wireless ADB recipe
 

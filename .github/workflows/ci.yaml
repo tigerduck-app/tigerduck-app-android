@@ -16,45 +16,52 @@ permissions:
 
 jobs:
   build-and-test:
+    # One runner per leg. The three used to run back to back in a single job
+    # (~7 min), yet none of them needs another's output, so the gate now takes
+    # as long as its slowest leg. Every leg restores the same dependency and
+    # transform caches the release workflow writes on main, so the split does
+    # not mean downloading the world three times.
+    name: build-and-test (${{ matrix.leg }})
     runs-on: ubuntu-latest
+    strategy:
+      # Let every leg report: a compile error in one flavor must not hide a
+      # failing test in the other.
+      fail-fast: false
+      matrix:
+        include:
+          # Compiling each flavor's unit tests compiles its main sources first,
+          # so the test tasks cover the flavor compiles on their own.
+          - leg: play
+            tasks: :shared:test :app:testPlayDebugUnitTest
+          - leg: fdroid + wear
+            tasks: :app:testFdroidDebugUnitTest :wear:compileDebugKotlin
+          # :wear's release build is minified with its own proguard-rules.pro,
+          # and nothing else in the PR gate runs R8 over it — a keep-rule gap
+          # would otherwise surface for the first time on release day, which is
+          # exactly the failure mode this workflow exists to prevent. Unsigned
+          # on purpose: PRs from forks cannot read KEYSTORE_* secrets, and
+          # signing is the release workflow's job. Output lands as
+          # wear-release-unsigned.apk.
+          - leg: wear release
+            tasks: :wear:assembleRelease :wear:bundleRelease
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           # name-abbr is required by verifyNameAbbrSubmodule; app-translation is
           # required by the generated-resources contract. Do not drop this.
           submodules: true
 
       - name: Set up JDK
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@ac638b010cf58a27ee6c972d7336334ccaf61c96 # v4
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
 
-      - name: Compile (play + fdroid + wear)
-        run: >
-          ./gradlew --no-daemon
-          :app:compilePlayDebugKotlin
-          :app:compileFdroidDebugKotlin
-          :wear:compileDebugKotlin
-
-      # :wear's release build is minified with its own proguard-rules.pro, and
-      # nothing else in the PR gate runs R8 over it — a keep-rule gap would
-      # otherwise surface for the first time on release day, which is exactly
-      # the failure mode this workflow exists to prevent. Unsigned on purpose:
-      # PRs from forks cannot read KEYSTORE_* secrets, and signing is the
-      # release workflow's job. Output lands as wear-release-unsigned.apk.
-      - name: Build wear release (unsigned)
-        run: >
-          ./gradlew --no-daemon
-          :wear:assembleRelease
-          :wear:bundleRelease
-
-      - name: Unit tests
-        run: >
-          ./gradlew --no-daemon
-          :shared:test
-          :app:testPlayDebugUnitTest
-          :app:testFdroidDebugUnitTest
+      - name: Gradle (${{ matrix.leg }})
+        env:
+          TASKS: ${{ matrix.tasks }}
+        # $TASKS is unquoted on purpose: it is a space-separated task list.
+        run: ./gradlew --no-daemon $TASKS

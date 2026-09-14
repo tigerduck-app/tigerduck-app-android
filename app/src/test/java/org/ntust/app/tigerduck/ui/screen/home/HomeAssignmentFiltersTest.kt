@@ -109,4 +109,14 @@ class HomeAssignmentFiltersTest {
             ids(HomeAssignmentFilters.unfinishedFor(all, "C1", setOf("b"), setOf("a"))),
         )
     }
+
+    @Test
+    fun `已忽略 has something to show only while an ignored id is on the list`() {
+        val all = listOf(assignment("a", at(1)), assignment("b", at(2)))
+        assertEquals(true, HomeAssignmentFilters.hasIgnored(all, setOf("b")))
+        assertEquals(false, HomeAssignmentFilters.hasIgnored(all, emptySet()))
+        // An ignored assignment that has since left the list: the tab would
+        // stand over an empty list.
+        assertEquals(false, HomeAssignmentFilters.hasIgnored(all, setOf("gone")))
+    }
 }
