@@ -48,6 +48,15 @@ object HomeAssignmentFilters {
     }
 
     /**
+     * Whether the 已忽略 tab has anything to show: the test its [visible]
+     * list applies, so the tab is up exactly when that list is not empty.
+     * The ignored set on its own is not enough — it keeps the ids of ignored
+     * assignments that have since left the list. Matches iOS `hasIgnored()`.
+     */
+    fun hasIgnored(all: List<Assignment>, ignoredIds: Set<String>): Boolean =
+        all.any { it.assignmentId in ignoredIds }
+
+    /**
      * Assignments for one course that still need doing. Drives the course
      * tile's "has work outstanding" dot, so ignored items must not count —
      * ignoring is the user saying they do not want to be reminded.

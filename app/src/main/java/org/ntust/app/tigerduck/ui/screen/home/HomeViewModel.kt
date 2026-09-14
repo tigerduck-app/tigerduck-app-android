@@ -196,6 +196,14 @@ class HomeViewModel @Inject constructor(
         HomeAssignmentFilters.visible(all, ignored, marked, filter, Date(AppClock.nowMillis()))
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /** Whether the 已忽略 tab has anything to show; see [HomeAssignmentFilters.hasIgnored]. */
+    val hasIgnoredAssignments: StateFlow<Boolean> = combine(
+        _allAssignments,
+        _ignoredAssignmentIds,
+    ) { all, ignored ->
+        HomeAssignmentFilters.hasIgnored(all, ignored)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     private val saveIgnoredChannel = Channel<Set<String>>(Channel.CONFLATED)
     private val saveMarkedCompletedChannel = Channel<Set<String>>(Channel.CONFLATED)
 
@@ -692,7 +700,7 @@ class HomeViewModel @Inject constructor(
     fun onHomePaused() {
         _ignoredTabPinned.value = false
         if (_assignmentFilter.value == AssignmentFilter.IGNORED &&
-            _ignoredAssignmentIds.value.isEmpty()
+            !HomeAssignmentFilters.hasIgnored(_allAssignments.value, _ignoredAssignmentIds.value)
         ) {
             _assignmentFilter.value = AssignmentFilter.INCOMPLETE
             prefs.homeAssignmentFilter = AssignmentFilter.INCOMPLETE

@@ -97,6 +97,7 @@ fun HomeScreen(
     val ignoredAssignmentIds by viewModel.ignoredAssignmentIds.collectAsStateWithLifecycle()
     val markedCompletedIds by viewModel.markedCompletedIds.collectAsStateWithLifecycle()
     val ignoredTabPinned by viewModel.ignoredTabPinned.collectAsStateWithLifecycle()
+    val hasIgnoredAssignments by viewModel.hasIgnoredAssignments.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val initialLoadComplete by viewModel.initialLoadComplete.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
@@ -259,7 +260,7 @@ fun HomeScreen(
                             allCourses = allCourses,
                             upcomingAssignments = upcomingAssignments,
                             assignmentFilter = assignmentFilter,
-                            showIgnoredTab = ignoredAssignmentIds.isNotEmpty() || ignoredTabPinned,
+                            showIgnoredTab = hasIgnoredAssignments || ignoredTabPinned,
                             ignoredAssignmentIds = ignoredAssignmentIds,
                             markedCompletedIds = markedCompletedIds,
                             isLoggedIn = isLoggedIn,
