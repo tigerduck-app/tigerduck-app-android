@@ -1,24 +1,10 @@
-TigerDuck is an open-source campus assistant for students at National Taiwan University of Science and Technology (NTUST).
+TigerDuck is an open-source campus assistant app for National Taiwan University of Science and Technology (NTUST) students.
 
-It brings scattered campus services together in one app:
+It brings together scattered campus services into a single native Android experience:
 
-- Assignments: synced automatically from Moodle, with deadline reminders and an ongoing notification for what's due next
-- Class schedule: synced straight from the course selection system, with an interactive timeline that shows where your next class is
-- Grades: semester and cumulative GPA, rankings and every course's grade, with a chart of how your grades trend
-- Calendar: school events and Moodle deadlines together in one month view
-- Announcements: notices from every office and center on one page, sorted into categories you can subscribe to
-- Library (experimental): open your library entry QR code instantly, or just turn your phone face down
-- TigerSync: keep assignments and your class schedule in sync across Android, iPhone, iPad and Mac, choosing item by item what syncs (the F-Droid version keeps to "Essential information")
-- Personalization: 65 languages and regional variants, your own tabs, home sections and theme color, and shortened course and classroom names
-
-On Wear OS (Google Play version only):
-
-- A watch app that shows the class you're in or the next one coming up, plus today's classes and course details
-- A tile: swipe to it on your watch to see your current or next class, with the course name, classroom, instructor and start or end time
-- A watch face complication: add it to your watch face to see the class in progress, or your next class and when it starts
-- Your library entry QR code right on your wrist
-- Your schedule, language and theme color sync from your phone automatically
-
-The Wear OS app needs Wear OS 3 or later and a paired phone with the Google Play version of TigerDuck.
+- Sync assignments from Moodle with deadline notifications and reminders
+- Course schedule sync from the selection system with an interactive time-machine timeline
+- Integrated campus calendar combining school events and Moodle deadlines
+- Customizable themes, notification preferences, and display settings
 
 Built by students, for students.
