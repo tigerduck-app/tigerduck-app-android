@@ -573,14 +573,13 @@ internal fun SyncToggleRow(
     label: String,
     checked: Boolean,
     enabled: Boolean = true,
-    indent: Boolean = false,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = SettingRowHeight)
-            .padding(start = if (indent) 32.dp else 16.dp, end = 16.dp),
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(

@@ -50,10 +50,8 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.sensor.FlipDetector
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
@@ -79,6 +77,7 @@ fun SettingsScreen(
     onNavigateToNotificationPermissionSettings: () -> Unit = {},
     onNavigateToAssignmentReminders: () -> Unit = {},
     onNavigateToCloudSync: () -> Unit = {},
+    onNavigateToLibrarySettings: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToNotificationDebug: () -> Unit = {},
@@ -95,7 +94,6 @@ fun SettingsScreen(
 
     var showNtustLoginSheet by remember { mutableStateOf(false) }
     var showLibraryLoginSheet by remember { mutableStateOf(false) }
-    var showLibraryWarning by remember { mutableStateOf(false) }
 
     // Auto-dismiss dialogs when login succeeds
     LaunchedEffect(isNtustLoggedIn) {
@@ -419,36 +417,10 @@ fun SettingsScreen(
             // --- Other settings ---
             item { SectionHeader(stringResource(R.string.settings_section_other_settings)) }
             item {
-                val flipSensorSupported = remember(context) {
-                    FlipDetector.isSupported(context)
-                }
                 ContentCard {
                     Column {
-                        SettingsToggleRow(
-                            stringResource(R.string.settings_library_related_features),
-                            libraryEnabled,
-                        ) { enabled ->
-                            if (enabled) {
-                                showLibraryWarning = true
-                            } else {
-                                viewModel.appState.libraryFeatureEnabled = false
-                                viewModel.appState.configuredTabs =
-                                    viewModel.appState.configuredTabs.filter { !it.isLibraryRelated }
-                            }
-                        }
-                        if (libraryEnabled) {
-                            HorizontalDivider()
-                            SettingsToggleRow(
-                                label = stringResource(R.string.settings_flip_to_library_title),
-                                checked = viewModel.appState.flipToLibraryEnabled && flipSensorSupported,
-                                enabled = flipSensorSupported,
-                                subtitle = if (flipSensorSupported) {
-                                    stringResource(R.string.settings_flip_to_library_summary)
-                                } else {
-                                    stringResource(R.string.settings_flip_to_library_unsupported)
-                                },
-                                onCheckedChange = { viewModel.appState.flipToLibraryEnabled = it },
-                            )
+                        SettingsLinkRow(stringResource(R.string.settings_library_related_features)) {
+                            onNavigateToLibrarySettings()
                         }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
@@ -615,22 +587,6 @@ fun SettingsScreen(
             loginError = libLoginError,
             onLogin = { u, p -> viewModel.loginLibrary(u, p) },
             onDismiss = { showLibraryLoginSheet = false },
-        )
-    }
-
-    if (showLibraryWarning) {
-        LibraryWarningDialog(
-            onConfirm = {
-                viewModel.appState.libraryFeatureEnabled = true
-                if (!viewModel.appState.configuredTabs.contains(AppFeature.LIBRARY) &&
-                    viewModel.appState.configuredTabs.size < 4
-                ) {
-                    viewModel.appState.configuredTabs =
-                        viewModel.appState.configuredTabs + AppFeature.LIBRARY
-                }
-                showLibraryWarning = false
-            },
-            onDismiss = { showLibraryWarning = false },
         )
     }
 

@@ -41,12 +41,18 @@ import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
+/**
+ * 其他設定, one card per group: 課程字體大小, 反轉滑條方向, 螢幕翻轉, 震動,
+ * API 端點, 顏色主題 with 重新分配課表顏色, 使用分析, then the links out.
+ * iOS has the same page without 震動, 螢幕翻轉, 顏色主題 and 使用分析,
+ * which it does not offer. The library switches live on
+ * [LibrarySettingsScreen], the other entry in Settings' 其他設定 section.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OtherSettingsScreen(
     onBack: () -> Unit,
     onNavigateToApiEndpoint: () -> Unit,
-    onNavigateToNotificationSetup: () -> Unit,
     onNavigateToSourceCode: () -> Unit,
     onNavigateToVibration: () -> Unit,
     onNavigateToCourseNameSize: () -> Unit,
@@ -88,65 +94,6 @@ fun OtherSettingsScreen(
         ) {
             item {
                 ContentCard {
-                    SettingsToggleRow(
-                        stringResource(R.string.settings_invert_slider_direction),
-                        invertSlider,
-                    ) { viewModel.appState.invertSliderDirection = it }
-                }
-            }
-
-            item { Spacer(Modifier.height(24.dp)) }
-
-            item {
-                ContentCard {
-                    Column {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(SettingRowHeight)
-                                .clickable { showResetColorsConfirm = true }
-                                .padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                stringResource(R.string.settings_reset_course_colors),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
-                        HorizontalDivider()
-                        SettingsPickerRow(
-                            label = stringResource(R.string.settings_color_theme),
-                            value = when (themeMode) {
-                                "dark" -> stringResource(R.string.settings_theme_dark)
-                                "light" -> stringResource(R.string.settings_theme_light)
-                                else -> stringResource(R.string.settings_theme_system)
-                            },
-                            options = listOf(
-                                "system" to stringResource(R.string.settings_theme_system),
-                                "dark" to stringResource(R.string.settings_theme_dark),
-                                "light" to stringResource(R.string.settings_theme_light),
-                            ),
-                            selectedKey = themeMode,
-                            onSelect = { viewModel.appState.themeMode = it },
-                        )
-                    }
-                }
-            }
-
-            item { Spacer(Modifier.height(24.dp)) }
-
-            item {
-                ContentCard {
-                    SettingsLinkRow(stringResource(R.string.settings_api_endpoint)) {
-                        onNavigateToApiEndpoint()
-                    }
-                }
-            }
-
-            item { Spacer(Modifier.height(24.dp)) }
-
-            item {
-                ContentCard {
                     SettingsLinkRowWithValue(
                         label = stringResource(R.string.settings_font_size_title),
                         value = "%.2f×".format(courseNameScale),
@@ -168,19 +115,10 @@ fun OtherSettingsScreen(
 
             item {
                 ContentCard {
-                    SettingsLinkRow(stringResource(R.string.notification_setup_title)) {
-                        onNavigateToNotificationSetup()
-                    }
-                }
-            }
-
-            item { Spacer(Modifier.height(24.dp)) }
-
-            item {
-                ContentCard {
-                    SettingsLinkRow(stringResource(R.string.vibration_settings_title)) {
-                        onNavigateToVibration()
-                    }
+                    SettingsToggleRow(
+                        stringResource(R.string.settings_invert_slider_direction),
+                        invertSlider,
+                    ) { viewModel.appState.invertSliderDirection = it }
                 }
             }
 
@@ -206,6 +144,64 @@ fun OtherSettingsScreen(
                         selectedKey = rotationMode,
                         onSelect = { viewModel.appState.rotationMode = it },
                     )
+                }
+            }
+
+            item { Spacer(Modifier.height(24.dp)) }
+
+            item {
+                ContentCard {
+                    SettingsLinkRow(stringResource(R.string.vibration_settings_title)) {
+                        onNavigateToVibration()
+                    }
+                }
+            }
+
+            item { Spacer(Modifier.height(24.dp)) }
+
+            item {
+                ContentCard {
+                    SettingsLinkRow(stringResource(R.string.settings_api_endpoint)) {
+                        onNavigateToApiEndpoint()
+                    }
+                }
+            }
+
+            item { Spacer(Modifier.height(24.dp)) }
+
+            item {
+                ContentCard {
+                    Column {
+                        SettingsPickerRow(
+                            label = stringResource(R.string.settings_color_theme),
+                            value = when (themeMode) {
+                                "dark" -> stringResource(R.string.settings_theme_dark)
+                                "light" -> stringResource(R.string.settings_theme_light)
+                                else -> stringResource(R.string.settings_theme_system)
+                            },
+                            options = listOf(
+                                "system" to stringResource(R.string.settings_theme_system),
+                                "dark" to stringResource(R.string.settings_theme_dark),
+                                "light" to stringResource(R.string.settings_theme_light),
+                            ),
+                            selectedKey = themeMode,
+                            onSelect = { viewModel.appState.themeMode = it },
+                        )
+                        HorizontalDivider()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(SettingRowHeight)
+                                .clickable { showResetColorsConfirm = true }
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                stringResource(R.string.settings_reset_course_colors),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
                 }
             }
 

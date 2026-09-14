@@ -34,34 +34,27 @@ import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 
 /**
  * "同步內容" (Synced content) — spec §6's second-level menu nested under
- * TigerSync's "同步課程資訊" toggle, in three groups: 作業 (assignment
- * status and assignment due reminders), 即時更新 on its own, and 課表 (all
- * courses, course colours, custom course names), then a navigation row into
- * Live Updates settings, set apart below them.
+ * TigerSync's "同步課程資訊" toggle, as three groups of plain switches: 作業
+ * with 作業到期提醒設定, 即時更新設定 on its own, then 所有課程, 課程顏色 and
+ * 自訂課程名稱.
  *
- * 作業 and 課表 are parent switches with no stored value of their own: each
- * reads on while any of its rows is on, and flipping it sets every row it
- * covers, so nothing new is persisted or sent to the backend. While one
- * reads off, its rows are greyed out, since turning it back on is how they
- * return.
+ * The two notification rows read "…設定" on Android only
+ * (`sync_content_assignment_reminders` and `sync_content_live_activity` are
+ * forked per platform): Android raises both notifications on the device,
+ * so all either switch decides here is whether this device's settings for
+ * that notification sync, and the label says so.
  *
- * Two deliberate Android deviations from iOS: there is no platform-
- * limitation footnote here (`sync_courses_footer_platform_note` is an
- * `apple`-group-only key Android cannot resolve), and the live-activity
- * toggle renders as "即時更新" (`sync_content_live_activity`'s `android`
- * value), not iOS's "即時動態".
+ * 課程顏色 is greyed out while 所有課程 is off, and turning 所有課程 off
+ * turns it off too: colours only apply on top of synced courses.
  *
- * The navigation row carries [R.string.live_activity_channel_name] — the
- * destination screen's own name, the same string `SettingsScreen`'s
- * Notifications-section entry into it and that screen's own top bar use —
- * rather than a nav-only string of its own, so the shortcut and the one
- * screen it leads to are never two different names for the same thing.
+ * Unlike iOS there is no platform-limitation footnote here
+ * (`sync_courses_footer_platform_note` is an `apple`-group-only key Android
+ * cannot resolve).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SyncContentScreen(
     onBack: () -> Unit,
-    onNavigateToLiveActivitySettings: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     var syncAssignments by remember { mutableStateOf(viewModel.prefs.syncAssignments) }
@@ -131,9 +124,6 @@ fun SyncContentScreen(
         if (reenabled) viewModel.checkPendingConflicts()
     }
 
-    val assignmentsOn = syncAssignments || syncAssignmentReminders
-    val classTableOn = syncCourses || syncCourseColors || syncCourseNames
-
     if (reenableConflict != null) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = {},
@@ -190,25 +180,14 @@ fun SyncContentScreen(
             item {
                 ContentCard {
                     Column {
-                        SyncToggleRow(stringResource(R.string.cloud_sync_assignments), assignmentsOn) {
-                            val reenabled = setAssignments(it)
-                            setAssignmentReminders(it)
-                            commit(reenabled)
-                        }
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         // The assignment list and its done / ignored marks.
-                        SyncToggleRow(
-                            stringResource(R.string.cloud_sync_assignments),
-                            syncAssignments,
-                            enabled = assignmentsOn,
-                            indent = true,
-                        ) { commit(setAssignments(it)) }
+                        SyncToggleRow(stringResource(R.string.cloud_sync_assignments), syncAssignments) {
+                            commit(setAssignments(it))
+                        }
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SyncToggleRow(
                             stringResource(R.string.sync_content_assignment_reminders),
                             syncAssignmentReminders,
-                            enabled = assignmentsOn,
-                            indent = true,
                         ) {
                             setAssignmentReminders(it)
                             commit(reenabled = false)
@@ -217,8 +196,7 @@ fun SyncContentScreen(
                 }
             }
 
-            // ── 即時更新 (renders "即時動態" on iOS; Android uses the
-            // sync_content_live_activity android-group value.) ─────────
+            // ── 即時更新設定 ─────────────────────────────────────────
             item {
                 ContentCard {
                     SyncToggleRow(
@@ -236,44 +214,19 @@ fun SyncContentScreen(
             item {
                 ContentCard {
                     Column {
-                        SyncToggleRow(stringResource(R.string.cloud_sync_class_table), classTableOn) {
-                            // Courses first: colours only turn on over synced courses.
-                            val reenabled = listOf(setCourses(it), setCourseColors(it), setCourseNames(it))
-                            commit(reenabled.any { r -> r })
+                        SyncToggleRow(stringResource(R.string.sync_content_class_table_all), syncCourses) {
+                            commit(setCourses(it))
                         }
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        SyncToggleRow(
-                            stringResource(R.string.sync_content_class_table_all),
-                            syncCourses,
-                            enabled = classTableOn,
-                            indent = true,
-                        ) { commit(setCourses(it)) }
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         SyncToggleRow(
                             stringResource(R.string.cloud_sync_course_colours),
                             syncCourseColors,
-                            enabled = classTableOn && syncCourses,
-                            indent = true,
+                            enabled = syncCourses,
                         ) { commit(setCourseColors(it)) }
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        SyncToggleRow(
-                            stringResource(R.string.cloud_sync_custom_course_names),
-                            syncCourseNames,
-                            enabled = classTableOn,
-                            indent = true,
-                        ) { commit(setCourseNames(it)) }
-                    }
-                }
-            }
-
-            item { Spacer(Modifier.height(16.dp)) }
-
-            // 跳轉：即時更新 (the destination screen's own name — see this
-            // file's top KDoc for why this isn't its own dedicated nav string)
-            item {
-                ContentCard {
-                    SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) {
-                        onNavigateToLiveActivitySettings()
+                        SyncToggleRow(stringResource(R.string.cloud_sync_custom_course_names), syncCourseNames) {
+                            commit(setCourseNames(it))
+                        }
                     }
                 }
             }

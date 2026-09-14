@@ -7,10 +7,11 @@
 // the first-appearance POST_NOTIFICATIONS request, the ON_RESUME permission
 // refresh, and the permission list itself — all driven straight off the
 // SystemPermissions singleton rather than through a StateFlow, matching
-// NotificationSetupScreen's shape (the closest existing precedent for a
-// permission-only screen) rather than LiveActivitySettingsViewModel's, which
-// only ever projected the same singleton into its own State for a screen
-// that showed a lot of other settings besides.
+// the onboarding NotificationSetupContent's shape (the closest existing
+// precedent for a permission-only list) rather than
+// LiveActivitySettingsViewModel's, which only ever projected the same
+// singleton into its own State for a screen that showed a lot of other
+// settings besides.
 
 package org.ntust.app.tigerduck.ui.screen.settings
 

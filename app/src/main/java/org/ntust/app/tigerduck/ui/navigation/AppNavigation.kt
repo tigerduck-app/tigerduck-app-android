@@ -78,9 +78,9 @@ import org.ntust.app.tigerduck.ui.screen.score.ScoreScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.AssignmentReminderSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.CourseNameSizeSettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.LibrarySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationPermissionSettingsScreen
-import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.CloudSyncSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
@@ -109,9 +109,9 @@ sealed class Screen(val route: String) {
     object LiveActivitySettings : Screen("liveActivitySettings")
     object NotificationPermissionSettings : Screen("notificationPermissionSettings")
     object AssignmentReminderSettings : Screen("assignmentReminderSettings")
-    object NotificationSetup : Screen("notificationSetup")
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
+    object LibrarySettings : Screen("librarySettings")
     object CourseNameSizeSettings : Screen("courseNameSizeSettings")
     object CloudSync : Screen("cloudSync")
     object SyncContent : Screen("syncContent")
@@ -419,6 +419,7 @@ fun MainNavigation(
                     },
                     onNavigateToAssignmentReminders = { navController.navigate(Screen.AssignmentReminderSettings.route) },
                     onNavigateToCloudSync = { navController.navigate(Screen.CloudSync.route) },
+                    onNavigateToLibrarySettings = { navController.navigate(Screen.LibrarySettings.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
                     // Debug-route navigation is no-op in release builds:
                     // the composables themselves are registered only inside
@@ -480,11 +481,13 @@ fun MainNavigation(
                     onNavigateToApiEndpoint = {
                         navController.navigate(Screen.ApiEndpointDebug.route)
                     },
-                    onNavigateToNotificationSetup = { navController.navigate(Screen.NotificationSetup.route) },
                     onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
                     onNavigateToVibration = { navController.navigate(Screen.VibrationSettings.route) },
                     onNavigateToCourseNameSize = { navController.navigate(Screen.CourseNameSizeSettings.route) },
                 )
+            }
+            composable(Screen.LibrarySettings.route) {
+                LibrarySettingsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.VibrationSettings.route) {
                 VibrationSettingsScreen(onBack = { navController.popBackStack() })
@@ -494,9 +497,6 @@ fun MainNavigation(
             }
             composable(Screen.LanguagePicker.route) {
                 LanguagePickerScreen(onBack = { navController.popBackStack() })
-            }
-            composable(Screen.NotificationSetup.route) {
-                NotificationSetupScreen(onDone = { navController.popBackStack() })
             }
             composable(Screen.TabEditor.route) {
                 TabEditorScreen(
@@ -525,10 +525,7 @@ fun MainNavigation(
                 )
             }
             composable(Screen.SyncContent.route) {
-                SyncContentScreen(
-                    onBack = { navController.popBackStack() },
-                    onNavigateToLiveActivitySettings = { navController.navigate(Screen.LiveActivitySettings.route) },
-                )
+                SyncContentScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.SourceCodePicker.route) {
                 SourceCodePickerScreen(onBack = { navController.popBackStack() })
