@@ -44,8 +44,9 @@ import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
  * so all either switch decides here is whether this device's settings for
  * that notification sync, and the label says so.
  *
- * 課程顏色 is greyed out while 所有課程 is off, and turning 所有課程 off
- * turns it off too: colours only apply on top of synced courses.
+ * 課程顏色 follows 所有課程 both ways, turning on and off with it, and is
+ * greyed out while 所有課程 is off: colours only apply on top of synced
+ * courses.
  *
  * Unlike iOS there is no platform-limitation footnote here
  * (`sync_courses_footer_platform_note` is an `apple`-group-only key Android
@@ -90,25 +91,23 @@ fun SyncContentScreen(
         viewModel.prefs.syncAssignmentReminders = on
     }
 
-    fun setCourses(on: Boolean): Boolean {
-        val reenabled = on && !syncCourses
-        if (reenabled) viewModel.markCategoryReenabled("courses")
-        syncCourses = on
-        viewModel.prefs.syncCourses = on
-        // Course colours only apply on top of synced courses.
-        if (!on) {
-            syncCourseColors = false
-            viewModel.prefs.syncCourseColors = false
-        }
-        return reenabled
-    }
-
     fun setCourseColors(on: Boolean): Boolean {
         val reenabled = on && !syncCourseColors
         if (reenabled) viewModel.markCategoryReenabled("course_colors")
         syncCourseColors = on
         viewModel.prefs.syncCourseColors = on
         return reenabled
+    }
+
+    // Course colours follow courses both ways: they only apply on top of
+    // synced courses, and turning courses back on brings them with it.
+    fun setCourses(on: Boolean): Boolean {
+        val reenabled = on && !syncCourses
+        if (reenabled) viewModel.markCategoryReenabled("courses")
+        syncCourses = on
+        viewModel.prefs.syncCourses = on
+        val coloursReenabled = setCourseColors(on)
+        return reenabled || coloursReenabled
     }
 
     fun setCourseNames(on: Boolean): Boolean {
