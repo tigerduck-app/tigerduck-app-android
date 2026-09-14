@@ -297,6 +297,9 @@ class AuthService @Inject constructor(
             // "library QR never works" is undiagnosable in the field.
             try {
                 libraryService.login(normalizedId, password)
+                // A library-only demo sign-in may still be standing in; see
+                // [org.ntust.app.tigerduck.demo.DemoAccount.signOutLibrary].
+                demoAccount.signOutLibrary()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

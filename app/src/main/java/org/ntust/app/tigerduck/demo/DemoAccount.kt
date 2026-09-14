@@ -75,7 +75,12 @@ class DemoAccount @Inject constructor(
         return true
     }
 
-    /** The demo library sign-out. */
+    /**
+     * The demo library sign-out. Also run after every real library sign-in,
+     * including the one a real NTUST sign-in makes on the side: otherwise
+     * the library screen goes on showing the demo QR and user name in place
+     * of the real account's.
+     */
     fun signOutLibrary() {
         store.libraryFakeSignedIn = false
         store.libraryUsername = null

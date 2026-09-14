@@ -111,6 +111,7 @@ class LibraryViewModel @Inject constructor(
                     return@launch
                 }
                 libraryService.login(username, password)
+                demoAccount.signOutLibrary()
                 _isLoggedIn.value = true
                 _storedUsername.value = username
                 // Push the fresh credentials to the paired watch so its

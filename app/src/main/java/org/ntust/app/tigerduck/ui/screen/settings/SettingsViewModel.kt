@@ -468,6 +468,7 @@ class SettingsViewModel @Inject constructor(
                     return@launch
                 }
                 libraryService.login(username, password)
+                demoAccount.signOutLibrary()
                 _isLibraryLoggedIn.value = true
                 // The NTUST authState collector in TigerDuckApp pushes library
                 // credentials on NTUST login/logout, but a Settings-only
