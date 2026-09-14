@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Conflicte de sincronització</string>
     <string name="sync_conflict_use_local">Usar local</string>
     <string name="sync_conflict_use_server">Usar servidor</string>
-    <string name="sync_content_assignment_reminders">Recordatoris de venciment de tasques</string>
+    <string name="sync_content_assignment_reminders">Configuració dels recordatoris de venciment de tasques</string>
     <string name="sync_content_class_table_all">Tots els cursos</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Configuració de Live Updates</string>
     <string name="sync_content_nav_label">Contingut sincronitzat</string>
     <string name="sync_courses_footer">Envia el vostre horari personalitzat i l\'estat de finalització de les tasques al servidor perquè es puguin utilitzar a tots els vostres dispositius. Trieu què voleu incloure a continuació.</string>
     <string name="sync_courses_toggle">Sincronitza la informació del curs</string>

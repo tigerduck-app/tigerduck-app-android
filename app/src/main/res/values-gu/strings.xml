@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">સિંક વિરોધ</string>
     <string name="sync_conflict_use_local">સ્થાનિક વાપરો</string>
     <string name="sync_conflict_use_server">સર્વર વાપરો</string>
-    <string name="sync_content_assignment_reminders">અસાઇનમેન્ટ ડ્યૂ રિમાઇન્ડર</string>
+    <string name="sync_content_assignment_reminders">અસાઇનમેન્ટ ડ્યૂ રિમાઇન્ડર સેટિંગ્સ</string>
     <string name="sync_content_class_table_all">બધા કોર્સ</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates સેટિંગ્સ</string>
     <string name="sync_content_nav_label">સિંક કરેલ કન્ટેન્ટ</string>
     <string name="sync_courses_footer">તમારા બધા ઉપકરણો પર ઉપયોગ માટે તમારું કસ્ટમ ક્લાસ ટેબલ અને અસાઇનમેન્ટ પૂર્ણતાની સ્થિતિ સર્વર પર મોકલે છે. નીચે શું સામેલ કરવું તે પસંદ કરો.</string>
     <string name="sync_courses_toggle">કોર્સ માહિતી સિંક કરો</string>

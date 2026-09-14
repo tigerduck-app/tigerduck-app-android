@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Synkroniseringskonflikt</string>
     <string name="sync_conflict_use_local">Använd lokal</string>
     <string name="sync_conflict_use_server">Använd server</string>
-    <string name="sync_content_assignment_reminders">Påminnelser om uppgifter</string>
+    <string name="sync_content_assignment_reminders">Inställningar för påminnelser om uppgifter</string>
     <string name="sync_content_class_table_all">Alla kurser</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates-inställningar</string>
     <string name="sync_content_nav_label">Synkroniserat innehåll</string>
     <string name="sync_courses_footer">Skickar ditt anpassade schema och slutförandestatus för dina uppgifter till servern för användning på alla dina enheter. Välj vad som ska ingå nedan.</string>
     <string name="sync_courses_toggle">Synkronisera kursinformation</string>

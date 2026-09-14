@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">ਸਿੰਕ ਵਿਵਾਦ</string>
     <string name="sync_conflict_use_local">ਸਥਾਨਕ ਵਰਤੋ</string>
     <string name="sync_conflict_use_server">ਸਰਵਰ ਵਰਤੋ</string>
-    <string name="sync_content_assignment_reminders">ਅਸਾਈਨਮੈਂਟ ਦੀ ਮਿਆਦ ਦੇ ਰੀਮਾਈਂਡਰ</string>
+    <string name="sync_content_assignment_reminders">ਅਸਾਈਨਮੈਂਟ ਦੀ ਮਿਆਦ ਦੇ ਰੀਮਾਈਂਡਰ ਸੈਟਿੰਗਾਂ</string>
     <string name="sync_content_class_table_all">ਸਾਰੇ ਕੋਰਸ</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates ਸੈਟਿੰਗਾਂ</string>
     <string name="sync_content_nav_label">ਸਿੰਕ ਕੀਤੀ ਸਮੱਗਰੀ</string>
     <string name="sync_courses_footer">ਤੁਹਾਡੇ ਸਾਰੇ ਡਿਵਾਈਸਾਂ ਤੇ ਵਰਤੋਂ ਲਈ ਤੁਹਾਡਾ ਕਸਟਮ ਕਲਾਸ ਟੇਬਲ ਅਤੇ ਅਸਾਈਨਮੈਂਟ ਪੂਰਾ ਹੋਣ ਦੀ ਸਥਿਤੀ ਸਰਵਰ ਤੇ ਭੇਜਦਾ ਹੈ। ਹੇਠਾਂ ਚੁਣੋ ਕਿ ਕੀ ਸ਼ਾਮਲ ਕਰਨਾ ਹੈ।</string>
     <string name="sync_courses_toggle">ਕੋਰਸ ਦੀ ਜਾਣਕਾਰੀ ਸਿੰਕ ਕਰੋ</string>

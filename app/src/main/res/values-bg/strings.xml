@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Конфликт при синхронизация</string>
     <string name="sync_conflict_use_local">Локално</string>
     <string name="sync_conflict_use_server">От сървъра</string>
-    <string name="sync_content_assignment_reminders">Напомняния за крайни срокове на задания</string>
+    <string name="sync_content_assignment_reminders">Настройки за напомняния за крайни срокове на задания</string>
     <string name="sync_content_class_table_all">Всички курсове</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Настройки за Live Updates</string>
     <string name="sync_content_nav_label">Синхронизирано съдържание</string>
     <string name="sync_courses_footer">Изпраща персонализираното ви разписание и състоянието на изпълнение на задачите към сървъра за използване на всички ваши устройства. Изберете какво да включите по-долу.</string>
     <string name="sync_courses_toggle">Синхронизиране на информацията за курсовете</string>

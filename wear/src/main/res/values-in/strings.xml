@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Konflik Sinkronisasi</string>
     <string name="sync_conflict_use_local">Gunakan Lokal</string>
     <string name="sync_conflict_use_server">Gunakan Server</string>
-    <string name="sync_content_assignment_reminders">Pengingat tenggat tugas</string>
+    <string name="sync_content_assignment_reminders">Pengaturan pengingat tenggat tugas</string>
     <string name="sync_content_class_table_all">Semua mata kuliah</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Pengaturan Live Updates</string>
     <string name="sync_content_nav_label">Konten yang disinkronkan</string>
     <string name="sync_courses_footer">Mengirim jadwal kelas kustom dan status penyelesaian tugas Anda ke server untuk digunakan di semua perangkat. Pilih yang ingin disertakan di bawah ini.</string>
     <string name="sync_courses_toggle">Sinkronkan informasi mata kuliah</string>

@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Konflikt sinhronizacije</string>
     <string name="sync_conflict_use_local">Uporabi lokalno</string>
     <string name="sync_conflict_use_server">Uporabi strežnik</string>
-    <string name="sync_content_assignment_reminders">Opomniki za rok naloge</string>
+    <string name="sync_content_assignment_reminders">Nastavitve opomnikov za rok naloge</string>
     <string name="sync_content_class_table_all">Vsi predmeti</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Nastavitve Live Updates</string>
     <string name="sync_content_nav_label">Sinhronizirana vsebina</string>
     <string name="sync_courses_footer">Pošlje vaš urnik po meri in stanje dokončanosti nalog na strežnik za uporabo na vseh vaših napravah. Spodaj izberite, kaj želite vključiti.</string>
     <string name="sync_courses_toggle">Sinhroniziraj podatke o predmetih</string>

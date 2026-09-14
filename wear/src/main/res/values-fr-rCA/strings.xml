@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Conflit de synchronisation</string>
     <string name="sync_conflict_use_local">Utiliser local</string>
     <string name="sync_conflict_use_server">Utiliser serveur</string>
-    <string name="sync_content_assignment_reminders">Rappels d\'échéance des devoirs</string>
+    <string name="sync_content_assignment_reminders">Paramètres des rappels d\'échéance des devoirs</string>
     <string name="sync_content_class_table_all">Tous les cours</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Paramètres de Live Updates</string>
     <string name="sync_content_nav_label">Contenu synchronisé</string>
     <string name="sync_courses_footer">Envoie votre emploi du temps personnalisé et l\'état d\'avancement de vos devoirs au serveur pour les utiliser sur tous vos appareils. Choisissez ci-dessous ce qu\'il faut inclure.</string>
     <string name="sync_courses_toggle">Synchroniser les informations de cours</string>

@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">تعارض في المزامنة</string>
     <string name="sync_conflict_use_local">استخدام المحلي</string>
     <string name="sync_conflict_use_server">استخدام الخادم</string>
-    <string name="sync_content_assignment_reminders">تذكيرات استحقاق الواجبات</string>
+    <string name="sync_content_assignment_reminders">إعدادات تذكيرات استحقاق الواجبات</string>
     <string name="sync_content_class_table_all">جميع المقررات</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">إعدادات Live Updates</string>
     <string name="sync_content_nav_label">المحتوى المتزامن</string>
     <string name="sync_courses_footer">يرسل جدول حصصك المخصص وحالة إنجاز واجباتك إلى الخادم لاستخدامها عبر جميع أجهزتك. اختر ما تريد تضمينه أدناه.</string>
     <string name="sync_courses_toggle">مزامنة معلومات المقررات</string>

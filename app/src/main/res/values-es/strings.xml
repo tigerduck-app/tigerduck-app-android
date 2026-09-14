@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Conflicto de sincronización</string>
     <string name="sync_conflict_use_local">Usar local</string>
     <string name="sync_conflict_use_server">Usar servidor</string>
-    <string name="sync_content_assignment_reminders">Recordatorios de entrega de tareas</string>
+    <string name="sync_content_assignment_reminders">Configuración de recordatorios de entrega de tareas</string>
     <string name="sync_content_class_table_all">Todos los cursos</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Configuración de Live Updates</string>
     <string name="sync_content_nav_label">Contenido sincronizado</string>
     <string name="sync_courses_footer">Envía tu horario personalizado y el estado de finalización de tus tareas al servidor para usarlos en todos tus dispositivos. Elige qué incluir a continuación.</string>
     <string name="sync_courses_toggle">Sincronizar información del curso</string>

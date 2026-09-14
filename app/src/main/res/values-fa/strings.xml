@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">تداخل همگام‌سازی</string>
     <string name="sync_conflict_use_local">استفاده از محلی</string>
     <string name="sync_conflict_use_server">استفاده از سرور</string>
-    <string name="sync_content_assignment_reminders">یادآورهای موعد تکلیف</string>
+    <string name="sync_content_assignment_reminders">تنظیمات یادآورهای موعد تکلیف</string>
     <string name="sync_content_class_table_all">همه دروس</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">تنظیمات Live Updates</string>
     <string name="sync_content_nav_label">محتوای همگام‌شده</string>
     <string name="sync_courses_footer">جدول کلاس‌های سفارشی و وضعیت تکمیل تکالیف شما را برای استفاده در همه دستگاه‌هایتان به سرور ارسال می‌کند. در زیر مشخص کنید چه مواردی لحاظ شوند.</string>
     <string name="sync_courses_toggle">همگام‌سازی اطلاعات دروس</string>

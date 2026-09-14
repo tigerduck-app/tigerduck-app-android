@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Konflikt synchronizace</string>
     <string name="sync_conflict_use_local">Použít místní</string>
     <string name="sync_conflict_use_server">Použít server</string>
-    <string name="sync_content_assignment_reminders">Upozornění na blížící se termín úkolu</string>
+    <string name="sync_content_assignment_reminders">Nastavení upozornění na blížící se termín úkolu</string>
     <string name="sync_content_class_table_all">Všechny předměty</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Nastavení Live Updates</string>
     <string name="sync_content_nav_label">Synchronizovaný obsah</string>
     <string name="sync_courses_footer">Odesílá váš vlastní rozvrh a stav dokončení úkolů na server pro použití na všech vašich zařízeních. Níže vyberte, co chcete zahrnout.</string>
     <string name="sync_courses_toggle">Synchronizovat informace o předmětech</string>

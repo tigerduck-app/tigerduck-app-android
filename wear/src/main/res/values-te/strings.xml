@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">సింక్ వైరుధ్యం</string>
     <string name="sync_conflict_use_local">స్థానికం ఉపయోగించు</string>
     <string name="sync_conflict_use_server">సర్వర్ ఉపయోగించు</string>
-    <string name="sync_content_assignment_reminders">అసైన్‌మెంట్ గడువు రిమైండర్లు</string>
+    <string name="sync_content_assignment_reminders">అసైన్‌మెంట్ గడువు రిమైండర్ సెట్టింగ్స్</string>
     <string name="sync_content_class_table_all">అన్ని కోర్సులు</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates సెట్టింగ్స్</string>
     <string name="sync_content_nav_label">సింక్ చేసిన కంటెంట్</string>
     <string name="sync_courses_footer">మీ కస్టమ్ టైమ్‌టేబుల్ మరియు అసైన్‌మెంట్ పూర్తి స్థితిని మీ పరికరాలన్నింటిలో ఉపయోగించడానికి సర్వర్‌కు పంపుతుంది. కింద ఏమి చేర్చాలో ఎంచుకోండి.</string>
     <string name="sync_courses_toggle">కోర్సు సమాచారాన్ని సింక్ చేయండి</string>

@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Synkroniseringskonflikt</string>
     <string name="sync_conflict_use_local">Brug lokal</string>
     <string name="sync_conflict_use_server">Brug server</string>
-    <string name="sync_content_assignment_reminders">Påmindelser om opgavefrist</string>
+    <string name="sync_content_assignment_reminders">Indstillinger for påmindelser om opgavefrist</string>
     <string name="sync_content_class_table_all">Alle kurser</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates-indstillinger</string>
     <string name="sync_content_nav_label">Synkroniseret indhold</string>
     <string name="sync_courses_footer">Sender dit tilpassede skema og status for dine opgaver til serveren, så de kan bruges på tværs af dine enheder. Vælg nedenfor, hvad der skal inkluderes.</string>
     <string name="sync_courses_toggle">Synkroniser kursusoplysninger</string>

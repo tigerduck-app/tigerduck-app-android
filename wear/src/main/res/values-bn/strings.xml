@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">সিঙ্ক দ্বন্দ্ব</string>
     <string name="sync_conflict_use_local">স্থানীয় ব্যবহার করুন</string>
     <string name="sync_conflict_use_server">সার্ভার ব্যবহার করুন</string>
-    <string name="sync_content_assignment_reminders">অ্যাসাইনমেন্টের সময়সীমার স্মরণিকা</string>
+    <string name="sync_content_assignment_reminders">অ্যাসাইনমেন্টের সময়সীমার স্মরণিকা সেটিংস</string>
     <string name="sync_content_class_table_all">সব কোর্স</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates সেটিংস</string>
     <string name="sync_content_nav_label">সিঙ্ক কনটেন্ট</string>
     <string name="sync_courses_footer">আপনার কাস্টম ক্লাস টেবিল এবং অ্যাসাইনমেন্ট সম্পন্ন হওয়ার অবস্থা আপনার সব ডিভাইসে ব্যবহারের জন্য সার্ভারে পাঠায়। নিচে কী অন্তর্ভুক্ত করবেন তা বেছে নিন।</string>
     <string name="sync_courses_toggle">কোর্সের তথ্য সিঙ্ক করুন</string>

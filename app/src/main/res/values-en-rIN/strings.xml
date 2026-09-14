@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Sync Conflict</string>
     <string name="sync_conflict_use_local">Use Local</string>
     <string name="sync_conflict_use_server">Use Server</string>
-    <string name="sync_content_assignment_reminders">Assignment due reminders</string>
+    <string name="sync_content_assignment_reminders">Assignment due reminder settings</string>
     <string name="sync_content_class_table_all">All courses</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates settings</string>
     <string name="sync_content_nav_label">Synced content</string>
     <string name="sync_courses_footer">Sends your custom timetable and assignment completion state to the server for use across your devices. Choose what to include below.</string>
     <string name="sync_courses_toggle">Sync course information</string>

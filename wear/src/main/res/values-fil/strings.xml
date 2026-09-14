@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Salungatan sa Sync</string>
     <string name="sync_conflict_use_local">Gamitin ang Lokal</string>
     <string name="sync_conflict_use_server">Gamitin ang Server</string>
-    <string name="sync_content_assignment_reminders">Mga paalala sa takdang-aralin</string>
+    <string name="sync_content_assignment_reminders">Mga setting ng paalala sa takdang-aralin</string>
     <string name="sync_content_class_table_all">Lahat ng kurso</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Mga setting ng Live Updates</string>
     <string name="sync_content_nav_label">Na-sync na content</string>
     <string name="sync_courses_footer">Ipinapadala nito ang iyong custom na iskedyul ng klase at ang katayuan ng pagkumpleto ng mga assignment sa server para magamit sa lahat ng iyong device. Piliin sa ibaba kung ano ang isasama.</string>
     <string name="sync_courses_toggle">I-sync ang impormasyon ng kurso</string>

@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Senkronizasyon Çakışması</string>
     <string name="sync_conflict_use_local">Yereli Kullan</string>
     <string name="sync_conflict_use_server">Sunucuyu Kullan</string>
-    <string name="sync_content_assignment_reminders">Ödev teslim hatırlatıcıları</string>
+    <string name="sync_content_assignment_reminders">Ödev teslim hatırlatıcısı ayarları</string>
     <string name="sync_content_class_table_all">Tüm dersler</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates ayarları</string>
     <string name="sync_content_nav_label">Senkronize edilen içerik</string>
     <string name="sync_courses_footer">Tüm cihazlarınızda kullanabilmeniz için özel ders programınızı ve ödev tamamlanma durumunuzu sunucuya gönderir. Aşağıda nelerin dahil edileceğini seçin.</string>
     <string name="sync_courses_toggle">Ders bilgilerini senkronize et</string>

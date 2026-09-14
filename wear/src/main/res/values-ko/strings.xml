@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">동기화 충돌</string>
     <string name="sync_conflict_use_local">로컬 사용</string>
     <string name="sync_conflict_use_server">서버 사용</string>
-    <string name="sync_content_assignment_reminders">과제 마감 알림</string>
+    <string name="sync_content_assignment_reminders">과제 마감 알림 설정</string>
     <string name="sync_content_class_table_all">모든 과목</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates 설정</string>
     <string name="sync_content_nav_label">동기화된 콘텐츠</string>
     <string name="sync_courses_footer">사용자 지정 시간표와 과제 완료 상태를 서버로 전송하여 모든 기기에서 사용할 수 있도록 합니다. 아래에서 포함할 항목을 선택하세요.</string>
     <string name="sync_courses_toggle">과목 정보 동기화</string>

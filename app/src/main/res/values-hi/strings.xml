@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">सिंक विरोध</string>
     <string name="sync_conflict_use_local">स्थानीय उपयोग करें</string>
     <string name="sync_conflict_use_server">सर्वर उपयोग करें</string>
-    <string name="sync_content_assignment_reminders">असाइनमेंट देय अनुस्मारक</string>
+    <string name="sync_content_assignment_reminders">असाइनमेंट देय अनुस्मारक सेटिंग</string>
     <string name="sync_content_class_table_all">सभी कोर्स</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates सेटिंग</string>
     <string name="sync_content_nav_label">सिंक सामग्री</string>
     <string name="sync_courses_footer">आपकी कस्टम क्लास टेबल और असाइनमेंट पूर्णता स्थिति को आपके सभी डिवाइस पर उपयोग के लिए सर्वर पर भेजता है। नीचे चुनें कि इसमें क्या शामिल करना है।</string>
     <string name="sync_courses_toggle">कोर्स जानकारी सिंक करें</string>

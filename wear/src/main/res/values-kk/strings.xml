@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Синхрондау қайшылығы</string>
     <string name="sync_conflict_use_local">Жергілікті пайдалану</string>
     <string name="sync_conflict_use_server">Серверді пайдалану</string>
-    <string name="sync_content_assignment_reminders">Тапсырма мерзімі туралы еске салулар</string>
+    <string name="sync_content_assignment_reminders">Тапсырма мерзімі туралы еске салу параметрлері</string>
     <string name="sync_content_class_table_all">Барлық курстар</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates параметрлері</string>
     <string name="sync_content_nav_label">Синхрондалған мазмұн</string>
     <string name="sync_courses_footer">Барлық құрылғыларыңызда пайдалану үшін реттелген сабақ кестеңізді және тапсырмалардың орындалу күйін серверге жібереді. Төменде нені қосу керектігін таңдаңыз.</string>
     <string name="sync_courses_toggle">Курс ақпаратын синхрондау</string>

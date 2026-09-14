@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Samstillingarárekstur</string>
     <string name="sync_conflict_use_local">Nota staðbundið</string>
     <string name="sync_conflict_use_server">Nota þjón</string>
-    <string name="sync_content_assignment_reminders">Verkefnaáminningar</string>
+    <string name="sync_content_assignment_reminders">Stillingar verkefnaáminninga</string>
     <string name="sync_content_class_table_all">Öll námskeið</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Stillingar Live Updates</string>
     <string name="sync_content_nav_label">Samstillt efni</string>
     <string name="sync_courses_footer">Sendir sérsniðna stundaskrá þína og stöðu verkefna til netþjónsins til notkunar á öllum tækjunum þínum. Veldu hér fyrir neðan hvað á að taka með.</string>
     <string name="sync_courses_toggle">Samstilla námskeiðaupplýsingar</string>

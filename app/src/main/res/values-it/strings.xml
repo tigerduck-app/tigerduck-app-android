@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Conflitto di sincronizzazione</string>
     <string name="sync_conflict_use_local">Usa locale</string>
     <string name="sync_conflict_use_server">Usa server</string>
-    <string name="sync_content_assignment_reminders">Promemoria scadenze compiti</string>
+    <string name="sync_content_assignment_reminders">Impostazioni dei promemoria scadenze compiti</string>
     <string name="sync_content_class_table_all">Tutti i corsi</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Impostazioni di Live Updates</string>
     <string name="sync_content_nav_label">Contenuti sincronizzati</string>
     <string name="sync_courses_footer">Invia il tuo orario personalizzato e lo stato di completamento dei compiti al server, per usarli su tutti i tuoi dispositivi. Scegli cosa includere qui sotto.</string>
     <string name="sync_courses_toggle">Sincronizza informazioni del corso</string>

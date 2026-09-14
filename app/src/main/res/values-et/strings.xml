@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Sünkroonimise konflikt</string>
     <string name="sync_conflict_use_local">Kasuta kohalikku</string>
     <string name="sync_conflict_use_server">Kasuta serverit</string>
-    <string name="sync_content_assignment_reminders">Ülesande tähtaja meeldetuletused</string>
+    <string name="sync_content_assignment_reminders">Ülesande tähtaja meeldetuletuste seaded</string>
     <string name="sync_content_class_table_all">Kõik ained</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates seaded</string>
     <string name="sync_content_nav_label">Sünkroonitud sisu</string>
     <string name="sync_courses_footer">Saadab sinu kohandatud tunniplaani ja ülesannete täitmise oleku serverisse, et saaksid neid kasutada kõigis oma seadmetes. Vali allpool, mida soovid kaasata.</string>
     <string name="sync_courses_toggle">Sünkrooni ainete teave</string>

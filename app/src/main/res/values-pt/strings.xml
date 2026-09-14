@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Conflito de sincronização</string>
     <string name="sync_conflict_use_local">Usar local</string>
     <string name="sync_conflict_use_server">Usar servidor</string>
-    <string name="sync_content_assignment_reminders">Lembretes de prazo de trabalhos</string>
+    <string name="sync_content_assignment_reminders">Definições de lembretes de prazo de trabalhos</string>
     <string name="sync_content_class_table_all">Todas as disciplinas</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Definições de Live Updates</string>
     <string name="sync_content_nav_label">Conteúdo sincronizado</string>
     <string name="sync_courses_footer">Envia o teu horário de aulas personalizado e o estado de conclusão das tarefas para o servidor, para utilização em todos os teus dispositivos. Escolhe abaixo o que incluir.</string>
     <string name="sync_courses_toggle">Sincronizar informações das disciplinas</string>

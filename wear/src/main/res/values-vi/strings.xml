@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Xung đột đồng bộ</string>
     <string name="sync_conflict_use_local">Dùng cục bộ</string>
     <string name="sync_conflict_use_server">Dùng máy chủ</string>
-    <string name="sync_content_assignment_reminders">Lời nhắc hạn nộp bài tập</string>
+    <string name="sync_content_assignment_reminders">Cài đặt lời nhắc hạn nộp bài tập</string>
     <string name="sync_content_class_table_all">Tất cả môn học</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Cài đặt Live Updates</string>
     <string name="sync_content_nav_label">Nội dung đồng bộ</string>
     <string name="sync_courses_footer">Gửi thời khoá biểu tuỳ chỉnh và trạng thái hoàn thành bài tập của bạn lên máy chủ để dùng trên mọi thiết bị. Chọn nội dung cần đồng bộ bên dưới.</string>
     <string name="sync_courses_toggle">Đồng bộ thông tin môn học</string>

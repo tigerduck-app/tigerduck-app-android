@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Szinkronizálási ütközés</string>
     <string name="sync_conflict_use_local">Helyi használata</string>
     <string name="sync_conflict_use_server">Szerver használata</string>
-    <string name="sync_content_assignment_reminders">Házi feladat határidő emlékeztetők</string>
+    <string name="sync_content_assignment_reminders">Házi feladat határidő emlékeztetők beállításai</string>
     <string name="sync_content_class_table_all">Összes kurzus</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates beállítások</string>
     <string name="sync_content_nav_label">Szinkronizált tartalom</string>
     <string name="sync_courses_footer">Elküldi az egyéni órarendedet és a feladatok teljesítési állapotát a szervernek, hogy minden eszközödön elérhetők legyenek. Válaszd ki lent, mit szeretnél belefoglalni.</string>
     <string name="sync_courses_toggle">Kurzusadatok szinkronizálása</string>

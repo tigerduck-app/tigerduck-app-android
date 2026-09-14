@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Konflikt synchronizácie</string>
     <string name="sync_conflict_use_local">Použiť miestne</string>
     <string name="sync_conflict_use_server">Použiť server</string>
-    <string name="sync_content_assignment_reminders">Pripomienky termínov úloh</string>
+    <string name="sync_content_assignment_reminders">Nastavenia pripomienok termínov úloh</string>
     <string name="sync_content_class_table_all">Všetky predmety</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Nastavenia Live Updates</string>
     <string name="sync_content_nav_label">Synchronizovaný obsah</string>
     <string name="sync_courses_footer">Odosiela váš vlastný rozvrh a stav dokončenia úloh na server, aby ste ich mohli používať na všetkých svojich zariadeniach. Nižšie vyberte, čo chcete zahrnúť.</string>
     <string name="sync_courses_toggle">Synchronizovať informácie o predmetoch</string>

@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">مطابقت پذیری تنازعہ</string>
     <string name="sync_conflict_use_local">مقامی استعمال کریں</string>
     <string name="sync_conflict_use_server">سرور استعمال کریں</string>
-    <string name="sync_content_assignment_reminders">اسائنمنٹ کی آخری تاریخ کی یاددہانی</string>
+    <string name="sync_content_assignment_reminders">اسائنمنٹ کی آخری تاریخ کی یاددہانی کی ترتیبات</string>
     <string name="sync_content_class_table_all">تمام کورسز</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates کی ترتیبات</string>
     <string name="sync_content_nav_label">مطابقت پذیر مواد</string>
     <string name="sync_courses_footer">یہ آپ کا اپنی مرضی کا ٹائم ٹیبل اور اسائنمنٹ کی تکمیل کی صورتحال آپ کے تمام آلات پر استعمال کے لیے سرور کو بھیجتا ہے۔ نیچے منتخب کریں کہ کیا شامل کرنا ہے۔</string>
     <string name="sync_courses_toggle">کورس کی معلومات مطابقت پذیر کریں</string>

@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">ஒத்திசைவு முரண்பாடு</string>
     <string name="sync_conflict_use_local">உள்ளூர் பயன்படுத்து</string>
     <string name="sync_conflict_use_server">சேவையகம் பயன்படுத்து</string>
-    <string name="sync_content_assignment_reminders">ஒப்படைப்பு காலக்கெடு நினைவூட்டல்கள்</string>
+    <string name="sync_content_assignment_reminders">ஒப்படைப்பு காலக்கெடு நினைவூட்டல் அமைப்புகள்</string>
     <string name="sync_content_class_table_all">அனைத்து பாடநெறிகள்</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates அமைப்புகள்</string>
     <string name="sync_content_nav_label">ஒத்திசைக்கப்பட்ட உள்ளடக்கம்</string>
     <string name="sync_courses_footer">உங்கள் தனிப்பயன் அட்டவணை மற்றும் பணி நிறைவு நிலையை உங்கள் சாதனங்கள் முழுவதும் பயன்படுத்த சேவையகத்திற்கு அனுப்புகிறது. கீழே என்ன சேர்க்க வேண்டும் என்பதைத் தேர்ந்தெடுக்கவும்.</string>
     <string name="sync_courses_toggle">பாடநெறி தகவலை ஒத்திசை</string>

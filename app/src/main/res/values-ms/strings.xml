@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Konflik Penyegerakan</string>
     <string name="sync_conflict_use_local">Guna Setempat</string>
     <string name="sync_conflict_use_server">Guna Pelayan</string>
-    <string name="sync_content_assignment_reminders">Peringatan tugasan tamat tempoh</string>
+    <string name="sync_content_assignment_reminders">Tetapan peringatan tugasan tamat tempoh</string>
     <string name="sync_content_class_table_all">Semua kursus</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Tetapan Live Updates</string>
     <string name="sync_content_nav_label">Kandungan disegerakkan</string>
     <string name="sync_courses_footer">Menghantar jadual kelas tersuai dan status penyiapan tugasan anda ke pelayan untuk digunakan pada semua peranti anda. Pilih perkara yang hendak disertakan di bawah.</string>
     <string name="sync_courses_toggle">Segerakkan maklumat kursus</string>

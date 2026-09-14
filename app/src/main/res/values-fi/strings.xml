@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Synkronointiristiriita</string>
     <string name="sync_conflict_use_local">Käytä paikallista</string>
     <string name="sync_conflict_use_server">Käytä palvelinta</string>
-    <string name="sync_content_assignment_reminders">Tehtävän palautusmuistutukset</string>
+    <string name="sync_content_assignment_reminders">Tehtävän palautusmuistutusten asetukset</string>
     <string name="sync_content_class_table_all">Kaikki kurssit</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates -asetukset</string>
     <string name="sync_content_nav_label">Synkronoitu sisältö</string>
     <string name="sync_courses_footer">Lähettää mukautetun lukujärjestyksesi ja tehtävien suoritustilan palvelimelle, jotta voit käyttää niitä kaikilla laitteillasi. Valitse alta, mitä haluat sisällyttää.</string>
     <string name="sync_courses_toggle">Synkronoi kurssitiedot</string>

@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Конфлікт синхронізації</string>
     <string name="sync_conflict_use_local">Використати локальне</string>
     <string name="sync_conflict_use_server">Використати сервер</string>
-    <string name="sync_content_assignment_reminders">Нагадування про дедлайн завдань</string>
+    <string name="sync_content_assignment_reminders">Налаштування нагадувань про дедлайн завдань</string>
     <string name="sync_content_class_table_all">Усі курси</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Налаштування Live Updates</string>
     <string name="sync_content_nav_label">Синхронізований вміст</string>
     <string name="sync_courses_footer">Надсилає ваш власний розклад і стан виконання завдань на сервер для використання на всіх ваших пристроях. Виберіть нижче, що включити.</string>
     <string name="sync_courses_toggle">Синхронізувати інформацію про курси</string>

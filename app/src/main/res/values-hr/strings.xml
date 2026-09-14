@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Sukob sinkronizacije</string>
     <string name="sync_conflict_use_local">Koristi lokalno</string>
     <string name="sync_conflict_use_server">Koristi poslužitelj</string>
-    <string name="sync_content_assignment_reminders">Podsjetnici za zadatke</string>
+    <string name="sync_content_assignment_reminders">Postavke podsjetnika za zadatke</string>
     <string name="sync_content_class_table_all">Svi kolegiji</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Postavke Live Updates</string>
     <string name="sync_content_nav_label">Sinkronizirani sadržaj</string>
     <string name="sync_courses_footer">Šalje vaš prilagođeni raspored sati i stanje dovršenosti zadataka na poslužitelj radi upotrebe na svim vašim uređajima. U nastavku odaberite što želite uključiti.</string>
     <string name="sync_courses_toggle">Sinkroniziraj podatke o kolegijima</string>

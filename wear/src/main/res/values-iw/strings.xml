@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">סתירת סנכרון</string>
     <string name="sync_conflict_use_local">השתמש במקומי</string>
     <string name="sync_conflict_use_server">השתמש בשרת</string>
-    <string name="sync_content_assignment_reminders">תזכורות לתאריך הגשת מטלה</string>
+    <string name="sync_content_assignment_reminders">הגדרות תזכורות לתאריך הגשת מטלה</string>
     <string name="sync_content_class_table_all">כל הקורסים</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">הגדרות Live Updates</string>
     <string name="sync_content_nav_label">תוכן מסונכרן</string>
     <string name="sync_courses_footer">שולח את מערכת השעות המותאמת אישית שלך ואת מצב השלמת המטלות שלך לשרת לשימוש בכל המכשירים שלך. בחר מה לכלול למטה.</string>
     <string name="sync_courses_toggle">סנכרון מידע על קורסים</string>

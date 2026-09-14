@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Konflikt synchronizacji</string>
     <string name="sync_conflict_use_local">Użyj lokalnych</string>
     <string name="sync_conflict_use_server">Użyj serwera</string>
-    <string name="sync_content_assignment_reminders">Przypomnienia o terminach zadań</string>
+    <string name="sync_content_assignment_reminders">Ustawienia przypomnień o terminach zadań</string>
     <string name="sync_content_class_table_all">Wszystkie kursy</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Ustawienia Live Updates</string>
     <string name="sync_content_nav_label">Synchronizowana zawartość</string>
     <string name="sync_courses_footer">Wysyła Twój niestandardowy plan zajęć oraz stan wykonania zadań na serwer, aby korzystać z nich na wszystkich urządzeniach. Wybierz poniżej, co chcesz uwzględnić.</string>
     <string name="sync_courses_toggle">Synchronizuj informacje o kursach</string>

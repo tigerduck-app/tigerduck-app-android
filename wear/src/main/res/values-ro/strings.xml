@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Conflict de sincronizare</string>
     <string name="sync_conflict_use_local">Folosește local</string>
     <string name="sync_conflict_use_server">Folosește server</string>
-    <string name="sync_content_assignment_reminders">Remindere teme scadente</string>
+    <string name="sync_content_assignment_reminders">Setări remindere teme scadente</string>
     <string name="sync_content_class_table_all">Toate cursurile</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Setări Live Updates</string>
     <string name="sync_content_nav_label">Conținut sincronizat</string>
     <string name="sync_courses_footer">Trimite orarul tău personalizat și starea de finalizare a temelor către server, pentru a le folosi pe toate dispozitivele tale. Alege mai jos ce vrei să incluzi.</string>
     <string name="sync_courses_toggle">Sincronizează informațiile cursului</string>

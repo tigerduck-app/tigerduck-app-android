@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Sinchronizacijos konfliktas</string>
     <string name="sync_conflict_use_local">Naudoti vietinį</string>
     <string name="sync_conflict_use_server">Naudoti serverį</string>
-    <string name="sync_content_assignment_reminders">Užduočių terminų priminimai</string>
+    <string name="sync_content_assignment_reminders">Užduočių terminų priminimų nustatymai</string>
     <string name="sync_content_class_table_all">Visi kursai</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates nustatymai</string>
     <string name="sync_content_nav_label">Sinchronizuotas turinys</string>
     <string name="sync_courses_footer">Siunčia jūsų pasirinktinį tvarkaraštį ir užduočių atlikimo būseną į serverį, kad galėtumėte naudoti visuose savo įrenginiuose. Toliau pasirinkite, ką įtraukti.</string>
     <string name="sync_courses_toggle">Sinchronizuoti kursų informaciją</string>

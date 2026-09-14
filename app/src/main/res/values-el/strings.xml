@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Σύγκρουση συγχρονισμού</string>
     <string name="sync_conflict_use_local">Τοπικά</string>
     <string name="sync_conflict_use_server">Από διακομιστή</string>
-    <string name="sync_content_assignment_reminders">Υπενθυμίσεις λήξης εργασίας</string>
+    <string name="sync_content_assignment_reminders">Ρυθμίσεις υπενθυμίσεων λήξης εργασίας</string>
     <string name="sync_content_class_table_all">Όλα τα μαθήματα</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Ρυθμίσεις Live Updates</string>
     <string name="sync_content_nav_label">Συγχρονισμένο περιεχόμενο</string>
     <string name="sync_courses_footer">Στέλνει το προσαρμοσμένο πρόγραμμά σας και την κατάσταση ολοκλήρωσης εργασιών στον διακομιστή για χρήση σε όλες τις συσκευές σας. Επιλέξτε παρακάτω τι θα συμπεριληφθεί.</string>
     <string name="sync_courses_toggle">Συγχρονισμός πληροφοριών μαθήματος</string>

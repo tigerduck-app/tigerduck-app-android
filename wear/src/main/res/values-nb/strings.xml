@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Synkroniseringskonflikt</string>
     <string name="sync_conflict_use_local">Bruk lokal</string>
     <string name="sync_conflict_use_server">Bruk server</string>
-    <string name="sync_content_assignment_reminders">Påminnelser om oppgavefrist</string>
+    <string name="sync_content_assignment_reminders">Innstillinger for påminnelser om oppgavefrist</string>
     <string name="sync_content_class_table_all">Alle emner</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Innstillinger for Live Updates</string>
     <string name="sync_content_nav_label">Synkronisert innhold</string>
     <string name="sync_courses_footer">Sender din egendefinerte timeplan og fullføringsstatus for oppgavene dine til serveren for bruk på tvers av enhetene dine. Velg hva som skal inkluderes nedenfor.</string>
     <string name="sync_courses_toggle">Synkroniser emneinformasjon</string>

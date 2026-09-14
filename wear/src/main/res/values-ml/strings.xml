@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">സിങ്ക് വൈരുദ്ധ്യം</string>
     <string name="sync_conflict_use_local">ലോക്കൽ ഉപയോഗിക്കുക</string>
     <string name="sync_conflict_use_server">സെർവർ ഉപയോഗിക്കുക</string>
-    <string name="sync_content_assignment_reminders">അസൈൻമെന്റ് സമയ ഓർമ്മപ്പെടുത്തലുകൾ</string>
+    <string name="sync_content_assignment_reminders">അസൈൻമെന്റ് സമയ ഓർമ്മപ്പെടുത്തൽ ക്രമീകരണങ്ങൾ</string>
     <string name="sync_content_class_table_all">എല്ലാ കോഴ്‌സുകളും</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates ക്രമീകരണങ്ങൾ</string>
     <string name="sync_content_nav_label">സമന്വയിപ്പിച്ച ഉള്ളടക്കം</string>
     <string name="sync_courses_footer">നിങ്ങളുടെ ഇഷ്ടാനുസൃത ടൈംടേബിളും അസൈൻമെന്റ് പൂർത്തീകരണ നിലയും നിങ്ങളുടെ എല്ലാ ഉപകരണങ്ങളിലും ഉപയോഗിക്കാൻ സെർവറിലേക്ക് അയയ്ക്കുന്നു. താഴെ എന്തെല്ലാം ഉൾപ്പെടുത്തണമെന്ന് തിരഞ്ഞെടുക്കുക.</string>
     <string name="sync_courses_toggle">കോഴ്‌സ് വിവരങ്ങൾ സമന്വയിപ്പിക്കുക</string>

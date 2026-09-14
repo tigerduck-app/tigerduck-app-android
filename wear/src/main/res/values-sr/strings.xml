@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Конфликт синхронизације</string>
     <string name="sync_conflict_use_local">Користи локално</string>
     <string name="sync_conflict_use_server">Користи сервер</string>
-    <string name="sync_content_assignment_reminders">Подсетници за рок задатка</string>
+    <string name="sync_content_assignment_reminders">Поставке подсетника за рок задатка</string>
     <string name="sync_content_class_table_all">Сви курсеви</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Поставке за Live Updates</string>
     <string name="sync_content_nav_label">Синхронизовани садржај</string>
     <string name="sync_courses_footer">Шаље ваш прилагођени распоред часова и статус завршености задатака на сервер за коришћење на свим вашим уређајима. Изаберите испод шта да укључите.</string>
     <string name="sync_courses_toggle">Синхронизација информација о курсевима</string>

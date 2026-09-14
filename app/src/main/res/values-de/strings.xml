@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Synchronisierungskonflikt</string>
     <string name="sync_conflict_use_local">Lokal verwenden</string>
     <string name="sync_conflict_use_server">Server verwenden</string>
-    <string name="sync_content_assignment_reminders">Erinnerungen an fällige Aufgaben</string>
+    <string name="sync_content_assignment_reminders">Einstellungen für Erinnerungen an fällige Aufgaben</string>
     <string name="sync_content_class_table_all">Alle Kurse</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Live Updates-Einstellungen</string>
     <string name="sync_content_nav_label">Synchronisierte Inhalte</string>
     <string name="sync_courses_footer">Sendet deinen individuellen Stundenplan und den Bearbeitungsstatus deiner Aufgaben an den Server zur geräteübergreifenden Nutzung. Wähle unten aus, was enthalten sein soll.</string>
     <string name="sync_courses_toggle">Kursinformationen synchronisieren</string>

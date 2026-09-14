@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">Synchronisatieconflict</string>
     <string name="sync_conflict_use_local">Lokaal gebruiken</string>
     <string name="sync_conflict_use_server">Server gebruiken</string>
-    <string name="sync_content_assignment_reminders">Herinneringen voor opdrachtdeadlines</string>
+    <string name="sync_content_assignment_reminders">Instellingen voor herinneringen aan opdrachtdeadlines</string>
     <string name="sync_content_class_table_all">Alle vakken</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">Instellingen voor Live Updates</string>
     <string name="sync_content_nav_label">Gesynchroniseerde inhoud</string>
     <string name="sync_courses_footer">Stuurt je aangepaste lesrooster en de voltooiingsstatus van je opdrachten naar de server voor gebruik op al je apparaten. Kies hieronder wat je wilt opnemen.</string>
     <string name="sync_courses_toggle">Vakinformatie synchroniseren</string>

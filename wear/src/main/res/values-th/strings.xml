@@ -769,9 +769,9 @@
     <string name="sync_conflict_title">ความขัดแย้งในการซิงค์</string>
     <string name="sync_conflict_use_local">ใช้ของเครื่อง</string>
     <string name="sync_conflict_use_server">ใช้ของเซิร์ฟเวอร์</string>
-    <string name="sync_content_assignment_reminders">การแจ้งเตือนกำหนดส่งการบ้าน</string>
+    <string name="sync_content_assignment_reminders">การตั้งค่าการแจ้งเตือนกำหนดส่งการบ้าน</string>
     <string name="sync_content_class_table_all">รายวิชาทั้งหมด</string>
-    <string name="sync_content_live_activity">Live Updates</string>
+    <string name="sync_content_live_activity">การตั้งค่า Live Updates</string>
     <string name="sync_content_nav_label">เนื้อหาที่ซิงค์</string>
     <string name="sync_courses_footer">ส่งตารางเรียนที่กำหนดเองและสถานะการทำงานที่ได้รับมอบหมายเสร็จสิ้นของคุณไปยังเซิร์ฟเวอร์เพื่อใช้งานในทุกอุปกรณ์ เลือกรายการที่ต้องการรวมไว้ด้านล่าง</string>
     <string name="sync_courses_toggle">ซิงค์ข้อมูลรายวิชา</string>
