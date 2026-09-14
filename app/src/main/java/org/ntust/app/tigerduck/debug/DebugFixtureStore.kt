@@ -8,7 +8,9 @@ import javax.inject.Singleton
 /**
  * The demo account's state: whether it is signed in, and the display
  * overrides its bundled file carries — the student ID to show, the library
- * QR payload, and whether the library screen renders as signed in.
+ * QR payload and user name, and whether the library screen renders as
+ * signed in. The library ones can also be set on their own, by the demo
+ * library sign-in with no demo account.
  *
  * Written by [org.ntust.app.tigerduck.demo.DemoAccount] at the demo sign-in
  * and cleared at sign-out. Only the display sites consult the overrides, so
@@ -43,6 +45,13 @@ class DebugFixtureStore @Inject constructor(
         get() = prefs.getString(KEY_QR_CONTENT, null)
         set(value) = prefs.edit().apply {
             if (value.isNullOrBlank()) remove(KEY_QR_CONTENT) else putString(KEY_QR_CONTENT, value)
+        }.apply()
+
+    /** Library user name to show while [libraryFakeSignedIn], in place of a real account's. */
+    var libraryUsername: String?
+        get() = prefs.getString(KEY_LIBRARY_USERNAME, null)
+        set(value) = prefs.edit().apply {
+            if (value.isNullOrBlank()) remove(KEY_LIBRARY_USERNAME) else putString(KEY_LIBRARY_USERNAME, value)
         }.apply()
 
     /**
@@ -83,6 +92,7 @@ class DebugFixtureStore @Inject constructor(
         const val KEY_STUDENT_ID = "student_id"
         const val KEY_QR_CONTENT = "library_qr_content"
         const val KEY_QR_FAKE_SIGNED_IN = "library_qr_fake_signed_in"
+        const val KEY_LIBRARY_USERNAME = "library_username"
         const val KEY_DEMO_MODE = "demo_mode"
     }
 }

@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
+import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.shared.LibraryQRRenderer
 import org.ntust.app.tigerduck.shared.LibraryService
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
@@ -29,6 +30,7 @@ class LibraryViewModel @Inject constructor(
     private val credentials: CredentialManager,
     private val wearBridge: WearScheduleBridge,
     private val debugFixtures: DebugFixtureStore,
+    private val demoAccount: DemoAccount,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -69,8 +71,7 @@ class LibraryViewModel @Inject constructor(
     private fun resolveSignedIn(): Boolean = fixtureSignedIn || credentials.isLibraryTokenValid
 
     private fun resolveUsername(): String? =
-        (if (fixtureSignedIn) debugFixtures.studentIdOverride else null)
-            ?: credentials.libraryUsername
+        demoAccount.libraryUsername ?: credentials.libraryUsername
 
     private val _storedUsername = MutableStateFlow(credentials.libraryUsername)
     val storedUsername: StateFlow<String?> = _storedUsername
@@ -95,6 +96,20 @@ class LibraryViewModel @Inject constructor(
             _isLoggingIn.value = true
             _errorMessage.value = null
             try {
+                // The demo library password signs in on the device, with or
+                // without the demo account; see [DemoAccount.signInLibrary].
+                if (demoAccount.signInLibrary(username, password)) {
+                    _isLoggedIn.value = true
+                    _storedUsername.value = resolveUsername()
+                    refreshQR()
+                    return@launch
+                }
+                // The demo account itself never reaches the library, so
+                // anything else fails there the way a wrong password would.
+                if (demoAccount.isActive) {
+                    _errorMessage.value = context.getString(R.string.error_sign_in_failed)
+                    return@launch
+                }
                 libraryService.login(username, password)
                 _isLoggedIn.value = true
                 _storedUsername.value = username

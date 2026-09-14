@@ -28,6 +28,7 @@ import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
+import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushDiagnostic
@@ -58,6 +59,7 @@ class SettingsViewModel @Inject constructor(
     private val courseService: CourseService,
     private val dataCache: DataCache,
     private val debugFixtures: DebugFixtureStore,
+    private val demoAccount: DemoAccount,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -420,11 +422,14 @@ class SettingsViewModel @Inject constructor(
 
     val isNtustLoggedIn: StateFlow<Boolean> = authService.authState
 
-    private val _isLibraryLoggedIn = MutableStateFlow(credentials.isLibraryTokenValid)
+    private val _isLibraryLoggedIn = MutableStateFlow(librarySignedIn())
     val isLibraryLoggedIn: StateFlow<Boolean> = _isLibraryLoggedIn
 
+    private fun librarySignedIn(): Boolean =
+        credentials.isLibraryTokenValid || demoAccount.isLibrarySignedIn
+
     fun refreshLoginState() {
-        _isLibraryLoggedIn.value = credentials.isLibraryTokenValid
+        _isLibraryLoggedIn.value = librarySignedIn()
     }
 
     fun loginNtust(studentId: String, password: String) {
@@ -450,6 +455,18 @@ class SettingsViewModel @Inject constructor(
             _libIsLoggingIn.value = true
             _libLoginError.value = null
             try {
+                // The demo library password signs in on the device, with or
+                // without the demo account; see [DemoAccount.signInLibrary].
+                if (demoAccount.signInLibrary(username, password)) {
+                    _isLibraryLoggedIn.value = true
+                    return@launch
+                }
+                // The demo account itself never reaches the library, so
+                // anything else fails there the way a wrong password would.
+                if (demoAccount.isActive) {
+                    _libLoginError.value = context.getString(R.string.error_sign_in_failed)
+                    return@launch
+                }
                 libraryService.login(username, password)
                 _isLibraryLoggedIn.value = true
                 // The NTUST authState collector in TigerDuckApp pushes library
@@ -467,12 +484,14 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun logoutLibrary() {
+        demoAccount.signOutLibrary()
         credentials.clearLibraryCredentials()
         _isLibraryLoggedIn.value = false
         viewModelScope.launch { wearBridge.publishLibraryCredentials() }
     }
 
-    val libraryUsername: String? get() = credentials.libraryUsername
+    val libraryUsername: String?
+        get() = demoAccount.libraryUsername ?: credentials.libraryUsername
     val libraryTokenExpiry: Long get() = credentials.libraryTokenExpiry
     val ntustStudentId: String?
         get() = debugFixtures.studentIdOverride

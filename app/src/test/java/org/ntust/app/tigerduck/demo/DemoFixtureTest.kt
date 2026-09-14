@@ -13,7 +13,8 @@ class DemoFixtureTest {
     private val sample = """
         {
           "studentId": " b11308964 ",
-          "password": "pw",
+          "school-password": "pw",
+          "library-password": "lib",
           "libraryQr": { "content": "https://example.com", "fakeLoggedIn": true },
           "courses": [
             {
@@ -106,9 +107,19 @@ class DemoFixtureTest {
     }
 
     @Test
+    fun `the library sign-in takes the same id with the library password`() {
+        val fixture = DemoFixture.parse(sample, DemoFixture.LANG_EN)
+        assertTrue(fixture.matchesLibrary("  b11308964", "lib"))
+        assertFalse(fixture.matchesLibrary("B11308964", "pw"))
+        assertFalse(fixture.matches("B11308964", "lib"))
+        assertFalse(fixture.matchesLibrary("B11308965", "lib"))
+    }
+
+    @Test
     fun `a file without credentials never matches`() {
         val fixture = DemoFixture.parse("""{ "studentId": "B1" }""", DemoFixture.LANG_EN)
         assertFalse(fixture.matches("B1", ""))
+        assertFalse(fixture.matchesLibrary("B1", ""))
         assertFalse(DemoFixture.parse("{}", DemoFixture.LANG_EN).matches("", ""))
     }
 
@@ -124,6 +135,12 @@ class DemoFixtureTest {
             assertTrue(fixture.libraryFakeSignedIn)
             assertTrue(fixture.courses!!.all { it.courseName.isNotBlank() })
         }
-        assertTrue(DemoFixture.parse(json, DemoFixture.LANG_EN).matches("B11308964", "its-my-duty"))
+        // Read back from the file rather than repeated here, so a new
+        // password there needs no edit to this test.
+        val root = com.google.gson.JsonParser.parseString(json).asJsonObject
+        val fixture = DemoFixture.parse(json, DemoFixture.LANG_EN)
+        val id = root.get("studentId").asString
+        assertTrue(fixture.matches(id, root.get("school-password").asString))
+        assertTrue(fixture.matchesLibrary(id, root.get("library-password").asString))
     }
 }

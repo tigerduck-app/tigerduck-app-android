@@ -28,7 +28,8 @@ import java.util.Date
  */
 data class DemoFixture(
     val studentId: String?,
-    val password: String?,
+    val schoolPassword: String?,
+    val libraryPassword: String?,
     val libraryQrContent: String?,
     val libraryFakeSignedIn: Boolean,
     val courses: List<Course>?,
@@ -37,13 +38,21 @@ data class DemoFixture(
     val calendar: List<CalendarEvent>?,
 ) {
     /**
-     * Whether a sign-in attempt names this account: the student ID compared
-     * the way `AuthService.login` normalizes it, the password exactly. A file
-     * missing either never matches, so an empty field cannot open it.
+     * Whether a school sign-in attempt names this account: the student ID
+     * compared the way `AuthService.login` normalizes it, the school password
+     * exactly. A file missing either never matches, so an empty field cannot
+     * open it.
      */
-    fun matches(studentId: String, password: String): Boolean {
+    fun matches(studentId: String, password: String): Boolean =
+        credentialsMatch(studentId, password, schoolPassword)
+
+    /** The same check for the library sign-in, against the library password. */
+    fun matchesLibrary(username: String, password: String): Boolean =
+        credentialsMatch(username, password, libraryPassword)
+
+    private fun credentialsMatch(studentId: String, password: String, expected: String?): Boolean {
         val id = this.studentId?.trim()?.uppercase().orEmpty()
-        val pw = this.password.orEmpty()
+        val pw = expected.orEmpty()
         return id.isNotEmpty() && pw.isNotEmpty() &&
             studentId.trim().uppercase() == id && password == pw
     }
@@ -67,7 +76,8 @@ data class DemoFixture(
             val qr = root.obj("libraryQr")
             return DemoFixture(
                 studentId = root.str("studentId"),
-                password = root.str("password"),
+                schoolPassword = root.str("school-password"),
+                libraryPassword = root.str("library-password"),
                 libraryQrContent = qr?.str("content"),
                 libraryFakeSignedIn = qr?.bool("fakeLoggedIn", true) ?: false,
                 courses = root.list("courses") { o, _ -> parseCourse(o, lang) },
