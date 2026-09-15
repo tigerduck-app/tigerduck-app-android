@@ -3,11 +3,19 @@ package org.ntust.app.tigerduck.mail.imap
 import jakarta.mail.FetchProfile
 import jakarta.mail.Flags
 import jakarta.mail.Folder
+import jakarta.mail.MessagingException
 import jakarta.mail.Part
 import jakarta.mail.Session
 import jakarta.mail.UIDFolder
 import jakarta.mail.internet.ContentType
+import jakarta.mail.internet.MimeMessage
 import jakarta.mail.internet.MimePart
+import jakarta.mail.search.BodyTerm
+import jakarta.mail.search.FlagTerm
+import jakarta.mail.search.FromStringTerm
+import jakarta.mail.search.OrTerm
+import jakarta.mail.search.SearchException
+import jakarta.mail.search.SubjectTerm
 import org.eclipse.angus.mail.imap.IMAPFolder
 import org.eclipse.angus.mail.imap.IMAPMessage
 import org.eclipse.angus.mail.imap.IMAPStore
@@ -30,6 +38,7 @@ import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.model.MailFlags
 import org.ntust.app.tigerduck.mail.model.MailPage
 import org.ntust.app.tigerduck.mail.model.MailSummary
+import java.io.ByteArrayInputStream
 import java.io.OutputStream
 
 class AngusMailSessionFactory(private val config: MailServerConfig) : MailSessionFactory {
@@ -280,16 +289,95 @@ class AngusMailSession internal constructor(
         Unit
     }
 
-    // --- write path (Task 7) -----------------------------------------------------
+    // --- write path ----------------------------------------------------------------
 
-    override fun setSeen(folder: String, uids: List<Long>, seen: Boolean): Unit = throw MailError.Protocol("not implemented")
-    override fun setAnswered(folder: String, uid: Long): Unit = throw MailError.Protocol("not implemented")
-    override fun move(folder: String, uid: Long, target: String, ownedDeleted: Set<Long>): Boolean = throw MailError.Protocol("not implemented")
-    override fun deletePermanently(folder: String, uid: Long, ownedDeleted: Set<Long>): Boolean = throw MailError.Protocol("not implemented")
-    override fun search(folder: String, query: String): List<Long> = throw MailError.Protocol("not implemented")
-    override fun append(folder: String, rfc822: ByteArray, flags: Set<AppendFlag>): Unit = throw MailError.Protocol("not implemented")
-    override fun hasRecentMessageId(folder: String, messageId: String, window: Int): Boolean = throw MailError.Protocol("not implemented")
-    override fun newestSenderName(folder: String, address: String, window: Int): String? = throw MailError.Protocol("not implemented")
+    private fun uidFetch(f: IMAPFolder, messages: Array<jakarta.mail.Message>) {
+        if (messages.isNotEmpty()) f.fetch(messages, FetchProfile().apply { add(UIDFolder.FetchProfileItem.UID) })
+    }
+
+    /** Spec §8.3 step 3: EXPUNGE only when every `\Deleted` mail in the folder is one we flagged. */
+    private fun expungeIfOnlyOurs(f: IMAPFolder, ours: Set<Long>): Boolean {
+        val deleted = f.search(FlagTerm(Flags(Flags.Flag.DELETED), true))
+        uidFetch(f, deleted)
+        val deletedUids = deleted.map { f.getUID(it) }.toSet()
+        if (deletedUids.isEmpty() || !ours.containsAll(deletedUids)) return false
+        f.expunge()
+        return true
+    }
+
+    override fun setSeen(folder: String, uids: List<Long>, seen: Boolean) = io {
+        if (uids.isEmpty()) return@io
+        val f = folder(folder, Folder.READ_WRITE)
+        val messages = f.getMessagesByUID(uids.toLongArray()).filterNotNull().toTypedArray()
+        if (messages.isNotEmpty()) f.setFlags(messages, Flags(Flags.Flag.SEEN), seen)
+    }
+
+    override fun setAnswered(folder: String, uid: Long) = io {
+        message(folder(folder, Folder.READ_WRITE), uid).setFlag(Flags.Flag.ANSWERED, true)
+    }
+
+    override fun move(folder: String, uid: Long, target: String, ownedDeleted: Set<Long>): Boolean = io {
+        val f = folder(folder, Folder.READ_WRITE)
+        val m = message(f, uid)
+        f.copyMessages(arrayOf(m), store.getFolder(target))
+        m.setFlag(Flags.Flag.DELETED, true)
+        expungeIfOnlyOurs(f, ownedDeleted + uid)
+    }
+
+    override fun deletePermanently(folder: String, uid: Long, ownedDeleted: Set<Long>): Boolean = io {
+        val f = folder(folder, Folder.READ_WRITE)
+        message(f, uid).setFlag(Flags.Flag.DELETED, true)
+        expungeIfOnlyOurs(f, ownedDeleted + uid)
+    }
+
+    override fun search(folder: String, query: String): List<Long> {
+        val f = io { folder(folder, Folder.READ_ONLY) }
+        val found = try {
+            f.search(OrTerm(arrayOf(FromStringTerm(query), SubjectTerm(query), BodyTerm(query))))
+        } catch (e: SearchException) {
+            throw MailError.SearchUnsupported(e)
+        } catch (e: MessagingException) {
+            // A BAD/NO to `SEARCH CHARSET UTF-8` is "can't search", but a dropped
+            // connection is still a network error.
+            when (val classified = MailErrors.classify(e)) {
+                is MailError.Network, is MailError.Certificate, is MailError.AuthFailed -> throw classified
+                else -> throw MailError.SearchUnsupported(e)
+            }
+        }
+        return io {
+            uidFetch(f, found)
+            found.map { f.getUID(it) }.sortedDescending()
+        }
+    }
+
+    override fun append(folder: String, rfc822: ByteArray, flags: Set<AppendFlag>) = io {
+        closeOpen()
+        val msg = MimeMessage(session, ByteArrayInputStream(rfc822))
+        if (AppendFlag.SEEN in flags) msg.setFlag(Flags.Flag.SEEN, true)
+        if (AppendFlag.DRAFT in flags) msg.setFlag(Flags.Flag.DRAFT, true)
+        store.getFolder(folder).appendMessages(arrayOf(msg))
+    }
+
+    override fun hasRecentMessageId(folder: String, messageId: String, window: Int): Boolean = io {
+        val f = folder(folder, Folder.READ_ONLY)
+        val count = f.messageCount
+        if (count == 0) return@io false
+        val messages = f.getMessages(maxOf(1, count - window + 1), count)
+        f.fetch(messages, FetchProfile().apply { add("Message-ID") })
+        messages.any { it.getHeader("Message-ID")?.firstOrNull()?.trim() == messageId }
+    }
+
+    override fun newestSenderName(folder: String, address: String, window: Int): String? = io {
+        val f = folder(folder, Folder.READ_ONLY)
+        val count = f.messageCount
+        if (count == 0) return@io null
+        val messages = f.getMessages(maxOf(1, count - window + 1), count)
+        f.fetch(messages, FetchProfile().apply { add("From") })
+        messages.reversed().asSequence()
+            .mapNotNull { AddressParser.parseList(it.getHeader("From")?.firstOrNull()).firstOrNull() }
+            .firstOrNull { it.address.equals(address, ignoreCase = true) && !it.name.isNullOrBlank() }
+            ?.name
+    }
 
     override fun close() {
         closeOpen()
