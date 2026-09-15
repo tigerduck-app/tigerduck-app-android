@@ -91,4 +91,18 @@ class MailCacheTest {
         cache.clearAll()
         assertFalse(tmp.root.exists() && tmp.root.listFiles()!!.isNotEmpty())
     }
+
+    @Test
+    fun `a write that fails (read-only cache directory) never throws`() {
+        val cache = MailCache(tmp.root)
+        val foldersDir = File(tmp.root, "folders")
+        foldersDir.mkdirs()
+        foldersDir.setWritable(false)
+        try {
+            cache.saveFolder("INBOX", MailPage(1, 0, emptyList(), null))
+            assertNull("the failed write must leave no readable cache entry", cache.loadFolder("INBOX"))
+        } finally {
+            foldersDir.setWritable(true)
+        }
+    }
 }

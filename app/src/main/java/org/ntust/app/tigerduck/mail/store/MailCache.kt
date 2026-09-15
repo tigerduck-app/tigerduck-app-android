@@ -74,10 +74,14 @@ class MailCache(
     private fun write(file: File, value: Any) {
         file.parentFile?.mkdirs()
         val tmp = File(file.parentFile, "${file.name}.tmp")
-        tmp.writeText(gson.toJson(value))
-        if (!tmp.renameTo(file)) {
-            file.delete()
-            tmp.renameTo(file)
+        try {
+            tmp.writeText(gson.toJson(value))
+            if (!tmp.renameTo(file)) {
+                file.delete()
+                tmp.renameTo(file)
+            }
+        } catch (_: java.io.IOException) {
+            tmp.delete()
         }
     }
 
