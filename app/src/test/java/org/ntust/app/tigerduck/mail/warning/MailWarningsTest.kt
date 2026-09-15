@@ -44,6 +44,23 @@ class MailWarningsTest {
     }
 
     @Test
+    fun `a sentence-ending dot after the display-name address is not a mismatch`() {
+        val warnings = MailWarnings.evaluate(
+            from = MailAddress("Contact admin@mail.ntust.edu.tw.", "admin@mail.ntust.edu.tw"),
+            subject = "x", plainText = "", links = emptyList(), attachments = emptyList(),
+        )
+        assertEquals(emptyList<MailWarning>(), warnings)
+    }
+
+    @Test
+    fun `a null sender is treated as external with an empty address`() {
+        assertEquals(
+            listOf(MailWarning.ExternalSender("")),
+            MailWarnings.evaluate(from = null, subject = "hi", plainText = "", links = emptyList(), attachments = emptyList()),
+        )
+    }
+
+    @Test
     fun `password bait needs a keyword plus an external sender or an outside link`() {
         val internal = MailAddress(null, "cc@mail.ntust.edu.tw")
         val external = MailAddress(null, "x@evil.example")
@@ -87,5 +104,10 @@ class MailWarningsTest {
         assertTrue(MailWarnings.checkLink("x", "https://ntüst.example").punycode)
         assertTrue(MailWarnings.checkLink("admin@mail.ntust.edu.tw", "mailto:thief@evil.example").mismatch)
         assertFalse(MailWarnings.checkLink("a@b.tw", "mailto:A@B.tw?subject=x").mismatch)
+    }
+
+    @Test
+    fun `a sentence-ending dot after the mailto link text is not a mismatch`() {
+        assertFalse(MailWarnings.checkLink("admin@mail.ntust.edu.tw.", "mailto:admin@mail.ntust.edu.tw").mismatch)
     }
 }
