@@ -28,10 +28,11 @@ object OwnedDeletedCodec {
 
     fun decode(entry: String): Triple<String, Long, Long>? {
         val parts = entry.split(SEP)
-        if (parts.size != 3) return null
-        val validity = parts[1].toLongOrNull() ?: return null
-        val uid = parts[2].toLongOrNull() ?: return null
-        return Triple(parts[0], validity, uid)
+        if (parts.size < 3) return null
+        val uid = parts.last().toLongOrNull() ?: return null
+        val validity = parts[parts.size - 2].toLongOrNull() ?: return null
+        val folder = parts.dropLast(2).joinToString(SEP.toString())
+        return Triple(folder, validity, uid)
     }
 }
 
