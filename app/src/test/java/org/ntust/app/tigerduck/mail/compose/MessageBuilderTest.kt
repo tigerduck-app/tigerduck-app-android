@@ -6,6 +6,7 @@ import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeMessage
 import jakarta.mail.internet.MimeMultipart
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -65,5 +66,20 @@ class MessageBuilderTest {
         assertEquals("報告.pdf", attachment.fileName)
         assertTrue(attachment.isMimeType("application/pdf"))
         assertEquals("%PDF-1.4\n", attachment.inputStream.readBytes().toString(Charsets.US_ASCII))
+    }
+
+    @Test
+    fun `CRLF in threading headers cannot inject an extra header`() {
+        val hostile = mail().copy(
+            inReplyTo = "<m1@x>\r\nBcc: attacker@evil.com",
+            references = "<r0@x>\r\nBcc: attacker2@evil.com",
+        )
+        val built = builder.build(hostile)
+        val raw = String(built.toBytes(), Charsets.US_ASCII)
+        assertFalse(raw, raw.contains("\r\nBcc:", ignoreCase = true))
+
+        val msg = reparse(built)
+        assertNull("Bcc must never be written", msg.getHeader("Bcc"))
+        assertEquals(listOf("a@x.tw", "c@x.tw", "hidden@x.tw"), built.envelopeRecipients.map { it.address })
     }
 }

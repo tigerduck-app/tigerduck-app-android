@@ -8,6 +8,7 @@ import org.junit.Test
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailFlags
 import org.ntust.app.tigerduck.mail.model.MailSummary
+import java.util.Date
 
 class ComposeRulesTest {
     private fun summary(
@@ -62,7 +63,21 @@ class ComposeRulesTest {
         val parsed = ComposeRules.parseRecipients("a@x.tw; \"B, C\" <b@y.tw>,  , nope, A@X.tw")
         assertEquals(listOf("a@x.tw", "b@y.tw"), parsed.addresses.map { it.address })
         assertEquals(listOf("nope"), parsed.invalid)
-        assertEquals("a@x.tw, B, C <b@y.tw>", ComposeRules.formatRecipients(parsed.addresses))
+        // "B, C" contains a comma (an RFC 5322 special) so it must round-trip through quoting.
+        assertEquals("a@x.tw, \"B, C\" <b@y.tw>", ComposeRules.formatRecipients(parsed.addresses))
+    }
+
+    @Test
+    fun `formatRecipients output round-trips through parseRecipients`() {
+        val list = listOf(
+            MailAddress("B, C", "b@y.tw"),
+            MailAddress("a \"quoted\" name", "q@y.tw"),
+            MailAddress("王小明", "wang@y.tw"),
+            MailAddress(null, "bare@y.tw"),
+        )
+        val parsed = ComposeRules.parseRecipients(ComposeRules.formatRecipients(list))
+        assertEquals(list, parsed.addresses)
+        assertTrue(parsed.invalid.isEmpty())
     }
 
     @Test
@@ -70,5 +85,32 @@ class ComposeRulesTest {
         assertTrue(ComposeRules.fitsSizeLimit("hi", listOf(30L * 1024 * 1024)))
         assertFalse(ComposeRules.fitsSizeLimit("hi", listOf(38L * 1024 * 1024)))
         assertFalse(ComposeRules.fitsSizeLimit("hi", listOf(20L * 1024 * 1024, 20L * 1024 * 1024)))
+    }
+
+    @Test
+    fun `size estimate bounds the real quoted-printable encoding of a large CJK body`() {
+        val body = "測試郵件內容".repeat(8_000) // 48,000 UTF-16 chars, ~144,000 UTF-8 bytes
+        assertEncodedEstimateCoversRealMessage(body)
+    }
+
+    @Test
+    fun `size estimate bounds the real quoted-printable encoding of an ascii body`() {
+        val body = "The quick brown fox jumps over the lazy dog.\n".repeat(2_000)
+        assertEncodedEstimateCoversRealMessage(body)
+    }
+
+    private fun assertEncodedEstimateCoversRealMessage(body: String) {
+        val builder = MessageBuilder(newId = { "fixed" }, now = { Date(0) })
+        val mail = OutgoingMail(
+            from = MailAddress(null, "b10000001@mail.ntust.edu.tw"),
+            to = listOf(MailAddress(null, "a@x.tw")),
+            cc = emptyList(),
+            bcc = emptyList(),
+            subject = "s",
+            body = body,
+        )
+        val actual = builder.build(mail).toBytes().size.toLong()
+        val estimate = ComposeRules.estimateEncodedSize(body, emptyList())
+        assertTrue("estimate $estimate must be >= actual $actual", estimate >= actual)
     }
 }

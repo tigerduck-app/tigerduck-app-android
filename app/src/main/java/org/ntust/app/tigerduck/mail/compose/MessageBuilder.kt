@@ -41,8 +41,8 @@ class MessageBuilder(
         if (mail.cc.isNotEmpty()) msg.setRecipients(Message.RecipientType.CC, mail.cc.map(::internet).toTypedArray())
         msg.setSubject(mail.subject, "UTF-8")
         msg.sentDate = now()
-        mail.inReplyTo?.let { msg.setHeader("In-Reply-To", it) }
-        mail.references?.let { msg.setHeader("References", MimeUtility.fold("References: ".length, it)) }
+        mail.inReplyTo?.let { msg.setHeader("In-Reply-To", MimeUtility.fold("In-Reply-To: ".length, sanitizeHeaderValue(it))) }
+        mail.references?.let { msg.setHeader("References", MimeUtility.fold("References: ".length, sanitizeHeaderValue(it))) }
         if (mail.attachments.isEmpty()) {
             msg.setText(mail.body, "UTF-8")
             msg.setHeader("Content-Transfer-Encoding", "quoted-printable")
@@ -62,6 +62,11 @@ class MessageBuilder(
     }
 
     private fun internet(a: MailAddress) = InternetAddress(a.address, a.name?.takeIf { it.isNotBlank() }, "UTF-8")
+
+    /** A Message-ID token never legitimately contains a control character;
+     *  stripping them defangs a CR/LF header-injection attempt smuggled in
+     *  through a hostile In-Reply-To or References value. */
+    private fun sanitizeHeaderValue(raw: String): String = raw.filterNot { it.isISOControl() }
 
     private fun attachmentPart(a: OutgoingAttachment) = MimeBodyPart().apply {
         dataHandler = DataHandler(object : DataSource {
