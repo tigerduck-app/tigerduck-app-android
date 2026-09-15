@@ -85,14 +85,17 @@ object MailWarnings {
         }
         if (keyword && (external || outsideLink)) warnings += MailWarning.PasswordBait
         val risky = attachments.filter { riskReason(it.fileName, it.contentType, text) != null }
-            .map { TextCleaning.clean(it.fileName) }
+            .map { cleanFileName(it.fileName) }
         if (risky.isNotEmpty()) warnings += MailWarning.RiskyAttachments(risky)
         return warnings
     }
 
+    /** A.3-cleaned, trailing whitespace and dots removed, original case kept (spec A.4 rule 4). */
+    private fun cleanFileName(fileName: String): String = TextCleaning.clean(fileName).trimEnd('.', ' ')
+
     /** [subjectAndBody] is only used for the protected-archive rule. */
     fun riskReason(fileName: String, contentType: String, subjectAndBody: String): RiskReason? {
-        val name = TextCleaning.stripBidi(fileName).trim().trimEnd('.', ' ').lowercase()
+        val name = cleanFileName(fileName).lowercase()
         val parts = name.split('.')
         if (parts.size < 2) return null
         val ext = parts.last()
