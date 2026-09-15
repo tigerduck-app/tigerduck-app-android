@@ -1,5 +1,9 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package org.ntust.app.tigerduck.mail
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -98,11 +102,24 @@ class MailRepositoryTest {
         val uid = server.deliver("a")
         val repo = TestSetup(backgroundScope).signedIn()
         repo.loadPage("INBOX", null)
-        server.nextCallError = MailError.Protocol("boom")
+        // Skips the held connection's liveness probe and the fresh-UIDVALIDITY
+        // check (both harmless nulls) so the induced error lands on the move itself.
+        server.queueCallErrors(null, null, MailError.Protocol("boom"))
         val result = runCatching { repo.move("INBOX", uid, "回收筒") }
         assertTrue(result.exceptionOrNull() is MailError.Protocol)
         assertEquals(emptySet<Long>(), state.ownedDeleted("INBOX", server.uidValidity))
         assertEquals(listOf("a"), server.subjects("INBOX"))
+    }
+
+    @Test
+    fun `a move that flags deleted before failing is recorded as ours`() = runTest {
+        val uid = server.deliver("a")
+        val repo = TestSetup(backgroundScope).signedIn()
+        repo.loadPage("INBOX", null)
+        server.failAfterFlag = true
+        val result = runCatching { repo.move("INBOX", uid, "回收筒") }
+        assertTrue(result.exceptionOrNull() is MailError.Network)
+        assertEquals(setOf(uid), state.ownedDeleted("INBOX", server.uidValidity))
     }
 
     @Test
@@ -111,11 +128,23 @@ class MailRepositoryTest {
         val repo = TestSetup(backgroundScope).signedIn()
         repo.loadPage("回收筒", null)
         repo.folders()
-        server.nextCallError = MailError.Protocol("boom")
+        server.queueCallErrors(null, null, MailError.Protocol("boom"))
         val result = runCatching { repo.delete("回收筒", uid) }
         assertTrue(result.exceptionOrNull() is MailError.Protocol)
         assertEquals(emptySet<Long>(), state.ownedDeleted("回收筒", server.uidValidity))
         assertEquals(listOf("a"), server.subjects("回收筒"))
+    }
+
+    @Test
+    fun `a move refuses to act once the folder's UIDVALIDITY has moved on from the cache`() = runTest {
+        val uid = server.deliver("a")
+        val repo = TestSetup(backgroundScope).signedIn()
+        repo.loadPage("INBOX", null)
+        server.uidValidity = 2
+        val result = runCatching { repo.move("INBOX", uid, "回收筒") }
+        assertTrue(result.exceptionOrNull() is MailError.Protocol)
+        assertEquals(null, repo.cachedPage("INBOX"))
+        assertEquals(listOf("a"), server.subjects("INBOX"))
     }
 
     @Test
@@ -166,5 +195,40 @@ class MailRepositoryTest {
         repo.send(OutgoingMail(repo.selfAddress(), listOf(MailAddress(null, "a@x.tw")), emptyList(), emptyList(), "s", "b"), null)
         assertEquals(0, server.opens)
         assertTrue(sent.isEmpty())
+    }
+
+    @Test
+    fun `app-wide demo mode blocks the real account from opening any connection`() = runTest {
+        val uid = server.deliver("a")
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        demo.appDemoActive = true
+        val opensBefore = server.opens
+        repo.folders()
+        repo.loadPage("INBOX", null)
+        runCatching { repo.body("INBOX", uid) }
+        repo.search("INBOX", "a")
+        runCatching { repo.move("INBOX", uid, "回收筒") }
+        repo.send(OutgoingMail(repo.selfAddress(), listOf(MailAddress(null, "a@x.tw")), emptyList(), emptyList(), "s", "b"), null)
+        assertEquals(opensBefore, server.opens)
+        assertTrue(sent.isEmpty())
+    }
+
+    @Test
+    fun `calling with no signed-in account fails with a dedicated error, not AuthFailed`() = runTest {
+        val setup = TestSetup(backgroundScope)
+        val result = runCatching { setup.repository.loadPage("INBOX", null) }
+        assertTrue(result.exceptionOrNull() is MailError.Protocol)
+    }
+
+    @Test
+    fun `signing out closes the held connection`() = runTest {
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        repo.folders()
+        assertEquals(1, server.openSessions)
+        setup.account.signOut()
+        runCurrent()
+        assertEquals(0, server.openSessions)
     }
 }

@@ -27,10 +27,26 @@ class FakeMailServer {
         "廣告信匣" to mutableListOf(), "回收筒" to mutableListOf(),
     )
     var openError: MailError? = null
+    private val callErrors = ArrayDeque<MailError?>()
+
     /** Thrown once by the next session call, then cleared. */
-    var nextCallError: MailError? = null
+    var nextCallError: MailError?
+        get() = callErrors.firstOrNull()
+        set(value) {
+            callErrors.clear()
+            if (value != null) callErrors.addLast(value)
+        }
+
+    /** Queues one outcome per successive session call (any method); `null` lets that call through untouched. Lets a test skip a liveness probe before failing the call it actually cares about. */
+    fun queueCallErrors(vararg errors: MailError?) {
+        callErrors.clear()
+        callErrors.addAll(errors)
+    }
     var searchUnsupported = false
     var expungeOnMove = true
+
+    /** When true, `move`/`deletePermanently` flag \Deleted (and, for `move`, COPY) before throwing a network error -- simulating the flag having landed server-side even though the call itself failed. */
+    var failAfterFlag = false
     var opens = 0
         private set
     var openSessions = 0
@@ -69,7 +85,7 @@ class FakeMailServer {
 
         private fun <T> call(block: () -> T): T {
             check(!closed) { "session used after close" }
-            nextCallError?.let { nextCallError = null; throw it }
+            if (callErrors.isNotEmpty()) callErrors.removeFirst()?.let { throw it }
             return block()
         }
 
@@ -124,12 +140,22 @@ class FakeMailServer {
             val s = find(folder, uid)
             val copyUid = nextUid++
             list(target) += Stored(s.summary.copy(uid = copyUid), s.body)
+            if (failAfterFlag) {
+                s.summary = s.summary.copy(flags = s.summary.flags.copy(deleted = true))
+                throw MailError.Network()
+            }
             if (expungeOnMove) list(folder).remove(s) else s.summary = s.summary.copy(flags = s.summary.flags.copy(deleted = true))
             expungeOnMove
         }
 
-        override fun deletePermanently(folder: String, uid: Long, ownedDeleted: Set<Long>) =
-            call { list(folder).remove(find(folder, uid)) }
+        override fun deletePermanently(folder: String, uid: Long, ownedDeleted: Set<Long>) = call {
+            if (failAfterFlag) {
+                val s = find(folder, uid)
+                s.summary = s.summary.copy(flags = s.summary.flags.copy(deleted = true))
+                throw MailError.Network()
+            }
+            list(folder).remove(find(folder, uid))
+        }
 
         override fun search(folder: String, query: String) = call {
             if (searchUnsupported) throw MailError.SearchUnsupported()

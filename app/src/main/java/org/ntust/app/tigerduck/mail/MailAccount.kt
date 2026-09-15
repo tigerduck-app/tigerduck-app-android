@@ -38,7 +38,9 @@ class MailAccount @Inject constructor(
     val authFailed: StateFlow<Boolean> = _authFailed.asStateFlow()
 
     val studentId: String? get() = credentials.mailStudentId
-    val isDemo: Boolean get() = state.demoMailbox
+
+    /** True for the mail demo mailbox itself, or whenever the app-wide demo is active -- either way, nothing may open a socket. */
+    val isDemo: Boolean get() = state.demoMailbox || demo.appDemoActive
 
     fun credentialsOrNull(): MailCredentials? {
         val id = credentials.mailStudentId
