@@ -48,6 +48,9 @@ object MailWarnings {
 
     private fun normalize(domain: String) = domain.trim().lowercase().removeSuffix(".")
 
+    /** The first email-shaped match in [text], with a sentence-ending `.` trimmed off. */
+    private fun firstEmail(text: String): String? = EMAIL.find(text)?.value?.trimEnd('.')
+
     private fun toAscii(host: String): String = runCatching { IDN.toASCII(host) }.getOrDefault(host).lowercase()
 
     fun isSchoolDomain(host: String): Boolean {
@@ -72,7 +75,7 @@ object MailWarnings {
         val external = isExternal(sender)
         if (external) warnings += MailWarning.ExternalSender(sender)
         from?.name?.let { name ->
-            val shown = EMAIL.find(name)?.value
+            val shown = firstEmail(name)
             if (shown != null && !shown.equals(sender, ignoreCase = true)) {
                 warnings += MailWarning.DisplayNameMismatch(shown, sender)
             }
@@ -101,12 +104,13 @@ object MailWarnings {
         val ext = parts.last()
         val previous = if (parts.size >= 3) parts[parts.size - 2] else null
         val type = contentType.lowercase().substringBefore(';').trim()
+        val body = TextCleaning.stripBidi(subjectAndBody).lowercase()
         return when {
             ext in RISKY_EXTENSIONS && previous in DOCUMENT_EXTENSIONS -> RiskReason.DOUBLE_EXTENSION
             ext in RISKY_EXTENSIONS && (type == "application/pdf" || type.startsWith("image/") || type == "text/plain") ->
                 RiskReason.TYPE_MISMATCH
             ext in RISKY_EXTENSIONS -> RiskReason.RISKY_TYPE
-            ext in ARCHIVE_EXTENSIONS && ARCHIVE_PASSWORD_WORDS.any { it in subjectAndBody.lowercase() } ->
+            ext in ARCHIVE_EXTENSIONS && ARCHIVE_PASSWORD_WORDS.any { it in body } ->
                 RiskReason.PROTECTED_ARCHIVE
             else -> null
         }
@@ -116,7 +120,7 @@ object MailWarnings {
         val trimmedHref = href.trim()
         if (trimmedHref.startsWith("mailto:", ignoreCase = true)) {
             val actual = trimmedHref.substringAfter(':').substringBefore('?')
-            val shown = EMAIL.find(text)?.value
+            val shown = firstEmail(text)
             return LinkVerdict(
                 host = actual,
                 shownHost = shown,

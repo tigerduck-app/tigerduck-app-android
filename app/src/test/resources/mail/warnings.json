@@ -17,7 +17,8 @@
     {"name": "trailing dot and space", "from_address": "a@mail.ntust.edu.tw", "from_name": null, "subject": "run", "text": "", "links": [], "attachments": [{"filename": "run.EXE. ", "content_type": null}], "expect": ["risky_attachment:run.EXE:dangerous_extension"]},
     {"name": "archive with a password hint", "from_address": "a@mail.ntust.edu.tw", "from_name": null, "subject": "資料", "text": "解壓縮密碼另行通知", "links": [], "attachments": [{"filename": "data.zip", "content_type": "application/zip"}], "expect": ["risky_attachment:data.zip:encrypted_archive"]},
     {"name": "archive without a hint", "from_address": "a@mail.ntust.edu.tw", "from_name": null, "subject": "資料", "text": "附件請查收", "links": [], "attachments": [{"filename": "data.zip", "content_type": "application/zip"}], "expect": []},
-    {"name": "safe document", "from_address": "a@mail.ntust.edu.tw", "from_name": null, "subject": "課綱", "text": "", "links": [], "attachments": [{"filename": "syllabus.pdf", "content_type": "application/pdf"}], "expect": []}
+    {"name": "safe document", "from_address": "a@mail.ntust.edu.tw", "from_name": null, "subject": "課綱", "text": "", "links": [], "attachments": [{"filename": "syllabus.pdf", "content_type": "application/pdf"}], "expect": []},
+    {"name": "display name address ends a sentence", "from_address": "admin@mail.ntust.edu.tw", "from_name": "Contact admin@mail.ntust.edu.tw.", "subject": "x", "text": "", "links": [], "attachments": [], "expect": []}
   ],
   "links": [
     {"name": "matching host", "text": "https://www.ntust.edu.tw", "href": "https://www.ntust.edu.tw/home", "expect": []},
@@ -29,6 +30,7 @@
     {"name": "insecure", "text": "舊系統", "href": "http://old.ntust.edu.tw", "expect": ["insecure"]},
     {"name": "insecure mismatch", "text": "ntust.edu.tw", "href": "http://evil.example", "expect": ["insecure", "mismatch:ntust.edu.tw:evil.example"]},
     {"name": "mailto match", "text": "cc@mail.ntust.edu.tw", "href": "mailto:cc@mail.ntust.edu.tw", "expect": []},
-    {"name": "mailto mismatch", "text": "cc@mail.ntust.edu.tw", "href": "mailto:phish@evil.example", "expect": ["mismatch:cc@mail.ntust.edu.tw:phish@evil.example"]}
+    {"name": "mailto mismatch", "text": "cc@mail.ntust.edu.tw", "href": "mailto:phish@evil.example", "expect": ["mismatch:cc@mail.ntust.edu.tw:phish@evil.example"]},
+    {"name": "mailto text ends a sentence", "text": "admin@mail.ntust.edu.tw.", "href": "mailto:admin@mail.ntust.edu.tw", "expect": []}
   ]
 }
