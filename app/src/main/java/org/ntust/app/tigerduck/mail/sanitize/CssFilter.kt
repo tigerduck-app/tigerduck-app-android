@@ -12,7 +12,10 @@ object CssFilter {
     )
     private val ALLOWED_PREFIXES = listOf("margin-", "padding-", "border-")
     private val DISPLAY_VALUES = setOf("block", "inline", "inline-block", "table", "table-row", "table-cell", "list-item", "none")
-    private val FORBIDDEN = listOf("url(", "expression", "@import", "behavior", "-moz-binding", "javascript:", "\\", "/*")
+    private val FORBIDDEN = listOf(
+        "url(", "expression", "@import", "behavior", "-moz-binding", "javascript:", "\\", "/*",
+        "image-set", "-webkit-image-set", "image(", "cross-fade", "element(",
+    )
     private val PROPERTY_NAME = Regex("^[a-z-]+$")
 
     /** The filtered declarations joined with `; `, or null when nothing survives. */

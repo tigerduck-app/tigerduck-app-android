@@ -20,6 +20,12 @@ class CssFilterTest {
     }
 
     @Test
+    fun `css image loading functions drop the declaration`() {
+        assertNull(CssFilter.filter("border-image-source: image-set(\"https://t.example/p.gif\" 1x)"))
+        assertNull(CssFilter.filter("list-style: image-set('https://t.example/q.gif' 1x)"))
+    }
+
+    @Test
     fun `unlisted properties and unsafe display values are dropped`() {
         assertEquals("color: red", CssFilter.filter("position: fixed; color: red; z-index: 99; background-image: none"))
         assertNull(CssFilter.filter("display: flex"))

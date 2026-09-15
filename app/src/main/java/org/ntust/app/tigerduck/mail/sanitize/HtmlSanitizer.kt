@@ -50,7 +50,9 @@ object HtmlSanitizer {
         val remote = linkedSetOf<String>()
         var blocked = 0
         for (img in dirty.select("img")) {
+            img.removeAttr(REMOTE_SRC_ATTR)
             val src = img.attr("src").trim()
+            img.attr("src", src)
             val lower = src.lowercase()
             when {
                 lower.startsWith("http://") || lower.startsWith("https://") -> {
