@@ -32,6 +32,18 @@ class AngusMailSessionReadTest {
     }
 
     @Test
+    fun `noop works with no folder open and with one already open`() {
+        server.deliver("one")
+        session().use { s ->
+            s.noop() // no folder open yet -- the throwaway-INBOX-object branch
+            s.fetchPage("INBOX", beforeSeq = null, pageSize = 10) // opens INBOX
+            s.noop() // an already-open folder -- the NOOP-in-place branch
+            // The connection is still fully usable afterward either way.
+            assertEquals(1, s.status("INBOX").messages)
+        }
+    }
+
+    @Test
     fun `folders and status`() {
         server.createFolders("寄件備份匣", "回收筒")
         server.deliver("one")

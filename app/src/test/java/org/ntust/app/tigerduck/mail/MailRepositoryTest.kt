@@ -2,9 +2,14 @@
 
 package org.ntust.app.tigerduck.mail
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -142,9 +147,34 @@ class MailRepositoryTest {
         repo.loadPage("INBOX", null)
         server.uidValidity = 2
         val result = runCatching { repo.move("INBOX", uid, "回收筒") }
-        assertTrue(result.exceptionOrNull() is MailError.Protocol)
+        assertTrue(result.exceptionOrNull() is MailError.FolderChanged)
         assertEquals(null, repo.cachedPage("INBOX"))
         assertEquals(listOf("a"), server.subjects("INBOX"))
+    }
+
+    @Test
+    fun `an uncached body is saved under the server's current UIDVALIDITY, not the cached page's`() = runTest {
+        val uid = server.deliver("a")
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        repo.loadPage("INBOX", null)
+        server.uidValidity = 2
+        assertEquals("body of a", repo.body("INBOX", uid).plain)
+        // The cached *page* is still keyed at 1 (loadPage was never re-run), but
+        // the body itself must have landed under the server's current value, 2.
+        assertNotNull(setup.cache.loadBody("INBOX", uid, 2))
+        assertEquals(null, setup.cache.loadBody("INBOX", uid, 1))
+    }
+
+    @Test
+    fun `a cached body is served for the cached page's own validity without touching the server`() = runTest {
+        val uid = server.deliver("a")
+        val repo = TestSetup(backgroundScope).signedIn()
+        repo.loadPage("INBOX", null)
+        repo.body("INBOX", uid)
+        val opensBefore = server.opens
+        assertEquals("body of a", repo.body("INBOX", uid).plain)
+        assertEquals(opensBefore, server.opens)
     }
 
     @Test
@@ -228,7 +258,26 @@ class MailRepositoryTest {
         repo.folders()
         assertEquals(1, server.openSessions)
         setup.account.signOut()
-        runCurrent()
+        // The sign-out collector's close hops to a real Dispatchers.IO (so it
+        // never blocks the application scope's Dispatchers.Default), so
+        // runCurrent() alone can't flush it -- bridge with a short real-time
+        // poll instead of asserting immediately.
+        withContext(Dispatchers.Default) {
+            withTimeout(2_000) {
+                while (server.openSessions != 0) delay(10)
+            }
+        }
         assertEquals(0, server.openSessions)
+    }
+
+    @Test
+    fun `acquire cancels a pending idle close so re-opening the page doesn't drop the connection`() = runTest {
+        val repo = TestSetup(backgroundScope).signedIn()
+        repo.folders()
+        assertEquals(1, server.openSessions)
+        repo.release()
+        repo.acquire()
+        advanceTimeBy(40_000); runCurrent()
+        assertEquals(1, server.openSessions)
     }
 }

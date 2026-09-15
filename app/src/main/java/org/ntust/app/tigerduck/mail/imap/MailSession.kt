@@ -17,6 +17,8 @@ enum class AppendFlag { SEEN, DRAFT }
  * Every method throws [org.ntust.app.tigerduck.mail.MailError].
  */
 interface MailSession : Closeable {
+    /** A cheap round trip that proves the connection is still alive without SELECTing (or deselecting) any folder. */
+    fun noop()
     fun listFolders(): List<String>
     fun status(folder: String): FolderStatus
     fun fetchPage(folder: String, beforeSeq: Int?, pageSize: Int): MailPage

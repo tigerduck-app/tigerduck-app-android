@@ -26,6 +26,8 @@ sealed class MailError(message: String, cause: Throwable? = null) : Exception(me
     class Protocol(message: String, cause: Throwable? = null) : MailError(message, cause)
     /** Thrown if anything tries to open a socket while the demo mailbox is active. */
     class DemoMode : MailError("demo mode never opens sockets")
+    /** A folder's UIDVALIDITY no longer matches the caller's cached page; nothing on the server was touched. */
+    class FolderChanged : MailError("folder changed; refresh")
 }
 
 object MailErrors {

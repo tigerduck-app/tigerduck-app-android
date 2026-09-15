@@ -91,6 +91,8 @@ class FakeMailServer {
 
         private fun list(folder: String) = folders[folder] ?: throw MailError.Protocol("no folder $folder")
 
+        override fun noop() = call { Unit }
+
         override fun listFolders() = call { folders.keys.toList() }
 
         override fun status(folder: String) = call {

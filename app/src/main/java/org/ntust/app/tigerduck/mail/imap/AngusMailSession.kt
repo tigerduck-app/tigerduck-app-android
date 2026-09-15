@@ -176,6 +176,19 @@ class AngusMailSession internal constructor(
 
     // --- read path -------------------------------------------------------------
 
+    /**
+     * Unlike [status], this never closes an already-open folder first: it
+     * NOOPs whichever folder is currently selected (NOOP is valid in any
+     * IMAP state), or a throwaway, never-opened `IMAPFolder` object when
+     * none is -- either way, one lightweight round trip with no
+     * UNSELECT/re-SELECT cost for the next real command.
+     */
+    override fun noop() = io {
+        val f = openFolder?.takeIf { it.isOpen } ?: store.getFolder("INBOX") as IMAPFolder
+        f.doCommand(IMAPFolder.ProtocolCommand { p: IMAPProtocol -> p.simpleCommand("NOOP", null) })
+        Unit
+    }
+
     override fun listFolders(): List<String> = io {
         closeOpen()
         store.defaultFolder.list("*")
