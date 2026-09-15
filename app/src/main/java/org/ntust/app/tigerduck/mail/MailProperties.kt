@@ -37,8 +37,14 @@ object MailProperties {
             put("$p.peek", "true")
             put("$p.partialfetch", "true")
             put("$p.fetchsize", "16384")
-            // Without this, a failed server SEARCH silently falls back to
-            // downloading every message to search it on the phone.
+            // Only covers IMAPProtocol's SearchException case (an unformattable
+            // search, e.g. an unsupported CHARSET) -- NOT a tagged NO to SEARCH
+            // itself, which IMAPFolder.search() unconditionally retries as a
+            // full client-side scan of already-fetched message state regardless
+            // of this setting (verified against Angus 2.0.5 bytecode). Because
+            // of that, AngusMailSession never calls IMAPFolder.search(): it
+            // issues its own UID SEARCH via IMAPFolder.doCommand instead, so a
+            // NO always throws. Left set here for defense in depth.
             put("$p.throwsearchexception", "true")
             if (config.secure) put("$p.ssl.checkserveridentity", "true")
         }
