@@ -69,6 +69,15 @@ class MailAccountTest {
     }
 
     @Test
+    fun `app demo mode makes isDemo true even with a real account already signed in`() = runTest {
+        val account = account()
+        account.signIn("b10000001", "pw")
+        assertFalse(account.isDemo)
+        demo.appDemoActive = true
+        assertTrue(account.isDemo)
+    }
+
+    @Test
     fun `signing in again as the same student keeps an edited display name`() = runTest {
         val account = account()
         account.signIn("b10000001", "pw")

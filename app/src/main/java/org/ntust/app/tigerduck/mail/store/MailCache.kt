@@ -39,6 +39,12 @@ class MailCache(
         )
     }
 
+    /** Drops [folder]'s cached page, e.g. once its UIDVALIDITY no longer matches the server's. */
+    @Synchronized
+    fun deleteFolder(folder: String) {
+        File(foldersDir, key(folder)).delete()
+    }
+
     @Synchronized
     fun loadBody(folder: String, uid: Long, uidValidity: Long): MailBody? {
         val file = File(bodiesDir, key("$folder\u0000$uid"))

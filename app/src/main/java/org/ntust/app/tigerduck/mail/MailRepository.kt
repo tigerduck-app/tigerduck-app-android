@@ -1,7 +1,9 @@
 package org.ntust.app.tigerduck.mail
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.mail.compose.MessageBuilder
@@ -37,6 +39,8 @@ sealed interface SearchOutcome {
 
 interface SchoolMailRepository {
     suspend fun folders(): ResolvedFolders
+
+    /** A synchronous disk read -- never call this from the main thread. */
     fun cachedPage(folder: String): MailPage?
     suspend fun loadPage(folder: String, beforeSeq: Int?): MailPage
     suspend fun inboxStatus(): FolderStatus
@@ -66,13 +70,28 @@ class MailRepository @Inject constructor(
     private val sender: MailSender,
     private val builder: MessageBuilder,
     private val demo: MailDemoGate,
-    @param:ApplicationScope scope: CoroutineScope,
+    @ApplicationScope scope: CoroutineScope,
 ) : SchoolMailRepository {
     private val holder = SessionHolder(sessions, scope)
     @Volatile private var resolved: ResolvedFolders? = null
     private val demoFolders = mutableMapOf<String, MutableList<DemoMail>>()
 
-    private fun credentials() = account.credentialsOrNull() ?: throw MailError.AuthFailed()
+    init {
+        // A signed-out account must never keep an authenticated socket open,
+        // and a fresh sign-in must never see the previous account's cached
+        // folder resolution or demo mail.
+        scope.launch {
+            account.signedIn.collect { signedIn ->
+                if (!signedIn) {
+                    holder.closeNow()
+                    resolved = null
+                    synchronized(demoFolders) { demoFolders.clear() }
+                }
+            }
+        }
+    }
+
+    private fun credentials() = account.credentialsOrNull() ?: throw MailError.Protocol("not signed in")
 
     private suspend fun <T> withSession(block: (MailSession) -> T): T = withContext(Dispatchers.IO) {
         if (account.isDemo) throw MailError.DemoMode()
@@ -81,9 +100,19 @@ class MailRepository @Inject constructor(
 
     // --- demo -------------------------------------------------------------------
 
-    private fun demoList(folder: String): MutableList<DemoMail> = synchronized(demoFolders) {
+    private fun ensureDemoSeeded() {
         if (demoFolders.isEmpty()) demoFolders["INBOX"] = demo.mailbox().messages.toMutableList()
-        demoFolders.getOrPut(folder) { mutableListOf() }
+    }
+
+    /** A synchronized snapshot of [folder]'s demo mail; mutate only via [demoMutate] or the dedicated `synchronized` blocks below. */
+    private fun demoList(folder: String): List<DemoMail> = synchronized(demoFolders) {
+        ensureDemoSeeded()
+        demoFolders.getOrPut(folder) { mutableListOf() }.toList()
+    }
+
+    private fun <T> demoMutate(folder: String, action: (MutableList<DemoMail>) -> T): T = synchronized(demoFolders) {
+        ensureDemoSeeded()
+        action(demoFolders.getOrPut(folder) { mutableListOf() })
     }
 
     private fun demoPage(folder: String) = demoList(folder).let { list ->
@@ -91,9 +120,10 @@ class MailRepository @Inject constructor(
     }
 
     private fun demoUpdate(folder: String, uid: Long, transform: (MailSummary) -> MailSummary) {
-        val list = demoList(folder)
-        val i = list.indexOfFirst { it.summary.uid == uid }
-        if (i >= 0) list[i] = list[i].copy(summary = transform(list[i].summary))
+        demoMutate(folder) { list ->
+            val i = list.indexOfFirst { it.summary.uid == uid }
+            if (i >= 0) list[i] = list[i].copy(summary = transform(list[i].summary))
+        }
     }
 
     // --- folders & lists -----------------------------------------------------------
@@ -113,7 +143,7 @@ class MailRepository @Inject constructor(
     override suspend fun loadPage(folder: String, beforeSeq: Int?): MailPage {
         if (account.isDemo) return demoPage(folder)
         val page = withSession { it.fetchPage(folder, beforeSeq, PAGE_SIZE) }
-        if (beforeSeq == null) cache.saveFolder(folder, page)
+        if (beforeSeq == null) withContext(Dispatchers.IO) { cache.saveFolder(folder, page) }
         return page
     }
 
@@ -131,7 +161,7 @@ class MailRepository @Inject constructor(
     }
 
     override suspend fun summary(folder: String, uid: Long): MailSummary? {
-        cachedPage(folder)?.messages?.firstOrNull { it.uid == uid }?.let { return it }
+        withContext(Dispatchers.IO) { cachedPage(folder)?.messages?.firstOrNull { it.uid == uid } }?.let { return it }
         if (account.isDemo) return null
         return withSession { it.fetchByUids(folder, listOf(uid)).firstOrNull() }
     }
@@ -139,8 +169,10 @@ class MailRepository @Inject constructor(
     override suspend fun body(folder: String, uid: Long): MailBody {
         if (account.isDemo) return demoList(folder).firstOrNull { it.summary.uid == uid }?.body ?: throw MailError.Protocol("gone")
         val validity = uidValidity(folder)
-        cache.loadBody(folder, uid, validity)?.let { return it }
-        return withSession { it.fetchBody(folder, uid) }.also { cache.saveBody(folder, uid, validity, it) }
+        withContext(Dispatchers.IO) { cache.loadBody(folder, uid, validity) }?.let { return it }
+        val body = withSession { it.fetchBody(folder, uid) }
+        withContext(Dispatchers.IO) { cache.saveBody(folder, uid, validity, body) }
+        return body
     }
 
     // --- actions -----------------------------------------------------------------------
@@ -153,20 +185,18 @@ class MailRepository @Inject constructor(
 
     override suspend fun move(folder: String, uid: Long, target: String) {
         if (account.isDemo) {
-            val list = demoList(folder)
-            list.firstOrNull { it.summary.uid == uid }?.let { list.remove(it); demoList(target).add(0, it) }
+            synchronized(demoFolders) {
+                ensureDemoSeeded()
+                val list = demoFolders.getOrPut(folder) { mutableListOf() }
+                list.firstOrNull { it.summary.uid == uid }?.let {
+                    list.remove(it)
+                    demoFolders.getOrPut(target) { mutableListOf() }.add(0, it)
+                }
+            }
             return
         }
-        val validity = uidValidity(folder)
-        val owned = state.ownedDeleted(folder, validity)
-        try {
-            val expunged = withSession { it.move(folder, uid, target, owned) }
-            state.setOwnedDeleted(folder, validity, if (expunged) emptySet() else owned + uid)
-            removeCached(folder, uid)
-        } catch (e: MailError) {
-            recordIfDeletedOnServer(folder, uid, validity, owned)
-            throw e
-        }
+        runExpunging(folder, uid) { session, owned -> session.move(folder, uid, target, owned) }
+        removeCached(folder, uid)
     }
 
     override suspend fun deletesPermanently(folder: String): Boolean {
@@ -178,19 +208,11 @@ class MailRepository @Inject constructor(
         val trash = folders().nameOf(SpecialFolder.TRASH)
         if (trash != null && trash != folder) return move(folder, uid, trash)
         if (account.isDemo) {
-            demoList(folder).removeAll { it.summary.uid == uid }
+            demoMutate(folder) { it.removeAll { m -> m.summary.uid == uid } }
             return
         }
-        val validity = uidValidity(folder)
-        val owned = state.ownedDeleted(folder, validity)
-        try {
-            val expunged = withSession { it.deletePermanently(folder, uid, owned) }
-            state.setOwnedDeleted(folder, validity, if (expunged) emptySet() else owned + uid)
-            removeCached(folder, uid)
-        } catch (e: MailError) {
-            recordIfDeletedOnServer(folder, uid, validity, owned)
-            throw e
-        }
+        runExpunging(folder, uid) { session, owned -> session.deletePermanently(folder, uid, owned) }
+        removeCached(folder, uid)
     }
 
     override suspend fun search(folder: String, query: String): SearchOutcome {
@@ -200,7 +222,8 @@ class MailRepository @Inject constructor(
             val uids = withSession { it.search(folder, q) }.take(PAGE_SIZE)
             SearchOutcome.Server(withSession { it.fetchByUids(folder, uids) })
         } catch (e: MailError.SearchUnsupported) {
-            SearchOutcome.LoadedOnly(cachedPage(folder)?.messages.orEmpty().filter { matches(it, q) })
+            val loaded = withContext(Dispatchers.IO) { cachedPage(folder)?.messages }.orEmpty()
+            SearchOutcome.LoadedOnly(loaded.filter { matches(it, q) })
         }
     }
 
@@ -232,8 +255,15 @@ class MailRepository @Inject constructor(
         val sent = folders().nameOf(SpecialFolder.SENT)
         withContext(Dispatchers.IO) { sender.send(credentials(), mail, sent) }
         answered?.let { (folder, uid) ->
-            runCatching { withSession { it.setAnswered(folder, uid) } }
-            updateCached(folder) { s -> if (s.uid == uid) s.copy(flags = s.flags.copy(answered = true)) else s }
+            val marked = try {
+                withSession { it.setAnswered(folder, uid) }
+                true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                false
+            }
+            if (marked) updateCached(folder) { s -> if (s.uid == uid) s.copy(flags = s.flags.copy(answered = true)) else s }
         }
     }
 
@@ -241,14 +271,9 @@ class MailRepository @Inject constructor(
         if (account.isDemo) return
         val drafts = folders().nameOf(SpecialFolder.DRAFTS) ?: throw MailError.Protocol("no drafts folder")
         val bytes = withContext(Dispatchers.IO) { builder.build(mail).toBytes() }
-        withSession { session ->
-            session.append(drafts, bytes, setOf(AppendFlag.SEEN, AppendFlag.DRAFT))
-            if (replacingUid != null) {
-                val validity = session.status(drafts).uidValidity
-                val owned = state.ownedDeleted(drafts, validity)
-                val expunged = session.deletePermanently(drafts, replacingUid, owned)
-                state.setOwnedDeleted(drafts, validity, if (expunged) emptySet() else owned + replacingUid)
-            }
+        withSession { it.append(drafts, bytes, setOf(AppendFlag.SEEN, AppendFlag.DRAFT)) }
+        if (replacingUid != null) {
+            runExpunging(drafts, replacingUid) { session, owned -> session.deletePermanently(drafts, replacingUid, owned) }
         }
     }
 
@@ -259,29 +284,74 @@ class MailRepository @Inject constructor(
     // --- helpers -------------------------------------------------------------------------
 
     private suspend fun uidValidity(folder: String): Long =
-        cachedPage(folder)?.uidValidity ?: withSession { it.status(folder).uidValidity }
+        withContext(Dispatchers.IO) { cachedPage(folder)?.uidValidity } ?: withSession { it.status(folder).uidValidity }
 
     /**
-     * A COPY + STORE \Deleted may have partly landed on the server before
-     * [MailSession.move]/[MailSession.deletePermanently] threw. Recording the
-     * UID as owned-deleted is only safe once we know the flag actually took
-     * (checked via a fresh [MailSession.refreshFlags]); if that can't be
-     * determined either, nothing is recorded, and a UID whose COPY never
-     * happened is never recorded, since it never got flagged.
+     * Runs a COPY+STORE\Deleted (or plain STORE\Deleted) followed by a
+     * conditional EXPUNGE, sharing the bookkeeping [move], [delete] and
+     * [saveDraft]'s replacement step all need:
+     *
+     * - Reads the folder's live UIDVALIDITY inside the same held connection
+     *   before [op] runs. If it doesn't match what the cache believes, the
+     *   cache is dropped and nothing is touched -- a stale cached UID must
+     *   never be acted on, or keyed into the owned-\Deleted set, under a
+     *   numbering the server has since replaced.
+     * - If [op] throws after possibly already landing its COPY + flag on the
+     *   server, the UID is added to the owned-\Deleted set only when a fresh
+     *   [MailSession.refreshFlags] confirms it is actually flagged \Deleted
+     *   there, and only when it wasn't already flagged before this call (so
+     *   another client's earlier \Deleted flag is never attributed to us),
+     *   and never for [MailError.AuthFailed]/[MailError.Certificate] (no
+     *   second login attempt just to check).
      */
+    private suspend fun runExpunging(folder: String, uid: Long, op: (MailSession, Set<Long>) -> Boolean) {
+        val cachedValidity = withContext(Dispatchers.IO) { cachedPage(folder)?.uidValidity }
+        val alreadyDeleted = withContext(Dispatchers.IO) {
+            cachedPage(folder)?.messages?.firstOrNull { it.uid == uid }?.flags?.deleted
+        } == true
+        var validity = 0L
+        var owned: Set<Long> = emptySet()
+        var attempted = false
+        try {
+            val expunged = withSession { session ->
+                val serverValidity = session.status(folder).uidValidity
+                validity = serverValidity
+                if (cachedValidity != null && cachedValidity != serverValidity) {
+                    throw MailError.Protocol(FOLDER_CHANGED_MESSAGE)
+                }
+                owned = state.ownedDeleted(folder, serverValidity)
+                attempted = true
+                op(session, owned)
+            }
+            state.setOwnedDeleted(folder, validity, if (expunged) emptySet() else owned + uid)
+        } catch (e: MailError) {
+            if (!attempted && e is MailError.Protocol && e.message == FOLDER_CHANGED_MESSAGE) {
+                withContext(Dispatchers.IO) { cache.deleteFolder(folder) }
+            } else if (attempted && !alreadyDeleted && e !is MailError.AuthFailed && e !is MailError.Certificate) {
+                recordIfDeletedOnServer(folder, uid, validity, owned)
+            }
+            throw e
+        }
+    }
+
     private suspend fun recordIfDeletedOnServer(folder: String, uid: Long, validity: Long, owned: Set<Long>) {
-        val flaggedDeleted = runCatching { withSession { it.refreshFlags(folder, listOf(uid)) } }
-            .getOrNull()?.get(uid)?.deleted == true
+        val flaggedDeleted = try {
+            withSession { it.refreshFlags(folder, listOf(uid)) }[uid]?.deleted == true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
         if (flaggedDeleted) state.setOwnedDeleted(folder, validity, owned + uid)
     }
 
-    private fun updateCached(folder: String, transform: (MailSummary) -> MailSummary) {
-        val page = cachedPage(folder) ?: return
+    private suspend fun updateCached(folder: String, transform: (MailSummary) -> MailSummary) = withContext(Dispatchers.IO) {
+        val page = cachedPage(folder) ?: return@withContext
         cache.saveFolder(folder, page.copy(messages = page.messages.map(transform)))
     }
 
-    private fun removeCached(folder: String, uid: Long) {
-        val page = cachedPage(folder) ?: return
+    private suspend fun removeCached(folder: String, uid: Long) = withContext(Dispatchers.IO) {
+        val page = cachedPage(folder) ?: return@withContext
         cache.saveFolder(folder, page.copy(messages = page.messages.filterNot { it.uid == uid }, totalMessages = (page.totalMessages - 1).coerceAtLeast(0)))
     }
 
@@ -290,6 +360,7 @@ class MailRepository @Inject constructor(
 
     companion object {
         const val PAGE_SIZE = 50
+        private const val FOLDER_CHANGED_MESSAGE = "folder changed; refresh"
         private val DEMO_FOLDERS = ResolvedFolders(
             SpecialFolder.entries.associateWith { it.decodedName }, emptyList(),
         )
