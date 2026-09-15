@@ -1,0 +1,305 @@
+package org.ntust.app.tigerduck.mail.imap
+
+import jakarta.mail.FetchProfile
+import jakarta.mail.Flags
+import jakarta.mail.Folder
+import jakarta.mail.Part
+import jakarta.mail.Session
+import jakarta.mail.UIDFolder
+import jakarta.mail.internet.ContentType
+import jakarta.mail.internet.MimePart
+import org.eclipse.angus.mail.imap.IMAPFolder
+import org.eclipse.angus.mail.imap.IMAPMessage
+import org.eclipse.angus.mail.imap.IMAPStore
+import org.eclipse.angus.mail.imap.protocol.IMAPProtocol
+import org.eclipse.angus.mail.imap.protocol.Status
+import org.ntust.app.tigerduck.mail.MailCredentials
+import org.ntust.app.tigerduck.mail.MailError
+import org.ntust.app.tigerduck.mail.MailErrors
+import org.ntust.app.tigerduck.mail.MailProperties
+import org.ntust.app.tigerduck.mail.MailServerConfig
+import org.ntust.app.tigerduck.mail.mime.AddressParser
+import org.ntust.app.tigerduck.mail.mime.EncodedWords
+import org.ntust.app.tigerduck.mail.mime.MailCharsets
+import org.ntust.app.tigerduck.mail.mime.MimeWalker
+import org.ntust.app.tigerduck.mail.mime.TextCleaning
+import org.ntust.app.tigerduck.mail.model.FolderStatus
+import org.ntust.app.tigerduck.mail.model.InlineImage
+import org.ntust.app.tigerduck.mail.model.MailAttachment
+import org.ntust.app.tigerduck.mail.model.MailBody
+import org.ntust.app.tigerduck.mail.model.MailFlags
+import org.ntust.app.tigerduck.mail.model.MailPage
+import org.ntust.app.tigerduck.mail.model.MailSummary
+import java.io.OutputStream
+
+class AngusMailSessionFactory(private val config: MailServerConfig) : MailSessionFactory {
+    override fun open(credentials: MailCredentials): MailSession {
+        val session = Session.getInstance(MailProperties.imap(config))
+        val store = session.getStore(MailProperties.imapProtocol(config)) as IMAPStore
+        try {
+            store.connect(config.host, config.imapPort, credentials.loginName, credentials.password)
+        } catch (e: Exception) {
+            runCatching { store.close() }
+            throw MailErrors.classify(e)
+        }
+        return AngusMailSession(store, session)
+    }
+}
+
+/**
+ * Keeps at most one folder open, so a session is one TCP connection: every
+ * store-level command (LIST, STATUS, APPEND) closes the open folder first
+ * and reuses the same pooled connection. Folders are always closed without
+ * expunging (Angus EXAMINEs before CLOSE when the server has no UNSELECT).
+ */
+class AngusMailSession internal constructor(
+    private val store: IMAPStore,
+    private val session: Session,
+) : MailSession {
+    private var openFolder: IMAPFolder? = null
+
+    private sealed interface PartKind {
+        data class Text(val html: Boolean) : PartKind
+        data class Inline(val contentId: String) : PartKind
+        data object Attachment : PartKind
+    }
+
+    // --- plumbing ------------------------------------------------------------
+
+    private inline fun <T> io(block: () -> T): T = try {
+        block()
+    } catch (e: Exception) {
+        throw MailErrors.classify(e)
+    }
+
+    private fun closeOpen() {
+        openFolder?.takeIf { it.isOpen }?.let { runCatching { it.close(false) } }
+        openFolder = null
+    }
+
+    private fun folder(name: String, mode: Int): IMAPFolder {
+        val current = openFolder
+        if (current != null && current.isOpen && current.fullName == name &&
+            (current.mode == mode || current.mode == Folder.READ_WRITE)
+        ) {
+            // A held-open folder only learns about mail delivered by another
+            // connection through an untagged EXISTS, and the server attaches
+            // that to the *next* command's response rather than retroactively
+            // to whatever command happened to be racing the delivery. Without
+            // this NOOP, the first fetch after new mail arrives can see the
+            // updated count but miss that message's data in the same round
+            // trip (reproduced against GreenMail; not a test-double quirk).
+            current.doCommand(IMAPFolder.ProtocolCommand { p: IMAPProtocol -> p.simpleCommand("NOOP", null) })
+            return current
+        }
+        closeOpen()
+        val f = store.getFolder(name) as IMAPFolder
+        f.open(mode)
+        openFolder = f
+        return f
+    }
+
+    private fun message(f: IMAPFolder, uid: Long): IMAPMessage =
+        f.getMessageByUID(uid) as? IMAPMessage ?: throw MailError.Protocol("message $uid is gone")
+
+    private fun summaryProfile() = FetchProfile().apply {
+        add(FetchProfile.Item.FLAGS)
+        add(UIDFolder.FetchProfileItem.UID)
+        add(IMAPFolder.FetchProfileItem.INTERNALDATE)
+        add(FetchProfile.Item.SIZE)
+        add(FetchProfile.Item.CONTENT_INFO)
+        SUMMARY_HEADERS.forEach { add(it) }
+    }
+
+    private fun toSummary(f: IMAPFolder, m: IMAPMessage): MailSummary {
+        fun header(name: String): String? = m.getHeader(name)?.firstOrNull()
+        val flags = m.flags
+        return MailSummary(
+            uid = f.getUID(m),
+            from = AddressParser.parseList(header("From")).firstOrNull(),
+            replyTo = AddressParser.parseList(header("Reply-To")),
+            to = AddressParser.parseList(header("To")),
+            cc = AddressParser.parseList(header("Cc")),
+            subject = TextCleaning.clean(EncodedWords.decode(header("Subject"))),
+            sentAt = runCatching { m.sentDate?.toInstant() }.getOrNull(),
+            receivedAt = runCatching { m.receivedDate?.toInstant() }.getOrNull(),
+            flags = MailFlags(
+                seen = flags.contains(Flags.Flag.SEEN),
+                answered = flags.contains(Flags.Flag.ANSWERED),
+                flagged = flags.contains(Flags.Flag.FLAGGED),
+                deleted = flags.contains(Flags.Flag.DELETED),
+                draft = flags.contains(Flags.Flag.DRAFT),
+            ),
+            sizeBytes = m.size.toLong().coerceAtLeast(0),
+            hasAttachments = runCatching { MimeWalker.leaves(m).any { kindOf(it.part) == PartKind.Attachment } }
+                .getOrDefault(false),
+            messageId = header("Message-ID")?.trim(),
+            inReplyTo = header("In-Reply-To")?.trim(),
+            references = header("References")?.replace(WHITESPACE, " ")?.trim(),
+        )
+    }
+
+    private fun kindOf(part: Part): PartKind {
+        val disposition = runCatching { part.disposition?.lowercase() }.getOrNull()
+        val fileName = runCatching { part.fileName }.getOrNull()
+        val attachment = disposition == "attachment"
+        if (!attachment && fileName == null) {
+            if (part.isMimeType("text/html")) return PartKind.Text(html = true)
+            if (part.isMimeType("text/plain")) return PartKind.Text(html = false)
+        }
+        val contentId = runCatching { (part as? MimePart)?.contentID }.getOrNull()
+            ?.trim()?.removePrefix("<")?.removeSuffix(">")?.takeIf { it.isNotEmpty() }
+        if (!attachment && contentId != null && part.isMimeType("image/*") &&
+            (part.size < 0 || part.size <= INLINE_IMAGE_LIMIT)
+        ) return PartKind.Inline(contentId)
+        return PartKind.Attachment
+    }
+
+    private fun baseType(part: Part): String =
+        runCatching { ContentType(part.contentType).baseType.lowercase() }.getOrDefault("application/octet-stream")
+
+    private fun readText(part: Part): String {
+        val bytes = part.inputStream.use { it.readBytes() }
+        val charset = runCatching { ContentType(part.contentType).getParameter("charset") }.getOrNull()
+        return MailCharsets.decode(bytes, charset)
+    }
+
+    // --- read path -------------------------------------------------------------
+
+    override fun listFolders(): List<String> = io {
+        closeOpen()
+        store.defaultFolder.list("*")
+            .filter { (it.type and Folder.HOLDS_MESSAGES) != 0 }
+            .map { it.fullName }
+    }
+
+    override fun status(folder: String): FolderStatus = io {
+        closeOpen()
+        val f = store.getFolder(folder) as IMAPFolder
+        val status = f.doCommand(IMAPFolder.ProtocolCommand { p: IMAPProtocol ->
+            p.status(folder, arrayOf("UIDVALIDITY", "UIDNEXT", "MESSAGES", "UNSEEN"))
+        }) as Status
+        FolderStatus(
+            uidValidity = status.uidvalidity,
+            uidNext = status.uidnext,
+            messages = status.total,
+            unseen = status.unseen,
+        )
+    }
+
+    override fun fetchPage(folder: String, beforeSeq: Int?, pageSize: Int): MailPage = io {
+        val f = folder(folder, Folder.READ_ONLY)
+        val total = f.messageCount
+        val end = (beforeSeq ?: (total + 1)) - 1
+        if (end < 1) return@io MailPage(f.uidValidity, total, emptyList(), null)
+        val start = maxOf(1, end - pageSize + 1)
+        val messages = f.getMessages(start, end)
+        f.fetch(messages, summaryProfile())
+        val summaries = messages.reversed().map { toSummary(f, it as IMAPMessage) }.filterNot { it.flags.deleted }
+        MailPage(f.uidValidity, total, summaries, if (start > 1) start else null)
+    }
+
+    override fun fetchSince(folder: String, fromUid: Long): List<MailSummary> = io {
+        val f = folder(folder, Folder.READ_ONLY)
+        val messages = f.getMessagesByUID(fromUid, UIDFolder.LASTUID)
+        if (messages.isEmpty()) return@io emptyList()
+        f.fetch(messages, summaryProfile())
+        // IMAP's `n:*` always includes the last mail even when its UID is below n.
+        messages.map { toSummary(f, it as IMAPMessage) }.filter { it.uid >= fromUid }
+    }
+
+    override fun fetchByUids(folder: String, uids: List<Long>): List<MailSummary> = io {
+        if (uids.isEmpty()) return@io emptyList()
+        val f = folder(folder, Folder.READ_ONLY)
+        val messages = f.getMessagesByUID(uids.toLongArray()).filterNotNull().toTypedArray()
+        if (messages.isEmpty()) return@io emptyList()
+        f.fetch(messages, summaryProfile())
+        messages.map { toSummary(f, it as IMAPMessage) }.filterNot { it.flags.deleted }.sortedByDescending { it.uid }
+    }
+
+    override fun refreshFlags(folder: String, uids: List<Long>): Map<Long, MailFlags> = io {
+        if (uids.isEmpty()) return@io emptyMap()
+        val f = folder(folder, Folder.READ_ONLY)
+        val messages = f.getMessagesByUID(uids.toLongArray()).filterNotNull().toTypedArray()
+        f.fetch(messages, FetchProfile().apply { add(FetchProfile.Item.FLAGS); add(UIDFolder.FetchProfileItem.UID) })
+        messages.associate { m ->
+            val fl = m.flags
+            f.getUID(m) to MailFlags(
+                seen = fl.contains(Flags.Flag.SEEN),
+                answered = fl.contains(Flags.Flag.ANSWERED),
+                flagged = fl.contains(Flags.Flag.FLAGGED),
+                deleted = fl.contains(Flags.Flag.DELETED),
+                draft = fl.contains(Flags.Flag.DRAFT),
+            )
+        }
+    }
+
+    override fun fetchBody(folder: String, uid: Long): MailBody = io {
+        val f = folder(folder, Folder.READ_ONLY)
+        val m = message(f, uid)
+        val html = mutableListOf<String>()
+        val plain = mutableListOf<String>()
+        val attachments = mutableListOf<MailAttachment>()
+        val inline = LinkedHashMap<String, InlineImage>()
+        for (leaf in MimeWalker.leaves(m)) {
+            when (val kind = kindOf(leaf.part)) {
+                is PartKind.Text -> if (kind.html) html += readText(leaf.part) else plain += readText(leaf.part)
+                is PartKind.Inline -> inline[kind.contentId] =
+                    InlineImage(baseType(leaf.part), leaf.part.inputStream.use { it.readBytes() })
+                PartKind.Attachment -> attachments += MailAttachment(
+                    partId = leaf.path,
+                    fileName = TextCleaning.clean(runCatching { leaf.part.fileName }.getOrNull()).ifBlank { "attachment" },
+                    contentType = baseType(leaf.part),
+                    sizeBytes = leaf.part.size.toLong().coerceAtLeast(0),
+                    contentId = runCatching { (leaf.part as? MimePart)?.contentID }.getOrNull()
+                        ?.trim()?.removePrefix("<")?.removeSuffix(">"),
+                )
+            }
+        }
+        MailBody(
+            html = html.joinToString("\n").ifEmpty { null },
+            plain = plain.joinToString("\n\n").ifEmpty { null },
+            attachments = attachments,
+            inlineImages = inline,
+        )
+    }
+
+    override fun messageSize(folder: String, uid: Long): Long = io {
+        message(folder(folder, Folder.READ_ONLY), uid).size.toLong().coerceAtLeast(0)
+    }
+
+    override fun writeRawSource(folder: String, uid: Long, out: OutputStream) = io {
+        // With mail.imap.peek this is BODY.PEEK[]: reading the source never marks the mail read.
+        message(folder(folder, Folder.READ_ONLY), uid).writeTo(out)
+    }
+
+    override fun writeAttachment(folder: String, uid: Long, partId: String, out: OutputStream) = io {
+        val m = message(folder(folder, Folder.READ_ONLY), uid)
+        val part = MimeWalker.find(m, partId) ?: throw MailError.Protocol("part $partId not found")
+        part.inputStream.use { it.copyTo(out) }
+        Unit
+    }
+
+    // --- write path (Task 7) -----------------------------------------------------
+
+    override fun setSeen(folder: String, uids: List<Long>, seen: Boolean): Unit = throw MailError.Protocol("not implemented")
+    override fun setAnswered(folder: String, uid: Long): Unit = throw MailError.Protocol("not implemented")
+    override fun move(folder: String, uid: Long, target: String, ownedDeleted: Set<Long>): Boolean = throw MailError.Protocol("not implemented")
+    override fun deletePermanently(folder: String, uid: Long, ownedDeleted: Set<Long>): Boolean = throw MailError.Protocol("not implemented")
+    override fun search(folder: String, query: String): List<Long> = throw MailError.Protocol("not implemented")
+    override fun append(folder: String, rfc822: ByteArray, flags: Set<AppendFlag>): Unit = throw MailError.Protocol("not implemented")
+    override fun hasRecentMessageId(folder: String, messageId: String, window: Int): Boolean = throw MailError.Protocol("not implemented")
+    override fun newestSenderName(folder: String, address: String, window: Int): String? = throw MailError.Protocol("not implemented")
+
+    override fun close() {
+        closeOpen()
+        runCatching { store.close() }
+    }
+
+    private companion object {
+        val SUMMARY_HEADERS = arrayOf("From", "Reply-To", "To", "Cc", "Subject", "Date", "Message-ID", "In-Reply-To", "References")
+        val WHITESPACE = Regex("\\s+")
+        /** Same cap as iOS: larger inline images are not inlined (they stay in the source view). */
+        const val INLINE_IMAGE_LIMIT = 5L * 1024 * 1024
+    }
+}
