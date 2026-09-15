@@ -88,4 +88,29 @@ class SessionHolderTest {
         assertEquals(1, server.openSessions)
         assertEquals(1, server.opens)
     }
+
+    @Test
+    fun `a release survives a call that throws without closing the connection`() = runTest {
+        val holder = SessionHolder(server.factory(), backgroundScope, idleMillis = 1_000)
+        holder.use(creds) { it.listFolders() }
+        holder.releaseLater()
+        // null lets the liveness probe through; the actual block gets a Protocol
+        // error, which never closes the connection (see the test above) -- the
+        // idle close cancelled to run this call must still get re-armed.
+        server.queueCallErrors(null, MailError.Protocol("folder changed"))
+        runCatching { holder.use(creds) { it.listFolders() } }
+        assertEquals(1, server.openSessions)
+        advanceTimeBy(1_000); runCurrent()
+        assertEquals(0, server.openSessions)
+    }
+
+    @Test
+    fun `hold cancels a pending idle close and stops it from re-arming`() = runTest {
+        val holder = SessionHolder(server.factory(), backgroundScope, idleMillis = 1_000)
+        holder.use(creds) { it.listFolders() }
+        holder.releaseLater()
+        holder.hold()
+        advanceTimeBy(2_000); runCurrent()
+        assertEquals(1, server.openSessions)
+    }
 }

@@ -59,6 +59,9 @@ interface SchoolMailRepository {
     suspend fun saveDraft(mail: OutgoingMail, replacingUid: Long?)
     fun selfAddress(): MailAddress
     fun release()
+
+    /** The mail screen became active again: cancels a pending idle close so the connection isn't dropped mid-visit. No-op in demo mode. */
+    fun acquire()
 }
 
 @Singleton
@@ -83,7 +86,7 @@ class MailRepository @Inject constructor(
         scope.launch {
             account.signedIn.collect { signedIn ->
                 if (!signedIn) {
-                    holder.closeNow()
+                    withContext(Dispatchers.IO) { holder.closeNow() }
                     resolved = null
                     synchronized(demoFolders) { demoFolders.clear() }
                 }
@@ -168,9 +171,18 @@ class MailRepository @Inject constructor(
 
     override suspend fun body(folder: String, uid: Long): MailBody {
         if (account.isDemo) return demoList(folder).firstOrNull { it.summary.uid == uid }?.body ?: throw MailError.Protocol("gone")
-        val validity = uidValidity(folder)
-        withContext(Dispatchers.IO) { cache.loadBody(folder, uid, validity) }?.let { return it }
-        val body = withSession { it.fetchBody(folder, uid) }
+        // Cache-first, keyed by the cached page's own validity -- a hit never touches the server.
+        val cachedValidity = withContext(Dispatchers.IO) { cachedPage(folder)?.uidValidity }
+        if (cachedValidity != null) {
+            withContext(Dispatchers.IO) { cache.loadBody(folder, uid, cachedValidity) }?.let { return it }
+        }
+        // A miss (or no cached page at all) means the body is genuinely
+        // uncached: fetch it, reading the server's *current* UIDVALIDITY in
+        // the same held connection so the save is keyed by that, never by
+        // whatever the (possibly stale) cached page believed.
+        val (validity, body) = withSession { session ->
+            session.status(folder).uidValidity to session.fetchBody(folder, uid)
+        }
         withContext(Dispatchers.IO) { cache.saveBody(folder, uid, validity, body) }
         return body
     }
@@ -281,10 +293,11 @@ class MailRepository @Inject constructor(
 
     override fun release() = holder.releaseLater()
 
-    // --- helpers -------------------------------------------------------------------------
+    override fun acquire() {
+        if (!account.isDemo) holder.hold()
+    }
 
-    private suspend fun uidValidity(folder: String): Long =
-        withContext(Dispatchers.IO) { cachedPage(folder)?.uidValidity } ?: withSession { it.status(folder).uidValidity }
+    // --- helpers -------------------------------------------------------------------------
 
     /**
      * Runs a COPY+STORE\Deleted (or plain STORE\Deleted) followed by a
@@ -293,9 +306,10 @@ class MailRepository @Inject constructor(
      *
      * - Reads the folder's live UIDVALIDITY inside the same held connection
      *   before [op] runs. If it doesn't match what the cache believes, the
-     *   cache is dropped and nothing is touched -- a stale cached UID must
-     *   never be acted on, or keyed into the owned-\Deleted set, under a
-     *   numbering the server has since replaced.
+     *   cache is dropped and [MailError.FolderChanged] is thrown before
+     *   anything is touched -- a stale cached UID must never be acted on, or
+     *   keyed into the owned-\Deleted set, under a numbering the server has
+     *   since replaced.
      * - If [op] throws after possibly already landing its COPY + flag on the
      *   server, the UID is added to the owned-\Deleted set only when a fresh
      *   [MailSession.refreshFlags] confirms it is actually flagged \Deleted
@@ -305,10 +319,9 @@ class MailRepository @Inject constructor(
      *   second login attempt just to check).
      */
     private suspend fun runExpunging(folder: String, uid: Long, op: (MailSession, Set<Long>) -> Boolean) {
-        val cachedValidity = withContext(Dispatchers.IO) { cachedPage(folder)?.uidValidity }
-        val alreadyDeleted = withContext(Dispatchers.IO) {
-            cachedPage(folder)?.messages?.firstOrNull { it.uid == uid }?.flags?.deleted
-        } == true
+        val cached = withContext(Dispatchers.IO) { cachedPage(folder) }
+        val cachedValidity = cached?.uidValidity
+        val alreadyDeleted = cached?.messages?.firstOrNull { it.uid == uid }?.flags?.deleted == true
         var validity = 0L
         var owned: Set<Long> = emptySet()
         var attempted = false
@@ -317,7 +330,7 @@ class MailRepository @Inject constructor(
                 val serverValidity = session.status(folder).uidValidity
                 validity = serverValidity
                 if (cachedValidity != null && cachedValidity != serverValidity) {
-                    throw MailError.Protocol(FOLDER_CHANGED_MESSAGE)
+                    throw MailError.FolderChanged()
                 }
                 owned = state.ownedDeleted(folder, serverValidity)
                 attempted = true
@@ -325,7 +338,7 @@ class MailRepository @Inject constructor(
             }
             state.setOwnedDeleted(folder, validity, if (expunged) emptySet() else owned + uid)
         } catch (e: MailError) {
-            if (!attempted && e is MailError.Protocol && e.message == FOLDER_CHANGED_MESSAGE) {
+            if (!attempted && e is MailError.FolderChanged) {
                 withContext(Dispatchers.IO) { cache.deleteFolder(folder) }
             } else if (attempted && !alreadyDeleted && e !is MailError.AuthFailed && e !is MailError.Certificate) {
                 recordIfDeletedOnServer(folder, uid, validity, owned)
@@ -360,7 +373,6 @@ class MailRepository @Inject constructor(
 
     companion object {
         const val PAGE_SIZE = 50
-        private const val FOLDER_CHANGED_MESSAGE = "folder changed; refresh"
         private val DEMO_FOLDERS = ResolvedFolders(
             SpecialFolder.entries.associateWith { it.decodedName }, emptyList(),
         )
