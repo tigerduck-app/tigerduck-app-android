@@ -29,3 +29,6 @@
 <a href="https://ok.example" onclick="alert(1)">ok</a>
 <img src="data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+">
 <div style="position:fixed;top:0;left:0;z-index:9999">overlay</div>
+<img data-remote-src="javascript:alert(1)">
+<img data-remote-src="https://track.example/hidden.gif">
+<li style="list-style: image-set('https://track.example/q.gif' 1x)">x</li>

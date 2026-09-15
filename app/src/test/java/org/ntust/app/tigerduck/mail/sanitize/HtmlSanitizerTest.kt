@@ -10,7 +10,7 @@ class HtmlSanitizerTest {
         "<script", "javascript:", "vbscript:", "data:text", "data:image/svg", "onerror", "onload", "onclick",
         "onmouseover", "<iframe", "<object", "<embed", "<svg", "<math", "<base", "<meta", "<form",
         "<input", "<style", "<link", "<template", "<noscript", "expression(", "url(", "@import",
-        "behavior", "-moz-binding", "position", "z-index", "background=",
+        "behavior", "-moz-binding", "position", "z-index", "background=", "image-set",
     )
 
     @Test
@@ -51,6 +51,17 @@ class HtmlSanitizerTest {
         val allowed = HtmlSanitizer.sanitize(html, allowRemoteImages = true)
         assertEquals(0, allowed.blockedRemoteImages)
         assertTrue(allowed.html, "src=\"https://track.example/p.gif\"" in allowed.html)
+    }
+
+    @Test
+    fun `sender-supplied data-remote-src is not trusted`() {
+        val result = HtmlSanitizer.sanitize(
+            "<img data-remote-src=\"https://track.example/hidden.gif\">",
+            allowRemoteImages = false,
+        )
+        assertEquals(0, result.blockedRemoteImages)
+        assertEquals(emptySet<String>(), result.remoteImageUrls)
+        assertFalse(result.html, "data-remote-src" in result.html)
     }
 
     @Test
