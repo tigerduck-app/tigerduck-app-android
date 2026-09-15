@@ -58,6 +58,11 @@ android {
         // platform silently falls back to system CA trust with no UI signal.
         // 2027-01-18T00:00:00Z = 1800230400000L epoch ms.
         buildConfigField("long", "PIN_EXPIRY_EPOCH", "1800230400000L")
+
+        // School Mail stays hidden in release builds until the computer
+        // center's written consent arrives (docs/TigerDuck-Mail-DESIGN.md
+        // §12.5). Debug builds show it behind the developer toggle.
+        buildConfigField("boolean", "SCHOOL_MAIL_RELEASED", "false")
     }
 
     signingConfigs {
@@ -164,6 +169,14 @@ android {
             enableSplit = false
         }
     }
+
+    packaging {
+        resources {
+            // angus-mail, jakarta.mail-api and angus-activation each ship
+            // these notices; keep one copy instead of failing the merge.
+            pickFirsts += setOf("META-INF/LICENSE.md", "META-INF/NOTICE.md")
+        }
+    }
 }
 
 // Fail fast if the name-abbr submodule wasn't checked out — otherwise the
@@ -224,6 +237,10 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.jsoup)
 
+    // School Mail — IMAP/SMTP. Used under its GPL-2.0 with Classpath
+    // Exception option, which is what makes it compatible with AGPL-3.0.
+    implementation(libs.angus.mail)
+
     // Security
     implementation(libs.security.crypto)
 
@@ -269,6 +286,11 @@ dependencies {
     // Virtual time for NotificationSettingsSync's push queue, whose debounce
     // and retry backoffs are real delays (250 ms, 5 s, 30 s).
     testImplementation(libs.kotlinx.coroutines.test)
+    // In-memory IMAP/SMTP server for the mail tests. Its own bundled
+    // org.eclipse.angus:jakarta.mail would duplicate angus-mail's classes.
+    testImplementation(libs.greenmail) {
+        exclude(group = "org.eclipse.angus", module = "jakarta.mail")
+    }
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
