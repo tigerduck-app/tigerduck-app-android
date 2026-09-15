@@ -3,7 +3,6 @@ package org.ntust.app.tigerduck.mail.imap
 import jakarta.mail.FetchProfile
 import jakarta.mail.Flags
 import jakarta.mail.Folder
-import jakarta.mail.MessagingException
 import jakarta.mail.Part
 import jakarta.mail.Session
 import jakarta.mail.UIDFolder
@@ -14,12 +13,14 @@ import jakarta.mail.search.BodyTerm
 import jakarta.mail.search.FlagTerm
 import jakarta.mail.search.FromStringTerm
 import jakarta.mail.search.OrTerm
-import jakarta.mail.search.SearchException
+import jakarta.mail.search.SearchTerm
 import jakarta.mail.search.SubjectTerm
 import org.eclipse.angus.mail.imap.IMAPFolder
 import org.eclipse.angus.mail.imap.IMAPMessage
 import org.eclipse.angus.mail.imap.IMAPStore
 import org.eclipse.angus.mail.imap.protocol.IMAPProtocol
+import org.eclipse.angus.mail.imap.protocol.IMAPResponse
+import org.eclipse.angus.mail.imap.protocol.SearchSequence
 import org.eclipse.angus.mail.imap.protocol.Status
 import org.ntust.app.tigerduck.mail.MailCredentials
 import org.ntust.app.tigerduck.mail.MailError
@@ -291,15 +292,64 @@ class AngusMailSession internal constructor(
 
     // --- write path ----------------------------------------------------------------
 
-    private fun uidFetch(f: IMAPFolder, messages: Array<jakarta.mail.Message>) {
-        if (messages.isNotEmpty()) f.fetch(messages, FetchProfile().apply { add(UIDFolder.FetchProfileItem.UID) })
+    /**
+     * `UID SEARCH [CHARSET UTF-8] <criteria>` sent directly through the
+     * protocol via [IMAPFolder.doCommand], parsing UIDs straight out of the
+     * untagged `* SEARCH` response in one round trip.
+     *
+     * Deliberately bypasses [IMAPFolder.search]: verified against Angus
+     * 2.0.5 bytecode, that method's `catch (CommandFailedException)` branch
+     * (a tagged NO) unconditionally falls back to [Folder]'s default,
+     * client-side search -- fetching and matching every message locally --
+     * regardless of `mail.imap.throwsearchexception`, which only gates the
+     * separate `SearchException` case (an unsupported/unformattable search).
+     * Running the command ourselves means a NO or BAD always throws (via
+     * `doCommand`'s own `handleResult`) instead of silently degrading into a
+     * full local scan, so callers can tell "the server won't do this search"
+     * from "here are the results" and act on spec §8.3 accordingly.
+     */
+    private fun uidSearch(f: IMAPFolder, term: SearchTerm): Set<Long> {
+        @Suppress("UNCHECKED_CAST")
+        return f.doCommand(IMAPFolder.ProtocolCommand { p: IMAPProtocol ->
+            val ascii = SearchSequence.isAscii(term)
+            val args = SearchSequence(p).generateSequence(term, if (ascii) null else "UTF-8")
+            val responses = p.command(if (ascii) "UID SEARCH" else "UID SEARCH CHARSET UTF-8", args)
+            val last = responses[responses.size - 1]
+            val found = mutableSetOf<Long>()
+            if (last.isOK) {
+                for (r in responses) {
+                    if (r is IMAPResponse && r.keyEquals("SEARCH")) {
+                        while (true) {
+                            val uid = r.readLong()
+                            if (uid == -1L) break
+                            found += uid
+                        }
+                    }
+                }
+            }
+            p.notifyResponseHandlers(responses)
+            p.handleResult(last)
+            found
+        }) as Set<Long>
     }
 
-    /** Spec §8.3 step 3: EXPUNGE only when every `\Deleted` mail in the folder is one we flagged. */
+    /**
+     * Spec §8.3 step 3: EXPUNGE only when every `\Deleted` mail in the
+     * folder is one we flagged. The `\Deleted` set is read fresh from the
+     * server via [uidSearch] rather than a locally cached flag state, so
+     * another client's `\Deleted` mail is caught even if this session never
+     * fetched (or fetched before) that message. A NO/BAD from the server
+     * propagates as a thrown [MailError] instead of defaulting to "safe to
+     * expunge" -- see [uidSearch]'s doc for why that matters here.
+     *
+     * This still cannot close the race entirely: another client can flag or
+     * expunge mail server-side in the gap between this SEARCH and the
+     * EXPUNGE below. Real Mail2000 has no UIDPLUS, so there is no atomic
+     * "expunge exactly these UIDs" primitive to close it with; this is the
+     * narrowest window achievable with COPY + STORE + EXPUNGE.
+     */
     private fun expungeIfOnlyOurs(f: IMAPFolder, ours: Set<Long>): Boolean {
-        val deleted = f.search(FlagTerm(Flags(Flags.Flag.DELETED), true))
-        uidFetch(f, deleted)
-        val deletedUids = deleted.map { f.getUID(it) }.toSet()
+        val deletedUids = uidSearch(f, FlagTerm(Flags(Flags.Flag.DELETED), true))
         if (deletedUids.isEmpty() || !ours.containsAll(deletedUids)) return false
         f.expunge()
         return true
@@ -313,12 +363,17 @@ class AngusMailSession internal constructor(
     }
 
     override fun setAnswered(folder: String, uid: Long) = io {
-        message(folder(folder, Folder.READ_WRITE), uid).setFlag(Flags.Flag.ANSWERED, true)
+        val f = folder(folder, Folder.READ_WRITE)
+        // A UID that's already gone (expunged elsewhere) is a no-op, same as setSeen.
+        f.getMessageByUID(uid)?.setFlag(Flags.Flag.ANSWERED, true)
+        Unit
     }
 
     override fun move(folder: String, uid: Long, target: String, ownedDeleted: Set<Long>): Boolean = io {
         val f = folder(folder, Folder.READ_WRITE)
         val m = message(f, uid)
+        // If copyMessages throws (e.g. target doesn't exist), we return here
+        // and never reach setFlag below, so uid is not left \Deleted.
         f.copyMessages(arrayOf(m), store.getFolder(target))
         m.setFlag(Flags.Flag.DELETED, true)
         expungeIfOnlyOurs(f, ownedDeleted + uid)
@@ -330,24 +385,20 @@ class AngusMailSession internal constructor(
         expungeIfOnlyOurs(f, ownedDeleted + uid)
     }
 
-    override fun search(folder: String, query: String): List<Long> {
-        val f = io { folder(folder, Folder.READ_ONLY) }
-        val found = try {
-            f.search(OrTerm(arrayOf(FromStringTerm(query), SubjectTerm(query), BodyTerm(query))))
-        } catch (e: SearchException) {
-            throw MailError.SearchUnsupported(e)
-        } catch (e: MessagingException) {
-            // A BAD/NO to `SEARCH CHARSET UTF-8` is "can't search", but a dropped
-            // connection is still a network error.
-            when (val classified = MailErrors.classify(e)) {
-                is MailError.Network, is MailError.Certificate, is MailError.AuthFailed -> throw classified
-                else -> throw MailError.SearchUnsupported(e)
-            }
+    override fun search(folder: String, query: String): List<Long> = io {
+        val f = folder(folder, Folder.READ_ONLY)
+        val term = OrTerm(arrayOf(FromStringTerm(query), SubjectTerm(query), BodyTerm(query)))
+        val uids = try {
+            uidSearch(f, term)
+        } catch (e: Exception) {
+            // Classify first so a real Network/Certificate/AuthFailed/ServerBusy
+            // failure is never mislabeled as "search unsupported"; only the
+            // generic fallback (a NO/BAD we don't otherwise recognize) and an
+            // already-classified SearchException become SearchUnsupported.
+            val classified = MailErrors.classify(e)
+            throw if (classified is MailError.Protocol) MailError.SearchUnsupported(e) else classified
         }
-        return io {
-            uidFetch(f, found)
-            found.map { f.getUID(it) }.sortedDescending()
-        }
+        uids.sortedDescending()
     }
 
     override fun append(folder: String, rfc822: ByteArray, flags: Set<AppendFlag>) = io {
@@ -358,25 +409,31 @@ class AngusMailSession internal constructor(
         store.getFolder(folder).appendMessages(arrayOf(msg))
     }
 
-    override fun hasRecentMessageId(folder: String, messageId: String, window: Int): Boolean = io {
-        val f = folder(folder, Folder.READ_ONLY)
-        val count = f.messageCount
-        if (count == 0) return@io false
-        val messages = f.getMessages(maxOf(1, count - window + 1), count)
-        f.fetch(messages, FetchProfile().apply { add("Message-ID") })
-        messages.any { it.getHeader("Message-ID")?.firstOrNull()?.trim() == messageId }
+    override fun hasRecentMessageId(folder: String, messageId: String, window: Int): Boolean {
+        require(window > 0) { "window must be positive" }
+        return io {
+            val f = folder(folder, Folder.READ_ONLY)
+            val count = f.messageCount
+            if (count == 0) return@io false
+            val messages = f.getMessages(maxOf(1, count - window + 1), count)
+            f.fetch(messages, FetchProfile().apply { add("Message-ID") })
+            messages.any { it.getHeader("Message-ID")?.firstOrNull()?.trim() == messageId }
+        }
     }
 
-    override fun newestSenderName(folder: String, address: String, window: Int): String? = io {
-        val f = folder(folder, Folder.READ_ONLY)
-        val count = f.messageCount
-        if (count == 0) return@io null
-        val messages = f.getMessages(maxOf(1, count - window + 1), count)
-        f.fetch(messages, FetchProfile().apply { add("From") })
-        messages.reversed().asSequence()
-            .mapNotNull { AddressParser.parseList(it.getHeader("From")?.firstOrNull()).firstOrNull() }
-            .firstOrNull { it.address.equals(address, ignoreCase = true) && !it.name.isNullOrBlank() }
-            ?.name
+    override fun newestSenderName(folder: String, address: String, window: Int): String? {
+        require(window > 0) { "window must be positive" }
+        return io {
+            val f = folder(folder, Folder.READ_ONLY)
+            val count = f.messageCount
+            if (count == 0) return@io null
+            val messages = f.getMessages(maxOf(1, count - window + 1), count)
+            f.fetch(messages, FetchProfile().apply { add("From") })
+            messages.reversed().asSequence()
+                .mapNotNull { AddressParser.parseList(it.getHeader("From")?.firstOrNull()).firstOrNull() }
+                .firstOrNull { it.address.equals(address, ignoreCase = true) && !it.name.isNullOrBlank() }
+                ?.name
+        }
     }
 
     override fun close() {

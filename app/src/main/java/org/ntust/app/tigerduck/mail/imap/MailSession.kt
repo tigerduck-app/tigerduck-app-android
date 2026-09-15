@@ -30,8 +30,20 @@ interface MailSession : Closeable {
     fun setSeen(folder: String, uids: List<Long>, seen: Boolean)
     fun setAnswered(folder: String, uid: Long)
 
-    /** COPY + `\Deleted`; EXPUNGE only if every `\Deleted` mail in [folder] is ours. Returns whether it expunged. */
+    /**
+     * COPY + `\Deleted`; EXPUNGE only if every `\Deleted` mail in [folder] is
+     * ours. Returns whether it expunged. On throw, [uid] may already be
+     * `\Deleted` on the server (the flag is set before the EXPUNGE check);
+     * the caller must still record it as owned so a later call can expunge it.
+     */
     fun move(folder: String, uid: Long, target: String, ownedDeleted: Set<Long>): Boolean
+
+    /**
+     * Sets `\Deleted` and EXPUNGEs only if every `\Deleted` mail in [folder]
+     * is ours. Returns whether it expunged. On throw, [uid] may already be
+     * `\Deleted` on the server; the caller must still record it as owned so
+     * a later call can expunge it.
+     */
     fun deletePermanently(folder: String, uid: Long, ownedDeleted: Set<Long>): Boolean
 
     /** UIDs newest first. Throws [org.ntust.app.tigerduck.mail.MailError.SearchUnsupported] when the server can't. */

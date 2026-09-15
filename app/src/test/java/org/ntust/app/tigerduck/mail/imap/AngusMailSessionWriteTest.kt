@@ -7,9 +7,12 @@ import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
+import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailTestServer
 import java.io.ByteArrayOutputStream
 import java.util.Properties
@@ -51,6 +54,14 @@ class AngusMailSessionWriteTest {
     }
 
     @Test
+    fun `setAnswered silently skips a uid that is already gone`() {
+        server.deliver("a")
+        session().use { s ->
+            s.setAnswered("INBOX", 999_999L) // does not throw
+        }
+    }
+
+    @Test
     fun `move expunges when only our mail is deleted`() {
         server.createFolders("回收筒")
         server.deliver("keep")
@@ -86,6 +97,51 @@ class AngusMailSessionWriteTest {
     }
 
     @Test
+    fun `move checks the server's Deleted state, not a locally cached one`() {
+        server.createFolders("回收筒")
+        server.deliver("theirs")
+        server.deliver("ours")
+        session().use { s ->
+            // Load the page first, so any per-message flag state Angus caches
+            // locally is as of THIS point -- before "theirs" gets flagged by
+            // another client below. If expungeIfOnlyOurs trusted that local
+            // cache instead of asking the server fresh, it would miss "theirs"
+            // and wrongly expunge.
+            val ours = s.fetchPage("INBOX", null, 10).messages.single { it.subject == "ours" }.uid
+            server.rawStore().use { store ->
+                val inbox = store.getFolder("INBOX")
+                inbox.open(Folder.READ_WRITE)
+                inbox.messages.first { it.subject == "theirs" }.setFlag(Flags.Flag.DELETED, true)
+                inbox.close(false)
+            }
+            assertFalse(s.move("INBOX", ours, "回收筒", ownedDeleted = emptySet()))
+        }
+        assertEquals(2, countIn("INBOX"))
+        assertEquals(1, countIn("回收筒"))
+    }
+
+    @Test
+    fun `move to a missing folder throws and does not flag the source deleted`() {
+        server.deliver("keep")
+        session().use { s ->
+            val uid = s.fetchPage("INBOX", null, 10).messages.single().uid
+            try {
+                s.move("INBOX", uid, "NoSuchFolder", ownedDeleted = emptySet())
+                fail("expected a MailError")
+            } catch (e: MailError) {
+                // expected
+            }
+        }
+        server.rawStore().use { store ->
+            val inbox = store.getFolder("INBOX")
+            inbox.open(Folder.READ_ONLY)
+            assertFalse(inbox.messages.single().isSet(Flags.Flag.DELETED))
+            inbox.close(false)
+        }
+        assertEquals(1, countIn("INBOX"))
+    }
+
+    @Test
     fun `owned deleted mail counts as ours on a later move`() {
         server.createFolders("回收筒")
         server.deliver("first")
@@ -116,20 +172,31 @@ class AngusMailSessionWriteTest {
     }
 
     @Test
+    fun `permanent delete never expunges mail another client marked deleted`() {
+        server.deliver("theirs")
+        server.deliver("ours")
+        server.rawStore().use { store ->
+            val inbox = store.getFolder("INBOX")
+            inbox.open(Folder.READ_WRITE)
+            inbox.messages.first { it.subject == "theirs" }.setFlag(Flags.Flag.DELETED, true)
+            inbox.close(false)
+        }
+        session().use { s ->
+            val ours = s.fetchPage("INBOX", null, 10).messages.single { it.subject == "ours" }.uid
+            assertFalse(s.deletePermanently("INBOX", ours, emptySet()))
+        }
+        assertEquals(2, countIn("INBOX"))
+    }
+
+    @Test
     fun `search by subject, sender and body, including Chinese`() {
         server.deliver("課程公告", body = "期中考")
         server.deliver("hello", from = "prof@mail.ntust.edu.tw")
         session().use { s ->
             val bySubject = s.search("INBOX", "課程")
             assertEquals(1, bySubject.size)
-            // GreenMail's server-side FROM key parses the argument as a full
-            // jakarta.mail.internet.InternetAddress and requires exact address
-            // equality (verified directly: FromStringTerm("prof@mail") finds
-            // nothing, FromStringTerm("prof@mail.ntust.edu.tw") finds it) -
-            // unlike SUBJECT/BODY, which do the RFC 3501 substring match. Mail2000
-            // has no such restriction, so production code (FromStringTerm, a plain
-            // substring term) is unchanged; the test uses the full address so it
-            // still exercises the sender branch of search() against GreenMail.
+            // RFC 3501 FROM is a substring match; GreenMail matches exactly;
+            // confirm against the real server.
             assertEquals(1, s.search("INBOX", "prof@mail.ntust.edu.tw").size)
             assertEquals(1, s.search("INBOX", "期中").size)
             assertTrue(s.search("INBOX", "nothing-matches").isEmpty())
@@ -146,6 +213,55 @@ class AngusMailSessionWriteTest {
             assertEquals("中文", s.newestSenderName("寄件備份匣", "B10000001@mail.ntust.edu.tw", window = 20))
             val uid = s.fetchPage("寄件備份匣", null, 10).messages.single().uid
             assertTrue(s.refreshFlags("寄件備份匣", listOf(uid)).getValue(uid).seen)
+        }
+    }
+
+    @Test
+    fun `append with the draft flag sets Draft and Seen`() {
+        server.createFolders("草稿匣")
+        session().use { s ->
+            s.append(
+                "草稿匣",
+                rfc822("draft", "b10000001@mail.ntust.edu.tw", "<draft-1@x>"),
+                setOf(AppendFlag.SEEN, AppendFlag.DRAFT),
+            )
+            val uid = s.fetchPage("草稿匣", null, 10).messages.single().uid
+            val flags = s.refreshFlags("草稿匣", listOf(uid)).getValue(uid)
+            assertTrue(flags.seen)
+            assertTrue(flags.draft)
+        }
+    }
+
+    @Test
+    fun `hasRecentMessageId and newestSenderName respect the window`() {
+        server.deliver("old", from = "\"Target Name\" <target@x.com>", messageId = "<old@x>")
+        server.deliver("filler1")
+        server.deliver("filler2")
+        session().use { s ->
+            // "old" is 3rd-from-newest; a window of 2 doesn't reach it.
+            assertFalse(s.hasRecentMessageId("INBOX", "<old@x>", window = 2))
+            assertNull(s.newestSenderName("INBOX", "target@x.com", window = 2))
+            assertTrue(s.hasRecentMessageId("INBOX", "<old@x>", window = 3))
+            assertEquals("Target Name", s.newestSenderName("INBOX", "target@x.com", window = 3))
+        }
+    }
+
+    @Test
+    fun `hasRecentMessageId and newestSenderName reject a non-positive window`() {
+        server.deliver("a")
+        session().use { s ->
+            try {
+                s.hasRecentMessageId("INBOX", "<x@x>", window = 0)
+                fail("expected IllegalArgumentException")
+            } catch (e: IllegalArgumentException) {
+                // expected
+            }
+            try {
+                s.newestSenderName("INBOX", "x@x.com", window = 0)
+                fail("expected IllegalArgumentException")
+            } catch (e: IllegalArgumentException) {
+                // expected
+            }
         }
     }
 }
