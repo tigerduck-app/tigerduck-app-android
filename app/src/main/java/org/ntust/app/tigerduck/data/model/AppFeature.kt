@@ -8,6 +8,7 @@ enum class AppFeature(val id: String) {
     CLASS_TABLE("classTable"),
     CALENDAR("calendar"),
     ANNOUNCEMENTS("announcements"),
+    SCHOOL_MAIL("schoolMail"),
     SCORE("score"),
     COURSE_SELECTION("courseSelection"),
     GRADUATION_REQUIREMENTS("graduationRequirements"),
@@ -29,6 +30,7 @@ enum class AppFeature(val id: String) {
             CLASS_TABLE -> R.string.feature_class_table
             CALENDAR -> R.string.feature_calendar
             ANNOUNCEMENTS -> R.string.feature_announcements
+            SCHOOL_MAIL -> R.string.feature_school_mail
             LIBRARY -> R.string.feature_library
             SCORE -> R.string.feature_score
             COURSE_SELECTION -> R.string.feature_course_selection
@@ -51,6 +53,7 @@ enum class AppFeature(val id: String) {
             CLASS_TABLE -> R.string.feature_class_table_short
             CALENDAR -> R.string.feature_calendar_short
             ANNOUNCEMENTS -> R.string.feature_announcements_short
+            SCHOOL_MAIL -> R.string.feature_school_mail_short
             LIBRARY -> R.string.feature_library_short
             SCORE -> R.string.feature_score_short
             COURSE_SELECTION -> R.string.feature_course_selection_short
@@ -68,7 +71,7 @@ enum class AppFeature(val id: String) {
 
     val category: FeatureCategory?
         get() = when (this) {
-            CLASS_TABLE, CALENDAR, SCORE, COURSE_SELECTION, GRADUATION_REQUIREMENTS -> FeatureCategory.ACADEMIC
+            CLASS_TABLE, CALENDAR, SCORE, COURSE_SELECTION, GRADUATION_REQUIREMENTS, SCHOOL_MAIL -> FeatureCategory.ACADEMIC
             LIBRARY, DISCUSSION_ROOM, LIBRARY_LECTURE -> FeatureCategory.LIBRARY
             ANNOUNCEMENTS, FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP -> FeatureCategory.LIFE
             ENGLISH_VOCAB -> FeatureCategory.LANGUAGE
@@ -78,6 +81,10 @@ enum class AppFeature(val id: String) {
 
     val isLibraryRelated: Boolean
         get() = this == LIBRARY || this == DISCUSSION_ROOM || this == LIBRARY_LECTURE
+
+    /** Gated by [org.ntust.app.tigerduck.mail.SchoolMailAvailability], not by isImplemented. */
+    val isSchoolMail: Boolean
+        get() = this == SCHOOL_MAIL
 
     /**
      * Whether this feature has a real screen behind it.
@@ -94,7 +101,7 @@ enum class AppFeature(val id: String) {
      */
     val isImplemented: Boolean
         get() = when (this) {
-            HOME, CLASS_TABLE, CALENDAR, ANNOUNCEMENTS, LIBRARY, SCORE -> true
+            HOME, CLASS_TABLE, CALENDAR, ANNOUNCEMENTS, LIBRARY, SCORE, SCHOOL_MAIL -> true
             else -> false
         }
 
@@ -110,7 +117,7 @@ enum class AppFeature(val id: String) {
          * remembered to uncomment.
          */
         private val pinnableOrder = listOf(
-            HOME, CLASS_TABLE, CALENDAR, ANNOUNCEMENTS, LIBRARY, SCORE,
+            HOME, CLASS_TABLE, CALENDAR, ANNOUNCEMENTS, SCHOOL_MAIL, LIBRARY, SCORE,
             COURSE_SELECTION, GRADUATION_REQUIREMENTS,
             DISCUSSION_ROOM, LIBRARY_LECTURE,
             FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCHOLARSHIP,
@@ -119,7 +126,7 @@ enum class AppFeature(val id: String) {
 
         /** Same contract as [pinnableOrder], for the More screen's own order. */
         private val moreOrder = listOf(
-            CLASS_TABLE, CALENDAR, SCORE,
+            CLASS_TABLE, CALENDAR, SCORE, SCHOOL_MAIL,
             LIBRARY, ANNOUNCEMENTS,
             COURSE_SELECTION, GRADUATION_REQUIREMENTS,
             DISCUSSION_ROOM, LIBRARY_LECTURE,

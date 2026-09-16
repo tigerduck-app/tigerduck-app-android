@@ -225,7 +225,8 @@ fun MainNavigation(
     val configuredTabs by remember {
         derivedStateOf {
             appState.configuredTabs.filter { feature ->
-                !feature.isLibraryRelated || appState.libraryFeatureEnabled
+                (!feature.isLibraryRelated || appState.libraryFeatureEnabled) &&
+                    (!feature.isSchoolMail || appState.schoolMailVisible)
             }
         }
     }

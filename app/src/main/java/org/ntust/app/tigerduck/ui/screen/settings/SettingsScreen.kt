@@ -526,6 +526,13 @@ fun SettingsScreen(
                                 },
                             )
                             HorizontalDivider()
+                            SettingsToggleRow(
+                                label = "Show School Mail",
+                                checked = viewModel.appState.schoolMailDevEnabled,
+                                subtitle = "Release builds hide it until SCHOOL_MAIL_RELEASED is true.",
+                                onCheckedChange = { viewModel.appState.schoolMailDevEnabled = it },
+                            )
+                            HorizontalDivider()
                             @OptIn(ExperimentalFoundationApi::class)
                             Row(
                                 modifier = Modifier

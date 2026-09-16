@@ -365,6 +365,20 @@ class AppState @Inject constructor(
             prefs.libraryFeatureEnabled = value
         }
 
+    private var schoolMailDevEnabledState by mutableStateOf(prefs.schoolMailDevEnabled)
+
+    var schoolMailDevEnabled: Boolean
+        get() = schoolMailDevEnabledState
+        set(value) {
+            if (schoolMailDevEnabledState == value) return
+            schoolMailDevEnabledState = value
+            prefs.schoolMailDevEnabled = value
+        }
+
+    /** Whether School Mail shows in More, the tab editor, the tab bar and Settings. */
+    val schoolMailVisible: Boolean
+        get() = org.ntust.app.tigerduck.mail.SchoolMailAvailability.isVisible(schoolMailDevEnabledState)
+
     private var flipToLibraryEnabledState by mutableStateOf(prefs.flipToLibraryEnabled)
 
     var flipToLibraryEnabled: Boolean
@@ -528,6 +542,7 @@ class AppState @Inject constructor(
             rotationModeState = prefs.rotationMode
             assignmentReminderSettings.reload()
             libraryFeatureEnabledState = prefs.libraryFeatureEnabled
+            schoolMailDevEnabledState = prefs.schoolMailDevEnabled
             flipToLibraryEnabledState = prefs.flipToLibraryEnabled
             cloudSyncEnabledState = prefs.cloudSyncEnabled
             disableScreenCaptureProtectionState = prefs.disableScreenCaptureProtection

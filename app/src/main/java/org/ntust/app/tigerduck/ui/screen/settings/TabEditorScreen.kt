@@ -67,7 +67,8 @@ fun TabEditorScreen(
     var activeTabs by remember { mutableStateOf(appState.configuredTabs) }
 
     val allPinnable = AppFeature.pinnableFeatures.filter { feature ->
-        !feature.isLibraryRelated || appState.libraryFeatureEnabled
+        (!feature.isLibraryRelated || appState.libraryFeatureEnabled) &&
+            (!feature.isSchoolMail || appState.schoolMailVisible)
     }
 
     val availableTabs by remember(activeTabs, allPinnable) {

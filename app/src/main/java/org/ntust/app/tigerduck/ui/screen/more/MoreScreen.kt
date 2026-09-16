@@ -47,7 +47,7 @@ import org.ntust.app.tigerduck.ui.navigation.toRoute
 
 private val implementedFeatures = setOf(
     AppFeature.HOME, AppFeature.CLASS_TABLE, AppFeature.CALENDAR,
-    AppFeature.ANNOUNCEMENTS,
+    AppFeature.ANNOUNCEMENTS, AppFeature.SCHOOL_MAIL,
     AppFeature.LIBRARY, AppFeature.SCORE,
     AppFeature.MORE, AppFeature.SETTINGS
 )
@@ -61,7 +61,8 @@ fun MoreScreen(navController: NavController, appState: AppState) {
     val grouped = AppFeature.moreFeatures
         .filter { feature ->
             feature !in pageFeatures &&
-                    (!feature.isLibraryRelated || appState.libraryFeatureEnabled)
+                    (!feature.isLibraryRelated || appState.libraryFeatureEnabled) &&
+                    (!feature.isSchoolMail || appState.schoolMailVisible)
         }
         .groupBy { it.category }
         .toList()

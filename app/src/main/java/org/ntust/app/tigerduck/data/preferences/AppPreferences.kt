@@ -427,6 +427,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getBoolean("libraryFeatureEnabled", false)
         set(value) = prefs.edit().putBoolean("libraryFeatureEnabled", value).apply()
 
+    /** Debug builds only: show School Mail before its release flag flips (spec §12.5). */
+    var schoolMailDevEnabled: Boolean
+        get() = prefs.getBoolean("schoolMailDevEnabled", true)
+        set(value) = prefs.edit().putBoolean("schoolMailDevEnabled", value).apply()
+
     // Defaults ON (matching iOS): the user discovers the gesture on their first
     // accidental flip, where the first-trigger prompt explains it and offers to
     // turn it off. The sensor still only runs while the parent Library feature
