@@ -18,14 +18,16 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     var pageSize = 50
     var status = FolderStatus(1, 1, 0, 0)
     var loadError: MailError? = null
-    /** Thrown once by the next [loadPage] call, then cleared -- for testing a single retry after recovery. */
-    var loadErrorOnce: MailError? = null
     var searchUnsupported = false
     val bodies = mutableMapOf<Long, MailBody>()
     var bodyError: MailError? = null
+    var moveError: MailError? = null
+    var deleteError: MailError? = null
     val seenCalls = mutableListOf<Pair<Long, Boolean>>()
     val moved = mutableListOf<Triple<String, Long, String>>()
     val deleted = mutableListOf<Pair<String, Long>>()
+    /** Mirrors the real repository's cache: [loadPage]'s first page populates it, [dropCache] simulates a [MailError.FolderChanged] eviction. */
+    private val cachedPages = mutableMapOf<String, MailPage>()
     val sent = mutableListOf<Pair<OutgoingMail, Pair<String, Long>?>>()
     val drafts = mutableListOf<Pair<OutgoingMail, Long?>>()
     var sendError: MailError? = null
@@ -48,15 +50,21 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     }
 
     override suspend fun folders() = resolved
-    override fun cachedPage(folder: String): MailPage? = null
+    override fun cachedPage(folder: String): MailPage? = cachedPages[folder]
+
+    /** Simulates the repository dropping a folder's cache once [MailError.FolderChanged] fires for it. */
+    fun dropCache(folder: String) {
+        cachedPages.remove(folder)
+    }
 
     override suspend fun loadPage(folder: String, beforeSeq: Int?): MailPage {
         loadError?.let { throw it }
-        loadErrorOnce?.let { loadErrorOnce = null; throw it }
         val all = sorted(folder)
         val from = beforeSeq ?: 0
         val chunk = all.drop(from).take(pageSize)
-        return MailPage(1, all.size, chunk, (from + chunk.size).takeIf { it < all.size })
+        val page = MailPage(1, all.size, chunk, (from + chunk.size).takeIf { it < all.size })
+        if (beforeSeq == null) cachedPages[folder] = page
+        return page
     }
 
     override suspend fun inboxStatus() = status
@@ -74,6 +82,7 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     }
 
     override suspend fun move(folder: String, uid: Long, target: String) {
+        moveError?.let { throw it }
         moved += Triple(folder, uid, target)
         mail[folder]?.removeAll { it.uid == uid }
     }
@@ -81,6 +90,7 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     override suspend fun deletesPermanently(folder: String) = folder == resolved.nameOf(SpecialFolder.TRASH)
 
     override suspend fun delete(folder: String, uid: Long) {
+        deleteError?.let { throw it }
         deleted += folder to uid
         mail[folder]?.removeAll { it.uid == uid }
     }

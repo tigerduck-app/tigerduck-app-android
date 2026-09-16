@@ -137,7 +137,12 @@ fun SchoolMailScreen(
     DisposableEffect(lifecycleOwner, signedIn) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> if (signedIn) viewModel.startPolling()
+                Lifecycle.Event.ON_RESUME -> if (signedIn) {
+                    // Catches a move/delete on the message screen that dropped the selected
+                    // folder's cache (MailError.FolderChanged) while this list was paused.
+                    viewModel.onResume()
+                    viewModel.startPolling()
+                }
                 Lifecycle.Event.ON_PAUSE -> viewModel.stopPolling()
                 else -> Unit
             }

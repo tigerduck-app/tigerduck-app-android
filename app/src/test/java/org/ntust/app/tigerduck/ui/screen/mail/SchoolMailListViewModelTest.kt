@@ -109,13 +109,26 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
-    fun `a folder-changed error reloads the folder once instead of only showing the error`() {
+    fun `resuming reloads when the selected folder's cache disappeared while away`() {
         repo.add("INBOX", mailSummary(1))
-        repo.loadErrorOnce = MailError.FolderChanged()
         vm.load()
-        val s = vm.state.value
-        assertTrue(s.loadState is SchoolMailListViewModel.LoadState.Loaded)
-        assertEquals(listOf(1L), s.displayed.map { it.uid })
+        assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
+
+        // Simulates a move/delete on the message screen throwing MailError.FolderChanged,
+        // which drops the folder's cache in the (shared, singleton) repository.
+        repo.dropCache("INBOX")
+        repo.add("INBOX", mailSummary(2))
+        vm.onResume()
+        assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
+    }
+
+    @Test
+    fun `resuming does not reload when the selected folder's cache is still there`() {
+        repo.add("INBOX", mailSummary(1))
+        vm.load()
+        repo.add("INBOX", mailSummary(2))
+        vm.onResume()
+        assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
     }
 
     @Test

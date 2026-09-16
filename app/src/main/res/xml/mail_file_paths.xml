@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Opened School Mail attachments only (MailCache.attachmentsDir = cacheDir/mail/attachments). -->
+<paths>
+    <cache-path name="mail_attachments" path="mail/attachments/" />
+</paths>

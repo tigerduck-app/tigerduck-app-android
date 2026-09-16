@@ -86,6 +86,23 @@ class SchoolMailListViewModel @Inject constructor(
         viewModelScope.launch { if (_state.value.searchResults != null) runSearch() else fetchFirstPage() }
     }
 
+    /**
+     * Called when the list becomes visible again, e.g. returning from the message screen.
+     * A move, delete or draft replacement issued there throws [MailError.FolderChanged] when
+     * the folder's UIDVALIDITY moved server-side, and the repository -- the same singleton
+     * instance this list shares -- has already dropped that folder's cache (see
+     * [SchoolMailRepository]'s docs). If the selected folder no longer has a cached page even
+     * though this list is still showing messages for it, that drop happened while we were away,
+     * so the in-memory list is stale and needs reloading from the server.
+     */
+    fun onResume() {
+        if (!account.signedIn.value) return
+        val s = _state.value
+        if (s.messages.isNotEmpty() && repository.cachedPage(s.selected) == null) {
+            viewModelScope.launch { fetchFirstPage() }
+        }
+    }
+
     fun selectFolder(name: String) {
         if (name == _state.value.selected) return
         _state.update {
@@ -217,34 +234,9 @@ class SchoolMailListViewModel @Inject constructor(
         )
     }
 
-    /**
-     * [MailError.FolderChanged] means the repository already dropped its cached
-     * page for this folder (see [SchoolMailRepository]'s docs) because the
-     * server's UIDVALIDITY moved out from under it. Showing that as a plain
-     * error would strand the list on stale content the cache no longer has, so
-     * the first time it happens we reload the folder from the server instead.
-     * [isRetry] bounds that to a single attempt -- a second FolderChanged in a
-     * row falls through to the ordinary failure state rather than looping.
-     */
-    private fun fail(error: MailError, isRetry: Boolean = false) {
+    private fun fail(error: MailError) {
         if (error is MailError.AuthFailed) account.onAuthFailure()
-        if (error is MailError.FolderChanged && !isRetry) {
-            viewModelScope.launch { reloadAfterFolderChanged() }
-            return
-        }
         _state.update { it.copy(loadState = LoadState.Failed(error)) }
-    }
-
-    private suspend fun reloadAfterFolderChanged() {
-        val folder = _state.value.selected
-        _state.update { it.copy(loadState = LoadState.Loading) }
-        try {
-            val page = repository.loadPage(folder, null)
-            if (_state.value.selected != folder) return
-            _state.update { it.copy(messages = page.messages, nextBeforeSeq = page.nextBeforeSeq, loadState = LoadState.Loaded) }
-        } catch (e: MailError) {
-            fail(e, isRetry = true)
-        }
     }
 
     companion object {

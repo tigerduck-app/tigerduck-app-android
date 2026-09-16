@@ -184,6 +184,17 @@
                 tools:node="remove" />
         </provider>
 
+        <!-- Hands opened School Mail attachments to other apps, read-only, one grant per intent. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.mailfiles"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/mail_file_paths" />
+        </provider>
+
     </application>
 
 </manifest>
