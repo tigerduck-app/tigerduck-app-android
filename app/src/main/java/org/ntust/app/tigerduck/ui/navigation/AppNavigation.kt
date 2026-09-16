@@ -59,6 +59,7 @@ import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementDetailScreen
 import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementsScreen
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsScreen
 import org.ntust.app.tigerduck.data.model.AppFeature
+import org.ntust.app.tigerduck.mail.ComposeMode
 import org.ntust.app.tigerduck.mail.MailRoutes
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.AppState
@@ -115,6 +116,13 @@ sealed class Screen(val route: String) {
     object LibrarySettings : Screen("librarySettings")
     object SchoolMailSettings : Screen(MailRoutes.SETTINGS)
     object SchoolMailGuide : Screen(MailRoutes.GUIDE)
+    object SchoolMail : Screen(MailRoutes.LIST)
+    object SchoolMailMessage : Screen(MailRoutes.MESSAGE) {
+        fun route(folder: String, uid: Long) = MailRoutes.message(folder, uid)
+    }
+    object SchoolMailCompose : Screen(MailRoutes.COMPOSE) {
+        fun route(mode: ComposeMode, folder: String? = null, uid: Long? = null) = MailRoutes.compose(mode, folder, uid)
+    }
     object CourseNameSizeSettings : Screen("courseNameSizeSettings")
     object CloudSync : Screen("cloudSync")
     object SyncContent : Screen("syncContent")
@@ -409,6 +417,15 @@ fun MainNavigation(
                 SubscriptionSettingsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.Library.route) { LibraryScreen() }
+            composable(Screen.SchoolMail.route) {
+                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailScreen(
+                    browserPreference = appState.browserPreference,
+                    // Message and compose destinations are registered in the next two tasks.
+                    onOpenMessage = { _, _ -> },
+                    onCompose = {},
+                    onOpenGuide = { navController.navigate(Screen.SchoolMailGuide.route) },
+                )
+            }
             composable(Screen.Score.route) {
                 ScoreScreen(onOpenSignInSettings = openSignInSettings)
             }
@@ -560,6 +577,7 @@ fun AppFeature.toRoute(): String = when (this) {
     AppFeature.CLASS_TABLE -> Screen.ClassTable.route
     AppFeature.CALENDAR -> Screen.Calendar.route
     AppFeature.ANNOUNCEMENTS -> Screen.Announcements.route
+    AppFeature.SCHOOL_MAIL -> Screen.SchoolMail.route
     AppFeature.LIBRARY -> Screen.Library.route
     AppFeature.SCORE -> Screen.Score.route
     AppFeature.MORE -> Screen.More.route
