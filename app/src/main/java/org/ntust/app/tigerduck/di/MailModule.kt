@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.store.MailCredentialStore
 import org.ntust.app.tigerduck.mail.store.MailStateStore
 import org.ntust.app.tigerduck.mail.store.SharedPrefsMailStateStore
+import org.ntust.app.tigerduck.mail.sync.ExactAlarmAccess
 import org.ntust.app.tigerduck.mail.sync.MailAlarmScheduler
 import org.ntust.app.tigerduck.mail.sync.MailBackgroundScheduler
 import org.ntust.app.tigerduck.mail.sync.MailClock
@@ -80,6 +81,9 @@ abstract class MailBindings {
 
     @Binds
     abstract fun scheduler(impl: MailAlarmScheduler): MailBackgroundScheduler
+
+    @Binds
+    abstract fun exactAlarms(impl: MailAlarmScheduler): ExactAlarmAccess
 
     @Binds
     abstract fun demo(impl: AssetsMailDemoGate): MailDemoGate

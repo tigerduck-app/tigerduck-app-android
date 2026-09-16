@@ -58,6 +58,9 @@ import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
+import org.ntust.app.tigerduck.ui.screen.mail.ForgotMailPasswordLink
+import org.ntust.app.tigerduck.ui.screen.mail.MailAccountViewModel
+import org.ntust.app.tigerduck.ui.screen.mail.messageRes
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewDialog
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
@@ -78,6 +81,7 @@ fun SettingsScreen(
     onNavigateToAssignmentReminders: () -> Unit = {},
     onNavigateToCloudSync: () -> Unit = {},
     onNavigateToLibrarySettings: () -> Unit = {},
+    onNavigateToSchoolMailSettings: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToNotificationDebug: () -> Unit = {},
@@ -91,6 +95,15 @@ fun SettingsScreen(
     val libLoginError by viewModel.libLoginError.collectAsStateWithLifecycle()
     val isNtustLoggedIn by viewModel.isNtustLoggedIn.collectAsStateWithLifecycle()
     val isLibraryLoggedIn by viewModel.isLibraryLoggedIn.collectAsStateWithLifecycle()
+    val mailViewModel: MailAccountViewModel = hiltViewModel()
+    val isMailSignedIn by mailViewModel.signedIn.collectAsStateWithLifecycle()
+    val mailAuthFailed by mailViewModel.authFailed.collectAsStateWithLifecycle()
+    val isMailSigningIn by mailViewModel.signingIn.collectAsStateWithLifecycle()
+    val mailError by mailViewModel.error.collectAsStateWithLifecycle()
+    var showMailLoginSheet by remember { mutableStateOf(false) }
+    LaunchedEffect(isMailSignedIn, mailAuthFailed) {
+        if (isMailSignedIn && !mailAuthFailed) showMailLoginSheet = false
+    }
 
     var showNtustLoginSheet by remember { mutableStateOf(false) }
     var showLibraryLoginSheet by remember { mutableStateOf(false) }
@@ -212,6 +225,24 @@ fun SettingsScreen(
                                 isLoggingIn = libIsLoggingIn,
                                 onLogin = { showLibraryLoginSheet = true },
                                 onLogout = { viewModel.logoutLibrary() },
+                                actionMinWidth = accountButtonMinWidth,
+                            )
+                        }
+
+                        if (viewModel.appState.schoolMailVisible) {
+                            HorizontalDivider()
+                            // Its own account (spec §7.1). A rejected password shows as
+                            // signed out so the button offers "Sign in" again.
+                            AccountRow(
+                                title = stringResource(R.string.school_mail_account_title),
+                                isLoggedIn = isMailSignedIn && !mailAuthFailed,
+                                subtitle = if (isMailSignedIn) mailViewModel.studentId else null,
+                                isLoggingIn = isMailSigningIn,
+                                onLogin = {
+                                    mailViewModel.clearError()
+                                    showMailLoginSheet = true
+                                },
+                                onLogout = { mailViewModel.signOut() },
                                 actionMinWidth = accountButtonMinWidth,
                             )
                         }
@@ -422,6 +453,12 @@ fun SettingsScreen(
                         SettingsLinkRow(stringResource(R.string.settings_library_related_features)) {
                             onNavigateToLibrarySettings()
                         }
+                        if (viewModel.appState.schoolMailVisible) {
+                            HorizontalDivider()
+                            SettingsLinkRow(stringResource(R.string.school_mail_account_title)) {
+                                onNavigateToSchoolMailSettings()
+                            }
+                        }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
                     }
@@ -594,6 +631,23 @@ fun SettingsScreen(
             loginError = libLoginError,
             onLogin = { u, p -> viewModel.loginLibrary(u, p) },
             onDismiss = { showLibraryLoginSheet = false },
+        )
+    }
+
+    if (showMailLoginSheet) {
+        LoginSheet(
+            title = stringResource(R.string.school_mail_account_title),
+            subtitle = stringResource(R.string.school_mail_sign_in_note),
+            usernamePlaceholder = stringResource(R.string.sign_in_student_id),
+            passwordPlaceholder = stringResource(R.string.sign_in_password),
+            // Only the mail account's own ID — never the NTUST or library one.
+            initialUsername = mailViewModel.studentId.orEmpty(),
+            uppercaseInput = true,
+            isLoggingIn = isMailSigningIn,
+            loginError = mailError?.let { stringResource(it.messageRes()) },
+            onLogin = { u, p -> mailViewModel.signIn(u, p) },
+            onDismiss = { showMailLoginSheet = false },
+            footer = { ForgotMailPasswordLink(browserPreference) },
         )
     }
 

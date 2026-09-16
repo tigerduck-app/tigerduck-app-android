@@ -74,10 +74,10 @@ class MailAlarmScheduler @Inject constructor(
     private val credentials: MailCredentialStore,
     private val state: MailStateStore,
     private val demoGate: MailDemoGate,
-) : MailBackgroundScheduler {
+) : MailBackgroundScheduler, ExactAlarmAccess {
     private val alarms get() = context.getSystemService(AlarmManager::class.java)
 
-    fun canScheduleExactAlarms(): Boolean =
+    override fun canScheduleExactAlarms(): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarms.canScheduleExactAlarms()
 
     override fun schedule() {

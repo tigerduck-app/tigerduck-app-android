@@ -80,6 +80,8 @@ fun LoginSheet(
     loginError: String?,
     onLogin: (String, String) -> Unit,
     onDismiss: () -> Unit,
+    /** Rendered under the subtitle, e.g. School Mail's "Forgot your password?" link. */
+    footer: (@Composable () -> Unit)? = null,
 ) {
     var username by rememberSaveable(initialUsername) { mutableStateOf(initialUsername) }
     var password by rememberSaveable { mutableStateOf("") }
@@ -208,6 +210,7 @@ fun LoginSheet(
                             )
                         }
                     }
+                    footer?.invoke()
 
                     if (loginError != null) {
                         Row(

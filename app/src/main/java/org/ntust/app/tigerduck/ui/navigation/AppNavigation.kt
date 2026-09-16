@@ -59,6 +59,7 @@ import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementDetailScreen
 import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementsScreen
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsScreen
 import org.ntust.app.tigerduck.data.model.AppFeature
+import org.ntust.app.tigerduck.mail.MailRoutes
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
@@ -112,6 +113,8 @@ sealed class Screen(val route: String) {
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
     object LibrarySettings : Screen("librarySettings")
+    object SchoolMailSettings : Screen(MailRoutes.SETTINGS)
+    object SchoolMailGuide : Screen(MailRoutes.GUIDE)
     object CourseNameSizeSettings : Screen("courseNameSizeSettings")
     object CloudSync : Screen("cloudSync")
     object SyncContent : Screen("syncContent")
@@ -421,6 +424,7 @@ fun MainNavigation(
                     onNavigateToAssignmentReminders = { navController.navigate(Screen.AssignmentReminderSettings.route) },
                     onNavigateToCloudSync = { navController.navigate(Screen.CloudSync.route) },
                     onNavigateToLibrarySettings = { navController.navigate(Screen.LibrarySettings.route) },
+                    onNavigateToSchoolMailSettings = { navController.navigate(Screen.SchoolMailSettings.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
                     // Debug-route navigation is no-op in release builds:
                     // the composables themselves are registered only inside
@@ -489,6 +493,15 @@ fun MainNavigation(
             }
             composable(Screen.LibrarySettings.route) {
                 LibrarySettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.SchoolMailSettings.route) {
+                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenGuide = { navController.navigate(Screen.SchoolMailGuide.route) },
+                )
+            }
+            composable(Screen.SchoolMailGuide.route) {
+                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailGuideScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.VibrationSettings.route) {
                 VibrationSettingsScreen(onBack = { navController.popBackStack() })
