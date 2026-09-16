@@ -63,15 +63,15 @@ object MailModule {
     fun state(@ApplicationContext context: Context): MailStateStore = SharedPrefsMailStateStore(context)
 
     @Provides
-    fun credentials(manager: CredentialManager): MailCredentialStore = manager
-
-    @Provides
     fun clock(): MailClock = MailClock { System.currentTimeMillis() }
 }
 
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class MailBindings {
+    @Binds
+    abstract fun credentials(impl: CredentialManager): MailCredentialStore
+
     @Binds
     abstract fun repository(impl: MailRepository): SchoolMailRepository
 

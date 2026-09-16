@@ -1,7 +1,10 @@
 package org.ntust.app.tigerduck.mail.sync
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.mail.MailError
 
 class MailSchedulePolicyTest {
     private fun decide(
@@ -26,5 +29,13 @@ class MailSchedulePolicyTest {
         assertEquals(off, decide(demo = true))
         assertEquals(off, decide(enabled = false))
         assertEquals(off, decide(authFailed = true))
+    }
+
+    @Test
+    fun `only a hand-off run retries, and only when the abandoned alarm check still holds the lock`() {
+        assertTrue(MailSchedulePolicy.shouldRetry(CheckOutcome.Busy, handOff = true))
+        assertFalse(MailSchedulePolicy.shouldRetry(CheckOutcome.Busy, handOff = false))
+        assertFalse(MailSchedulePolicy.shouldRetry(CheckOutcome.NoChange, handOff = true))
+        assertFalse(MailSchedulePolicy.shouldRetry(CheckOutcome.Failed(MailError.Network()), handOff = true))
     }
 }
