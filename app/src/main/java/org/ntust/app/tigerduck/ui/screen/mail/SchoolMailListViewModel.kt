@@ -86,23 +86,6 @@ class SchoolMailListViewModel @Inject constructor(
         viewModelScope.launch { if (_state.value.searchResults != null) runSearch() else fetchFirstPage() }
     }
 
-    /**
-     * Called when the list becomes visible again, e.g. returning from the message screen.
-     * A move, delete or draft replacement issued there throws [MailError.FolderChanged] when
-     * the folder's UIDVALIDITY moved server-side, and the repository -- the same singleton
-     * instance this list shares -- has already dropped that folder's cache (see
-     * [SchoolMailRepository]'s docs). If the selected folder no longer has a cached page even
-     * though this list is still showing messages for it, that drop happened while we were away,
-     * so the in-memory list is stale and needs reloading from the server.
-     */
-    fun onResume() {
-        if (!account.signedIn.value) return
-        val s = _state.value
-        if (s.messages.isNotEmpty() && repository.cachedPage(s.selected) == null) {
-            viewModelScope.launch { fetchFirstPage() }
-        }
-    }
-
     fun selectFolder(name: String) {
         if (name == _state.value.selected) return
         _state.update {

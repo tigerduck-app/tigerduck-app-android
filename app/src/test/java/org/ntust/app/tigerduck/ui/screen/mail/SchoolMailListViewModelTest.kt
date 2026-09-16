@@ -109,26 +109,19 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
-    fun `resuming reloads when the selected folder's cache disappeared while away`() {
+    fun `load shows the fresh server page after the repository dropped the folder's cache`() {
+        // A move/delete on the message screen that hit MailError.FolderChanged drops the
+        // folder's cache in the (shared, singleton) repository; load() -- which the screen
+        // always reruns on returning to the list, since LaunchedEffect restarts whenever the
+        // composable re-enters composition -- must not need that cache to show the current page.
         repo.add("INBOX", mailSummary(1))
         vm.load()
         assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
 
-        // Simulates a move/delete on the message screen throwing MailError.FolderChanged,
-        // which drops the folder's cache in the (shared, singleton) repository.
         repo.dropCache("INBOX")
         repo.add("INBOX", mailSummary(2))
-        vm.onResume()
-        assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
-    }
-
-    @Test
-    fun `resuming does not reload when the selected folder's cache is still there`() {
-        repo.add("INBOX", mailSummary(1))
         vm.load()
-        repo.add("INBOX", mailSummary(2))
-        vm.onResume()
-        assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
+        assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
     }
 
     @Test

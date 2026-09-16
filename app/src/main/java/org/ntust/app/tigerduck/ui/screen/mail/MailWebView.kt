@@ -18,6 +18,13 @@ import java.io.ByteArrayInputStream
  * Spec §9.3. JavaScript, storage, file and content access are off; the network is blocked
  * until the user loads images, and even then only the mail's own `<img>` URLs pass
  * [WebViewClient.shouldInterceptRequest]. Every navigation is a link tap handed to [onLink].
+ *
+ * [allowedRemoteUrls] must already be normalized with
+ * [SchoolMailMessageViewModel.normalizedHref] -- Chromium hands [shouldInterceptRequest] its own
+ * normalized [WebResourceRequest.getUrl] (lowercase host, "/" for an empty path, its own
+ * percent-encoding), which a raw `<img src>` string from the sanitized HTML won't match
+ * byte-for-byte even when it is the exact same URL, so the request URL is normalized the same
+ * way before the membership check.
  */
 @Composable
 fun MailWebView(
@@ -56,8 +63,13 @@ fun MailWebView(
                     }
 
                     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-                        if (request.isForMainFrame || request.url.scheme == "data") return null
-                        if (request.url.toString() in allowed) return null
+                        // The main frame is intentionally NOT exempted here: loadDataWithBaseURL
+                        // injects the document directly rather than issuing a resource request,
+                        // so this is never called for it, and any subsequent main-frame
+                        // navigation is already stopped one layer up by
+                        // shouldOverrideUrlLoading -- this stays the fallback, not a bypass.
+                        if (request.url.scheme == "data") return null
+                        if (SchoolMailMessageViewModel.normalizedHref(request.url.toString()) in allowed) return null
                         return WebResourceResponse("text/plain", "utf-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(ByteArray(0)))
                     }
                 }

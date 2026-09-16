@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -128,8 +129,25 @@ fun SchoolMailMessageScreen(
         val attachment = ready?.body?.attachments?.firstOrNull { it.partId == pendingSavePart }
         pendingSavePart = null
         if (uri != null && attachment != null) {
-            viewModel.saveAttachment(attachment) { context.contentResolver.openOutputStream(uri) }
+            viewModel.saveAttachment(
+                attachment,
+                open = { context.contentResolver.openOutputStream(uri) },
+                onFailure = {
+                    // Best-effort: not every document provider supports deleting what it just
+                    // handed out (some throw UnsupportedOperationException), so a partial write
+                    // is cleaned up where possible and left alone otherwise.
+                    runCatching { DocumentsContract.deleteDocument(context.contentResolver, uri) }
+                },
+            )
         }
+    }
+    // Confirmation (needsConfirmation) already happened, if needed, before saveRequest was set --
+    // this only launches the SAF picker the confirmed/unconfirmed save asked for.
+    LaunchedEffect(state.saveRequest) {
+        val attachment = state.saveRequest ?: return@LaunchedEffect
+        pendingSavePart = attachment.partId
+        saveLauncher.launch(SchoolMailMessageViewModel.safeFileName(attachment.fileName))
+        viewModel.consumeSaveRequest()
     }
 
     Scaffold(
@@ -210,6 +228,16 @@ fun SchoolMailMessageScreen(
                         val document = remember(html, content.body.inlineImages, state.remoteImagesAllowed) {
                             MailHtmlDocument.build(html.html, content.body.inlineImages, state.remoteImagesAllowed)
                         }
+                        // Normalized the same way as the link lookup: Chromium hands
+                        // shouldInterceptRequest its own normalized request URL, which a raw
+                        // <img src> string won't match byte-for-byte even when it's the same URL.
+                        val allowedRemoteUrls = remember(html.remoteImageUrls, state.remoteImagesAllowed) {
+                            if (state.remoteImagesAllowed) {
+                                html.remoteImageUrls.map { SchoolMailMessageViewModel.normalizedHref(it) }.toSet()
+                            } else {
+                                emptySet()
+                            }
+                        }
                         // Spec §9.3: HTML always sits on white paper, dark mode included.
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -218,7 +246,7 @@ fun SchoolMailMessageScreen(
                         ) {
                             MailWebView(
                                 document = document,
-                                allowedRemoteUrls = if (state.remoteImagesAllowed) html.remoteImageUrls else emptySet(),
+                                allowedRemoteUrls = allowedRemoteUrls,
                                 onLink = { pendingLink = it },
                                 modifier = Modifier.fillMaxWidth(),
                             )
@@ -267,12 +295,9 @@ fun SchoolMailMessageScreen(
                     items(content.body.attachments, key = { "att-${it.partId}" }) { attachment ->
                         AttachmentRow(
                             attachment = attachment,
-                            downloading = state.downloading == attachment.partId,
+                            downloading = attachment.partId in state.downloading,
                             onOpen = { viewModel.requestOpen(attachment) },
-                            onSave = {
-                                pendingSavePart = attachment.partId
-                                saveLauncher.launch(SchoolMailMessageViewModel.safeFileName(attachment.fileName))
-                            },
+                            onSave = { viewModel.requestSave(attachment) },
                         )
                     }
                 }
@@ -291,13 +316,16 @@ fun SchoolMailMessageScreen(
             onDismiss = { pendingLink = null },
         )
     }
-    state.confirmOpen?.let { attachment ->
+    state.confirmAttachment?.let { pending ->
+        // Spec lines 416/653 (「開啟或儲存前再確認一次」): the same confirmation, whether the
+        // attachment is about to be opened or saved -- "Confirm" rather than "Open" on the
+        // button since it now covers both.
         TigerDuckDialog(
-            onDismissRequest = { viewModel.confirmOpen(false) },
+            onDismissRequest = { viewModel.confirmAttachment(false) },
             title = stringResource(R.string.school_mail_risky_title),
-            message = stringResource(R.string.school_mail_risky_message).replaceIosArg(1, attachment.fileName),
-            confirmText = stringResource(R.string.school_mail_open),
-            onConfirm = { viewModel.confirmOpen(true) },
+            message = stringResource(R.string.school_mail_risky_message).replaceIosArg(1, pending.attachment.fileName),
+            confirmText = stringResource(R.string.action_confirm),
+            onConfirm = { viewModel.confirmAttachment(true) },
             dismissText = stringResource(R.string.action_cancel),
         )
     }
@@ -530,7 +558,7 @@ private fun openLink(context: Context, href: String, browserPreference: String) 
 private fun openAttachment(context: Context, request: SchoolMailMessageViewModel.OpenRequest) {
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.mailfiles", request.file)
     val view = Intent(Intent.ACTION_VIEW)
-        .setDataAndType(uri, request.contentType)
+        .setDataAndTypeAndNormalize(uri, request.contentType)
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     runCatching { context.startActivity(Intent.createChooser(view, request.file.name)) }
         .onFailure { Toast.makeText(context, R.string.school_mail_error_generic, Toast.LENGTH_SHORT).show() }
