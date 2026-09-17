@@ -30,6 +30,8 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     private val cachedPages = mutableMapOf<String, MailPage>()
     val sent = mutableListOf<Pair<OutgoingMail, Pair<String, Long>?>>()
     val drafts = mutableListOf<Pair<OutgoingMail, Long?>>()
+    val discardedDrafts = mutableListOf<Long>()
+    val sentAttachments = mutableListOf<List<Pair<String, String>>>()
     var sendError: MailError? = null
     var self = MailAddress("測試", "b10000001@mail.ntust.edu.tw")
     var raw = "Subject: x\r\n\r\nraw"
@@ -117,11 +119,16 @@ class FakeSchoolMailRepository : SchoolMailRepository {
 
     override suspend fun send(mail: OutgoingMail, answered: Pair<String, Long>?) {
         sendError?.let { throw it }
+        sentAttachments += mail.attachments.map { it.fileName to it.open().use { s -> s.readBytes().decodeToString() } }
         sent += mail to answered
     }
 
     override suspend fun saveDraft(mail: OutgoingMail, replacingUid: Long?) {
         drafts += mail to replacingUid
+    }
+
+    override suspend fun discardDraft(uid: Long) {
+        discardedDrafts += uid
     }
 
     override fun selfAddress() = self

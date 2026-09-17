@@ -57,6 +57,9 @@ interface SchoolMailRepository {
     suspend fun writeAttachment(folder: String, uid: Long, partId: String, out: OutputStream)
     suspend fun send(mail: OutgoingMail, answered: Pair<String, Long>?)
     suspend fun saveDraft(mail: OutgoingMail, replacingUid: Long?)
+
+    /** Permanently removes a draft after it was sent from the compose screen. */
+    suspend fun discardDraft(uid: Long)
     fun selfAddress(): MailAddress
     fun release()
 
@@ -287,6 +290,12 @@ class MailRepository @Inject constructor(
         if (replacingUid != null) {
             runExpunging(drafts, replacingUid) { session, owned -> session.deletePermanently(drafts, replacingUid, owned) }
         }
+    }
+
+    override suspend fun discardDraft(uid: Long) {
+        if (account.isDemo) return
+        val drafts = folders().nameOf(SpecialFolder.DRAFTS) ?: return
+        runExpunging(drafts, uid) { session, owned -> session.deletePermanently(drafts, uid, owned) }
     }
 
     override fun selfAddress(): MailAddress = MailAddress(state.displayName, credentials().address)

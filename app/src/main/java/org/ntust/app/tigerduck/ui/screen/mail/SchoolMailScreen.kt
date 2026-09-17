@@ -115,6 +115,7 @@ import kotlin.math.roundToInt
 fun SchoolMailScreen(
     browserPreference: String,
     onOpenMessage: (folder: String, uid: Long) -> Unit,
+    onEditDraft: (folder: String, uid: Long) -> Unit,
     onCompose: () -> Unit,
     onOpenGuide: () -> Unit,
     viewModel: SchoolMailListViewModel = hiltViewModel(),
@@ -268,7 +269,10 @@ fun SchoolMailScreen(
                     items(displayed, key = { it.uid }) { message ->
                         SwipeableMailCard(
                             message = message,
-                            onClick = { onOpenMessage(state.selected, message.uid) },
+                            onClick = {
+                                if (state.selectedKind == SpecialFolder.DRAFTS) onEditDraft(state.selected, message.uid)
+                                else onOpenMessage(state.selected, message.uid)
+                            },
                             onToggleRead = { viewModel.toggleRead(message) },
                             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
                         )

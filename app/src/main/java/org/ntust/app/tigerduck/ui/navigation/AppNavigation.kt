@@ -421,8 +421,8 @@ fun MainNavigation(
                 org.ntust.app.tigerduck.ui.screen.mail.SchoolMailScreen(
                     browserPreference = appState.browserPreference,
                     onOpenMessage = { folder, uid -> navController.navigate(Screen.SchoolMailMessage.route(folder, uid)) },
-                    // The compose destination is registered in the next task.
-                    onCompose = {},
+                    onEditDraft = { folder, uid -> navController.navigate(Screen.SchoolMailCompose.route(ComposeMode.DRAFT, folder, uid)) },
+                    onCompose = { navController.navigate(Screen.SchoolMailCompose.route(ComposeMode.NEW)) },
                     onOpenGuide = { navController.navigate(Screen.SchoolMailGuide.route) },
                 )
             }
@@ -438,6 +438,16 @@ fun MainNavigation(
                     onBack = { navController.popBackStack() },
                     onCompose = { mode, folder, uid -> navController.navigate(Screen.SchoolMailCompose.route(mode, folder, uid)) },
                 )
+            }
+            composable(
+                Screen.SchoolMailCompose.route,
+                arguments = listOf(
+                    navArgument("mode") { type = NavType.StringType; defaultValue = ComposeMode.NEW.name },
+                    navArgument("folder") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("uid") { type = NavType.LongType; defaultValue = -1L },
+                ),
+            ) {
+                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeScreen(onDone = { navController.popBackStack() })
             }
             composable(Screen.Score.route) {
                 ScoreScreen(onOpenSignInSettings = openSignInSettings)

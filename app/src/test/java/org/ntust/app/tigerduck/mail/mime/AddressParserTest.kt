@@ -37,4 +37,14 @@ class AddressParserTest {
         assertFalse(AddressParser.looksLikeAddress("b1@localhost"))
         assertFalse(AddressParser.looksLikeAddress("a b@x.tw"))
     }
+
+    @Test
+    fun `a non-ASCII local part or domain is rejected -- the school server has no SMTPUTF8`() {
+        assertFalse(AddressParser.looksLikeAddress("中文@x.tw"))
+        assertFalse(AddressParser.looksLikeAddress("a@中文.tw"))
+        assertNull(AddressParser.parseOne("中文@x.tw"))
+        assertNull(AddressParser.parseOne("王小明 <a@中文.tw>"))
+        // A non-ASCII display name is unaffected -- only the address itself must be ASCII.
+        assertEquals(MailAddress("王小明", "a@x.tw"), AddressParser.parseOne("王小明 <a@x.tw>"))
+    }
 }
