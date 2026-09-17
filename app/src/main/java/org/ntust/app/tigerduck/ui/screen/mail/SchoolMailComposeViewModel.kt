@@ -1,11 +1,13 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,6 +38,10 @@ class ComposeAttachment(
     val sizeBytes: Long,
     val source: Source,
 ) {
+    /** [Local]'s [sizeBytes] is the raw (decoded) file size -- base64 growth still applies when
+     *  sizing the outgoing mail. [Original]'s [sizeBytes] is the *encoded* octet count IMAP
+     *  already reported for the original mail's attachment (spec's BODYSTRUCTURE size) -- it must
+     *  never be grown again. */
     sealed interface Source {
         class Local(val open: () -> InputStream) : Source
         data class Original(val folder: String, val uid: Long, val partId: String) : Source
@@ -45,10 +51,11 @@ class ComposeAttachment(
 /** Plain-text compose (spec §6.4, §8.4). A failed send keeps every field; there is no outbox. */
 @HiltViewModel
 class SchoolMailComposeViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+    private val savedStateHandle: SavedStateHandle,
     private val repository: SchoolMailRepository,
     private val account: MailAccount,
     private val cache: MailCache,
+    private val pickedAttachmentReader: PickedAttachmentReader,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
     val mode: ComposeMode = runCatching { ComposeMode.valueOf(savedStateHandle.get<String>("mode").orEmpty()) }
@@ -94,19 +101,43 @@ class SchoolMailComposeViewModel @Inject constructor(
         val dirty: Boolean get() = fields != baseline
     }
 
-    private val _state = MutableStateFlow(UiState())
+    private val _state = MutableStateFlow(
+        UiState(
+            to = savedStateHandle.get<String>(KEY_TO).orEmpty(),
+            cc = savedStateHandle.get<String>(KEY_CC).orEmpty(),
+            bcc = savedStateHandle.get<String>(KEY_BCC).orEmpty(),
+            subject = savedStateHandle.get<String>(KEY_SUBJECT).orEmpty(),
+            body = savedStateHandle.get<String>(KEY_BODY).orEmpty(),
+        ),
+    )
     val state: StateFlow<UiState> = _state.asStateFlow()
 
-    private var prefilled = false
+    /** Survives process death (Minor #4): a picker launched mid-compose can die and come back
+     *  without re-running [prefill]. Attachments need not survive -- their `open()` lambdas can't
+     *  be parcelled, and a re-pick is cheap. */
+    private var prefilled: Boolean = savedStateHandle.get<Boolean>(KEY_PREFILLED) ?: false
+        set(value) { field = value; savedStateHandle[KEY_PREFILLED] = value }
     private var inReplyTo: String? = null
     private var references: String? = null
+
+    /** True only once [prefill] actually loaded the original mail. A form whose source never
+     *  loaded (prefill failed, or hasn't finished) must never be treated as replacing a draft,
+     *  discarding one, or answering an original it never confirmed. */
+    private var sourceLoaded = false
 
     fun prefill(labels: ComposePrefill.Labels) {
         if (prefilled) return
         prefilled = true
+        runPrefill(labels)
+    }
+
+    /** Re-attempts a [prefill] that failed (Minor #1); bypasses the [prefilled] guard on purpose. */
+    fun retryPrefill(labels: ComposePrefill.Labels) = runPrefill(labels)
+
+    private fun runPrefill(labels: ComposePrefill.Labels) {
         if (mode == ComposeMode.NEW || sourceUid < 0) return
         viewModelScope.launch {
-            _state.update { it.copy(loading = true) }
+            _state.update { it.copy(loading = true, error = null) }
             try {
                 val original = repository.summary(sourceFolder, sourceUid) ?: throw MailError.Protocol("message is gone")
                 val body = repository.body(sourceFolder, sourceUid)
@@ -127,6 +158,11 @@ class SchoolMailComposeViewModel @Inject constructor(
                 } else emptyList()
                 inReplyTo = draft.inReplyTo
                 references = draft.references
+                sourceLoaded = true
+                savedStateHandle[KEY_TO] = draft.to
+                savedStateHandle[KEY_CC] = draft.cc
+                savedStateHandle[KEY_SUBJECT] = draft.subject
+                savedStateHandle[KEY_BODY] = draft.body
                 _state.update {
                     val next = it.copy(
                         loading = false, to = draft.to, cc = draft.cc, subject = draft.subject, body = draft.body,
@@ -141,11 +177,11 @@ class SchoolMailComposeViewModel @Inject constructor(
         }
     }
 
-    fun setTo(value: String) = _state.update { it.copy(to = value, error = null) }
-    fun setCc(value: String) = _state.update { it.copy(cc = value, error = null) }
-    fun setBcc(value: String) = _state.update { it.copy(bcc = value, error = null) }
-    fun setSubject(value: String) = _state.update { it.copy(subject = value) }
-    fun setBody(value: String) = _state.update { it.copy(body = value) }
+    fun setTo(value: String) { savedStateHandle[KEY_TO] = value; _state.update { it.copy(to = value, error = null) } }
+    fun setCc(value: String) { savedStateHandle[KEY_CC] = value; _state.update { it.copy(cc = value, error = null) } }
+    fun setBcc(value: String) { savedStateHandle[KEY_BCC] = value; _state.update { it.copy(bcc = value, error = null) } }
+    fun setSubject(value: String) { savedStateHandle[KEY_SUBJECT] = value; _state.update { it.copy(subject = value) } }
+    fun setBody(value: String) { savedStateHandle[KEY_BODY] = value; _state.update { it.copy(body = value) } }
     fun showCcBcc() = _state.update { it.copy(showCcBcc = true) }
     fun clearError() = _state.update { it.copy(error = null) }
 
@@ -153,6 +189,16 @@ class SchoolMailComposeViewModel @Inject constructor(
         _state.update { s -> s.copy(attachments = s.attachments + list.filter { a -> s.attachments.none { it.id == a.id } }, error = null) }
 
     fun removeAttachment(id: String) = _state.update { s -> s.copy(attachments = s.attachments.filterNot { it.id == id }, error = null) }
+
+    /** Resolves each picked document's metadata off the injected [io] dispatcher (never Main) via
+     *  [pickedAttachmentReader], then merges the results in like any other attachment. */
+    fun addPicked(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        viewModelScope.launch {
+            val picked = withContext(io) { uris.mapNotNull(pickedAttachmentReader::describe) }
+            addAttachments(picked)
+        }
+    }
 
     fun send() {
         val s = _state.value
@@ -164,7 +210,7 @@ class SchoolMailComposeViewModel @Inject constructor(
         val error = when {
             invalid.isNotEmpty() -> ComposeError.InvalidRecipients(invalid)
             to.addresses.isEmpty() && cc.addresses.isEmpty() && bcc.addresses.isEmpty() -> ComposeError.NoRecipient
-            !ComposeRules.fitsSizeLimit(s.body, s.attachments.map { it.sizeBytes }) -> ComposeError.TooLarge
+            !fitsSizeLimit(s) -> ComposeError.TooLarge
             else -> null
         }
         if (error != null) {
@@ -174,9 +220,9 @@ class SchoolMailComposeViewModel @Inject constructor(
         withStaged(onError = { ComposeError.SendFailed(it) }) { attachments ->
             val mail = OutgoingMail(repository.selfAddress(), to.addresses, cc.addresses, bcc.addresses,
                 s.subject.trim(), s.body, attachments, inReplyTo, references)
-            val answered = if (mode == ComposeMode.REPLY || mode == ComposeMode.REPLY_ALL) sourceFolder to sourceUid else null
+            val answered = if (sourceLoaded && (mode == ComposeMode.REPLY || mode == ComposeMode.REPLY_ALL)) sourceFolder to sourceUid else null
             repository.send(mail, answered)
-            if (mode == ComposeMode.DRAFT) discardSentDraft()
+            if (sourceLoaded && mode == ComposeMode.DRAFT) discardSentDraft()
             _state.update { it.copy(done = true) }
         }
     }
@@ -200,20 +246,38 @@ class SchoolMailComposeViewModel @Inject constructor(
     fun saveDraft() {
         val s = _state.value
         if (s.sending || s.loading) return
+        val to = ComposeRules.parseRecipients(s.to)
+        val cc = ComposeRules.parseRecipients(s.cc)
+        val bcc = ComposeRules.parseRecipients(s.bcc)
+        val invalid = to.invalid + cc.invalid + bcc.invalid
+        // A draft may legitimately have no recipients yet -- only a token that couldn't be read
+        // at all, or an over-budget attachment, blocks saving (Minor #2, Important #4).
+        val error = when {
+            invalid.isNotEmpty() -> ComposeError.InvalidRecipients(invalid)
+            !fitsSizeLimit(s) -> ComposeError.TooLarge
+            else -> null
+        }
+        if (error != null) {
+            _state.update { it.copy(error = error) }
+            return
+        }
         withStaged(onError = { ComposeError.DraftFailed(it) }) { attachments ->
-            val mail = OutgoingMail(
-                repository.selfAddress(),
-                ComposeRules.parseRecipients(s.to).addresses,
-                ComposeRules.parseRecipients(s.cc).addresses,
-                ComposeRules.parseRecipients(s.bcc).addresses,
-                s.subject.trim(), s.body, attachments, inReplyTo, references,
-            )
-            repository.saveDraft(mail, replacingUid = if (mode == ComposeMode.DRAFT) sourceUid else null)
+            val mail = OutgoingMail(repository.selfAddress(), to.addresses, cc.addresses, bcc.addresses,
+                s.subject.trim(), s.body, attachments, inReplyTo, references)
+            repository.saveDraft(mail, replacingUid = if (sourceLoaded && mode == ComposeMode.DRAFT) sourceUid else null)
             _state.update { it.copy(done = true, savedDraft = true) }
         }
     }
 
     fun discard() = _state.update { it.copy(done = true) }
+
+    /** [ComposeAttachment.Source.Local] sizes are raw and still need base64 growth; [Source.Original]
+     *  sizes are already the encoded octet count IMAP reported and must be added as-is (Important #5). */
+    private fun fitsSizeLimit(s: UiState): Boolean {
+        val raw = s.attachments.filter { it.source is ComposeAttachment.Source.Local }.map { it.sizeBytes }
+        val encoded = s.attachments.filter { it.source is ComposeAttachment.Source.Original }.map { it.sizeBytes }
+        return ComposeRules.fitsSizeLimit(s.body, raw, encoded)
+    }
 
     /** Downloads carried-over attachments to temp files for the duration of [block], then deletes them. */
     private fun withStaged(onError: (MailError) -> ComposeError, block: suspend (List<OutgoingAttachment>) -> Unit) {
@@ -241,9 +305,22 @@ class SchoolMailComposeViewModel @Inject constructor(
                 if (error is MailError.AuthFailed) account.onAuthFailure()
                 _state.update { it.copy(error = onError(error)) }
             } finally {
-                withContext(io) { staging.deleteRecursively() }
+                // Back is refused while sending (the screen's BackHandler), but this still runs
+                // under NonCancellable like SchoolMailMessageViewModel's own cleanup: a cancelled
+                // job (process death, config change tearing down the nav entry) must not skip
+                // deleting the staged files and leak them into cache/attachments forever.
+                withContext(io + NonCancellable) { staging.deleteRecursively() }
                 _state.update { it.copy(sending = false) }
             }
         }
+    }
+
+    private companion object {
+        const val KEY_TO = "field_to"
+        const val KEY_CC = "field_cc"
+        const val KEY_BCC = "field_bcc"
+        const val KEY_SUBJECT = "field_subject"
+        const val KEY_BODY = "field_body"
+        const val KEY_PREFILLED = "field_prefilled"
     }
 }

@@ -69,11 +69,16 @@ object ComposeRules {
     fun references(original: MailSummary): String? =
         listOfNotNull(original.references, original.messageId).joinToString(" ").trim().ifEmpty { null }
 
+    /** The school server has no SMTPUTF8 (spec A.6): a non-ASCII local part or domain is never
+     *  deliverable here, so compose reports it the same as any other malformed token -- unlike
+     *  [AddressParser] itself, which stays permissive so reading already-delivered mail (whose
+     *  sender compose never chose) still shows a "From" instead of hiding it. */
     fun parseRecipients(input: String): RecipientParse {
         val addresses = mutableListOf<MailAddress>()
         val invalid = mutableListOf<String>()
         AddressParser.splitTopLevel(input).map { it.trim() }.filter { it.isNotEmpty() }.forEach { token ->
-            AddressParser.parseOne(token)?.let(addresses::add) ?: invalid.add(token)
+            val parsed = AddressParser.parseOne(token)
+            if (parsed != null && parsed.address.all { it.code < 0x80 }) addresses.add(parsed) else invalid.add(token)
         }
         return RecipientParse(addresses.distinctBy { it.address.lowercase() }, invalid)
     }
@@ -93,13 +98,22 @@ object ComposeRules {
         return "$display <${a.address}>"
     }
 
-    /** True upper bound on the `text/plain; charset=utf-8` body once encoded
-     *  quoted-printable, plus base64 attachments (76-char lines + CRLF) and a
-     *  header-overhead buffer. */
-    fun estimateEncodedSize(body: String, attachmentBytes: List<Long>): Long {
+    /**
+     * True upper bound on the `text/plain; charset=utf-8` body once encoded quoted-printable,
+     * plus base64 attachments (76-char lines + CRLF) and a header-overhead buffer.
+     *
+     * [attachmentBytes] are raw (decoded) bytes that still need base64 growth applied -- a
+     * locally picked file, not yet encoded. [encodedAttachmentBytes] are already the encoded
+     * octet count a server reported (a forwarded or reopened draft's original attachment, via
+     * IMAP BODYSTRUCTURE): re-applying the base64 growth formula to an already-encoded size
+     * would double-count it and reject attachments that fit comfortably, so those are added to
+     * the total as-is.
+     */
+    fun estimateEncodedSize(body: String, attachmentBytes: List<Long>, encodedAttachmentBytes: List<Long> = emptyList()): Long {
         val text = quotedPrintableUpperBound(body)
-        val attachments = attachmentBytes.sumOf { bytes -> ((bytes + 56) / 57) * 78 + 512 }
-        return text + attachments + 4096
+        val raw = attachmentBytes.sumOf { bytes -> ((bytes + 56) / 57) * 78 + 512 }
+        val encoded = encodedAttachmentBytes.sum()
+        return text + raw + encoded + 4096
     }
 
     /**
@@ -130,6 +144,6 @@ object ComposeRules {
         return total
     }
 
-    fun fitsSizeLimit(body: String, attachmentBytes: List<Long>): Boolean =
-        estimateEncodedSize(body, attachmentBytes) <= MAX_ENCODED_BYTES
+    fun fitsSizeLimit(body: String, attachmentBytes: List<Long>, encodedAttachmentBytes: List<Long> = emptyList()): Boolean =
+        estimateEncodedSize(body, attachmentBytes, encodedAttachmentBytes) <= MAX_ENCODED_BYTES
 }

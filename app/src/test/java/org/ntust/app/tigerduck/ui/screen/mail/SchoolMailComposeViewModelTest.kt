@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
 import androidx.lifecycle.SavedStateHandle
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -35,6 +36,7 @@ class SchoolMailComposeViewModelTest {
     private lateinit var account: MailAccount
     private lateinit var cache: MailCache
     private val labels = ComposePrefill.Labels({ d, s -> "On $d, $s wrote:" }, "-- Forwarded --", { "From: $it" }, { "Date: $it" }, { "Subject: $it" }, { "To: $it" })
+    private val noPicks = PickedAttachmentReader { null }
 
     @Before
     fun setUp() {
@@ -45,8 +47,11 @@ class SchoolMailComposeViewModelTest {
 
     // The same TestDispatcher backs both Dispatchers.Main and the injected @IoDispatcher, so a
     // withContext(io) hop stays synchronous under the test the way SchoolMailMessageViewModelTest does it.
+    private fun handle(mode: ComposeMode, folder: String = "", uid: Long = -1) =
+        SavedStateHandle(mapOf("mode" to mode.name, "folder" to folder, "uid" to uid))
+
     private fun vm(mode: ComposeMode, folder: String = "", uid: Long = -1) =
-        SchoolMailComposeViewModel(SavedStateHandle(mapOf("mode" to mode.name, "folder" to folder, "uid" to uid)), repo, account, cache, main.dispatcher)
+        SchoolMailComposeViewModel(handle(mode, folder, uid), repo, account, cache, noPicks, main.dispatcher)
             .also { it.prefill(labels) }
 
     @Test
@@ -105,6 +110,37 @@ class SchoolMailComposeViewModelTest {
     }
 
     @Test
+    fun `a non-ASCII recipient is reported invalid and nothing is sent`() {
+        val vm = vm(ComposeMode.NEW)
+        vm.setTo("中文@x.tw")
+        vm.send()
+        assertEquals(ComposeError.InvalidRecipients(listOf("中文@x.tw")), vm.state.value.error)
+        assertTrue(repo.sent.isEmpty())
+    }
+
+    @Test
+    fun `a forwarded attachment's already-encoded size is not grown again`() {
+        repo.add("INBOX", mailSummary(5, hasAttachments = true))
+        repo.bodies[5] = MailBody(null, "body", listOf(MailAttachment("2", "big.pdf", "application/pdf", 49L * 1024 * 1024, null)), emptyMap())
+        val vm = vm(ComposeMode.FORWARD, "INBOX", 5)
+        vm.setTo("x@y.tw")
+        vm.send()
+        assertEquals(null, vm.state.value.error)
+        assertTrue(vm.state.value.done)
+    }
+
+    @Test
+    fun `a forwarded attachment still over budget without double counting is rejected`() {
+        repo.add("INBOX", mailSummary(5, hasAttachments = true))
+        repo.bodies[5] = MailBody(null, "body", listOf(MailAttachment("2", "big.pdf", "application/pdf", 51L * 1024 * 1024, null)), emptyMap())
+        val vm = vm(ComposeMode.FORWARD, "INBOX", 5)
+        vm.setTo("x@y.tw")
+        vm.send()
+        assertEquals(ComposeError.TooLarge, vm.state.value.error)
+        assertTrue(repo.sent.isEmpty())
+    }
+
+    @Test
     fun `a failed send keeps everything on screen`() {
         repo.sendError = MailError.Network()
         val vm = vm(ComposeMode.NEW)
@@ -132,6 +168,123 @@ class SchoolMailComposeViewModelTest {
         sending.send()
         assertEquals(listOf(9L), repo.discardedDrafts)
         assertEquals(null, repo.sent.single().second)
+    }
+
+    @Test
+    fun `saveDraft reports an invalid recipient instead of silently dropping it`() {
+        val vm = vm(ComposeMode.NEW)
+        vm.setTo("not an address, ok@x.tw")
+        vm.saveDraft()
+        assertEquals(ComposeError.InvalidRecipients(listOf("not an address")), vm.state.value.error)
+        assertTrue(repo.drafts.isEmpty())
+    }
+
+    @Test
+    fun `saveDraft applies the same total-size check as send`() {
+        val vm = vm(ComposeMode.NEW)
+        vm.addAttachments(listOf(ComposeAttachment("big", "big.bin", "application/octet-stream", 60_000_000,
+            ComposeAttachment.Source.Local { ByteArrayInputStream(ByteArray(0)) })))
+        vm.saveDraft()
+        assertEquals(ComposeError.TooLarge, vm.state.value.error)
+        assertTrue(repo.drafts.isEmpty())
+    }
+
+    @Test
+    fun `a FolderChanged discarding the sent draft still ends in done with no send failure`() {
+        repo.add("草稿匣", mailSummary(9, subject = "draft", to = listOf(MailAddress(null, "a@x.tw"))))
+        repo.bodies[9] = MailBody(null, "draft body", emptyList(), emptyMap())
+        repo.discardDraftError = MailError.FolderChanged()
+        val vm = vm(ComposeMode.DRAFT, "草稿匣", 9)
+        vm.send()
+        assertTrue(vm.state.value.done)
+        assertEquals(null, vm.state.value.error)
+        assertEquals(1, repo.sent.size)
+    }
+
+    @Test
+    fun `cancellation while discarding the sent draft is not swallowed as a send failure`() {
+        repo.add("草稿匣", mailSummary(9, subject = "draft", to = listOf(MailAddress(null, "a@x.tw"))))
+        repo.bodies[9] = MailBody(null, "draft body", emptyList(), emptyMap())
+        repo.discardDraftError = CancellationException("cancelled")
+        val vm = vm(ComposeMode.DRAFT, "草稿匣", 9)
+        vm.send()
+        // The CancellationException unwinds past the final "done = true" update and is never
+        // mapped through onError -- a cancelled coroutine is not "best effort".
+        assertFalse(vm.state.value.done)
+        assertEquals(null, vm.state.value.error)
+    }
+
+    @Test
+    fun `a failed prefill shows the error with fields untouched, and retry re-attempts it`() {
+        repo.add("INBOX", mailSummary(5, subject = "期中考"))
+        repo.bodyError = MailError.Network()
+        val vm = vm(ComposeMode.REPLY, "INBOX", 5)
+        assertTrue(vm.state.value.error is ComposeError.LoadFailed)
+        assertFalse(vm.state.value.loading)
+        assertEquals("", vm.state.value.to)
+
+        repo.bodyError = null
+        repo.bodies[5] = MailBody(null, "line1", emptyList(), emptyMap())
+        vm.retryPrefill(labels)
+        assertEquals(null, vm.state.value.error)
+        assertEquals("教務處 <office@mail.ntust.edu.tw>", vm.state.value.to)
+    }
+
+    @Test
+    fun `sending a reply whose source never loaded does not mark any original answered`() {
+        repo.add("INBOX", mailSummary(5, subject = "期中考"))
+        repo.bodyError = MailError.Network()
+        val vm = vm(ComposeMode.REPLY, "INBOX", 5)
+        assertTrue(vm.state.value.error is ComposeError.LoadFailed)
+        vm.setTo("x@y.tw")
+        vm.send()
+        assertEquals(null, repo.sent.single().second)
+    }
+
+    @Test
+    fun `saving a draft whose source never loaded creates a new draft instead of replacing it`() {
+        repo.add("草稿匣", mailSummary(9, subject = "draft", to = listOf(MailAddress(null, "a@x.tw"))))
+        repo.bodyError = MailError.Network()
+        val vm = vm(ComposeMode.DRAFT, "草稿匣", 9)
+        assertTrue(vm.state.value.error is ComposeError.LoadFailed)
+        vm.setTo("x@y.tw")
+        vm.saveDraft()
+        assertEquals(null, repo.drafts.single().second)
+    }
+
+    @Test
+    fun `sending from a draft whose source never loaded does not discard it`() {
+        repo.add("草稿匣", mailSummary(9, subject = "draft", to = listOf(MailAddress(null, "a@x.tw"))))
+        repo.bodyError = MailError.Network()
+        val vm = vm(ComposeMode.DRAFT, "草稿匣", 9)
+        assertTrue(vm.state.value.error is ComposeError.LoadFailed)
+        vm.setTo("x@y.tw")
+        vm.send()
+        assertTrue(repo.discardedDrafts.isEmpty())
+    }
+
+    @Test
+    fun `fields and the prefilled flag survive process death via SavedStateHandle`() {
+        repo.add("INBOX", mailSummary(5, subject = "期中考"))
+        repo.bodies[5] = MailBody(null, "line1", emptyList(), emptyMap())
+        val savedState = handle(ComposeMode.REPLY, "INBOX", 5)
+        val vm1 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
+        vm1.prefill(labels)
+        assertEquals("教務處 <office@mail.ntust.edu.tw>", vm1.state.value.to)
+        vm1.setBody("我加的內容")
+
+        // A fresh ViewModel over the SAME handle simulates process death + restore. Attachments
+        // need not survive; the typed text and the "already prefilled" flag must.
+        val vm2 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
+        assertEquals("教務處 <office@mail.ntust.edu.tw>", vm2.state.value.to)
+        assertEquals("我加的內容", vm2.state.value.body)
+
+        // Emptying the mailbox proves a second prefill() call never re-ran: the "prefilled" flag
+        // itself was restored from the handle, so this stays a no-op instead of re-fetching (and,
+        // since the mail is now "gone", failing).
+        repo.mail.clear()
+        vm2.prefill(labels)
+        assertEquals(null, vm2.state.value.error)
     }
 
     @Test

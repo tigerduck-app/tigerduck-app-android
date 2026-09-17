@@ -27,10 +27,7 @@ object AddressParser {
         return if (looksLikeAddress(s)) MailAddress(null, s) else null
     }
 
-    /** The school server has no SMTPUTF8 (spec A.6): a non-ASCII local part or domain is never a
-     *  deliverable address here, so it is rejected the same as any other malformed token -- both
-     *  for an incoming header (best-effort display only) and for what compose lets the user send. */
-    fun looksLikeAddress(s: String): Boolean = ADDRESS.matches(s) && s.all { it.code < 0x80 }
+    fun looksLikeAddress(s: String): Boolean = ADDRESS.matches(s)
 
     /** Splits on `,` or `;` that are outside quotes and angle brackets. */
     internal fun splitTopLevel(s: String): List<String> {

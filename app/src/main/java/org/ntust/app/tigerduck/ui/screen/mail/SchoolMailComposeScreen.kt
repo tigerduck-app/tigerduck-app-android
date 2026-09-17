@@ -1,8 +1,5 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
-import android.content.Context
-import android.net.Uri
-import android.provider.OpenableColumns
 import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -11,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -56,13 +54,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.mail.ComposeMode
-import org.ntust.app.tigerduck.mail.mime.TextCleaning
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.ComposeError
 import org.ntust.app.tigerduck.ui.screen.settings.SubSettingsBarHeight
 import org.ntust.app.tigerduck.util.replaceIosArg
-import java.io.IOException
 
 /** Spec §6.4 — SubscriptionRuleEditorScreen's full-screen editor with Send in the top bar. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,30 +74,38 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
     val dateLabel = stringResource(R.string.school_mail_forward_date)
     val subjectLabel = stringResource(R.string.school_mail_forward_subject)
     val toLabel = stringResource(R.string.school_mail_details_to)
-    LaunchedEffect(Unit) {
-        viewModel.prefill(
-            ComposePrefill.Labels(
-                quoteHeader = { date, sender -> quoteHeader.replaceIosArg(1, date).replaceIosArg(2, sender) },
-                forwardedHeader = forwardedHeader,
-                from = { fromLabel.replaceIosArg(1, it) },
-                date = { dateLabel.replaceIosArg(1, it) },
-                subject = { subjectLabel.replaceIosArg(1, it) },
-                to = { toLabel.replaceIosArg(1, it) },
-            ),
-        )
-    }
+    val labels = ComposePrefill.Labels(
+        quoteHeader = { date, sender -> quoteHeader.replaceIosArg(1, date).replaceIosArg(2, sender) },
+        forwardedHeader = forwardedHeader,
+        from = { fromLabel.replaceIosArg(1, it) },
+        date = { dateLabel.replaceIosArg(1, it) },
+        subject = { subjectLabel.replaceIosArg(1, it) },
+        to = { toLabel.replaceIosArg(1, it) },
+    )
+    LaunchedEffect(Unit) { viewModel.prefill(labels) }
     LaunchedEffect(state.done) {
         if (!state.done) return@LaunchedEffect
         if (state.savedDraft) Toast.makeText(context, R.string.school_mail_saved, Toast.LENGTH_SHORT).show()
         onDone()
     }
 
-    val leave = { if (state.dirty && !state.sending) showLeave = true else onDone() }
+    // While sending, back (and the nav-up icon, which shares this) does nothing: popping the
+    // screen mid-send would clear the ViewModel and cancel the send, the original would never be
+    // marked answered, a sent draft would never be discarded, and a failure would have nowhere to
+    // show (spec §8.4).
+    val leave = {
+        when {
+            state.sending -> Unit
+            state.dirty -> showLeave = true
+            else -> onDone()
+        }
+    }
     BackHandler(onBack = leave)
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        viewModel.addAttachments(uris.mapNotNull { describe(context, it) })
+        viewModel.addPicked(uris)
     }
+    val fieldsEnabled = !state.sending && !state.loading
 
     Scaffold(
         topBar = {
@@ -125,7 +129,7 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
                     }
                 },
                 actions = {
-                    IconButton(onClick = { picker.launch(arrayOf("*/*")) }, enabled = !state.sending) {
+                    IconButton(onClick = { picker.launch(arrayOf("*/*")) }, enabled = fieldsEnabled) {
                         Icon(Icons.Filled.AttachFile, contentDescription = stringResource(R.string.school_mail_add_attachment))
                     }
                     if (state.sending) {
@@ -146,20 +150,20 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
             if (state.loading) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             }
-            state.error?.let { ErrorText(it) }
-            RecipientField(stringResource(R.string.school_mail_to), state.to, viewModel::setTo, enabled = !state.sending)
+            state.error?.let { ErrorText(it, onRetryLoad = { viewModel.retryPrefill(labels) }) }
+            RecipientField(stringResource(R.string.school_mail_to), state.to, viewModel::setTo, enabled = fieldsEnabled)
             if (state.showCcBcc) {
-                RecipientField(stringResource(R.string.school_mail_cc), state.cc, viewModel::setCc, enabled = !state.sending)
-                RecipientField(stringResource(R.string.school_mail_bcc), state.bcc, viewModel::setBcc, enabled = !state.sending)
+                RecipientField(stringResource(R.string.school_mail_cc), state.cc, viewModel::setCc, enabled = fieldsEnabled)
+                RecipientField(stringResource(R.string.school_mail_bcc), state.bcc, viewModel::setBcc, enabled = fieldsEnabled)
             } else {
-                TextButton(onClick = viewModel::showCcBcc) { Text(stringResource(R.string.school_mail_show_cc_bcc)) }
+                TextButton(onClick = viewModel::showCcBcc, enabled = fieldsEnabled) { Text(stringResource(R.string.school_mail_show_cc_bcc)) }
             }
             OutlinedTextField(
                 value = state.subject,
                 onValueChange = viewModel::setSubject,
                 label = { Text(stringResource(R.string.school_mail_subject)) },
                 singleLine = true,
-                enabled = !state.sending,
+                enabled = fieldsEnabled,
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
             )
@@ -167,7 +171,7 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
                 value = state.body,
                 onValueChange = viewModel::setBody,
                 label = { Text(stringResource(R.string.school_mail_body)) },
-                enabled = !state.sending,
+                enabled = fieldsEnabled,
                 minLines = 10,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 240.dp),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
@@ -178,8 +182,12 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
                     Spacer(Modifier.width(8.dp))
                     Column(Modifier.weight(1f)) {
                         Text(attachment.fileName, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        // An original (server) attachment's sizeBytes is already the *encoded*
+                        // octet count -- shown as an approximate decoded size (base64's 3/4 ratio)
+                        // so the row reads like the actual file size, not the wire size.
+                        val displaySize = if (attachment.source is ComposeAttachment.Source.Original) attachment.sizeBytes * 3 / 4 else attachment.sizeBytes
                         Text(
-                            Formatter.formatShortFileSize(context, attachment.sizeBytes),
+                            Formatter.formatShortFileSize(context, displaySize),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.outline,
                         )
@@ -221,7 +229,7 @@ private fun RecipientField(label: String, value: String, onChange: (String) -> U
 }
 
 @Composable
-private fun ErrorText(error: ComposeError) {
+private fun ErrorText(error: ComposeError, onRetryLoad: () -> Unit) {
     val text = when (error) {
         is ComposeError.InvalidRecipients -> stringResource(R.string.school_mail_invalid_recipients).replaceIosArg(1, error.tokens.joinToString(", "))
         ComposeError.NoRecipient -> stringResource(R.string.school_mail_no_recipient)
@@ -230,28 +238,12 @@ private fun ErrorText(error: ComposeError) {
         is ComposeError.DraftFailed -> stringResource(error.error.messageRes())
         is ComposeError.LoadFailed -> stringResource(error.error.messageRes())
     }
-    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-}
-
-/** Name, size and type of a picked document; the stream opens only when sending. */
-private fun describe(context: Context, uri: Uri): ComposeAttachment? {
-    val resolver = context.contentResolver
-    var name: String? = null
-    var size = -1L
-    runCatching {
-        resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
-            if (c.moveToFirst()) {
-                name = c.getString(0)
-                if (!c.isNull(1)) size = c.getLong(1)
+    Column {
+        Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        if (error is ComposeError.LoadFailed) {
+            TextButton(onClick = onRetryLoad, contentPadding = PaddingValues(0.dp)) {
+                Text(stringResource(R.string.action_retry))
             }
         }
     }
-    if (size < 0) size = runCatching { resolver.openAssetFileDescriptor(uri, "r")?.use { it.length } }.getOrNull() ?: 0L
-    return ComposeAttachment(
-        id = uri.toString(),
-        fileName = TextCleaning.clean(name).ifBlank { "attachment" },
-        contentType = resolver.getType(uri) ?: "application/octet-stream",
-        sizeBytes = size,
-        source = ComposeAttachment.Source.Local { resolver.openInputStream(uri) ?: throw IOException("cannot open $uri") },
-    )
 }

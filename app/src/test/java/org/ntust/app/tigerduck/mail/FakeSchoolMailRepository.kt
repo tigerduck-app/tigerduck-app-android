@@ -33,6 +33,8 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     val discardedDrafts = mutableListOf<Long>()
     val sentAttachments = mutableListOf<List<Pair<String, String>>>()
     var sendError: MailError? = null
+    /** Any [Throwable], not just [MailError] -- lets a test inject a [kotlinx.coroutines.CancellationException] too. */
+    var discardDraftError: Throwable? = null
     var self = MailAddress("測試", "b10000001@mail.ntust.edu.tw")
     var raw = "Subject: x\r\n\r\nraw"
     var size = 1_000L
@@ -128,6 +130,7 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     }
 
     override suspend fun discardDraft(uid: Long) {
+        discardDraftError?.let { throw it }
         discardedDrafts += uid
     }
 

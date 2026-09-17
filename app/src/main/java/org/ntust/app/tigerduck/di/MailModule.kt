@@ -29,6 +29,8 @@ import org.ntust.app.tigerduck.mail.sync.ExactAlarmAccess
 import org.ntust.app.tigerduck.mail.sync.MailAlarmScheduler
 import org.ntust.app.tigerduck.mail.sync.MailBackgroundScheduler
 import org.ntust.app.tigerduck.mail.sync.MailClock
+import org.ntust.app.tigerduck.ui.screen.mail.ContentResolverAttachmentReader
+import org.ntust.app.tigerduck.ui.screen.mail.PickedAttachmentReader
 import java.io.File
 import javax.inject.Singleton
 
@@ -87,4 +89,7 @@ abstract class MailBindings {
 
     @Binds
     abstract fun demo(impl: AssetsMailDemoGate): MailDemoGate
+
+    @Binds
+    abstract fun pickedAttachmentReader(impl: ContentResolverAttachmentReader): PickedAttachmentReader
 }

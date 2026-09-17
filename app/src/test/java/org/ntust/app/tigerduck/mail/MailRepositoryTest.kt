@@ -216,6 +216,44 @@ class MailRepositoryTest {
     }
 
     @Test
+    fun `discardDraft permanently removes a sent draft`() = runTest {
+        val repo = TestSetup(backgroundScope).signedIn()
+        val draft = OutgoingMail(repo.selfAddress(), emptyList(), emptyList(), emptyList(), "draft", "x")
+        repo.saveDraft(draft, replacingUid = null)
+        val uid = server.folders.getValue("草稿匣").single().summary.uid
+        repo.discardDraft(uid)
+        assertTrue(server.subjects("草稿匣").isEmpty())
+    }
+
+    @Test
+    fun `discardDraft is a no-op in demo mode`() = runTest {
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn("B10000099", "demo")
+        val opensBefore = server.opens
+        repo.discardDraft(1001)
+        assertEquals(opensBefore, server.opens)
+    }
+
+    @Test
+    fun `discardDraft returns quietly when there is no drafts folder`() = runTest {
+        server.folders.remove("草稿匣")
+        val repo = TestSetup(backgroundScope).signedIn()
+        repo.discardDraft(42) // must not throw
+    }
+
+    @Test
+    fun `discardDraft records the draft as ours when the expunge fails after flagging`() = runTest {
+        val repo = TestSetup(backgroundScope).signedIn()
+        val draft = OutgoingMail(repo.selfAddress(), emptyList(), emptyList(), emptyList(), "draft", "x")
+        repo.saveDraft(draft, replacingUid = null)
+        val uid = server.folders.getValue("草稿匣").single().summary.uid
+        server.failAfterFlag = true
+        val result = runCatching { repo.discardDraft(uid) }
+        assertTrue(result.exceptionOrNull() is MailError.Network)
+        assertEquals(setOf(uid), state.ownedDeleted("草稿匣", server.uidValidity))
+    }
+
+    @Test
     fun `the demo mailbox is served without any connection`() = runTest {
         val setup = TestSetup(backgroundScope)
         val repo = setup.signedIn("B10000099", "demo")

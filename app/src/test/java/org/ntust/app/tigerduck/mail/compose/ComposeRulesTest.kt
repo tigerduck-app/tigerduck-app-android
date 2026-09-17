@@ -81,10 +81,28 @@ class ComposeRulesTest {
     }
 
     @Test
+    fun `a non-ASCII address is reported invalid -- the school server has no SMTPUTF8`() {
+        val parsed = ComposeRules.parseRecipients("中文@x.tw, 王小明 <a@中文.tw>, ok@x.tw")
+        assertEquals(listOf("ok@x.tw"), parsed.addresses.map { it.address })
+        assertEquals(listOf("中文@x.tw", "王小明 <a@中文.tw>"), parsed.invalid)
+    }
+
+    @Test
     fun `size limit counts base64 growth`() {
         assertTrue(ComposeRules.fitsSizeLimit("hi", listOf(30L * 1024 * 1024)))
         assertFalse(ComposeRules.fitsSizeLimit("hi", listOf(38L * 1024 * 1024)))
         assertFalse(ComposeRules.fitsSizeLimit("hi", listOf(20L * 1024 * 1024, 20L * 1024 * 1024)))
+    }
+
+    @Test
+    fun `an already-encoded attachment size is added as-is, not grown again`() {
+        // 49 MB of already-encoded bytes fits: growing it again (as if it were still raw) would
+        // put it near 67 MB and wrongly reject it.
+        assertTrue(ComposeRules.fitsSizeLimit("hi", emptyList(), listOf(49L * 1024 * 1024)))
+        assertFalse(ComposeRules.fitsSizeLimit("hi", emptyList(), listOf(51L * 1024 * 1024)))
+        // Mixing a raw (locally picked) attachment with an encoded (forwarded) one applies
+        // growth to only the raw one.
+        assertTrue(ComposeRules.fitsSizeLimit("hi", listOf(1024L), listOf(49L * 1024 * 1024)))
     }
 
     @Test

@@ -39,12 +39,13 @@ class AddressParserTest {
     }
 
     @Test
-    fun `a non-ASCII local part or domain is rejected -- the school server has no SMTPUTF8`() {
-        assertFalse(AddressParser.looksLikeAddress("中文@x.tw"))
-        assertFalse(AddressParser.looksLikeAddress("a@中文.tw"))
-        assertNull(AddressParser.parseOne("中文@x.tw"))
-        assertNull(AddressParser.parseOne("王小明 <a@中文.tw>"))
-        // A non-ASCII display name is unaffected -- only the address itself must be ASCII.
-        assertEquals(MailAddress("王小明", "a@x.tw"), AddressParser.parseOne("王小明 <a@x.tw>"))
+    fun `a non-ASCII address still parses -- only compose rejects it for sending`() {
+        // An incoming header with a non-ASCII local part or domain must still show a sender:
+        // rejecting it here would hide the mail's "From" behind "no sender". ComposeRules is
+        // what refuses to send to one (the school server has no SMTPUTF8).
+        assertTrue(AddressParser.looksLikeAddress("中文@x.tw"))
+        assertTrue(AddressParser.looksLikeAddress("a@中文.tw"))
+        assertEquals(MailAddress(null, "中文@x.tw"), AddressParser.parseOne("中文@x.tw"))
+        assertEquals(MailAddress("王小明", "a@中文.tw"), AddressParser.parseOne("王小明 <a@中文.tw>"))
     }
 }
