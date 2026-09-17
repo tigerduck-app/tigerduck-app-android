@@ -63,11 +63,14 @@ fun MailWebView(
                     }
 
                     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-                        // The main frame is intentionally NOT exempted here: loadDataWithBaseURL
-                        // injects the document directly rather than issuing a resource request,
-                        // so this is never called for it, and any subsequent main-frame
-                        // navigation is already stopped one layer up by
-                        // shouldOverrideUrlLoading -- this stays the fallback, not a bypass.
+                        // loadDataWithBaseURL(null, document, ...) below DOES reach here as a
+                        // main-frame `data:` request (Chromium's own
+                        // testLoadDataWithBaseUrlTriggersShouldInterceptRequest confirms this) --
+                        // the mail renders only because of the `data:` exemption right below, not
+                        // because the main frame is skipped. Removing that exemption would blank
+                        // every mail. A later main-frame navigation away from the loaded document
+                        // is stopped one layer up, by shouldOverrideUrlLoading, before it would
+                        // ever reach here as a followable request.
                         if (request.url.scheme == "data") return null
                         if (SchoolMailMessageViewModel.normalizedHref(request.url.toString()) in allowed) return null
                         return WebResourceResponse("text/plain", "utf-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(ByteArray(0)))

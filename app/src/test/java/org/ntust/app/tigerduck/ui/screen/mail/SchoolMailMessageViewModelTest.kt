@@ -320,7 +320,7 @@ class SchoolMailMessageViewModelTest {
     }
 
     @Test
-    fun `a failed save runs the cleanup callback instead of leaving a partial document`() {
+    fun `a write that fails after a stream was opened runs the cleanup callback`() {
         val att = MailAttachment("2", "a.pdf", "application/pdf", 10, null)
         repo.add("INBOX", mailSummary(5, hasAttachments = true))
         repo.bodies[5] = MailBody(null, "x", listOf(att), emptyMap())
@@ -334,6 +334,37 @@ class SchoolMailMessageViewModelTest {
         assertTrue(vm.state.value.actionError is MailError.Network)
         assertEquals(0, vm.state.value.savedCount)
         assertTrue(vm.state.value.downloading.isEmpty())
+    }
+
+    @Test
+    fun `open() returning null never runs the cleanup callback`() {
+        // ACTION_CREATE_DOCUMENT can hand back a Uri the user picked to overwrite an existing
+        // file; if the provider then fails to open it (open() returns null here), nothing was
+        // ever touched, so deleting would destroy a file the user never asked to lose.
+        val att = MailAttachment("2", "a.pdf", "application/pdf", 10, null)
+        repo.add("INBOX", mailSummary(5, hasAttachments = true))
+        repo.bodies[5] = MailBody(null, "x", listOf(att), emptyMap())
+        val vm = vm()
+        vm.load()
+        var cleanedUp = false
+        vm.saveAttachment(att, open = { null }, onFailure = { cleanedUp = true })
+        assertFalse(cleanedUp)
+        assertTrue(vm.state.value.actionError is MailError.Protocol)
+        assertEquals(0, vm.state.value.savedCount)
+    }
+
+    @Test
+    fun `open() throwing never runs the cleanup callback`() {
+        val att = MailAttachment("2", "a.pdf", "application/pdf", 10, null)
+        repo.add("INBOX", mailSummary(5, hasAttachments = true))
+        repo.bodies[5] = MailBody(null, "x", listOf(att), emptyMap())
+        val vm = vm()
+        vm.load()
+        var cleanedUp = false
+        vm.saveAttachment(att, open = { throw MailError.Protocol("provider unavailable") }, onFailure = { cleanedUp = true })
+        assertFalse(cleanedUp)
+        assertTrue(vm.state.value.actionError is MailError.Protocol)
+        assertEquals(0, vm.state.value.savedCount)
     }
 
     // --- link verdict: href normalization -----------------------------------------------
@@ -398,6 +429,79 @@ class SchoolMailMessageViewModelTest {
     }
 
     @Test
+    fun `link verdict matches an underscore host, which java-net-URI refuses to parse`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(
+            """<p><a href="https://A_B.Evil.EXAMPLE">ntust.edu.tw</a></p>""",
+            null,
+            emptyList(),
+            emptyMap(),
+        )
+        val vm = vm()
+        vm.load()
+
+        val verdict = vm.linkVerdict("https://a_b.evil.example/")
+        assertTrue(verdict.mismatch)
+        assertEquals("ntust.edu.tw", verdict.shownHost)
+        assertEquals("a_b.evil.example", verdict.host)
+    }
+
+    @Test
+    fun `link verdict matches a backslash path the way WebView folds it to a slash`() {
+        // WHATWG: for a "special" scheme (http/https), a backslash anywhere in the URL is
+        // equivalent to a forward slash -- WebView hands back the folded form on tap.
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(
+            """<p><a href="https://evil.example\ntust">ntust.edu.tw</a></p>""",
+            null,
+            emptyList(),
+            emptyMap(),
+        )
+        val vm = vm()
+        vm.load()
+
+        val verdict = vm.linkVerdict("https://evil.example/ntust")
+        assertTrue(verdict.mismatch)
+        assertEquals("ntust.edu.tw", verdict.shownHost)
+        assertEquals("evil.example", verdict.host)
+    }
+
+    @Test
+    fun `link verdict matches a raw space in the path against Chromium's percent-encoded form`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(
+            """<p><a href="https://evil.example/A B">ntust.edu.tw</a></p>""",
+            null,
+            emptyList(),
+            emptyMap(),
+        )
+        val vm = vm()
+        vm.load()
+
+        val verdict = vm.linkVerdict("https://evil.example/A%20B")
+        assertTrue(verdict.mismatch)
+        assertEquals("ntust.edu.tw", verdict.shownHost)
+    }
+
+    @Test
+    fun `a link verdict for an href no sanitized link matches never raises a mismatch`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(
+            """<p><a href="https://ntust.edu.tw">ntust.edu.tw</a></p>""",
+            null,
+            emptyList(),
+            emptyMap(),
+        )
+        val vm = vm()
+        vm.load()
+
+        val verdict = vm.linkVerdict("https://somewhere-else.example/")
+        assertFalse(verdict.mismatch)
+        assertNull(verdict.shownHost)
+        assertEquals("somewhere-else.example", verdict.host)
+    }
+
+    @Test
     fun `a decoy link sharing the same href does not hide a mismatch another link with it raises`() {
         // spec A.4.2: the first <a> with this href is innocuous (text matches where it goes);
         // the second is a decoy claiming to be ntust.edu.tw while sharing the same target.
@@ -440,6 +544,40 @@ class SchoolMailMessageViewModelTest {
         vm.delete()
         assertTrue(vm.state.value.actionError is MailError.FolderChanged)
         assertFalse(vm.state.value.closed)
+    }
+
+    // --- normalizedHref: direct asserts for the image-URL allowlist (MailWebView) -----------
+
+    @Test
+    fun `normalizedHref matches Chromium's form for an uppercase host`() {
+        assertEquals(
+            SchoolMailMessageViewModel.normalizedHref("http://example.com/"),
+            SchoolMailMessageViewModel.normalizedHref("HTTP://Example.COM"),
+        )
+    }
+
+    @Test
+    fun `normalizedHref matches Chromium's form for an empty path`() {
+        assertEquals(
+            SchoolMailMessageViewModel.normalizedHref("https://example.com/"),
+            SchoolMailMessageViewModel.normalizedHref("https://example.com"),
+        )
+    }
+
+    @Test
+    fun `normalizedHref matches Chromium's percent-encoded form for a non-ASCII path`() {
+        assertEquals(
+            SchoolMailMessageViewModel.normalizedHref("https://example.com/caf%C3%A9"),
+            SchoolMailMessageViewModel.normalizedHref("https://example.com/café"),
+        )
+    }
+
+    @Test
+    fun `normalizedHref matches Chromium's percent-encoded form for a space in the path`() {
+        assertEquals(
+            SchoolMailMessageViewModel.normalizedHref("https://example.com/a%20b"),
+            SchoolMailMessageViewModel.normalizedHref("https://example.com/a b"),
+        )
     }
 
     // --- safeFileName ----------------------------------------------------------------------

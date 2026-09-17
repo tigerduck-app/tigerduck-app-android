@@ -34,7 +34,6 @@ import org.ntust.app.tigerduck.mail.warning.MailWarnings
 import java.io.File
 import java.io.OutputStream
 import java.net.IDN
-import java.net.URI
 import java.net.URLDecoder
 import java.util.UUID
 import javax.inject.Inject
@@ -228,18 +227,33 @@ class SchoolMailMessageViewModel @Inject constructor(
      * A decoy link sharing the same normalized href as a legitimate one must not hide a mismatch
      * (spec A.4.2): every link matching [href] is evaluated, and if any of them mismatches, that
      * one wins. When no link matches at all -- a normalization gap, or a navigation that isn't
-     * from any `<a>` the sanitizer kept -- there is no display text to compare, which is a
-     * different situation from a real `<a href>` with genuinely empty text; either way
-     * [MailWarnings.checkLink] never raises a mismatch for empty text (`HOST_LIKE` cannot match
-     * ""), so both are safe, but the "no match" case is kept explicit here rather than silently
-     * folded into "empty text".
+     * from any `<a>` the sanitizer kept -- there is no display text to compare against, so
+     * [noMatchVerdict] answers directly rather than reaching [MailWarnings.checkLink] through an
+     * incidental empty-string call: it still reports the href's own host/insecure/punycode, just
+     * never a mismatch, since there was never any claimed link text to be wrong about.
      */
     fun linkVerdict(href: String): LinkVerdict {
         val key = normalizedHref(href)
         val links = (_state.value.content as? Content.Ready)?.html?.links.orEmpty().filter { normalizedHref(it.href) == key }
-        if (links.isEmpty()) return MailWarnings.checkLink(text = "", href = href)
+        if (links.isEmpty()) return noMatchVerdict(href)
         val verdicts = links.map { MailWarnings.checkLink(it.text, href) }
         return verdicts.firstOrNull { it.mismatch } ?: verdicts.first()
+    }
+
+    /** See [linkVerdict]: no sanitized link shares this href, so there is nothing to mismatch. */
+    private fun noMatchVerdict(href: String): LinkVerdict {
+        val trimmedHref = href.trim()
+        if (trimmedHref.startsWith("mailto:", ignoreCase = true)) {
+            return LinkVerdict(
+                host = trimmedHref.substringAfter(':').substringBefore('?'),
+                shownHost = null,
+                mismatch = false,
+                punycode = false,
+                insecure = false,
+            )
+        }
+        val host = parseUrl(trimmedHref)?.host.orEmpty()
+        return LinkVerdict(host = host, shownHost = null, mismatch = false, punycode = "xn--" in host, insecure = trimmedHref.startsWith("http://", ignoreCase = true))
     }
 
     // --- attachments --------------------------------------------------------------------
@@ -328,21 +342,29 @@ class SchoolMailMessageViewModel @Inject constructor(
      * [open] and [onFailure] both do real IO -- opening (and, on failure, deleting) a document
      * the caller resolved from a SAF `Uri` is a binder call into whatever app owns that document
      * provider -- so both run on [io], not the caller's dispatcher.
+     *
+     * `ACTION_CREATE_DOCUMENT` can hand back a `Uri` the user picked to *overwrite* an existing
+     * file, so [onFailure] must only run once a stream was actually obtained from [open]: if
+     * [open] itself throws or returns null, nothing was touched yet, and deleting would destroy
+     * a file the user never asked to lose. Only a write that starts (a stream was opened) and
+     * then fails runs the cleanup.
      */
     fun saveAttachment(attachment: MailAttachment, open: () -> OutputStream?, onFailure: () -> Unit = {}) {
         if (attachment.partId in _state.value.downloading) return
         act {
             update { it.copy(downloading = it.downloading + attachment.partId) }
+            var opened = false
             var committed = false
             try {
                 withContext(io) {
                     val out = open() ?: throw MailError.Protocol("no output stream")
+                    opened = true
                     out.use { repository.writeAttachment(folder, uid, attachment.partId, it) }
                 }
                 committed = true
                 update { it.copy(savedCount = it.savedCount + 1) }
             } finally {
-                if (!committed) withContext(io + NonCancellable) { onFailure() }
+                if (opened && !committed) withContext(io + NonCancellable) { onFailure() }
                 update { it.copy(downloading = it.downloading - attachment.partId) }
             }
         }
@@ -452,37 +474,70 @@ class SchoolMailMessageViewModel @Inject constructor(
             return s.substring(0, end)
         }
 
+        /**
+         * Lenient like [MailWarnings]' own host extraction (`URL_HOST`): the host is "whatever
+         * comes after `scheme://[userinfo@]` up to the next `/`, `?`, `#` or `:`", never
+         * validated against `java.net.URI`'s stricter reg-name grammar. `URI.getHost()` returns
+         * null for a host `java.net.URI` refuses to parse -- an underscore is enough -- which
+         * previously fell through this whole function to a "different from everything" fallback
+         * instead of comparing against **a** host, the same host WebView itself reports.
+         */
+        private val URL_PARTS = Regex(
+            """^([a-zA-Z][a-zA-Z0-9+.-]*)://(?:[^/?#@]*@)?([^/?#:]*)(?::([0-9]*))?([^?#]*)(\?[^#]*)?(#.*)?$""",
+        )
+
         // scheme://[userinfo@]host[:port|/path|?query|#fragment...], host captured separately so
-        // it can be punycode-encoded before java.net.URI ever sees it (see normalizedHref).
+        // it can be punycode-encoded before URL_PARTS ever sees it (see parseUrl).
         private val AUTHORITY_HOST = Regex("""^([a-zA-Z][a-zA-Z0-9+.-]*://(?:[^/?#@]*@)?)([^/?#:]+)(.*)$""", RegexOption.DOT_MATCHES_ALL)
+
+        private val SCHEME_PREFIX = Regex("""^([a-zA-Z][a-zA-Z0-9+.-]*):""")
+
+        private data class UrlParts(val scheme: String, val host: String, val port: Int?, val path: String, val query: String, val fragment: String)
+
+        /**
+         * Splits [raw] the way [normalizedHref] needs, or null for anything that isn't a
+         * `scheme://...` URL (e.g. `mailto:`, which [LinkVerdict] callers handle separately) or
+         * ends up with no host at all. Two WebView/Chromium quirks are folded in before the
+         * lenient host/path split, since a mail's own un-normalized markup needs to match the
+         * href WebView hands back on tap:
+         * - for a "special" scheme (`http`/`https`), a backslash anywhere in the URL is
+         *   equivalent to a forward slash (WHATWG URL Standard) -- `https://evil.example\ntust`
+         *   is `https://evil.example/ntust`, not a URL with a literal backslash in its path;
+         * - a Unicode host is punycode-encoded ([IDN.toASCII]) so it matches the ASCII form
+         *   WebView always reports.
+         */
+        private fun parseUrl(raw: String): UrlParts? {
+            val trimmed = raw.trim()
+            val scheme = SCHEME_PREFIX.find(trimmed)?.groupValues?.get(1)?.lowercase()
+            val backslashFolded = if (scheme == "http" || scheme == "https") trimmed.replace('\\', '/') else trimmed
+            val ascii = toAsciiAuthority(backslashFolded)
+            val m = URL_PARTS.find(ascii) ?: return null
+            val parsedScheme = m.groupValues[1].lowercase()
+            val host = m.groupValues[2].lowercase()
+            if (host.isEmpty()) return null
+            val port = m.groupValues[3].takeIf { it.isNotEmpty() }?.toIntOrNull()?.takeIf { it != defaultPort(parsedScheme) }
+            val path = canonicalPath(m.groupValues[4]).ifEmpty { "/" }
+            val query = m.groupValues[5].takeIf { it.isNotEmpty() }?.let { "?" + canonicalPath(it.removePrefix("?")) }.orEmpty()
+            val fragment = m.groupValues[6].takeIf { it.isNotEmpty() }?.let { "#" + canonicalPath(it.removePrefix("#")) }.orEmpty()
+            return UrlParts(parsedScheme, host, port, path, query, fragment)
+        }
 
         /**
          * A same-URL key tolerant of WebView's own URL normalization: lowercase scheme and host
-         * (the host additionally run through [IDN.toASCII] so a Unicode host in the mail's own
-         * markup matches the punycode form WebView always hands back on tap), "/" for an empty
-         * path, default http(s) port dropped, percent-encoding decoded, and leading/trailing
-         * whitespace trimmed. Falls back to a trimmed, lowercased copy of the raw string for
-         * anything [URI] can't parse (or that has no scheme/host, e.g. `mailto:`) so those still
-         * compare equal when identical.
+         * -- **never** the path, which stays case-sensitive -- "/" for an empty path, default
+         * http(s) port dropped, and the path/query/fragment run through [canonicalPath] so a raw
+         * space or non-ASCII character compares equal to Chromium's percent-encoded form of the
+         * same character. Falls back to a trimmed, lowercased copy of the raw string for anything
+         * that isn't a `scheme://...` URL at all (e.g. `mailto:`) so those still compare equal
+         * when identical.
          */
         internal fun normalizedHref(raw: String): String {
             val trimmed = raw.trim()
-            // java.net.URI's authority parser only accepts an ASCII host -- unlike the path,
-            // query and fragment, it does not treat a Unicode "other" character as legal there,
-            // so it fails to find a host at all (falling through to the raw-string fallback
-            // below) for a mail's own Unicode markup unless the host is punycode-encoded first.
-            val uri = runCatching { URI(toAsciiAuthority(trimmed)) }.getOrNull()
-            val scheme = uri?.scheme?.lowercase()
-            val host = uri?.host?.lowercase()
-            if (uri == null || scheme == null || host == null) return trimmed.lowercase()
-            val port = uri.port.takeIf { it != -1 && it != defaultPort(scheme) }
-            val path = decodePercent(uri.rawPath.let { if (it.isNullOrEmpty()) "/" else it })
-            val query = uri.rawQuery?.let { "?${decodePercent(it)}" }.orEmpty()
-            val fragment = uri.rawFragment?.let { "#${decodePercent(it)}" }.orEmpty()
+            val parts = parseUrl(trimmed) ?: return trimmed.lowercase()
             return buildString {
-                append(scheme).append("://").append(host)
-                if (port != null) append(':').append(port)
-                append(path).append(query).append(fragment)
+                append(parts.scheme).append("://").append(parts.host)
+                if (parts.port != null) append(':').append(parts.port)
+                append(parts.path).append(parts.query).append(parts.fragment)
             }
         }
 
@@ -500,5 +555,31 @@ class SchoolMailMessageViewModel @Inject constructor(
         }
 
         private fun decodePercent(s: String): String = runCatching { URLDecoder.decode(s.replace("+", "%2B"), "UTF-8") }.getOrDefault(s)
+
+        // Unreserved (RFC 3986) plus the sub-delims and structural characters a path, query or
+        // fragment carries literally; everything else -- space, control characters, quotes,
+        // angle/curly brackets and any non-ASCII byte -- is exactly what Chromium's own percent-
+        // encode sets cover, so it's percent-encoded here the same way.
+        private const val PATH_SAFE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!$&'()*+,;=:@/?#"
+
+        /**
+         * Decodes any existing percent-encoding first, then re-encodes: this way a raw space, a
+         * raw non-ASCII character and an already-percent-encoded form of either all converge on
+         * the identical canonical output, the way Chromium's own URL canonicalization does,
+         * instead of only matching when both sides happened to already agree on encoding.
+         */
+        private fun canonicalPath(raw: String): String {
+            if (raw.isEmpty()) return raw
+            val decoded = decodePercent(raw)
+            val bytes = decoded.toByteArray(Charsets.UTF_8)
+            val needsEncoding = bytes.any { (it.toInt() and 0xFF).toChar() !in PATH_SAFE }
+            if (!needsEncoding) return decoded
+            return buildString {
+                for (byte in bytes) {
+                    val c = (byte.toInt() and 0xFF)
+                    if (c.toChar() in PATH_SAFE) append(c.toChar()) else append('%').append("%02X".format(c))
+                }
+            }
+        }
     }
 }
