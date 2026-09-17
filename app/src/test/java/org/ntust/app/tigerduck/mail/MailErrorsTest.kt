@@ -25,22 +25,36 @@ class MailErrorsTest {
     fun `a full mailbox server is busy, not a rejected password`() {
         // Spec §12.3 keeps them apart: a busy server is retried next round, while a rejected
         // password cancels every background check and asks the user to sign in again. Mail2000
-        // reports both as an authentication failure.
+        // reports both as an authentication failure, so only the RFC 5530 response codes and
+        // two unambiguous phrasings count as busy.
         val busy = listOf(
             "NO [UNAVAILABLE] Too many connections",
             "NO [LIMIT] maximum number of connections reached",
-            "NO [INUSE] mailbox busy, try again later",
+            "NO [INUSE] mailbox is in use, try again later",
+            "NO too many connections from this address",
+            "NO connection limit reached for this user",
         )
         busy.forEach { reply ->
             assertTrue(reply, MailErrors.classify(AuthenticationFailedException(reply)) is MailError.ServerBusy)
         }
+        // The same list is what the generic fallback uses for a non-Authentication failure.
+        assertTrue(MailErrors.classify(MessagingException("NO Too many connections")) is MailError.ServerBusy)
     }
 
     @Test
     fun `an ordinary rejection stays a rejected password`() {
-        // The safe default: the server's exact wording is unverified, so anything that isn't a
-        // recognized busy reply must keep stopping the retries.
-        listOf("", "LOGIN failed", "NO Authentication failed", "invalid credentials").forEach { reply ->
+        // Fail closed: the server's exact wording is unverified, so anything that is not an
+        // unambiguous busy reply must keep stopping the retries -- including the ones that only
+        // *sound* like "not now". "Please try again" is what a rejection says as well.
+        listOf(
+            "",
+            "LOGIN failed",
+            "LOGIN failed, please try again",
+            "NO Authentication failed",
+            "NO mailbox busy",
+            "invalid credentials",
+            "NO maximum login attempts exceeded",
+        ).forEach { reply ->
             assertTrue(reply, MailErrors.classify(AuthenticationFailedException(reply)) is MailError.AuthFailed)
         }
         // A wrapper's wording must not turn a rejected password into "just busy" either.

@@ -32,13 +32,17 @@ sealed class MailError(message: String, cause: Throwable? = null) : Exception(me
 
 object MailErrors {
     /**
-     * How a mailbox server says "not now" rather than "wrong password": the IMAP
-     * response codes plus the wording Mail2000-style servers use. Mail2000's exact
-     * reply for an over-quota connection is unverified, so this only ever downgrades
-     * a match to [MailError.ServerBusy] -- anything unrecognized stays
-     * [MailError.AuthFailed], which is the safe default (it stops the retries).
+     * How a mailbox server says "not now" rather than "wrong password": the RFC 5530
+     * response codes, plus the only two phrasings that can mean nothing else.
+     *
+     * Deliberately narrow. Mail2000's exact reply for a refused connection is
+     * unverified, and a marker that is merely *likely* to mean "busy" is far more
+     * dangerous than one that is missing: "please try again" or "busy" also appear in
+     * genuine rejections, and reading one of those as a busy server would keep
+     * re-sending a password the server has already rejected -- the §7.4 harm. Anything
+     * unrecognized therefore stays [MailError.AuthFailed], which stops the retries.
      */
-    private val BUSY_MARKERS = listOf("[unavailable]", "[limit]", "[inuse]", "too many", "busy", "try again", "maximum")
+    private val BUSY_MARKERS = listOf("[unavailable]", "[limit]", "[inuse]", "too many connections", "connection limit")
 
     private fun looksBusy(message: String?): Boolean {
         val text = message?.lowercase() ?: return false
@@ -57,7 +61,8 @@ object MailErrors {
                 // cancels every background check and asks the user to sign in again.
                 // Only this exception's own message is inspected -- that is where the
                 // server's tagged NO text lands, and a wrapper's wording must never
-                // turn a genuinely rejected password into "just busy".
+                // turn a genuinely rejected password into "just busy". Unrecognized
+                // wording fails closed, as AuthFailed.
                 is AuthenticationFailedException ->
                     return if (looksBusy(current.message)) MailError.ServerBusy(t) else MailError.AuthFailed(t)
                 is SSLPeerUnverifiedException, is SSLHandshakeException,
