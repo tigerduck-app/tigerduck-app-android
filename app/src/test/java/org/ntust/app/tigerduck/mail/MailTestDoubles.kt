@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.mail
 
+import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.model.MailFlags
@@ -43,6 +44,20 @@ class FakeDemoGate(override var appDemoActive: Boolean = false) : MailDemoGate {
                 MailSummary(1001, MailAddress("教務處", "office@mail.ntust.edu.tw"), emptyList(), emptyList(), emptyList(),
                     "期中考時間公告", null, null, MailFlags.NONE, 100, false, "<d1@x>", null, null),
                 MailBody("<p>期中考</p>", "期中考", emptyList(), emptyMap()),
+            ),
+            DemoMail(
+                MailSummary(1002, MailAddress("示範同學", "b10000099@mail.ntust.edu.tw"), emptyList(),
+                    listOf(MailAddress("系辦公室", "office2@mail.ntust.edu.tw")), emptyList(),
+                    "詢問事項", null, null, MailFlags.NONE.copy(seen = true, draft = true), 50, false, "<d2@x>", null, null),
+                MailBody(null, "詢問內容", emptyList(), emptyMap()),
+                folder = SpecialFolder.DRAFTS,
+            ),
+            DemoMail(
+                MailSummary(1003, MailAddress("示範同學", "b10000099@mail.ntust.edu.tw"), emptyList(),
+                    listOf(MailAddress("教務處", "office@mail.ntust.edu.tw")), emptyList(),
+                    "Re: 期中考時間公告", null, null, MailFlags.NONE.copy(seen = true), 50, false, "<d3@x>", null, null),
+                MailBody(null, "收到，謝謝", emptyList(), emptyMap()),
+                folder = SpecialFolder.SENT,
             ),
         ),
     )

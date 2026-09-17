@@ -8,6 +8,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
+import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
 import org.ntust.app.tigerduck.mail.model.MailBody
@@ -17,7 +18,8 @@ import java.time.OffsetDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
 
-data class DemoMail(val summary: MailSummary, val body: MailBody)
+/** [folder] is which of the demo mailbox's folders this lives in -- INBOX unless the fixture says otherwise. */
+data class DemoMail(val summary: MailSummary, val body: MailBody, val folder: SpecialFolder = SpecialFolder.INBOX)
 
 /** The store-review mailbox from assets/demo.json's `mail` section. Never touches a socket. */
 class DemoMailbox(
@@ -69,13 +71,15 @@ object DemoMailFixture {
             )
         }.orEmpty()
         val sentAt = o.get("date")?.asString?.let { runCatching { OffsetDateTime.parse(it).toInstant() }.getOrNull() }
+        val folder = parseFolder(o)
         val summary = MailSummary(
             uid = 1_000L + index,
             from = MailAddress(fromObj.get("name")?.asString, address),
-            replyTo = emptyList(), to = emptyList(), cc = emptyList(),
+            replyTo = emptyList(), to = parseAddresses(o, "to"), cc = parseAddresses(o, "cc"),
             subject = localized(o, "subject", lang),
             sentAt = sentAt, receivedAt = sentAt,
-            flags = MailFlags.NONE.copy(seen = o.get("seen")?.asBoolean ?: false),
+            // A Drafts-folder entry is flagged \Draft the same way a real IMAP append would be.
+            flags = MailFlags.NONE.copy(seen = o.get("seen")?.asBoolean ?: false, draft = folder == SpecialFolder.DRAFTS),
             sizeBytes = 2_048, hasAttachments = attachments.isNotEmpty(),
             messageId = "<demo-$index@${MailServerConfig.DOMAIN}>", inReplyTo = null, references = null,
         )
@@ -85,8 +89,25 @@ object DemoMailFixture {
             attachments = attachments,
             inlineImages = emptyMap(),
         )
-        return DemoMail(summary, body)
+        return DemoMail(summary, body, folder)
     }
+
+    /** Which demo folder a message belongs to; absent or unrecognised means INBOX. */
+    private fun parseFolder(o: JsonObject): SpecialFolder =
+        when (o.get("folder")?.takeIf { it.isJsonPrimitive }?.asString?.trim()?.lowercase()) {
+            "drafts", "draft" -> SpecialFolder.DRAFTS
+            "sent" -> SpecialFolder.SENT
+            "junk" -> SpecialFolder.JUNK
+            "trash" -> SpecialFolder.TRASH
+            else -> SpecialFolder.INBOX
+        }
+
+    private fun parseAddresses(o: JsonObject, key: String): List<MailAddress> =
+        o.get(key)?.takeIf { it.isJsonArray }?.asJsonArray?.mapNotNull { el ->
+            val a = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+            val address = a.get("address")?.asString ?: return@mapNotNull null
+            MailAddress(a.get("name")?.asString, address)
+        }.orEmpty()
 
     /** A plain string or a `{"zh", "en"}` pair, falling back to the other language rather than blank. */
     private fun localized(o: JsonObject, key: String, lang: String): String {

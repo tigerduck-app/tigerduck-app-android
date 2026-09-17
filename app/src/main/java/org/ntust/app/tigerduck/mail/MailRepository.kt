@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.mime.MailCharsets
 import org.ntust.app.tigerduck.mail.model.FolderStatus
 import org.ntust.app.tigerduck.mail.model.MailAddress
+import org.ntust.app.tigerduck.mail.model.MailAttachment
 import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.model.MailFlags
 import org.ntust.app.tigerduck.mail.model.MailPage
@@ -27,6 +28,7 @@ import org.ntust.app.tigerduck.mail.store.MailStateStore
 import org.ntust.app.tigerduck.mail.store.toModel
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -82,6 +84,11 @@ class MailRepository @Inject constructor(
     @Volatile private var resolved: ResolvedFolders? = null
     private val demoFolders = mutableMapOf<String, MutableList<DemoMail>>()
 
+    /** Next UID handed to a demo message composed in this session (draft save, or a sent copy) --
+     *  guarded by [demoFolders]'s monitor alongside every other demo mutation. Well above the
+     *  fixture's own `1_000 + index` range so the two never collide. */
+    private var demoUidSeq = 9_000L
+
     init {
         // A signed-out account must never keep an authenticated socket open,
         // and a fresh sign-in must never see the previous account's cached
@@ -91,7 +98,7 @@ class MailRepository @Inject constructor(
                 if (!signedIn) {
                     withContext(Dispatchers.IO) { holder.closeNow() }
                     resolved = null
-                    synchronized(demoFolders) { demoFolders.clear() }
+                    synchronized(demoFolders) { demoFolders.clear(); demoUidSeq = 9_000L }
                 }
             }
         }
@@ -106,8 +113,15 @@ class MailRepository @Inject constructor(
 
     // --- demo -------------------------------------------------------------------
 
+    /** Seeds every folder the fixture names (spec §7.6's reviewer mailbox) from [MailDemoGate],
+     *  not just INBOX -- so Drafts and Sent show their demo content instead of starting empty. */
     private fun ensureDemoSeeded() {
-        if (demoFolders.isEmpty()) demoFolders["INBOX"] = demo.mailbox().messages.toMutableList()
+        if (demoFolders.isNotEmpty()) return
+        val messages = demo.mailbox().messages
+        SpecialFolder.entries.forEach { special ->
+            val name = DEMO_FOLDERS.nameOf(special) ?: return@forEach
+            demoFolders[name] = messages.filter { it.folder == special }.toMutableList()
+        }
     }
 
     /** A synchronized snapshot of [folder]'s demo mail; mutate only via [demoMutate] or the dedicated `synchronized` blocks below. */
@@ -130,6 +144,25 @@ class MailRepository @Inject constructor(
             val i = list.indexOfFirst { it.summary.uid == uid }
             if (i >= 0) list[i] = list[i].copy(summary = transform(list[i].summary))
         }
+    }
+
+    /** Turns what the compose screen is about to save or send into a [DemoMail] -- entirely in
+     *  memory, under a fresh [demoUidSeq] UID; never touches the network or the real cache. */
+    private fun demoOutgoingMail(mail: OutgoingMail, draft: Boolean): DemoMail {
+        val uid = synchronized(demoFolders) { demoUidSeq++ }
+        val now = Instant.now()
+        val attachments = mail.attachments.mapIndexed { i, a ->
+            MailAttachment(partId = "${i + 2}", fileName = a.fileName, contentType = a.contentType, sizeBytes = a.sizeBytes, contentId = null)
+        }
+        val summary = MailSummary(
+            uid = uid, from = mail.from, replyTo = emptyList(), to = mail.to, cc = mail.cc,
+            subject = mail.subject, sentAt = now, receivedAt = now,
+            flags = MailFlags.NONE.copy(seen = true, draft = draft),
+            sizeBytes = mail.body.length.toLong(), hasAttachments = attachments.isNotEmpty(),
+            messageId = "<demo-out-$uid@${MailServerConfig.DOMAIN}>", inReplyTo = mail.inReplyTo, references = mail.references,
+        )
+        val body = MailBody(html = null, plain = mail.body, attachments = attachments, inlineImages = emptyMap())
+        return DemoMail(summary, body, if (draft) SpecialFolder.DRAFTS else SpecialFolder.SENT)
     }
 
     // --- folders & lists -----------------------------------------------------------
@@ -266,7 +299,13 @@ class MailRepository @Inject constructor(
     }
 
     override suspend fun send(mail: OutgoingMail, answered: Pair<String, Long>?) {
-        if (account.isDemo) return
+        if (account.isDemo) {
+            folders().nameOf(SpecialFolder.SENT)?.let { sent ->
+                demoMutate(sent) { it.add(0, demoOutgoingMail(mail, draft = false)) }
+            }
+            answered?.let { (folder, uid) -> demoUpdate(folder, uid) { s -> s.copy(flags = s.flags.copy(answered = true)) } }
+            return
+        }
         val sent = folders().nameOf(SpecialFolder.SENT)
         withContext(Dispatchers.IO) { sender.send(credentials(), mail, sent) }
         answered?.let { (folder, uid) ->
@@ -283,7 +322,17 @@ class MailRepository @Inject constructor(
     }
 
     override suspend fun saveDraft(mail: OutgoingMail, replacingUid: Long?) {
-        if (account.isDemo) return
+        if (account.isDemo) {
+            val drafts = folders().nameOf(SpecialFolder.DRAFTS) ?: return
+            val entry = demoOutgoingMail(mail, draft = true)
+            // Like the real append-then-delete-old below, saving over a draft is a fresh UID, not
+            // an in-place edit -- so this matches what re-fetching from the server would show.
+            demoMutate(drafts) { list ->
+                if (replacingUid != null) list.removeAll { it.summary.uid == replacingUid }
+                list.add(0, entry)
+            }
+            return
+        }
         val drafts = folders().nameOf(SpecialFolder.DRAFTS) ?: throw MailError.Protocol("no drafts folder")
         val bytes = withContext(Dispatchers.IO) { builder.build(mail).toBytes() }
         withSession { it.append(drafts, bytes, setOf(AppendFlag.SEEN, AppendFlag.DRAFT)) }
@@ -293,7 +342,11 @@ class MailRepository @Inject constructor(
     }
 
     override suspend fun discardDraft(uid: Long) {
-        if (account.isDemo) return
+        if (account.isDemo) {
+            val drafts = folders().nameOf(SpecialFolder.DRAFTS) ?: return
+            demoMutate(drafts) { it.removeAll { m -> m.summary.uid == uid } }
+            return
+        }
         val drafts = folders().nameOf(SpecialFolder.DRAFTS) ?: return
         runExpunging(drafts, uid) { session, owned -> session.deletePermanently(drafts, uid, owned) }
     }

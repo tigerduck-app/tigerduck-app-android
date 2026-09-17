@@ -13,7 +13,6 @@ import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -284,13 +283,60 @@ class MailRepositoryTest {
     }
 
     @Test
-    fun `summary is null for a demo draft, since saveDraft never actually persists one in demo mode`() = runTest {
-        val setup = TestSetup(backgroundScope)
-        val repo = setup.signedIn("B10000099", "demo")
-        val draft = OutgoingMail(repo.selfAddress(), emptyList(), emptyList(), emptyList(), "d", "x")
-        repo.saveDraft(draft, replacingUid = null) // no-op in demo mode -- see MailRepository.saveDraft
-        assertNull(repo.summary("草稿匣", 9001))
+    fun `the demo mailbox seeds Drafts and Sent from the fixture, not just INBOX`() = runTest {
+        val repo = TestSetup(backgroundScope).signedIn("B10000099", "demo")
+        assertEquals(listOf("詢問事項"), repo.cachedPage("草稿匣")!!.messages.map { it.subject })
+        assertEquals(listOf("Re: 期中考時間公告"), repo.cachedPage("寄件備份匣")!!.messages.map { it.subject })
         assertEquals(0, server.opens)
+    }
+
+    @Test
+    fun `opening the seeded demo draft resolves it through summary and body alone, with no page ever loaded first`() = runTest {
+        val repo = TestSetup(backgroundScope).signedIn("B10000099", "demo")
+        val summary = repo.summary("草稿匣", 1002)
+        assertEquals("詢問事項", summary?.subject)
+        assertEquals(listOf("office2@mail.ntust.edu.tw"), summary?.to?.map { it.address })
+        assertEquals("詢問內容", repo.body("草稿匣", 1002).plain)
+        assertEquals(0, server.opens)
+    }
+
+    @Test
+    fun `saving a demo draft replaces the one being edited, and reopening it under its new uid returns the saved content`() = runTest {
+        val repo = TestSetup(backgroundScope).signedIn("B10000099", "demo")
+        val edited = OutgoingMail(repo.selfAddress(), listOf(MailAddress(null, "new@x.tw")), emptyList(), emptyList(), "edited subject", "edited body")
+        repo.saveDraft(edited, replacingUid = 1002)
+
+        val drafts = repo.cachedPage("草稿匣")!!.messages
+        assertEquals(1, drafts.size) // the old draft (1002) is gone, replaced by the new save
+        val newUid = drafts.single().uid
+        assertEquals("edited subject", drafts.single().subject)
+        assertEquals(listOf("new@x.tw"), drafts.single().to.map { it.address })
+
+        assertEquals("edited subject", repo.summary("草稿匣", newUid)?.subject)
+        assertEquals("edited body", repo.body("草稿匣", newUid).plain)
+        assertEquals(0, server.opens)
+    }
+
+    @Test
+    fun `discarding a demo draft removes it from the demo mailbox`() = runTest {
+        val repo = TestSetup(backgroundScope).signedIn("B10000099", "demo")
+        repo.discardDraft(1002)
+        assertTrue(repo.cachedPage("草稿匣")!!.messages.isEmpty())
+        assertEquals(0, server.opens)
+    }
+
+    @Test
+    fun `sending in demo mode appends the outgoing mail to Sent and marks the original answered, without a socket or a real send`() = runTest {
+        val repo = TestSetup(backgroundScope).signedIn("B10000099", "demo")
+        repo.send(
+            OutgoingMail(repo.selfAddress(), listOf(MailAddress(null, "a@x.tw")), emptyList(), emptyList(), "reply subject", "reply body"),
+            answered = "INBOX" to 1001,
+        )
+        val sentFolder = repo.cachedPage("寄件備份匣")!!.messages
+        assertEquals(listOf("reply subject", "Re: 期中考時間公告"), sentFolder.map { it.subject })
+        assertTrue(repo.summary("INBOX", 1001)!!.flags.answered)
+        assertEquals(0, server.opens)
+        assertTrue(sent.isEmpty()) // the fake SMTP transport was never invoked
     }
 
     @Test

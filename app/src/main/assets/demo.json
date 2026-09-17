@@ -83,6 +83,52 @@
           "zh": "<p>您的信箱容量已滿，24 小時內未完成驗證將停用帳號。</p><p>請點選 <a href=\"https://ntust-mail-verify.com/login\">https://mail.ntust.edu.tw</a> 重新登入並輸入密碼。</p>",
           "en": "<p>Your mailbox is full. Accounts not verified within 24 hours will be suspended.</p><p>Click <a href=\"https://ntust-mail-verify.com/login\">https://mail.ntust.edu.tw</a> to sign in again and enter your password.</p>"
         }
+      },
+      {
+        "folder": "drafts",
+        "from": {
+          "name": "示範同學",
+          "address": "b99999999@mail.ntust.edu.tw"
+        },
+        "to": [
+          {
+            "name": "資訊工程系辦公室",
+            "address": "cs-office@mail.ntust.edu.tw"
+          }
+        ],
+        "subject": {
+          "zh": "詢問轉系申請截止日期",
+          "en": "Question about the transfer application deadline"
+        },
+        "date": "2026-09-16T21:40:00+08:00",
+        "seen": true,
+        "plain": {
+          "zh": "您好，\n\n想請問轉系申請的截止日期是什麼時候呢？謝謝。",
+          "en": "Hello,\n\nCould you tell me the deadline for the department-transfer application? Thank you."
+        }
+      },
+      {
+        "folder": "sent",
+        "from": {
+          "name": "示範同學",
+          "address": "b99999999@mail.ntust.edu.tw"
+        },
+        "to": [
+          {
+            "name": "教務處",
+            "address": "academic@mail.ntust.edu.tw"
+          }
+        ],
+        "subject": {
+          "zh": "Re: 115 學年度第 1 學期期中考試時間公告",
+          "en": "Re: Midterm exam schedule, fall 2026"
+        },
+        "date": "2026-09-14T10:15:00+08:00",
+        "seen": true,
+        "plain": {
+          "zh": "收到，謝謝提醒！",
+          "en": "Got it, thanks for the reminder!"
+        }
       }
     ]
   },
