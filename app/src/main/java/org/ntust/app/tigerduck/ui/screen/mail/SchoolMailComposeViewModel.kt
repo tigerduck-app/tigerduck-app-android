@@ -51,11 +51,11 @@ class ComposeAttachment(
 /**
  * Plain-text compose (spec §6.4, §8.4). A failed send keeps every field; there is no outbox.
  *
- * Nothing here survives process death (round 3 drops that entirely -- it kept producing new
- * state bugs: a blank restore above a persistence cap, restored edits silently losing `dirty`,
- * and prefill re-running on an ordinary Activity recreation and wiping picked files). Losing
- * typed text to a process death while the picker is open is an accepted, ledgered trade-off; the
- * brief never required surviving it.
+ * Nothing here survives process death. Persisting draft state across it is deceptively easy to
+ * get wrong -- a blank restore above a persistence cap, restored edits silently losing `dirty`,
+ * and prefill re-running on an ordinary Activity recreation and wiping picked files are all
+ * failure modes a partial attempt reintroduces. Losing typed text to a process death while the
+ * picker is open is accordingly an accepted, ledgered trade-off.
  */
 @HiltViewModel
 class SchoolMailComposeViewModel @Inject constructor(

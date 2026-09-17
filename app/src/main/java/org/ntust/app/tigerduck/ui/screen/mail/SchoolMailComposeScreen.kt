@@ -135,7 +135,7 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
                     }
                     // A pick still being described/measured off the io dispatcher shows its own
                     // spinner here, distinct from the send spinner -- Send/Save must not run
-                    // against a form whose attachment list isn't done changing yet (Minor #4).
+                    // against a form whose attachment list isn't done changing yet.
                     if (state.pendingPicks > 0) {
                         Box(Modifier.padding(horizontal = 8.dp)) { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
                     }

@@ -13,6 +13,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -263,6 +264,33 @@ class MailRepositoryTest {
         repo.send(OutgoingMail(repo.selfAddress(), listOf(MailAddress(null, "a@x.tw")), emptyList(), emptyList(), "s", "b"), null)
         assertEquals(0, server.opens)
         assertTrue(sent.isEmpty())
+    }
+
+    @Test
+    fun `opening, replying to and forwarding a demo message resolves it through summary and body alone, with no page ever loaded first`() = runTest {
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn("B10000099", "demo")
+        // Nothing has called loadPage/cachedPage yet -- this is the exact order compose prefill
+        // uses (SchoolMailComposeViewModel.runPrefill: summary() then body() then selfAddress()),
+        // for a message screen opened straight from a fresh sign-in.
+        val summary = repo.summary("INBOX", 1001)
+        assertEquals("期中考時間公告", summary?.subject)
+        assertEquals("教務處", summary?.from?.name)
+        val body = repo.body("INBOX", 1001)
+        assertEquals("期中考", body.plain)
+        assertEquals("<p>期中考</p>", body.html)
+        assertEquals(MailAddress("示範同學", "b10000099@mail.ntust.edu.tw"), repo.selfAddress())
+        assertEquals(0, server.opens)
+    }
+
+    @Test
+    fun `summary is null for a demo draft, since saveDraft never actually persists one in demo mode`() = runTest {
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn("B10000099", "demo")
+        val draft = OutgoingMail(repo.selfAddress(), emptyList(), emptyList(), emptyList(), "d", "x")
+        repo.saveDraft(draft, replacingUid = null) // no-op in demo mode -- see MailRepository.saveDraft
+        assertNull(repo.summary("草稿匣", 9001))
+        assertEquals(0, server.opens)
     }
 
     @Test

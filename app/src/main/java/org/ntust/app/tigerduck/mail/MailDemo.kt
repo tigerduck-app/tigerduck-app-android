@@ -62,7 +62,7 @@ object DemoMailFixture {
             val a = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapIndexedNotNull null
             MailAttachment(
                 partId = "${i + 2}",
-                fileName = a.get("name")?.asString ?: return@mapIndexedNotNull null,
+                fileName = localized(a, "name", lang).ifBlank { return@mapIndexedNotNull null },
                 contentType = a.get("type")?.asString ?: "application/octet-stream",
                 sizeBytes = a.get("size")?.asLong ?: 0L,
                 contentId = null,

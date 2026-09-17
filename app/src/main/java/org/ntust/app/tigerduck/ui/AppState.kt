@@ -69,6 +69,7 @@ class AppState @Inject constructor(
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val pushRegistration: org.ntust.app.tigerduck.push.PushRegistrationService,
     private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
+    private val mailAccount: org.ntust.app.tigerduck.mail.MailAccount,
 ) {
     /**
      * Whether the demo account was signed in when this process started.
@@ -512,6 +513,9 @@ class AppState @Inject constructor(
      * silently stops being complete.
      */
     fun performFullReset() {
+        // The mail account is separate from the NTUST sign-in (spec §7.5), but a full reset wipes
+        // everything: its password, caches, alarms and posted notifications.
+        mailAccount.signOut()
         authService.logout()
         scope.launch {
             runCatching { dataCache.clearEverything() }
