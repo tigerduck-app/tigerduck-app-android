@@ -52,14 +52,28 @@ object MailWarnings {
      * unambiguous: `http(s)://`, a host of ASCII letters/digits/-/. only, an optional
      * `:port`, then end of string or `/ ? #`. Anything else (userinfo, backslashes, missing
      * or extra slashes, percent-escapes or non-ASCII in the authority, whitespace) fails this
-     * and must be treated as an outside link by callers (spec A.4 rule 2).
+     * and must be treated as an outside link by callers (spec A.4 rule 3, password bait).
+     *
+     * No `RegexOption.IGNORE_CASE`: that option also turns on Unicode case folding, which
+     * makes `[A-Za-z]` accept lookalikes such as the Kelvin sign (U+212A, folds to `k`),
+     * dotted/dotless I (U+0130/U+0131) and long s (U+017F, folds to `s`, so `httpſ` would
+     * match `https?`) — letting a non-ASCII host or scheme pass as if it were ASCII. The
+     * scheme is spelled out per letter instead so it stays exactly `http`/`https`.
      */
-    private val PLAIN_HTTP_LINK = Regex(
-        "https?://([A-Za-z0-9.-]+)(?::[0-9]+)?(?:[/?#].*)?",
-        RegexOption.IGNORE_CASE,
-    )
+    private val PLAIN_HTTP_LINK = Regex("[Hh][Tt][Tt][Pp][Ss]?://([A-Za-z0-9.-]+)(?::[0-9]+)?(?:[/?#].*)?")
 
     private fun normalize(domain: String) = domain.trim().lowercase().removeSuffix(".")
+
+    /**
+     * WHATWG URL pre-processing `MailWarnings` cannot assume a caller already did: strip
+     * leading C0 controls and space, then remove ASCII tab/CR/LF wherever they occur (not
+     * just at the ends), so a scheme or host split across a control character — e.g.
+     * `ht\ttps://evil.example/` — can't dodge the scheme check or the host parsing below.
+     */
+    private fun sanitizeHref(href: String): String {
+        val leadingStripped = href.dropWhile { it.code <= 0x1F || it == ' ' }
+        return leadingStripped.filterNot { it == '\t' || it == '\r' || it == '\n' }
+    }
 
     /** The first email-shaped match in [text], with a sentence-ending `.` trimmed off. */
     private fun firstEmail(text: String): String? = EMAIL.find(text)?.value?.trimEnd('.')
@@ -96,7 +110,7 @@ object MailWarnings {
         val text = TextCleaning.stripBidi("$subject\n$plainText").lowercase()
         val keyword = KEYWORDS.any { it in text }
         val outsideLink = links.any { link ->
-            val href = link.href.trim()
+            val href = sanitizeHref(link.href).trim()
             href.startsWith("http", ignoreCase = true) && !isPlainSchoolLink(href)
         }
         if (keyword && (external || outsideLink)) warnings += MailWarning.PasswordBait
@@ -130,7 +144,7 @@ object MailWarnings {
     }
 
     fun checkLink(text: String, href: String): LinkVerdict {
-        val trimmedHref = href.trim()
+        val trimmedHref = sanitizeHref(href).trim()
         if (trimmedHref.startsWith("mailto:", ignoreCase = true)) {
             val actual = trimmedHref.substringAfter(':').substringBefore('?')
             val shown = firstEmail(text)
@@ -163,10 +177,12 @@ object MailWarnings {
     }
 
     /**
-     * Browser-style host extraction (spec A.4 rule 1). For `http`/`https` (scheme
-     * case-insensitive): after `scheme:`, skip any run of `/` and `\`; the authority ends at
-     * the first `/`, `\`, `?` or `#`; userinfo ends at the LAST `@` inside the authority; the
-     * host is what remains before a `:port`. Other schemes keep the legacy regex.
+     * Browser-style host extraction (spec A.4 rule 2, link mismatch). For `http`/`https`
+     * (scheme case-insensitive): after `scheme:`, skip any run of `/` and `\`; the authority
+     * ends at the first `/`, `\`, `?` or `#`; userinfo ends at the LAST `@` inside the
+     * authority; the host is what remains before a `:port` (an IPv6 literal keeps its `[...]`
+     * brackets instead of being cut at the first `:` inside them). Other schemes keep the
+     * legacy regex.
      */
     private fun hostOf(href: String): String? {
         val schemeMatch = SCHEME.find(href)
@@ -189,7 +205,13 @@ object MailWarnings {
             }
         }
         val authority = href.substring(i, end)
-        val host = authority.substringAfterLast('@').substringBefore(':')
+        val afterUserinfo = authority.substringAfterLast('@')
+        val host = if (afterUserinfo.startsWith("[")) {
+            val closing = afterUserinfo.indexOf(']')
+            if (closing >= 0) afterUserinfo.substring(0, closing + 1) else afterUserinfo
+        } else {
+            afterUserinfo.substringBefore(':')
+        }
         return host.takeIf { it.isNotBlank() }?.let { toAscii(normalize(it)) }
     }
 }

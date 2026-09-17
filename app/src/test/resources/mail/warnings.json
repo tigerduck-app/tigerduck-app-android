@@ -25,7 +25,11 @@
     {"name": "password bait: missing slashes after the scheme", "from_address": "cc@mail.ntust.edu.tw", "from_name": null, "subject": "Password expiry", "text": "Reset your password here", "links": [{"text": "here", "href": "https:evil.example/login"}], "attachments": [], "expect": ["password_bait"]},
     {"name": "password bait: percent-escape in the host", "from_address": "cc@mail.ntust.edu.tw", "from_name": null, "subject": "Password expiry", "text": "Reset your password here", "links": [{"text": "here", "href": "https://%65vil.example/"}], "attachments": [], "expect": ["password_bait"]},
     {"name": "password bait: plain school link is not outside", "from_address": "cc@mail.ntust.edu.tw", "from_name": null, "subject": "Password expiry", "text": "Reset your password here", "links": [{"text": "here", "href": "https://www.ntust.edu.tw/login"}], "attachments": [], "expect": []},
-    {"name": "password bait: plain school link with port, upper case scheme", "from_address": "cc@mail.ntust.edu.tw", "from_name": null, "subject": "Password expiry", "text": "Reset your password here", "links": [{"text": "here", "href": "HTTPS://NTUST.EDU.TW:443/x"}], "attachments": [], "expect": []}
+    {"name": "password bait: plain school link with port, upper case scheme", "from_address": "cc@mail.ntust.edu.tw", "from_name": null, "subject": "Password expiry", "text": "Reset your password here", "links": [{"text": "here", "href": "HTTPS://NTUST.EDU.TW:443/x"}], "attachments": [], "expect": []},
+    {"name": "password bait: userinfo on a school host is still outside", "from_address": "cc@mail.ntust.edu.tw", "from_name": null, "subject": "Password expiry", "text": "Reset your password here", "links": [{"text": "here", "href": "https://user@ntust.edu.tw/"}], "attachments": [], "expect": ["password_bait"]},
+    {"name": "password bait: missing slashes on a school host is still outside", "from_address": "cc@mail.ntust.edu.tw", "from_name": null, "subject": "Password expiry", "text": "Reset your password here", "links": [{"text": "here", "href": "https:ntust.edu.tw/"}], "attachments": [], "expect": ["password_bait"]},
+    {"name": "password bait: Kelvin sign is not ASCII K", "from_address": "cc@mail.ntust.edu.tw", "from_name": null, "subject": "Password expiry", "text": "Reset your password here", "links": [{"text": "here", "href": "https://\u212a.ntust.edu.tw/"}], "attachments": [], "expect": ["password_bait"]},
+    {"name": "password bait: a tab inside the scheme still reaches an outside host", "from_address": "cc@mail.ntust.edu.tw", "from_name": null, "subject": "Password expiry", "text": "Reset your password here", "links": [{"text": "here", "href": "ht\u0009tps://evil.example/"}], "attachments": [], "expect": ["password_bait"]}
   ],
   "links": [
     {"name": "matching host", "text": "https://www.ntust.edu.tw", "href": "https://www.ntust.edu.tw/home", "expect": []},
@@ -39,6 +43,8 @@
     {"name": "mailto match", "text": "cc@mail.ntust.edu.tw", "href": "mailto:cc@mail.ntust.edu.tw", "expect": []},
     {"name": "mailto mismatch", "text": "cc@mail.ntust.edu.tw", "href": "mailto:phish@evil.example", "expect": ["mismatch:cc@mail.ntust.edu.tw:phish@evil.example"]},
     {"name": "mailto text ends a sentence", "text": "admin@mail.ntust.edu.tw.", "href": "mailto:admin@mail.ntust.edu.tw", "expect": []},
-    {"name": "backslash before @ picks the real host", "text": "ntust.edu.tw", "href": "https://evil.example\\@ntust.edu.tw", "expect": ["mismatch:ntust.edu.tw:evil.example"]}
+    {"name": "backslash before @ picks the real host", "text": "ntust.edu.tw", "href": "https://evil.example\\@ntust.edu.tw", "expect": ["mismatch:ntust.edu.tw:evil.example"]},
+    {"name": "userinfo with an extra @ still resolves to the real host", "text": "ntust.edu.tw", "href": "https://ntust.edu.tw:pa@ss@evil.example/", "expect": ["mismatch:ntust.edu.tw:evil.example"]},
+    {"name": "missing slashes still resolve to the real host", "text": "ntust.edu.tw", "href": "https:evil.example/login", "expect": ["mismatch:ntust.edu.tw:evil.example"]}
   ]
 }
