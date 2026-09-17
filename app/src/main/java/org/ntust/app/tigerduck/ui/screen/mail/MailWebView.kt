@@ -17,7 +17,17 @@ import java.io.ByteArrayInputStream
 /**
  * Spec §9.3. JavaScript, storage, file and content access are off; the network is blocked
  * until the user loads images, and even then only the mail's own `<img>` URLs pass
- * [WebViewClient.shouldInterceptRequest]. Every navigation is a link tap handed to [onLink].
+ * [WebViewClient.shouldInterceptRequest].
+ *
+ * Every `<a href>` in [document] was already rewritten by [MailHtmlDocument.rewriteLinks] to the
+ * synthetic form `https://link.invalid/<n>`, `n` being that link's index into
+ * `SanitizedHtml.links`. [onLink] is called with `n` -- never a URL -- once
+ * [WebViewClient.shouldOverrideUrlLoading] has confirmed the tapped URL is exactly that form
+ * (via [parseLinkIndex]) and `n` is within [linkCount]; matching an index this way, rather than
+ * a URL by any normalized comparison, means no WebView/Chromium canonicalization quirk can ever
+ * cause a tap to be matched to the wrong link or no link at all. Anything else -- a URL that
+ * isn't the synthetic form, an index outside `[0, linkCount)`, any other navigation attempt --
+ * is ignored outright: no dialog, nothing opens, fail closed.
  *
  * [allowedRemoteUrls] must already be normalized with
  * [SchoolMailMessageViewModel.normalizedHref] -- Chromium hands [shouldInterceptRequest] its own
@@ -30,11 +40,13 @@ import java.io.ByteArrayInputStream
 fun MailWebView(
     document: String,
     allowedRemoteUrls: Set<String>,
-    onLink: (String) -> Unit,
+    linkCount: Int,
+    onLink: (index: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val latestOnLink by rememberUpdatedState(onLink)
     val allowed by rememberUpdatedState(allowedRemoteUrls)
+    val currentLinkCount by rememberUpdatedState(linkCount)
     AndroidView(
         modifier = modifier,
         factory = { context ->
@@ -58,7 +70,7 @@ fun MailWebView(
                 }
                 webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                        latestOnLink(request.url.toString())
+                        parseLinkIndex(request.url.toString(), currentLinkCount)?.let(latestOnLink)
                         return true
                     }
 
@@ -87,4 +99,16 @@ fun MailWebView(
         },
         onRelease = { it.destroy() },
     )
+}
+
+// Exactly what MailHtmlDocument.rewriteLinks emits: https://link.invalid/<decimal index>, no
+// leading zeros, no userinfo/port/query/fragment, nothing else. Anything that doesn't match this
+// precisely -- a real href that somehow wasn't rewritten, a redirect, a typo'd scheme -- fails
+// closed rather than being treated as some link.
+private val LINK_URL = Regex("""^https://link\.invalid/(0|[1-9][0-9]*)$""")
+
+/** See [MailWebView]'s doc. Returns the link index only for the exact synthetic form, in range. */
+internal fun parseLinkIndex(url: String, linkCount: Int): Int? {
+    val index = LINK_URL.matchEntire(url)?.groupValues?.get(1)?.toIntOrNull() ?: return null
+    return index.takeIf { it in 0 until linkCount }
 }

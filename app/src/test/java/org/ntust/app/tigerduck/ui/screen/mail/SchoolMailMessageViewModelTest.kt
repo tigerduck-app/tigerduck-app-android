@@ -30,7 +30,7 @@ import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.Content
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.PendingAttachment
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.ViewMode
 import java.io.ByteArrayOutputStream
-import java.net.IDN
+import kotlin.system.measureTimeMillis
 
 class SchoolMailMessageViewModelTest {
     @get:Rule val main = MainDispatcherRule()
@@ -367,15 +367,10 @@ class SchoolMailMessageViewModelTest {
         assertEquals(0, vm.state.value.savedCount)
     }
 
-    // --- link verdict: href normalization -----------------------------------------------
+    // --- link verdict: addressed by index into SanitizedHtml.links, no href matching --------
 
     @Test
-    fun `link verdict matches the sanitized link's text even when the tapped href only differs by WebView normalization`() {
-        // The sanitized HTML kept the href exactly as the mail wrote it: mixed case host, no
-        // trailing slash for the empty path. WebView, on tap, hands back its own normalized
-        // form (lowercase scheme+host, trailing "/"). Without normalized comparison the link's
-        // text would never be found, `checkLink` would see an empty text, and the display-name
-        // mismatch this link should raise would silently vanish.
+    fun `linkVerdict addresses a link by index, reading its own text and href directly`() {
         repo.add("INBOX", mailSummary(5))
         repo.bodies[5] = MailBody(
             """<p><a href="HTTP://Evil.EXAMPLE">bank.example.com</a></p>""",
@@ -386,125 +381,18 @@ class SchoolMailMessageViewModelTest {
         val vm = vm()
         vm.load()
 
-        val verdict = vm.linkVerdict("http://evil.example/")
+        val verdict = vm.linkVerdict(0)
         assertTrue(verdict.mismatch)
         assertEquals("bank.example.com", verdict.shownHost)
         assertEquals("evil.example", verdict.host)
     }
 
     @Test
-    fun `link verdict also matches through percent-encoding and a default port`() {
-        repo.add("INBOX", mailSummary(5))
-        repo.bodies[5] = MailBody(
-            """<p><a href="https://example.com:443/caf%C3%A9">bank.example.com</a></p>""",
-            null,
-            emptyList(),
-            emptyMap(),
-        )
-        val vm = vm()
-        vm.load()
-
-        // WebView drops the explicit default port and may leave the path decoded.
-        val verdict = vm.linkVerdict("  https://example.com/café  ")
-        assertTrue(verdict.mismatch)
-        assertEquals("bank.example.com", verdict.shownHost)
-    }
-
-    @Test
-    fun `link verdict matches an IDN host against the punycode form WebView hands back`() {
-        repo.add("INBOX", mailSummary(5))
-        repo.bodies[5] = MailBody(
-            """<p><a href="https://münchen.example">bank.example.com</a></p>""",
-            null,
-            emptyList(),
-            emptyMap(),
-        )
-        val vm = vm()
-        vm.load()
-
-        val punycode = IDN.toASCII("münchen.example")
-        val verdict = vm.linkVerdict("https://$punycode/")
-        assertTrue(verdict.mismatch)
-        assertEquals("bank.example.com", verdict.shownHost)
-    }
-
-    @Test
-    fun `link verdict matches an underscore host, which java-net-URI refuses to parse`() {
-        repo.add("INBOX", mailSummary(5))
-        repo.bodies[5] = MailBody(
-            """<p><a href="https://A_B.Evil.EXAMPLE">ntust.edu.tw</a></p>""",
-            null,
-            emptyList(),
-            emptyMap(),
-        )
-        val vm = vm()
-        vm.load()
-
-        val verdict = vm.linkVerdict("https://a_b.evil.example/")
-        assertTrue(verdict.mismatch)
-        assertEquals("ntust.edu.tw", verdict.shownHost)
-        assertEquals("a_b.evil.example", verdict.host)
-    }
-
-    @Test
-    fun `link verdict matches a backslash path the way WebView folds it to a slash`() {
-        // WHATWG: for a "special" scheme (http/https), a backslash anywhere in the URL is
-        // equivalent to a forward slash -- WebView hands back the folded form on tap.
-        repo.add("INBOX", mailSummary(5))
-        repo.bodies[5] = MailBody(
-            """<p><a href="https://evil.example\ntust">ntust.edu.tw</a></p>""",
-            null,
-            emptyList(),
-            emptyMap(),
-        )
-        val vm = vm()
-        vm.load()
-
-        val verdict = vm.linkVerdict("https://evil.example/ntust")
-        assertTrue(verdict.mismatch)
-        assertEquals("ntust.edu.tw", verdict.shownHost)
-        assertEquals("evil.example", verdict.host)
-    }
-
-    @Test
-    fun `link verdict matches a raw space in the path against Chromium's percent-encoded form`() {
-        repo.add("INBOX", mailSummary(5))
-        repo.bodies[5] = MailBody(
-            """<p><a href="https://evil.example/A B">ntust.edu.tw</a></p>""",
-            null,
-            emptyList(),
-            emptyMap(),
-        )
-        val vm = vm()
-        vm.load()
-
-        val verdict = vm.linkVerdict("https://evil.example/A%20B")
-        assertTrue(verdict.mismatch)
-        assertEquals("ntust.edu.tw", verdict.shownHost)
-    }
-
-    @Test
-    fun `a link verdict for an href no sanitized link matches never raises a mismatch`() {
-        repo.add("INBOX", mailSummary(5))
-        repo.bodies[5] = MailBody(
-            """<p><a href="https://ntust.edu.tw">ntust.edu.tw</a></p>""",
-            null,
-            emptyList(),
-            emptyMap(),
-        )
-        val vm = vm()
-        vm.load()
-
-        val verdict = vm.linkVerdict("https://somewhere-else.example/")
-        assertFalse(verdict.mismatch)
-        assertNull(verdict.shownHost)
-        assertEquals("somewhere-else.example", verdict.host)
-    }
-
-    @Test
-    fun `a decoy link sharing the same href does not hide a mismatch another link with it raises`() {
-        // spec A.4.2: the first <a> with this href is innocuous (text matches where it goes);
-        // the second is a decoy claiming to be ntust.edu.tw while sharing the same target.
+    fun `a decoy link sharing an href with an innocuous one is flagged only by its own index`() {
+        // spec A.4.2: link 0 is innocuous (text matches where it goes); link 1 shares the same
+        // href but claims to be ntust.edu.tw. Addressing by index means link 1's mismatch is
+        // never hidden behind link 0's clean verdict, and link 0 is never wrongly flagged either
+        // -- there is no href-based lookup left that a decoy could exploit.
         repo.add("INBOX", mailSummary(5))
         repo.bodies[5] = MailBody(
             """<p><a href="http://evil.example">evil.example</a> <a href="http://evil.example">ntust.edu.tw</a></p>""",
@@ -515,9 +403,50 @@ class SchoolMailMessageViewModelTest {
         val vm = vm()
         vm.load()
 
-        val verdict = vm.linkVerdict("http://evil.example/")
-        assertTrue(verdict.mismatch)
-        assertEquals("ntust.edu.tw", verdict.shownHost)
+        assertFalse(vm.linkVerdict(0).mismatch)
+        assertTrue(vm.linkVerdict(1).mismatch)
+        assertEquals("ntust.edu.tw", vm.linkVerdict(1).shownHost)
+        assertEquals("evil.example", vm.linkVerdict(1).host)
+    }
+
+    @Test
+    fun `duplicate hrefs with different texts each map to their own index`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(
+            """<p><a href="https://ntust.edu.tw">first</a> <a href="https://ntust.edu.tw">second</a></p>""",
+            null,
+            emptyList(),
+            emptyMap(),
+        )
+        val vm = vm()
+        vm.load()
+
+        assertFalse(vm.linkVerdict(0).mismatch)
+        assertFalse(vm.linkVerdict(1).mismatch)
+        assertEquals("ntust.edu.tw", vm.linkVerdict(0).host)
+        assertEquals("ntust.edu.tw", vm.linkVerdict(1).host)
+    }
+
+    @Test
+    fun `linkVerdict on an out-of-range index returns a safe non-mismatching fallback instead of crashing`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody("""<p><a href="https://ntust.edu.tw">ntust.edu.tw</a></p>""", null, emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+
+        val verdict = vm.linkVerdict(5)
+        assertFalse(verdict.mismatch)
+        assertNull(verdict.shownHost)
+        assertEquals("", verdict.host)
+    }
+
+    // --- normalizedHref: linear time (this stays only for the remote-image allowlist) -------
+
+    @Test
+    fun `normalizedHref stays linear-time on a hostile fragment`() {
+        val hostile = "https://" + "a".repeat(32_000) + "# x"
+        val elapsed = measureTimeMillis { SchoolMailMessageViewModel.normalizedHref(hostile) }
+        assertTrue("normalizedHref took ${elapsed}ms on a 32k-char hostile fragment", elapsed < 1000)
     }
 
     // --- FolderChanged on move/delete ----------------------------------------------------

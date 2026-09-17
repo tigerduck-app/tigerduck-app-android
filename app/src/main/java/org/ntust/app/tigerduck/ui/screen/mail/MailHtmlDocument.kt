@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
+import org.jsoup.Jsoup
 import org.ntust.app.tigerduck.mail.model.InlineImage
 import java.net.URLDecoder
 import java.util.Base64
@@ -27,6 +28,28 @@ object MailHtmlDocument {
         }
     }
 
+    /**
+     * Replaces every `<a href>` with `https://link.invalid/<n>`, `n` being that link's 0-based
+     * index in document order. This is the same order `HtmlSanitizer.sanitize` built
+     * `SanitizedHtml.links` in (`clean.select("a[href]")`, a document-order traversal): re-running
+     * the identical `a[href]` selection on this already-sanitized markup -- itself the serialized
+     * output of that same `clean` document -- walks the DOM in that identical order again, so the
+     * index written here and the index into `SanitizedHtml.links` the view model reads back always
+     * agree, without either side having to trust the other's count.
+     *
+     * `.invalid` is IANA/RFC 2606 reserved and can never resolve, so a rewritten link that somehow
+     * reached the network anyway (it can't: [MailWebView]'s request interception blocks anything
+     * not on the image allowlist) would still go nowhere. [MailWebView.shouldOverrideUrlLoading]
+     * then answers a tap with the index alone -- never the href -- so no WebView/Chromium URL
+     * canonicalization quirk can cause a tapped link to fail to match its own entry.
+     */
+    fun rewriteLinks(html: String): String {
+        val doc = Jsoup.parseBodyFragment(html)
+        doc.select("a[href]").forEachIndexed { index, element -> element.attr("href", "https://link.invalid/$index") }
+        doc.outputSettings().prettyPrint(false)
+        return doc.body().html()
+    }
+
     fun build(sanitizedHtml: String, images: Map<String, InlineImage>, allowRemoteImages: Boolean): String =
         "<!DOCTYPE html><html><head><meta charset=\"utf-8\">" +
             "<meta http-equiv=\"Content-Security-Policy\" content=\"${csp(allowRemoteImages)}\">" +
@@ -34,7 +57,7 @@ object MailHtmlDocument {
             "<style>html,body{margin:0;padding:0;background:#fff;color:#000}" +
             "body{padding:12px;font-family:sans-serif;overflow-wrap:anywhere}" +
             "img{max-width:100%;height:auto}table{max-width:100%}pre{white-space:pre-wrap}</style>" +
-            "</head><body>${inlineCids(sanitizedHtml, images)}</body></html>"
+            "</head><body>${inlineCids(rewriteLinks(sanitizedHtml), images)}</body></html>"
 
     private fun normalize(id: String) = id.trim().removePrefix("<").removeSuffix(">").lowercase()
 

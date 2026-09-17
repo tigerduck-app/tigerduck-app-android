@@ -103,7 +103,7 @@ fun SchoolMailMessageScreen(
     val context = LocalContext.current
     var menuOpen by remember { mutableStateOf(false) }
     var showMove by remember { mutableStateOf(false) }
-    var pendingLink by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingLink by rememberSaveable { mutableStateOf<Int?>(null) }
     var pendingSavePart by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) { viewModel.load() }
@@ -131,7 +131,10 @@ fun SchoolMailMessageScreen(
         if (uri != null && attachment != null) {
             viewModel.saveAttachment(
                 attachment,
-                open = { context.contentResolver.openOutputStream(uri) },
+                // "wt": write + truncate. Plain "w" leaves a provider free to not truncate, so
+                // overwriting a larger existing file with a smaller attachment would leave its
+                // old trailing bytes in place.
+                open = { context.contentResolver.openOutputStream(uri, "wt") },
                 onFailure = {
                     // Best-effort: not every document provider supports deleting what it just
                     // handed out (some throw UnsupportedOperationException), so a partial write
@@ -247,6 +250,7 @@ fun SchoolMailMessageScreen(
                             MailWebView(
                                 document = document,
                                 allowedRemoteUrls = allowedRemoteUrls,
+                                linkCount = html.links.size,
                                 onLink = { pendingLink = it },
                                 modifier = Modifier.fillMaxWidth(),
                             )
@@ -305,16 +309,23 @@ fun SchoolMailMessageScreen(
         }
     }
 
-    pendingLink?.let { href ->
-        LinkDialog(
-            href = href,
-            verdict = viewModel.linkVerdict(href),
-            onOpen = {
-                pendingLink = null
-                openLink(context, href, browserPreference)
-            },
-            onDismiss = { pendingLink = null },
-        )
+    pendingLink?.let { index ->
+        // ready should always be non-null with a matching link here (MailWebView only calls
+        // onLink with an index it already range-checked against the same html.links.size passed
+        // to it as linkCount); if content somehow changed underneath in between, skip rendering
+        // rather than showing a dialog with nothing to open.
+        val link = ready?.html?.links?.getOrNull(index)
+        if (link != null) {
+            LinkDialog(
+                href = link.href,
+                verdict = viewModel.linkVerdict(index),
+                onOpen = {
+                    pendingLink = null
+                    openLink(context, link.href, browserPreference)
+                },
+                onDismiss = { pendingLink = null },
+            )
+        }
     }
     state.confirmAttachment?.let { pending ->
         // Spec lines 416/653 (「開啟或儲存前再確認一次」): the same confirmation, whether the

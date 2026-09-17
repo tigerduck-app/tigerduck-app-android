@@ -216,44 +216,21 @@ class SchoolMailMessageViewModel @Inject constructor(
     }
 
     /**
-     * [href] comes from the WebView, which normalizes the URL it hands back on tap (lowercase
-     * scheme/host, "/" for an empty path, default port dropped, its own percent-encoding) --
-     * while [org.ntust.app.tigerduck.mail.sanitize.MailLink.href] is exactly what the sanitizer
-     * kept from the mail's own markup. Comparing the two strings directly would miss the link
-     * whenever they differ only by that normalization, silently dropping its display text and,
-     * with it, [MailWarnings.checkLink]'s display-name/link mismatch check -- so both sides are
-     * compared through [normalizedHref] instead of `==`.
-     *
-     * A decoy link sharing the same normalized href as a legitimate one must not hide a mismatch
-     * (spec A.4.2): every link matching [href] is evaluated, and if any of them mismatches, that
-     * one wins. When no link matches at all -- a normalization gap, or a navigation that isn't
-     * from any `<a>` the sanitizer kept -- there is no display text to compare against, so
-     * [noMatchVerdict] answers directly rather than reaching [MailWarnings.checkLink] through an
-     * incidental empty-string call: it still reports the href's own host/insecure/punycode, just
-     * never a mismatch, since there was never any claimed link text to be wrong about.
+     * [index] addresses `SanitizedHtml.links[index]` directly -- [MailWebView] hands back an
+     * index, never a URL (see [MailHtmlDocument.rewriteLinks]), so this never has to compare a
+     * WebView-tapped URL against a sanitized `href` by any normalized/canonicalized form. That
+     * comparison used to be exactly where a Chromium canonicalization quirk this code didn't
+     * happen to copy (several `@` in userinfo, a percent-escape next to a space, a line
+     * separator in a fragment, a non-canonical IPv6 literal, ...) would make a real mismatch
+     * fail to be detected -- addressing by index removes that whole class of miss, not just the
+     * specific quirks found so far. [MailWebView] only ever calls back with an index it has
+     * already range-checked against `links.size`, so the fallback below should never actually
+     * fire; it exists only so an out-of-bounds index can never crash the screen.
      */
-    fun linkVerdict(href: String): LinkVerdict {
-        val key = normalizedHref(href)
-        val links = (_state.value.content as? Content.Ready)?.html?.links.orEmpty().filter { normalizedHref(it.href) == key }
-        if (links.isEmpty()) return noMatchVerdict(href)
-        val verdicts = links.map { MailWarnings.checkLink(it.text, href) }
-        return verdicts.firstOrNull { it.mismatch } ?: verdicts.first()
-    }
-
-    /** See [linkVerdict]: no sanitized link shares this href, so there is nothing to mismatch. */
-    private fun noMatchVerdict(href: String): LinkVerdict {
-        val trimmedHref = href.trim()
-        if (trimmedHref.startsWith("mailto:", ignoreCase = true)) {
-            return LinkVerdict(
-                host = trimmedHref.substringAfter(':').substringBefore('?'),
-                shownHost = null,
-                mismatch = false,
-                punycode = false,
-                insecure = false,
-            )
-        }
-        val host = parseUrl(trimmedHref)?.host.orEmpty()
-        return LinkVerdict(host = host, shownHost = null, mismatch = false, punycode = "xn--" in host, insecure = trimmedHref.startsWith("http://", ignoreCase = true))
+    fun linkVerdict(index: Int): LinkVerdict {
+        val link = (_state.value.content as? Content.Ready)?.html?.links?.getOrNull(index)
+            ?: return LinkVerdict(host = "", shownHost = null, mismatch = false, punycode = false, insecure = false)
+        return MailWarnings.checkLink(link.text, link.href)
     }
 
     // --- attachments --------------------------------------------------------------------
@@ -360,8 +337,13 @@ class SchoolMailMessageViewModel @Inject constructor(
                     val out = open() ?: throw MailError.Protocol("no output stream")
                     opened = true
                     out.use { repository.writeAttachment(folder, uid, attachment.partId, it) }
+                    // Set right here, inside the io block, immediately after the stream closes
+                    // successfully -- not after withContext(io) returns. A cancellation landing
+                    // in the gap between that return and the next line would otherwise skip
+                    // "committed = true" while the write had already fully succeeded, and the
+                    // finally block below would then delete a document that was actually fine.
+                    committed = true
                 }
-                committed = true
                 update { it.copy(savedCount = it.savedCount + 1) }
             } finally {
                 if (opened && !committed) withContext(io + NonCancellable) { onFailure() }
@@ -481,9 +463,22 @@ class SchoolMailMessageViewModel @Inject constructor(
          * null for a host `java.net.URI` refuses to parse -- an underscore is enough -- which
          * previously fell through this whole function to a "different from everything" fallback
          * instead of comparing against **a** host, the same host WebView itself reports.
+         *
+         * [RegexOption.DOT_MATCHES_ALL] plus possessive quantifiers (`*+`/`++`) on every group:
+         * without them, a line terminator (e.g. inside the fragment) makes `.` fail to match,
+         * and the engine then backtracks across this pattern's several optional groups hunting
+         * for an alternative split -- quadratic on a long attacker-controlled string (an image
+         * URL flows through here on the main thread, via the remembered allowlist). Every group
+         * here is unambiguous with its neighbor (each character class excludes the delimiter
+         * that starts the next group), so a possessive quantifier never rejects a match a greedy
+         * one would have found -- it only forecloses backtracking that could never have
+         * succeeded anyway. The port group additionally requires at least one digit (`[0-9]++`,
+         * not `[0-9]*+`): a bare `:` with no digits after it is not a port at all, so it's left
+         * for the path group to absorb instead of being parsed as an empty one.
          */
         private val URL_PARTS = Regex(
-            """^([a-zA-Z][a-zA-Z0-9+.-]*)://(?:[^/?#@]*@)?([^/?#:]*)(?::([0-9]*))?([^?#]*)(\?[^#]*)?(#.*)?$""",
+            """^([a-zA-Z][a-zA-Z0-9+.\-]*+)://(?:[^/?#@]*+@)?([^/?#:]*+)(?::([0-9]++))?([^?#]*+)(\?[^#]*+)?(#.*+)?$""",
+            RegexOption.DOT_MATCHES_ALL,
         )
 
         // scheme://[userinfo@]host[:port|/path|?query|#fragment...], host captured separately so
@@ -495,11 +490,11 @@ class SchoolMailMessageViewModel @Inject constructor(
         private data class UrlParts(val scheme: String, val host: String, val port: Int?, val path: String, val query: String, val fragment: String)
 
         /**
-         * Splits [raw] the way [normalizedHref] needs, or null for anything that isn't a
-         * `scheme://...` URL (e.g. `mailto:`, which [LinkVerdict] callers handle separately) or
-         * ends up with no host at all. Two WebView/Chromium quirks are folded in before the
-         * lenient host/path split, since a mail's own un-normalized markup needs to match the
-         * href WebView hands back on tap:
+         * Splits [raw] the way [normalizedHref] needs (used only for the remote-image allowlist
+         * -- link matching addresses by index instead, see [linkVerdict]), or null for anything
+         * that isn't a `scheme://...` URL (e.g. `mailto:`) or ends up with no host at all. Two
+         * WebView/Chromium quirks are folded in before the lenient host/path split, since a
+         * mail's own un-normalized markup needs to match the href WebView hands back on tap:
          * - for a "special" scheme (`http`/`https`), a backslash anywhere in the URL is
          *   equivalent to a forward slash (WHATWG URL Standard) -- `https://evil.example\ntust`
          *   is `https://evil.example/ntust`, not a URL with a literal backslash in its path;
