@@ -90,6 +90,9 @@ class SchoolMailComposeViewModel @Inject constructor(
         val subject: String = "",
         val body: String = "",
         val attachments: List<ComposeAttachment> = emptyList(),
+        /** Picked documents still being described/measured off the [io] dispatcher (Minor #4) --
+         *  a count, not a flag, so two overlapping picks don't clear each other's pending state. */
+        val pendingPicks: Int = 0,
         val sending: Boolean = false,
         val error: ComposeError? = null,
         val done: Boolean = false,
@@ -112,11 +115,18 @@ class SchoolMailComposeViewModel @Inject constructor(
     )
     val state: StateFlow<UiState> = _state.asStateFlow()
 
-    /** Survives process death (Minor #4): a picker launched mid-compose can die and come back
-     *  without re-running [prefill]. Attachments need not survive -- their `open()` lambdas can't
-     *  be parcelled, and a re-pick is cheap. */
-    private var prefilled: Boolean = savedStateHandle.get<Boolean>(KEY_PREFILLED) ?: false
-        set(value) { field = value; savedStateHandle[KEY_PREFILLED] = value }
+    /**
+     * Set the moment the user types into any field, and persisted (spec: survive process death
+     * while a picker or the source fetch is in flight). This -- not a "prefill already ran" flag
+     * -- is what [prefill] uses to decide whether restored/typed text should win over a freshly
+     * recomputed one: persisting "already prefilled" instead (round 1's design) meant a restored
+     * REPLY/REPLY_ALL lost In-Reply-To/References and its answered-marking, a restored DRAFT lost
+     * its carried attachments and could be saved as a duplicate instead of replaced, and a death
+     * mid-load restored a blank form with no way to retry. Prefill now always re-runs for
+     * REPLY/REPLY_ALL/FORWARD/DRAFT; this flag only ever changes what it does with the *text*.
+     */
+    private var userEdited: Boolean = savedStateHandle.get<Boolean>(KEY_USER_EDITED) ?: false
+        set(value) { field = value; savedStateHandle[KEY_USER_EDITED] = value }
     private var inReplyTo: String? = null
     private var references: String? = null
 
@@ -125,16 +135,16 @@ class SchoolMailComposeViewModel @Inject constructor(
      *  discarding one, or answering an original it never confirmed. */
     private var sourceLoaded = false
 
+    /**
+     * Fetches the original mail and fills the form from it; always re-runs (no "already ran"
+     * guard) -- the screen calls this once on first composition and again from the Retry action
+     * after a failed load. If [userEdited] text (typed this session, or restored after process
+     * death) already exists, it wins: prefill only supplies what the user could never have typed
+     * themselves -- threading headers, carried attachments, [sourceLoaded], and Cc/Bcc visibility
+     * for whatever cc/bcc ends up showing. Otherwise it fills the text fields as a fresh
+     * reply/forward/draft normally would.
+     */
     fun prefill(labels: ComposePrefill.Labels) {
-        if (prefilled) return
-        prefilled = true
-        runPrefill(labels)
-    }
-
-    /** Re-attempts a [prefill] that failed (Minor #1); bypasses the [prefilled] guard on purpose. */
-    fun retryPrefill(labels: ComposePrefill.Labels) = runPrefill(labels)
-
-    private fun runPrefill(labels: ComposePrefill.Labels) {
         if (mode == ComposeMode.NEW || sourceUid < 0) return
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
@@ -159,15 +169,16 @@ class SchoolMailComposeViewModel @Inject constructor(
                 inReplyTo = draft.inReplyTo
                 references = draft.references
                 sourceLoaded = true
-                savedStateHandle[KEY_TO] = draft.to
-                savedStateHandle[KEY_CC] = draft.cc
-                savedStateHandle[KEY_SUBJECT] = draft.subject
-                savedStateHandle[KEY_BODY] = draft.body
+                if (!userEdited) persistFields(draft.to, draft.cc, _state.value.bcc, draft.subject, draft.body)
                 _state.update {
-                    val next = it.copy(
-                        loading = false, to = draft.to, cc = draft.cc, subject = draft.subject, body = draft.body,
-                        showCcBcc = draft.cc.isNotBlank(), attachments = carried,
-                    )
+                    val next = if (userEdited) {
+                        it.copy(loading = false, showCcBcc = it.showCcBcc || it.cc.isNotBlank() || it.bcc.isNotBlank(), attachments = carried)
+                    } else {
+                        it.copy(
+                            loading = false, to = draft.to, cc = draft.cc, subject = draft.subject, body = draft.body,
+                            showCcBcc = draft.cc.isNotBlank(), attachments = carried,
+                        )
+                    }
                     next.copy(baseline = next.fields)
                 }
             } catch (e: MailError) {
@@ -177,32 +188,72 @@ class SchoolMailComposeViewModel @Inject constructor(
         }
     }
 
-    fun setTo(value: String) { savedStateHandle[KEY_TO] = value; _state.update { it.copy(to = value, error = null) } }
-    fun setCc(value: String) { savedStateHandle[KEY_CC] = value; _state.update { it.copy(cc = value, error = null) } }
-    fun setBcc(value: String) { savedStateHandle[KEY_BCC] = value; _state.update { it.copy(bcc = value, error = null) } }
-    fun setSubject(value: String) { savedStateHandle[KEY_SUBJECT] = value; _state.update { it.copy(subject = value) } }
-    fun setBody(value: String) { savedStateHandle[KEY_BODY] = value; _state.update { it.copy(body = value) } }
+    fun setTo(value: String) = editField { it.copy(to = value) }
+    fun setCc(value: String) = editField { it.copy(cc = value) }
+    fun setBcc(value: String) = editField { it.copy(bcc = value) }
+    fun setSubject(value: String) = editField { it.copy(subject = value) }
+    fun setBody(value: String) = editField { it.copy(body = value) }
     fun showCcBcc() = _state.update { it.copy(showCcBcc = true) }
     fun clearError() = _state.update { it.copy(error = null) }
+
+    /** Applies [transform], persists the result (Important #3: capped at [MAX_PERSISTED_CHARS]
+     *  combined), and marks the form user-edited. A [ComposeError.LoadFailed] is kept rather than
+     *  cleared -- editing a field is not a retry, so the Retry action must stay visible until a
+     *  load actually succeeds; any other error (a stale invalid-recipient banner, say) still
+     *  clears on edit as before. */
+    private fun editField(transform: (UiState) -> UiState) {
+        userEdited = true
+        _state.update { s -> transform(s).copy(error = s.error as? ComposeError.LoadFailed) }
+        val s = _state.value
+        persistFields(s.to, s.cc, s.bcc, s.subject, s.body)
+    }
+
+    /** A `TransactionTooLargeException` on `onStop` is a hard crash, not a degraded experience --
+     *  above the combined cap the fields are simply not persisted (process death then loses the
+     *  in-progress edit, which is an acceptable trade against crashing the app outright). */
+    private fun persistFields(to: String, cc: String, bcc: String, subject: String, body: String) {
+        if (to.length + cc.length + bcc.length + subject.length + body.length <= MAX_PERSISTED_CHARS) {
+            savedStateHandle[KEY_TO] = to
+            savedStateHandle[KEY_CC] = cc
+            savedStateHandle[KEY_BCC] = bcc
+            savedStateHandle[KEY_SUBJECT] = subject
+            savedStateHandle[KEY_BODY] = body
+        } else {
+            savedStateHandle.remove<String>(KEY_TO)
+            savedStateHandle.remove<String>(KEY_CC)
+            savedStateHandle.remove<String>(KEY_BCC)
+            savedStateHandle.remove<String>(KEY_SUBJECT)
+            savedStateHandle.remove<String>(KEY_BODY)
+        }
+    }
 
     fun addAttachments(list: List<ComposeAttachment>) =
         _state.update { s -> s.copy(attachments = s.attachments + list.filter { a -> s.attachments.none { it.id == a.id } }, error = null) }
 
     fun removeAttachment(id: String) = _state.update { s -> s.copy(attachments = s.attachments.filterNot { it.id == id }, error = null) }
 
-    /** Resolves each picked document's metadata off the injected [io] dispatcher (never Main) via
-     *  [pickedAttachmentReader], then merges the results in like any other attachment. */
-    fun addPicked(uris: List<Uri>) {
+    /**
+     * Resolves each picked document's metadata off the injected [io] dispatcher (never Main) via
+     * [pickedAttachmentReader], then merges the results in like any other attachment.
+     * [pendingPicks] tracks the in-flight count so [send]/[saveDraft] can refuse to run against a
+     * form that isn't done changing yet.
+     */
+    fun addPicked(uris: List<Uri?>) {
         if (uris.isEmpty()) return
+        _state.update { it.copy(pendingPicks = it.pendingPicks + 1) }
         viewModelScope.launch {
-            val picked = withContext(io) { uris.mapNotNull(pickedAttachmentReader::describe) }
-            addAttachments(picked)
+            try {
+                val picked = withContext(io) { uris.mapNotNull(pickedAttachmentReader::describe) }
+                addAttachments(picked)
+            } finally {
+                _state.update { it.copy(pendingPicks = it.pendingPicks - 1) }
+            }
         }
     }
 
     fun send() {
         val s = _state.value
-        if (s.sending || s.loading) return
+        if (s.sending || s.loading || s.pendingPicks > 0) return
         val to = ComposeRules.parseRecipients(s.to)
         val cc = ComposeRules.parseRecipients(s.cc)
         val bcc = ComposeRules.parseRecipients(s.bcc)
@@ -245,7 +296,7 @@ class SchoolMailComposeViewModel @Inject constructor(
 
     fun saveDraft() {
         val s = _state.value
-        if (s.sending || s.loading) return
+        if (s.sending || s.loading || s.pendingPicks > 0) return
         val to = ComposeRules.parseRecipients(s.to)
         val cc = ComposeRules.parseRecipients(s.cc)
         val bcc = ComposeRules.parseRecipients(s.bcc)
@@ -288,11 +339,14 @@ class SchoolMailComposeViewModel @Inject constructor(
                 val attachments = _state.value.attachments.map { a ->
                     when (val src = a.source) {
                         is ComposeAttachment.Source.Local -> OutgoingAttachment(a.fileName, a.contentType, a.sizeBytes, src.open)
-                        is ComposeAttachment.Source.Original -> {
+                        // Everything -- open, the write through repository.writeAttachment, the
+                        // close .use performs, and length() -- runs inside this one withContext(io)
+                        // so none of it (least of all the FileOutputStream close, which can block
+                        // on a flush) lands on Main.
+                        is ComposeAttachment.Source.Original -> withContext(io) {
                             val file = File(staging, "${a.id}-${SchoolMailMessageViewModel.safeFileName(a.fileName)}")
-                            withContext(io) { staging.mkdirs(); file.outputStream() }.use { out ->
-                                repository.writeAttachment(src.folder, src.uid, src.partId, out)
-                            }
+                            staging.mkdirs()
+                            file.outputStream().use { out -> repository.writeAttachment(src.folder, src.uid, src.partId, out) }
                             OutgoingAttachment(a.fileName, a.contentType, file.length()) { file.inputStream() }
                         }
                     }
@@ -321,6 +375,11 @@ class SchoolMailComposeViewModel @Inject constructor(
         const val KEY_BCC = "field_bcc"
         const val KEY_SUBJECT = "field_subject"
         const val KEY_BODY = "field_body"
-        const val KEY_PREFILLED = "field_prefilled"
+        const val KEY_USER_EDITED = "field_user_edited"
+
+        /** Binder transactions (the Bundle SavedStateHandle rides on `onStop`) fail hard above
+         *  roughly 1 MB; 100,000 chars of UTF-16 text is already ~200 KB and a generous margin
+         *  under that, while still covering realistically long quoted/forwarded bodies. */
+        const val MAX_PERSISTED_CHARS = 100_000
     }
 }

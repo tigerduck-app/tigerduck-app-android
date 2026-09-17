@@ -1,7 +1,11 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.test.StandardTestDispatcher
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -153,6 +157,24 @@ class SchoolMailComposeViewModelTest {
     }
 
     @Test
+    fun `cancelling the view model scope mid-send still cleans up staged files`() {
+        repo.add("INBOX", mailSummary(5, hasAttachments = true))
+        repo.bodies[5] = MailBody(
+            null, "body",
+            listOf(
+                MailAttachment("2", "a.pdf", "application/pdf", 12, null),
+                MailAttachment("3", "b.pdf", "application/pdf", 12, null),
+            ),
+            emptyMap(),
+        )
+        val vm = vm(ComposeMode.FORWARD, "INBOX", 5)
+        vm.setTo("x@y.tw")
+        repo.onWriteAttachment = { vm.viewModelScope.cancel() }
+        vm.send()
+        assertTrue(cache.attachmentsDir.listFiles().orEmpty().none { it.name.startsWith("outgoing-") })
+    }
+
+    @Test
     fun `editing a draft saves over it, and sending it discards the draft`() {
         repo.add("草稿匣", mailSummary(9, subject = "draft", to = listOf(MailAddress(null, "a@x.tw"))))
         repo.bodies[9] = MailBody(null, "draft body", emptyList(), emptyMap())
@@ -225,7 +247,7 @@ class SchoolMailComposeViewModelTest {
 
         repo.bodyError = null
         repo.bodies[5] = MailBody(null, "line1", emptyList(), emptyMap())
-        vm.retryPrefill(labels)
+        vm.prefill(labels)
         assertEquals(null, vm.state.value.error)
         assertEquals("教務處 <office@mail.ntust.edu.tw>", vm.state.value.to)
     }
@@ -264,27 +286,114 @@ class SchoolMailComposeViewModelTest {
     }
 
     @Test
-    fun `fields and the prefilled flag survive process death via SavedStateHandle`() {
+    fun `editing a field keeps a LoadFailed error on screen instead of clearing it`() {
+        repo.add("INBOX", mailSummary(5, subject = "期中考"))
+        repo.bodyError = MailError.Network()
+        val vm = vm(ComposeMode.REPLY, "INBOX", 5)
+        assertTrue(vm.state.value.error is ComposeError.LoadFailed)
+        vm.setTo("typed@x.tw")
+        // Still there: editing is not a retry, so Retry must stay visible until a load succeeds.
+        assertTrue(vm.state.value.error is ComposeError.LoadFailed)
+        assertEquals("typed@x.tw", vm.state.value.to)
+    }
+
+    @Test
+    fun `restoring a REPLY with edited text keeps the edit but still gets threading headers and marks the original answered`() {
         repo.add("INBOX", mailSummary(5, subject = "期中考"))
         repo.bodies[5] = MailBody(null, "line1", emptyList(), emptyMap())
         val savedState = handle(ComposeMode.REPLY, "INBOX", 5)
         val vm1 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
         vm1.prefill(labels)
-        assertEquals("教務處 <office@mail.ntust.edu.tw>", vm1.state.value.to)
-        vm1.setBody("我加的內容")
+        vm1.setBody("我加的回覆")
 
-        // A fresh ViewModel over the SAME handle simulates process death + restore. Attachments
-        // need not survive; the typed text and the "already prefilled" flag must.
+        // A fresh instance over the SAME handle simulates process death + restore.
         val vm2 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
+        assertEquals("我加的回覆", vm2.state.value.body)
         assertEquals("教務處 <office@mail.ntust.edu.tw>", vm2.state.value.to)
-        assertEquals("我加的內容", vm2.state.value.body)
 
-        // Emptying the mailbox proves a second prefill() call never re-ran: the "prefilled" flag
-        // itself was restored from the handle, so this stays a no-op instead of re-fetching (and,
-        // since the mail is now "gone", failing).
-        repo.mail.clear()
+        // Prefill always re-runs; the edited body must survive it, but everything the user could
+        // never have typed themselves still comes from this run.
+        vm2.prefill(labels)
+        assertEquals("我加的回覆", vm2.state.value.body)
+        vm2.send()
+        val (mail, answered) = repo.sent.single()
+        assertEquals("INBOX" to 5L, answered)
+        assertEquals("<m5@x>", mail.inReplyTo)
+    }
+
+    @Test
+    fun `restoring a DRAFT keeps its original attachments and still discards it once sent`() {
+        repo.add("草稿匣", mailSummary(9, subject = "draft", to = listOf(MailAddress(null, "a@x.tw"))))
+        repo.bodies[9] = MailBody(null, "draft body", listOf(MailAttachment("2", "a.pdf", "application/pdf", 12, null)), emptyMap())
+        val savedState = handle(ComposeMode.DRAFT, "草稿匣", 9)
+        val vm1 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
+        vm1.prefill(labels)
+        vm1.setBody("編輯後的草稿內容")
+
+        val vm2 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
+        assertEquals("編輯後的草稿內容", vm2.state.value.body)
+        assertTrue(vm2.state.value.attachments.isEmpty()) // attachments themselves need not survive
+
+        vm2.prefill(labels)
+        assertEquals(listOf("a.pdf"), vm2.state.value.attachments.map { it.fileName })
+        assertEquals("編輯後的草稿內容", vm2.state.value.body)
+
+        vm2.send()
+        assertEquals(listOf(9L), repo.discardedDrafts)
+        assertEquals(null, repo.sent.single().second)
+    }
+
+    @Test
+    fun `a death mid-load leaves nothing persisted, so prefill simply re-runs on the next attempt`() {
+        repo.add("INBOX", mailSummary(5, subject = "期中考"))
+        repo.bodyError = MailError.Network()
+        val savedState = handle(ComposeMode.REPLY, "INBOX", 5)
+        val vm1 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
+        vm1.prefill(labels)
+        assertTrue(vm1.state.value.error is ComposeError.LoadFailed)
+
+        repo.bodyError = null
+        repo.bodies[5] = MailBody(null, "line1", emptyList(), emptyMap())
+        val vm2 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
+        assertEquals("", vm2.state.value.to) // nothing from the failed attempt was persisted
         vm2.prefill(labels)
         assertEquals(null, vm2.state.value.error)
+        assertEquals("教務處 <office@mail.ntust.edu.tw>", vm2.state.value.to)
+    }
+
+    @Test
+    fun `text fields are not persisted once their combined length passes the cap`() {
+        val savedState = handle(ComposeMode.NEW)
+        val vm1 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
+        vm1.setBody("x".repeat(100_001))
+        val vm2 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
+        assertEquals("", vm2.state.value.body)
+
+        vm1.setBody("x".repeat(100_000))
+        val vm3 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
+        assertEquals(100_000, vm3.state.value.body.length)
+    }
+
+    @Test
+    fun `send and saveDraft are refused while a picked attachment is still being measured`() {
+        val pickerDispatcher = StandardTestDispatcher()
+        val slowReader = PickedAttachmentReader {
+            ComposeAttachment("p", "p.txt", "text/plain", 3, ComposeAttachment.Source.Local { ByteArrayInputStream("hi!".toByteArray()) })
+        }
+        val vm = SchoolMailComposeViewModel(handle(ComposeMode.NEW), repo, account, cache, slowReader, pickerDispatcher)
+        vm.setTo("a@x.tw")
+        vm.addPicked(listOf<Uri?>(null))
+        assertTrue(vm.state.value.pendingPicks > 0)
+        vm.send()
+        assertTrue(repo.sent.isEmpty())
+        vm.saveDraft()
+        assertTrue(repo.drafts.isEmpty())
+
+        pickerDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(0, vm.state.value.pendingPicks)
+        assertEquals(listOf("p.txt"), vm.state.value.attachments.map { it.fileName })
+        vm.send()
+        assertEquals(1, repo.sent.size)
     }
 
     @Test

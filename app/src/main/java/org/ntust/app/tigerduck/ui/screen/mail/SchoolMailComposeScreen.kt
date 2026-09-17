@@ -132,10 +132,18 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
                     IconButton(onClick = { picker.launch(arrayOf("*/*")) }, enabled = fieldsEnabled) {
                         Icon(Icons.Filled.AttachFile, contentDescription = stringResource(R.string.school_mail_add_attachment))
                     }
+                    // A pick still being described/measured off the io dispatcher shows its own
+                    // spinner here, distinct from the send spinner -- Send/Save must not run
+                    // against a form whose attachment list isn't done changing yet (Minor #4).
+                    if (state.pendingPicks > 0) {
+                        Box(Modifier.padding(horizontal = 8.dp)) { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
+                    }
                     if (state.sending) {
                         Box(Modifier.padding(horizontal = 16.dp)) { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
                     } else {
-                        TextButton(onClick = viewModel::send, enabled = !state.loading) { Text(stringResource(R.string.school_mail_send)) }
+                        TextButton(onClick = viewModel::send, enabled = !state.loading && state.pendingPicks == 0) {
+                            Text(stringResource(R.string.school_mail_send))
+                        }
                     }
                 },
                 expandedHeight = SubSettingsBarHeight,
@@ -150,7 +158,7 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
             if (state.loading) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             }
-            state.error?.let { ErrorText(it, onRetryLoad = { viewModel.retryPrefill(labels) }) }
+            state.error?.let { ErrorText(it, onRetryLoad = { viewModel.prefill(labels) }) }
             RecipientField(stringResource(R.string.school_mail_to), state.to, viewModel::setTo, enabled = fieldsEnabled)
             if (state.showCcBcc) {
                 RecipientField(stringResource(R.string.school_mail_cc), state.cc, viewModel::setCc, enabled = fieldsEnabled)
@@ -206,6 +214,7 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
             title = stringResource(R.string.school_mail_leave_title),
             confirmText = stringResource(R.string.school_mail_save_draft),
             onConfirm = { showLeave = false; viewModel.saveDraft() },
+            confirmEnabled = state.pendingPicks == 0,
             dismissText = stringResource(R.string.school_mail_keep_editing),
             onDismiss = { showLeave = false },
         ) {

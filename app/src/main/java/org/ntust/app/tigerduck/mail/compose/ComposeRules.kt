@@ -99,15 +99,20 @@ object ComposeRules {
     }
 
     /**
-     * True upper bound on the `text/plain; charset=utf-8` body once encoded quoted-printable,
-     * plus base64 attachments (76-char lines + CRLF) and a header-overhead buffer.
+     * Estimated size of the built message: a true upper bound for the `text/plain; charset=utf-8`
+     * body once encoded quoted-printable and for a locally picked, not-yet-encoded attachment
+     * (base64, 76-char lines + CRLF), plus a header-overhead buffer.
      *
-     * [attachmentBytes] are raw (decoded) bytes that still need base64 growth applied -- a
-     * locally picked file, not yet encoded. [encodedAttachmentBytes] are already the encoded
-     * octet count a server reported (a forwarded or reopened draft's original attachment, via
-     * IMAP BODYSTRUCTURE): re-applying the base64 growth formula to an already-encoded size
-     * would double-count it and reject attachments that fit comfortably, so those are added to
-     * the total as-is.
+     * [attachmentBytes] are raw (decoded) bytes that still need that base64 growth applied.
+     * [encodedAttachmentBytes] are counted at the size a server already reported for them (a
+     * forwarded or reopened draft's original attachment, via IMAP BODYSTRUCTURE) -- exact for an
+     * original part that was itself base64, only *approximate* for one encoded some other way
+     * (7bit/8bit/quoted-printable), since this never re-derives what encoding it as base64 would
+     * actually cost. Re-applying the base64 growth formula on top of an already-encoded size would
+     * double-count it and reject attachments that fit comfortably, so those are added to the total
+     * as-is instead. If this estimate still undershoots the real built message, the server's own
+     * SIZE limit rejects it and the compose form is kept (spec §8.4) -- this is a fail-fast local
+     * budget check, not the only thing standing between the user and an oversized send.
      */
     fun estimateEncodedSize(body: String, attachmentBytes: List<Long>, encodedAttachmentBytes: List<Long> = emptyList()): Long {
         val text = quotedPrintableUpperBound(body)
