@@ -44,7 +44,20 @@ object MailWarnings {
         "^(?:[a-z][a-z0-9+.-]*://)?((?:[\\p{L}\\p{N}-]+\\.)+[\\p{L}]{2,})(?::\\d+)?(?:[/?#].*)?$",
         RegexOption.IGNORE_CASE,
     )
-    private val URL_HOST = Regex("^[a-z][a-z0-9+.-]*://(?:[^/?#@]*@)?([^/?#:]+)", RegexOption.IGNORE_CASE)
+    private val URL_HOST_LEGACY = Regex("^[a-z][a-z0-9+.-]*://(?:[^/?#@]*@)?([^/?#:]+)", RegexOption.IGNORE_CASE)
+    private val SCHEME = Regex("^([a-zA-Z][a-zA-Z0-9+.-]*):")
+
+    /**
+     * A whole href counts as a "plain" link ONLY in the form browsers would treat as
+     * unambiguous: `http(s)://`, a host of ASCII letters/digits/-/. only, an optional
+     * `:port`, then end of string or `/ ? #`. Anything else (userinfo, backslashes, missing
+     * or extra slashes, percent-escapes or non-ASCII in the authority, whitespace) fails this
+     * and must be treated as an outside link by callers (spec A.4 rule 2).
+     */
+    private val PLAIN_HTTP_LINK = Regex(
+        "https?://([A-Za-z0-9.-]+)(?::[0-9]+)?(?:[/?#].*)?",
+        RegexOption.IGNORE_CASE,
+    )
 
     private fun normalize(domain: String) = domain.trim().lowercase().removeSuffix(".")
 
@@ -84,7 +97,7 @@ object MailWarnings {
         val keyword = KEYWORDS.any { it in text }
         val outsideLink = links.any { link ->
             val href = link.href.trim()
-            href.startsWith("http", ignoreCase = true) && hostOf(href)?.let { !isSchoolDomain(it) } == true
+            href.startsWith("http", ignoreCase = true) && !isPlainSchoolLink(href)
         }
         if (keyword && (external || outsideLink)) warnings += MailWarning.PasswordBait
         val risky = attachments.filter { riskReason(it.fileName, it.contentType, text) != null }
@@ -143,6 +156,40 @@ object MailWarnings {
         )
     }
 
-    private fun hostOf(href: String): String? =
-        URL_HOST.find(href)?.groupValues?.get(1)?.takeIf { it.isNotBlank() }?.let { toAscii(normalize(it)) }
+    /** True only when [href] matches [PLAIN_HTTP_LINK] and that host is a school domain. */
+    private fun isPlainSchoolLink(href: String): Boolean {
+        val host = PLAIN_HTTP_LINK.matchEntire(href)?.groupValues?.get(1) ?: return false
+        return isSchoolDomain(host)
+    }
+
+    /**
+     * Browser-style host extraction (spec A.4 rule 1). For `http`/`https` (scheme
+     * case-insensitive): after `scheme:`, skip any run of `/` and `\`; the authority ends at
+     * the first `/`, `\`, `?` or `#`; userinfo ends at the LAST `@` inside the authority; the
+     * host is what remains before a `:port`. Other schemes keep the legacy regex.
+     */
+    private fun hostOf(href: String): String? {
+        val schemeMatch = SCHEME.find(href)
+        val scheme = schemeMatch?.groupValues?.get(1)
+        if (scheme != null && (scheme.equals("http", ignoreCase = true) || scheme.equals("https", ignoreCase = true))) {
+            return browserHostOf(href, schemeMatch.range.last + 1)
+        }
+        return URL_HOST_LEGACY.find(href)?.groupValues?.get(1)?.takeIf { it.isNotBlank() }?.let { toAscii(normalize(it)) }
+    }
+
+    private fun browserHostOf(href: String, authorityStart: Int): String? {
+        var i = authorityStart
+        while (i < href.length && (href[i] == '/' || href[i] == '\\')) i++
+        var end = href.length
+        for (j in i until href.length) {
+            val c = href[j]
+            if (c == '/' || c == '\\' || c == '?' || c == '#') {
+                end = j
+                break
+            }
+        }
+        val authority = href.substring(i, end)
+        val host = authority.substringAfterLast('@').substringBefore(':')
+        return host.takeIf { it.isNotBlank() }?.let { toAscii(normalize(it)) }
+    }
 }
