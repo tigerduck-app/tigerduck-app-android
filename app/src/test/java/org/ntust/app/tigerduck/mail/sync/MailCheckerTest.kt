@@ -18,6 +18,7 @@ import org.ntust.app.tigerduck.mail.RecordingScheduler
 import org.ntust.app.tigerduck.mail.imap.MailSessionFactory
 import org.ntust.app.tigerduck.mail.model.FolderStatus
 import org.ntust.app.tigerduck.mail.store.MailCache
+import org.ntust.app.tigerduck.mail.testApplicationScope
 import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
 
@@ -30,7 +31,7 @@ class MailCheckerTest {
     private val scheduler = RecordingScheduler()
     private var now = 1_000_000L
     private val account by lazy {
-        MailAccount(InMemoryCredentialStore(), state, server.factory(), MailCache(tmp.root), FakeDemoGate(), scheduler, notifier)
+        MailAccount(InMemoryCredentialStore(), state, server.factory(), MailCache(tmp.root), FakeDemoGate(), scheduler, notifier, testApplicationScope())
     }
 
     private fun checker(factory: MailSessionFactory = server.factory()) =
@@ -133,6 +134,26 @@ class MailCheckerTest {
         release.countDown()
         t.join()
         assertEquals(CheckOutcome.NoChange, first)
+    }
+
+    @Test
+    fun `the marker moves after the notification, and never backwards past a page poll`() = runTest {
+        account.signIn("b10000001", "pw")
+        val uid = server.deliver("new one")
+        val markerBefore = state.inboxSeenUidNext
+        val c = checker()
+        var markerWhenNotified = -1L
+        notifier.onPostNewMail = {
+            // Spec §8.5 order: notify first, advance after.
+            markerWhenNotified = state.inboxSeenUidNext
+            // The page poll ran in this window and saw further mail than this check fetched.
+            c.noteSeenByPage(FolderStatus(server.uidValidity, uid + 10, 1, 0))
+        }
+
+        assertEquals(CheckOutcome.NewMail(1), c.check(CheckSource.ALARM))
+        assertEquals(markerBefore, markerWhenNotified)
+        // Overwriting the poll's marker would re-notify mail the list has already shown.
+        assertEquals(uid + 10, state.inboxSeenUidNext)
     }
 
     @Test

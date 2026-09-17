@@ -13,6 +13,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -42,7 +43,7 @@ class MailRepositoryTest {
 
     private inner class TestSetup(scope: kotlinx.coroutines.CoroutineScope) {
         val cache = MailCache(tmp.root)
-        val account = MailAccount(credentials, state, server.factory(), cache, demo, RecordingScheduler(), RecordingNotifier())
+        val account = MailAccount(credentials, state, server.factory(), cache, demo, RecordingScheduler(), RecordingNotifier(), scope)
         val repository = MailRepository(
             account, server.factory(), cache, state,
             MailSender(MessageBuilder(), transport, server.factory(), pause = {}), MessageBuilder(), demo, scope,
@@ -361,6 +362,32 @@ class MailRepositoryTest {
         val setup = TestSetup(backgroundScope)
         val result = runCatching { setup.repository.loadPage("INBOX", null) }
         assertTrue(result.exceptionOrNull() is MailError.Protocol)
+    }
+
+    @Test
+    fun `a rejected password stops the repository logging in again, while signing in again still works`() = runTest {
+        // Spec §7.4: not one more LOGIN with a password the server has already rejected --
+        // it is the portal and campus Wi-Fi password, and repeated failures can lock it.
+        server.deliver("a")
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        setup.account.onAuthFailure()
+        val opensBefore = server.opens
+
+        val read = runCatching { repo.loadPage("INBOX", null) }
+        assertTrue(read.exceptionOrNull() is MailError.AuthFailed)
+        val send = runCatching {
+            repo.send(OutgoingMail(repo.selfAddress(), listOf(MailAddress(null, "a@x.tw")), emptyList(), emptyList(), "s", "b"), null)
+        }
+        assertTrue(send.exceptionOrNull() is MailError.AuthFailed)
+        assertEquals(opensBefore, server.opens)
+        assertTrue(sent.isEmpty())
+
+        // Re-authentication goes through MailAccount.signIn -> MailSessionFactory.open, which the
+        // flag must never block, and succeeding clears it.
+        assertNull(setup.account.signIn("b10000001", "pw"))
+        assertFalse(setup.account.authFailed.value)
+        assertEquals(listOf("a"), repo.loadPage("INBOX", null).messages.map { it.subject })
     }
 
     @Test

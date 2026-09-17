@@ -17,6 +17,10 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     val mail = mutableMapOf<String, MutableList<MailSummary>>()
     var pageSize = 50
     var status = FolderStatus(1, 1, 0, 0)
+
+    /** Thrown by [inboxStatus] -- the first call the page poll makes. */
+    var statusError: MailError? = null
+    var statusCalls = 0
     var loadError: MailError? = null
     var searchUnsupported = false
     val bodies = mutableMapOf<Long, MailBody>()
@@ -58,7 +62,7 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     }
 
     override suspend fun folders() = resolved
-    override fun cachedPage(folder: String): MailPage? = cachedPages[folder]
+    override suspend fun cachedPage(folder: String): MailPage? = cachedPages[folder]
 
     /** Simulates the repository dropping a folder's cache once [MailError.FolderChanged] fires for it. */
     fun dropCache(folder: String) {
@@ -75,7 +79,11 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         return page
     }
 
-    override suspend fun inboxStatus() = status
+    override suspend fun inboxStatus(): FolderStatus {
+        statusCalls++
+        statusError?.let { throw it }
+        return status
+    }
     override suspend fun refreshFlags(folder: String, uids: List<Long>): Map<Long, MailFlags> =
         sorted(folder).filter { it.uid in uids }.associate { it.uid to it.flags }
     override suspend fun summary(folder: String, uid: Long) = sorted(folder).firstOrNull { it.uid == uid }

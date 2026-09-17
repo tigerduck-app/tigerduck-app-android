@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.mail
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.di.ApplicationScope
@@ -42,8 +43,8 @@ sealed interface SearchOutcome {
 interface SchoolMailRepository {
     suspend fun folders(): ResolvedFolders
 
-    /** A synchronous disk read -- never call this from the main thread. */
-    fun cachedPage(folder: String): MailPage?
+    /** The folder's last saved page, read from disk on the IO dispatcher. */
+    suspend fun cachedPage(folder: String): MailPage?
     suspend fun loadPage(folder: String, beforeSeq: Int?): MailPage
     suspend fun inboxStatus(): FolderStatus
     suspend fun refreshFlags(folder: String, uids: List<Long>): Map<Long, MailFlags>
@@ -93,8 +94,15 @@ class MailRepository @Inject constructor(
         // A signed-out account must never keep an authenticated socket open,
         // and a fresh sign-in must never see the previous account's cached
         // folder resolution or demo mail.
+        //
+        // drop(1): only a *transition* to signed out is a sign-out. A repository
+        // that has just been built holds no session, no resolved folders and no
+        // demo mail, so the current value has nothing to clear -- but this
+        // collector starts on another dispatcher, so acting on it would let the
+        // wipe land late, after a sign-in that happened in the meantime had
+        // already put something there.
         scope.launch {
-            account.signedIn.collect { signedIn ->
+            account.signedIn.drop(1).collect { signedIn ->
                 if (!signedIn) {
                     withContext(Dispatchers.IO) { holder.closeNow() }
                     resolved = null
@@ -106,8 +114,20 @@ class MailRepository @Inject constructor(
 
     private fun credentials() = account.credentialsOrNull() ?: throw MailError.Protocol("not signed in")
 
+    /**
+     * Spec §7.4: once the server has rejected the stored password, nothing may
+     * log in again -- repeated failures can lock the school account and the
+     * campus Wi-Fi that share it. Signing in again goes straight to
+     * [MailSessionFactory.open] through [MailAccount.signIn], which clears the
+     * flag on success, so this never blocks re-authentication.
+     */
+    private fun refuseWhileAuthFailed() {
+        if (state.authFailed) throw MailError.AuthFailed()
+    }
+
     private suspend fun <T> withSession(block: (MailSession) -> T): T = withContext(Dispatchers.IO) {
         if (account.isDemo) throw MailError.DemoMode()
+        refuseWhileAuthFailed()
         holder.use(credentials(), block)
     }
 
@@ -173,10 +193,10 @@ class MailRepository @Inject constructor(
         return withSession { MailFolders.resolve(it.listFolders()) }.also { resolved = it }
     }
 
-    override fun cachedPage(folder: String): MailPage? {
-        if (account.isDemo) return demoPage(folder)
-        val dto = cache.loadFolder(folder) ?: return null
-        return MailPage(dto.uidValidity, dto.totalMessages, dto.messages.orEmpty().map { it.toModel() }, dto.nextBeforeSeq.takeIf { it > 0 })
+    override suspend fun cachedPage(folder: String): MailPage? = withContext(Dispatchers.IO) {
+        if (account.isDemo) return@withContext demoPage(folder)
+        val dto = cache.loadFolder(folder) ?: return@withContext null
+        MailPage(dto.uidValidity, dto.totalMessages, dto.messages.orEmpty().map { it.toModel() }, dto.nextBeforeSeq.takeIf { it > 0 })
     }
 
     override suspend fun loadPage(folder: String, beforeSeq: Int?): MailPage {
@@ -200,7 +220,7 @@ class MailRepository @Inject constructor(
     }
 
     override suspend fun summary(folder: String, uid: Long): MailSummary? {
-        withContext(Dispatchers.IO) { cachedPage(folder)?.messages?.firstOrNull { it.uid == uid } }?.let { return it }
+        cachedPage(folder)?.messages?.firstOrNull { it.uid == uid }?.let { return it }
         if (account.isDemo) return null
         return withSession { it.fetchByUids(folder, listOf(uid)).firstOrNull() }
     }
@@ -208,7 +228,7 @@ class MailRepository @Inject constructor(
     override suspend fun body(folder: String, uid: Long): MailBody {
         if (account.isDemo) return demoList(folder).firstOrNull { it.summary.uid == uid }?.body ?: throw MailError.Protocol("gone")
         // Cache-first, keyed by the cached page's own validity -- a hit never touches the server.
-        val cachedValidity = withContext(Dispatchers.IO) { cachedPage(folder)?.uidValidity }
+        val cachedValidity = cachedPage(folder)?.uidValidity
         if (cachedValidity != null) {
             withContext(Dispatchers.IO) { cache.loadBody(folder, uid, cachedValidity) }?.let { return it }
         }
@@ -270,7 +290,7 @@ class MailRepository @Inject constructor(
             val uids = withSession { it.search(folder, q) }.take(PAGE_SIZE)
             SearchOutcome.Server(withSession { it.fetchByUids(folder, uids) })
         } catch (e: MailError.SearchUnsupported) {
-            val loaded = withContext(Dispatchers.IO) { cachedPage(folder)?.messages }.orEmpty()
+            val loaded = cachedPage(folder)?.messages.orEmpty()
             SearchOutcome.LoadedOnly(loaded.filter { matches(it, q) })
         }
     }
@@ -306,6 +326,9 @@ class MailRepository @Inject constructor(
             answered?.let { (folder, uid) -> demoUpdate(folder, uid) { s -> s.copy(flags = s.flags.copy(answered = true)) } }
             return
         }
+        // The SMTP login uses the same rejected password, so §7.4 covers it too --
+        // and `folders()` can answer from its cached resolution without a session.
+        refuseWhileAuthFailed()
         val sent = folders().nameOf(SpecialFolder.SENT)
         withContext(Dispatchers.IO) { sender.send(credentials(), mail, sent) }
         answered?.let { (folder, uid) ->
@@ -381,7 +404,7 @@ class MailRepository @Inject constructor(
      *   second login attempt just to check).
      */
     private suspend fun runExpunging(folder: String, uid: Long, op: (MailSession, Set<Long>) -> Boolean) {
-        val cached = withContext(Dispatchers.IO) { cachedPage(folder) }
+        val cached = cachedPage(folder)
         val cachedValidity = cached?.uidValidity
         val alreadyDeleted = cached?.messages?.firstOrNull { it.uid == uid }?.flags?.deleted == true
         var validity = 0L

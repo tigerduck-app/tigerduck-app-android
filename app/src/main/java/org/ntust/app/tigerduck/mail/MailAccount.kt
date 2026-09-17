@@ -1,10 +1,13 @@
 package org.ntust.app.tigerduck.mail
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.mail.imap.MailFolders
 import org.ntust.app.tigerduck.mail.imap.MailSessionFactory
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
@@ -30,6 +33,7 @@ class MailAccount @Inject constructor(
     private val demo: MailDemoGate,
     private val scheduler: MailBackgroundScheduler,
     private val notifier: MailNotifier,
+    @param:ApplicationScope private val scope: CoroutineScope,
 ) {
     private val _signedIn = MutableStateFlow(credentialsOrNull() != null)
     val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
@@ -85,14 +89,23 @@ class MailAccount @Inject constructor(
         null
     }
 
+    /**
+     * Both callers are on the main thread, so only the cheap part runs there:
+     * the flags and the credential removal stay synchronous because the
+     * repository's `signedIn` collector and every later `credentialsOrNull()`
+     * depend on them having already happened. Deleting the cache tree and
+     * cancelling the notifications are IO and finish on their own.
+     */
     fun signOut() {
         scheduler.cancel()
-        notifier.cancelAll()
         credentials.clearMailCredentials()
         state.clear()
-        cache.clearAll()
         _signedIn.value = false
         _authFailed.value = false
+        scope.launch(Dispatchers.IO) {
+            cache.clearAll()
+            notifier.cancelAll()
+        }
     }
 
     /** The server rejected the stored password: stop everything, never retry (spec §7.4). */

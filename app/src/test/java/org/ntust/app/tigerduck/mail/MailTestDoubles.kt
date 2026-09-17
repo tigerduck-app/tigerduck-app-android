@@ -1,5 +1,8 @@
 package org.ntust.app.tigerduck.mail
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailBody
@@ -8,6 +11,13 @@ import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.notify.MailNotifier
 import org.ntust.app.tigerduck.mail.store.MailCredentialStore
 import org.ntust.app.tigerduck.mail.sync.MailBackgroundScheduler
+
+/**
+ * Stands in for the app-wide `@ApplicationScope`: the only thing [MailAccount]
+ * runs there is sign-out's cache wipe, so a plain supervised scope is enough.
+ * A test that asserts on that work waits for it (it lands on [Dispatchers.IO]).
+ */
+fun testApplicationScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
 class InMemoryCredentialStore : MailCredentialStore {
     override var mailStudentId: String? = null
@@ -30,7 +40,13 @@ class RecordingNotifier : MailNotifier {
     var authFailures = 0
     val cancelledUids = mutableListOf<Long>()
     var cancelledAll = 0
-    override fun postNewMail(folder: String, messages: List<MailSummary>) { posted += messages }
+
+    /** Fires inside [postNewMail] -- lets a test act at the exact point the check notifies. */
+    var onPostNewMail: (() -> Unit)? = null
+    override fun postNewMail(folder: String, messages: List<MailSummary>) {
+        posted += messages
+        onPostNewMail?.invoke()
+    }
     override fun postAuthFailure() { authFailures++ }
     override fun cancelMessage(uid: Long) { cancelledUids += uid }
     override fun cancelAll() { cancelledAll++ }

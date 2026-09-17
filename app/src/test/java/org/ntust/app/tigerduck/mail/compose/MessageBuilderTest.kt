@@ -82,4 +82,22 @@ class MessageBuilderTest {
         assertNull("Bcc must never be written", msg.getHeader("Bcc"))
         assertEquals(listOf("a@x.tw", "c@x.tw", "hidden@x.tw"), built.envelopeRecipients.map { it.address })
     }
+
+    @Test
+    fun `control characters are stripped from the subject and the sender's display name too`() {
+        // Plain ASCII on purpose: a non-ASCII value would be hidden inside an RFC 2047 encoded
+        // word, so only ASCII shows whether the header structure itself is safe.
+        val hostile = mail().copy(
+            subject = "Question\r\nBcc: attacker@evil.com",
+            from = MailAddress("Tester\r\nBcc: attacker2@evil.com", "b10000001@mail.ntust.edu.tw"),
+        )
+        val built = builder.build(hostile)
+        val raw = String(built.toBytes(), Charsets.US_ASCII)
+        assertFalse(raw, raw.contains("\r\nBcc:", ignoreCase = true))
+
+        val msg = reparse(built)
+        assertNull("Bcc must never be written", msg.getHeader("Bcc"))
+        assertEquals("QuestionBcc: attacker@evil.com", msg.subject)
+        assertEquals("TesterBcc: attacker2@evil.com", (msg.from.single() as InternetAddress).personal)
+    }
 }

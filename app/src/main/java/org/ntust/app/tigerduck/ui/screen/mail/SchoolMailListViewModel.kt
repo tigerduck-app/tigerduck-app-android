@@ -63,6 +63,14 @@ class SchoolMailListViewModel @Inject constructor(
 
     private var pollJob: Job? = null
 
+    init {
+        // Signing out must not leave the previous account's mail on screen for
+        // whoever signs in next (spec §7.5).
+        viewModelScope.launch {
+            account.signedIn.collect { signedIn -> if (!signedIn) _state.value = UiState() }
+        }
+    }
+
     fun load() {
         if (!account.signedIn.value) return
         viewModelScope.launch {
@@ -91,8 +99,10 @@ class SchoolMailListViewModel @Inject constructor(
         _state.update {
             it.copy(selected = name, messages = emptyList(), nextBeforeSeq = null, searchResults = null, searchText = "", searchLocalOnly = false)
         }
-        showCached()
-        viewModelScope.launch { fetchFirstPage() }
+        viewModelScope.launch {
+            showCached()
+            fetchFirstPage()
+        }
     }
 
     fun setUnreadOnly(value: Boolean) = _state.update { it.copy(unreadOnly = value) }
@@ -124,13 +134,21 @@ class SchoolMailListViewModel @Inject constructor(
         }
     }
 
-    /** Spec §8.5: while the page is visible, look at the inbox every minute over the held connection. */
+    /**
+     * Spec §8.5: while the page is visible, look at the inbox every minute over
+     * the held connection. Spec §7.4: a rejected password stops the poll -- it
+     * would otherwise re-send the same rejected LOGIN once a minute for as long
+     * as the page is open. Signing in again clears the flag, and the screen
+     * restarts polling from that.
+     */
     fun startPolling() {
+        if (account.authFailed.value) return
         repository.acquire()
         pollJob?.cancel()
         pollJob = viewModelScope.launch {
-            while (isActive) {
+            while (isActive && !account.authFailed.value) {
                 delay(POLL_MS)
+                if (account.authFailed.value) break
                 poll()
             }
         }
@@ -142,8 +160,11 @@ class SchoolMailListViewModel @Inject constructor(
         repository.release()
     }
 
-    private fun showCached() {
-        repository.cachedPage(_state.value.selected)?.let { page ->
+    /** The cached page is a disk read, so it runs off the main thread (the repository hops to IO). */
+    private suspend fun showCached() {
+        val folder = _state.value.selected
+        repository.cachedPage(folder)?.let { page ->
+            if (_state.value.selected != folder) return
             _state.update { it.copy(messages = page.messages, nextBeforeSeq = page.nextBeforeSeq) }
         }
     }
@@ -205,8 +226,11 @@ class SchoolMailListViewModel @Inject constructor(
             val status = repository.inboxStatus()
             val newest = s.messages.maxOfOrNull { it.uid } ?: 0L
             if (status.uidNext > newest + 1) fetchFirstPage() else checker.noteSeenByPage(status)
-        } catch (_: MailError) {
-            // A missed poll is harmless; the next one or a pull-to-refresh tries again.
+        } catch (e: MailError) {
+            // The same path as every other list failure: a rejected password has to
+            // reach the account (spec §7.4) and a certificate failure has to reach
+            // the UI (spec §12.3) instead of being retried silently every minute.
+            fail(e)
         }
     }
 

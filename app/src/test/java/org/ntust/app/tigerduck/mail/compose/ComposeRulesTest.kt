@@ -72,6 +72,11 @@ class ComposeRulesTest {
         val list = listOf(
             MailAddress("B, C", "b@y.tw"),
             MailAddress("a \"quoted\" name", "q@y.tw"),
+            // Backslashes are quoted-pairs too: an unescape that chains `replace` calls turns
+            // the `\` of an escaped backslash back into an escape for whatever follows it.
+            MailAddress("Wang\\Da", "slash@y.tw"),
+            MailAddress("a backslash\\ then a \"quote\"", "mix@y.tw"),
+            MailAddress("ends with a backslash\\", "tail@y.tw"),
             MailAddress("王小明", "wang@y.tw"),
             MailAddress(null, "bare@y.tw"),
         )

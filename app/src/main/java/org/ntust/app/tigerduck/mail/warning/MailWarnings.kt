@@ -75,6 +75,22 @@ object MailWarnings {
         return leadingStripped.filterNot { it == '\t' || it == '\r' || it == '\n' }
     }
 
+    /**
+     * Everything invisible in a piece of link text: Unicode format characters
+     * (Cf -- bidi marks, word joiner U+2060, soft hyphen U+00AD, BOM U+FEFF) and
+     * C0/C1 controls (Cc). U+200B is spelled out because its category has moved
+     * between Unicode versions and platforms.
+     */
+    private val INVISIBLE = Regex("[\\p{Cf}\\p{Cc}\\u200b]")
+
+    /**
+     * What the reader actually sees. The shown-host comparison fails *open* on
+     * anything invisible -- `ntust.edu.tw` with a trailing word joiner matches no
+     * host pattern at all, so a link pointing somewhere else would be reported as
+     * having nothing to compare instead of as a mismatch.
+     */
+    private fun visibleText(text: String): String = INVISIBLE.replace(text, "")
+
     /** The first email-shaped match in [text], with a sentence-ending `.` trimmed off. */
     private fun firstEmail(text: String): String? = EMAIL.find(text)?.value?.trimEnd('.')
 
@@ -144,10 +160,11 @@ object MailWarnings {
     }
 
     fun checkLink(text: String, href: String): LinkVerdict {
+        val shownText = visibleText(text)
         val trimmedHref = sanitizeHref(href).trim()
         if (trimmedHref.startsWith("mailto:", ignoreCase = true)) {
             val actual = trimmedHref.substringAfter(':').substringBefore('?')
-            val shown = firstEmail(text)
+            val shown = firstEmail(shownText)
             return LinkVerdict(
                 host = actual,
                 shownHost = shown,
@@ -157,7 +174,7 @@ object MailWarnings {
             )
         }
         val actual = hostOf(trimmedHref).orEmpty()
-        val shownHost = HOST_LIKE.matchEntire(text.trim())?.groupValues?.get(1)
+        val shownHost = HOST_LIKE.matchEntire(shownText.trim())?.groupValues?.get(1)
             ?.let { toAscii(normalize(it)).removePrefix("www.") }
         val actualNoWww = actual.removePrefix("www.")
         val mismatch = shownHost != null && actualNoWww != shownHost && !actualNoWww.endsWith(".$shownHost")

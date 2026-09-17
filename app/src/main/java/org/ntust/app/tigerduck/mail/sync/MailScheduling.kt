@@ -68,6 +68,34 @@ object MailSchedulePolicy {
     fun shouldRetry(outcome: CheckOutcome, handOff: Boolean): Boolean = handOff && outcome == CheckOutcome.Busy
 }
 
+/**
+ * Arms or cancels both mechanisms for [decision], and reports whether the exact
+ * alarm is actually set.
+ *
+ * `setExactAndAllowWhileIdle` throws `SecurityException` if the exact-alarm
+ * grant is revoked between the check and the call -- the user can toggle it in
+ * Settings at any moment. That must not escape to sign-in, to the settings
+ * toggle or to a boot broadcast, and it needs no special handling: the
+ * 15-minute WorkManager backstop is scheduled either way, so checks keep
+ * running, just at the coarser period.
+ */
+internal fun applySchedule(
+    decision: ScheduleDecision,
+    setAlarm: () -> Unit,
+    cancelAlarm: () -> Unit,
+    schedulePeriodic: () -> Unit,
+    cancelPeriodic: () -> Unit,
+): Boolean {
+    val armed = if (decision.alarm) {
+        runCatching { setAlarm() }.isSuccess
+    } else {
+        cancelAlarm()
+        false
+    }
+    if (decision.worker) schedulePeriodic() else cancelPeriodic()
+    return armed
+}
+
 @Singleton
 class MailAlarmScheduler @Inject constructor(
     @param:ApplicationContext private val context: Context,
@@ -89,16 +117,20 @@ class MailAlarmScheduler @Inject constructor(
             authFailed = state.authFailed,
             canExactAlarm = canScheduleExactAlarms(),
         )
-        if (decision.alarm) {
-            alarms.setExactAndAllowWhileIdle(
-                AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                SystemClock.elapsedRealtime() + TimeUnit.MINUTES.toMillis(MailSchedulePolicy.INTERVAL_MINUTES),
-                alarmIntent(),
-            )
-        } else {
-            alarms.cancel(alarmIntent())
-        }
-        if (decision.worker) MailCheckWorker.schedulePeriodic(context) else MailCheckWorker.cancel(context)
+        val armed = applySchedule(
+            decision,
+            setAlarm = {
+                alarms.setExactAndAllowWhileIdle(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    SystemClock.elapsedRealtime() + TimeUnit.MINUTES.toMillis(MailSchedulePolicy.INTERVAL_MINUTES),
+                    alarmIntent(),
+                )
+            },
+            cancelAlarm = { alarms.cancel(alarmIntent()) },
+            schedulePeriodic = { MailCheckWorker.schedulePeriodic(context) },
+            cancelPeriodic = { MailCheckWorker.cancel(context) },
+        )
+        if (decision.alarm && !armed) Log.w(TAG, "exact alarm refused; the WorkManager backstop still runs")
     }
 
     override fun cancel() {
@@ -114,6 +146,7 @@ class MailAlarmScheduler @Inject constructor(
     )
 
     private companion object {
+        const val TAG = "MailAlarmScheduler"
         const val REQUEST_CODE = 4_2001
     }
 }
@@ -193,17 +226,49 @@ class MailAlarmReceiver : BroadcastReceiver() {
     }
 }
 
-/** Alarms and WorkManager state are re-armed after reboot, an app update, or a change to the exact-alarm grant. */
+/**
+ * Alarms and WorkManager state are re-armed after reboot, an app update, or a
+ * change to the exact-alarm grant.
+ *
+ * Like [MailAlarmReceiver], the work happens off the broadcast's main thread:
+ * `schedule()` reads the encrypted credential store, which opens Keystore and
+ * EncryptedSharedPreferences -- on BOOT_COMPLETED, with every other app doing
+ * the same, that is exactly where a main-thread read stalls.
+ */
 @AndroidEntryPoint
 class MailRescheduleReceiver : BroadcastReceiver() {
-    @Inject lateinit var scheduler: MailBackgroundScheduler
+    // Lazy for the same reason as MailAlarmReceiver: building the scheduler already touches Keystore.
+    @Inject lateinit var scheduler: dagger.Lazy<MailBackgroundScheduler>
+
+    @Inject
+    @ApplicationScope
+    lateinit var appScope: CoroutineScope
 
     override fun onReceive(context: Context, intent: Intent) {
-        when (intent.action) {
+        val ours = when (intent.action) {
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_MY_PACKAGE_REPLACED,
-            AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED -> scheduler.schedule()
+            AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED -> true
+            else -> false
         }
+        if (!ours) return
+        val pending = goAsync()
+        appScope.launch(Dispatchers.IO) {
+            try {
+                scheduler.get().schedule()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                // Only the class: an exception message here can carry account detail.
+                Log.w(TAG, "reschedule failed: ${t.javaClass.simpleName}")
+            } finally {
+                pending.finish()
+            }
+        }
+    }
+
+    private companion object {
+        const val TAG = "MailRescheduleReceiver"
     }
 }
 

@@ -37,7 +37,7 @@ class MailAlarmTickTest {
     private val state = InMemoryMailStateStore()
     private val notifier = RecordingNotifier()
     private val account by lazy {
-        MailAccount(InMemoryCredentialStore(), state, server.factory(), MailCache(tmp.root), FakeDemoGate(), RecordingScheduler(), notifier)
+        MailAccount(InMemoryCredentialStore(), state, server.factory(), MailCache(tmp.root), FakeDemoGate(), RecordingScheduler(), notifier, scope)
     }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

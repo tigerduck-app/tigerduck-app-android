@@ -31,13 +31,35 @@ sealed class MailError(message: String, cause: Throwable? = null) : Exception(me
 }
 
 object MailErrors {
+    /**
+     * How a mailbox server says "not now" rather than "wrong password": the IMAP
+     * response codes plus the wording Mail2000-style servers use. Mail2000's exact
+     * reply for an over-quota connection is unverified, so this only ever downgrades
+     * a match to [MailError.ServerBusy] -- anything unrecognized stays
+     * [MailError.AuthFailed], which is the safe default (it stops the retries).
+     */
+    private val BUSY_MARKERS = listOf("[unavailable]", "[limit]", "[inuse]", "too many", "busy", "try again", "maximum")
+
+    private fun looksBusy(message: String?): Boolean {
+        val text = message?.lowercase() ?: return false
+        return BUSY_MARKERS.any { it in text }
+    }
+
     fun classify(t: Throwable): MailError {
         if (t is MailError) return t
         val seen = HashSet<Throwable>()
         var current: Throwable? = t
         while (current != null && seen.add(current)) {
             when (current) {
-                is AuthenticationFailedException -> return MailError.AuthFailed(t)
+                // A refused connection is reported as an authentication failure too
+                // (`NO [UNAVAILABLE] Too many connections`). Spec §12.3 keeps the two
+                // apart: a busy server is retried next round, a rejected password
+                // cancels every background check and asks the user to sign in again.
+                // Only this exception's own message is inspected -- that is where the
+                // server's tagged NO text lands, and a wrapper's wording must never
+                // turn a genuinely rejected password into "just busy".
+                is AuthenticationFailedException ->
+                    return if (looksBusy(current.message)) MailError.ServerBusy(t) else MailError.AuthFailed(t)
                 is SSLPeerUnverifiedException, is SSLHandshakeException,
                 is CertificateException, is CertPathValidatorException -> return MailError.Certificate(t)
                 is SearchException -> return MailError.SearchUnsupported(t)
@@ -47,9 +69,9 @@ object MailErrors {
             }
             current = current.cause
         }
-        val text = generateSequence(t) { it.cause }.take(8).mapNotNull { it.message }.joinToString(" ").lowercase()
+        val text = generateSequence(t) { it.cause }.take(8).mapNotNull { it.message }.joinToString(" ")
         return when {
-            "too many" in text || "busy" in text || "try again" in text || "maximum" in text -> MailError.ServerBusy(t)
+            looksBusy(text) -> MailError.ServerBusy(t)
             t is IOException -> MailError.Network(t)
             else -> MailError.Protocol(t.message ?: t.javaClass.simpleName, t)
         }

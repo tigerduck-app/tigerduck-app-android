@@ -32,6 +32,38 @@ class MailSchedulePolicyTest {
     }
 
     @Test
+    fun `an exact alarm refused between the check and the call still leaves the WorkManager backstop`() {
+        // The grant can be revoked while schedule() runs; the SecurityException must not reach
+        // sign-in, the settings toggle or a boot broadcast, and the 15-minute backstop stays.
+        var periodic = 0
+        val armed = applySchedule(
+            ScheduleDecision(alarm = true, worker = true),
+            setAlarm = { throw SecurityException("caller needs SCHEDULE_EXACT_ALARM") },
+            cancelAlarm = { throw AssertionError("must not cancel while the decision says to arm") },
+            schedulePeriodic = { periodic++ },
+            cancelPeriodic = { throw AssertionError("must not cancel the backstop") },
+        )
+        assertFalse(armed)
+        assertEquals(1, periodic)
+    }
+
+    @Test
+    fun `a decision without an alarm cancels it and keeps only the backstop`() {
+        var cancelled = 0
+        var periodic = 0
+        val armed = applySchedule(
+            ScheduleDecision(alarm = false, worker = true),
+            setAlarm = { throw AssertionError("must not arm") },
+            cancelAlarm = { cancelled++ },
+            schedulePeriodic = { periodic++ },
+            cancelPeriodic = { throw AssertionError("must not cancel the backstop") },
+        )
+        assertFalse(armed)
+        assertEquals(1, cancelled)
+        assertEquals(1, periodic)
+    }
+
+    @Test
     fun `only a hand-off run retries, and only when the abandoned alarm check still holds the lock`() {
         assertTrue(MailSchedulePolicy.shouldRetry(CheckOutcome.Busy, handOff = true))
         assertFalse(MailSchedulePolicy.shouldRetry(CheckOutcome.Busy, handOff = false))

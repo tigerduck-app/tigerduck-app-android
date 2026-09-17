@@ -138,6 +138,39 @@ class AngusMailSessionReadTest {
     }
 
     @Test
+    fun `a broken boundary surfaces as a MailError, never an unclassified crash, and the source still reads`() {
+        // Spec §12.4 fixture: the Content-Type declares a boundary the body never uses.
+        server.deliverEml("/mail/malformed-boundary.eml")
+        session().use { s ->
+            // Listing must survive it: the page is built for every mail in the folder.
+            val summary = s.fetchPage("INBOX", null, 10).messages.single()
+            assertEquals("broken boundary", summary.subject)
+
+            val failure = runCatching { s.fetchBody("INBOX", summary.uid) }.exceptionOrNull()
+            assertTrue("expected a MailError, got $failure", failure is MailError.Protocol)
+
+            // Spec §12.3: a MIME parse failure falls back to the raw source, so that has to work.
+            val raw = ByteArrayOutputStream().also { s.writeRawSource("INBOX", summary.uid, it) }.toString("UTF-8")
+            assertTrue(raw.contains("Subject: broken boundary"))
+            assertTrue(raw.contains("not-the-declared-boundary"))
+        }
+    }
+
+    @Test
+    fun `a deeply nested multipart is walked to its leaves`() {
+        server.deliverEml("/mail/nested-multipart.eml")
+        session().use { s ->
+            val summary = s.fetchPage("INBOX", null, 10).messages.single()
+            assertTrue(summary.hasAttachments)
+            val body = s.fetchBody("INBOX", summary.uid)
+            assertEquals("plain outside", body.plain?.trim())
+            assertTrue(body.html!!.contains("deep <b>html</b>"))
+            assertEquals(listOf("deep.pdf"), body.attachments.map { it.fileName })
+            assertEquals("image/png", body.inlineImages.getValue("deep@x").contentType)
+        }
+    }
+
+    @Test
     fun `reading never marks mail as read, and raw source is the whole message`() {
         server.deliverEml("/mail/with-attachment.eml")
         session().use { s ->

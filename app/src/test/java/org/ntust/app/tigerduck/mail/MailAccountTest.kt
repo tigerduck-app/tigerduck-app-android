@@ -1,6 +1,10 @@
 package org.ntust.app.tigerduck.mail
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -23,7 +27,9 @@ class MailAccountTest {
     private val demo = FakeDemoGate()
     private val cache by lazy { MailCache(tmp.root) }
 
-    private fun account() = MailAccount(credentials, state, server.factory(), cache, demo, scheduler, notifier)
+    private val appScope = testApplicationScope()
+
+    private fun account() = MailAccount(credentials, state, server.factory(), cache, demo, scheduler, notifier, appScope)
 
     @Test
     fun `successful sign-in stores the account, sets the baseline and fills the display name`() = runTest {
@@ -105,11 +111,20 @@ class MailAccountTest {
         cache.attachmentsDir.mkdirs()
         File(cache.attachmentsDir, "a.pdf").writeText("x")
         account.signOut()
+        // Everything the repository's sign-out collector and the next sign-in depend on
+        // has already happened when signOut() returns; both callers are on the main thread.
         assertFalse(account.signedIn.value)
         assertNull(credentials.mailStudentId)
         assertEquals(0L, state.inboxSeenUidNext)
-        assertFalse(File(cache.attachmentsDir, "a.pdf").exists())
         assertEquals(1, scheduler.cancelled)
+        // Deleting the cache tree and cancelling notifications are the IO half, on the
+        // application scope -- bridge to real time to see them land.
+        withContext(Dispatchers.Default) {
+            withTimeout(2_000) {
+                while (File(cache.attachmentsDir, "a.pdf").exists() || notifier.cancelledAll == 0) delay(10)
+            }
+        }
+        assertFalse(File(cache.attachmentsDir, "a.pdf").exists())
         assertEquals(1, notifier.cancelledAll)
     }
 }

@@ -96,9 +96,13 @@ class MailChecker @Inject constructor(
                 val fresh = session.fetchSince(INBOX, marker).filter { it.uid >= marker }
                 // Max fetched UID + 1, not STATUS's UIDNEXT: mail that arrived between
                 // the two commands is then neither skipped nor notified twice.
-                state.inboxSeenUidNext = fresh.maxOfOrNull { it.uid + 1 } ?: status.uidNext
+                val advanced = fresh.maxOfOrNull { it.uid + 1 } ?: status.uidNext
                 val toNotify = fresh.filter { !it.flags.seen && !it.flags.deleted }
                 if (toNotify.isNotEmpty()) notifier.postNewMail(INBOX, toNotify)
+                // Spec §8.5 order: notify, then advance -- and never backwards. The page
+                // poll's noteSeenByPage can move the marker further while this check runs;
+                // overwriting it would re-notify mail the list has already shown.
+                state.inboxSeenUidNext = maxOf(state.inboxSeenUidNext, advanced)
                 CheckOutcome.NewMail(toNotify.size)
             }
         } catch (e: Exception) {

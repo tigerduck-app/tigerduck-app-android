@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
 import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.store.MailCache
+import org.ntust.app.tigerduck.mail.testApplicationScope
 import org.ntust.app.tigerduck.mail.warning.MailWarning
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.AttachmentAction
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.Content
@@ -45,7 +46,7 @@ class SchoolMailMessageViewModelTest {
     fun setUp() {
         cache = MailCache(tmp.newFolder("cache"))
         account = MailAccount(InMemoryCredentialStore(), InMemoryMailStateStore(), FakeMailServer().factory(), cache,
-            FakeDemoGate(), RecordingScheduler(), RecordingNotifier())
+            FakeDemoGate(), RecordingScheduler(), RecordingNotifier(), testApplicationScope())
     }
 
     // The same TestDispatcher backs both Dispatchers.Main and the injected @IoDispatcher, so a

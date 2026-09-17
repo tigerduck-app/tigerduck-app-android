@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.mail.mailSummary
 import org.ntust.app.tigerduck.mail.model.FolderStatus
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.sync.MailChecker
+import org.ntust.app.tigerduck.mail.testApplicationScope
 
 class SchoolMailListViewModelTest {
     @get:Rule val main = MainDispatcherRule()
@@ -39,7 +40,7 @@ class SchoolMailListViewModelTest {
     @Before
     fun setUp() {
         account = MailAccount(InMemoryCredentialStore(), state, server.factory(), MailCache(tmp.root),
-            FakeDemoGate(), RecordingScheduler(), RecordingNotifier())
+            FakeDemoGate(), RecordingScheduler(), RecordingNotifier(), testApplicationScope())
         runBlocking { account.signIn("b10000001", "pw") }
         vm = SchoolMailListViewModel(repo, account, MailChecker(account, state, server.factory(), RecordingNotifier()) { 0 })
     }
@@ -138,5 +139,70 @@ class SchoolMailListViewModelTest {
         assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
         vm.stopPolling()
         assertEquals(1, repo.released)
+    }
+
+    @Test
+    fun `a password the poll finds rejected marks the account, surfaces, and stops the poll`() {
+        // Spec §7.4: the page poll must not keep re-sending a rejected LOGIN every minute --
+        // repeated failures can lock the school account and the campus Wi-Fi that share the password.
+        repo.add("INBOX", mailSummary(1))
+        vm.load()
+        vm.startPolling()
+        repo.statusError = MailError.AuthFailed()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue(account.authFailed.value)
+        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Failed)
+        val callsAfterRejection = repo.statusCalls
+
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS * 5)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(callsAfterRejection, repo.statusCalls)
+    }
+
+    @Test
+    fun `polling does not start at all while the password is rejected, and starts again after signing in`() {
+        repo.add("INBOX", mailSummary(1))
+        vm.load()
+        val statusCallsAfterLoad = repo.statusCalls
+
+        account.onAuthFailure()
+        vm.startPolling()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS * 3)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(0, repo.acquired)
+        assertEquals(statusCallsAfterLoad, repo.statusCalls)
+
+        // Signing in again clears the flag, and polling works from then on.
+        runBlocking { account.signIn("b10000001", "pw") }
+        assertFalse(account.authFailed.value)
+        vm.startPolling()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(1, repo.acquired)
+        assertEquals(statusCallsAfterLoad + 1, repo.statusCalls)
+    }
+
+    @Test
+    fun `a certificate failure during a poll reaches the UI instead of being swallowed`() {
+        repo.add("INBOX", mailSummary(1))
+        vm.load()
+        vm.startPolling()
+        repo.statusError = MailError.Certificate()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+        val failed = vm.state.value.loadState as SchoolMailListViewModel.LoadState.Failed
+        assertTrue(failed.error is MailError.Certificate)
+        assertFalse(account.authFailed.value)
+    }
+
+    @Test
+    fun `signing out clears the previous account's mail from the screen`() {
+        repo.add("INBOX", mailSummary(1), mailSummary(2))
+        vm.load()
+        assertEquals(2, vm.state.value.displayed.size)
+        account.signOut()
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(SchoolMailListViewModel.UiState(), vm.state.value)
     }
 }

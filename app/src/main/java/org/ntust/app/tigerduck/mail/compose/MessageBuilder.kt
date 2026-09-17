@@ -39,7 +39,7 @@ class MessageBuilder(
         msg.setFrom(internet(mail.from))
         msg.setRecipients(Message.RecipientType.TO, mail.to.map(::internet).toTypedArray())
         if (mail.cc.isNotEmpty()) msg.setRecipients(Message.RecipientType.CC, mail.cc.map(::internet).toTypedArray())
-        msg.setSubject(mail.subject, "UTF-8")
+        msg.setSubject(sanitizeHeaderValue(mail.subject), "UTF-8")
         msg.sentDate = now()
         mail.inReplyTo?.let { msg.setHeader("In-Reply-To", MimeUtility.fold("In-Reply-To: ".length, sanitizeHeaderValue(it))) }
         mail.references?.let { msg.setHeader("References", MimeUtility.fold("References: ".length, sanitizeHeaderValue(it))) }
@@ -61,11 +61,14 @@ class MessageBuilder(
         return BuiltMessage(msg, messageId, envelope)
     }
 
-    private fun internet(a: MailAddress) = InternetAddress(a.address, a.name?.takeIf { it.isNotBlank() }, "UTF-8")
+    private fun internet(a: MailAddress) =
+        InternetAddress(a.address, a.name?.let(::sanitizeHeaderValue)?.takeIf { it.isNotBlank() }, "UTF-8")
 
-    /** A Message-ID token never legitimately contains a control character;
-     *  stripping them defangs a CR/LF header-injection attempt smuggled in
-     *  through a hostile In-Reply-To or References value. */
+    /** No header value this builder writes -- a Message-ID token, a subject, a
+     *  display name -- legitimately contains a control character; stripping them
+     *  everywhere makes the header structure safe by construction rather than by
+     *  whatever the encoder happens to escape, and defangs a CR/LF injection
+     *  smuggled in through a hostile In-Reply-To, References or sender name. */
     private fun sanitizeHeaderValue(raw: String): String = raw.filterNot { it.isISOControl() }
 
     private fun attachmentPart(a: OutgoingAttachment) = MimeBodyPart().apply {

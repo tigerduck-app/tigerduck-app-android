@@ -135,10 +135,12 @@ fun SchoolMailScreen(
         }
     }
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, signedIn) {
+    // Keyed on authFailed too: the poll stops while the password is rejected (spec §7.4),
+    // so signing in again has to re-add the observer for polling to start back up.
+    DisposableEffect(lifecycleOwner, signedIn, authFailed) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> if (signedIn) viewModel.startPolling()
+                Lifecycle.Event.ON_RESUME -> if (signedIn && !authFailed) viewModel.startPolling()
                 Lifecycle.Event.ON_PAUSE -> viewModel.stopPolling()
                 else -> Unit
             }
@@ -375,7 +377,7 @@ private fun MailCard(message: MailSummary, onClick: () -> Unit) {
                 )
                 if (MailWarnings.isExternal(message.from?.address)) {
                     Spacer(Modifier.width(6.dp))
-                    Surface(shape = RoundedCornerShape(50), color = Color(0xFFFFA500).copy(alpha = 0.18f)) {
+                    Surface(shape = RoundedCornerShape(50), color = Color(0xFFFF9500).copy(alpha = 0.18f)) {
                         Text(
                             stringResource(R.string.school_mail_external_badge),
                             style = MaterialTheme.typography.labelSmall,

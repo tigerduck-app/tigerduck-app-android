@@ -20,4 +20,31 @@ class MailErrorsTest {
         val already = MailError.Network()
         assertTrue(MailErrors.classify(already) === already)
     }
+
+    @Test
+    fun `a full mailbox server is busy, not a rejected password`() {
+        // Spec §12.3 keeps them apart: a busy server is retried next round, while a rejected
+        // password cancels every background check and asks the user to sign in again. Mail2000
+        // reports both as an authentication failure.
+        val busy = listOf(
+            "NO [UNAVAILABLE] Too many connections",
+            "NO [LIMIT] maximum number of connections reached",
+            "NO [INUSE] mailbox busy, try again later",
+        )
+        busy.forEach { reply ->
+            assertTrue(reply, MailErrors.classify(AuthenticationFailedException(reply)) is MailError.ServerBusy)
+        }
+    }
+
+    @Test
+    fun `an ordinary rejection stays a rejected password`() {
+        // The safe default: the server's exact wording is unverified, so anything that isn't a
+        // recognized busy reply must keep stopping the retries.
+        listOf("", "LOGIN failed", "NO Authentication failed", "invalid credentials").forEach { reply ->
+            assertTrue(reply, MailErrors.classify(AuthenticationFailedException(reply)) is MailError.AuthFailed)
+        }
+        // A wrapper's wording must not turn a rejected password into "just busy" either.
+        val wrapped = MessagingException("connect failed; try again", AuthenticationFailedException("LOGIN failed"))
+        assertTrue(MailErrors.classify(wrapped) is MailError.AuthFailed)
+    }
 }

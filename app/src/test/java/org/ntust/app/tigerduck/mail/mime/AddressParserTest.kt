@@ -32,6 +32,16 @@ class AddressParserTest {
     }
 
     @Test
+    fun `quoted-pairs are undone in one left-to-right pass`() {
+        // On the wire, the name `Wang\Da` is written with the backslash escaped.
+        assertEquals(MailAddress("Wang\\Da", "a@x.tw"), AddressParser.parseOne("\"Wang\\\\Da\" <a@x.tw>"))
+        assertEquals(MailAddress("say \"hi\"", "a@x.tw"), AddressParser.parseOne("\"say \\\"hi\\\"\" <a@x.tw>"))
+        // The `\` an escaped backslash produces must never act as an escape itself:
+        // `\\` then `\"` is a backslash followed by a quote, not an escaped quote.
+        assertEquals(MailAddress("A\\\"B", "a@x.tw"), AddressParser.parseOne("\"A\\\\\\\"B\" <a@x.tw>"))
+    }
+
+    @Test
     fun `address shape check`() {
         assertTrue(AddressParser.looksLikeAddress("b1@mail.ntust.edu.tw"))
         assertFalse(AddressParser.looksLikeAddress("b1@localhost"))
