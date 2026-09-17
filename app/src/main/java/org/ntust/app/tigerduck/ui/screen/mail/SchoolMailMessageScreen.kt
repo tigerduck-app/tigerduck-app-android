@@ -74,7 +74,6 @@ import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.mime.TextCleaning
 import org.ntust.app.tigerduck.mail.model.MailAttachment
 import org.ntust.app.tigerduck.mail.model.MailSummary
-import org.ntust.app.tigerduck.mail.warning.LinkVerdict
 import org.ntust.app.tigerduck.mail.warning.MailWarning
 import org.ntust.app.tigerduck.mail.warning.MailWarnings
 import org.ntust.app.tigerduck.ui.component.ContentCard
@@ -227,13 +226,11 @@ fun SchoolMailMessageScreen(
                     }
                 }
                 when (state.mode) {
-                    ViewMode.FORMATTED -> if (html != null) item(key = "html") {
-                        val document = remember(html, content.body.inlineImages, state.remoteImagesAllowed) {
-                            MailHtmlDocument.build(html.html, content.body.inlineImages, state.remoteImagesAllowed)
-                        }
-                        // Normalized the same way as the link lookup: Chromium hands
-                        // shouldInterceptRequest its own normalized request URL, which a raw
-                        // <img src> string won't match byte-for-byte even when it's the same URL.
+                    ViewMode.FORMATTED -> if (html != null && content.document != null) item(key = "html") {
+                        val document = content.document
+                        // Chromium hands shouldInterceptRequest its own normalized request URL,
+                        // which a raw <img src> string won't match byte-for-byte even when it's
+                        // the same URL, so both sides go through the same normalizer.
                         val allowedRemoteUrls = remember(html.remoteImageUrls, state.remoteImagesAllowed) {
                             if (state.remoteImagesAllowed) {
                                 html.remoteImageUrls.map { SchoolMailMessageViewModel.normalizedHref(it) }.toSet()
@@ -248,9 +245,9 @@ fun SchoolMailMessageScreen(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                         ) {
                             MailWebView(
-                                document = document,
+                                document = document.html,
                                 allowedRemoteUrls = allowedRemoteUrls,
-                                linkCount = html.links.size,
+                                linkCount = document.links.size,
                                 onLink = { pendingLink = it },
                                 modifier = Modifier.fillMaxWidth(),
                             )
@@ -310,18 +307,16 @@ fun SchoolMailMessageScreen(
     }
 
     pendingLink?.let { index ->
-        // ready should always be non-null with a matching link here (MailWebView only calls
-        // onLink with an index it already range-checked against the same html.links.size passed
-        // to it as linkCount); if content somehow changed underneath in between, skip rendering
-        // rather than showing a dialog with nothing to open.
-        val link = ready?.html?.links?.getOrNull(index)
-        if (link != null) {
+        // MailWebView only calls onLink with an index it range-checked against the same
+        // document.links it was given, so this is null only if the content changed underneath
+        // since the tap; skip the dialog rather than show one with nothing to open.
+        val target = viewModel.linkTarget(index)
+        if (target != null) {
             LinkDialog(
-                href = link.href,
-                verdict = viewModel.linkVerdict(index),
+                target = target,
                 onOpen = {
                     pendingLink = null
-                    openLink(context, link.href, browserPreference)
+                    openLink(context, target.href, browserPreference)
                 },
                 onDismiss = { pendingLink = null },
             )
@@ -518,19 +513,20 @@ private fun AttachmentRow(attachment: MailAttachment, downloading: Boolean, onOp
 
 /**
  * Spec §6.3: show the real host before leaving the app; a mismatch is spelled out in red.
- * [href] is exactly what the mail wrote (or what the WebView normalized it to on tap), which
- * can carry bidi control characters intended to disguise it -- so every place this dialog
- * shows it to the user goes through [TextCleaning.stripBidi] first. The verdict itself was
- * already computed from the raw [href] by [SchoolMailMessageViewModel.linkVerdict].
+ * [target]'s href is the one string the verdict judged and [onOpen] launches (for http(s), the
+ * browser-like canonical form; see [SchoolMailMessageViewModel.linkTarget]). It can still carry
+ * bidi control characters meant to disguise it, so it is shown only through
+ * [TextCleaning.stripBidi]. A target that cannot be opened gets no Open button.
  */
 @Composable
-private fun LinkDialog(href: String, verdict: LinkVerdict, onOpen: () -> Unit, onDismiss: () -> Unit) {
-    val displayHref = TextCleaning.stripBidi(href)
+private fun LinkDialog(target: SchoolMailMessageViewModel.LinkTarget, onOpen: () -> Unit, onDismiss: () -> Unit) {
+    val verdict = target.verdict
+    val displayHref = TextCleaning.stripBidi(target.href)
     TigerDuckDialog(
         onDismissRequest = onDismiss,
         title = stringResource(R.string.school_mail_link_title),
-        confirmText = stringResource(R.string.school_mail_open),
-        onConfirm = onOpen,
+        confirmText = if (target.canOpen) stringResource(R.string.school_mail_open) else null,
+        onConfirm = if (target.canOpen) onOpen else onDismiss,
         dismissText = stringResource(R.string.action_cancel),
     ) {
         Text(

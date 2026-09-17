@@ -20,8 +20,8 @@ import java.io.ByteArrayInputStream
  * [WebViewClient.shouldInterceptRequest].
  *
  * Every `<a href>` in [document] was already rewritten by [MailHtmlDocument.rewriteLinks] to the
- * synthetic form `https://link.invalid/<n>`, `n` being that link's index into
- * `SanitizedHtml.links`. [onLink] is called with `n` -- never a URL -- once
+ * synthetic form `https://link.invalid/<n>`, `n` being that link's index into the `LinkedHtml.links`
+ * returned with the document ([linkCount] is its size). [onLink] is called with `n` -- never a URL -- once
  * [WebViewClient.shouldOverrideUrlLoading] has confirmed the tapped URL is exactly that form
  * (via [parseLinkIndex]) and `n` is within [linkCount]; matching an index this way, rather than
  * a URL by any normalized comparison, means no WebView/Chromium canonicalization quirk can ever

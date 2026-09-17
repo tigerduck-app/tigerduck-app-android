@@ -367,10 +367,10 @@ class SchoolMailMessageViewModelTest {
         assertEquals(0, vm.state.value.savedCount)
     }
 
-    // --- link verdict: addressed by index into SanitizedHtml.links, no href matching --------
+    // --- link target: addressed by index into the rewritten document's links -----------------
 
     @Test
-    fun `linkVerdict addresses a link by index, reading its own text and href directly`() {
+    fun `linkTarget addresses a link by index, reading its own text and href`() {
         repo.add("INBOX", mailSummary(5))
         repo.bodies[5] = MailBody(
             """<p><a href="HTTP://Evil.EXAMPLE">bank.example.com</a></p>""",
@@ -381,7 +381,7 @@ class SchoolMailMessageViewModelTest {
         val vm = vm()
         vm.load()
 
-        val verdict = vm.linkVerdict(0)
+        val verdict = vm.linkTarget(0)!!.verdict
         assertTrue(verdict.mismatch)
         assertEquals("bank.example.com", verdict.shownHost)
         assertEquals("evil.example", verdict.host)
@@ -403,10 +403,10 @@ class SchoolMailMessageViewModelTest {
         val vm = vm()
         vm.load()
 
-        assertFalse(vm.linkVerdict(0).mismatch)
-        assertTrue(vm.linkVerdict(1).mismatch)
-        assertEquals("ntust.edu.tw", vm.linkVerdict(1).shownHost)
-        assertEquals("evil.example", vm.linkVerdict(1).host)
+        assertFalse(vm.linkTarget(0)!!.verdict.mismatch)
+        assertTrue(vm.linkTarget(1)!!.verdict.mismatch)
+        assertEquals("ntust.edu.tw", vm.linkTarget(1)!!.verdict.shownHost)
+        assertEquals("evil.example", vm.linkTarget(1)!!.verdict.host)
     }
 
     @Test
@@ -421,30 +421,111 @@ class SchoolMailMessageViewModelTest {
         val vm = vm()
         vm.load()
 
-        assertFalse(vm.linkVerdict(0).mismatch)
-        assertFalse(vm.linkVerdict(1).mismatch)
-        assertEquals("ntust.edu.tw", vm.linkVerdict(0).host)
-        assertEquals("ntust.edu.tw", vm.linkVerdict(1).host)
+        assertFalse(vm.linkTarget(0)!!.verdict.mismatch)
+        assertFalse(vm.linkTarget(1)!!.verdict.mismatch)
+        assertEquals("ntust.edu.tw", vm.linkTarget(0)!!.verdict.host)
+        assertEquals("ntust.edu.tw", vm.linkTarget(1)!!.verdict.host)
     }
 
     @Test
-    fun `linkVerdict on an out-of-range index returns a safe non-mismatching fallback instead of crashing`() {
+    fun `linkTarget on an out-of-range index is null instead of crashing`() {
         repo.add("INBOX", mailSummary(5))
         repo.bodies[5] = MailBody("""<p><a href="https://ntust.edu.tw">ntust.edu.tw</a></p>""", null, emptyList(), emptyMap())
         val vm = vm()
         vm.load()
 
-        val verdict = vm.linkVerdict(5)
-        assertFalse(verdict.mismatch)
-        assertNull(verdict.shownHost)
-        assertEquals("", verdict.host)
+        assertNull(vm.linkTarget(5))
+    }
+
+    // --- the link list is the rewritten document's own ---------------------------------------
+
+    @Test
+    fun `an anchor the parser clones out of a dropped element is judged by its own text and href`() {
+        // The Cleaner drops <marquee> but keeps the <p> inside it -- a tree the HTML parser never
+        // builds -- so parsing the sanitized markup again clones the <a> around "ntust.edu.tw": the
+        // WebView shows four anchors where the sanitizer counted two. Tapping the visible
+        // "ntust.edu.tw" must judge that anchor (a.example), not the sanitizer's second link.
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(
+            """<p><a href="https://a.example">A<marquee><p>ntust.edu.tw</p></marquee>C</a></p><a href="https://evil.example"></a>""",
+            null,
+            emptyList(),
+            emptyMap(),
+        )
+        val vm = vm()
+        vm.load()
+
+        assertEquals(2, ready(vm).html!!.links.size)
+        assertEquals(4, ready(vm).document!!.links.size)
+        val tapped = vm.linkTarget(1)!!.verdict
+        assertEquals("a.example", tapped.host)
+        assertEquals("ntust.edu.tw", tapped.shownHost)
+        assertTrue(tapped.mismatch)
+        assertEquals("evil.example", vm.linkTarget(3)!!.verdict.host)
+    }
+
+    // --- http(s) hrefs are judged, shown and opened the way a browser parses them -------------
+
+    private fun loadLink(href: String, text: String): SchoolMailMessageViewModel {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody("""<p><a href="$href">$text</a></p>""", null, emptyList(), emptyMap())
+        return vm().also { it.load() }
+    }
+
+    @Test
+    fun `a backslash before an at sign ends the host the way a browser reads it`() {
+        val target = loadLink("""https://evil.example\@ntust.edu.tw""", "ntust.edu.tw").linkTarget(0)!!
+        assertEquals("evil.example", target.verdict.host)
+        assertTrue(target.verdict.mismatch)
+        // The string shown and opened is the one judged.
+        assertEquals("https://evil.example/@ntust.edu.tw", target.href)
+        assertTrue(target.canOpen)
+    }
+
+    @Test
+    fun `a backslash before a school suffix does not pass the suffix check`() {
+        val target = loadLink("""https://evil.example\.ntust.edu.tw""", "ntust.edu.tw").linkTarget(0)!!
+        assertEquals("evil.example", target.verdict.host)
+        assertTrue(target.verdict.mismatch)
+        assertEquals("https://evil.example/.ntust.edu.tw", target.href)
+        assertTrue(target.canOpen)
+    }
+
+    @Test
+    fun `the last at sign ends the userinfo the way a browser reads it`() {
+        val target = loadLink("https://x@a.ntust.edu.tw:pw@evil.example", "ntust.edu.tw").linkTarget(0)!!
+        assertEquals("evil.example", target.verdict.host)
+        assertTrue(target.verdict.mismatch)
+        assertEquals("https://x%40a.ntust.edu.tw:pw@evil.example/", target.href)
+        assertTrue(target.canOpen)
+    }
+
+    @Test
+    fun `an http href a browser-like parser rejects is shown without an Open action`() {
+        val target = loadLink("https://ntust.edu.tw:99999/", "ntust.edu.tw").linkTarget(0)!!
+        assertFalse(target.canOpen)
+        assertEquals("https://ntust.edu.tw:99999/", target.href)
+        // It claims no host: the dialog falls back to showing the href itself.
+        assertEquals("", target.verdict.host)
+    }
+
+    @Test
+    fun `a mailto href is judged, shown and opened as written`() {
+        val target = loadLink("mailto:Someone@Evil.example", "someone@ntust.edu.tw").linkTarget(0)!!
+        assertEquals("mailto:Someone@Evil.example", target.href)
+        assertEquals("Someone@Evil.example", target.verdict.host)
+        assertTrue(target.verdict.mismatch)
+        assertTrue(target.canOpen)
     }
 
     // --- normalizedHref: linear time (this stays only for the remote-image allowlist) -------
 
     @Test
-    fun `normalizedHref stays linear-time on a hostile fragment`() {
-        val hostile = "https://" + "a".repeat(32_000) + "# x"
+    fun `normalizedHref stays linear-time on a line separator in a long fragment`() {
+        // U+2028 is a line terminator to java.util.regex: without DOT_MATCHES_ALL `.` stops at it
+        // and the engine backtracks through every optional group -- quadratic in the host length.
+        // A plain space would not exercise that at all.
+        val hostile = "https://" + "a".repeat(32_000) + "#\u2028x"
         val elapsed = measureTimeMillis { SchoolMailMessageViewModel.normalizedHref(hostile) }
         assertTrue("normalizedHref took ${elapsed}ms on a 32k-char hostile fragment", elapsed < 1000)
     }

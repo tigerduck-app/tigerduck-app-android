@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.ntust.app.tigerduck.di.IoDispatcher
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MailError
@@ -26,6 +27,7 @@ import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.notify.MailNotifier
 import org.ntust.app.tigerduck.mail.sanitize.HtmlSanitizer
+import org.ntust.app.tigerduck.mail.sanitize.MailLink
 import org.ntust.app.tigerduck.mail.sanitize.SanitizedHtml
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.warning.LinkVerdict
@@ -57,6 +59,15 @@ class SchoolMailMessageViewModel @Inject constructor(
 
     data class PendingAttachment(val attachment: MailAttachment, val action: AttachmentAction)
 
+    /** What the link dialog judges, shows and opens for one tapped anchor. */
+    data class LinkTarget(
+        /** Judged by [verdict], shown (bidi-stripped) and opened exactly as it is. */
+        val href: String,
+        val verdict: LinkVerdict,
+        /** False for an http(s) href a browser-like parser rejects: the dialog shows it without Open. */
+        val canOpen: Boolean,
+    )
+
     sealed interface Content {
         data object Loading : Content
         data class Failed(val error: MailError) : Content
@@ -64,6 +75,8 @@ class SchoolMailMessageViewModel @Inject constructor(
             val summary: MailSummary,
             val body: MailBody,
             val html: SanitizedHtml?,
+            /** [html] as the WebView loads it; taps address its links (see [MailHtmlDocument.rewriteLinks]). */
+            val document: LinkedHtml?,
             val plain: String,
             val warnings: List<MailWarning>,
         ) : Content
@@ -123,7 +136,7 @@ class SchoolMailMessageViewModel @Inject constructor(
                     repository.body(folder, uid)
                 } catch (e: MailError.Protocol) {
                     // A body we cannot parse is still readable as its source (spec §9.1).
-                    update { it.copy(content = Content.Ready(summary, EMPTY_BODY, null, "", emptyList()), parseFailed = true) }
+                    update { it.copy(content = Content.Ready(summary, EMPTY_BODY, null, null, "", emptyList()), parseFailed = true) }
                     markSeen(summary)
                     selectMode(ViewMode.SOURCE)
                     return@launch
@@ -134,11 +147,12 @@ class SchoolMailMessageViewModel @Inject constructor(
                 // silently re-blocks images the user already opted into.
                 val allowRemote = _state.value.remoteImagesAllowed
                 val html = body.html?.let { HtmlSanitizer.sanitize(it, allowRemoteImages = allowRemote) }
+                val document = html?.let { MailHtmlDocument.build(it.html, body.inlineImages, allowRemote) }
                 val plain = body.plain ?: html?.let { HtmlSanitizer.plainText(it.html) }.orEmpty()
                 val warnings = MailWarnings.evaluate(summary.from, summary.subject, plain, html?.links.orEmpty(), body.attachments)
                 update {
                     it.copy(
-                        content = Content.Ready(summary, body, html, plain, warnings),
+                        content = Content.Ready(summary, body, html, document, plain, warnings),
                         mode = if (html != null) ViewMode.FORMATTED else ViewMode.PLAIN,
                     )
                 }
@@ -165,8 +179,10 @@ class SchoolMailMessageViewModel @Inject constructor(
 
     fun loadRemoteImages() {
         val ready = _state.value.content as? Content.Ready ?: return
-        val html = ready.body.html ?: return
-        update { it.copy(remoteImagesAllowed = true, content = ready.copy(html = HtmlSanitizer.sanitize(html, allowRemoteImages = true))) }
+        val source = ready.body.html ?: return
+        val html = HtmlSanitizer.sanitize(source, allowRemoteImages = true)
+        val document = MailHtmlDocument.build(html.html, ready.body.inlineImages, allowRemoteImages = true)
+        update { it.copy(remoteImagesAllowed = true, content = ready.copy(html = html, document = document)) }
     }
 
     fun selectMode(mode: ViewMode) {
@@ -216,22 +232,12 @@ class SchoolMailMessageViewModel @Inject constructor(
     }
 
     /**
-     * [index] addresses `SanitizedHtml.links[index]` directly -- [MailWebView] hands back an
-     * index, never a URL (see [MailHtmlDocument.rewriteLinks]), so this never has to compare a
-     * WebView-tapped URL against a sanitized `href` by any normalized/canonicalized form. That
-     * comparison used to be exactly where a Chromium canonicalization quirk this code didn't
-     * happen to copy (several `@` in userinfo, a percent-escape next to a space, a line
-     * separator in a fragment, a non-canonical IPv6 literal, ...) would make a real mismatch
-     * fail to be detected -- addressing by index removes that whole class of miss, not just the
-     * specific quirks found so far. [MailWebView] only ever calls back with an index it has
-     * already range-checked against `links.size`, so the fallback below should never actually
-     * fire; it exists only so an out-of-bounds index can never crash the screen.
+     * [index] is `n` from a tapped `https://link.invalid/<n>` ([MailWebView] range-checks it), addressing
+     * the list [MailHtmlDocument.rewriteLinks] read off the very anchors the WebView shows -- never
+     * `SanitizedHtml.links`, whose indices a re-parse can shift. Null for an index with no link.
      */
-    fun linkVerdict(index: Int): LinkVerdict {
-        val link = (_state.value.content as? Content.Ready)?.html?.links?.getOrNull(index)
-            ?: return LinkVerdict(host = "", shownHost = null, mismatch = false, punycode = false, insecure = false)
-        return MailWarnings.checkLink(link.text, link.href)
-    }
+    fun linkTarget(index: Int): LinkTarget? =
+        (_state.value.content as? Content.Ready)?.document?.links?.getOrNull(index)?.let { targetOf(it) }
 
     // --- attachments --------------------------------------------------------------------
 
@@ -422,7 +428,27 @@ class SchoolMailMessageViewModel @Inject constructor(
         private const val DAY_MS = 24L * 60 * 60 * 1000
         private const val MAX_NAME_LENGTH = 120
         private val EMPTY_BODY = MailBody(null, null, emptyList(), emptyMap())
+        private val UNPARSEABLE_VERDICT = LinkVerdict(host = "", shownHost = null, mismatch = false, punycode = false, insecure = false)
         private val UNSAFE_NAME = Regex("[\\\\/:*?\"<>|\\u0000-\\u001f]")
+
+        /**
+         * An http(s) href is canonicalized once, with OkHttp's `HttpUrl`, which reads a URL the way a
+         * browser does (`\` is `/`, the last `@` ends the userinfo), and that one string is what
+         * [MailWarnings.checkLink] judges, what the dialog shows and what Open launches. Judged as written,
+         * `https://evil.example\@ntust.edu.tw` passed as ntust.edu.tw while the browser went to
+         * evil.example. An http(s) href `HttpUrl` rejects is shown as written, claims no host and cannot be
+         * opened. Anything else (mailto:) is judged and opened as written.
+         */
+        private fun targetOf(link: MailLink): LinkTarget {
+            val href = link.href.trim()
+            val scheme = href.substringBefore(':', missingDelimiterValue = "").lowercase()
+            if (scheme != "http" && scheme != "https") {
+                return LinkTarget(link.href, MailWarnings.checkLink(link.text, link.href), canOpen = true)
+            }
+            val canonical = href.toHttpUrlOrNull()?.toString()
+                ?: return LinkTarget(link.href, UNPARSEABLE_VERDICT, canOpen = false)
+            return LinkTarget(canonical, MailWarnings.checkLink(link.text, canonical), canOpen = true)
+        }
 
         /**
          * At most [MAX_NAME_LENGTH] UTF-16 code units, the extension kept intact (the stem is
@@ -491,7 +517,7 @@ class SchoolMailMessageViewModel @Inject constructor(
 
         /**
          * Splits [raw] the way [normalizedHref] needs (used only for the remote-image allowlist
-         * -- link matching addresses by index instead, see [linkVerdict]), or null for anything
+         * -- link matching addresses by index instead, see [linkTarget]), or null for anything
          * that isn't a `scheme://...` URL (e.g. `mailto:`) or ends up with no host at all. Two
          * WebView/Chromium quirks are folded in before the lenient host/path split, since a
          * mail's own un-normalized markup needs to match the href WebView hands back on tap:
