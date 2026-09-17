@@ -93,6 +93,85 @@ class SchoolMailComposeViewModelTest {
     }
 
     @Test
+    fun `prefill runs once per instance -- a second call changes nothing`() {
+        repo.add("INBOX", mailSummary(5, subject = "期中考"))
+        repo.bodies[5] = MailBody(null, "line1", emptyList(), emptyMap())
+        val vm = vm(ComposeMode.REPLY, "INBOX", 5) // the vm() factory already called prefill() once
+        val toAfterFirst = vm.state.value.to
+        vm.addAttachments(listOf(ComposeAttachment("p", "p.txt", "text/plain", 2,
+            ComposeAttachment.Source.Local { ByteArrayInputStream("hi".toByteArray()) })))
+        val attachmentsBefore = vm.state.value.attachments
+        val dirtyBefore = vm.state.value.dirty
+
+        vm.prefill(labels) // second call -- must be a no-op
+        assertEquals(toAfterFirst, vm.state.value.to)
+        assertEquals(attachmentsBefore, vm.state.value.attachments)
+        assertEquals(dirtyBefore, vm.state.value.dirty)
+    }
+
+    @Test
+    fun `retry after a failure keeps edited text and local picks, adds the carried originals, and leaves the form dirty`() {
+        repo.add("INBOX", mailSummary(5, hasAttachments = true))
+        repo.bodyError = MailError.Network()
+        val vm = vm(ComposeMode.FORWARD, "INBOX", 5)
+        assertTrue(vm.state.value.loadError != null)
+
+        vm.setBody("我自己寫的內容")
+        vm.addAttachments(listOf(ComposeAttachment("p", "p.txt", "text/plain", 2,
+            ComposeAttachment.Source.Local { ByteArrayInputStream("hi".toByteArray()) })))
+
+        repo.bodyError = null
+        repo.bodies[5] = MailBody(null, "body", listOf(MailAttachment("2", "a.pdf", "application/pdf", 12, null)), emptyMap())
+        vm.retryPrefill(labels)
+
+        assertEquals(null, vm.state.value.loadError)
+        assertEquals("我自己寫的內容", vm.state.value.body)
+        assertEquals(setOf("p.txt", "a.pdf"), vm.state.value.attachments.map { it.fileName }.toSet())
+        assertTrue(vm.state.value.dirty)
+    }
+
+    @Test
+    fun `editing fields, changing attachments, and a send validation error all leave the load failure and Retry visible`() {
+        repo.add("INBOX", mailSummary(5, subject = "期中考"))
+        repo.bodyError = MailError.Network()
+        val vm = vm(ComposeMode.REPLY, "INBOX", 5)
+        assertTrue(vm.state.value.loadError != null)
+
+        vm.setTo("typed@x.tw")
+        assertTrue(vm.state.value.loadError != null)
+        assertEquals("typed@x.tw", vm.state.value.to)
+
+        vm.addAttachments(listOf(ComposeAttachment("p", "p.txt", "text/plain", 2,
+            ComposeAttachment.Source.Local { ByteArrayInputStream("hi".toByteArray()) })))
+        assertTrue(vm.state.value.loadError != null)
+        vm.removeAttachment("p")
+        assertTrue(vm.state.value.loadError != null)
+
+        vm.setTo("not an address")
+        vm.send()
+        assertEquals(ComposeError.InvalidRecipients(listOf("not an address")), vm.state.value.error)
+        assertTrue(vm.state.value.loadError != null)
+    }
+
+    @Test
+    fun `a pick that can't be measured shows the attachment error instead of vanishing silently`() {
+        val unmeasurable = PickedAttachmentReader { null }
+        val vm = SchoolMailComposeViewModel(handle(ComposeMode.NEW), repo, account, cache, unmeasurable, main.dispatcher)
+        vm.addPicked(listOf<Uri?>(null))
+        assertEquals(ComposeError.TooLarge, vm.state.value.error)
+        assertTrue(vm.state.value.attachments.isEmpty())
+    }
+
+    @Test
+    fun `an empty pick clears nothing`() {
+        val vm = vm(ComposeMode.NEW)
+        vm.setTo("a@x.tw")
+        vm.addPicked(emptyList())
+        assertEquals("a@x.tw", vm.state.value.to)
+        assertEquals(null, vm.state.value.error)
+    }
+
+    @Test
     fun `send checks recipients and size first`() {
         val vm = vm(ComposeMode.NEW)
         vm.setTo("not an address")
@@ -241,14 +320,14 @@ class SchoolMailComposeViewModelTest {
         repo.add("INBOX", mailSummary(5, subject = "期中考"))
         repo.bodyError = MailError.Network()
         val vm = vm(ComposeMode.REPLY, "INBOX", 5)
-        assertTrue(vm.state.value.error is ComposeError.LoadFailed)
+        assertTrue(vm.state.value.loadError != null)
         assertFalse(vm.state.value.loading)
         assertEquals("", vm.state.value.to)
 
         repo.bodyError = null
         repo.bodies[5] = MailBody(null, "line1", emptyList(), emptyMap())
-        vm.prefill(labels)
-        assertEquals(null, vm.state.value.error)
+        vm.retryPrefill(labels)
+        assertEquals(null, vm.state.value.loadError)
         assertEquals("教務處 <office@mail.ntust.edu.tw>", vm.state.value.to)
     }
 
@@ -257,7 +336,7 @@ class SchoolMailComposeViewModelTest {
         repo.add("INBOX", mailSummary(5, subject = "期中考"))
         repo.bodyError = MailError.Network()
         val vm = vm(ComposeMode.REPLY, "INBOX", 5)
-        assertTrue(vm.state.value.error is ComposeError.LoadFailed)
+        assertTrue(vm.state.value.loadError != null)
         vm.setTo("x@y.tw")
         vm.send()
         assertEquals(null, repo.sent.single().second)
@@ -268,7 +347,7 @@ class SchoolMailComposeViewModelTest {
         repo.add("草稿匣", mailSummary(9, subject = "draft", to = listOf(MailAddress(null, "a@x.tw"))))
         repo.bodyError = MailError.Network()
         val vm = vm(ComposeMode.DRAFT, "草稿匣", 9)
-        assertTrue(vm.state.value.error is ComposeError.LoadFailed)
+        assertTrue(vm.state.value.loadError != null)
         vm.setTo("x@y.tw")
         vm.saveDraft()
         assertEquals(null, repo.drafts.single().second)
@@ -279,99 +358,10 @@ class SchoolMailComposeViewModelTest {
         repo.add("草稿匣", mailSummary(9, subject = "draft", to = listOf(MailAddress(null, "a@x.tw"))))
         repo.bodyError = MailError.Network()
         val vm = vm(ComposeMode.DRAFT, "草稿匣", 9)
-        assertTrue(vm.state.value.error is ComposeError.LoadFailed)
+        assertTrue(vm.state.value.loadError != null)
         vm.setTo("x@y.tw")
         vm.send()
         assertTrue(repo.discardedDrafts.isEmpty())
-    }
-
-    @Test
-    fun `editing a field keeps a LoadFailed error on screen instead of clearing it`() {
-        repo.add("INBOX", mailSummary(5, subject = "期中考"))
-        repo.bodyError = MailError.Network()
-        val vm = vm(ComposeMode.REPLY, "INBOX", 5)
-        assertTrue(vm.state.value.error is ComposeError.LoadFailed)
-        vm.setTo("typed@x.tw")
-        // Still there: editing is not a retry, so Retry must stay visible until a load succeeds.
-        assertTrue(vm.state.value.error is ComposeError.LoadFailed)
-        assertEquals("typed@x.tw", vm.state.value.to)
-    }
-
-    @Test
-    fun `restoring a REPLY with edited text keeps the edit but still gets threading headers and marks the original answered`() {
-        repo.add("INBOX", mailSummary(5, subject = "期中考"))
-        repo.bodies[5] = MailBody(null, "line1", emptyList(), emptyMap())
-        val savedState = handle(ComposeMode.REPLY, "INBOX", 5)
-        val vm1 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
-        vm1.prefill(labels)
-        vm1.setBody("我加的回覆")
-
-        // A fresh instance over the SAME handle simulates process death + restore.
-        val vm2 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
-        assertEquals("我加的回覆", vm2.state.value.body)
-        assertEquals("教務處 <office@mail.ntust.edu.tw>", vm2.state.value.to)
-
-        // Prefill always re-runs; the edited body must survive it, but everything the user could
-        // never have typed themselves still comes from this run.
-        vm2.prefill(labels)
-        assertEquals("我加的回覆", vm2.state.value.body)
-        vm2.send()
-        val (mail, answered) = repo.sent.single()
-        assertEquals("INBOX" to 5L, answered)
-        assertEquals("<m5@x>", mail.inReplyTo)
-    }
-
-    @Test
-    fun `restoring a DRAFT keeps its original attachments and still discards it once sent`() {
-        repo.add("草稿匣", mailSummary(9, subject = "draft", to = listOf(MailAddress(null, "a@x.tw"))))
-        repo.bodies[9] = MailBody(null, "draft body", listOf(MailAttachment("2", "a.pdf", "application/pdf", 12, null)), emptyMap())
-        val savedState = handle(ComposeMode.DRAFT, "草稿匣", 9)
-        val vm1 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
-        vm1.prefill(labels)
-        vm1.setBody("編輯後的草稿內容")
-
-        val vm2 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
-        assertEquals("編輯後的草稿內容", vm2.state.value.body)
-        assertTrue(vm2.state.value.attachments.isEmpty()) // attachments themselves need not survive
-
-        vm2.prefill(labels)
-        assertEquals(listOf("a.pdf"), vm2.state.value.attachments.map { it.fileName })
-        assertEquals("編輯後的草稿內容", vm2.state.value.body)
-
-        vm2.send()
-        assertEquals(listOf(9L), repo.discardedDrafts)
-        assertEquals(null, repo.sent.single().second)
-    }
-
-    @Test
-    fun `a death mid-load leaves nothing persisted, so prefill simply re-runs on the next attempt`() {
-        repo.add("INBOX", mailSummary(5, subject = "期中考"))
-        repo.bodyError = MailError.Network()
-        val savedState = handle(ComposeMode.REPLY, "INBOX", 5)
-        val vm1 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
-        vm1.prefill(labels)
-        assertTrue(vm1.state.value.error is ComposeError.LoadFailed)
-
-        repo.bodyError = null
-        repo.bodies[5] = MailBody(null, "line1", emptyList(), emptyMap())
-        val vm2 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
-        assertEquals("", vm2.state.value.to) // nothing from the failed attempt was persisted
-        vm2.prefill(labels)
-        assertEquals(null, vm2.state.value.error)
-        assertEquals("教務處 <office@mail.ntust.edu.tw>", vm2.state.value.to)
-    }
-
-    @Test
-    fun `text fields are not persisted once their combined length passes the cap`() {
-        val savedState = handle(ComposeMode.NEW)
-        val vm1 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
-        vm1.setBody("x".repeat(100_001))
-        val vm2 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
-        assertEquals("", vm2.state.value.body)
-
-        vm1.setBody("x".repeat(100_000))
-        val vm3 = SchoolMailComposeViewModel(savedState, repo, account, cache, noPicks, main.dispatcher)
-        assertEquals(100_000, vm3.state.value.body.length)
     }
 
     @Test

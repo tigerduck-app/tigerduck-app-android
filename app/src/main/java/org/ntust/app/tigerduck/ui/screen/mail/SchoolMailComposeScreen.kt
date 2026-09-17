@@ -54,6 +54,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.mail.ComposeMode
+import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.ComposeError
@@ -158,7 +159,8 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
             if (state.loading) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             }
-            state.error?.let { ErrorText(it, onRetryLoad = { viewModel.prefill(labels) }) }
+            state.loadError?.let { LoadErrorBanner(it, onRetry = { viewModel.retryPrefill(labels) }) }
+            state.error?.let { ErrorText(it) }
             RecipientField(stringResource(R.string.school_mail_to), state.to, viewModel::setTo, enabled = fieldsEnabled)
             if (state.showCcBcc) {
                 RecipientField(stringResource(R.string.school_mail_cc), state.cc, viewModel::setCc, enabled = fieldsEnabled)
@@ -238,21 +240,26 @@ private fun RecipientField(label: String, value: String, onChange: (String) -> U
 }
 
 @Composable
-private fun ErrorText(error: ComposeError, onRetryLoad: () -> Unit) {
+private fun ErrorText(error: ComposeError) {
     val text = when (error) {
         is ComposeError.InvalidRecipients -> stringResource(R.string.school_mail_invalid_recipients).replaceIosArg(1, error.tokens.joinToString(", "))
         ComposeError.NoRecipient -> stringResource(R.string.school_mail_no_recipient)
         ComposeError.TooLarge -> stringResource(R.string.school_mail_too_large)
         is ComposeError.SendFailed -> stringResource(R.string.school_mail_send_failed) + "\n" + stringResource(error.error.messageRes())
         is ComposeError.DraftFailed -> stringResource(error.error.messageRes())
-        is ComposeError.LoadFailed -> stringResource(error.error.messageRes())
     }
+    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+}
+
+/** A failed [SchoolMailComposeViewModel.prefill]/[SchoolMailComposeViewModel.retryPrefill], kept
+ *  in its own state slot: this banner (and its Retry action) stays up regardless of any attachment
+ *  change or send/save error happening alongside it, until a load actually succeeds. */
+@Composable
+private fun LoadErrorBanner(error: MailError, onRetry: () -> Unit) {
     Column {
-        Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-        if (error is ComposeError.LoadFailed) {
-            TextButton(onClick = onRetryLoad, contentPadding = PaddingValues(0.dp)) {
-                Text(stringResource(R.string.action_retry))
-            }
+        Text(stringResource(error.messageRes()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        TextButton(onClick = onRetry, contentPadding = PaddingValues(0.dp)) {
+            Text(stringResource(R.string.action_retry))
         }
     }
 }
