@@ -30,8 +30,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
@@ -50,6 +50,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -210,11 +211,11 @@ fun SchoolMailScreen(
                                 contentDescription = stringResource(R.string.school_mail_unread_only),
                             )
                         }
+                        IconButton(onClick = onOpenGuide) {
+                            Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = stringResource(R.string.school_mail_use_other_app))
+                        }
                         IconButton(onClick = onCompose) {
                             Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.school_mail_compose))
-                        }
-                        IconButton(onClick = onOpenGuide) {
-                            Icon(Icons.Filled.Apps, contentDescription = stringResource(R.string.school_mail_use_other_app))
                         }
                     }
                     if (authFailed) {
@@ -333,12 +334,25 @@ private fun FolderChips(state: SchoolMailListViewModel.UiState, onSelect: (Strin
                         onClick = { showOthers = true },
                         label = { Text(if (otherSelected) state.selected else stringResource(R.string.school_mail_folder_more)) },
                     )
-                    DropdownMenu(expanded = showOthers, onDismissRequest = { showOthers = false }) {
+                    DropdownMenu(
+                        expanded = showOthers,
+                        onDismissRequest = { showOthers = false },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
                         state.others.forEach { name ->
-                            DropdownMenuItem(text = { Text(name) }, onClick = {
-                                showOthers = false
-                                onSelect(name)
-                            })
+                            DropdownMenuItem(
+                                text = { Text(name) },
+                                onClick = {
+                                    showOthers = false
+                                    onSelect(name)
+                                },
+                                leadingIcon = {
+                                    RadioButton(
+                                        selected = name == state.selected,
+                                        onClick = null
+                                    )
+                                }
+                            )
                         }
                     }
                 }
@@ -367,26 +381,27 @@ private fun MailCard(message: MailSummary, onClick: () -> Unit) {
                     Box(Modifier.size(7.dp).clip(CircleShape).background(cs.primary))
                     Spacer(Modifier.width(6.dp))
                 }
-                Text(
-                    text = message.from?.display ?: stringResource(R.string.school_mail_no_sender),
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = if (unread) FontWeight.SemiBold else FontWeight.Normal),
-                    color = cs.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (MailWarnings.isExternal(message.from?.address)) {
-                    Spacer(Modifier.width(6.dp))
-                    Surface(shape = RoundedCornerShape(50), color = Color(0xFFFF9500).copy(alpha = 0.18f)) {
-                        Text(
-                            stringResource(R.string.school_mail_external_badge),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFFF9500),
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = message.from?.display ?: stringResource(R.string.school_mail_no_sender),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = if (unread) FontWeight.SemiBold else FontWeight.Normal),
+                        color = cs.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (MailWarnings.isExternal(message.from?.address)) {
+                        Spacer(Modifier.width(6.dp))
+                        Surface(shape = RoundedCornerShape(50), color = Color(0xFFFF9500).copy(alpha = 0.18f)) {
+                            Text(
+                                stringResource(R.string.school_mail_external_badge),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFFFF9500),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            )
+                        }
                     }
                 }
-                Spacer(Modifier.weight(1f))
                 if (message.hasAttachments) {
                     Icon(Icons.Filled.AttachFile, contentDescription = null, tint = cs.outline, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(4.dp))
