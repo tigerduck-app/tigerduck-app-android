@@ -437,8 +437,17 @@ internal fun summarize(statuses: List<ServerStatus>): ServerStatus = when {
     else -> ServerStatus.UNKNOWN
 }
 
+/**
+ * The one status vocabulary this dot speaks, shared so a page-local source reads the same as a
+ * TigerSync row rather than inventing its own words for the same three states. Internal rather
+ * than private for exactly that reason: 校園信箱 used to put the student ID here, which is an
+ * identity, not a state, and said nothing about whether the mail server was answering.
+ *
+ * A page whose source has a genuinely different vocabulary (the library's signed-in / not
+ * signed-in) still passes its own `text`; this is the default, not a requirement.
+ */
 @Composable
-private fun statusText(status: ServerStatus): String = stringResource(
+internal fun statusText(status: ServerStatus): String = stringResource(
     when (status) {
         ServerStatus.OK -> R.string.sync_status_ok
         ServerStatus.FAILED -> R.string.sync_status_failed

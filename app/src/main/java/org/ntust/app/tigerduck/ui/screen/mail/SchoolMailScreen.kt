@@ -107,6 +107,7 @@ import org.ntust.app.tigerduck.ui.component.SecureScreen
 import org.ntust.app.tigerduck.ui.component.ServerStatus
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.component.statusText
 import org.ntust.app.tigerduck.ui.screen.settings.LoginSheet
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import kotlin.math.abs
@@ -200,15 +201,20 @@ fun SchoolMailScreen(
                 Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
                     PageHeader(title = stringResource(R.string.feature_school_mail)) {
                         val failed = state.loadState as? SchoolMailListViewModel.LoadState.Failed
+                        val mailStatus = when {
+                            failed != null || authFailed -> ServerStatus.FAILED
+                            state.loadState is SchoolMailListViewModel.LoadState.Loaded -> ServerStatus.OK
+                            else -> ServerStatus.UNKNOWN
+                        }
                         SyncStatusDot(
-                            status = when {
-                                failed != null || authFailed -> ServerStatus.FAILED
-                                state.loadState is SchoolMailListViewModel.LoadState.Loaded -> ServerStatus.OK
-                                else -> ServerStatus.UNKNOWN
-                            },
+                            status = mailStatus,
                             label = stringResource(R.string.feature_school_mail),
                             icon = Icons.Filled.Mail,
-                            text = failed?.let { stringResource(it.error.messageRes()) } ?: accountViewModel.studentId.orEmpty(),
+                            // The state of the mail server, in the same words every other row of
+                            // this dot uses -- not the student ID, which is an identity and says
+                            // nothing about whether anything is reaching the server. The specific
+                            // failure still has a home: the list itself shows the error.
+                            text = statusText(mailStatus),
                             isLoading = isLoading,
                         )
                         IconButton(onClick = { viewModel.setUnreadOnly(!state.unreadOnly) }) {
