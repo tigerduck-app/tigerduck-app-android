@@ -27,9 +27,16 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     var bodyError: MailError? = null
     var moveError: MailError? = null
     var deleteError: MailError? = null
-    val seenCalls = mutableListOf<Pair<Long, Boolean>>()
+    val seenCalls = mutableListOf<Triple<String, Long, Boolean>>()
     val moved = mutableListOf<Triple<String, Long, String>>()
     val deleted = mutableListOf<Pair<String, Long>>()
+
+    /**
+     * Every folder name handed to any folder-taking call, in order. A merged view has no folder
+     * of its own, so nothing here may ever be a name the server would not recognise -- this is
+     * what a test asserts against to prove no synthetic name reaches an IMAP command.
+     */
+    val foldersTouched = mutableListOf<String>()
     /** Mirrors the real repository's cache: [loadPage]'s first page populates it, [dropCache] simulates a [MailError.FolderChanged] eviction. */
     private val cachedPages = mutableMapOf<String, MailPage>()
     val sent = mutableListOf<Pair<OutgoingMail, Pair<String, Long>?>>()
@@ -55,6 +62,11 @@ class FakeSchoolMailRepository : SchoolMailRepository {
 
     private fun sorted(folder: String) = mail.getOrPut(folder) { mutableListOf() }.sortedByDescending { it.uid }
 
+    private fun <T> touching(folder: String, block: () -> T): T {
+        foldersTouched += folder
+        return block()
+    }
+
     private fun update(folder: String, uid: Long, transform: (MailSummary) -> MailSummary) {
         val list = mail[folder] ?: return
         val i = list.indexOfFirst { it.uid == uid }
@@ -62,7 +74,7 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     }
 
     override suspend fun folders() = resolved
-    override suspend fun cachedPage(folder: String): MailPage? = cachedPages[folder]
+    override suspend fun cachedPage(folder: String): MailPage? = touching(folder) { cachedPages[folder] }
 
     /** Simulates the repository dropping a folder's cache once [MailError.FolderChanged] fires for it. */
     fun dropCache(folder: String) {
@@ -70,6 +82,7 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     }
 
     override suspend fun loadPage(folder: String, beforeSeq: Int?): MailPage {
+        foldersTouched += folder
         loadError?.let { throw it }
         val all = sorted(folder)
         val from = beforeSeq ?: 0
@@ -85,34 +98,41 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         return status
     }
     override suspend fun refreshFlags(folder: String, uids: List<Long>): Map<Long, MailFlags> =
-        sorted(folder).filter { it.uid in uids }.associate { it.uid to it.flags }
-    override suspend fun summary(folder: String, uid: Long) = sorted(folder).firstOrNull { it.uid == uid }
+        touching(folder) { sorted(folder).filter { it.uid in uids }.associate { it.uid to it.flags } }
+    override suspend fun summary(folder: String, uid: Long) = touching(folder) { sorted(folder).firstOrNull { it.uid == uid } }
     override suspend fun body(folder: String, uid: Long): MailBody {
+        foldersTouched += folder
         onBody?.invoke()
         bodyError?.let { throw it }
         return bodies[uid] ?: throw MailError.Protocol("gone")
     }
 
     override suspend fun setSeen(folder: String, uid: Long, seen: Boolean) {
-        seenCalls += uid to seen
+        foldersTouched += folder
+        seenCalls += Triple(folder, uid, seen)
         update(folder, uid) { it.copy(flags = it.flags.copy(seen = seen)) }
     }
 
     override suspend fun move(folder: String, uid: Long, target: String) {
+        foldersTouched += folder
+        foldersTouched += target
         moveError?.let { throw it }
         moved += Triple(folder, uid, target)
         mail[folder]?.removeAll { it.uid == uid }
     }
 
-    override suspend fun deletesPermanently(folder: String) = folder == resolved.nameOf(SpecialFolder.TRASH)
+    override suspend fun deletesPermanently(folder: String) =
+        touching(folder) { folder == resolved.nameOf(SpecialFolder.TRASH) }
 
     override suspend fun delete(folder: String, uid: Long) {
+        foldersTouched += folder
         deleteError?.let { throw it }
         deleted += folder to uid
         mail[folder]?.removeAll { it.uid == uid }
     }
 
     override suspend fun search(folder: String, query: String): SearchOutcome {
+        foldersTouched += folder
         val hits = sorted(folder).filter { query in it.subject }
         return if (searchUnsupported) SearchOutcome.LoadedOnly(hits) else SearchOutcome.Server(hits)
     }
@@ -121,12 +141,14 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     var rawSourceCalls = 0
 
     override suspend fun rawSource(folder: String, uid: Long): String {
+        foldersTouched += folder
         rawSourceCalls++
         rawSourceError?.let { throw it }
         return raw
     }
 
     override suspend fun writeAttachment(folder: String, uid: Long, partId: String, out: OutputStream) {
+        foldersTouched += folder
         onWriteAttachment?.invoke()
         writeAttachmentError?.let { throw it }
         out.write("attachment $partId".toByteArray())

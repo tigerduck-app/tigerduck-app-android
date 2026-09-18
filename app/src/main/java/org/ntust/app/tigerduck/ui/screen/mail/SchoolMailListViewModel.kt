@@ -15,9 +15,13 @@ import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.SchoolMailRepository
 import org.ntust.app.tigerduck.mail.SearchOutcome
+import org.ntust.app.tigerduck.mail.imap.FolderSelection
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
+import org.ntust.app.tigerduck.mail.model.MailPage
+import org.ntust.app.tigerduck.mail.model.MailRow
 import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.sync.MailChecker
+import java.time.Instant
 import javax.inject.Inject
 
 @HiltViewModel
@@ -34,25 +38,51 @@ class SchoolMailListViewModel @Inject constructor(
         data class Failed(val error: MailError) : LoadState
     }
 
-    data class FolderChip(val name: String, val kind: SpecialFolder)
+    /** [kind] is null for 所有信件, which is no server folder and so has no [SpecialFolder]. */
+    data class FolderChip(val selection: FolderSelection, val kind: SpecialFolder?) {
+        val key: String get() = kind?.name ?: "all"
+    }
 
     data class UiState(
         val chips: List<FolderChip> = emptyList(),
         val others: List<String> = emptyList(),
-        val selected: String = "INBOX",
-        val messages: List<MailSummary> = emptyList(),
+        val selected: FolderSelection = FolderSelection.Real("INBOX"),
+        /** The server names of the folders 所有信件 merges. Empty until [load] has resolved them. */
+        val mergedFolders: List<String> = emptyList(),
+        val messages: List<MailRow> = emptyList(),
         val loadState: LoadState = LoadState.Idle,
-        val nextBeforeSeq: Int? = null,
+        /**
+         * Per real folder, the sequence number to page back from; a folder drops out of the map
+         * once the server says it has nothing older. Each folder has its own UID space, so "the
+         * next 50" has no cross-folder meaning and one shared cursor would be a fiction.
+         */
+        val cursors: Map<String, Int> = emptyMap(),
         val isPaginating: Boolean = false,
         val unreadOnly: Boolean = false,
         val searchText: String = "",
-        val searchResults: List<MailSummary>? = null,
+        val searchResults: List<MailRow>? = null,
         val searchLocalOnly: Boolean = false,
         val isSearching: Boolean = false,
     ) {
-        val displayed: List<MailSummary>
-            get() = (searchResults ?: messages).let { list -> if (unreadOnly) list.filter { !it.flags.seen } else list }
-        val selectedKind: SpecialFolder? get() = chips.firstOrNull { it.name == selected }?.kind
+        val displayed: List<MailRow>
+            get() = (searchResults ?: messages).let { list -> if (unreadOnly) list.filter { !it.summary.flags.seen } else list }
+
+        val selectedKind: SpecialFolder? get() = chips.firstOrNull { it.selection == selected }?.kind
+
+        /** The kind of one row's *own* folder -- what decides where tapping it goes, in every view. */
+        fun kindOf(folder: String): SpecialFolder? =
+            chips.firstOrNull { (it.selection as? FolderSelection.Real)?.name == folder }?.kind
+
+        /**
+         * The real folders the current selection reads. Every repository call goes through this,
+         * so no synthetic name can reach the server: 所有信件 resolves to the folders it merges,
+         * and a selection that resolves to nothing simply reads nothing.
+         */
+        val targets: List<String>
+            get() = when (val selection = selected) {
+                is FolderSelection.Real -> listOf(selection.name)
+                FolderSelection.AllMail -> mergedFolders
+            }
     }
 
     val signedIn: StateFlow<Boolean> = account.signedIn
@@ -76,11 +106,21 @@ class SchoolMailListViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val folders = repository.folders()
-                val chips = SpecialFolder.entries.mapNotNull { kind -> folders.nameOf(kind)?.let { FolderChip(it, kind) } }
-                val inbox = folders.nameOf(SpecialFolder.INBOX) ?: "INBOX"
+                val merged = FolderSelection.AllMail.MERGED.mapNotNull { folders.nameOf(it) }
+                val real = SpecialFolder.entries.mapNotNull { kind ->
+                    folders.nameOf(kind)?.let { FolderChip(FolderSelection.Real(it), kind) }
+                }
+                // 所有信件 only earns a chip when there are at least two folders to merge;
+                // otherwise it would just be a second name for the one that resolved.
+                val chips = if (merged.size > 1) real + FolderChip(FolderSelection.AllMail, null) else real
+                val inbox = FolderSelection.Real(folders.nameOf(SpecialFolder.INBOX) ?: "INBOX")
                 val current = _state.value.selected
-                val keep = if (chips.any { it.name == current } || current in folders.others) current else inbox
-                _state.update { it.copy(chips = chips, others = folders.others, selected = keep) }
+                val keep = when {
+                    chips.any { it.selection == current } -> current
+                    current is FolderSelection.Real && current.name in folders.others -> current
+                    else -> inbox
+                }
+                _state.update { it.copy(chips = chips, others = folders.others, selected = keep, mergedFolders = merged) }
             } catch (e: MailError) {
                 fail(e)
                 return@launch
@@ -94,10 +134,10 @@ class SchoolMailListViewModel @Inject constructor(
         viewModelScope.launch { if (_state.value.searchResults != null) runSearch() else fetchFirstPage() }
     }
 
-    fun selectFolder(name: String) {
-        if (name == _state.value.selected) return
+    fun selectFolder(selection: FolderSelection) {
+        if (selection == _state.value.selected) return
         _state.update {
-            it.copy(selected = name, messages = emptyList(), nextBeforeSeq = null, searchResults = null, searchText = "", searchLocalOnly = false)
+            it.copy(selected = selection, messages = emptyList(), cursors = emptyMap(), searchResults = null, searchText = "", searchLocalOnly = false)
         }
         viewModelScope.launch {
             showCached()
@@ -115,19 +155,22 @@ class SchoolMailListViewModel @Inject constructor(
         viewModelScope.launch { runSearch() }
     }
 
-    fun loadMoreIfNeeded(last: MailSummary) {
+    fun loadMoreIfNeeded(last: MailRow) {
         val s = _state.value
-        if (s.searchResults != null || s.isPaginating || s.nextBeforeSeq == null || s.messages.lastOrNull()?.uid != last.uid) return
+        if (s.searchResults != null || s.isPaginating || s.cursors.isEmpty() || s.messages.lastOrNull()?.key != last.key) return
         viewModelScope.launch { paginate() }
     }
 
-    fun toggleRead(message: MailSummary) {
-        val folder = _state.value.selected
-        val seen = !message.flags.seen
+    /**
+     * Acts on [row]'s own folder, never on [UiState.selected]: in 所有信件 the selected chip is
+     * not a folder at all, and the row next to this one may well live somewhere else.
+     */
+    fun toggleRead(row: MailRow) {
+        val seen = !row.summary.flags.seen
         viewModelScope.launch {
             try {
-                repository.setSeen(folder, message.uid, seen)
-                updateMessage(message.uid) { it.copy(flags = it.flags.copy(seen = seen)) }
+                repository.setSeen(row.folder, row.uid, seen)
+                updateMessage(row.key) { it.copy(flags = it.flags.copy(seen = seen)) }
             } catch (e: MailError) {
                 fail(e)
             }
@@ -162,20 +205,27 @@ class SchoolMailListViewModel @Inject constructor(
 
     /** The cached page is a disk read, so it runs off the main thread (the repository hops to IO). */
     private suspend fun showCached() {
-        val folder = _state.value.selected
-        repository.cachedPage(folder)?.let { page ->
-            if (_state.value.selected != folder) return
-            _state.update { it.copy(messages = page.messages, nextBeforeSeq = page.nextBeforeSeq) }
-        }
+        val selection = _state.value.selected
+        val pages = _state.value.targets.mapNotNull { folder -> repository.cachedPage(folder)?.let { folder to it } }
+        if (pages.isEmpty() || _state.value.selected != selection) return
+        _state.update { it.copy(messages = rowsOf(selection, pages), cursors = cursorsOf(pages)) }
     }
 
+    /**
+     * Exactly one page per real folder the selection covers: one round trip for a normal folder,
+     * two for 所有信件, however far the merged list has already been scrolled. That bound is the
+     * reason the merged view refreshes only the newest page per folder -- Mail2000 caps
+     * connections and starts answering 「伺服器忙線中」 under load.
+     */
     private suspend fun fetchFirstPage() {
-        val folder = _state.value.selected
+        val selection = _state.value.selected
+        val targets = _state.value.targets
+        if (targets.isEmpty()) return
         _state.update { it.copy(loadState = LoadState.Loading) }
         try {
-            val page = repository.loadPage(folder, null)
-            if (_state.value.selected != folder) return
-            _state.update { it.copy(messages = page.messages, nextBeforeSeq = page.nextBeforeSeq, loadState = LoadState.Loaded) }
+            val pages = targets.map { folder -> folder to repository.loadPage(folder, null) }
+            if (_state.value.selected != selection) return
+            _state.update { it.copy(messages = rowsOf(selection, pages), cursors = cursorsOf(pages), loadState = LoadState.Loaded) }
             if (_state.value.selectedKind == SpecialFolder.INBOX) {
                 runCatching { checker.noteSeenByPage(repository.inboxStatus()) }
             }
@@ -184,15 +234,28 @@ class SchoolMailListViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Per-folder cursors: every folder the selection covers that still has older mail is paged
+     * one page further and the result re-merged. So the merged list runs out only once *both*
+     * folders genuinely have ([UiState.cursors] empty), never merely because the sparser of the
+     * two did -- it never stops short while the server still has mail to give.
+     */
     private suspend fun paginate() {
-        val s = _state.value
-        val before = s.nextBeforeSeq ?: return
+        val selection = _state.value.selected
+        val cursors = _state.value.cursors
+        if (cursors.isEmpty()) return
         _state.update { it.copy(isPaginating = true) }
         try {
-            val page = repository.loadPage(s.selected, before)
+            val pages = cursors.entries.sortedBy { it.key }.map { (folder, before) -> folder to repository.loadPage(folder, before) }
+            if (_state.value.selected != selection) return
             _state.update { st ->
-                val known = st.messages.map { it.uid }.toSet()
-                st.copy(messages = st.messages + page.messages.filter { it.uid !in known }, nextBeforeSeq = page.nextBeforeSeq)
+                val known = st.messages.mapTo(mutableSetOf()) { it.key }
+                val added = pages.flatMap { (folder, page) -> page.messages.map { MailRow(folder, it) } }
+                    .filter { it.key !in known }
+                st.copy(
+                    messages = ordered(selection, st.messages + added),
+                    cursors = st.cursors - cursors.keys + cursorsOf(pages),
+                )
             }
         } catch (e: MailError) {
             fail(e)
@@ -202,16 +265,26 @@ class SchoolMailListViewModel @Inject constructor(
     }
 
     private suspend fun runSearch() {
-        val s = _state.value
-        val query = s.searchText.trim()
+        val selection = _state.value.selected
+        val query = _state.value.searchText.trim()
         if (query.isEmpty()) {
             _state.update { it.copy(searchResults = null, searchLocalOnly = false) }
             return
         }
         _state.update { it.copy(isSearching = true) }
         try {
-            val outcome = repository.search(s.selected, query)
-            _state.update { it.copy(searchResults = outcome.messages, searchLocalOnly = outcome is SearchOutcome.LoadedOnly) }
+            // One SEARCH per real folder, merged the same way the list itself is. A folder whose
+            // server refused the search still contributes its locally-matched mail, and the
+            // "loaded only" note appears as soon as any one of them fell back.
+            val outcomes = _state.value.targets.map { folder -> folder to repository.search(folder, query) }
+            if (_state.value.selected != selection) return
+            val rows = outcomes.flatMap { (folder, outcome) -> outcome.messages.map { MailRow(folder, it) } }
+            _state.update {
+                it.copy(
+                    searchResults = ordered(selection, rows),
+                    searchLocalOnly = outcomes.any { (_, outcome) -> outcome is SearchOutcome.LoadedOnly },
+                )
+            }
         } catch (e: MailError) {
             fail(e)
         } finally {
@@ -219,6 +292,11 @@ class SchoolMailListViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Inbox-only, as it has always been: every other selection -- 所有信件 included -- refreshes
+     * on pull-to-refresh instead. That also keeps the merged view entirely out of the new-mail
+     * check, since [MailChecker.noteSeenByPage] is what moves the notification seen marker.
+     */
     private suspend fun poll() {
         val s = _state.value
         if (s.selectedKind != SpecialFolder.INBOX || s.searchResults != null) return
@@ -234,12 +312,27 @@ class SchoolMailListViewModel @Inject constructor(
         }
     }
 
-    private fun updateMessage(uid: Long, transform: (MailSummary) -> MailSummary) = _state.update { st ->
+    /** Keyed by (folder, uid), never by UID alone -- the same UID in two folders is two mails. */
+    private fun updateMessage(key: String, transform: (MailSummary) -> MailSummary) = _state.update { st ->
         st.copy(
-            messages = st.messages.map { if (it.uid == uid) transform(it) else it },
-            searchResults = st.searchResults?.map { if (it.uid == uid) transform(it) else it },
+            messages = st.messages.map { if (it.key == key) it.copy(summary = transform(it.summary)) else it },
+            searchResults = st.searchResults?.map { if (it.key == key) it.copy(summary = transform(it.summary)) else it },
         )
     }
+
+    private fun rowsOf(selection: FolderSelection, pages: List<Pair<String, MailPage>>): List<MailRow> =
+        ordered(selection, pages.flatMap { (folder, page) -> page.messages.map { MailRow(folder, it) } })
+
+    /**
+     * A merged view is ordered by date, because the folders' UID spaces say nothing about each
+     * other. A single folder is left exactly as the server returned it, so nothing about the
+     * existing lists changes just because 所有信件 exists.
+     */
+    private fun ordered(selection: FolderSelection, rows: List<MailRow>): List<MailRow> =
+        if (selection is FolderSelection.AllMail) rows.sortedWith(NEWEST_FIRST) else rows
+
+    private fun cursorsOf(pages: List<Pair<String, MailPage>>): Map<String, Int> =
+        pages.mapNotNull { (folder, page) -> page.nextBeforeSeq?.let { folder to it } }.toMap()
 
     private fun fail(error: MailError) {
         if (error is MailError.AuthFailed) account.onAuthFailure()
@@ -248,5 +341,11 @@ class SchoolMailListViewModel @Inject constructor(
 
     companion object {
         const val POLL_MS = 60_000L
+
+        /** The date the card itself shows, then folder and UID so the merge order is stable. */
+        private val NEWEST_FIRST =
+            compareByDescending<MailRow> { it.summary.sentAt ?: it.summary.receivedAt ?: Instant.MIN }
+                .thenBy { it.folder }
+                .thenByDescending { it.uid }
     }
 }

@@ -66,7 +66,7 @@ class SchoolMailMessageViewModelTest {
         assertEquals(1, ready(vm).html!!.blockedRemoteImages)
         assertEquals("hi", ready(vm).plain)
         assertTrue(ready(vm).warnings.any { it is MailWarning.ExternalSender })
-        assertEquals(listOf(5L to true), repo.seenCalls)
+        assertEquals(listOf(Triple("INBOX", 5L, true)), repo.seenCalls)
         assertEquals(listOf(5L), notifier.cancelledUids)
 
         vm.loadRemoteImages()
@@ -182,7 +182,7 @@ class SchoolMailMessageViewModelTest {
         assertEquals(0, ready(vm).html!!.blockedRemoteImages)
         assertEquals(ViewMode.FORMATTED, vm.state.value.mode)
         // Marked seen once, not flashed through Loading and marked again.
-        assertEquals(listOf(5L to true), repo.seenCalls)
+        assertEquals(listOf(Triple("INBOX", 5L, true)), repo.seenCalls)
     }
 
     @Test

@@ -13,6 +13,31 @@ enum class SpecialFolder(val imapName: String, val decodedName: String) {
     TRASH("&Vt5lNntS-", "回收筒"),
 }
 
+/**
+ * What the mail list is pointed at.
+ *
+ * Mail2000 has no server-side "all mail" folder -- there is no SPECIAL-USE and IMAP has no
+ * cross-folder view at all -- so 所有信件 is a client-side merge with no name any server
+ * command would accept. Modelling it as its own case instead of a magic folder string is the
+ * whole point: [Real.name] is the only thing in this type that may ever reach a `SELECT`, and
+ * every `when` over a selection has to state out loud what it does with [AllMail].
+ */
+sealed interface FolderSelection {
+    /** A folder the server actually has, named exactly as `LIST` reported it. */
+    data class Real(val name: String) : FolderSelection
+
+    /** 所有信件: [MERGED] merged client-side, newest first. Never a folder name. */
+    data object AllMail : FolderSelection {
+        /**
+         * The only folders 所有信件 merges -- the two that hold real correspondence. Drafts,
+         * junk, trash and user folders stay out on purpose: a merged view is a read view over
+         * mail the student actually exchanged, and sweeping trash or drafts into it would put
+         * those messages one tap from actions whose safety rules are written per folder.
+         */
+        val MERGED = listOf(SpecialFolder.INBOX, SpecialFolder.SENT)
+    }
+}
+
 data class ResolvedFolders(val special: Map<SpecialFolder, String>, val others: List<String>) {
     fun nameOf(folder: SpecialFolder): String? = special[folder]
 

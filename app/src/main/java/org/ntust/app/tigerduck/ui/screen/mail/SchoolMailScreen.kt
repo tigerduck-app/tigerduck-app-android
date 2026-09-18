@@ -92,9 +92,12 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.mail.imap.FolderSelection
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
+import org.ntust.app.tigerduck.mail.model.MailRow
 import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.warning.MailWarnings
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
@@ -177,10 +180,14 @@ fun SchoolMailScreen(
     val isLoading = state.loadState is SchoolMailListViewModel.LoadState.Loading
     val currentDisplayed by rememberUpdatedState(state.displayed)
     LaunchedEffect(listState) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull { it.key is Long }?.key as? Long }
+        // Rows are keyed by (folder, uid) -- in 所有信件 a UID alone names two different mails --
+        // so the last visible *row* is found by matching those keys against what is displayed,
+        // rather than by picking out one key type from among the header and spacer items.
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.mapNotNullTo(mutableSetOf()) { it.key as? String } }
+            .map { keys -> currentDisplayed.lastOrNull { it.key in keys } }
             .filterNotNull()
             .distinctUntilChanged()
-            .collect { uid -> currentDisplayed.firstOrNull { it.uid == uid }?.let(viewModel::loadMoreIfNeeded) }
+            .collect { row -> viewModel.loadMoreIfNeeded(row) }
     }
 
     TigerPullToRefresh(
@@ -269,14 +276,17 @@ fun SchoolMailScreen(
                     }
                 }
                 else -> {
-                    items(displayed, key = { it.uid }) { message ->
+                    items(displayed, key = { it.key }) { row ->
                         SwipeableMailCard(
-                            message = message,
+                            row = row,
+                            // The row's own folder decides everything, never the selected chip:
+                            // opened from 所有信件, a 寄件備份 mail has to behave exactly as it
+                            // would had the user opened 寄件備份 itself.
                             onClick = {
-                                if (state.selectedKind == SpecialFolder.DRAFTS) onEditDraft(state.selected, message.uid)
-                                else onOpenMessage(state.selected, message.uid)
+                                if (state.kindOf(row.folder) == SpecialFolder.DRAFTS) onEditDraft(row.folder, row.uid)
+                                else onOpenMessage(row.folder, row.uid)
                             },
-                            onToggleRead = { viewModel.toggleRead(message) },
+                            onToggleRead = { viewModel.toggleRead(row) },
                             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
                         )
                     }
@@ -311,28 +321,31 @@ fun SchoolMailScreen(
 }
 
 @Composable
-private fun FolderChips(state: SchoolMailListViewModel.UiState, onSelect: (String) -> Unit) {
+private fun FolderChips(state: SchoolMailListViewModel.UiState, onSelect: (FolderSelection) -> Unit) {
     var showOthers by remember { mutableStateOf(false) }
     LazyRow(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(horizontal = 16.dp),
     ) {
-        items(state.chips, key = { it.name }) { chip ->
+        items(state.chips, key = { it.key }) { chip ->
             FilterChip(
-                selected = chip.name == state.selected,
-                onClick = { onSelect(chip.name) },
-                label = { Text(stringResource(chip.kind.labelRes())) },
+                selected = chip.selection == state.selected,
+                onClick = { onSelect(chip.selection) },
+                label = { Text(stringResource(chip.kind?.labelRes() ?: R.string.school_mail_folder_all)) },
             )
         }
         if (state.others.isNotEmpty()) {
             item(key = "others") {
                 Box {
-                    val otherSelected = state.selected in state.others
+                    val selectedName = (state.selected as? FolderSelection.Real)?.name
+                    val otherSelected = selectedName != null && selectedName in state.others
                     FilterChip(
                         selected = otherSelected,
                         onClick = { showOthers = true },
-                        label = { Text(if (otherSelected) state.selected else stringResource(R.string.school_mail_folder_more)) },
+                        label = {
+                            Text(if (otherSelected && selectedName != null) selectedName else stringResource(R.string.school_mail_folder_more))
+                        },
                     )
                     DropdownMenu(
                         expanded = showOthers,
@@ -344,11 +357,11 @@ private fun FolderChips(state: SchoolMailListViewModel.UiState, onSelect: (Strin
                                 text = { Text(name) },
                                 onClick = {
                                     showOthers = false
-                                    onSelect(name)
+                                    onSelect(FolderSelection.Real(name))
                                 },
                                 leadingIcon = {
                                     RadioButton(
-                                        selected = name == state.selected,
+                                        selected = name == selectedName,
                                         onClick = null
                                     )
                                 }
@@ -423,10 +436,13 @@ private fun MailCard(message: MailSummary, onClick: () -> Unit) {
 
 /** Same gesture as SwipeableBulletinCard: either direction toggles read (100dp threshold, 0.6× damping). */
 @Composable
-private fun SwipeableMailCard(message: MailSummary, onClick: () -> Unit, onToggleRead: () -> Unit, modifier: Modifier = Modifier) {
+private fun SwipeableMailCard(row: MailRow, onClick: () -> Unit, onToggleRead: () -> Unit, modifier: Modifier = Modifier) {
+    val message = row.summary
     val latestToggle by rememberUpdatedState(onToggleRead)
     val thresholdPx = with(LocalDensity.current) { 100.dp.toPx() }
-    val offset = remember(message.uid) { Animatable(0f) }
+    // Keyed on (folder, uid): two folders can hand out the same UID, and a swipe in progress
+    // must not carry over to the other mail when the list re-merges.
+    val offset = remember(row.key) { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val icon = if (message.flags.seen) Icons.AutoMirrored.Filled.Undo else Icons.Filled.Check
@@ -446,7 +462,7 @@ private fun SwipeableMailCard(message: MailSummary, onClick: () -> Unit, onToggl
             Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(offset.value.roundToInt(), 0) }
-                .pointerInput(message.uid) {
+                .pointerInput(row.key) {
                     detectHorizontalDragGestures(
                         onDragEnd = {
                             scope.launch {
