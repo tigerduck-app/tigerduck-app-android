@@ -56,7 +56,7 @@ private val implementedFeatures = setOf(
 fun MoreScreen(navController: NavController, appState: AppState) {
     var showNotImplemented by remember { mutableStateOf(false) }
 
-    val pageFeatures = listOf(AppFeature.HOME, AppFeature.CLASS_TABLE, AppFeature.CALENDAR)
+    val pageFeatures = listOf(AppFeature.HOME, AppFeature.CLASS_TABLE, AppFeature.CALENDAR, AppFeature.SCHOOL_MAIL)
 
     val grouped = AppFeature.moreFeatures
         .filter { feature ->
