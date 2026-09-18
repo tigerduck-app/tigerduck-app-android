@@ -597,10 +597,15 @@
     <string name="school_mail_auth_failed_notification_title">校園信箱登入失敗</string>
     <string name="school_mail_bcc">密件副本</string>
     <string name="school_mail_body">內文</string>
+    <string name="school_mail_bounce_warning">你剛剛寄信是不是填錯電子信箱？</string>
+    <string name="school_mail_cache_size">快取大小</string>
     <string name="school_mail_cc">副本</string>
+    <string name="school_mail_clear_cache">清除快取</string>
     <string name="school_mail_compose">新郵件</string>
     <string name="school_mail_copy_all">全部複製</string>
     <string name="school_mail_delete">刪除</string>
+    <string name="school_mail_delete_confirm_message">這封信會移到回收筒。</string>
+    <string name="school_mail_delete_confirm_title">要刪除這封信嗎？</string>
     <string name="school_mail_delete_forever_message">這個動作無法復原。</string>
     <string name="school_mail_delete_forever_title">要永久刪除嗎？</string>
     <string name="school_mail_details_cc">副本：%1$@</string>

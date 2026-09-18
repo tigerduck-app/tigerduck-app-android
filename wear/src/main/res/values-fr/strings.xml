@@ -597,10 +597,15 @@
     <string name="school_mail_auth_failed_notification_title">School mail sign-in failed</string>
     <string name="school_mail_bcc">Bcc</string>
     <string name="school_mail_body">Message</string>
+    <string name="school_mail_bounce_warning">Did you mistype an address in the mail you just sent?</string>
+    <string name="school_mail_cache_size">Cache size</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_clear_cache">Clear cache</string>
     <string name="school_mail_compose">New mail</string>
     <string name="school_mail_copy_all">Copy all</string>
     <string name="school_mail_delete">Delete</string>
+    <string name="school_mail_delete_confirm_message">It will be moved to Trash.</string>
+    <string name="school_mail_delete_confirm_title">Delete this mail?</string>
     <string name="school_mail_delete_forever_message">This can\'t be undone.</string>
     <string name="school_mail_delete_forever_title">Delete permanently?</string>
     <string name="school_mail_details_cc">Cc: %1$@</string>

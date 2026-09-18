@@ -597,10 +597,15 @@
     <string name="school_mail_auth_failed_notification_title">校园邮箱登录失败</string>
     <string name="school_mail_bcc">密送</string>
     <string name="school_mail_body">正文</string>
+    <string name="school_mail_bounce_warning">你刚刚寄信是不是填错电子信箱？</string>
+    <string name="school_mail_cache_size">缓存大小</string>
     <string name="school_mail_cc">抄送</string>
+    <string name="school_mail_clear_cache">清除缓存</string>
     <string name="school_mail_compose">新邮件</string>
     <string name="school_mail_copy_all">全部复制</string>
     <string name="school_mail_delete">删除</string>
+    <string name="school_mail_delete_confirm_message">这封邮件会移到回收筒。</string>
+    <string name="school_mail_delete_confirm_title">要删除这封邮件吗？</string>
     <string name="school_mail_delete_forever_message">此操作无法撤销。</string>
     <string name="school_mail_delete_forever_title">要永久删除吗？</string>
     <string name="school_mail_details_cc">抄送：%1$@</string>
