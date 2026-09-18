@@ -646,6 +646,7 @@
     <string name="school_mail_no_recipient">Add at least one recipient</string>
     <string name="school_mail_no_sender">(No sender)</string>
     <string name="school_mail_no_subject">(No subject)</string>
+    <string name="school_mail_notification_settings_title">School Mail notifications</string>
     <string name="school_mail_notification_title">Email:%1$@</string>
     <string name="school_mail_open">Open</string>
     <string name="school_mail_parse_failed">Couldn\'t read this mail\'s format. Showing its source instead.</string>
