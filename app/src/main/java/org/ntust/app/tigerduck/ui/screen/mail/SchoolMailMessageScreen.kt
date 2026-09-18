@@ -209,98 +209,107 @@ fun SchoolMailMessageScreen(
                     message = stringResource(content.error.messageRes()),
                 )
             }
-            is Content.Ready -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(bottom = 32.dp),
-            ) {
-                item(key = "header") { MessageHeader(content.summary) }
-                if (state.parseFailed) {
-                    item(key = "parse-failed") { WarningCard(stringResource(R.string.school_mail_parse_failed), null) }
+            is Content.Ready -> {
+                // Splitting a source that can run to hundreds of KB is too expensive to redo on
+                // every recomposition, and LazyColumn's content lambda is not a composable scope,
+                // so it cannot be remembered where the chunks are consumed. Each chunk is joined
+                // back into its final string here too, so the items only read it.
+                val sourceChunks = remember(state.source) {
+                    state.source?.lines()?.chunked(SOURCE_CHUNK_LINES)?.map { it.joinToString("\n") }
                 }
-                items(content.warnings, key = { it.toString() }) { warning -> WarningCard(warningTitle(warning), null) }
-                val html = content.html
-                if (state.mode == ViewMode.FORMATTED && html != null && html.blockedRemoteImages > 0 && !state.remoteImagesAllowed) {
-                    item(key = "remote-images") {
-                        WarningCard(stringResource(R.string.school_mail_remote_images_blocked)) {
-                            TextButton(onClick = viewModel::loadRemoteImages) { Text(stringResource(R.string.school_mail_load_images)) }
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentPadding = PaddingValues(bottom = 32.dp),
+                ) {
+                    item(key = "header") { MessageHeader(content.summary) }
+                    if (state.parseFailed) {
+                        item(key = "parse-failed") { WarningCard(stringResource(R.string.school_mail_parse_failed), null) }
+                    }
+                    items(content.warnings, key = { it.toString() }) { warning -> WarningCard(warningTitle(warning), null) }
+                    val html = content.html
+                    if (state.mode == ViewMode.FORMATTED && html != null && html.blockedRemoteImages > 0 && !state.remoteImagesAllowed) {
+                        item(key = "remote-images") {
+                            WarningCard(stringResource(R.string.school_mail_remote_images_blocked)) {
+                                TextButton(onClick = viewModel::loadRemoteImages) { Text(stringResource(R.string.school_mail_load_images)) }
+                            }
                         }
                     }
-                }
-                when (state.mode) {
-                    ViewMode.FORMATTED -> if (html != null && content.document != null) item(key = "html") {
-                        val document = content.document
-                        // Chromium hands shouldInterceptRequest its own normalized request URL,
-                        // which a raw <img src> string won't match byte-for-byte even when it's
-                        // the same URL, so both sides go through the same normalizer.
-                        val allowedRemoteUrls = remember(html.remoteImageUrls, state.remoteImagesAllowed) {
-                            if (state.remoteImagesAllowed) {
-                                html.remoteImageUrls.map { SchoolMailMessageViewModel.normalizedHref(it) }.toSet()
+                    when (state.mode) {
+                        ViewMode.FORMATTED -> if (html != null && content.document != null) item(key = "html") {
+                            val document = content.document
+                            // Chromium hands shouldInterceptRequest its own normalized request URL,
+                            // which a raw <img src> string won't match byte-for-byte even when it's
+                            // the same URL, so both sides go through the same normalizer.
+                            val allowedRemoteUrls = remember(html.remoteImageUrls, state.remoteImagesAllowed) {
+                                if (state.remoteImagesAllowed) {
+                                    html.remoteImageUrls.map { SchoolMailMessageViewModel.normalizedHref(it) }.toSet()
+                                } else {
+                                    emptySet()
+                                }
+                            }
+                            // Spec §9.3: HTML always sits on white paper, dark mode included.
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color.White,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            ) {
+                                MailWebView(
+                                    document = document.html,
+                                    allowedRemoteUrls = allowedRemoteUrls,
+                                    linkCount = document.links.size,
+                                    onLink = { pendingLink = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
+                        ViewMode.PLAIN -> item(key = "plain") {
+                            SelectionContainer {
+                                Text(
+                                    content.plain,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                )
+                            }
+                        }
+                        ViewMode.SOURCE -> {
+                            val source = state.source
+                            val chunks = sourceChunks
+                            if (source == null || chunks == null) {
+                                item(key = "source-loading") {
+                                    Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                                        if (state.sourceLoading) CircularProgressIndicator()
+                                    }
+                                }
                             } else {
-                                emptySet()
+                                item(key = "source-copy") {
+                                    TextButton(onClick = { copyToClipboard(context, source) }, modifier = Modifier.padding(horizontal = 8.dp)) {
+                                        Text(stringResource(R.string.school_mail_copy_all))
+                                    }
+                                }
+                                items(chunks.size, key = { "source-$it" }) { index ->
+                                    SelectionContainer {
+                                        Text(
+                                            chunks[index],
+                                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                        )
+                                    }
+                                }
                             }
                         }
-                        // Spec §9.3: HTML always sits on white paper, dark mode included.
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color.White,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                        ) {
-                            MailWebView(
-                                document = document.html,
-                                allowedRemoteUrls = allowedRemoteUrls,
-                                linkCount = document.links.size,
-                                onLink = { pendingLink = it },
-                                modifier = Modifier.fillMaxWidth(),
+                    }
+                    if (content.body.attachments.isNotEmpty()) {
+                        item(key = "attachments-header") {
+                            SectionHeader(stringResource(R.string.school_mail_attachments), Modifier.padding(top = 16.dp))
+                        }
+                        items(content.body.attachments, key = { "att-${it.partId}" }) { attachment ->
+                            AttachmentRow(
+                                attachment = attachment,
+                                downloading = attachment.partId in state.downloading,
+                                onOpen = { viewModel.requestOpen(attachment) },
+                                onSave = { viewModel.requestSave(attachment) },
                             )
                         }
-                    }
-                    ViewMode.PLAIN -> item(key = "plain") {
-                        SelectionContainer {
-                            Text(
-                                content.plain,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            )
-                        }
-                    }
-                    ViewMode.SOURCE -> {
-                        val source = state.source
-                        if (source == null) {
-                            item(key = "source-loading") {
-                                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                                    if (state.sourceLoading) CircularProgressIndicator()
-                                }
-                            }
-                        } else {
-                            item(key = "source-copy") {
-                                TextButton(onClick = { copyToClipboard(context, source) }, modifier = Modifier.padding(horizontal = 8.dp)) {
-                                    Text(stringResource(R.string.school_mail_copy_all))
-                                }
-                            }
-                            val chunks = source.lines().chunked(SOURCE_CHUNK_LINES)
-                            items(chunks.size, key = { "source-$it" }) { index ->
-                                SelectionContainer {
-                                    Text(
-                                        chunks[index].joinToString("\n"),
-                                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                if (content.body.attachments.isNotEmpty()) {
-                    item(key = "attachments-header") {
-                        SectionHeader(stringResource(R.string.school_mail_attachments), Modifier.padding(top = 16.dp))
-                    }
-                    items(content.body.attachments, key = { "att-${it.partId}" }) { attachment ->
-                        AttachmentRow(
-                            attachment = attachment,
-                            downloading = attachment.partId in state.downloading,
-                            onOpen = { viewModel.requestOpen(attachment) },
-                            onSave = { viewModel.requestSave(attachment) },
-                        )
                     }
                 }
             }
