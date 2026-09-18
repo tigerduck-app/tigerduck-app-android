@@ -329,18 +329,32 @@ internal fun SettingsPickerRow(
         }
     }
 }
+/**
+ * [enabled] greys the row out in place rather than hiding it: a setting the
+ * user cannot reach yet still reads as something the app has, which is why a
+ * row whose destination needs an account (School Mail's notification page)
+ * stays on the list signed out. Dimming matches [SettingsToggleRow]'s
+ * disabled label, and the row stops being clickable.
+ */
 @Composable
-internal fun SettingsLinkRow(label: String, onClick: () -> Unit) {
+internal fun SettingsLinkRow(label: String, enabled: Boolean = true, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(SettingRowHeight)
             .semantics(mergeDescendants = true) { role = Role.Button }
-            .clickable { onClick() }
+            .clickable(enabled = enabled) { onClick() }
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(
+                alpha = if (enabled) 1f else ContentAlpha.DISABLED,
+            ),
+        )
         Icon(
             Icons.Filled.ChevronRight,
             contentDescription = null,

@@ -109,6 +109,7 @@ sealed class Screen(val route: String) {
     object TabEditor : Screen("tabEditor")
     object LanguagePicker : Screen("languagePicker")
     object LiveActivitySettings : Screen("liveActivitySettings")
+    object SchoolMailNotificationSettings : Screen("schoolMailNotificationSettings")
     object NotificationPermissionSettings : Screen("notificationPermissionSettings")
     object AssignmentReminderSettings : Screen("assignmentReminderSettings")
     object SourceCodePicker : Screen("sourceCodePicker")
@@ -463,6 +464,9 @@ fun MainNavigation(
                     onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
+                    onNavigateToSchoolMailNotificationSettings = {
+                        navController.navigate(Screen.SchoolMailNotificationSettings.route)
+                    },
                     onNavigateToNotificationPermissionSettings = {
                         navController.navigate(Screen.NotificationPermissionSettings.route)
                     },
@@ -569,6 +573,11 @@ fun MainNavigation(
                     onNavigateToNotificationPermissionSettings = {
                         navController.navigate(Screen.NotificationPermissionSettings.route)
                     },
+                )
+            }
+            composable(Screen.SchoolMailNotificationSettings.route) {
+                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailNotificationSettingsScreen(
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(Screen.NotificationPermissionSettings.route) {

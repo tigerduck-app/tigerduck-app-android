@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.store.MailStateStore
 import org.ntust.app.tigerduck.mail.sync.ExactAlarmAccess
 import org.ntust.app.tigerduck.mail.sync.MailBackgroundScheduler
@@ -31,7 +32,18 @@ class SchoolMailSettingsViewModel @Inject constructor(
     private val state: MailStateStore,
     private val scheduler: MailBackgroundScheduler,
     private val exactAlarms: ExactAlarmAccess,
+    account: MailAccount,
 ) : ViewModel() {
+    /**
+     * The same flag the mail page and the Settings account row read
+     * ([MailAccount.signedIn]) — not a second notion of "signed in". With no
+     * mailbox there is nothing for 寄件者顯示名稱 to name and nothing for the
+     * 校園信箱通知 page to set, so those controls grey out rather than
+     * disappear. The demo mailbox signs in like any other account, so it
+     * reads true here and needs no case of its own.
+     */
+    val signedIn: StateFlow<Boolean> = account.signedIn
+
     data class UiState(
         val notificationsEnabled: Boolean,
         val displayName: String,
