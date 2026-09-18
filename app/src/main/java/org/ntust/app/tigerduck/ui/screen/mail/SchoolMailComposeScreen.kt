@@ -68,6 +68,7 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showLeave by remember { mutableStateOf(false) }
+    var showSendConfirm by remember { mutableStateOf(false) }
 
     val quoteHeader = stringResource(R.string.school_mail_quote_header)
     val forwardedHeader = stringResource(R.string.school_mail_forwarded_header)
@@ -142,7 +143,10 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
                     if (state.sending) {
                         Box(Modifier.padding(horizontal = 16.dp)) { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
                     } else {
-                        TextButton(onClick = viewModel::send, enabled = !state.loading && state.pendingPicks == 0) {
+                        TextButton(
+                            onClick = { if (viewModel.requestSend()) showSendConfirm = true },
+                            enabled = !state.loading && state.pendingPicks == 0,
+                        ) {
                             Text(stringResource(R.string.school_mail_send))
                         }
                     }
@@ -212,6 +216,20 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
 
     state.error?.let { error ->
         if (!state.errorAcknowledged) ComposeErrorDialog(error, onDismiss = viewModel::acknowledgeError)
+    }
+
+    // Guarded by state.sending as well as the click site: a send that started while this was up
+    // (there is no such path today, but nothing about the state shape rules it out later) must not
+    // leave the confirmation floating over an in-flight send.
+    if (showSendConfirm && !state.sending) {
+        TigerDuckDialog(
+            onDismissRequest = { showSendConfirm = false },
+            title = stringResource(R.string.school_mail_send_confirm_title),
+            confirmText = stringResource(R.string.school_mail_send),
+            onConfirm = { showSendConfirm = false; viewModel.send() },
+            dismissText = stringResource(R.string.school_mail_keep_editing),
+            onDismiss = { showSendConfirm = false },
+        )
     }
 
     if (showLeave) {

@@ -255,23 +255,47 @@ class SchoolMailComposeViewModel @Inject constructor(
         }
     }
 
-    fun send() {
-        val s = _state.value
-        if (s.sending || s.loading || s.pendingPicks > 0) return
+    /** The validation [send] always runs before it actually ships the mail, shared with
+     *  [requestSend] so the confirmation prompt sees exactly the same verdict a bare [send] would. */
+    private fun sendValidationError(s: UiState): ComposeError? {
         val to = ComposeRules.parseRecipients(s.to)
         val cc = ComposeRules.parseRecipients(s.cc)
         val bcc = ComposeRules.parseRecipients(s.bcc)
         val invalid = to.invalid + cc.invalid + bcc.invalid
-        val error = when {
+        return when {
             invalid.isNotEmpty() -> ComposeError.InvalidRecipients(invalid)
             to.addresses.isEmpty() && cc.addresses.isEmpty() && bcc.addresses.isEmpty() -> ComposeError.NoRecipient
             !fitsSizeLimit(s) -> ComposeError.TooLarge
             else -> null
         }
+    }
+
+    /** Called when Send is tapped, before the "are you sure?" prompt. Runs the same validation
+     *  [send] itself runs -- an invalid form sets the existing inline+popup error (never the
+     *  confirmation) and returns false; a form that would actually go out sets nothing and returns
+     *  true, letting the screen raise the confirmation. */
+    fun requestSend(): Boolean {
+        val s = _state.value
+        if (s.sending || s.loading || s.pendingPicks > 0) return false
+        val error = sendValidationError(s)
+        if (error != null) {
+            _state.update { it.copy(error = error, errorAcknowledged = false) }
+            return false
+        }
+        return true
+    }
+
+    fun send() {
+        val s = _state.value
+        if (s.sending || s.loading || s.pendingPicks > 0) return
+        val error = sendValidationError(s)
         if (error != null) {
             _state.update { it.copy(error = error, errorAcknowledged = false) }
             return
         }
+        val to = ComposeRules.parseRecipients(s.to)
+        val cc = ComposeRules.parseRecipients(s.cc)
+        val bcc = ComposeRules.parseRecipients(s.bcc)
         withStaged(onError = { ComposeError.SendFailed(it) }) { attachments ->
             val mail = OutgoingMail(repository.selfAddress(), to.addresses, cc.addresses, bcc.addresses,
                 s.subject.trim(), s.body, attachments, inReplyTo, references)
