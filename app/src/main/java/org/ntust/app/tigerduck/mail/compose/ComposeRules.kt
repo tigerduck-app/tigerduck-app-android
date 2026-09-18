@@ -56,13 +56,18 @@ object ComposeRules {
         original.lines().forEach { append("\n> ").append(it) }
     }
 
+    /**
+     * Unroutable mailboxes are dropped here, not just reported later: a bounce from Mail2000 has
+     * `From: "Mail Deliver System" <MAILER-DAEMON>`, and replying to it must open an empty To
+     * rather than a draft addressed to something that isn't an address (see [MailAddress]).
+     */
     fun replyRecipients(original: MailSummary): List<MailAddress> =
-        original.replyTo.ifEmpty { listOfNotNull(original.from) }
+        original.replyTo.filter { it.isRoutable }.ifEmpty { listOfNotNull(original.from).filter { it.isRoutable } }
 
     fun replyAllRecipients(original: MailSummary, selfAddress: String): Pair<List<MailAddress>, List<MailAddress>> {
         val to = replyRecipients(original)
         val taken = (to.map { it.address.lowercase() } + selfAddress.lowercase()).toMutableSet()
-        val cc = (original.to + original.cc).filter { taken.add(it.address.lowercase()) }
+        val cc = (original.to + original.cc).filter { it.isRoutable && taken.add(it.address.lowercase()) }
         return to to cc
     }
 
@@ -78,15 +83,25 @@ object ComposeRules {
         val invalid = mutableListOf<String>()
         AddressParser.splitTopLevel(input).map { it.trim() }.filter { it.isNotEmpty() }.forEach { token ->
             val parsed = AddressParser.parseOne(token)
-            if (parsed != null && parsed.address.all { it.code < 0x80 }) addresses.add(parsed) else invalid.add(token)
+            // `isRoutable` is what rejects a name-only mailbox the parser kept for display
+            // (`Mail Deliver System <MAILER-DAEMON>`): its empty address would vacuously pass the
+            // ASCII check below and go out as a recipient with no mailbox at all.
+            if (parsed != null && parsed.isRoutable && parsed.address.all { it.code < 0x80 }) {
+                addresses.add(parsed)
+            } else {
+                invalid.add(token)
+            }
         }
         return RecipientParse(addresses.distinctBy { it.address.lowercase() }, invalid)
     }
 
-    fun formatRecipients(list: List<MailAddress>): String = list.joinToString(", ", transform = ::formatOne)
+    fun formatRecipients(list: List<MailAddress>): String =
+        list.map(::formatOne).filter { it.isNotBlank() }.joinToString(", ")
 
     /** Quotes a display name containing an RFC 5322 special, escaping `"` and
-     *  `\` with a backslash so the token parses back through [AddressParser.parseOne]. */
+     *  `\` with a backslash so the token parses back through [AddressParser.parseOne].
+     *  A mailbox with no routable address is written as its bare name: the empty `<>` that
+     *  would otherwise be printed reads like an address and isn't one. */
     private fun formatOne(a: MailAddress): String {
         val name = a.name
         if (name.isNullOrBlank()) return a.address
@@ -95,7 +110,7 @@ object ComposeRules {
         } else {
             name
         }
-        return "$display <${a.address}>"
+        return if (a.isRoutable) "$display <${a.address}>" else display
     }
 
     /**

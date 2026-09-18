@@ -2,9 +2,21 @@ package org.ntust.app.tigerduck.mail.model
 
 import java.time.Instant
 
-/** A mailbox. [name] is already RFC 2047-decoded and bidi-cleaned. */
+/**
+ * A mailbox. [name] is already RFC 2047-decoded and bidi-cleaned.
+ *
+ * [address] is empty when the header named no deliverable mailbox: Mail2000 sends every
+ * delivery-failure notice as `From: "Mail Deliver System" <MAILER-DAEMON>`, a bare local part
+ * with no domain. The name is worth showing, the token is not an address, and inventing one
+ * would be worse than having none -- [address] feeds `MailWarnings.isExternal`, the
+ * display-name-mismatch check and reply/forward recipients. Anything that puts an address on
+ * the wire must check [isRoutable] first.
+ */
 data class MailAddress(val name: String?, val address: String) {
     val display: String get() = name?.takeIf { it.isNotBlank() } ?: address
+
+    /** False for a mailbox kept only for its display name; see the class docs. */
+    val isRoutable: Boolean get() = address.isNotBlank()
 }
 
 data class MailFlags(

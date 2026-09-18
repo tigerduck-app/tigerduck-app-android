@@ -8,6 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.data.model.mail.MailAddressDto
 import org.ntust.app.tigerduck.mail.model.InlineImage
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
@@ -53,6 +54,19 @@ class MailCacheTest {
         assertArrayEquals(byteArrayOf(1, 2, 3), loaded.inlineImages.getValue("logo@x").bytes)
         assertNull("a new UIDVALIDITY invalidates it", cache.loadBody("INBOX", 5, 8))
         assertNull(cache.loadBody("INBOX", 5, 7))
+    }
+
+    @Test
+    fun `a sender kept only for its name survives the cache`() {
+        val daemon = MailAddress("Mail Deliver System", "")
+        val cache = MailCache(tmp.root)
+        cache.saveFolder("INBOX", MailPage(1, 1, listOf(summary(1).copy(from = daemon)), nextBeforeSeq = null))
+        val from = cache.loadFolder("INBOX")!!.messages!!.single().toModel().from
+        assertEquals("reloading from cache must not turn the sender back into '(no sender)'", daemon, from)
+        assertFalse(from!!.isRoutable)
+        // An entry with neither a name nor an address is still worth nothing and is dropped.
+        assertNull(MailAddressDto(null, null).toModel())
+        assertNull(MailAddressDto("  ", " ").toModel())
     }
 
     @Test

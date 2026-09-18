@@ -52,6 +52,28 @@ class ComposeRulesTest {
     }
 
     @Test
+    fun `a sender with no routable address is never a reply recipient`() {
+        val daemon = MailAddress("Mail Deliver System", "")
+        val bounce = summary(from = daemon, to = listOf(MailAddress(null, "me@mail.ntust.edu.tw")), cc = listOf(daemon))
+        assertEquals(emptyList<MailAddress>(), ComposeRules.replyRecipients(bounce))
+        val (to, cc) = ComposeRules.replyAllRecipients(bounce, "me@mail.ntust.edu.tw")
+        assertEquals(emptyList<MailAddress>(), to)
+        assertEquals(emptyList<MailAddress>(), cc)
+        // A Reply-To that is equally unroutable does not resurrect it either.
+        assertEquals(emptyList<MailAddress>(), ComposeRules.replyRecipients(summary(from = daemon, replyTo = listOf(daemon))))
+    }
+
+    @Test
+    fun `an unroutable mailbox is shown by name and refused as a recipient`() {
+        assertEquals("Mail Deliver System", ComposeRules.formatRecipients(listOf(MailAddress("Mail Deliver System", ""))))
+        // No empty <> is ever printed, so nothing downstream can mistake it for an address...
+        val parsed = ComposeRules.parseRecipients("Mail Deliver System <MAILER-DAEMON>, ok@x.tw")
+        // ...and typed or reopened from a draft, it is reported invalid rather than sent.
+        assertEquals(listOf("ok@x.tw"), parsed.addresses.map { it.address })
+        assertEquals(listOf("Mail Deliver System <MAILER-DAEMON>"), parsed.invalid)
+    }
+
+    @Test
     fun `references chain`() {
         assertEquals("<r0@x> <m1@x>", ComposeRules.references(summary(references = "<r0@x>")))
         assertEquals("<m1@x>", ComposeRules.references(summary()))

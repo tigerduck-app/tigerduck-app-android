@@ -58,4 +58,23 @@ class AddressParserTest {
         assertEquals(MailAddress(null, "中文@x.tw"), AddressParser.parseOne("中文@x.tw"))
         assertEquals(MailAddress("王小明", "a@中文.tw"), AddressParser.parseOne("王小明 <a@中文.tw>"))
     }
+
+    @Test
+    fun `a bare local part keeps the display name and no address`() {
+        // Mail2000's delivery-failure notices, verbatim: MAILER-DAEMON has no @domain, so there
+        // is no address to keep, but dropping the whole mailbox showed every bounce as
+        // "(no sender)" instead of "Mail Deliver System".
+        val from = AddressParser.parseOne("\"Mail Deliver System\" <MAILER-DAEMON>")
+        assertEquals(MailAddress("Mail Deliver System", ""), from)
+        assertFalse("the token must never be usable as an address", from!!.isRoutable)
+        assertEquals("Mail Deliver System", from.display)
+        assertEquals(listOf(from), AddressParser.parseList("\"Mail Deliver System\" <MAILER-DAEMON>"))
+    }
+
+    @Test
+    fun `a malformed mailbox with nothing to show is still skipped`() {
+        assertNull(AddressParser.parseOne("<MAILER-DAEMON>"))
+        assertNull(AddressParser.parseOne("<also bad>"))
+        assertNull(AddressParser.parseOne("MAILER-DAEMON"))
+    }
 }

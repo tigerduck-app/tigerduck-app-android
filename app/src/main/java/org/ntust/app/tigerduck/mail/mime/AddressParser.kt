@@ -19,9 +19,15 @@ object AddressParser {
         val gt = s.lastIndexOf('>')
         if (lt >= 0 && gt > lt) {
             val address = s.substring(lt + 1, gt).trim()
-            if (!looksLikeAddress(address)) return null
             val rawName = unescapeQuoted(s.substring(0, lt).trim().removeSurrounding("\""))
             val name = TextCleaning.clean(EncodedWords.decode(rawName)).ifBlank { null }
+            // A token inside <> that is not a deliverable address -- Mail2000 bounces arrive as
+            // `"Mail Deliver System" <MAILER-DAEMON>`, a bare local part -- keeps its display
+            // name so the mail shows a sender instead of "(no sender)", but the token itself is
+            // dropped rather than passed through: it must never reach a reply's To field or be
+            // compared as if it were a real address. With no name to keep either there is
+            // nothing to show, so the whole entry is skipped, as before.
+            if (!looksLikeAddress(address)) return name?.let { MailAddress(it, "") }
             return MailAddress(name, address)
         }
         return if (looksLikeAddress(s)) MailAddress(null, s) else null

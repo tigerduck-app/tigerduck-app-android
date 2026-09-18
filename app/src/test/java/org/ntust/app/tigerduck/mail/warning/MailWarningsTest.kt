@@ -61,6 +61,33 @@ class MailWarningsTest {
     }
 
     @Test
+    fun `a sender kept only for its name is external, and its name is not a mismatch`() {
+        // A Mail2000 bounce: "Mail Deliver System" with no routable address. It must warn exactly
+        // as a missing sender already did -- no domain to vouch for it -- and nothing more: the
+        // display-name check has no address in the name to disagree with the (absent) sender.
+        assertTrue("an address-less sender counts as external", MailWarnings.isExternal(""))
+        assertEquals(
+            listOf(MailWarning.ExternalSender("")),
+            MailWarnings.evaluate(
+                from = MailAddress("Mail Deliver System", ""),
+                subject = "Returned Mail: Hostname cannot be resolved",
+                plainText = "", links = emptyList(), attachments = emptyList(),
+            ),
+        )
+    }
+
+    @Test
+    fun `a display name claiming an address still mismatches when there is no real address`() {
+        assertEquals(
+            listOf(MailWarning.ExternalSender(""), MailWarning.DisplayNameMismatch("admin@mail.ntust.edu.tw", "")),
+            MailWarnings.evaluate(
+                from = MailAddress("admin@mail.ntust.edu.tw", ""),
+                subject = "x", plainText = "", links = emptyList(), attachments = emptyList(),
+            ),
+        )
+    }
+
+    @Test
     fun `password bait needs a keyword plus an external sender or an outside link`() {
         val internal = MailAddress(null, "cc@mail.ntust.edu.tw")
         val external = MailAddress(null, "x@evil.example")

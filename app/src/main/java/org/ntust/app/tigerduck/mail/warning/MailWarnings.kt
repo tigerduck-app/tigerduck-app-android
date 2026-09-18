@@ -101,6 +101,11 @@ object MailWarnings {
         return h == "ntust.edu.tw" || h.endsWith(".ntust.edu.tw")
     }
 
+    /**
+     * A sender with no domain to check counts as external -- that is the safe direction, and it
+     * covers both a missing `From` (null) and a mailbox kept only for its display name (empty,
+     * `MailAddress.isRoutable` false), such as a Mail2000 bounce's `<MAILER-DAEMON>`.
+     */
     fun isExternal(address: String?): Boolean {
         val domain = address?.substringAfterLast('@', missingDelimiterValue = "").orEmpty()
         return domain.isEmpty() || !isSchoolDomain(domain)

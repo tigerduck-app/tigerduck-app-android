@@ -443,12 +443,14 @@ private fun MessageHeader(summary: MailSummary) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    from?.name?.takeIf { it.isNotBlank() } ?: from?.address ?: stringResource(R.string.school_mail_no_sender),
+                    from?.display?.takeIf { it.isNotBlank() } ?: stringResource(R.string.school_mail_no_sender),
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (from != null) {
+                // A bounce's `<MAILER-DAEMON>` leaves no address to print under the name; an
+                // empty second line would just look like the address failed to load.
+                if (from != null && from.isRoutable) {
                     Text(from.address, style = MaterialTheme.typography.bodySmall, color = cs.outline)
                 }
             }
@@ -480,10 +482,14 @@ private fun MessageHeader(summary: MailSummary) {
     }
 }
 
+/** The warning, with the address it is about on a second line -- unless there isn't one to name. */
+private fun String.withAddress(address: String): String = if (address.isBlank()) this else "$this\n$address"
+
 @Composable
 private fun warningTitle(warning: MailWarning): String = when (warning) {
-    is MailWarning.ExternalSender -> stringResource(R.string.school_mail_warning_external) + "\n" + warning.address
-    is MailWarning.DisplayNameMismatch -> stringResource(R.string.school_mail_warning_display_name) + "\n" + warning.actualAddress
+    is MailWarning.ExternalSender -> stringResource(R.string.school_mail_warning_external).withAddress(warning.address)
+    is MailWarning.DisplayNameMismatch ->
+        stringResource(R.string.school_mail_warning_display_name).withAddress(warning.actualAddress)
     MailWarning.PasswordBait -> stringResource(R.string.school_mail_warning_password)
     is MailWarning.RiskyAttachments ->
         stringResource(R.string.school_mail_warning_attachment).replaceIosArg(1, warning.fileNames.joinToString(", "))

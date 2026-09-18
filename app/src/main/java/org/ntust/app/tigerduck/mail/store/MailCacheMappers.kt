@@ -16,7 +16,17 @@ import java.util.Base64
 
 fun MailAddress.toDto() = MailAddressDto(name, address)
 
-fun MailAddressDto.toModel(): MailAddress? = address?.takeIf { it.isNotBlank() }?.let { MailAddress(name, it) }
+/**
+ * Both fields are nullable on disk, so an entry with neither is the only one worth dropping: a
+ * cached sender that has a name but no deliverable address (a Mail2000 bounce, see [MailAddress])
+ * must come back with its name, or reloading the folder from cache would turn it back into
+ * "(no sender)". The empty address keeps it unroutable, exactly as the parser left it.
+ */
+fun MailAddressDto.toModel(): MailAddress? {
+    val label = name?.takeIf { it.isNotBlank() }
+    val mailbox = address.orEmpty().trim()
+    return if (label == null && mailbox.isEmpty()) null else MailAddress(label, mailbox)
+}
 
 fun MailSummary.toDto() = MailSummaryDto(
     uid = uid,

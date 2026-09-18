@@ -383,7 +383,8 @@ private fun MailCard(message: MailSummary, onClick: () -> Unit) {
                 }
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = message.from?.display ?: stringResource(R.string.school_mail_no_sender),
+                        text = message.from?.display?.takeIf { it.isNotBlank() }
+                            ?: stringResource(R.string.school_mail_no_sender),
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = if (unread) FontWeight.SemiBold else FontWeight.Normal),
                         color = cs.onSurface,
                         maxLines = 1,

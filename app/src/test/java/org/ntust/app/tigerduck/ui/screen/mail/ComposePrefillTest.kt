@@ -52,6 +52,28 @@ class ComposePrefillTest {
     }
 
     @Test
+    fun `replying to a bounce addresses nobody and forwarding names the sender without an address`() {
+        val bounce = mailSummary(
+            9,
+            subject = "Returned Mail: Hostname cannot be resolved",
+            from = MailAddress("Mail Deliver System", ""),
+            to = listOf(MailAddress(null, self)),
+        )
+        for (all in listOf(false, true)) {
+            val draft = ComposePrefill.reply(bounce, "body", all = all, selfAddress = self, labels = labels)
+            assertEquals("", draft.to)
+            assertEquals("", draft.cc)
+            assertTrue("no draft may be addressed to MAILER-DAEMON", "MAILER-DAEMON" !in draft.to + draft.cc)
+            // The quote header still names who it came from, it just has no address to print.
+            assertTrue(draft.body.startsWith("\n\nOn 2026/09/15 18:00, Mail Deliver System wrote:"))
+        }
+        val forwarded = ComposePrefill.forward(bounce, "body", labels)
+        assertEquals("", forwarded.to)
+        assertTrue(forwarded.body.contains("From: Mail Deliver System\n"))
+        assertTrue("<>" !in forwarded.body)
+    }
+
+    @Test
     fun `a draft reopens as it was saved`() {
         val draft = ComposePrefill.draft(original, "draft body")
         assertEquals("$self, c@x.tw", draft.to)
