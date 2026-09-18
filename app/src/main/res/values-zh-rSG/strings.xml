@@ -662,6 +662,7 @@
     <string name="school_mail_search_local_only">服务器不支持这个搜索，只搜索已加载的邮件。</string>
     <string name="school_mail_search_prompt">搜索邮件</string>
     <string name="school_mail_send">发送</string>
+    <string name="school_mail_send_confirm_title">要发送这封邮件吗？</string>
     <string name="school_mail_send_failed">无法发送邮件</string>
     <string name="school_mail_settings_diagnostics">通知诊断</string>
     <string name="school_mail_settings_display_name">发件人显示名称</string>

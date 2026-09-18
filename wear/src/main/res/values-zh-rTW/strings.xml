@@ -662,6 +662,7 @@
     <string name="school_mail_search_local_only">伺服器不支援這個搜尋，只搜尋已載入的郵件。</string>
     <string name="school_mail_search_prompt">搜尋郵件</string>
     <string name="school_mail_send">傳送</string>
+    <string name="school_mail_send_confirm_title">要傳送這封信嗎？</string>
     <string name="school_mail_send_failed">無法傳送郵件</string>
     <string name="school_mail_settings_diagnostics">通知診斷</string>
     <string name="school_mail_settings_display_name">寄件者顯示名稱</string>
