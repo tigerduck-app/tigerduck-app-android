@@ -46,7 +46,13 @@ class SchoolMailListViewModel @Inject constructor(
     data class UiState(
         val chips: List<FolderChip> = emptyList(),
         val others: List<String> = emptyList(),
-        val selected: FolderSelection = FolderSelection.Real("INBOX"),
+        /**
+         * Defaults to 所有信件: it is not a real folder name, so this can never spuriously match
+         * a chip [load] resolves and get "kept" by accident (see [load]'s `keep`) -- it only ever
+         * survives past the first [load] when the merge actually exists. When it doesn't, `keep`
+         * falls through to the real 收件匣 folder, same as before 所有信件 existed.
+         */
+        val selected: FolderSelection = FolderSelection.AllMail,
         /** The server names of the folders 所有信件 merges. Empty until [load] has resolved them. */
         val mergedFolders: List<String> = emptyList(),
         val messages: List<MailRow> = emptyList(),
@@ -72,6 +78,20 @@ class SchoolMailListViewModel @Inject constructor(
         /** The kind of one row's *own* folder -- what decides where tapping it goes, in every view. */
         fun kindOf(folder: String): SpecialFolder? =
             chips.firstOrNull { (it.selection as? FolderSelection.Real)?.name == folder }?.kind
+
+        /** The resolved server name behind the 收件匣 chip, or null before [load] has resolved it. */
+        val inboxFolder: String?
+            get() = (chips.firstOrNull { it.kind == SpecialFolder.INBOX }?.selection as? FolderSelection.Real)?.name
+
+        /**
+         * True whenever the inbox's own mail is genuinely on screen: viewing 收件匣 directly, or
+         * viewing 所有信件, which always merges 收件匣 in whenever it exists as a chip at all (see
+         * [FolderSelection.AllMail.MERGED] and the `merged.size > 1` guard in [load]). Everything
+         * that used to read "only do this for the inbox" -- new-mail polling, moving the
+         * notification seen marker -- reads this instead, so defaulting to 所有信件 costs the user
+         * none of that.
+         */
+        val inboxInView: Boolean get() = selectedKind == SpecialFolder.INBOX || selected == FolderSelection.AllMail
 
         /**
          * The real folders the current selection reads. Every repository call goes through this,
@@ -111,8 +131,11 @@ class SchoolMailListViewModel @Inject constructor(
                     folders.nameOf(kind)?.let { FolderChip(FolderSelection.Real(it), kind) }
                 }
                 // 所有信件 only earns a chip when there are at least two folders to merge;
-                // otherwise it would just be a second name for the one that resolved.
-                val chips = if (merged.size > 1) real + FolderChip(FolderSelection.AllMail, null) else real
+                // otherwise it would just be a second name for the one that resolved. It leads
+                // the row -- it is the default view, not an extra one tacked on at the end.
+                val chips = if (merged.size > 1) listOf(FolderChip(FolderSelection.AllMail, null)) + real else real
+                // Fallback once 所有信件 isn't available (or the previous selection no longer
+                // resolves): the real 收件匣 folder, same as the default before 所有信件 existed.
                 val inbox = FolderSelection.Real(folders.nameOf(SpecialFolder.INBOX) ?: "INBOX")
                 val current = _state.value.selected
                 val keep = when {
@@ -226,7 +249,9 @@ class SchoolMailListViewModel @Inject constructor(
             val pages = targets.map { folder -> folder to repository.loadPage(folder, null) }
             if (_state.value.selected != selection) return
             _state.update { it.copy(messages = rowsOf(selection, pages), cursors = cursorsOf(pages), loadState = LoadState.Loaded) }
-            if (_state.value.selectedKind == SpecialFolder.INBOX) {
+            // Was "only for 收件匣 itself"; 所有信件 shows the inbox's own mail too, so it must
+            // move the notification seen marker exactly as viewing 收件匣 always did.
+            if (_state.value.inboxInView) {
                 runCatching { checker.noteSeenByPage(repository.inboxStatus()) }
             }
         } catch (e: MailError) {
@@ -293,16 +318,18 @@ class SchoolMailListViewModel @Inject constructor(
     }
 
     /**
-     * Inbox-only, as it has always been: every other selection -- 所有信件 included -- refreshes
-     * on pull-to-refresh instead. That also keeps the merged view entirely out of the new-mail
-     * check, since [MailChecker.noteSeenByPage] is what moves the notification seen marker.
+     * Runs whenever the inbox's own mail is in view -- 收件匣 itself, or 所有信件 merging it in
+     * (see [UiState.inboxInView]) -- every other real selection refreshes on pull-to-refresh
+     * instead. [newest] is read from the inbox's own rows specifically, not [UiState.messages] as
+     * a whole: in 所有信件, messages also holds 寄件備份 rows, whose UIDs live in a completely
+     * unrelated namespace and would otherwise skew the "did the inbox actually grow" check.
      */
     private suspend fun poll() {
         val s = _state.value
-        if (s.selectedKind != SpecialFolder.INBOX || s.searchResults != null) return
+        if (!s.inboxInView || s.searchResults != null) return
         try {
             val status = repository.inboxStatus()
-            val newest = s.messages.maxOfOrNull { it.uid } ?: 0L
+            val newest = s.messages.filter { it.folder == s.inboxFolder }.maxOfOrNull { it.uid } ?: 0L
             if (status.uidNext > newest + 1) fetchFirstPage() else checker.noteSeenByPage(status)
         } catch (e: MailError) {
             // The same path as every other list failure: a rejected password has to

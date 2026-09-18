@@ -23,6 +23,7 @@ import org.ntust.app.tigerduck.mail.MainDispatcherRule
 import org.ntust.app.tigerduck.mail.RecordingNotifier
 import org.ntust.app.tigerduck.mail.RecordingScheduler
 import org.ntust.app.tigerduck.mail.imap.FolderSelection
+import org.ntust.app.tigerduck.mail.imap.ResolvedFolders
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.mailSummary
 import org.ntust.app.tigerduck.mail.model.FolderStatus
@@ -57,17 +58,31 @@ class SchoolMailListViewModelTest {
         val s = vm.state.value
         assertEquals(
             listOf(
-                FolderSelection.Real("INBOX"), FolderSelection.Real("寄件備份匣"), FolderSelection.Real("草稿匣"),
-                FolderSelection.Real("廣告信匣"), FolderSelection.Real("回收筒"), FolderSelection.AllMail,
+                FolderSelection.AllMail, FolderSelection.Real("INBOX"), FolderSelection.Real("寄件備份匣"),
+                FolderSelection.Real("草稿匣"), FolderSelection.Real("廣告信匣"), FolderSelection.Real("回收筒"),
             ),
             s.chips.map { it.selection },
         )
         // 所有信件 is the one chip with no SpecialFolder behind it -- there is no such server folder.
         assertNull(s.chips.single { it.selection == FolderSelection.AllMail }.kind)
+        // 所有信件 leads the row, and it is also what the screen opens on.
+        assertEquals(FolderSelection.AllMail, s.selected)
         assertEquals(listOf("Moodle 課程討論區"), s.others)
         assertEquals(listOf(3L, 2L, 1L), s.displayed.map { it.uid })
         assertTrue(s.loadState is SchoolMailListViewModel.LoadState.Loaded)
+        // The inbox is part of 所有信件's merge, so opening on it still moves the seen marker --
+        // defaulting to 所有信件 must not cost the user the new-mail check.
         assertEquals(4L, state.inboxSeenUidNext)
+    }
+
+    @Test
+    fun `when only one of 收件匣 or 寄件備份 resolves, there is nothing to merge and the default stays 收件匣`() {
+        repo.resolved = ResolvedFolders(mapOf(SpecialFolder.INBOX to "INBOX"), emptyList())
+        repo.add("INBOX", mailSummary(1))
+        vm.load()
+        val s = vm.state.value
+        assertTrue(s.chips.none { it.selection == FolderSelection.AllMail })
+        assertEquals(FolderSelection.Real("INBOX"), s.selected)
     }
 
     @Test
@@ -349,24 +364,27 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
-    fun `所有信件 is a read view - it neither polls nor moves the new-mail seen marker`() {
-        // Deliberately out of scope: the merged view stays clear of the notification path and
-        // the new-mail check. Like every folder but 收件匣, it refreshes on pull-to-refresh.
-        repo.add("INBOX", mailSummary(1))
-        repo.add(SENT, mailSummary(9))
+    fun `所有信件 keeps checking for new mail and moving the seen marker, same as 收件匣 always did`() {
+        // 收件匣 is one of the folders 所有信件 merges, so the inbox is genuinely on screen while
+        // viewing 所有信件 -- defaulting to it must not cost the user the new-mail check or
+        // silently let a notification re-fire for mail the merged list already showed.
+        repo.add("INBOX", mailSummary(1, sentAt = at(100)))
+        repo.add(SENT, mailSummary(9, sentAt = at(200)))
         repo.status = FolderStatus(server.uidValidity, 2, 1, 1)
         vm.load()
-        val markerAfterInbox = state.inboxSeenUidNext
-        selectAll()
-        val statusCallsAfterSelect = repo.statusCalls
+        assertEquals(FolderSelection.AllMail, vm.state.value.selected)
+        val statusCallsAfterLoad = repo.statusCalls
 
         vm.startPolling()
-        repo.status = FolderStatus(server.uidValidity, 9, 8, 8)
-        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS * 3)
+        repo.add("INBOX", mailSummary(2, sentAt = at(300)))
+        repo.status = FolderStatus(server.uidValidity, 3, 2, 2)
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS + 1)
         main.dispatcher.scheduler.runCurrent()
 
-        assertEquals(statusCallsAfterSelect, repo.statusCalls)
-        assertEquals(markerAfterInbox, state.inboxSeenUidNext)
+        assertTrue(repo.statusCalls > statusCallsAfterLoad)
+        assertEquals(3L, state.inboxSeenUidNext)
+        // The merged list itself picked up the new inbox mail, same as 收件匣 always refreshed.
+        assertEquals(listOf("INBOX" to 2L, SENT to 9L, "INBOX" to 1L), vm.state.value.messages.map { it.folder to it.uid })
     }
 
     @Test
