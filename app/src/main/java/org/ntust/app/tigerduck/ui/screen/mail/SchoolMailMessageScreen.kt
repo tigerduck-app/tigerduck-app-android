@@ -74,6 +74,7 @@ import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.mime.TextCleaning
 import org.ntust.app.tigerduck.mail.model.MailAttachment
 import org.ntust.app.tigerduck.mail.model.MailSummary
+import org.ntust.app.tigerduck.mail.resolveAttachmentMimeType
 import org.ntust.app.tigerduck.mail.warning.MailWarning
 import org.ntust.app.tigerduck.mail.warning.MailWarnings
 import org.ntust.app.tigerduck.ui.component.ContentCard
@@ -563,12 +564,17 @@ private fun openLink(context: Context, href: String, browserPreference: String) 
 }
 
 private fun openAttachment(context: Context, request: SchoolMailMessageViewModel.OpenRequest) {
-    val uri = FileProvider.getUriForFile(context, "${context.packageName}.mailfiles", request.file)
-    val view = Intent(Intent.ACTION_VIEW)
-        .setDataAndTypeAndNormalize(uri, request.contentType)
-        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    runCatching { context.startActivity(Intent.createChooser(view, request.file.name)) }
-        .onFailure { Toast.makeText(context, R.string.school_mail_error_generic, Toast.LENGTH_SHORT).show() }
+    // FileProvider.getUriForFile throws IllegalArgumentException for any file outside the
+    // configured provider path, same as a startActivity failure -- both belong inside this one
+    // guarded block so either shows the same error toast instead of crashing.
+    runCatching {
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.mailfiles", request.file)
+        val mimeType = resolveAttachmentMimeType(request.contentType, request.file.name)
+        val view = Intent(Intent.ACTION_VIEW)
+            .setDataAndTypeAndNormalize(uri, mimeType)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        context.startActivity(Intent.createChooser(view, request.file.name))
+    }.onFailure { Toast.makeText(context, R.string.school_mail_error_generic, Toast.LENGTH_SHORT).show() }
 }
 
 private fun copyToClipboard(context: Context, text: String) {
