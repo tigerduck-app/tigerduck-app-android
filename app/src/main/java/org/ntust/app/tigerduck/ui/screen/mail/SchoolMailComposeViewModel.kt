@@ -109,6 +109,13 @@ class SchoolMailComposeViewModel @Inject constructor(
          *  Retry action this drives -- only a successful load does. */
         val loadError: MailError? = null,
         val error: ComposeError? = null,
+        /** Whether the popup raised for [error] has been dismissed. Kept apart from [error] itself
+         *  so dismissing the popup never clears the inline message -- they are two separate views
+         *  of the same failure (spec: the popup is *in addition to* the inline text, not instead of
+         *  it). Every place that sets [error] to a new value -- including one that is structurally
+         *  equal to the last one, e.g. a repeated [ComposeError.TooLarge] -- resets this to false so
+         *  the popup is never silently swallowed by an old acknowledgement. */
+        val errorAcknowledged: Boolean = false,
         val done: Boolean = false,
         val savedDraft: Boolean = false,
         internal val baseline: Fields = Fields(),
@@ -210,18 +217,21 @@ class SchoolMailComposeViewModel @Inject constructor(
         }
     }
 
-    fun setTo(value: String) { edited.to = true; _state.update { it.copy(to = value, error = null) } }
-    fun setCc(value: String) { edited.cc = true; _state.update { it.copy(cc = value, error = null) } }
-    fun setBcc(value: String) = _state.update { it.copy(bcc = value, error = null) }
+    fun setTo(value: String) { edited.to = true; _state.update { it.copy(to = value, error = null, errorAcknowledged = false) } }
+    fun setCc(value: String) { edited.cc = true; _state.update { it.copy(cc = value, error = null, errorAcknowledged = false) } }
+    fun setBcc(value: String) = _state.update { it.copy(bcc = value, error = null, errorAcknowledged = false) }
     fun setSubject(value: String) { edited.subject = true; _state.update { it.copy(subject = value) } }
     fun setBody(value: String) { edited.body = true; _state.update { it.copy(body = value) } }
     fun showCcBcc() = _state.update { it.copy(showCcBcc = true) }
-    fun clearError() = _state.update { it.copy(error = null) }
+    fun clearError() = _state.update { it.copy(error = null, errorAcknowledged = false) }
+
+    /** Dismisses the error popup without touching [UiState.error] -- the inline message stays. */
+    fun acknowledgeError() = _state.update { it.copy(errorAcknowledged = true) }
 
     fun addAttachments(list: List<ComposeAttachment>) =
-        _state.update { s -> s.copy(attachments = s.attachments + list.filter { a -> s.attachments.none { it.id == a.id } }, error = null) }
+        _state.update { s -> s.copy(attachments = s.attachments + list.filter { a -> s.attachments.none { it.id == a.id } }, error = null, errorAcknowledged = false) }
 
-    fun removeAttachment(id: String) = _state.update { s -> s.copy(attachments = s.attachments.filterNot { it.id == id }, error = null) }
+    fun removeAttachment(id: String) = _state.update { s -> s.copy(attachments = s.attachments.filterNot { it.id == id }, error = null, errorAcknowledged = false) }
 
     /**
      * Resolves each picked document's metadata off the injected [io] dispatcher (never Main) via
@@ -238,7 +248,7 @@ class SchoolMailComposeViewModel @Inject constructor(
             try {
                 val described = withContext(io) { uris.map(pickedAttachmentReader::describe) }
                 addAttachments(described.filterNotNull())
-                if (described.any { it == null }) _state.update { it.copy(error = ComposeError.TooLarge) }
+                if (described.any { it == null }) _state.update { it.copy(error = ComposeError.TooLarge, errorAcknowledged = false) }
             } finally {
                 _state.update { it.copy(pendingPicks = it.pendingPicks - 1) }
             }
@@ -259,7 +269,7 @@ class SchoolMailComposeViewModel @Inject constructor(
             else -> null
         }
         if (error != null) {
-            _state.update { it.copy(error = error) }
+            _state.update { it.copy(error = error, errorAcknowledged = false) }
             return
         }
         withStaged(onError = { ComposeError.SendFailed(it) }) { attachments ->
@@ -303,7 +313,7 @@ class SchoolMailComposeViewModel @Inject constructor(
             else -> null
         }
         if (error != null) {
-            _state.update { it.copy(error = error) }
+            _state.update { it.copy(error = error, errorAcknowledged = false) }
             return
         }
         withStaged(onError = { ComposeError.DraftFailed(it) }) { attachments ->
@@ -327,7 +337,7 @@ class SchoolMailComposeViewModel @Inject constructor(
     /** Downloads carried-over attachments to temp files for the duration of [block], then deletes them. */
     private fun withStaged(onError: (MailError) -> ComposeError, block: suspend (List<OutgoingAttachment>) -> Unit) {
         viewModelScope.launch {
-            _state.update { it.copy(sending = true, error = null) }
+            _state.update { it.copy(sending = true, error = null, errorAcknowledged = false) }
             val staging = File(cache.attachmentsDir, "outgoing-${UUID.randomUUID()}")
             try {
                 val attachments = _state.value.attachments.map { a ->
@@ -351,7 +361,7 @@ class SchoolMailComposeViewModel @Inject constructor(
             } catch (e: Exception) {
                 val error = MailErrors.classify(e)
                 if (error is MailError.AuthFailed) account.onAuthFailure()
-                _state.update { it.copy(error = onError(error)) }
+                _state.update { it.copy(error = onError(error), errorAcknowledged = false) }
             } finally {
                 // Back is refused while sending (the screen's BackHandler), but this still runs
                 // under NonCancellable like SchoolMailMessageViewModel's own cleanup: a cancelled

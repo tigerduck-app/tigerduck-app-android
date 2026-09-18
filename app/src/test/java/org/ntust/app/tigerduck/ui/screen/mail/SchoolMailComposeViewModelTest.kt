@@ -388,6 +388,41 @@ class SchoolMailComposeViewModelTest {
     }
 
     @Test
+    fun `acknowledging an error leaves the inline message alone, and a repeated failure raises the popup again`() {
+        val vm = vm(ComposeMode.NEW)
+        vm.setTo("a@x.tw")
+        vm.addAttachments(listOf(ComposeAttachment("big", "big.bin", "application/octet-stream", 60_000_000,
+            ComposeAttachment.Source.Local { ByteArrayInputStream(ByteArray(0)) })))
+        vm.send()
+        assertEquals(ComposeError.TooLarge, vm.state.value.error)
+        assertFalse(vm.state.value.errorAcknowledged)
+
+        vm.acknowledgeError()
+        assertTrue(vm.state.value.errorAcknowledged)
+        // The popup is dismissed, but the inline message this is checked against must survive it.
+        assertEquals(ComposeError.TooLarge, vm.state.value.error)
+
+        // The exact same error shape recurs (still over budget) -- the earlier acknowledgement
+        // must not swallow the popup for this new failure.
+        vm.send()
+        assertEquals(ComposeError.TooLarge, vm.state.value.error)
+        assertFalse(vm.state.value.errorAcknowledged)
+    }
+
+    @Test
+    fun `editing a field after an acknowledged error resets the acknowledgement along with the error`() {
+        val vm = vm(ComposeMode.NEW)
+        vm.send()
+        assertEquals(ComposeError.NoRecipient, vm.state.value.error)
+        vm.acknowledgeError()
+        assertTrue(vm.state.value.errorAcknowledged)
+
+        vm.setTo("a@x.tw")
+        assertEquals(null, vm.state.value.error)
+        assertFalse(vm.state.value.errorAcknowledged)
+    }
+
+    @Test
     fun `a new mail is clean until something is typed`() {
         val vm = vm(ComposeMode.NEW)
         assertFalse(vm.state.value.dirty)

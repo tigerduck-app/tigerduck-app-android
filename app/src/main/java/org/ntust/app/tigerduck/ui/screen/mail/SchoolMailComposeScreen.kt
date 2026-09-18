@@ -210,6 +210,10 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
         }
     }
 
+    state.error?.let { error ->
+        if (!state.errorAcknowledged) ComposeErrorDialog(error, onDismiss = viewModel::acknowledgeError)
+    }
+
     if (showLeave) {
         TigerDuckDialog(
             onDismissRequest = { showLeave = false },
@@ -239,16 +243,34 @@ private fun RecipientField(label: String, value: String, onChange: (String) -> U
     )
 }
 
+/** The one place that turns a [ComposeError] into display text, shared by the inline [ErrorText]
+ *  and [ComposeErrorDialog] so the two can never drift apart. */
+@Composable
+private fun composeErrorMessage(error: ComposeError): String = when (error) {
+    is ComposeError.InvalidRecipients -> stringResource(R.string.school_mail_invalid_recipients).replaceIosArg(1, error.tokens.joinToString(", "))
+    ComposeError.NoRecipient -> stringResource(R.string.school_mail_no_recipient)
+    ComposeError.TooLarge -> stringResource(R.string.school_mail_too_large)
+    is ComposeError.SendFailed -> stringResource(R.string.school_mail_send_failed) + "\n" + stringResource(error.error.messageRes())
+    is ComposeError.DraftFailed -> stringResource(error.error.messageRes())
+}
+
 @Composable
 private fun ErrorText(error: ComposeError) {
-    val text = when (error) {
-        is ComposeError.InvalidRecipients -> stringResource(R.string.school_mail_invalid_recipients).replaceIosArg(1, error.tokens.joinToString(", "))
-        ComposeError.NoRecipient -> stringResource(R.string.school_mail_no_recipient)
-        ComposeError.TooLarge -> stringResource(R.string.school_mail_too_large)
-        is ComposeError.SendFailed -> stringResource(R.string.school_mail_send_failed) + "\n" + stringResource(error.error.messageRes())
-        is ComposeError.DraftFailed -> stringResource(error.error.messageRes())
-    }
-    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+    Text(composeErrorMessage(error), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+}
+
+/** A must-dismiss popup for [error], raised *in addition to* [ErrorText] -- never instead of it.
+ *  Dismissing only flips [SchoolMailComposeViewModel.acknowledgeError]; it never clears
+ *  [SchoolMailComposeViewModel.UiState.error] itself, so the inline message stays on screen. */
+@Composable
+private fun ComposeErrorDialog(error: ComposeError, onDismiss: () -> Unit) {
+    TigerDuckDialog(
+        onDismissRequest = onDismiss,
+        title = stringResource(R.string.feature_school_mail),
+        message = composeErrorMessage(error),
+        confirmText = stringResource(R.string.settings_acknowledged),
+        onConfirm = onDismiss,
+    )
 }
 
 /** A failed [SchoolMailComposeViewModel.prefill]/[SchoolMailComposeViewModel.retryPrefill], kept
