@@ -131,6 +131,43 @@ class MailCacheTest {
     }
 
     @Test
+    fun `an oversized source is not cached and leaves existing bodies intact`() {
+        val cache = MailCache(tmp.root, maxBodyBytes = 4_000)
+        cache.saveBody("INBOX", 1, 7, body(200))
+        // Bigger than half the 4,000-byte budget: caching it would evict almost everything
+        // else just to fit this one entry, so it must never be written at all.
+        cache.saveSource("INBOX", 2, 7, "s".repeat(5_000))
+        assertNull("an entry over half the shared budget must not be cached", cache.loadSource("INBOX", 2, 7))
+        assertTrue(
+            "the existing body must survive an oversized source that was never written",
+            cache.loadBody("INBOX", 1, 7) != null,
+        )
+        assertEquals(
+            "nothing should have been written or evicted",
+            1,
+            File(tmp.root, "bodies").listFiles()!!.size,
+        )
+    }
+
+    @Test
+    fun `a normal-sized source is still cached and readable`() {
+        val cache = MailCache(tmp.root, maxBodyBytes = 4_000)
+        cache.saveSource("INBOX", 1, 7, "Subject: x\r\n\r\nraw source body")
+        assertEquals("Subject: x\r\n\r\nraw source body", cache.loadSource("INBOX", 1, 7))
+    }
+
+    @Test
+    fun `an oversized body is not cached and leaves other cached entries intact`() {
+        val cache = MailCache(tmp.root, maxBodyBytes = 4_000)
+        cache.saveSource("INBOX", 1, 7, "small source")
+        // saveBody shares the exact same exposure as saveSource: a huge body (e.g. large
+        // inline images) must be rejected the same way, not just the source path.
+        cache.saveBody("INBOX", 2, 7, body(5_000))
+        assertNull("a body over half the shared budget must not be cached", cache.loadBody("INBOX", 2, 7))
+        assertEquals("small source", cache.loadSource("INBOX", 1, 7))
+    }
+
+    @Test
     fun `sizeBytes counts folders, bodies, sources and attachments together`() {
         val cache = MailCache(tmp.root)
         assertEquals(0L, cache.sizeBytes())

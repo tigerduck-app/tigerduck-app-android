@@ -22,6 +22,16 @@ class MailCache(
     private val bodiesDir get() = File(root, "bodies")
     val attachmentsDir: File get() = File(root, "attachments")
 
+    /**
+     * A single body or source larger than this is not cached at all. Bodies and sources share
+     * one [maxBodyBytes] LRU budget (see [saveSource]); an entry anywhere near the full budget
+     * is nearly as bad as one over it, since caching it evicts almost everything else just to
+     * make room for one item. Capping any single entry at half the budget guarantees caching
+     * one thing can never evict more than half of what's already there, so the cache always
+     * keeps more than just whatever was written most recently.
+     */
+    private val maxEntryBytes = maxBodyBytes / 2
+
     @Synchronized
     fun loadFolder(folder: String): FolderCacheDto? {
         val file = File(foldersDir, key(folder))
@@ -59,8 +69,7 @@ class MailCache(
 
     @Synchronized
     fun saveBody(folder: String, uid: Long, uidValidity: Long, body: MailBody) {
-        write(File(bodiesDir, key(bodyKey(folder, uid))), body.toDto(uidValidity, uid))
-        evictBodies()
+        saveBounded(File(bodiesDir, key(bodyKey(folder, uid))), body.toDto(uidValidity, uid))
     }
 
     /**
@@ -82,8 +91,7 @@ class MailCache(
 
     @Synchronized
     fun saveSource(folder: String, uid: Long, uidValidity: Long, source: String) {
-        write(File(bodiesDir, key(sourceKey(folder, uid))), SourceCacheDto(VERSION, uidValidity, uid, source))
-        evictBodies()
+        saveBounded(File(bodiesDir, key(sourceKey(folder, uid))), SourceCacheDto(VERSION, uidValidity, uid, source))
     }
 
     /**
@@ -110,10 +118,27 @@ class MailCache(
     }
 
     private fun write(file: File, value: Any) {
+        writeText(file, gson.toJson(value))
+    }
+
+    /**
+     * The bodies/sources write path: an entry over [maxEntryBytes] is skipped outright rather
+     * than written and then cleaned up by [evictBodies] — checking the size up front means an
+     * oversized entry never touches disk and never disturbs the LRU order of what's already
+     * cached (see [maxEntryBytes]).
+     */
+    private fun saveBounded(file: File, value: Any) {
+        val json = gson.toJson(value)
+        if (json.toByteArray(Charsets.UTF_8).size > maxEntryBytes) return
+        writeText(file, json)
+        evictBodies()
+    }
+
+    private fun writeText(file: File, json: String) {
         file.parentFile?.mkdirs()
         val tmp = File(file.parentFile, "${file.name}.tmp")
         try {
-            tmp.writeText(gson.toJson(value))
+            tmp.writeText(json)
             if (!tmp.renameTo(file)) {
                 file.delete()
                 tmp.renameTo(file)
