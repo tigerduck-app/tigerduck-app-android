@@ -685,7 +685,7 @@
     <string name="school_mail_too_large">附件超過 50 MB 上限</string>
     <string name="school_mail_unread_only">只看未讀</string>
     <string name="school_mail_use_other_app">用其他 App 收信</string>
-    <string name="school_mail_view_formatted">格式</string>
+    <string name="school_mail_view_formatted">格式化</string>
     <string name="school_mail_view_mode">檢視</string>
     <string name="school_mail_view_plain">純文字</string>
     <string name="school_mail_view_source">原始碼</string>
