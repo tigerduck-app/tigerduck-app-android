@@ -356,6 +356,16 @@ fun SchoolMailMessageScreen(
             dismissText = stringResource(R.string.action_cancel),
         )
     }
+    if (state.confirmDelete) {
+        TigerDuckDialog(
+            onDismissRequest = { viewModel.confirmDelete(false) },
+            title = stringResource(R.string.school_mail_delete_confirm_title),
+            message = stringResource(R.string.school_mail_delete_confirm_message),
+            confirmText = stringResource(R.string.school_mail_delete),
+            onConfirm = { viewModel.confirmDelete(true) },
+            dismissText = stringResource(R.string.action_cancel),
+        )
+    }
     if (state.confirmDeleteForever) {
         TigerDuckDialog(
             onDismissRequest = { viewModel.confirmDeleteForever(false) },
@@ -403,15 +413,16 @@ private fun MessageMenu(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(12.dp)
     ) {
-        DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_mark_unread)) }, onClick = onMarkUnread)
-        DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_move_to)) }, onClick = onMove)
-        DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_delete)) }, onClick = onDelete)
-        HorizontalDivider()
         if (canFormat) {
             ModeItem(stringResource(R.string.school_mail_view_formatted), mode == ViewMode.FORMATTED) { onMode(ViewMode.FORMATTED) }
         }
         ModeItem(stringResource(R.string.school_mail_view_plain), mode == ViewMode.PLAIN) { onMode(ViewMode.PLAIN) }
         ModeItem(stringResource(R.string.school_mail_view_source), mode == ViewMode.SOURCE) { onMode(ViewMode.SOURCE) }
+        HorizontalDivider()
+        DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_mark_unread)) }, onClick = onMarkUnread)
+        DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_move_to)) }, onClick = onMove)
+        HorizontalDivider()
+        DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_delete)) }, onClick = onDelete)
     }
 }
 

@@ -103,6 +103,7 @@ class SchoolMailMessageViewModel @Inject constructor(
         /** Attachment part IDs currently being downloaded, open or save alike -- keyed per part so two different attachments don't clear each other's spinner. */
         val downloading: Set<String> = emptySet(),
         val savedCount: Int = 0,
+        val confirmDelete: Boolean = false,
         val confirmDeleteForever: Boolean = false,
         val actionError: MailError? = null,
         /** Moved, deleted or marked unread: the screen pops. */
@@ -386,10 +387,18 @@ class SchoolMailMessageViewModel @Inject constructor(
         update { it.copy(closed = true) }
     }
 
+    /** Both confirmations funnel into the same [repository.delete] call once answered; only one of the two dialogs ever fires for a given delete. */
     fun delete() = act {
         if (repository.deletesPermanently(folder)) {
             update { it.copy(confirmDeleteForever = true) }
         } else {
+            update { it.copy(confirmDelete = true) }
+        }
+    }
+
+    fun confirmDelete(confirm: Boolean) {
+        update { it.copy(confirmDelete = false) }
+        if (confirm) act {
             repository.delete(folder, uid)
             update { it.copy(closed = true) }
         }

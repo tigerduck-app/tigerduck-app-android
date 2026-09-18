@@ -177,13 +177,19 @@ class SchoolMailMessageViewModelTest {
     }
 
     @Test
-    fun `delete closes the mail, and in the trash it asks first`() {
+    fun `delete asks first everywhere -- an ordinary confirmation outside the trash, a permanent one inside it`() {
         repo.add("INBOX", mailSummary(5))
         repo.bodies[5] = MailBody(null, "x", emptyList(), emptyMap())
         val inbox = vm()
         inbox.load()
         inbox.delete()
+        assertTrue(inbox.state.value.confirmDelete)
+        assertFalse(inbox.state.value.confirmDeleteForever)
+        assertTrue(repo.deleted.isEmpty())
+        assertFalse(inbox.state.value.closed)
+        inbox.confirmDelete(true)
         assertEquals(listOf("INBOX" to 5L), repo.deleted)
+        assertFalse(inbox.state.value.confirmDelete)
         assertTrue(inbox.state.value.closed)
 
         repo.add("回收筒", mailSummary(9))
@@ -192,10 +198,25 @@ class SchoolMailMessageViewModelTest {
         trash.load()
         trash.delete()
         assertTrue(trash.state.value.confirmDeleteForever)
+        assertFalse(trash.state.value.confirmDelete)
         assertEquals(1, repo.deleted.size)
         trash.confirmDeleteForever(true)
         assertEquals("回收筒" to 9L, repo.deleted.last())
         assertTrue(trash.state.value.closed)
+    }
+
+    @Test
+    fun `declining the ordinary delete confirmation leaves the mail open and deletes nothing`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(null, "x", emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+        vm.delete()
+        assertTrue(vm.state.value.confirmDelete)
+        vm.confirmDelete(false)
+        assertFalse(vm.state.value.confirmDelete)
+        assertTrue(repo.deleted.isEmpty())
+        assertFalse(vm.state.value.closed)
     }
 
     @Test
@@ -553,6 +574,7 @@ class SchoolMailMessageViewModelTest {
         val vm = vm()
         vm.load()
         vm.delete()
+        vm.confirmDelete(true)
         assertTrue(vm.state.value.actionError is MailError.FolderChanged)
         assertFalse(vm.state.value.closed)
     }
