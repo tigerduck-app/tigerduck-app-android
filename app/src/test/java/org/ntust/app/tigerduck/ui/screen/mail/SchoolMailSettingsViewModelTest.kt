@@ -15,11 +15,13 @@ import org.ntust.app.tigerduck.mail.InMemoryCredentialStore
 import org.ntust.app.tigerduck.mail.InMemoryMailStateStore
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MainDispatcherRule
+import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.RecordingNotifier
 import org.ntust.app.tigerduck.mail.RecordingScheduler
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.sync.ExactAlarmAccess
 import org.ntust.app.tigerduck.mail.testApplicationScope
+import java.io.File
 
 class SchoolMailSettingsViewModelTest {
     @get:Rule val main = MainDispatcherRule()
@@ -33,6 +35,7 @@ class SchoolMailSettingsViewModelTest {
     private val credentials = InMemoryCredentialStore()
     private val server = FakeMailServer()
     private val demo = FakeDemoGate()
+    private val cache by lazy { MailCache(tmp.root) }
 
     /**
      * Built lazily: [MailAccount] reads the credential store once, at
@@ -41,15 +44,17 @@ class SchoolMailSettingsViewModelTest {
      */
     private fun viewModel(): SchoolMailSettingsViewModel {
         val account = MailAccount(
-            credentials, state, server.factory(), MailCache(tmp.root), demo,
+            credentials, state, server.factory(), cache, demo,
             RecordingScheduler(), RecordingNotifier(), testApplicationScope(),
         )
-        return SchoolMailSettingsViewModel(state, scheduler, ExactAlarmAccess { false }, account)
+        // The same TestDispatcher backs Dispatchers.Main and the injected @IoDispatcher, so the
+        // cache walk stays synchronous under the test.
+        return SchoolMailSettingsViewModel(state, scheduler, ExactAlarmAccess { false }, cache, main.dispatcher, account)
     }
 
     private fun signIn(studentId: String, password: String) = runBlocking {
         val account = MailAccount(
-            credentials, state, server.factory(), MailCache(tmp.root), demo,
+            credentials, state, server.factory(), cache, demo,
             RecordingScheduler(), RecordingNotifier(), testApplicationScope(),
         )
         val error = withTimeout(5_000) { account.signIn(studentId, password) }
@@ -97,6 +102,24 @@ class SchoolMailSettingsViewModelTest {
     fun `signed in, the notification row and the display name field are enabled`() {
         signIn("b10000001", "pw")
         assertTrue(viewModel().signedIn.value)
+    }
+
+    @Test
+    fun `the cache size covers the whole mail cache and clearing it empties the row`() {
+        cache.saveBody("INBOX", 1, 1, MailBody(null, "x".repeat(2_000), emptyList(), emptyMap()))
+        cache.attachmentsDir.mkdirs()
+        File(cache.attachmentsDir, "a.pdf").writeText("0123456789")
+
+        val vm = viewModel()
+        assertNull("nothing is claimed before the first walk finishes", vm.cacheBytes.value)
+        vm.refreshCacheSize()
+        val measured = vm.cacheBytes.value!!
+        assertEquals(cache.sizeBytes(), measured)
+        assertTrue("the attachments directory counts too", measured > 2_000)
+
+        vm.clearCache()
+        assertEquals(0L, vm.cacheBytes.value)
+        assertFalse(cache.attachmentsDir.exists())
     }
 
     /** The demo mailbox is a sign-in like any other, so it must not grey anything out. */
