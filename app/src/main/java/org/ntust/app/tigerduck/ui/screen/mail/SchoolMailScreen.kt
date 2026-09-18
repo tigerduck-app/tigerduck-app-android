@@ -50,7 +50,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -359,12 +358,6 @@ private fun FolderChips(state: SchoolMailListViewModel.UiState, onSelect: (Folde
                                     showOthers = false
                                     onSelect(FolderSelection.Real(name))
                                 },
-                                leadingIcon = {
-                                    RadioButton(
-                                        selected = name == selectedName,
-                                        onClick = null
-                                    )
-                                }
                             )
                         }
                     }
@@ -420,7 +413,7 @@ private fun MailCard(message: MailSummary, onClick: () -> Unit) {
                     Icon(Icons.Filled.AttachFile, contentDescription = null, tint = cs.outline, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(4.dp))
                 }
-                Text(MailDateFormat.short(message.sentAt ?: message.receivedAt), style = MaterialTheme.typography.labelSmall, color = cs.outline)
+                Text(MailDateFormat.short(message.sentAt ?: message.receivedAt), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
             }
             Spacer(Modifier.height(6.dp))
             Text(

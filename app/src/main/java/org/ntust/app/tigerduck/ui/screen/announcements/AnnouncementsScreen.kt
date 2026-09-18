@@ -467,7 +467,7 @@ private fun BulletinCard(
                     Text(
                         text = formatShortDate(it),
                         style = MaterialTheme.typography.labelSmall,
-                        color = cs.outline,
+                        color = cs.onSurfaceVariant,
                     )
                 }
             }
