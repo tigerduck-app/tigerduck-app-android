@@ -615,6 +615,7 @@
     <string name="school_mail_error_network">Can\'t reach the mail server</string>
     <string name="school_mail_exact_alarm_hint">Allow exact alarms so TigerDuck can check for mail on time.</string>
     <string name="school_mail_external_badge">External</string>
+    <string name="school_mail_folder_all">All mail</string>
     <string name="school_mail_folder_drafts">Drafts</string>
     <string name="school_mail_folder_inbox">Inbox</string>
     <string name="school_mail_folder_junk">Junk</string>

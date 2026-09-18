@@ -615,6 +615,7 @@
     <string name="school_mail_error_network">无法连接到邮件服务器</string>
     <string name="school_mail_exact_alarm_hint">允许精确闹钟，TigerDuck 才能准时检查新邮件。</string>
     <string name="school_mail_external_badge">外部</string>
+    <string name="school_mail_folder_all">所有邮件</string>
     <string name="school_mail_folder_drafts">草稿</string>
     <string name="school_mail_folder_inbox">收件箱</string>
     <string name="school_mail_folder_junk">广告信</string>
