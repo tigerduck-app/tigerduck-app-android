@@ -460,7 +460,7 @@ private fun MessageHeader(summary: MailSummary) {
                     Text(from.address, style = MaterialTheme.typography.bodySmall, color = cs.outline)
                 }
             }
-            if (MailWarnings.isExternal(from?.address)) {
+            if (MailWarnings.isExternalSender(from, summary.returnPath)) {
                 Surface(shape = RoundedCornerShape(50), color = WarningOrange.copy(alpha = 0.18f)) {
                     Text(
                         stringResource(R.string.school_mail_external_badge),
@@ -497,6 +497,7 @@ private fun warningTitle(warning: MailWarning): String = when (warning) {
     is MailWarning.DisplayNameMismatch ->
         stringResource(R.string.school_mail_warning_display_name).withAddress(warning.actualAddress)
     MailWarning.PasswordBait -> stringResource(R.string.school_mail_warning_password)
+    MailWarning.MistypedRecipient -> stringResource(R.string.school_mail_bounce_warning)
     is MailWarning.RiskyAttachments ->
         stringResource(R.string.school_mail_warning_attachment).replaceIosArg(1, warning.fileNames.joinToString(", "))
 }

@@ -146,6 +146,7 @@ class AngusMailSession internal constructor(
             messageId = header("Message-ID")?.trim(),
             inReplyTo = header("In-Reply-To")?.trim(),
             references = header("References")?.replace(WHITESPACE, " ")?.trim(),
+            returnPath = header("Return-Path")?.trim(),
         )
     }
 
@@ -451,7 +452,11 @@ class AngusMailSession internal constructor(
     }
 
     private companion object {
-        val SUMMARY_HEADERS = arrayOf("From", "Reply-To", "To", "Cc", "Subject", "Date", "Message-ID", "In-Reply-To", "References")
+        // Fetched as one BODY.PEEK[HEADER.FIELDS (...)] per message, so "Return-Path" -- which
+        // the receiving server writes and MailWarnings.isBounce reads -- costs no extra round
+        // trip and is available to the list, not just to an opened mail.
+        val SUMMARY_HEADERS =
+            arrayOf("From", "Reply-To", "To", "Cc", "Subject", "Date", "Message-ID", "In-Reply-To", "References", "Return-Path")
         val WHITESPACE = Regex("\\s+")
         /** Same cap as iOS: larger inline images are not inlined (they stay in the source view). */
         const val INLINE_IMAGE_LIMIT = 5L * 1024 * 1024

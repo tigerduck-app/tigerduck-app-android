@@ -74,6 +74,9 @@ class MailWarningsFixtureTest {
                     is MailWarning.ExternalSender -> codes += "external_sender:${warning.address}"
                     is MailWarning.DisplayNameMismatch -> codes += "display_name_mismatch:${warning.actualAddress}"
                     MailWarning.PasswordBait -> codes += "password_bait"
+                    // No fixture case carries a Return-Path, so this never fires today; it is
+                    // here so the code is already agreed on if the shared fixture grows one.
+                    MailWarning.MistypedRecipient -> codes += "mistyped_recipient"
                     is MailWarning.RiskyAttachments -> for (fileName in warning.fileNames) {
                         val contentType = riskyContentTypes.getOrNull(riskyIndex).orEmpty()
                         riskyIndex++

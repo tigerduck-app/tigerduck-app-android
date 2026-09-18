@@ -151,7 +151,9 @@ class SchoolMailMessageViewModel @Inject constructor(
                 val html = body.html?.let { HtmlSanitizer.sanitize(it, allowRemoteImages = allowRemote) }
                 val document = html?.let { MailHtmlDocument.build(it.html, body.inlineImages, allowRemote) }
                 val plain = body.plain ?: html?.let { HtmlSanitizer.plainText(it.html) }.orEmpty()
-                val warnings = MailWarnings.evaluate(summary.from, summary.subject, plain, html?.links.orEmpty(), body.attachments)
+                val warnings = MailWarnings.evaluate(
+                    summary.from, summary.subject, plain, html?.links.orEmpty(), body.attachments, summary.returnPath,
+                )
                 update {
                     it.copy(
                         content = Content.Ready(summary, body, html, document, plain, warnings),

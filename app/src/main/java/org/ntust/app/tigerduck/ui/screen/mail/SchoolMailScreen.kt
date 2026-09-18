@@ -391,7 +391,7 @@ private fun MailCard(message: MailSummary, onClick: () -> Unit) {
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
                     )
-                    if (MailWarnings.isExternal(message.from?.address)) {
+                    if (MailWarnings.isExternalSender(message.from, message.returnPath)) {
                         Spacer(Modifier.width(6.dp))
                         Surface(shape = RoundedCornerShape(50), color = Color(0xFFFF9500).copy(alpha = 0.18f)) {
                             Text(

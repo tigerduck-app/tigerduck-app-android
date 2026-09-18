@@ -5,12 +5,16 @@ import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
 import org.ntust.app.tigerduck.mail.sanitize.MailLink
 import java.net.IDN
+import kotlin.math.abs
 
 sealed interface MailWarning {
     data class ExternalSender(val address: String) : MailWarning
     data class DisplayNameMismatch(val shownAddress: String, val actualAddress: String) : MailWarning
     data object PasswordBait : MailWarning
     data class RiskyAttachments(val fileNames: List<String>) : MailWarning
+
+    /** A delivery failure that names an address one or two keystrokes away from `mail.ntust.edu.tw`. */
+    data object MistypedRecipient : MailWarning
 }
 
 enum class RiskReason { DOUBLE_EXTENSION, TYPE_MISMATCH, RISKY_TYPE, PROTECTED_ARCHIVE }
@@ -62,6 +66,10 @@ object MailWarnings {
      */
     private val PLAIN_HTTP_LINK = Regex("[Hh][Tt][Tt][Pp][Ss]?://([A-Za-z0-9.-]+)(?::[0-9]+)?(?:[/?#].*)?")
 
+    /** The mailbox domain every student address lives on, and the yardstick [isMistypedSchoolMailDomain] measures against. */
+    const val SCHOOL_MAIL_DOMAIN = "mail.ntust.edu.tw"
+    private const val MAX_DOMAIN_TYPO_EDITS = 2
+
     private fun normalize(domain: String) = domain.trim().lowercase().removeSuffix(".")
 
     /**
@@ -102,25 +110,105 @@ object MailWarnings {
     }
 
     /**
-     * A sender with no domain to check counts as external -- that is the safe direction, and it
-     * covers both a missing `From` (null) and a mailbox kept only for its display name (empty,
-     * `MailAddress.isRoutable` false), such as a Mail2000 bounce's `<MAILER-DAEMON>`.
+     * RFC 5321 §4.5.5: a delivery status notification is sent with the null reverse-path, and the
+     * **receiving** server writes that down as `Return-Path: <>`. That header therefore comes
+     * from our own side of the delivery, unlike the `From` display name ("Mail Deliver System"),
+     * which any sender can type. It is the one signal here worth treating as a bounce marker.
+     *
+     * Availability, per site: the list needs it too (it draws the 校外 badge), and it has it —
+     * [org.ntust.app.tigerduck.mail.imap.AngusMailSession] fetches an explicit `HEADER.FIELDS`
+     * set per message rather than the IMAP ENVELOPE, so `Return-Path` is simply one more name on
+     * that list and costs no extra round trip. It rides along in `MailSummary`, and therefore in
+     * the folder cache, so the badge is right from cache as well. The body fetch carries no
+     * headers at all, which is why this is not derived down there.
      */
-    fun isExternal(address: String?): Boolean {
+    fun isBounce(returnPath: String?): Boolean =
+        returnPath?.filterNot { it.isWhitespace() } == "<>"
+
+    /**
+     * A sender with no domain to check counts as external: nothing vouches for it, and that is
+     * the safe direction for both a missing `From` (null) and a mailbox kept only for its
+     * display name (empty, `MailAddress.isRoutable` false).
+     *
+     * [bounce] is the single exemption, and it deliberately reverses what this used to say. A
+     * Mail2000 delivery failure arrives as `From: "Mail Deliver System" <MAILER-DAEMON>` — a
+     * bare local part with no domain — so it was badged 校外 even though it came from the
+     * school's own mail system. That is wrong on its face and teaches people to ignore the
+     * badge. Callers decide with [isBounce], i.e. from `Return-Path: <>`, which the receiving
+     * server sets, never from the display name.
+     *
+     * Why the exemption is still safe. [isExternal] feeds the badge and the password-bait rule,
+     * and that rule fires on `keyword && (external || outsideLink)`: a forged "bounce" carrying
+     * a phishing link to a non-school host still trips it through `outsideLink`. What remains is
+     * a forged, link-free bounce — an attacker can legitimately send `MAIL FROM:<>`, so this is
+     * not proof of origin — and such a mail has nothing to click. The exemption is also narrow:
+     * it applies only when there is no domain at all, so a bounce whose `From` names a real
+     * outside domain stays external exactly as before.
+     */
+    fun isExternal(address: String?, bounce: Boolean = false): Boolean {
         val domain = address?.substringAfterLast('@', missingDelimiterValue = "").orEmpty()
-        return domain.isEmpty() || !isSchoolDomain(domain)
+        if (domain.isEmpty()) return !bounce
+        return !isSchoolDomain(domain)
     }
 
+    /** What the two 校外 badge sites ask: [isExternal] with the [isBounce] exemption already applied. */
+    fun isExternalSender(from: MailAddress?, returnPath: String?): Boolean =
+        isExternal(from?.address, isBounce(returnPath))
+
+    /**
+     * True for a domain that reads as a mistyped [SCHOOL_MAIL_DOMAIN]: within
+     * [MAX_DOMAIN_TYPO_EDITS] single-character edits of it, but neither it nor any other real
+     * school domain. Two edits rather than one so a transposition (`ntsut`) counts, which plain
+     * Levenshtein scores as two.
+     *
+     * The length check first is not only a shortcut: it keeps an attacker-supplied token from
+     * reaching the quadratic distance loop at all.
+     */
+    fun isMistypedSchoolMailDomain(domain: String): Boolean {
+        val host = toAscii(normalize(domain))
+        if (host.isEmpty() || isSchoolDomain(host)) return false
+        if (abs(host.length - SCHOOL_MAIL_DOMAIN.length) > MAX_DOMAIN_TYPO_EDITS) return false
+        return editDistance(host, SCHOOL_MAIL_DOMAIN) <= MAX_DOMAIN_TYPO_EDITS
+    }
+
+    /**
+     * Whether [text] names an email address whose domain is a near miss of the school's. This is
+     * what turns a delivery failure into "did you mistype the address?": a bounce from
+     * `gmail.com` says nothing about a typo, so it gets no such claim.
+     */
+    fun mentionsMistypedSchoolAddress(text: String): Boolean =
+        EMAIL.findAll(text).any { isMistypedSchoolMailDomain(it.value.trimEnd('.').substringAfterLast('@')) }
+
+    private fun editDistance(a: String, b: String): Int {
+        if (a == b) return 0
+        var previous = IntArray(b.length + 1) { it }
+        var current = IntArray(b.length + 1)
+        for (i in 1..a.length) {
+            current[0] = i
+            for (j in 1..b.length) {
+                val substitution = previous[j - 1] + if (a[i - 1] == b[j - 1]) 0 else 1
+                current[j] = minOf(current[j - 1] + 1, previous[j] + 1, substitution)
+            }
+            val swap = previous
+            previous = current
+            current = swap
+        }
+        return previous[b.length]
+    }
+
+    /** [returnPath] is the mail's `Return-Path` header, where one is available; see [isBounce]. */
     fun evaluate(
         from: MailAddress?,
         subject: String,
         plainText: String,
         links: List<MailLink>,
         attachments: List<MailAttachment>,
+        returnPath: String? = null,
     ): List<MailWarning> {
         val warnings = mutableListOf<MailWarning>()
         val sender = from?.address.orEmpty()
-        val external = isExternal(sender)
+        val bounce = isBounce(returnPath)
+        val external = isExternal(sender, bounce)
         if (external) warnings += MailWarning.ExternalSender(sender)
         from?.name?.let { name ->
             val shown = firstEmail(name)
@@ -138,6 +226,7 @@ object MailWarnings {
         val risky = attachments.filter { riskReason(it.fileName, it.contentType, text) != null }
             .map { cleanFileName(it.fileName) }
         if (risky.isNotEmpty()) warnings += MailWarning.RiskyAttachments(risky)
+        if (bounce && mentionsMistypedSchoolAddress(text)) warnings += MailWarning.MistypedRecipient
         return warnings
     }
 

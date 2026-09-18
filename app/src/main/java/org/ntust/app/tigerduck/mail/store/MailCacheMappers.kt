@@ -46,6 +46,7 @@ fun MailSummary.toDto() = MailSummaryDto(
     messageId = messageId,
     inReplyTo = inReplyTo,
     references = references,
+    returnPath = returnPath,
 )
 
 fun MailSummaryDto.toModel() = MailSummary(
@@ -63,6 +64,7 @@ fun MailSummaryDto.toModel() = MailSummary(
     messageId = messageId,
     inReplyTo = inReplyTo,
     references = references,
+    returnPath = returnPath,
 )
 
 fun MailBody.toDto(uidValidity: Long, uid: Long) = BodyCacheDto(

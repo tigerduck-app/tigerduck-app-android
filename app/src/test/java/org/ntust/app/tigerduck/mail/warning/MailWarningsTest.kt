@@ -62,9 +62,9 @@ class MailWarningsTest {
 
     @Test
     fun `a sender kept only for its name is external, and its name is not a mismatch`() {
-        // A Mail2000 bounce: "Mail Deliver System" with no routable address. It must warn exactly
-        // as a missing sender already did -- no domain to vouch for it -- and nothing more: the
-        // display-name check has no address in the name to disagree with the (absent) sender.
+        // No domain to vouch for it and no Return-Path to say where it came from: it must warn
+        // exactly as a missing sender already did, and nothing more -- the display-name check has
+        // no address in the name to disagree with the (absent) sender.
         assertTrue("an address-less sender counts as external", MailWarnings.isExternal(""))
         assertEquals(
             listOf(MailWarning.ExternalSender("")),
@@ -72,6 +72,85 @@ class MailWarningsTest {
                 from = MailAddress("Mail Deliver System", ""),
                 subject = "Returned Mail: Hostname cannot be resolved",
                 plainText = "", links = emptyList(), attachments = emptyList(),
+            ),
+        )
+    }
+
+    // --- delivery failures (Mail2000 bounces) ---------------------------------------------
+
+    @Test
+    fun `only a null reverse-path marks a bounce`() {
+        assertTrue(MailWarnings.isBounce("<>"))
+        assertTrue("folding whitespace is not part of the value", MailWarnings.isBounce("  <> "))
+        assertFalse(MailWarnings.isBounce(null))
+        assertFalse(MailWarnings.isBounce(""))
+        assertFalse("a real reverse-path is not a bounce", MailWarnings.isBounce("<postmaster@mail.ntust.edu.tw>"))
+    }
+
+    @Test
+    fun `a Mail2000 bounce is not marked 校外`() {
+        // From: "Mail Deliver System" <MAILER-DAEMON> -- no domain -- but Return-Path: <> says the
+        // receiving server generated it, so badging it 校外 was simply wrong.
+        val daemon = MailAddress("Mail Deliver System", "")
+        assertFalse(MailWarnings.isExternalSender(daemon, "<>"))
+        assertTrue("without the header it is judged exactly as before", MailWarnings.isExternalSender(daemon, null))
+        assertEquals(
+            emptyList<MailWarning>(),
+            MailWarnings.evaluate(
+                from = daemon,
+                subject = "Returned Mail: Hostname cannot be resolved",
+                plainText = "The original message was received from B11315025@mail.ntust.edu.tw",
+                links = emptyList(), attachments = emptyList(), returnPath = "<>",
+            ),
+        )
+    }
+
+    @Test
+    fun `the bounce exemption only covers a sender with no domain at all`() {
+        assertTrue(MailWarnings.isExternalSender(MailAddress(null, "daemon@gmail.com"), "<>"))
+        assertFalse(MailWarnings.isExternalSender(MailAddress(null, "daemon@mail.ntust.edu.tw"), "<>"))
+    }
+
+    @Test
+    fun `a forged link-carrying bounce still trips the password-bait rule`() {
+        // The exemption costs nothing here: password bait fires on keyword && (external ||
+        // outsideLink), and the link is the outside one.
+        val warnings = MailWarnings.evaluate(
+            from = MailAddress("Mail Deliver System", ""),
+            subject = "Returned Mail: 帳號停用",
+            plainText = "verify", links = listOf(MailLink("verify", "https://evil.example/login")),
+            attachments = emptyList(), returnPath = "<>",
+        )
+        assertTrue(MailWarning.PasswordBait in warnings)
+    }
+
+    @Test
+    fun `a near miss of the school mail domain is a typo, an exact match or an unrelated host is not`() {
+        assertTrue("edj for edu", MailWarnings.isMistypedSchoolMailDomain("mail.ntust.edj.tw"))
+        assertTrue("a transposition is two edits", MailWarnings.isMistypedSchoolMailDomain("mail.ntsut.edu.tw"))
+        assertTrue(MailWarnings.isMistypedSchoolMailDomain("MAIL.NTUST.EDU.TW2"))
+        assertFalse("the real domain is not a typo of itself", MailWarnings.isMistypedSchoolMailDomain("mail.ntust.edu.tw"))
+        assertFalse("nor is another real school domain", MailWarnings.isMistypedSchoolMailDomain("ntust.edu.tw"))
+        assertFalse(MailWarnings.isMistypedSchoolMailDomain("gmail.com"))
+        assertFalse(MailWarnings.isMistypedSchoolMailDomain("mail.ntust.edu.tw.evil.example"))
+        assertFalse(MailWarnings.isMistypedSchoolMailDomain(""))
+    }
+
+    @Test
+    fun `a bounce naming a near-miss address asks about a typo, one naming anywhere else does not`() {
+        fun bounce(text: String) = MailWarnings.evaluate(
+            from = MailAddress("Mail Deliver System", ""),
+            subject = "Returned Mail: Hostname cannot be resolved",
+            plainText = text, links = emptyList(), attachments = emptyList(), returnPath = "<>",
+        )
+        assertTrue(MailWarning.MistypedRecipient in bounce("... <B11315025@mail.ntust.edj.tw>: Hostname cannot be resolved"))
+        assertFalse("nothing says a gmail address was meant to be ours", MailWarning.MistypedRecipient in bounce("<someone@gmail.com>: user unknown"))
+        assertFalse(MailWarning.MistypedRecipient in bounce("<B11315025@mail.ntust.edu.tw>: mailbox full"))
+        assertFalse(
+            "without the null reverse-path this is not a bounce at all",
+            MailWarning.MistypedRecipient in MailWarnings.evaluate(
+                from = MailAddress(null, "x@mail.ntust.edu.tw"), subject = "fyi",
+                plainText = "write to B11315025@mail.ntust.edj.tw", links = emptyList(), attachments = emptyList(),
             ),
         )
     }

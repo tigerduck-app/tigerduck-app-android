@@ -47,6 +47,13 @@ data class MailSummary(
     val messageId: String?,
     val inReplyTo: String?,
     val references: String?,
+    /**
+     * The `Return-Path` header, or null where it was not fetched or the mail carries none. A
+     * null reverse-path (`<>`) marks a delivery status notification; see
+     * `MailWarnings.isBounce`. Written by the receiving server, so unlike the `From` display
+     * name it is not the sender's to choose.
+     */
+    val returnPath: String? = null,
 )
 
 data class FolderStatus(val uidValidity: Long, val uidNext: Long, val messages: Int, val unseen: Int)

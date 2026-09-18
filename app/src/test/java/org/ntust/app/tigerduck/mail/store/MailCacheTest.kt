@@ -70,6 +70,17 @@ class MailCacheTest {
     }
 
     @Test
+    fun `a bounce's null reverse-path survives the cache, and pages written without it read back null`() {
+        val cache = MailCache(tmp.root)
+        cache.saveFolder("INBOX", MailPage(1, 1, listOf(summary(1).copy(returnPath = "<>")), nextBeforeSeq = null))
+        assertEquals("<>", cache.loadFolder("INBOX")!!.messages!!.single().toModel().returnPath)
+        // A page cached before the field existed simply has no such key: Gson leaves it null, and
+        // the mail is then judged exactly as it was before.
+        cache.saveFolder("INBOX", MailPage(1, 1, listOf(summary(1)), nextBeforeSeq = null))
+        assertNull(cache.loadFolder("INBOX")!!.messages!!.single().toModel().returnPath)
+    }
+
+    @Test
     fun `wrong versions and corrupt files are deleted, never thrown`() {
         val cache = MailCache(tmp.root)
         cache.saveFolder("INBOX", MailPage(1, 0, emptyList(), null))

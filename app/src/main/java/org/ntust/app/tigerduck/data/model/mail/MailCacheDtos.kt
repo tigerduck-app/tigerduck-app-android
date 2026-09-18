@@ -25,6 +25,8 @@ data class MailSummaryDto(
     val messageId: String?,
     val inReplyTo: String?,
     val references: String?,
+    /** Absent from every page cached before this field existed: null then means "not known", and the mail is judged exactly as it was before. */
+    val returnPath: String?,
 )
 
 /** [nextBeforeSeq] 0 means the page reached the oldest mail. */
