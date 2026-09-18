@@ -41,8 +41,6 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     var discardDraftError: Throwable? = null
     var self = MailAddress("測試", "b10000001@mail.ntust.edu.tw")
     var raw = "Subject: x\r\n\r\nraw"
-    var size = 1_000L
-    var messageSizeError: MailError? = null
     var writeAttachmentError: MailError? = null
     /** Fires synchronously at the start of every [writeAttachment] call, before any error/write -- for tests that need to observe state mid-download. */
     var onWriteAttachment: (() -> Unit)? = null
@@ -119,11 +117,15 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         return if (searchUnsupported) SearchOutcome.LoadedOnly(hits) else SearchOutcome.Server(hits)
     }
 
-    override suspend fun messageSize(folder: String, uid: Long): Long {
-        messageSizeError?.let { throw it }
-        return size
+    var rawSourceError: MailError? = null
+    var rawSourceCalls = 0
+
+    override suspend fun rawSource(folder: String, uid: Long): String {
+        rawSourceCalls++
+        rawSourceError?.let { throw it }
+        return raw
     }
-    override suspend fun rawSource(folder: String, uid: Long) = raw
+
     override suspend fun writeAttachment(folder: String, uid: Long, partId: String, out: OutputStream) {
         onWriteAttachment?.invoke()
         writeAttachmentError?.let { throw it }

@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.mail.store
 import com.google.gson.Gson
 import org.ntust.app.tigerduck.data.model.mail.BodyCacheDto
 import org.ntust.app.tigerduck.data.model.mail.FolderCacheDto
+import org.ntust.app.tigerduck.data.model.mail.SourceCacheDto
 import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.model.MailPage
 import java.io.File
@@ -47,7 +48,7 @@ class MailCache(
 
     @Synchronized
     fun loadBody(folder: String, uid: Long, uidValidity: Long): MailBody? {
-        val file = File(bodiesDir, key("$folder\u0000$uid"))
+        val file = File(bodiesDir, key(bodyKey(folder, uid)))
         val dto = read(file, BodyCacheDto::class.java) ?: return null
         if (dto.version != VERSION || dto.uidValidity != uidValidity || dto.uid != uid) {
             file.delete(); return null
@@ -58,9 +59,40 @@ class MailCache(
 
     @Synchronized
     fun saveBody(folder: String, uid: Long, uidValidity: Long, body: MailBody) {
-        write(File(bodiesDir, key("$folder\u0000$uid")), body.toDto(uidValidity, uid))
+        write(File(bodiesDir, key(bodyKey(folder, uid))), body.toDto(uidValidity, uid))
         evictBodies()
     }
+
+    /**
+     * The raw source, keyed and invalidated exactly like a body and kept in the same directory,
+     * so one [maxBodyBytes] budget and one LRU sweep cover bodies and sources together. Its key
+     * carries a suffix a body key can never produce, so the two never collide on one file.
+     */
+    @Synchronized
+    fun loadSource(folder: String, uid: Long, uidValidity: Long): String? {
+        val file = File(bodiesDir, key(sourceKey(folder, uid)))
+        val dto = read(file, SourceCacheDto::class.java) ?: return null
+        val source = dto.source
+        if (dto.version != VERSION || dto.uidValidity != uidValidity || dto.uid != uid || source == null) {
+            file.delete(); return null
+        }
+        file.setLastModified(System.currentTimeMillis())
+        return source
+    }
+
+    @Synchronized
+    fun saveSource(folder: String, uid: Long, uidValidity: Long, source: String) {
+        write(File(bodiesDir, key(sourceKey(folder, uid))), SourceCacheDto(VERSION, uidValidity, uid, source))
+        evictBodies()
+    }
+
+    /**
+     * Every byte under the cache root — folders, bodies, sources and downloaded attachments
+     * alike, since that is what actually occupies the disk. Walking the tree is real IO, so
+     * callers keep it off the main thread.
+     */
+    @Synchronized
+    fun sizeBytes(): Long = root.walkTopDown().filter { it.isFile }.sumOf { it.length() }
 
     @Synchronized
     fun clearAll() {
@@ -100,6 +132,10 @@ class MailCache(
             file.delete()
         }
     }
+
+    private fun bodyKey(folder: String, uid: Long) = "$folder\u0000$uid"
+
+    private fun sourceKey(folder: String, uid: Long) = "$folder\u0000$uid\u0000source"
 
     private fun key(s: String): String =
         MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) } + ".json"

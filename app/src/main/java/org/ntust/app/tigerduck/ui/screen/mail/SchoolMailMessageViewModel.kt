@@ -95,8 +95,6 @@ class SchoolMailMessageViewModel @Inject constructor(
         val parseFailed: Boolean = false,
         val source: String? = null,
         val sourceLoading: Boolean = false,
-        /** The mail's size in bytes while asking whether to load a large source. */
-        val confirmLargeSource: Long? = null,
         /** An attachment (open or save) that needs the risky/HTML/SVG confirmation first. */
         val confirmAttachment: PendingAttachment? = null,
         val openRequest: OpenRequest? = null,
@@ -189,40 +187,18 @@ class SchoolMailMessageViewModel @Inject constructor(
         update { it.copy(remoteImagesAllowed = true, content = ready.copy(html = html, document = document)) }
     }
 
+    /**
+     * Switching to the source view just loads it. There used to be a size check and a
+     * "load the full source?" confirmation in front of this, because the source was never
+     * cached and a large mail was therefore re-downloaded on every visit; the repository now
+     * caches it alongside the body, so there is nothing left to warn about.
+     */
     fun selectMode(mode: ViewMode) {
         update { it.copy(mode = mode) }
         val s = _state.value
         if (mode != ViewMode.SOURCE || s.source != null || s.sourceLoading) return
-        viewModelScope.launch {
-            val size = try {
-                repository.messageSize(folder, uid)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                null
-            }
-            // A failed size check must not skip the large-source confirmation -- treat
-            // "unknown" as "ask", using the confirmation threshold itself as the shown size
-            // since the real one couldn't be read.
-            if (size == null || size > LARGE_SOURCE_BYTES) {
-                update { it.copy(confirmLargeSource = size ?: LARGE_SOURCE_BYTES) }
-            } else {
-                loadSource()
-            }
-        }
+        viewModelScope.launch { loadSource() }
     }
-
-    fun confirmLargeSource(load: Boolean) {
-        update { it.copy(confirmLargeSource = null) }
-        if (load) {
-            viewModelScope.launch { loadSource() }
-        } else if (!_state.value.parseFailed) {
-            update { it.copy(mode = readableMode()) }
-        }
-    }
-
-    private fun readableMode(): ViewMode =
-        if ((_state.value.content as? Content.Ready)?.html != null) ViewMode.FORMATTED else ViewMode.PLAIN
 
     private suspend fun loadSource() {
         update { it.copy(sourceLoading = true) }
@@ -436,7 +412,6 @@ class SchoolMailMessageViewModel @Inject constructor(
     }
 
     companion object {
-        const val LARGE_SOURCE_BYTES = 5L * 1024 * 1024
         private const val DAY_MS = 24L * 60 * 60 * 1000
         private const val MAX_NAME_LENGTH = 120
         private val EMPTY_BODY = MailBody(null, null, emptyList(), emptyMap())

@@ -49,6 +49,10 @@ class FakeMailServer {
     var failAfterFlag = false
     var opens = 0
         private set
+
+    /** How many times a session was actually asked for a mail's raw source -- a cache hit adds nothing here. */
+    var rawSourceFetches = 0
+        private set
     var openSessions = 0
         private set
     val passwords = mutableMapOf("B10000001" to "pw")
@@ -121,10 +125,10 @@ class FakeMailServer {
 
         override fun fetchBody(folder: String, uid: Long) = call { find(folder, uid).body }
 
-        override fun messageSize(folder: String, uid: Long) = call { find(folder, uid).summary.sizeBytes }
-
-        override fun writeRawSource(folder: String, uid: Long, out: OutputStream) =
-            call { out.write("Subject: ${find(folder, uid).summary.subject}\r\n\r\nraw".toByteArray()) }
+        override fun writeRawSource(folder: String, uid: Long, out: OutputStream) = call {
+            rawSourceFetches++
+            out.write("Subject: ${find(folder, uid).summary.subject}\r\n\r\nraw".toByteArray())
+        }
 
         override fun writeAttachment(folder: String, uid: Long, partId: String, out: OutputStream) =
             call { out.write("attachment $partId".toByteArray()) }

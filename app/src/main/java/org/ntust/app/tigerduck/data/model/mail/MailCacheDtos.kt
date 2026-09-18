@@ -55,3 +55,15 @@ data class BodyCacheDto(
     val attachments: List<AttachmentDto>?,
     val inlineImages: List<InlineImageDto>?,
 )
+
+/**
+ * One mail's raw RFC 822 source. Written to its own file next to the bodies, so it shares
+ * their LRU budget; [source] is nullable like every other reference field here, and a file
+ * without it is treated as a miss rather than handing a null to a non-null parameter.
+ */
+data class SourceCacheDto(
+    val version: Int,
+    val uidValidity: Long,
+    val uid: Long,
+    val source: String?,
+)

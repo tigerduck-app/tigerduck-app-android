@@ -351,17 +351,6 @@ fun SchoolMailMessageScreen(
             dismissText = stringResource(R.string.action_cancel),
         )
     }
-    state.confirmLargeSource?.let { size ->
-        TigerDuckDialog(
-            onDismissRequest = { viewModel.confirmLargeSource(false) },
-            title = stringResource(R.string.school_mail_source_large_title),
-            message = stringResource(R.string.school_mail_source_large_message)
-                .replaceIosArg(1, Formatter.formatShortFileSize(context, size)),
-            confirmText = stringResource(R.string.school_mail_view_source),
-            onConfirm = { viewModel.confirmLargeSource(true) },
-            dismissText = stringResource(R.string.action_cancel),
-        )
-    }
     if (state.confirmDelete) {
         TigerDuckDialog(
             onDismissRequest = { viewModel.confirmDelete(false) },

@@ -86,48 +86,33 @@ class SchoolMailMessageViewModelTest {
     }
 
     @Test
-    fun `source loads at once when small and asks first when large`() {
+    fun `the source loads straight away, however large the mail, and is asked for only once`() {
         repo.add("INBOX", mailSummary(5))
         repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
         val vm = vm()
         vm.load()
-        repo.size = 6L * 1024 * 1024
         vm.selectMode(ViewMode.SOURCE)
-        assertEquals(6L * 1024 * 1024, vm.state.value.confirmLargeSource)
-        assertNull(vm.state.value.source)
-        vm.confirmLargeSource(true)
         assertEquals(repo.raw, vm.state.value.source)
+        assertEquals(1, repo.rawSourceCalls)
 
-        val small = vm()
-        repo.size = 1_000
-        small.load()
-        small.selectMode(ViewMode.SOURCE)
-        assertEquals(repo.raw, small.state.value.source)
+        // Switching away and back reuses what is already in state; across visits the repository's
+        // own cache covers it (see MailRepositoryTest). Nothing asks the user first any more.
+        vm.selectMode(ViewMode.PLAIN)
+        vm.selectMode(ViewMode.SOURCE)
+        assertEquals(1, repo.rawSourceCalls)
     }
 
     @Test
-    fun `declining a large source goes back to the readable view`() {
+    fun `a source that fails to load surfaces as an action error rather than a stuck spinner`() {
         repo.add("INBOX", mailSummary(5))
         repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
-        repo.size = 6L * 1024 * 1024
+        repo.rawSourceError = MailError.Network()
         val vm = vm()
         vm.load()
         vm.selectMode(ViewMode.SOURCE)
-        vm.confirmLargeSource(false)
-        assertEquals(ViewMode.PLAIN, vm.state.value.mode)
         assertNull(vm.state.value.source)
-    }
-
-    @Test
-    fun `a failed size check still asks before loading a large source instead of skipping the confirmation`() {
-        repo.add("INBOX", mailSummary(5))
-        repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
-        repo.messageSizeError = MailError.Network()
-        val vm = vm()
-        vm.load()
-        vm.selectMode(ViewMode.SOURCE)
-        assertEquals(SchoolMailMessageViewModel.LARGE_SOURCE_BYTES, vm.state.value.confirmLargeSource)
-        assertNull(vm.state.value.source)
+        assertFalse(vm.state.value.sourceLoading)
+        assertTrue(vm.state.value.actionError is MailError.Network)
     }
 
     @Test

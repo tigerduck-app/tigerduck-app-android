@@ -97,6 +97,43 @@ class MailCacheTest {
     }
 
     @Test
+    fun `sources round trip, are keyed by uid validity and never collide with a body`() {
+        val cache = MailCache(tmp.root)
+        cache.saveBody("INBOX", 5, 7, body())
+        cache.saveSource("INBOX", 5, 7, "Subject: x\r\n\r\nraw")
+        assertEquals("Subject: x\r\n\r\nraw", cache.loadSource("INBOX", 5, 7))
+        assertEquals("the source must not have overwritten the body", "x", cache.loadBody("INBOX", 5, 7)!!.plain)
+        assertNull("a new UIDVALIDITY invalidates it", cache.loadSource("INBOX", 5, 8))
+        assertNull(cache.loadSource("INBOX", 5, 7))
+        assertNull(cache.loadSource("INBOX", 6, 7))
+    }
+
+    @Test
+    fun `sources share the bodies' LRU budget instead of growing beside it`() {
+        val cache = MailCache(tmp.root, maxBodyBytes = 3_000)
+        cache.saveBody("INBOX", 1, 7, body(1_000))
+        File(tmp.root, "bodies").listFiles()!!.forEach { it.setLastModified(1_000) }
+        cache.saveSource("INBOX", 2, 7, "s".repeat(1_000))
+        cache.saveSource("INBOX", 3, 7, "s".repeat(1_000))
+        assertNull("the oldest entry is evicted, body or source alike", cache.loadBody("INBOX", 1, 7))
+        assertTrue(cache.loadSource("INBOX", 3, 7) != null)
+    }
+
+    @Test
+    fun `sizeBytes counts folders, bodies, sources and attachments together`() {
+        val cache = MailCache(tmp.root)
+        assertEquals(0L, cache.sizeBytes())
+        cache.saveFolder("INBOX", MailPage(1, 1, listOf(summary(1)), null))
+        cache.saveBody("INBOX", 1, 1, body())
+        cache.saveSource("INBOX", 1, 1, "raw")
+        cache.attachmentsDir.mkdirs()
+        File(cache.attachmentsDir, "a.pdf").writeText("0123456789")
+        val expected = tmp.root.walkTopDown().filter { it.isFile }.sumOf { it.length() }
+        assertEquals(expected, cache.sizeBytes())
+        assertTrue(cache.sizeBytes() > 10)
+    }
+
+    @Test
     fun `clearAll removes everything including attachments`() {
         val cache = MailCache(tmp.root)
         cache.saveBody("INBOX", 1, 7, body())

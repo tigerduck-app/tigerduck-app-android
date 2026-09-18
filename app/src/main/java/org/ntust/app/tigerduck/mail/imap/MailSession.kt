@@ -26,7 +26,6 @@ interface MailSession : Closeable {
     fun fetchByUids(folder: String, uids: List<Long>): List<MailSummary>
     fun refreshFlags(folder: String, uids: List<Long>): Map<Long, MailFlags>
     fun fetchBody(folder: String, uid: Long): MailBody
-    fun messageSize(folder: String, uid: Long): Long
     fun writeRawSource(folder: String, uid: Long, out: OutputStream)
     fun writeAttachment(folder: String, uid: Long, partId: String, out: OutputStream)
     fun setSeen(folder: String, uids: List<Long>, seen: Boolean)

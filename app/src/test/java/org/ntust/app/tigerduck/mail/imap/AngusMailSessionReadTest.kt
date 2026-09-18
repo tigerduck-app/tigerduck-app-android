@@ -179,7 +179,6 @@ class AngusMailSessionReadTest {
             val raw = ByteArrayOutputStream().also { s.writeRawSource("INBOX", uid, it) }.toString("UTF-8")
             assertTrue(raw.contains("Subject: report"))
             assertTrue(raw.contains("JVBERi0xLjQK"))
-            assertTrue(s.messageSize("INBOX", uid) > 0)
             assertFalse(s.refreshFlags("INBOX", listOf(uid)).getValue(uid).seen)
             assertEquals(1, s.status("INBOX").unseen)
         }

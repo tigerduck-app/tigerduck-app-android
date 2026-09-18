@@ -287,10 +287,6 @@ class AngusMailSession internal constructor(
         )
     }
 
-    override fun messageSize(folder: String, uid: Long): Long = io {
-        message(folder(folder, Folder.READ_ONLY), uid).size.toLong().coerceAtLeast(0)
-    }
-
     override fun writeRawSource(folder: String, uid: Long, out: OutputStream) = io {
         // With mail.imap.peek this is BODY.PEEK[]: reading the source never marks the mail read.
         message(folder(folder, Folder.READ_ONLY), uid).writeTo(out)

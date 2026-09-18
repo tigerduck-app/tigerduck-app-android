@@ -55,7 +55,8 @@ interface SchoolMailRepository {
     suspend fun deletesPermanently(folder: String): Boolean
     suspend fun delete(folder: String, uid: Long)
     suspend fun search(folder: String, query: String): SearchOutcome
-    suspend fun messageSize(folder: String, uid: Long): Long
+
+    /** Cache-first like [body], so revisiting a mail's source never re-downloads it. */
     suspend fun rawSource(folder: String, uid: Long): String
     suspend fun writeAttachment(folder: String, uid: Long, partId: String, out: OutputStream)
     suspend fun send(mail: OutgoingMail, answered: Pair<String, Long>?)
@@ -295,19 +296,30 @@ class MailRepository @Inject constructor(
         }
     }
 
-    override suspend fun messageSize(folder: String, uid: Long): Long {
-        if (account.isDemo) return demoList(folder).firstOrNull { it.summary.uid == uid }?.summary?.sizeBytes ?: 0
-        return withSession { it.messageSize(folder, uid) }
-    }
-
+    /**
+     * Cache-first exactly like [body], and saved into the same LRU budget: the source used to be
+     * re-downloaded on every visit, which for a large mail meant paying for it again each time.
+     * The save is keyed by the UIDVALIDITY read in the same held connection as the fetch, never
+     * by whatever the (possibly stale) cached page believed.
+     */
     override suspend fun rawSource(folder: String, uid: Long): String {
         if (account.isDemo) {
             val mail = demoList(folder).firstOrNull { it.summary.uid == uid } ?: throw MailError.Protocol("gone")
             return "From: ${mail.summary.from?.address}\r\nSubject: ${mail.summary.subject}\r\n\r\n${mail.body.plain.orEmpty()}"
         }
+        val cachedValidity = cachedPage(folder)?.uidValidity
+        if (cachedValidity != null) {
+            withContext(Dispatchers.IO) { cache.loadSource(folder, uid, cachedValidity) }?.let { return it }
+        }
         val out = ByteArrayOutputStream()
-        withSession { it.writeRawSource(folder, uid, out) }
-        return MailCharsets.decode(out.toByteArray(), null)
+        val validity = withSession { session ->
+            val uidValidity = session.status(folder).uidValidity
+            session.writeRawSource(folder, uid, out)
+            uidValidity
+        }
+        val source = MailCharsets.decode(out.toByteArray(), null)
+        withContext(Dispatchers.IO) { cache.saveSource(folder, uid, validity, source) }
+        return source
     }
 
     override suspend fun writeAttachment(folder: String, uid: Long, partId: String, out: OutputStream) {

@@ -60,6 +60,18 @@ class MailRepositoryTest {
     }
 
     @Test
+    fun `a mail's source is downloaded once and served from the cache on every later visit`() = runTest {
+        server.deliver("a")
+        val repo = TestSetup(backgroundScope).signedIn()
+        val uid = repo.loadPage("INBOX", null).messages.single().uid
+        val source = repo.rawSource("INBOX", uid)
+        assertTrue(source.contains("Subject: a"))
+        assertEquals(1, server.rawSourceFetches)
+        assertEquals(source, repo.rawSource("INBOX", uid))
+        assertEquals("revisiting a mail's source must not re-download it", 1, server.rawSourceFetches)
+    }
+
+    @Test
     fun `bodies come from the cache the second time`() = runTest {
         val uid = server.deliver("a")
         val repo = TestSetup(backgroundScope).signedIn()
