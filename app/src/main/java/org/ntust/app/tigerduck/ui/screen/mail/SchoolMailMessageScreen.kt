@@ -32,7 +32,6 @@ import androidx.compose.material.icons.automirrored.filled.Forward
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.ReplyAll
 import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.ButtonDefaults
@@ -44,6 +43,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -389,7 +389,11 @@ private fun MessageMenu(
     onMove: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(12.dp)
+    ) {
         DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_mark_unread)) }, onClick = onMarkUnread)
         DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_move_to)) }, onClick = onMove)
         DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_delete)) }, onClick = onDelete)
@@ -405,11 +409,14 @@ private fun MessageMenu(
 @Composable
 private fun ModeItem(label: String, selected: Boolean, onClick: () -> Unit) {
     DropdownMenuItem(
-        text = { Text(label, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal) },
+        text = { Text(label) },
         onClick = onClick,
-        trailingIcon = if (selected) {
-            { Icon(Icons.Filled.Check, contentDescription = null) }
-        } else null,
+        leadingIcon = {
+            RadioButton(
+                selected = selected,
+                onClick = null
+            )
+        }
     )
 }
 
