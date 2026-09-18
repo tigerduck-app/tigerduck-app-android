@@ -417,7 +417,18 @@ private fun MessageMenu(
         DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_mark_unread)) }, onClick = onMarkUnread)
         DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_move_to)) }, onClick = onMove)
         HorizontalDivider()
-        DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_delete)) }, onClick = onDelete)
+        // Red, like deleting a course from the class table (ClassTableCourseCell) -- the one
+        // entry in this menu that loses mail should read as destructive before it is tapped,
+        // not only once the confirmation dialog is up.
+        DropdownMenuItem(
+            text = {
+                Text(
+                    stringResource(R.string.school_mail_delete),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            },
+            onClick = onDelete,
+        )
     }
 }
 
