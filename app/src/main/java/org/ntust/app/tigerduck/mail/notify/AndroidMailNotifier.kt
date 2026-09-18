@@ -58,6 +58,7 @@ class AndroidMailNotifier @Inject constructor(
             messages,
             context.getString(R.string.school_mail_no_sender),
             context.getString(R.string.school_mail_no_subject),
+            context.getString(R.string.school_mail_notification_title),
         ) ?: return
         when (plan) {
             is MailNotificationPlanner.Plan.Individual -> {
