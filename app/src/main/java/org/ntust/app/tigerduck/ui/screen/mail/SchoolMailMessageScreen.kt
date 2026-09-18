@@ -209,6 +209,12 @@ fun SchoolMailMessageScreen(
                     message = stringResource(content.error.messageRes()),
                 )
             }
+            is Content.LoadingBody -> Column(Modifier.fillMaxSize().padding(padding)) {
+                MessageHeader(content.summary)
+                Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
             is Content.Ready -> {
                 // Splitting a source that can run to hundreds of KB is too expensive to redo on
                 // every recomposition, and LazyColumn's content lambda is not a composable scope,

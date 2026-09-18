@@ -141,6 +141,44 @@ class SchoolMailMessageViewModelTest {
         assertEquals(repo.raw, vm.state.value.source)
     }
 
+    // --- the header-known-before-body-loads state -------------------------------------------
+
+    @Test
+    fun `the header's summary is available as LoadingBody while the body is still being fetched`() {
+        val summary = mailSummary(5, from = MailAddress("Someone", "someone@ntust.edu.tw"))
+        repo.add("INBOX", summary)
+        repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
+        val vm = vm()
+        var seenDuringBody: Content.LoadingBody? = null
+        repo.onBody = { seenDuringBody = vm.state.value.content as? Content.LoadingBody }
+        vm.load()
+        assertEquals(summary, seenDuringBody?.summary)
+        // ...and once the body arrives, it moves on to Ready rather than staying stuck there.
+        assertTrue(vm.state.value.content is Content.Ready)
+    }
+
+    @Test
+    fun `a body that fails to parse still passes through LoadingBody on its way to the source fallback`() {
+        val summary = mailSummary(5)
+        repo.add("INBOX", summary)
+        repo.bodyError = MailError.Protocol("bad mime")
+        val vm = vm()
+        var seenDuringBody: Content.LoadingBody? = null
+        repo.onBody = { seenDuringBody = vm.state.value.content as? Content.LoadingBody }
+        vm.load()
+        assertEquals(summary, seenDuringBody?.summary)
+        assertTrue(vm.state.value.content is Content.Ready)
+        assertTrue(vm.state.value.parseFailed)
+    }
+
+    @Test
+    fun `a message that is gone lands in Failed instead of leaving a header with a spinner forever`() {
+        // No repo.add(...): summary() returns null for this uid.
+        val vm = vm()
+        vm.load()
+        assertTrue(vm.state.value.content is Content.Failed)
+    }
+
     // --- load() idempotency ---------------------------------------------------------------
 
     @Test

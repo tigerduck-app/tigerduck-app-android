@@ -71,6 +71,8 @@ class SchoolMailMessageViewModel @Inject constructor(
     sealed interface Content {
         data object Loading : Content
         data class Failed(val error: MailError) : Content
+        /** Sender, subject and date are known (from [SchoolMailRepository.summary]) while the body is still on its way. */
+        data class LoadingBody(val summary: MailSummary) : Content
         data class Ready(
             val summary: MailSummary,
             val body: MailBody,
@@ -133,6 +135,7 @@ class SchoolMailMessageViewModel @Inject constructor(
                 val folders = repository.folders()
                 update { it.copy(folders = folders) }
                 val summary = repository.summary(folder, uid) ?: throw MailError.Protocol("message is gone")
+                update { it.copy(content = Content.LoadingBody(summary)) }
                 val body = try {
                     repository.body(folder, uid)
                 } catch (e: MailError.Protocol) {

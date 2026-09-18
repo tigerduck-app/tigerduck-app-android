@@ -46,6 +46,8 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     var writeAttachmentError: MailError? = null
     /** Fires synchronously at the start of every [writeAttachment] call, before any error/write -- for tests that need to observe state mid-download. */
     var onWriteAttachment: (() -> Unit)? = null
+    /** Fires synchronously at the start of every [body] call, before any error/return -- for tests that need to observe state while the body is still loading. */
+    var onBody: (() -> Unit)? = null
     var released = 0
     var acquired = 0
 
@@ -88,6 +90,7 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         sorted(folder).filter { it.uid in uids }.associate { it.uid to it.flags }
     override suspend fun summary(folder: String, uid: Long) = sorted(folder).firstOrNull { it.uid == uid }
     override suspend fun body(folder: String, uid: Long): MailBody {
+        onBody?.invoke()
         bodyError?.let { throw it }
         return bodies[uid] ?: throw MailError.Protocol("gone")
     }
