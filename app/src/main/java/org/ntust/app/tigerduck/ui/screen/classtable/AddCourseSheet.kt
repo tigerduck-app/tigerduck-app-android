@@ -60,6 +60,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import org.ntust.app.tigerduck.util.formatCredits
 
 // Course codes are ASCII alphanumeric with at least one digit
 // (e.g. "EC1013701", "GE1002101"). Anything else is treated as a name or
@@ -381,7 +382,7 @@ fun AddCourseSheet(
                                         R.string.add_course_result_meta,
                                         group.courseNo,
                                         group.instructor,
-                                        group.credits
+                                        group.credits.formatCredits()
                                     ),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
@@ -463,7 +464,7 @@ private data class GroupedCourse(
     val courseNo: String,
     val courseName: String,
     val instructor: String,
-    val credits: Int,
+    val credits: Float,
     val classroom: String,
     val enrolledCount: Int,
     val maxCount: Int,
@@ -536,7 +537,7 @@ private fun groupResults(
                 courseNo = result.courseNo,
                 courseName = result.courseName,
                 instructor = result.courseTeacher,
-                credits = result.creditPoint.toIntOrNull() ?: 0,
+                credits = result.creditPoint.toFloatOrNull() ?: 0f,
                 classroom = result.classRoomNo ?: "",
                 enrolledCount = result.chooseStudent ?: 0,
                 maxCount = result.maxEnrollment,

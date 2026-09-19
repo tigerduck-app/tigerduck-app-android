@@ -42,6 +42,7 @@ import org.ntust.app.tigerduck.data.model.CreditType
 import org.ntust.app.tigerduck.data.model.GradeStatus
 import org.ntust.app.tigerduck.data.model.GpaTrendPoint
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import org.ntust.app.tigerduck.util.formatCredits
 
 @Composable
 internal fun SemesterSection(
@@ -72,9 +73,9 @@ internal fun SemesterSection(
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                     )
                     Spacer(Modifier.height(2.dp))
-                    val totalCredits = courses.sumOf { it.credits ?: 0 }
+                    val totalCredits = courses.fold(0f) { acc, c -> acc + (c.credits ?: 0f) }
                     val parts = buildList {
-                        add(stringResource(R.string.score_semester_total_credits, totalCredits))
+                        add(stringResource(R.string.score_semester_total_credits, totalCredits.formatCredits()))
                         // Before the school posts the ranking the GPA here is
                         // the estimate from the grades in so far, and says so
                         // — an unlabelled number this close to the official
@@ -149,7 +150,7 @@ private fun CourseRow(course: CourseGrade, onClick: () -> Unit) {
             Spacer(Modifier.height(2.dp))
             val meta = buildList {
                 add(course.code)
-                add(stringResource(R.string.score_course_credits, course.credits ?: 0))
+                add(stringResource(R.string.score_course_credits, (course.credits ?: 0f).formatCredits()))
                 course.geDimension?.let { add(it) }
                 if (course.distanceLearning) add(stringResource(R.string.score_distance_learning))
                 creditTypeLabel(course.creditType)?.let { add(it) }

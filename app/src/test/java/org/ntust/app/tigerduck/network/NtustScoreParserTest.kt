@@ -87,9 +87,9 @@ class NtustScoreParserTest {
 
     /** Credit summary table inside #DataTables_Table_0_info. */
     private fun creditTable(
-        earnedInPerson: Int, earnedDistance: Int, earnedTotal: Int,
-        enrolledInPerson: Int, enrolledDistance: Int, enrolledTotal: Int,
-        totalInPerson: Int, totalDistance: Int, totalTotal: Int
+        earnedInPerson: Number, earnedDistance: Number, earnedTotal: Number,
+        enrolledInPerson: Number, enrolledDistance: Number, enrolledTotal: Number,
+        totalInPerson: Number, totalDistance: Number, totalTotal: Number
     ): String = """
         <table>
           <tr><th>類別</th><th>實地</th><th>遠距</th><th>合計</th></tr>
@@ -148,7 +148,7 @@ class NtustScoreParserTest {
         assertEquals("11201", course.term)
         assertEquals("CS101", course.code)
         assertEquals("程式設計", course.name)
-        assertEquals(3, course.credits)
+        assertEquals(3f, course.credits)
         assertEquals(CreditType.NORMAL, course.creditType)
         assertEquals("85", course.grade)
         assertEquals(GradeStatus.GRADED, course.status)
@@ -162,15 +162,15 @@ class NtustScoreParserTest {
         )
         val report = NtustScoreParser.parse(html)
         val summary = report.creditSummary
-        assertEquals(28, summary.earned.inPerson)
-        assertEquals(2, summary.earned.distance)
-        assertEquals(30, summary.earned.total)
-        assertEquals(3, summary.enrolled.inPerson)
-        assertEquals(0, summary.enrolled.distance)
-        assertEquals(3, summary.enrolled.total)
-        assertEquals(31, summary.total.inPerson)
-        assertEquals(2, summary.total.distance)
-        assertEquals(33, summary.total.total)
+        assertEquals(28f, summary.earned.inPerson, 0f)
+        assertEquals(2f, summary.earned.distance, 0f)
+        assertEquals(30f, summary.earned.total, 0f)
+        assertEquals(3f, summary.enrolled.inPerson, 0f)
+        assertEquals(0f, summary.enrolled.distance, 0f)
+        assertEquals(3f, summary.enrolled.total, 0f)
+        assertEquals(31f, summary.total.inPerson, 0f)
+        assertEquals(2f, summary.total.distance, 0f)
+        assertEquals(33f, summary.total.total, 0f)
     }
 
     // -------------------------------------------------------------------------
@@ -185,7 +185,7 @@ class NtustScoreParserTest {
         )
         val course = NtustScoreParser.parse(html).courses[0]
         assertEquals(CreditType.EDUCATION_PROGRAM, course.creditType)
-        assertEquals(3, course.credits)
+        assertEquals(3f, course.credits)
     }
 
     @Test
@@ -198,7 +198,7 @@ class NtustScoreParserTest {
         )
         val course = NtustScoreParser.parse(html).courses[0]
         assertEquals(CreditType.NOT_COUNTED, course.creditType)
-        assertEquals(3, course.credits)
+        assertEquals(3f, course.credits)
     }
 
     @Test
@@ -208,7 +208,7 @@ class NtustScoreParserTest {
         )
         val course = NtustScoreParser.parse(html).courses[0]
         assertEquals(CreditType.NOT_REQUIRED, course.creditType)
-        assertEquals(3, course.credits)
+        assertEquals(3f, course.credits)
     }
 
     @Test
@@ -218,7 +218,7 @@ class NtustScoreParserTest {
         )
         val course = NtustScoreParser.parse(html).courses[0]
         assertEquals(CreditType.NOT_EARNED, course.creditType)
-        assertEquals(3, course.credits)
+        assertEquals(3f, course.credits)
     }
 
     @Test
@@ -228,7 +228,7 @@ class NtustScoreParserTest {
         )
         val course = NtustScoreParser.parse(html).courses[0]
         assertEquals(CreditType.NORMAL, course.creditType)
-        assertEquals(3, course.credits)
+        assertEquals(3f, course.credits)
     }
 
     @Test
@@ -374,9 +374,9 @@ class NtustScoreParserTest {
             creditInfo = ""
         )
         val report = NtustScoreParser.parse(html)
-        assertEquals(0, report.creditSummary.earned.total)
-        assertEquals(0, report.creditSummary.enrolled.total)
-        assertEquals(0, report.creditSummary.total.total)
+        assertEquals(0f, report.creditSummary.earned.total, 0f)
+        assertEquals(0f, report.creditSummary.enrolled.total, 0f)
+        assertEquals(0f, report.creditSummary.total.total, 0f)
     }
 
     // -------------------------------------------------------------------------

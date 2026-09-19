@@ -49,7 +49,7 @@ class WearScheduleBridgeDtoTest {
             courseNo = "CS104",
             courseName = "Networks",
             instructor = "Prof. Lin",
-            credits = 3,
+            credits = 3f,
             classroom = "T3-101",
             scheduleJson = """{"1":["3","4"]}""",
             classroomMapJson = """{"1-3":"T3-101"}""",
@@ -62,6 +62,7 @@ class WearScheduleBridgeDtoTest {
         assertEquals("Networks", dto.courseName)
         assertEquals("Prof. Lin", dto.instructor)
         assertEquals(3, dto.credits)
+        assertEquals(3f, dto.creditsExact)
         assertEquals("T3-101", dto.classroom)
         assertEquals("""{"1":["3","4"]}""", dto.scheduleJson)
         assertEquals("""{"1-3":"T3-101"}""", dto.classroomMapJson)

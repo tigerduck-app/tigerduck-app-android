@@ -293,7 +293,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
                                     courseNo = r.courseNo,
                                     courseName = r.courseName,
                                     instructor = r.courseTeacher,
-                                    credits = r.creditPoint.toIntOrNull() ?: 0,
+                                    credits = r.creditPoint.toFloatOrNull() ?: 0f,
                                     classroom = allRooms.joinToString(", "),
                                     enrolledCount = r.chooseStudent ?: 0,
                                     maxCount = r.maxEnrollment,

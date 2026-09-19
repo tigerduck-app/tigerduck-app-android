@@ -54,7 +54,7 @@ class DemoFixtureTest {
         assertEquals("CS3005301", course.courseNo)
         assertEquals("Data Structures", course.courseName)
         assertEquals("Wang", course.instructor)
-        assertEquals(3, course.credits)
+        assertEquals(3f, course.credits, 0f)
         assertEquals("#E57373", course.customColorHex)
         assertTrue(course.scheduleJson.contains("\"1\""))
         assertFalse("a non-numeric weekday is dropped", course.scheduleJson.contains("\"x\""))

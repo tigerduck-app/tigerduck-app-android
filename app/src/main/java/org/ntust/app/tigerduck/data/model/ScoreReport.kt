@@ -35,7 +35,8 @@ data class CourseGrade(
     val term: String,
     val code: String,
     val name: String,
-    val credits: Int? = null,
+    /** Fractional: NTUST issues half credits. */
+    val credits: Float? = null,
     val creditType: CreditType = CreditType.UNKNOWN,
     val grade: String = "",
     val status: GradeStatus = GradeStatus.UNKNOWN,
@@ -88,11 +89,11 @@ data class CreditSummary(
 }
 
 data class CreditBreakdown(
-    val inPerson: Int,
-    val distance: Int,
-    val total: Int
+    val inPerson: Float,
+    val distance: Float,
+    val total: Float
 ) {
     companion object {
-        val ZERO = CreditBreakdown(0, 0, 0)
+        val ZERO = CreditBreakdown(0f, 0f, 0f)
     }
 }

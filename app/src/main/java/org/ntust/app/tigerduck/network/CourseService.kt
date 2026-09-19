@@ -274,7 +274,7 @@ class CourseService @Inject constructor(
                 courseNo = first.courseNo,
                 courseName = first.courseName,
                 instructor = first.courseTeacher,
-                credits = first.creditPoint.toIntOrNull() ?: 0,
+                credits = first.creditPoint.toFloatOrNull() ?: 0f,
                 classroom = allRooms.joinToString(", "),
                 enrolledCount = first.chooseStudent ?: 0,
                 maxCount = first.maxEnrollment,

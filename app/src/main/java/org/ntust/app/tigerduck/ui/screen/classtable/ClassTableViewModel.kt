@@ -338,7 +338,7 @@ class ClassTableViewModel @Inject constructor(
         }
     }
 
-    val totalCredits: Int get() = _courses.value.sumOf { it.credits }
+    val totalCredits: Float get() = _courses.value.fold(0f) { acc, c -> acc + c.credits }
 
     /** The live term's roster, wherever it currently lives. */
     private val liveCourses: List<Course>
