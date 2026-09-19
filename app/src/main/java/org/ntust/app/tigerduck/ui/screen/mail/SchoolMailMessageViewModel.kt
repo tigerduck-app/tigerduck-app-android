@@ -513,8 +513,15 @@ class SchoolMailMessageViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Nothing to release here. `SessionHolder`'s hold is a flag, not a count, and only the list
+     * view model owns it -- it pairs `acquire()` with `release()` around the page's lifecycle.
+     * This view model never calls `acquire()`, so the `release()` that used to live here armed
+     * an idle close on a connection someone else was holding: popping back to the list runs the
+     * list's ON_RESUME `acquire()` first and this `onCleared()` after it.
+     */
     override fun onCleared() {
-        repository.release()
+        super.onCleared()
     }
 
     companion object {
@@ -525,6 +532,15 @@ class SchoolMailMessageViewModel @Inject constructor(
         private val UNSAFE_NAME = Regex("[\\\\/:*?\"<>|\\u0000-\\u001f]")
 
         /**
+         * The only schemes `openLink` can actually launch, and therefore the only ones
+         * [targetOf] offers an Open button for. Both sides read this one list, so the dialog
+         * cannot drift into an enabled Open that does nothing -- which is what it showed for
+         * every other scheme, `tel:`/`ftp:`/`intent:` included. (The sanitizer's own `a[href]`
+         * allowlist is these same three, so nothing new becomes launchable either way.)
+         */
+        internal val OPENABLE_SCHEMES = setOf("http", "https", "mailto")
+
+        /**
          * An http(s) href is canonicalized once, with OkHttp's `HttpUrl`, which reads a URL the way a
          * browser does (`\` is `/`, the last `@` ends the userinfo), and that one string is what
          * [MailWarnings.checkLink] judges, what the dialog shows and what Open launches. Judged as written,
@@ -532,11 +548,11 @@ class SchoolMailMessageViewModel @Inject constructor(
          * evil.example. An http(s) href `HttpUrl` rejects is shown as written, claims no host and cannot be
          * opened. Anything else (mailto:) is judged and opened as written.
          */
-        private fun targetOf(link: MailLink): LinkTarget {
+        internal fun targetOf(link: MailLink): LinkTarget {
             val href = link.href.trim()
             val scheme = href.substringBefore(':', missingDelimiterValue = "").lowercase()
             if (scheme != "http" && scheme != "https") {
-                return LinkTarget(link.href, MailWarnings.checkLink(link.text, link.href), canOpen = true)
+                return LinkTarget(link.href, MailWarnings.checkLink(link.text, link.href), canOpen = scheme in OPENABLE_SCHEMES)
             }
             val canonical = href.toHttpUrlOrNull()?.toString()
                 ?: return LinkTarget(link.href, UNPARSEABLE_VERDICT, canOpen = false)

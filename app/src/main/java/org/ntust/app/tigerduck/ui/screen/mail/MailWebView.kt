@@ -1,6 +1,5 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
-import android.os.Build
 import android.view.ViewGroup
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -66,7 +65,7 @@ fun MailWebView(
                     mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                     cacheMode = WebSettings.LOAD_NO_CACHE
                     blockNetworkLoads = true
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) safeBrowsingEnabled = true
+                    safeBrowsingEnabled = true
                 }
                 webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {

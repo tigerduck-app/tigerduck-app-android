@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.mail.mailSummary
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
 import org.ntust.app.tigerduck.mail.model.MailBody
+import org.ntust.app.tigerduck.mail.sanitize.MailLink
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.testApplicationScope
 import org.ntust.app.tigerduck.mail.warning.MailWarning
@@ -618,6 +619,21 @@ class SchoolMailMessageViewModelTest {
         assertFalse(vm.linkTarget(1)!!.verdict.mismatch)
         assertEquals("ntust.edu.tw", vm.linkTarget(0)!!.verdict.host)
         assertEquals("ntust.edu.tw", vm.linkTarget(1)!!.verdict.host)
+    }
+
+    @Test
+    fun `Open is offered for exactly the schemes the app can launch`() {
+        // The sanitizer's own a[href] allowlist is http/https/mailto, so a tel: href never
+        // actually reaches a mail's link dialog -- but Open used to be enabled for every
+        // non-http(s) scheme while openLink handled only these three, so the dialog's button
+        // and what it does now read one shared list and cannot drift apart.
+        assertFalse(SchoolMailMessageViewModel.targetOf(MailLink("call us", "tel:+886212345678")).canOpen)
+        assertFalse(SchoolMailMessageViewModel.targetOf(MailLink("open", "intent://x#Intent;end")).canOpen)
+        assertTrue(SchoolMailMessageViewModel.targetOf(MailLink("mail us", "mailto:x@ntust.edu.tw")).canOpen)
+        assertTrue(SchoolMailMessageViewModel.targetOf(MailLink("MAIL US", "MAILTO:x@ntust.edu.tw")).canOpen)
+        assertTrue(SchoolMailMessageViewModel.targetOf(MailLink("site", "https://ntust.edu.tw")).canOpen)
+        // Unchanged: an http(s) href a browser-like parser rejects still cannot be opened.
+        assertFalse(SchoolMailMessageViewModel.targetOf(MailLink("broken", "https://")).canOpen)
     }
 
     @Test

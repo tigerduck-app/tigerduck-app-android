@@ -604,12 +604,20 @@ private fun LinkDialog(target: SchoolMailMessageViewModel.LinkTarget, onOpen: ()
     }
 }
 
+/**
+ * The guard reads the very list the dialog's Open button is enabled from
+ * ([SchoolMailMessageViewModel.OPENABLE_SCHEMES]), so the two cannot drift apart into an enabled
+ * button that silently does nothing. Nothing new is launchable: the set is exactly the schemes
+ * this already handled.
+ */
 private fun openLink(context: Context, href: String, browserPreference: String) {
     val uri = Uri.parse(href)
-    when (uri.scheme?.lowercase()) {
-        "http", "https" -> openMailLink(context, href, browserPreference)
-        "mailto" -> runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        else -> Unit
+    val scheme = uri.scheme?.lowercase()
+    if (scheme !in SchoolMailMessageViewModel.OPENABLE_SCHEMES) return
+    if (scheme == "mailto") {
+        runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    } else {
+        openMailLink(context, href, browserPreference)
     }
 }
 
