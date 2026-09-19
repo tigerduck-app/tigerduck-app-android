@@ -371,12 +371,10 @@ class MailRepository @Inject constructor(
 
     override suspend fun send(mail: OutgoingMail, answered: Pair<String, Long>?): SentCopy {
         if (account.isDemo) {
-            val filed = folders().nameOf(SpecialFolder.SENT)?.let { sent ->
-                demoMutate(sent) { it.add(0, demoOutgoingMail(mail, draft = false)) }
-                true
-            } ?: false
+            val demoSent = folders().nameOf(SpecialFolder.SENT)
+            demoSent?.let { sent -> demoMutate(sent) { it.add(0, demoOutgoingMail(mail, draft = false)) } }
             answered?.let { (folder, uid) -> demoUpdate(folder, uid) { s -> s.copy(flags = s.flags.copy(answered = true)) } }
-            return if (filed) SentCopy.Filed else SentCopy.NotAttempted
+            return if (demoSent != null) SentCopy.Filed else SentCopy.NotAttempted
         }
         // The SMTP login uses the same rejected password, so §7.4 covers it too --
         // and `folders()` can answer from its cached resolution without a session.
@@ -385,7 +383,12 @@ class MailRepository @Inject constructor(
         // -- still sends: filing the copy is a convenience, and [MailSender] reports it as
         // [SentCopy.NotAttempted] rather than failing. Sending is the point.
         val sent = ensureFolderOrNull(SpecialFolder.SENT)
-        val result = withContext(Dispatchers.IO) { sender.send(credentials(), mail, sent) }
+        // The sent copy runs on [holder]'s connection, not one of its own: Mail2000 caps
+        // concurrent connections, so a second one is most likely to be refused exactly when the
+        // mail screen is open and holding the first.
+        val result = withContext(Dispatchers.IO) {
+            sender.send(credentials(), mail, sent) { block -> withSession(block) }
+        }
         answered?.let { (folder, uid) ->
             val marked = try {
                 withSession { it.setAnswered(folder, uid) }

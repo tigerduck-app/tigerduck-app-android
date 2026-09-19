@@ -22,6 +22,11 @@ class MailSenderTest {
         f.messageCount.also { f.close(false) }
     }
 
+    /** Stands in for the repository's held connection. */
+    private fun held() = SentCopySession { block ->
+        AngusMailSessionFactory(server.config).open(server.credentials).use(block)
+    }
+
     private fun mailToSelf() = OutgoingMail(
         from = MailAddress("測試", server.credentials.address),
         to = listOf(MailAddress(null, server.credentials.address)),
@@ -31,9 +36,8 @@ class MailSenderTest {
     @Test
     fun `sends and saves exactly one sent copy`() = runBlocking {
         server.createFolders("寄件備份匣")
-        val sessions = AngusMailSessionFactory(server.config)
-        val sender = MailSender(MessageBuilder(), AngusMailTransport(server.config), sessions, pause = {})
-        val result = sender.send(server.credentials, mailToSelf(), sentFolder = "寄件備份匣")
+        val sender = MailSender(MessageBuilder(), AngusMailTransport(server.config), pause = {})
+        val result = sender.send(server.credentials, mailToSelf(), sentFolder = "寄件備份匣", sessions = held())
         assertTrue(result.messageId.endsWith("@mail.ntust.edu.tw>"))
         assertEquals(SentCopy.Filed, result.sentCopy)
         assertTrue(server.greenMail.waitForIncomingEmail(5_000, 1))
@@ -50,8 +54,8 @@ class MailSenderTest {
             real.send(creds, message)
             sessions.open(creds).use { it.append("寄件備份匣", message.toBytes(), emptySet()) }
         }
-        val result = MailSender(MessageBuilder(), autoSaving, sessions, pause = {})
-            .send(server.credentials, mailToSelf(), sentFolder = "寄件備份匣")
+        val result = MailSender(MessageBuilder(), autoSaving, pause = {})
+            .send(server.credentials, mailToSelf(), sentFolder = "寄件備份匣", sessions = held())
         assertEquals(SentCopy.ServerFiledItself, result.sentCopy)
         assertEquals(1, count("寄件備份匣"))
     }
@@ -60,8 +64,8 @@ class MailSenderTest {
     fun `a failed sent copy never fails the send, but says so`() = runBlocking {
         // No Sent folder exists on the server, so the probe can't even look: the mail is still
         // sent, nothing is appended blind, and the outcome says the copy was not filed.
-        val sender = MailSender(MessageBuilder(), AngusMailTransport(server.config), AngusMailSessionFactory(server.config), pause = {})
-        val result = sender.send(server.credentials, mailToSelf(), sentFolder = "寄件備份匣")
+        val sender = MailSender(MessageBuilder(), AngusMailTransport(server.config), pause = {})
+        val result = sender.send(server.credentials, mailToSelf(), sentFolder = "寄件備份匣", sessions = held())
         assertTrue(server.greenMail.waitForIncomingEmail(5_000, 1))
         assertTrue("the send succeeded", result.messageId.isNotBlank())
         assertFalse("and the lost copy is reported, not swallowed", result.sentCopy.filed)
@@ -69,8 +73,8 @@ class MailSenderTest {
 
     @Test
     fun `no sent folder is reported as never attempted`() = runBlocking {
-        val sender = MailSender(MessageBuilder(), AngusMailTransport(server.config), AngusMailSessionFactory(server.config), pause = {})
-        val result = sender.send(server.credentials, mailToSelf(), sentFolder = null)
+        val sender = MailSender(MessageBuilder(), AngusMailTransport(server.config), pause = {})
+        val result = sender.send(server.credentials, mailToSelf(), sentFolder = null, sessions = held())
         assertEquals(SentCopy.NotAttempted, result.sentCopy)
         assertTrue(server.greenMail.waitForIncomingEmail(5_000, 1))
     }

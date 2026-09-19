@@ -90,8 +90,8 @@ object MailModule {
 
     @Provides
     @Singleton
-    fun sender(builder: MessageBuilder, transport: MailTransport, sessions: MailSessionFactory): MailSender =
-        MailSender(builder, transport, sessions)
+    fun sender(builder: MessageBuilder, transport: MailTransport): MailSender =
+        MailSender(builder, transport)
 
     @Provides
     @Singleton

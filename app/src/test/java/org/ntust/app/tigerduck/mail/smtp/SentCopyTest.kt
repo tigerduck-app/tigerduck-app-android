@@ -25,7 +25,10 @@ class SentCopyTest {
     private val transport = MailTransport { _, message -> delivered += message.messageId }
 
     private fun sender(builder: MessageBuilder = MessageBuilder()) =
-        MailSender(builder, transport, server.factory(), pause = {})
+        MailSender(builder, transport, pause = {})
+
+    /** Stands in for the repository's held connection: one session, reused for probe and APPEND. */
+    private val sessions = SentCopySession { block -> server.factory().open(credentials).use(block) }
 
     private fun outgoing() = OutgoingMail(
         from = MailAddress("測試", credentials.address),
@@ -70,7 +73,7 @@ class SentCopyTest {
     fun `a probe that cannot answer files nothing rather than risking a duplicate`() = runBlocking {
         // The probe is the session's first call, so this is the one that fails.
         server.queueCallErrors(MailError.SearchUnsupported())
-        val result = sender().send(credentials, outgoing(), sentFolder = "寄件備份匣")
+        val result = sender().send(credentials, outgoing(), sentFolder = "寄件備份匣", sessions = sessions)
         assertEquals(SentCopy.Unknown, result.sentCopy)
         assertEquals("the mail still went out", 1, delivered.size)
         assertEquals("and nothing was appended blind", emptyList<String>(), server.subjects("寄件備份匣"))
@@ -80,7 +83,7 @@ class SentCopyTest {
     fun `a refused APPEND reports the error the send itself never fails on`() = runBlocking {
         // First call is the probe (let through), second is the APPEND.
         server.queueCallErrors(null, MailError.ServerBusy())
-        val result = sender().send(credentials, outgoing(), sentFolder = "寄件備份匣")
+        val result = sender().send(credentials, outgoing(), sentFolder = "寄件備份匣", sessions = sessions)
         val failed = result.sentCopy as SentCopy.Failed
         assertTrue(failed.error is MailError.ServerBusy)
         assertTrue("the message id still came back", result.messageId.isNotBlank())
@@ -92,21 +95,21 @@ class SentCopyTest {
     fun `a probe that finds the server's own copy leaves it alone`() = runBlocking {
         val builder = MessageBuilder(newId = { "fixed" })
         server.deliver("already there", folder = "寄件備份匣", messageId = "<fixed@mail.ntust.edu.tw>")
-        val result = sender(builder).send(credentials, outgoing(), sentFolder = "寄件備份匣")
+        val result = sender(builder).send(credentials, outgoing(), sentFolder = "寄件備份匣", sessions = sessions)
         assertEquals(SentCopy.ServerFiledItself, result.sentCopy)
         assertEquals(listOf("already there"), server.subjects("寄件備份匣"))
     }
 
     @Test
     fun `a probe that answers 'not there' files the copy`() = runBlocking {
-        val result = sender().send(credentials, outgoing(), sentFolder = "寄件備份匣")
+        val result = sender().send(credentials, outgoing(), sentFolder = "寄件備份匣", sessions = sessions)
         assertEquals(SentCopy.Filed, result.sentCopy)
         assertEquals(listOf("hi"), server.subjects("寄件備份匣"))
     }
 
     @Test
     fun `no sent folder is never attempted, and still sends`() = runBlocking {
-        val result = sender().send(credentials, outgoing(), sentFolder = null)
+        val result = sender().send(credentials, outgoing(), sentFolder = null, sessions = sessions)
         assertEquals(SentCopy.NotAttempted, result.sentCopy)
         assertEquals(1, delivered.size)
     }

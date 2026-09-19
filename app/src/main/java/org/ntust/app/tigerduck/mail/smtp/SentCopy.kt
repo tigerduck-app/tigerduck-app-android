@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.mail.smtp
 
 import kotlinx.coroutines.CancellationException
 import org.ntust.app.tigerduck.mail.MailError
+import org.ntust.app.tigerduck.mail.imap.MailSession
 
 /**
  * What the dedupe probe found in the sent folder before the APPEND.
@@ -42,6 +43,20 @@ sealed interface SentCopy {
 
 /** A completed send: the Message-ID that went out, and what became of the sent copy. */
 data class SendResult(val messageId: String, val sentCopy: SentCopy)
+
+/**
+ * Runs the sent copy's probe and APPEND on a connection the caller already owns.
+ *
+ * Mail2000 caps concurrent connections and answers `NO [UNAVAILABLE] Too many connections`
+ * when the cap is reached, so opening a second connection just to file the copy fails most
+ * reliably in exactly the case that matters -- the user is on the mail screen, and the
+ * connection they are already holding is the one competing with it.
+ * [org.ntust.app.tigerduck.mail.MailRepository] passes its own
+ * [org.ntust.app.tigerduck.mail.SessionHolder] here.
+ */
+fun interface SentCopySession {
+    suspend fun use(block: (MailSession) -> SentCopy): SentCopy
+}
 
 /** The sent-copy decisions, kept pure so they can be tested without a mail server. */
 object SentCopyPolicy {

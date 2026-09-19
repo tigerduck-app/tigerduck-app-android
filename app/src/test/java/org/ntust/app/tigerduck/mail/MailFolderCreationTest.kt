@@ -45,7 +45,7 @@ class MailFolderCreationTest {
         val account = MailAccount(credentials, state, server.factory(), cache, demo, site, RecordingScheduler(), RecordingNotifier(), scope)
         val repository = MailRepository(
             account, server.factory(), cache, state,
-            MailSender(MessageBuilder(), transport, server.factory(), pause = {}), MessageBuilder(), demo, scope,
+            MailSender(MessageBuilder(), transport, pause = {}), MessageBuilder(), demo, scope,
         )
     }
 

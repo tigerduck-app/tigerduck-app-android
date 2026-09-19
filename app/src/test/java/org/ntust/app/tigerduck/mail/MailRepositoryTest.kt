@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.smtp.MailSender
 import org.ntust.app.tigerduck.mail.smtp.MailTransport
+import org.ntust.app.tigerduck.mail.smtp.SentCopy
 import org.ntust.app.tigerduck.mail.store.MailCache
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -49,7 +50,7 @@ class MailRepositoryTest {
         val account = MailAccount(credentials, state, server.factory(), cache, demo, schoolMailSite(), RecordingScheduler(), RecordingNotifier(), scope)
         val repository = MailRepository(
             account, server.factory(), cache, state,
-            MailSender(MessageBuilder(), transport, server.factory(), pause = {}), MessageBuilder(), demo, scope,
+            MailSender(MessageBuilder(), transport, pause = {}), MessageBuilder(), demo, scope,
         )
     }
 
@@ -279,6 +280,29 @@ class MailRepositoryTest {
         assertEquals(1, sent.size)
         assertTrue(server.folders.getValue("INBOX").single().summary.flags.answered)
         assertEquals(listOf("Re: question"), server.subjects("寄件備份匣"))
+    }
+
+    /**
+     * Mail2000 caps concurrent connections and answers `NO [UNAVAILABLE] Too many connections`,
+     * so the sent copy opening one of its own would be refused precisely when the user is on the
+     * mail screen holding the other. It goes over the held connection instead.
+     */
+    @Test
+    fun `the sent copy reuses the held connection instead of opening a second one`() = runTest {
+        server.deliver("a")
+        val repo = TestSetup(backgroundScope).signedIn()
+        repo.loadPage("INBOX", null)
+        val opensBefore = server.opens
+        assertEquals(1, server.openSessions)
+
+        val copy = repo.send(
+            OutgoingMail(repo.selfAddress(), listOf(MailAddress(null, "a@x.tw")), emptyList(), emptyList(), "s", "hi"),
+            answered = null,
+        )
+        assertEquals(SentCopy.Filed, copy)
+        assertEquals(listOf("s"), server.subjects("寄件備份匣"))
+        assertEquals("no second connection was opened", opensBefore, server.opens)
+        assertEquals(1, server.openSessions)
     }
 
     @Test
