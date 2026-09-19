@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Unang Semestre</string>
     <string name="score_sign_in_required_message">Mag-sign in upang tingnan ang iyong kasaysayan ng grado</string>
     <string name="score_term_format">Kasalukuyang term: %1$s-%2$s</string>
+    <string name="settings_about_others">Iba pa</string>
     <string name="settings_accent_color">Accent na kulay</string>
     <string name="settings_account_library_system">Sistema ng aklatan</string>
     <string name="settings_account_ntust_system">Sistemang akademiko</string>

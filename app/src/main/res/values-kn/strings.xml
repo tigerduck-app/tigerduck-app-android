@@ -775,6 +775,7 @@
     <string name="score_semester_upper">ಶರತ್ಕಾಲ</string>
     <string name="score_sign_in_required_message">ನಿಮ್ಮ ಅಂಕಗಳ ಇತಿಹಾಸ ವೀಕ್ಷಿಸಲು ಸೈನ್ ಇನ್ ಮಾಡಿ</string>
     <string name="score_term_format">ಪ್ರಸ್ತುತ ಸೆಮಿಸ್ಟರ್: %1$s-%2$s</string>
+    <string name="settings_about_others">ಇತರೆ</string>
     <string name="settings_accent_color">ಆಕ್ಸೆಂಟ್ ಬಣ್ಣ</string>
     <string name="settings_account_library_system">ಗ್ರಂಥಾಲಯ ವ್ಯವಸ್ಥೆ</string>
     <string name="settings_account_ntust_system">ಶಾಲಾ ವ್ಯವಸ್ಥೆ</string>

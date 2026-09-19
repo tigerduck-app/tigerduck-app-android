@@ -775,6 +775,7 @@
     <string name="score_semester_upper">ภาคต้น</string>
     <string name="score_sign_in_required_message">ลงชื่อเข้าใช้เพื่อดูประวัติเกรดของคุณ</string>
     <string name="score_term_format">ภาคการศึกษาปัจจุบัน: %1$s-%2$s</string>
+    <string name="settings_about_others">อื่นๆ</string>
     <string name="settings_accent_color">สีหลัก</string>
     <string name="settings_account_library_system">ระบบห้องสมุด</string>
     <string name="settings_account_ntust_system">ระบบสารสนเทศนักศึกษา</string>

@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Χειμερινό</string>
     <string name="score_sign_in_required_message">Συνδεθείτε για να δείτε το ιστορικό βαθμών σας</string>
     <string name="score_term_format">Τρέχον εξάμηνο: %1$s-%2$s</string>
+    <string name="settings_about_others">Άλλα</string>
     <string name="settings_accent_color">Χρώμα έμφασης</string>
     <string name="settings_account_library_system">Σύστημα βιβλιοθήκης</string>
     <string name="settings_account_ntust_system">Ακαδημαϊκό σύστημα</string>

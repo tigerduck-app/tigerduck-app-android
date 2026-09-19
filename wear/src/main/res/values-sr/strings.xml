@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Јесењи</string>
     <string name="score_sign_in_required_message">Пријавите се да видите историју оцена</string>
     <string name="score_term_format">Тренутни семестар: %1$s-%2$s</string>
+    <string name="settings_about_others">Остало</string>
     <string name="settings_accent_color">Акцентна боја</string>
     <string name="settings_account_library_system">Библиотечки систем</string>
     <string name="settings_account_ntust_system">Академски систем</string>

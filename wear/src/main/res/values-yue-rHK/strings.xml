@@ -775,6 +775,7 @@
     <string name="score_semester_upper">上</string>
     <string name="score_sign_in_required_message">尚未登入,無法查看歷年成績</string>
     <string name="score_term_format">目前學期：%1$s-%2$s</string>
+    <string name="settings_about_others">其他</string>
     <string name="settings_accent_color">主題色</string>
     <string name="settings_account_library_system">圖書館系統</string>
     <string name="settings_account_ntust_system">校務系統</string>

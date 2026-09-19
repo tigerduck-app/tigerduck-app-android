@@ -775,6 +775,7 @@
     <string name="score_semester_upper">خزاں</string>
     <string name="score_sign_in_required_message">اپنی گریڈ ہسٹری دیکھنے کے لیے سائن ان کریں</string>
     <string name="score_term_format">موجودہ ٹرم: %1$s-%2$s</string>
+    <string name="settings_about_others">دیگر</string>
     <string name="settings_accent_color">ایکسنٹ رنگ</string>
     <string name="settings_account_library_system">لائبریری سسٹم</string>
     <string name="settings_account_ntust_system">اکیڈمک سسٹم</string>

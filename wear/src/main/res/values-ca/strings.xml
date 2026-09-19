@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Tardor</string>
     <string name="score_sign_in_required_message">Inicieu la sessió per veure el vostre historial de notes</string>
     <string name="score_term_format">Semestre actual: %1$s-%2$s</string>
+    <string name="settings_about_others">Altres</string>
     <string name="settings_accent_color">Color d\'accent</string>
     <string name="settings_account_library_system">Sistema de la biblioteca</string>
     <string name="settings_account_ntust_system">Sistema acadèmic</string>

@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Rudens</string>
     <string name="score_sign_in_required_message">Pierakstieties, lai skatītu atzīmju vēsturi</string>
     <string name="score_term_format">Pašreizējais semestris: %1$s-%2$s</string>
+    <string name="settings_about_others">Cits</string>
     <string name="settings_accent_color">Akcenta krāsa</string>
     <string name="settings_account_library_system">Bibliotēkas sistēma</string>
     <string name="settings_account_ntust_system">Akadēmiskā sistēma</string>

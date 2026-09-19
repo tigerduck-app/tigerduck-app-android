@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Najaar</string>
     <string name="score_sign_in_required_message">Meld je aan om je cijfergeschiedenis te bekijken</string>
     <string name="score_term_format">Huidig semester: %1$s-%2$s</string>
+    <string name="settings_about_others">Overig</string>
     <string name="settings_accent_color">Accentkleur</string>
     <string name="settings_account_library_system">Bibliotheeksysteem</string>
     <string name="settings_account_ntust_system">Studentenportaal</string>

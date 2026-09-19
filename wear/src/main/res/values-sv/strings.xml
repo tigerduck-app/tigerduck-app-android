@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Höst</string>
     <string name="score_sign_in_required_message">Logga in för att se ditt betygshistorik</string>
     <string name="score_term_format">Aktuell termin: %1$s-%2$s</string>
+    <string name="settings_about_others">Övrigt</string>
     <string name="settings_accent_color">Accentfärg</string>
     <string name="settings_account_library_system">Bibliotekets system</string>
     <string name="settings_account_ntust_system">Studentportal</string>

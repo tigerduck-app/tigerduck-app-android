@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Syksy</string>
     <string name="score_sign_in_required_message">Kirjaudu sisään nähdäksesi arvosanahistoriasi</string>
     <string name="score_term_format">Nykyinen lukukausi: %1$s-%2$s</string>
+    <string name="settings_about_others">Muut</string>
     <string name="settings_accent_color">Korostusväri</string>
     <string name="settings_account_library_system">Kirjastojärjestelmä</string>
     <string name="settings_account_ntust_system">Opiskelijaportaali</string>

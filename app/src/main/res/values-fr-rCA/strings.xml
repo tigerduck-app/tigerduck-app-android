@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Automne</string>
     <string name="score_sign_in_required_message">Connectez-vous pour consulter l\'historique de vos notes</string>
     <string name="score_term_format">Semestre actuel : %1$s-%2$s</string>
+    <string name="settings_about_others">Autres</string>
     <string name="settings_accent_color">Couleur d\'accentuation</string>
     <string name="settings_account_library_system">Système de la bibliothèque</string>
     <string name="settings_account_ntust_system">Système universitaire</string>

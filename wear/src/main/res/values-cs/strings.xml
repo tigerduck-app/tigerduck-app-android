@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Podzim</string>
     <string name="score_sign_in_required_message">Chcete-li zobrazit historii hodnocení, přihlaste se</string>
     <string name="score_term_format">Aktuální semestr: %1$s-%2$s</string>
+    <string name="settings_about_others">Ostatní</string>
     <string name="settings_accent_color">Akcentová barva</string>
     <string name="settings_account_library_system">Systém knihovny</string>
     <string name="settings_account_ntust_system">Školní systém</string>

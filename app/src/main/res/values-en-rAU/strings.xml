@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Fall</string>
     <string name="score_sign_in_required_message">Sign in to view your grade history</string>
     <string name="score_term_format">Current term: %1$s-%2$s</string>
+    <string name="settings_about_others">Others</string>
     <string name="settings_accent_color">Accent colour</string>
     <string name="settings_account_library_system">Library system</string>
     <string name="settings_account_ntust_system">School system</string>

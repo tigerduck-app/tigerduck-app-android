@@ -775,6 +775,7 @@
     <string name="score_semester_upper">ഫോൾ</string>
     <string name="score_sign_in_required_message">നിങ്ങളുടെ ഗ്രേഡ് ചരിത്രം കാണാൻ സൈൻ ഇൻ ചെയ്യുക</string>
     <string name="score_term_format">നിലവിലെ ടേം: %1$s-%2$s</string>
+    <string name="settings_about_others">മറ്റുള്ളവ</string>
     <string name="settings_accent_color">ആക്‌സെന്റ് നിറം</string>
     <string name="settings_account_library_system">ഗ്രന്ഥശാല സിസ്റ്റം</string>
     <string name="settings_account_ntust_system">അക്കാദമിക് സിസ്റ്റം</string>

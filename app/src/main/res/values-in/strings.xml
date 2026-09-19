@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Ganjil</string>
     <string name="score_sign_in_required_message">Masuk untuk melihat riwayat nilai Anda</string>
     <string name="score_term_format">Semester saat ini: %1$s-%2$s</string>
+    <string name="settings_about_others">Lainnya</string>
     <string name="settings_accent_color">Warna aksen</string>
     <string name="settings_account_library_system">Sistem perpustakaan</string>
     <string name="settings_account_ntust_system">Sistem akademik</string>

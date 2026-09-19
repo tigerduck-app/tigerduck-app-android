@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Wintersemester</string>
     <string name="score_sign_in_required_message">Melden Sie sich an, um Ihren Notenverlauf anzuzeigen</string>
     <string name="score_term_format">Aktuelles Semester: %1$s-%2$s</string>
+    <string name="settings_about_others">Weiteres</string>
     <string name="settings_accent_color">Akzentfarbe</string>
     <string name="settings_account_library_system">Bibliothekssystem</string>
     <string name="settings_account_ntust_system">Hochschulsystem</string>

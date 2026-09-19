@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Őszi</string>
     <string name="score_sign_in_required_message">Jelentkezzen be a jegytörténet megtekintéséhez</string>
     <string name="score_term_format">Jelenlegi félév: %1$s-%2$s</string>
+    <string name="settings_about_others">Egyéb</string>
     <string name="settings_accent_color">Kiemelő szín</string>
     <string name="settings_account_library_system">Könyvtári rendszer</string>
     <string name="settings_account_ntust_system">Tanulmányi rendszer</string>

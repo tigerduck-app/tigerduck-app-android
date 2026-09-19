@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Jesień</string>
     <string name="score_sign_in_required_message">Zaloguj się, aby zobaczyć historię ocen</string>
     <string name="score_term_format">Bieżący semestr: %1$s-%2$s</string>
+    <string name="settings_about_others">Inne</string>
     <string name="settings_accent_color">Kolor akcentu</string>
     <string name="settings_account_library_system">System biblioteczny</string>
     <string name="settings_account_ntust_system">System uczelniany</string>

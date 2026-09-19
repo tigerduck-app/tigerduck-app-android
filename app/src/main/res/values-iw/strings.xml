@@ -775,6 +775,7 @@
     <string name="score_semester_upper">סתיו</string>
     <string name="score_sign_in_required_message">היכנס כדי להציג את היסטוריית הציונים שלך</string>
     <string name="score_term_format">סמסטר נוכחי: %1$s-%2$s</string>
+    <string name="settings_about_others">אחר</string>
     <string name="settings_accent_color">צבע הדגש</string>
     <string name="settings_account_library_system">מערכת ספרייה</string>
     <string name="settings_account_ntust_system">מערכת אקדמית</string>

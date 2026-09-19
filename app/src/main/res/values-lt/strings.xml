@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Ruduo</string>
     <string name="score_sign_in_required_message">Prisijunkite, kad peržiūrėtumėte savo pažymių istoriją</string>
     <string name="score_term_format">Dabartinis semestras: %1$s-%2$s</string>
+    <string name="settings_about_others">Kita</string>
     <string name="settings_accent_color">Akcentinė spalva</string>
     <string name="settings_account_library_system">Bibliotekos sistema</string>
     <string name="settings_account_ntust_system">Mokyklos sistema</string>

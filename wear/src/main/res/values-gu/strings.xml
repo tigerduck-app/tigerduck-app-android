@@ -775,6 +775,7 @@
     <string name="score_semester_upper">ફૉલ</string>
     <string name="score_sign_in_required_message">તમારો ગ્રેડ ઇતિહાસ જોવા માટે સાઇન ઇન કરો</string>
     <string name="score_term_format">વર્તમાન ટર્મ: %1$s-%2$s</string>
+    <string name="settings_about_others">અન્ય</string>
     <string name="settings_accent_color">ઍક્સેન્ટ કલર</string>
     <string name="settings_account_library_system">લાઇબ્રેરી સિસ્ટમ</string>
     <string name="settings_account_ntust_system">શૈક્ષણિક સિસ્ટમ</string>

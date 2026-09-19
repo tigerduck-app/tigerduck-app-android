@@ -775,6 +775,7 @@
     <string name="score_semester_upper">ਪਤਝੜ</string>
     <string name="score_sign_in_required_message">ਆਪਣਾ ਗ੍ਰੇਡ ਇਤਿਹਾਸ ਦੇਖਣ ਲਈ ਸਾਈਨ ਇਨ ਕਰੋ</string>
     <string name="score_term_format">ਮੌਜੂਦਾ ਸਮੈਸਟਰ: %1$s-%2$s</string>
+    <string name="settings_about_others">ਹੋਰ</string>
     <string name="settings_accent_color">ਐਕਸੈਂਟ ਰੰਗ</string>
     <string name="settings_account_library_system">ਲਾਇਬ੍ਰੇਰੀ ਸਿਸਟਮ</string>
     <string name="settings_account_ntust_system">ਅਕਾਦਮਿਕ ਸਿਸਟਮ</string>

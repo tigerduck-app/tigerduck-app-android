@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Semester Pertama</string>
     <string name="score_sign_in_required_message">Log masuk untuk melihat sejarah gred anda</string>
     <string name="score_term_format">Semester semasa: %1$s-%2$s</string>
+    <string name="settings_about_others">Lain-lain</string>
     <string name="settings_accent_color">Warna aksen</string>
     <string name="settings_account_library_system">Sistem perpustakaan</string>
     <string name="settings_account_ntust_system">Sistem akademik</string>

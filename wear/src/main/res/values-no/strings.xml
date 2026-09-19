@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Høst</string>
     <string name="score_sign_in_required_message">Logg inn for å se karakterhistorikken din</string>
     <string name="score_term_format">Gjeldende semester: %1$s-%2$s</string>
+    <string name="settings_about_others">Annet</string>
     <string name="settings_accent_color">Aksentfarge</string>
     <string name="settings_account_library_system">Bibliotekets system</string>
     <string name="settings_account_ntust_system">Studentportal</string>

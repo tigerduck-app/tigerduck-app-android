@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Jesen</string>
     <string name="score_sign_in_required_message">Prijavite se za ogled zgodovine ocen</string>
     <string name="score_term_format">Trenutni semester: %1$s-%2$s</string>
+    <string name="settings_about_others">Drugo</string>
     <string name="settings_accent_color">Barva poudarkov</string>
     <string name="settings_account_library_system">Sistem knjižnice</string>
     <string name="settings_account_ntust_system">Študijski sistem</string>

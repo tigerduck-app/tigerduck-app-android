@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Güz</string>
     <string name="score_sign_in_required_message">Not geçmişinizi görüntülemek için giriş yapın</string>
     <string name="score_term_format">Mevcut dönem: %1$s-%2$s</string>
+    <string name="settings_about_others">Diğer</string>
     <string name="settings_accent_color">Vurgu rengi</string>
     <string name="settings_account_library_system">Kütüphane sistemi</string>
     <string name="settings_account_ntust_system">Öğrenci bilgi sistemi</string>

@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Efterår</string>
     <string name="score_sign_in_required_message">Log ind for at se din karakterhistorik</string>
     <string name="score_term_format">Aktuelt semester: %1$s-%2$s</string>
+    <string name="settings_about_others">Andet</string>
     <string name="settings_accent_color">Accentfarve</string>
     <string name="settings_account_library_system">Bibliotekssystem</string>
     <string name="settings_account_ntust_system">Studentportal</string>

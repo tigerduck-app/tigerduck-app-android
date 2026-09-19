@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Есен</string>
     <string name="score_sign_in_required_message">Влезте, за да видите историята на оценките си</string>
     <string name="score_term_format">Текущ семестър: %1$s-%2$s</string>
+    <string name="settings_about_others">Друго</string>
     <string name="settings_accent_color">Акцентен цвят</string>
     <string name="settings_account_library_system">Система на библиотека</string>
     <string name="settings_account_ntust_system">Академична система</string>

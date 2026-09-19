@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Sügis</string>
     <string name="score_sign_in_required_message">Hinnete ajaloo vaatamiseks logige sisse</string>
     <string name="score_term_format">Praegune semester: %1$s-%2$s</string>
+    <string name="settings_about_others">Muu</string>
     <string name="settings_accent_color">Rõhuvärv</string>
     <string name="settings_account_library_system">Raamatukogu süsteem</string>
     <string name="settings_account_ntust_system">Akadeemiline süsteem</string>

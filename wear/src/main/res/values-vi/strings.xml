@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Kỳ 1</string>
     <string name="score_sign_in_required_message">Đăng nhập để xem lịch sử điểm của bạn</string>
     <string name="score_term_format">Học kỳ hiện tại: %1$s-%2$s</string>
+    <string name="settings_about_others">Khác</string>
     <string name="settings_accent_color">Màu nhấn</string>
     <string name="settings_account_library_system">Hệ thống thư viện</string>
     <string name="settings_account_ntust_system">Hệ thống học vụ</string>

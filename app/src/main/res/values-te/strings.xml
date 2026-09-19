@@ -775,6 +775,7 @@
     <string name="score_semester_upper">ఫాల్</string>
     <string name="score_sign_in_required_message">మీ గ్రేడ్ చరిత్రను చూడటానికి సైన్ ఇన్ చేయండి</string>
     <string name="score_term_format">ప్రస్తుత సెమెస్టర్: %1$s-%2$s</string>
+    <string name="settings_about_others">ఇతర</string>
     <string name="settings_accent_color">యాక్సెంట్ రంగు</string>
     <string name="settings_account_library_system">లైబ్రరీ సిస్టమ్</string>
     <string name="settings_account_ntust_system">అకాడెమిక్ సిస్టమ్</string>

@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Осенний</string>
     <string name="score_sign_in_required_message">Войдите, чтобы просмотреть историю оценок</string>
     <string name="score_term_format">Текущий семестр: %1$s-%2$s</string>
+    <string name="settings_about_others">Другое</string>
     <string name="settings_accent_color">Акцентный цвет</string>
     <string name="settings_account_library_system">Система библиотеки</string>
     <string name="settings_account_ntust_system">Школьная система</string>

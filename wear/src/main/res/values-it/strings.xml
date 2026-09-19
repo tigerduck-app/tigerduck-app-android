@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Autunno</string>
     <string name="score_sign_in_required_message">Accedi per visualizzare la cronologia dei voti</string>
     <string name="score_term_format">Semestre attuale: %1$s-%2$s</string>
+    <string name="settings_about_others">Altro</string>
     <string name="settings_accent_color">Colore di accento</string>
     <string name="settings_account_library_system">Sistema biblioteca</string>
     <string name="settings_account_ntust_system">Sistema accademico</string>

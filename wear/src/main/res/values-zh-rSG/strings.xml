@@ -775,6 +775,7 @@
     <string name="score_semester_upper">上</string>
     <string name="score_sign_in_required_message">请登录后查看历年成绩</string>
     <string name="score_term_format">目前学期：%1$s-%2$s</string>
+    <string name="settings_about_others">其他</string>
     <string name="settings_accent_color">主题色</string>
     <string name="settings_account_library_system">图书馆系统</string>
     <string name="settings_account_ntust_system">校务系统</string>

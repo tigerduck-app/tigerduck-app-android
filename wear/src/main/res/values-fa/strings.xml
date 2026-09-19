@@ -775,6 +775,7 @@
     <string name="score_semester_upper">پاییز</string>
     <string name="score_sign_in_required_message">برای مشاهده سابقه نمره خود وارد شوید</string>
     <string name="score_term_format">ترم فعلی: %1$s-%2$s</string>
+    <string name="settings_about_others">سایر</string>
     <string name="settings_accent_color">رنگ تاکید</string>
     <string name="settings_account_library_system">سیستم کتابخانه</string>
     <string name="settings_account_ntust_system">سیستم دانشگاه</string>

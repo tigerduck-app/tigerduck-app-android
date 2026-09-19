@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Toamnă</string>
     <string name="score_sign_in_required_message">Conectează-te pentru a vedea istoricul notelor</string>
     <string name="score_term_format">Semestrul curent: %1$s-%2$s</string>
+    <string name="settings_about_others">Altele</string>
     <string name="settings_accent_color">Culoare accent</string>
     <string name="settings_account_library_system">Sistem bibliotecă</string>
     <string name="settings_account_ntust_system">Sistem academic</string>

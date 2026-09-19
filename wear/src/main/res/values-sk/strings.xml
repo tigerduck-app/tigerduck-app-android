@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Jeseň</string>
     <string name="score_sign_in_required_message">Prihláste sa a zobrazte históriu známok</string>
     <string name="score_term_format">Aktuálny semester: %1$s-%2$s</string>
+    <string name="settings_about_others">Iné</string>
     <string name="settings_accent_color">Zvýrazňujúca farba</string>
     <string name="settings_account_library_system">Systém knižnice</string>
     <string name="settings_account_ntust_system">Školský systém</string>

@@ -775,6 +775,7 @@
     <string name="score_semester_upper">இலையுதிர்</string>
     <string name="score_sign_in_required_message">உங்கள் தர வரலாற்றைப் பார்க்க உள்நுழையவும்</string>
     <string name="score_term_format">தற்போதைய பருவம்: %1$s-%2$s</string>
+    <string name="settings_about_others">மற்றவை</string>
     <string name="settings_accent_color">முக்கிய நிறம்</string>
     <string name="settings_account_library_system">நூலக அமைப்பு</string>
     <string name="settings_account_ntust_system">கல்வி அமைப்பு</string>
