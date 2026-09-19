@@ -70,6 +70,15 @@ default is silently dropped and the field is null at runtime.
   (`PIN_EXPIRY_EPOCH`). `TigerDuckApp.warnIfPinsNearExpiry` logs a warning
   in the 30-day window. Rotate before lapse; post-expiry the platform
   falls back to system CA trust silently.
+- **The Open-source licences lists are committed, not built.**
+  `app/src/{play,fdroid}/res/raw/aboutlibraries.json` come from the
+  AboutLibraries plugin, which is applied only under `-PexportLicenses`:
+  applied unconditionally it hooks every variant's resource generation and
+  downloads licence texts on each build. After changing a dependency run
+  `./gradlew -PexportLicenses :app:exportLibraryDefinitionsPlayRelease :app:exportLibraryDefinitionsFdroidRelease`
+  — `licenses-up-to-date.yaml` fails the PR otherwise. Texts the plugin
+  cannot find itself go in `app/aboutlibraries/licenses/`, keyed by the hash
+  it reports.
 - **No `Co-Authored-By: Claude` trailer** on commits — per global user
   preference. Applies to every commit in this repo, every workflow.
 

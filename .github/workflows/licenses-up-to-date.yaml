@@ -1,0 +1,42 @@
+name: Licences up to date
+
+# Settings → Others → Open-source licences reads the committed
+# app/src/{play,fdroid}/res/raw/aboutlibraries.json. They are generated from
+# each release variant's dependency graph but committed rather than built on
+# the fly (see the aboutLibraries block in app/build.gradle.kts), so a
+# dependency change that forgets to regenerate them would ship a stale list.
+# This regenerates both and fails on any difference.
+
+on:
+  pull_request:
+    branches: [ dev, main ]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          submodules: true
+
+      - name: Set up JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+
+      - name: Regenerate the licence lists
+        run: ./gradlew --no-daemon -PexportLicenses :app:exportLibraryDefinitionsPlayRelease :app:exportLibraryDefinitionsFdroidRelease
+
+      - name: Fail if they changed
+        run: |
+          if ! git diff --exit-code -- app/src/play/res/raw app/src/fdroid/res/raw; then
+            echo "::error::The licence lists are stale. Run: ./gradlew -PexportLicenses :app:exportLibraryDefinitionsPlayRelease :app:exportLibraryDefinitionsFdroidRelease"
+            exit 1
+          fi

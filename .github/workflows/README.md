@@ -68,6 +68,14 @@ Runs on PRs to `main` and `dev`. Verifies every git submodule (e.g.
 `app-translation`) is pinned to its upstream tip, so PRs cannot land with stale
 submodule references.
 
+### `licenses-up-to-date.yaml`
+
+Runs on PRs to `main` and `dev`. Regenerates the Open-source licences lists
+(`app/src/{play,fdroid}/res/raw/aboutlibraries.json`) from each release
+variant's dependency graph and fails if they differ from what is committed, so a
+dependency change cannot ship with a stale list. The lists are committed rather
+than generated during the build so that no build reaches the network.
+
 ### `version-bumped.yaml`
 
 Runs on PRs to `main`. Verifies the version has been bumped relative to the base

@@ -206,6 +206,71 @@ val verifyNameAbbrSubmodule = tasks.register("verifyNameAbbrSubmodule") {
 tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }
     .configureEach { dependsOn(verifyNameAbbrSubmodule) }
 
+// Open-source licences shows TigerDuck's own licence from the repository's
+// LICENSE, copied into the assets on every build so the page can't drift
+// from the file.
+abstract class CopyAppLicense : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val licenseFile: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        licenseFile.get().asFile.copyTo(outputDir.file("LICENSE").get().asFile, overwrite = true)
+    }
+}
+
+val copyAppLicense = tasks.register<CopyAppLicense>("copyAppLicense") {
+    licenseFile.set(rootProject.layout.projectDirectory.file("LICENSE"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(copyAppLicense, CopyAppLicense::outputDir)
+    }
+}
+
+// Settings → Others → Open-source licences reads res/raw/aboutlibraries.json,
+// one per flavor because play ships Firebase and Play Services and fdroid
+// ships neither. Generated from each release variant's dependency graph,
+// then committed. Regenerate after changing a dependency:
+//   ./gradlew -PexportLicenses :app:exportLibraryDefinitionsPlayRelease :app:exportLibraryDefinitionsFdroidRelease
+//
+// The plugin is applied only for that command. Applied unconditionally it
+// hooks every variant's resource generation, rebuilding the list and
+// downloading licence texts on each build; the build itself (the F-Droid
+// buildserver's included) should neither reach the network nor come out
+// different from one run to the next.
+if (providers.gradleProperty("exportLicenses").isPresent) {
+    apply(plugin = libs.plugins.aboutlibraries.get().pluginId)
+    extensions.configure<com.mikepenz.aboutlibraries.plugin.AboutLibrariesExtension> {
+        collect {
+            // Licence texts the plugin can't find on its own, keyed by the
+            // hash it reports for them: Angus Mail's EPL-2.0 and EDL-1.0
+            // (published under names the plugin doesn't map to SPDX) and
+            // GPL-2.0 with the Classpath Exception (whose SPDX text URL
+            // doesn't exist).
+            configPath.set(file("aboutlibraries"))
+            // BOMs only pin versions; nothing from them ships.
+            includePlatform.set(false)
+        }
+        export {
+            prettyPrint.set(true)
+        }
+        exports {
+            create("playRelease") {
+                outputFile.set(file("src/play/res/raw/aboutlibraries.json"))
+            }
+            create("fdroidRelease") {
+                outputFile.set(file("src/fdroid/res/raw/aboutlibraries.json"))
+            }
+        }
+    }
+}
+
 dependencies {
     implementation(project(":shared"))
     "playImplementation"(libs.play.services.wearable)
@@ -275,6 +340,9 @@ dependencies {
 
     // DataStore Preferences (server-push popup dedupe set)
     implementation(libs.androidx.datastore.preferences)
+
+    // Reads the generated licence list for Open-source licences
+    implementation(libs.aboutlibraries.core)
 
     // Testing
     testImplementation(libs.junit)
