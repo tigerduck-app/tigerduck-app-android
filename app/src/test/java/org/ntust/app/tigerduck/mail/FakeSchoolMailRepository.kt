@@ -54,6 +54,12 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     var self = MailAddress("測試", "b10000001@mail.ntust.edu.tw")
     var raw = "Subject: x\r\n\r\nraw"
     var writeAttachmentError: MailError? = null
+    /**
+     * Written through [writeAttachment]'s own stream just before [writeAttachmentError] is thrown:
+     * a download that fails part-way, having already put bytes where the caller pointed it -- what
+     * an attachment refused at [org.ntust.app.tigerduck.mail.MailLimits.ATTACHMENT_BYTES] does.
+     */
+    var writeAttachmentPartial: String? = null
     /** Fires synchronously at the start of every [writeAttachment] call, before any error/write -- for tests that need to observe state mid-download. */
     var onWriteAttachment: (() -> Unit)? = null
     /** Fires synchronously at the start of every [body] call, before any error/return -- for tests that need to observe state while the body is still loading. */
@@ -157,7 +163,10 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     override suspend fun writeAttachment(folder: String, uid: Long, partId: String, out: OutputStream) {
         foldersTouched += folder
         onWriteAttachment?.invoke()
-        writeAttachmentError?.let { throw it }
+        writeAttachmentError?.let { error ->
+            writeAttachmentPartial?.let { out.write(it.toByteArray()) }
+            throw error
+        }
         out.write("attachment $partId".toByteArray())
     }
 

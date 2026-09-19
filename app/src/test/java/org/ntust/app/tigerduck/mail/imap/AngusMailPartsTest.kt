@@ -4,13 +4,15 @@ import jakarta.mail.internet.MimeBodyPart
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailLimits
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.InputStream
 
 /**
- * The two places one message's own claims used to decide how much of it the app would hold in
- * memory. Both sides of each are the sender's to choose, so neither may be trusted: an
+ * The places one message's own claims used to decide how much of it the app would hold in memory,
+ * or write to disk. Both sides of each are the sender's to choose, so neither may be trusted: an
  * `OutOfMemoryError` is an `Error`, and nothing between here and the uncaught handler catches one.
  */
 class AngusMailPartsTest {
@@ -56,5 +58,29 @@ class AngusMailPartsTest {
         val read = AngusMailSession.readBounded(part, limit = 4_096)
         assertEquals(40, read.size)
         assertTrue(read.all { it == 'y'.code.toByte() })
+    }
+
+    @Test
+    fun `a part written past its ceiling is refused, never truncated`() {
+        // The write path -- an attachment opened or saved -- makes the opposite trade from
+        // readBounded: 16 bytes claimed and a megabyte delivered must fail, because a file cut
+        // short at the destination the user chose is indistinguishable from a complete one.
+        val part = imagePart(size = 16, bytes = ByteArray(1024 * 1024) { 'x'.code.toByte() })
+        val out = ByteArrayOutputStream()
+        val failure = runCatching { AngusMailSession.writeBounded(part, out, limit = 4_096L) }.exceptionOrNull()
+        assertTrue("expected TooLarge, got $failure", failure is MailError.TooLarge)
+        assertEquals(4_096L, (failure as MailError.TooLarge).limitBytes)
+        // Nothing beyond the ceiling reached the stream, and what did is the caller's to discard.
+        assertTrue(out.size() <= 4_096)
+    }
+
+    @Test
+    fun `a part that exactly fills its ceiling is written whole`() {
+        // size = -1: BODYSTRUCTURE never said, so only the bytes themselves decide.
+        val part = imagePart(size = -1, bytes = ByteArray(4_096) { 'z'.code.toByte() })
+        val out = ByteArrayOutputStream()
+        AngusMailSession.writeBounded(part, out, limit = 4_096L)
+        assertEquals(4_096, out.size())
+        assertTrue(out.toByteArray().all { it == 'z'.code.toByte() })
     }
 }

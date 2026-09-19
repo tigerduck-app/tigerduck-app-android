@@ -1,7 +1,7 @@
 package org.ntust.app.tigerduck.mail
 
 /**
- * Ceilings on how much of one message the app will hold in memory at once.
+ * Ceilings on how much of one message the app will hold in memory, or write to disk, at once.
  *
  * Every size behind these is chosen by whoever sent the mail, not by the student reading it, and
  * an `OutOfMemoryError` is an `Error`: neither `AngusMailSession.io` nor the view models'
@@ -30,4 +30,21 @@ object MailLimits {
      * few megabytes, which is far more text than anyone reads on a phone.
      */
     const val TEXT_PART_BYTES = 4 * 1024 * 1024
+
+    /**
+     * The most of one attachment the app will write out — into the cache slot an Open serves from,
+     * or into the document a Save was pointed at.
+     *
+     * Unlike the limits above this is not about memory (an attachment streams straight to disk),
+     * but the bytes still arrive entirely under the sender's control, and the size shown beside
+     * the attachment is only what `BODYSTRUCTURE` claimed: it need not be true, and need not be
+     * there at all. So this is enforced *while copying* rather than from the declared size, and a
+     * part that runs past it fails with `MailError.TooLarge` instead of being truncated — a
+     * half-written file sitting where the user asked for one looks exactly like a saved file.
+     *
+     * Set at the server's own SMTP SIZE limit (`ComposeRules.MAX_ENCODED_BYTES`, 50 MiB). A part's
+     * decoded content cannot legitimately outgrow the encoded size of the whole message carrying
+     * it, so nothing Mail2000 would accept for delivery is refused by this.
+     */
+    const val ATTACHMENT_BYTES = 50L * 1024 * 1024
 }

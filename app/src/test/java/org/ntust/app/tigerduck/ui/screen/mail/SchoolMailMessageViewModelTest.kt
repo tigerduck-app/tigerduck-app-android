@@ -16,6 +16,7 @@ import org.ntust.app.tigerduck.mail.InMemoryCredentialStore
 import org.ntust.app.tigerduck.mail.InMemoryMailStateStore
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MailError
+import org.ntust.app.tigerduck.mail.MailLimits
 import org.ntust.app.tigerduck.mail.MainDispatcherRule
 import org.ntust.app.tigerduck.mail.RecordingNotifier
 import org.ntust.app.tigerduck.mail.RecordingScheduler
@@ -385,6 +386,43 @@ class SchoolMailMessageViewModelTest {
         assertNull(vm.state.value.openRequest)
         assertTrue(vm.state.value.downloading.isEmpty())
         assertTrue(cache.attachmentsDir.listFiles().orEmpty().isEmpty())
+    }
+
+    @Test
+    fun `an attachment refused at the size ceiling leaves no half-written file in the cache`() {
+        // The ceiling is only reached mid-stream -- the declared size says 10 bytes -- so the
+        // download has already put bytes in the cache slot by the time it fails.
+        val att = MailAttachment("2", "a.pdf", "application/pdf", 10, null)
+        repo.add("INBOX", mailSummary(5, hasAttachments = true))
+        repo.bodies[5] = MailBody(null, "x", listOf(att), emptyMap())
+        repo.writeAttachmentPartial = "the first megabytes of it"
+        repo.writeAttachmentError = MailError.TooLarge(MailLimits.ATTACHMENT_BYTES + 1, MailLimits.ATTACHMENT_BYTES)
+        val vm = vm()
+        vm.load()
+        vm.requestOpen(att)
+        assertTrue(vm.state.value.actionError is MailError.TooLarge)
+        assertNull(vm.state.value.openRequest)
+        assertTrue(vm.state.value.downloading.isEmpty())
+        assertTrue(cache.attachmentsDir.listFiles().orEmpty().isEmpty())
+    }
+
+    @Test
+    fun `a save refused at the size ceiling cleans up rather than leaving a truncated file`() {
+        val att = MailAttachment("2", "a.pdf", "application/pdf", 10, null)
+        repo.add("INBOX", mailSummary(5, hasAttachments = true))
+        repo.bodies[5] = MailBody(null, "x", listOf(att), emptyMap())
+        repo.writeAttachmentPartial = "the first megabytes of it"
+        repo.writeAttachmentError = MailError.TooLarge(MailLimits.ATTACHMENT_BYTES + 1, MailLimits.ATTACHMENT_BYTES)
+        val vm = vm()
+        vm.load()
+        var cleanedUp = false
+        vm.saveAttachment(att, open = { ByteArrayOutputStream() }, onFailure = { cleanedUp = true })
+        // A stream was opened and written to, so the document the picker created is deleted: a
+        // file short by an unknown amount reads as a successful save.
+        assertTrue(cleanedUp)
+        assertTrue(vm.state.value.actionError is MailError.TooLarge)
+        assertEquals(0, vm.state.value.savedCount)
+        assertTrue(vm.state.value.downloading.isEmpty())
     }
 
     @Test

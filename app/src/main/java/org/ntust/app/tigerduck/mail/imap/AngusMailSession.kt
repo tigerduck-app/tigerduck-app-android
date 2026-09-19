@@ -43,6 +43,7 @@ import org.ntust.app.tigerduck.mail.model.MailPage
 import org.ntust.app.tigerduck.mail.model.MailSummary
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.io.OutputStream
 
 class AngusMailSessionFactory(private val configs: MailServerConfigSource) : MailSessionFactory {
@@ -299,11 +300,21 @@ class AngusMailSession internal constructor(
         message(folder(folder, Folder.READ_ONLY), uid).writeTo(out)
     }
 
+    /**
+     * Bounded by [MailLimits.ATTACHMENT_BYTES] as it streams, never by the size the attachment
+     * declared: that number is `BODYSTRUCTURE` metadata, chosen by the sender, and a part is free
+     * to claim a few kilobytes and then deliver without end. [writeRawSource]'s caller can refuse
+     * an oversized mail up front because the server's own `RFC822.SIZE` covers the whole message;
+     * there is no equally trustworthy number for one part, so the ceiling is applied to the bytes
+     * as they arrive.
+     *
+     * Past the ceiling nothing is truncated — [MailError.TooLarge] is thrown, and the caller drops
+     * whatever had already reached [out] (the cache slot, or the document the save targeted).
+     */
     override fun writeAttachment(folder: String, uid: Long, partId: String, out: OutputStream) = io {
         val m = message(folder(folder, Folder.READ_ONLY), uid)
         val part = MimeWalker.find(m, partId) ?: throw MailError.Protocol("part $partId not found")
-        part.inputStream.use { it.copyTo(out) }
-        Unit
+        writeBounded(part, out, MailLimits.ATTACHMENT_BYTES)
     }
 
     // --- write path ----------------------------------------------------------------
@@ -500,17 +511,48 @@ class AngusMailSession internal constructor(
          * first is what turns an oversized one into an `OutOfMemoryError` -- an `Error`, so the
          * session's own `catch (e: Exception)` wrapper lets it through to the uncaught handler.
          *
-         * Not `InputStream.readNBytes`, which needs API 33.
+         * Truncates rather than refuses: a mail that shows its first few megabytes of text, or
+         * drops one outsized inline image, still opens. [writeBounded] makes the opposite trade.
          */
         fun readBounded(part: Part, limit: Int): ByteArray = part.inputStream.use { input ->
             val out = ByteArrayOutputStream()
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            while (out.size() < limit) {
-                val read = input.read(buffer, 0, minOf(buffer.size, limit - out.size()))
-                if (read < 0) break
-                out.write(buffer, 0, read)
-            }
+            copyBounded(input, out, limit.toLong())
             out.toByteArray()
+        }
+
+        /**
+         * [part] into [out], up to [limit] bytes, refusing rather than truncating: a part that
+         * runs past the ceiling raises [MailError.TooLarge] once the caller can still throw away
+         * what was written. Truncating here would hand back a file that is short by an unknown
+         * amount and indistinguishable from a whole one.
+         *
+         * The reported size is the smallest that is actually known to be true. The part's declared
+         * size is not used even in the message: a part only reaches this point by contradicting it.
+         */
+        fun writeBounded(part: Part, out: OutputStream, limit: Long) {
+            val more = part.inputStream.use { copyBounded(it, out, limit) }
+            if (more) throw MailError.TooLarge(limit + 1, limit)
+        }
+
+        /**
+         * At most [limit] bytes from [input] to [out], answering whether [input] still had more to
+         * give at that point -- the one bounded copy behind both [readBounded] and [writeBounded],
+         * which differ only in what they do with that answer.
+         *
+         * Not `InputStream.readNBytes`, which needs API 33.
+         */
+        private fun copyBounded(input: InputStream, out: OutputStream, limit: Long): Boolean {
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            var written = 0L
+            while (written < limit) {
+                val read = input.read(buffer, 0, minOf(buffer.size.toLong(), limit - written).toInt())
+                if (read < 0) return false
+                out.write(buffer, 0, read)
+                written += read
+            }
+            // Exactly at the ceiling: one more byte decides between a part that just fits and one
+            // that does not, without reading any further into a stream that may never end.
+            return input.read() >= 0
         }
     }
 }
