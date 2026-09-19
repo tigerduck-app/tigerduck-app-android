@@ -253,4 +253,45 @@ class MailFolderCreationTest {
         assertTrue(server.subjects("INBOX").isEmpty())
         assertFalse(server.folders.containsKey("回收筒"))
     }
+
+    /**
+     * The counterpart, and the dangerous one: a trash CREATE that never reached the server at
+     * all is not the server saying no. Reported as "this account has no trash" it would put the
+     * permanent-delete confirmation in front of a student whose mail a blip away could have
+     * gone to trash perfectly well, and a tap on that dialog is irreversible. It has to fail
+     * instead.
+     */
+    @Test
+    fun `a trash create that never reached the server fails instead of offering a permanent delete`() = runTest {
+        server.folders.remove("回收筒")
+        val uid = server.deliver("a")
+        val repo = TestSetup(backgroundScope).signedIn()
+        repo.loadPage("INBOX", null)
+        assertNull(repo.folders().nameOf(SpecialFolder.TRASH))
+
+        // The held connection's liveness probe fails, and re-opening finds the server busy:
+        // nothing ever reaches a CREATE or a LIST, so nothing ever answers.
+        server.queueCallErrors(MailError.Network())
+        server.openError = MailError.ServerBusy()
+
+        val asked = runCatching { repo.deletesPermanently("INBOX") }
+        assertTrue("a blip must not answer the permanent-delete question", asked.exceptionOrNull() is MailError.ServerBusy)
+        val deleted = runCatching { repo.delete("INBOX", uid) }
+        assertTrue(deleted.exceptionOrNull() is MailError.ServerBusy)
+        assertEquals("nothing was created and nothing was destroyed", emptyList<String>(), server.createAttempts)
+        assertEquals(listOf("a"), server.subjects("INBOX"))
+    }
+
+    /** The sent copy is the one place that still shrugs a failed attempt off: sending is the point. */
+    @Test
+    fun `a sent-folder create that never reached the server still sends the mail`() = runTest {
+        server.folders.remove("寄件備份匣")
+        val repo = TestSetup(backgroundScope).signedIn()
+        repo.folders()
+        server.queueCallErrors(MailError.Network())
+        server.openError = MailError.ServerBusy()
+        repo.send(repo.outgoing("hello"), answered = null)
+        assertEquals(1, sent.size)
+        assertFalse(server.folders.containsKey("寄件備份匣"))
+    }
 }

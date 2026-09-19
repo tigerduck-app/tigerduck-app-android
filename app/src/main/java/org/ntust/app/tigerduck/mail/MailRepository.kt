@@ -276,6 +276,11 @@ class MailRepository @Inject constructor(
      * that choice is made. If the server refuses, the answer is `true` and the user is
      * asked the permanent-delete question — a refused CREATE turns "move to trash" into a
      * hard delete the user confirms, never a silent one.
+     *
+     * Only an answer from the server may decide that. A failure that never reached one —
+     * the connection dropped, the server was busy — throws out of here instead, so the
+     * caller reports an error rather than putting the destructive question in front of a
+     * user whose mail could have gone to trash perfectly well a second later.
      */
     override suspend fun deletesPermanently(folder: String): Boolean = trashFor(folder) == null
 
@@ -361,9 +366,10 @@ class MailRepository @Inject constructor(
         // The SMTP login uses the same rejected password, so §7.4 covers it too --
         // and `folders()` can answer from its cached resolution without a session.
         refuseWhileAuthFailed()
-        // A null here -- no sent folder and none could be created -- still sends: filing the
-        // copy is a convenience, and [MailSender] simply skips the APPEND. Sending is the point.
-        val sent = ensureFolder(SpecialFolder.SENT)
+        // A null here -- no sent folder, none could be created, or the attempt did not complete
+        // -- still sends: filing the copy is a convenience, and [MailSender] simply skips the
+        // APPEND. Sending is the point.
+        val sent = ensureFolderOrNull(SpecialFolder.SENT)
         withContext(Dispatchers.IO) { sender.send(credentials(), mail, sent) }
         answered?.let { (folder, uid) ->
             val marked = try {
@@ -391,7 +397,8 @@ class MailRepository @Inject constructor(
             return
         }
         // Unlike the sent copy, a draft that is not kept is the whole operation failing, so a
-        // refused CREATE surfaces as the error the compose screen already reports.
+        // refused CREATE surfaces as the error the compose screen already reports -- and a
+        // failure that never reached the server surfaces as itself, which reads better still.
         val drafts = ensureFolder(SpecialFolder.DRAFTS) ?: throw MailError.Protocol("no drafts folder")
         val bytes = withContext(Dispatchers.IO) { builder.build(mail).toBytes() }
         withSession { it.append(drafts, bytes, setOf(AppendFlag.SEEN, AppendFlag.DRAFT)) }
@@ -442,11 +449,16 @@ class MailRepository @Inject constructor(
      * cached resolution predates the CREATE either way, so without the re-resolve the very
      * operation that just created the folder still could not see it.
      *
-     * Returns null when the folder is missing and could not be created, so each caller keeps
-     * the behaviour it had before folders were ever created: [send] files no copy, [saveDraft]
-     * reports that the draft was not kept, and a delete falls back to the permanent-delete
-     * path with its own confirmation. Failing to resolve the folder list at all still throws,
-     * exactly as it did before.
+     * Returns null only when the server answered and the folder still is not there — a genuine
+     * refusal — so each caller keeps the behaviour it had before folders were ever created:
+     * [send] files no copy, [saveDraft] reports that the draft was not kept, and a delete falls
+     * back to the permanent-delete path with its own confirmation.
+     *
+     * A failure that never reached an answer propagates instead of being reported as "the
+     * account has no such folder". The two are not interchangeable: for the trash folder that
+     * answer is what picks between the move-to-trash confirmation and the permanent-delete one,
+     * and a network blip must never be what turns a student's "move to trash" into an
+     * irreversible delete. [ensureFolderOrNull] opts back out of that for the sent copy alone.
      *
      * Created on any server, the debug mail-server override's included. The names are
      * Mail2000's own -- `寄件備份匣`, `草稿匣`, `回收筒` -- and the app deliberately owns one
@@ -461,16 +473,29 @@ class MailRepository @Inject constructor(
         require(role in CREATED_ON_DEMAND) { "$role is never created on demand" }
         folders().nameOf(role)?.let { return it }
         if (account.isDemo) return null
-        return try {
-            withSession { session ->
-                runCatching { session.createFolder(role.decodedName) }
-                MailFolders.resolve(session.listFolders())
-            }.also { resolved = it }.nameOf(role)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            null
-        }
+        return withSession { session ->
+            // The CREATE's own answer is deliberately ignored -- a refusal because the folder
+            // already exists is a success -- so it is the LIST below, and only the LIST, that
+            // decides. A LIST that never completes is not an answer and is not swallowed here.
+            runCatching { session.createFolder(role.decodedName) }
+            MailFolders.resolve(session.listFolders())
+        }.also { resolved = it }.nameOf(role)
+    }
+
+    /**
+     * [ensureFolder] with a failure that never reached the server treated as "no folder", the
+     * way every caller used to treat one.
+     *
+     * Only the sent copy may do that: filing it is a convenience and sending is the point, so a
+     * mailbox the app briefly could not reach must not fail a send whose SMTP half would have
+     * gone through. Nothing destructive is decided by this answer.
+     */
+    private suspend fun ensureFolderOrNull(role: SpecialFolder): String? = try {
+        ensureFolder(role)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
     }
 
     /**
