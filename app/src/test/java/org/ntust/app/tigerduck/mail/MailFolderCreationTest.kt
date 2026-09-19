@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.mail.compose.OutgoingMail
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.smtp.MailSender
+import org.ntust.app.tigerduck.mail.smtp.SentCopy
 import org.ntust.app.tigerduck.mail.smtp.MailTransport
 import org.ntust.app.tigerduck.mail.store.MailCache
 
@@ -65,7 +66,7 @@ class MailFolderCreationTest {
     fun `sending creates the sent folder when the account has none, and files the copy there`() = runTest {
         server.folders.remove("寄件備份匣")
         val repo = TestSetup(backgroundScope).signedIn()
-        repo.send(repo.outgoing("hello"), answered = null)
+        assertEquals(SentCopy.Filed, repo.send(repo.outgoing("hello"), answered = null))
         assertEquals(listOf("寄件備份匣"), server.createAttempts)
         assertEquals(listOf("hello"), server.subjects("寄件備份匣"))
         assertEquals(1, sent.size)
@@ -215,13 +216,19 @@ class MailFolderCreationTest {
 
     // --- a refused create falls back, never blocks ---------------------------------------
 
+    /**
+     * Sending still succeeds -- but it no longer does so silently. This used to assert only that
+     * the mail went out, which pinned the silence as if it were the intended behaviour; the
+     * student's own record of what they sent is quietly missing, and the outcome has to say so.
+     */
     @Test
-    fun `a refused sent-folder create still sends the mail`() = runTest {
+    fun `a refused sent-folder create still sends the mail, and reports the lost copy`() = runTest {
         server.folders.remove("寄件備份匣")
         server.refuseCreate += "寄件備份匣"
         val repo = TestSetup(backgroundScope).signedIn()
-        repo.send(repo.outgoing("hello"), answered = null)
+        val copy = repo.send(repo.outgoing("hello"), answered = null)
         assertEquals("sending is the point; filing the copy is not", 1, sent.size)
+        assertEquals("but a copy that was never filed is not silence", SentCopy.NotAttempted, copy)
         assertFalse(server.folders.containsKey("寄件備份匣"))
     }
 
@@ -290,8 +297,9 @@ class MailFolderCreationTest {
         repo.folders()
         server.queueCallErrors(MailError.Network())
         server.openError = MailError.ServerBusy()
-        repo.send(repo.outgoing("hello"), answered = null)
+        val copy = repo.send(repo.outgoing("hello"), answered = null)
         assertEquals(1, sent.size)
+        assertEquals(SentCopy.NotAttempted, copy)
         assertFalse(server.folders.containsKey("寄件備份匣"))
     }
 }

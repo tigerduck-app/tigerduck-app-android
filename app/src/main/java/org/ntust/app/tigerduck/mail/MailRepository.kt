@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.mail.model.MailFlags
 import org.ntust.app.tigerduck.mail.model.MailPage
 import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.smtp.MailSender
+import org.ntust.app.tigerduck.mail.smtp.SentCopy
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.store.MailStateStore
 import org.ntust.app.tigerduck.mail.store.toModel
@@ -59,7 +60,12 @@ interface SchoolMailRepository {
     /** Cache-first like [body], so revisiting a mail's source never re-downloads it. */
     suspend fun rawSource(folder: String, uid: Long): String
     suspend fun writeAttachment(folder: String, uid: Long, partId: String, out: OutputStream)
-    suspend fun send(mail: OutgoingMail, answered: Pair<String, Long>?)
+    /**
+     * Sends [mail]. Throws only when the mail did not go out; what became of the student's own
+     * copy of it comes back as [SentCopy] instead, because by then the mail is already delivered
+     * and there is nothing to fail.
+     */
+    suspend fun send(mail: OutgoingMail, answered: Pair<String, Long>?): SentCopy
     suspend fun saveDraft(mail: OutgoingMail, replacingUid: Long?)
 
     /** Permanently removes a draft after it was sent from the compose screen. */
@@ -363,22 +369,23 @@ class MailRepository @Inject constructor(
         withSession { it.writeAttachment(folder, uid, partId, out) }
     }
 
-    override suspend fun send(mail: OutgoingMail, answered: Pair<String, Long>?) {
+    override suspend fun send(mail: OutgoingMail, answered: Pair<String, Long>?): SentCopy {
         if (account.isDemo) {
-            folders().nameOf(SpecialFolder.SENT)?.let { sent ->
+            val filed = folders().nameOf(SpecialFolder.SENT)?.let { sent ->
                 demoMutate(sent) { it.add(0, demoOutgoingMail(mail, draft = false)) }
-            }
+                true
+            } ?: false
             answered?.let { (folder, uid) -> demoUpdate(folder, uid) { s -> s.copy(flags = s.flags.copy(answered = true)) } }
-            return
+            return if (filed) SentCopy.Filed else SentCopy.NotAttempted
         }
         // The SMTP login uses the same rejected password, so §7.4 covers it too --
         // and `folders()` can answer from its cached resolution without a session.
         refuseWhileAuthFailed()
         // A null here -- no sent folder, none could be created, or the attempt did not complete
-        // -- still sends: filing the copy is a convenience, and [MailSender] simply skips the
-        // APPEND. Sending is the point.
+        // -- still sends: filing the copy is a convenience, and [MailSender] reports it as
+        // [SentCopy.NotAttempted] rather than failing. Sending is the point.
         val sent = ensureFolderOrNull(SpecialFolder.SENT)
-        withContext(Dispatchers.IO) { sender.send(credentials(), mail, sent) }
+        val result = withContext(Dispatchers.IO) { sender.send(credentials(), mail, sent) }
         answered?.let { (folder, uid) ->
             val marked = try {
                 withSession { it.setAnswered(folder, uid) }
@@ -390,6 +397,7 @@ class MailRepository @Inject constructor(
             }
             if (marked) updateCached(folder) { s -> if (s.uid == uid) s.copy(flags = s.flags.copy(answered = true)) else s }
         }
+        return result.sentCopy
     }
 
     override suspend fun saveDraft(mail: OutgoingMail, replacingUid: Long?) {

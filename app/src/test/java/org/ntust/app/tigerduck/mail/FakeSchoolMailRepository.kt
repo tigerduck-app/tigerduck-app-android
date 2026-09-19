@@ -9,6 +9,7 @@ import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.model.MailFlags
 import org.ntust.app.tigerduck.mail.model.MailPage
 import org.ntust.app.tigerduck.mail.model.MailSummary
+import org.ntust.app.tigerduck.mail.smtp.SentCopy
 import java.io.OutputStream
 
 /** Synchronous, in-memory [SchoolMailRepository] for ViewModel tests. `beforeSeq` is an offset token here. */
@@ -46,6 +47,8 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     val discardedDrafts = mutableListOf<Long>()
     val sentAttachments = mutableListOf<List<Pair<String, String>>>()
     var sendError: MailError? = null
+    /** What [send] reports about the sent copy; the default is the happy path. */
+    var sentCopy: SentCopy = SentCopy.Filed
     /** Any [Throwable], not just [MailError] -- lets a test inject a [kotlinx.coroutines.CancellationException] too. */
     var discardDraftError: Throwable? = null
     var self = MailAddress("測試", "b10000001@mail.ntust.edu.tw")
@@ -158,10 +161,11 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         out.write("attachment $partId".toByteArray())
     }
 
-    override suspend fun send(mail: OutgoingMail, answered: Pair<String, Long>?) {
+    override suspend fun send(mail: OutgoingMail, answered: Pair<String, Long>?): SentCopy {
         sendError?.let { throw it }
         sentAttachments += mail.attachments.map { it.fileName to it.open().use { s -> s.readBytes().decodeToString() } }
         sent += mail to answered
+        return sentCopy
     }
 
     override suspend fun saveDraft(mail: OutgoingMail, replacingUid: Long?) {

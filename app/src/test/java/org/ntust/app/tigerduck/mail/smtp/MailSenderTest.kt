@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.mail.smtp
 import jakarta.mail.Folder
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -32,8 +33,9 @@ class MailSenderTest {
         server.createFolders("寄件備份匣")
         val sessions = AngusMailSessionFactory(server.config)
         val sender = MailSender(MessageBuilder(), AngusMailTransport(server.config), sessions, pause = {})
-        val id = sender.send(server.credentials, mailToSelf(), sentFolder = "寄件備份匣")
-        assertTrue(id.endsWith("@mail.ntust.edu.tw>"))
+        val result = sender.send(server.credentials, mailToSelf(), sentFolder = "寄件備份匣")
+        assertTrue(result.messageId.endsWith("@mail.ntust.edu.tw>"))
+        assertEquals(SentCopy.Filed, result.sentCopy)
         assertTrue(server.greenMail.waitForIncomingEmail(5_000, 1))
         assertEquals(1, count("寄件備份匣"))
     }
@@ -48,16 +50,28 @@ class MailSenderTest {
             real.send(creds, message)
             sessions.open(creds).use { it.append("寄件備份匣", message.toBytes(), emptySet()) }
         }
-        MailSender(MessageBuilder(), autoSaving, sessions, pause = {})
+        val result = MailSender(MessageBuilder(), autoSaving, sessions, pause = {})
             .send(server.credentials, mailToSelf(), sentFolder = "寄件備份匣")
+        assertEquals(SentCopy.ServerFiledItself, result.sentCopy)
         assertEquals(1, count("寄件備份匣"))
     }
 
     @Test
-    fun `a failed sent copy never fails the send`() = runBlocking {
-        // No Sent folder exists on the server, so the APPEND fails; the mail is still sent.
+    fun `a failed sent copy never fails the send, but says so`() = runBlocking {
+        // No Sent folder exists on the server, so the probe can't even look: the mail is still
+        // sent, nothing is appended blind, and the outcome says the copy was not filed.
         val sender = MailSender(MessageBuilder(), AngusMailTransport(server.config), AngusMailSessionFactory(server.config), pause = {})
-        sender.send(server.credentials, mailToSelf(), sentFolder = "寄件備份匣")
+        val result = sender.send(server.credentials, mailToSelf(), sentFolder = "寄件備份匣")
+        assertTrue(server.greenMail.waitForIncomingEmail(5_000, 1))
+        assertTrue("the send succeeded", result.messageId.isNotBlank())
+        assertFalse("and the lost copy is reported, not swallowed", result.sentCopy.filed)
+    }
+
+    @Test
+    fun `no sent folder is reported as never attempted`() = runBlocking {
+        val sender = MailSender(MessageBuilder(), AngusMailTransport(server.config), AngusMailSessionFactory(server.config), pause = {})
+        val result = sender.send(server.credentials, mailToSelf(), sentFolder = null)
+        assertEquals(SentCopy.NotAttempted, result.sentCopy)
         assertTrue(server.greenMail.waitForIncomingEmail(5_000, 1))
     }
 }
