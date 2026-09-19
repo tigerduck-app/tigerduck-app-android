@@ -5,6 +5,7 @@ import org.ntust.app.tigerduck.mail.MailCredentials
 import org.ntust.app.tigerduck.mail.MailErrors
 import org.ntust.app.tigerduck.mail.MailProperties
 import org.ntust.app.tigerduck.mail.MailServerConfig
+import org.ntust.app.tigerduck.mail.MailServerConfigSource
 import org.ntust.app.tigerduck.mail.compose.BuiltMessage
 
 fun interface MailTransport {
@@ -13,12 +14,15 @@ fun interface MailTransport {
 }
 
 /** SMTP 465 implicit TLS, AUTH LOGIN with the bare student ID. */
-class AngusMailTransport(private val config: MailServerConfig) : MailTransport {
+class AngusMailTransport(private val configs: MailServerConfigSource) : MailTransport {
+    constructor(config: MailServerConfig) : this(MailServerConfigSource { config })
+
     override fun send(credentials: MailCredentials, message: BuiltMessage) {
+        val config = configs.current()
         val session = Session.getInstance(MailProperties.smtp(config))
         val transport = session.getTransport(MailProperties.smtpProtocol(config))
         try {
-            transport.connect(config.host, config.smtpPort, credentials.loginName, credentials.password)
+            transport.connect(config.smtp.host, config.smtp.port, credentials.loginName, credentials.password)
             transport.sendMessage(message.mime, message.envelopeRecipients.toTypedArray())
         } catch (e: Exception) {
             throw MailErrors.classify(e)

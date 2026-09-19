@@ -34,7 +34,12 @@ class MessageBuilder(
     fun build(mail: OutgoingMail): BuiltMessage {
         MailProperties.installSystemProperties()
         val session = Session.getInstance(Properties())
-        val messageId = "<${newId()}@${MailServerConfig.DOMAIN}>"
+        // The sender's own domain, not the school constant: under the debug mail-server
+        // override a message sent from a test mailbox would otherwise claim a
+        // `@mail.ntust.edu.tw` Message-ID. For a school account the two are the same value.
+        val senderDomain = mail.from.address.substringAfterLast('@', "").trim()
+            .takeIf { it.isNotBlank() } ?: MailServerConfig.DOMAIN
+        val messageId = "<${newId()}@$senderDomain>"
         val msg = FixedIdMessage(session, messageId)
         msg.setFrom(internet(mail.from))
         msg.setRecipients(Message.RecipientType.TO, mail.to.map(::internet).toTypedArray())

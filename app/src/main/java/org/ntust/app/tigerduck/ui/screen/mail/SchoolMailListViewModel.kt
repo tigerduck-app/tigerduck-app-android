@@ -13,6 +13,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MailError
+import org.ntust.app.tigerduck.mail.MailSite
 import org.ntust.app.tigerduck.mail.SchoolMailRepository
 import org.ntust.app.tigerduck.mail.SearchOutcome
 import org.ntust.app.tigerduck.mail.imap.FolderSelection
@@ -29,7 +30,11 @@ class SchoolMailListViewModel @Inject constructor(
     private val repository: SchoolMailRepository,
     private val account: MailAccount,
     private val checker: MailChecker,
+    private val site: MailSite,
 ) : ViewModel() {
+
+    /** The account's own domain: what the list's External badge measures a sender against. */
+    val mailDomain: String get() = site.domain()
 
     sealed interface LoadState {
         data object Idle : LoadState

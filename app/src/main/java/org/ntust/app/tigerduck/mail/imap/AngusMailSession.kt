@@ -27,6 +27,7 @@ import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailErrors
 import org.ntust.app.tigerduck.mail.MailProperties
 import org.ntust.app.tigerduck.mail.MailServerConfig
+import org.ntust.app.tigerduck.mail.MailServerConfigSource
 import org.ntust.app.tigerduck.mail.mime.AddressParser
 import org.ntust.app.tigerduck.mail.mime.EncodedWords
 import org.ntust.app.tigerduck.mail.mime.MailCharsets
@@ -42,12 +43,15 @@ import org.ntust.app.tigerduck.mail.model.MailSummary
 import java.io.ByteArrayInputStream
 import java.io.OutputStream
 
-class AngusMailSessionFactory(private val config: MailServerConfig) : MailSessionFactory {
+class AngusMailSessionFactory(private val configs: MailServerConfigSource) : MailSessionFactory {
+    constructor(config: MailServerConfig) : this(MailServerConfigSource { config })
+
     override fun open(credentials: MailCredentials): MailSession {
+        val config = configs.current()
         val session = Session.getInstance(MailProperties.imap(config))
         val store = session.getStore(MailProperties.imapProtocol(config)) as IMAPStore
         try {
-            store.connect(config.host, config.imapPort, credentials.loginName, credentials.password)
+            store.connect(config.imap.host, config.imap.port, credentials.loginName, credentials.password)
         } catch (e: Exception) {
             runCatching { store.close() }
             throw MailErrors.classify(e)

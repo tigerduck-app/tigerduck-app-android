@@ -19,6 +19,13 @@ import org.ntust.app.tigerduck.mail.sync.MailBackgroundScheduler
  */
 fun testApplicationScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+class InMemoryMailDevServerStore(
+    override var settings: MailDevServerSettings = MailDevServerSettings.OFF,
+) : MailDevServerStore
+
+/** A [MailSite] with no developer override stored: the school server, as everything but the override screen sees it. */
+fun schoolMailSite(): MailSite = MailSite(InMemoryMailDevServerStore())
+
 class InMemoryCredentialStore : MailCredentialStore {
     override var mailStudentId: String? = null
     override var mailPassword: String? = null

@@ -210,7 +210,7 @@ fun SchoolMailMessageScreen(
                 )
             }
             is Content.LoadingBody -> Column(Modifier.fillMaxSize().padding(padding)) {
-                MessageHeader(content.summary)
+                MessageHeader(content.summary, viewModel.mailDomain)
                 Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
@@ -227,7 +227,7 @@ fun SchoolMailMessageScreen(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     contentPadding = PaddingValues(bottom = 32.dp),
                 ) {
-                    item(key = "header") { MessageHeader(content.summary) }
+                    item(key = "header") { MessageHeader(content.summary, viewModel.mailDomain) }
                     if (state.parseFailed) {
                         item(key = "parse-failed") { WarningCard(stringResource(R.string.school_mail_parse_failed), null) }
                     }
@@ -448,7 +448,7 @@ private fun ModeItem(label: String, selected: Boolean, onClick: () -> Unit) {
 
 /** Name plus the full address, always (spec §6.3); recipients collapsed behind a tap. */
 @Composable
-private fun MessageHeader(summary: MailSummary) {
+private fun MessageHeader(summary: MailSummary, mailDomain: String) {
     val cs = MaterialTheme.colorScheme
     var expanded by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -471,7 +471,7 @@ private fun MessageHeader(summary: MailSummary) {
                     Text(from.address, style = MaterialTheme.typography.bodySmall, color = cs.outline)
                 }
             }
-            if (MailWarnings.isExternalSender(from, summary.returnPath)) {
+            if (MailWarnings.isExternalSender(from, summary.returnPath, mailDomain)) {
                 Surface(shape = RoundedCornerShape(50), color = WarningOrange.copy(alpha = 0.18f)) {
                     Text(
                         stringResource(R.string.school_mail_external_badge),

@@ -156,6 +156,42 @@ class MailWarningsTest {
     }
 
     @Test
+    fun `the rules follow the effective domain when the debug mail-server override is on`() {
+        val other = "example.com"
+        // Without this every message in a test mailbox is badged External and the badge stops
+        // meaning anything.
+        assertFalse(MailWarnings.isExternal("me@example.com", domain = other))
+        assertTrue(MailWarnings.isExternal("me@mail.ntust.edu.tw", domain = other))
+        assertFalse(MailWarnings.isHomeDomain("gmail.com", other))
+        assertTrue("a subdomain of the mailbox's own domain is still home", MailWarnings.isHomeDomain("mail.example.com", other))
+        assertFalse("and a host merely ending in it is not", MailWarnings.isHomeDomain("example.com.evil.test", other))
+        assertFalse(
+            MailWarnings.isExternalSender(MailAddress(null, "a@example.com"), returnPath = null, domain = other),
+        )
+        // The typo rule measures against the same domain.
+        assertTrue(MailWarnings.isMistypedSchoolMailDomain("exampl.com", other))
+        assertFalse(MailWarnings.isMistypedSchoolMailDomain("example.com", other))
+        assertFalse("the school domain is not a near miss of this one", MailWarnings.isMistypedSchoolMailDomain("mail.ntust.edu.tw", other))
+        // A link to the mailbox's own domain is the one that is not an outside link.
+        assertFalse(
+            MailWarning.PasswordBait in MailWarnings.evaluate(
+                MailAddress(null, "a@example.com"), "password", "", listOf(MailLink("x", "https://example.com/a")),
+                emptyList(), domain = other,
+            ),
+        )
+        assertTrue(
+            MailWarning.PasswordBait in MailWarnings.evaluate(
+                MailAddress(null, "a@example.com"), "password", "", listOf(MailLink("x", "https://ntust.edu.tw/a")),
+                emptyList(), domain = other,
+            ),
+        )
+        // Left to its default, every rule above answers exactly as it did before the override existed.
+        assertFalse(MailWarnings.isExternal("me@mail.ntust.edu.tw"))
+        assertTrue(MailWarnings.isExternal("me@example.com"))
+        assertTrue(MailWarnings.isHomeDomain("office@ntust.edu.tw".substringAfter('@')))
+    }
+
+    @Test
     fun `a display name claiming an address still mismatches when there is no real address`() {
         assertEquals(
             listOf(MailWarning.ExternalSender(""), MailWarning.DisplayNameMismatch("admin@mail.ntust.edu.tw", "")),

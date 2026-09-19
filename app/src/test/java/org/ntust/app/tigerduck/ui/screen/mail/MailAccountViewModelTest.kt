@@ -19,6 +19,7 @@ import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MainDispatcherRule
 import org.ntust.app.tigerduck.mail.RecordingNotifier
 import org.ntust.app.tigerduck.mail.RecordingScheduler
+import org.ntust.app.tigerduck.mail.schoolMailSite
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.testApplicationScope
 
@@ -29,7 +30,8 @@ class MailAccountViewModelTest {
     private val server = FakeMailServer()
     private fun viewModel() = MailAccountViewModel(
         MailAccount(InMemoryCredentialStore(), InMemoryMailStateStore(), server.factory(), MailCache(tmp.root),
-            FakeDemoGate(), RecordingScheduler(), RecordingNotifier(), testApplicationScope()),
+            FakeDemoGate(), schoolMailSite(), RecordingScheduler(), RecordingNotifier(), testApplicationScope()),
+        schoolMailSite(),
     )
 
     private fun MailAccountViewModel.await() = runBlocking { withTimeout(5_000) { signingIn.first { !it } } }

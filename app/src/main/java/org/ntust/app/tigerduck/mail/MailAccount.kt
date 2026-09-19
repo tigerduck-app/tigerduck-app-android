@@ -31,6 +31,7 @@ class MailAccount @Inject constructor(
     private val sessions: MailSessionFactory,
     private val cache: MailCache,
     private val demo: MailDemoGate,
+    private val site: MailSite,
     private val scheduler: MailBackgroundScheduler,
     private val notifier: MailNotifier,
     @param:ApplicationScope private val scope: CoroutineScope,
@@ -49,12 +50,12 @@ class MailAccount @Inject constructor(
     fun credentialsOrNull(): MailCredentials? {
         val id = credentials.mailStudentId
         val password = credentials.mailPassword
-        return if (id.isNullOrBlank() || password.isNullOrEmpty()) null else MailCredentials(id, password)
+        return if (id.isNullOrBlank() || password.isNullOrEmpty()) null else MailCredentials(id, password, site.domain())
     }
 
     /** Returns null on success, or the error to show. */
     suspend fun signIn(studentId: String, password: String): MailError? = withContext(Dispatchers.IO) {
-        val creds = MailCredentials(studentId.trim(), password)
+        val creds = MailCredentials(studentId.trim(), password, site.domain())
         val sameStudent = credentials.mailStudentId?.equals(creds.studentId, ignoreCase = true) == true
         val keptName = if (sameStudent) state.displayName else null
 

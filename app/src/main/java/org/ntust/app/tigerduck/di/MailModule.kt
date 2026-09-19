@@ -10,9 +10,12 @@ import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.mail.AssetsMailDemoGate
 import org.ntust.app.tigerduck.mail.MailDemoGate
+import org.ntust.app.tigerduck.mail.MailDevServerStore
 import org.ntust.app.tigerduck.mail.MailRepository
-import org.ntust.app.tigerduck.mail.MailServerConfig
+import org.ntust.app.tigerduck.mail.MailServerConfigSource
+import org.ntust.app.tigerduck.mail.MailSite
 import org.ntust.app.tigerduck.mail.SchoolMailRepository
+import org.ntust.app.tigerduck.mail.SharedPrefsMailDevServerStore
 import org.ntust.app.tigerduck.mail.compose.MessageBuilder
 import org.ntust.app.tigerduck.mail.imap.AngusMailSessionFactory
 import org.ntust.app.tigerduck.mail.imap.MailSessionFactory
@@ -38,15 +41,26 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object MailModule {
     @Provides
-    fun serverConfig(): MailServerConfig = MailServerConfig.NTUST
+    @Singleton
+    fun devServerStore(@ApplicationContext context: Context): MailDevServerStore =
+        SharedPrefsMailDevServerStore(context)
+
+    /**
+     * Resolved per connection rather than provided as a value: [MailSite] can answer
+     * differently after the debug override changes, and both consumers below are singletons.
+     * A release build has nothing that could answer anything but `MailServerConfig.NTUST`.
+     */
+    @Provides
+    @Singleton
+    fun serverConfigs(site: MailSite): MailServerConfigSource = MailServerConfigSource { site.config() }
 
     @Provides
     @Singleton
-    fun sessionFactory(config: MailServerConfig): MailSessionFactory = AngusMailSessionFactory(config)
+    fun sessionFactory(configs: MailServerConfigSource): MailSessionFactory = AngusMailSessionFactory(configs)
 
     @Provides
     @Singleton
-    fun transport(config: MailServerConfig): MailTransport = AngusMailTransport(config)
+    fun transport(configs: MailServerConfigSource): MailTransport = AngusMailTransport(configs)
 
     @Provides
     @Singleton

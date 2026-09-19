@@ -34,6 +34,7 @@ import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.Pending
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.ViewMode
 import java.io.ByteArrayOutputStream
 import kotlin.system.measureTimeMillis
+import org.ntust.app.tigerduck.mail.schoolMailSite
 
 class SchoolMailMessageViewModelTest {
     @get:Rule val main = MainDispatcherRule()
@@ -48,13 +49,15 @@ class SchoolMailMessageViewModelTest {
     fun setUp() {
         cache = MailCache(tmp.newFolder("cache"))
         account = MailAccount(InMemoryCredentialStore(), InMemoryMailStateStore(), FakeMailServer().factory(), cache,
-            FakeDemoGate(), RecordingScheduler(), RecordingNotifier(), testApplicationScope())
+            FakeDemoGate(), schoolMailSite(), RecordingScheduler(), RecordingNotifier(), testApplicationScope())
     }
 
     // The same TestDispatcher backs both Dispatchers.Main and the injected @IoDispatcher, so a
     // withContext(io) hop stays synchronous under the test the way every other action already is.
     private fun vm(folder: String = "INBOX", uid: Long = 5) =
-        SchoolMailMessageViewModel(SavedStateHandle(mapOf("folder" to folder, "uid" to uid)), repo, account, notifier, cache, main.dispatcher)
+        SchoolMailMessageViewModel(
+            SavedStateHandle(mapOf("folder" to folder, "uid" to uid)), repo, account, notifier, cache, schoolMailSite(), main.dispatcher,
+        )
 
     private fun ready(vm: SchoolMailMessageViewModel) = vm.state.value.content as Content.Ready
 

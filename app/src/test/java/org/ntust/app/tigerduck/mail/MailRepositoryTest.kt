@@ -43,10 +43,10 @@ class MailRepositoryTest {
 
     private inner class TestSetup(scope: kotlinx.coroutines.CoroutineScope) {
         val cache = MailCache(tmp.root)
-        val account = MailAccount(credentials, state, server.factory(), cache, demo, RecordingScheduler(), RecordingNotifier(), scope)
+        val account = MailAccount(credentials, state, server.factory(), cache, demo, schoolMailSite(), RecordingScheduler(), RecordingNotifier(), scope)
         val repository = MailRepository(
             account, server.factory(), cache, state,
-            MailSender(MessageBuilder(), transport, server.factory(), pause = {}), MessageBuilder(), demo, scope,
+            MailSender(MessageBuilder(), transport, server.factory(), pause = {}), MessageBuilder(), demo, schoolMailSite(), scope,
         )
     }
 

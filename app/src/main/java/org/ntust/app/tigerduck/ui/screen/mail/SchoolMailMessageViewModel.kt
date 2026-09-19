@@ -18,6 +18,7 @@ import org.ntust.app.tigerduck.di.IoDispatcher
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailErrors
+import org.ntust.app.tigerduck.mail.MailSite
 import org.ntust.app.tigerduck.mail.SchoolMailRepository
 import org.ntust.app.tigerduck.mail.imap.ResolvedFolders
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
@@ -48,10 +49,14 @@ class SchoolMailMessageViewModel @Inject constructor(
     private val account: MailAccount,
     private val notifier: MailNotifier,
     private val cache: MailCache,
+    private val site: MailSite,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
     val folder: String = savedStateHandle.get<String>("folder").orEmpty()
     val uid: Long = savedStateHandle.get<Long>("uid") ?: -1L
+
+    /** The account's own domain, which the External badge and the bounce rule measure against. */
+    val mailDomain: String get() = site.domain()
 
     enum class ViewMode { FORMATTED, PLAIN, SOURCE }
 
@@ -153,6 +158,7 @@ class SchoolMailMessageViewModel @Inject constructor(
                 val plain = body.plain ?: html?.let { HtmlSanitizer.plainText(it.html) }.orEmpty()
                 val warnings = MailWarnings.evaluate(
                     summary.from, summary.subject, plain, html?.links.orEmpty(), body.attachments, summary.returnPath,
+                    domain = mailDomain,
                 )
                 update {
                     it.copy(

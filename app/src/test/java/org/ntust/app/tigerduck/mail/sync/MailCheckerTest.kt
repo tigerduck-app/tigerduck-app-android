@@ -15,6 +15,7 @@ import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.RecordingNotifier
 import org.ntust.app.tigerduck.mail.RecordingScheduler
+import org.ntust.app.tigerduck.mail.schoolMailSite
 import org.ntust.app.tigerduck.mail.imap.MailSessionFactory
 import org.ntust.app.tigerduck.mail.model.FolderStatus
 import org.ntust.app.tigerduck.mail.store.MailCache
@@ -31,7 +32,7 @@ class MailCheckerTest {
     private val scheduler = RecordingScheduler()
     private var now = 1_000_000L
     private val account by lazy {
-        MailAccount(InMemoryCredentialStore(), state, server.factory(), MailCache(tmp.root), FakeDemoGate(), scheduler, notifier, testApplicationScope())
+        MailAccount(InMemoryCredentialStore(), state, server.factory(), MailCache(tmp.root), FakeDemoGate(), schoolMailSite(), scheduler, notifier, testApplicationScope())
     }
 
     private fun checker(factory: MailSessionFactory = server.factory()) =

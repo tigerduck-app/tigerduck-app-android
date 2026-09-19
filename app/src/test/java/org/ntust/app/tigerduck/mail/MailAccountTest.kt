@@ -29,7 +29,7 @@ class MailAccountTest {
 
     private val appScope = testApplicationScope()
 
-    private fun account() = MailAccount(credentials, state, server.factory(), cache, demo, scheduler, notifier, appScope)
+    private fun account() = MailAccount(credentials, state, server.factory(), cache, demo, schoolMailSite(), scheduler, notifier, appScope)
 
     @Test
     fun `successful sign-in stores the account, sets the baseline and fills the display name`() = runTest {

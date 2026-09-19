@@ -11,6 +11,7 @@ import org.junit.Test
 import org.ntust.app.tigerduck.mail.MailCredentials
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailServerConfig
+import org.ntust.app.tigerduck.mail.MailTransportSecurity
 import org.ntust.app.tigerduck.mail.MailTestServer
 import java.io.ByteArrayOutputStream
 
@@ -26,7 +27,7 @@ class AngusMailSessionReadTest {
             fail("expected AuthFailed")
         } catch (e: MailError.AuthFailed) { /* expected */ }
         try {
-            AngusMailSessionFactory(server.config.copy(imapPort = 1)).open(server.credentials)
+            AngusMailSessionFactory(server.config.copy(imap = server.config.imap.copy(port = 1))).open(server.credentials)
             fail("expected Network")
         } catch (e: MailError.Network) { /* expected */ }
     }
@@ -195,8 +196,9 @@ class AngusMailSessionReadTest {
 
     @Test
     fun `production config keeps TLS on`() {
-        assertTrue(MailServerConfig.NTUST.secure)
-        assertEquals(993, MailServerConfig.NTUST.imapPort)
-        assertEquals(465, MailServerConfig.NTUST.smtpPort)
+        assertEquals(MailTransportSecurity.IMPLICIT_TLS, MailServerConfig.NTUST.imap.security)
+        assertEquals(MailTransportSecurity.IMPLICIT_TLS, MailServerConfig.NTUST.smtp.security)
+        assertEquals(993, MailServerConfig.NTUST.imap.port)
+        assertEquals(465, MailServerConfig.NTUST.smtp.port)
     }
 }

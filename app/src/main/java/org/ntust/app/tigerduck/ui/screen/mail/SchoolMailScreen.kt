@@ -94,6 +94,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.mail.MailDevServerSettings
 import org.ntust.app.tigerduck.mail.imap.FolderSelection
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.model.MailRow
@@ -162,11 +163,13 @@ fun SchoolMailScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             PageHeader(title = stringResource(R.string.feature_school_mail))
+            DevMailServerBanner(accountViewModel.devServer)
             SchoolMailLoginCard(
                 initialUsername = accountViewModel.studentId.orEmpty(),
                 isLoggingIn = signingIn,
                 error = signInError?.let { stringResource(it.messageRes()) },
                 browserPreference = browserPreference,
+                uppercaseId = accountViewModel.devServer == null,
                 onSubmit = accountViewModel::signIn,
             )
             TextButton(onClick = onOpenGuide, modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -230,6 +233,7 @@ fun SchoolMailScreen(
                             Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.school_mail_compose))
                         }
                     }
+                    DevMailServerBanner(accountViewModel.devServer)
                     if (authFailed) {
                         AuthFailedBanner(onSignInAgain = {
                             accountViewModel.clearError()
@@ -284,6 +288,7 @@ fun SchoolMailScreen(
                     items(displayed, key = { it.key }) { row ->
                         SwipeableMailCard(
                             row = row,
+                            mailDomain = viewModel.mailDomain,
                             // The row's own folder decides everything, never the selected chip:
                             // opened from All mail, a Sent mail has to behave exactly as it
                             // would had the user opened Sent itself.
@@ -315,7 +320,7 @@ fun SchoolMailScreen(
             usernamePlaceholder = stringResource(R.string.sign_in_student_id),
             passwordPlaceholder = stringResource(R.string.sign_in_password),
             initialUsername = accountViewModel.studentId.orEmpty(),
-            uppercaseInput = true,
+            uppercaseInput = accountViewModel.devServer == null,
             isLoggingIn = signingIn,
             loginError = signInError?.let { stringResource(it.messageRes()) },
             onLogin = { u, p -> accountViewModel.signIn(u, p) },
@@ -383,7 +388,7 @@ fun SpecialFolder.labelRes(): Int = when (this) {
 
 /** Mirrors Announcements' BulletinCard: 12dp surfaceVariant card, 7dp unread dot, SemiBold when unread. */
 @Composable
-private fun MailCard(message: MailSummary, onClick: () -> Unit) {
+private fun MailCard(message: MailSummary, mailDomain: String, onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val unread = !message.flags.seen
     Surface(onClick = onClick, shape = RoundedCornerShape(12.dp), color = cs.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
@@ -403,7 +408,7 @@ private fun MailCard(message: MailSummary, onClick: () -> Unit) {
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
                     )
-                    if (MailWarnings.isExternalSender(message.from, message.returnPath)) {
+                    if (MailWarnings.isExternalSender(message.from, message.returnPath, mailDomain)) {
                         Spacer(Modifier.width(6.dp))
                         Surface(shape = RoundedCornerShape(50), color = Color(0xFFFF9500).copy(alpha = 0.18f)) {
                             Text(
@@ -435,7 +440,13 @@ private fun MailCard(message: MailSummary, onClick: () -> Unit) {
 
 /** Same gesture as SwipeableBulletinCard: either direction toggles read (100dp threshold, 0.6× damping). */
 @Composable
-private fun SwipeableMailCard(row: MailRow, onClick: () -> Unit, onToggleRead: () -> Unit, modifier: Modifier = Modifier) {
+private fun SwipeableMailCard(
+    row: MailRow,
+    mailDomain: String,
+    onClick: () -> Unit,
+    onToggleRead: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val message = row.summary
     val latestToggle by rememberUpdatedState(onToggleRead)
     val thresholdPx = with(LocalDensity.current) { 100.dp.toPx() }
@@ -481,7 +492,7 @@ private fun SwipeableMailCard(row: MailRow, onClick: () -> Unit, onToggleRead: (
                         },
                     )
                 },
-        ) { MailCard(message, onClick) }
+        ) { MailCard(message, mailDomain, onClick) }
     }
 }
 
@@ -503,6 +514,41 @@ private fun AuthFailedBanner(onSignInAgain: () -> Unit) {
     }
 }
 
+/**
+ * Says out loud that this is not the school mailbox.
+ *
+ * The debug-only Developer -> Email override points the whole feature at another server,
+ * and mail that looks entirely ordinary is exactly what a test mailbox produces -- someone
+ * who forgot the override is on would otherwise read a test inbox as their school inbox and
+ * act on it. Shown signed out as well as signed in, because the sign-in itself already goes
+ * to the overridden server. [settings] is null whenever no override is in force, which in a
+ * release build is always, so this renders nothing there.
+ */
+@Composable
+private fun DevMailServerBanner(settings: MailDevServerSettings?) {
+    if (settings == null) return
+    val color = Color(0xFFFF9500)
+    Surface(
+        color = color.copy(alpha = 0.18f),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Text(
+                // Developer strings in this app are English and not localized.
+                "Developer mail server — not your school mailbox",
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = color,
+            )
+            Text(
+                "@${settings.domain} · IMAP ${settings.imap.host}:${settings.imap.port}",
+                style = MaterialTheme.typography.labelSmall,
+                color = color,
+            )
+        }
+    }
+}
+
 /** Library's LoginPromptCard, for the school mail account (spec §7.1). */
 @Composable
 private fun SchoolMailLoginCard(
@@ -510,6 +556,8 @@ private fun SchoolMailLoginCard(
     isLoggingIn: Boolean,
     error: String?,
     browserPreference: String,
+    /** False while the debug mail-server override is on: only the school login name is uppercase. */
+    uppercaseId: Boolean,
     onSubmit: (String, String) -> Unit,
 ) {
     var username by rememberSaveable(initialUsername) { mutableStateOf(initialUsername) }
@@ -530,9 +578,11 @@ private fun SchoolMailLoginCard(
             )
             OutlinedAccountIdField(
                 value = username,
-                onValueChange = { raw -> username = raw.filter { !it.isWhitespace() }.uppercase() },
+                onValueChange = { raw ->
+                    username = raw.filter { !it.isWhitespace() }.let { if (uppercaseId) it.uppercase() else it }
+                },
                 label = stringResource(R.string.sign_in_student_id),
-                capitalization = KeyboardCapitalization.Characters,
+                capitalization = if (uppercaseId) KeyboardCapitalization.Characters else KeyboardCapitalization.None,
                 imeAction = ImeAction.Next,
                 enabled = !isLoggingIn,
                 autofillHint = android.view.View.AUTOFILL_HINT_USERNAME,

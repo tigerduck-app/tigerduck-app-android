@@ -26,10 +26,9 @@ class MailTestServer : ExternalResource() {
 
     val credentials = MailCredentials(studentId = "b10000001", password = "pw")
     val config = MailServerConfig(
-        host = "127.0.0.1",
-        imapPort = ServerSetupTest.IMAP.port,
-        smtpPort = ServerSetupTest.SMTP.port,
-        secure = false,
+        domain = MailServerConfig.DOMAIN,
+        imap = MailEndpoint("127.0.0.1", ServerSetupTest.IMAP.port, MailTransportSecurity.NONE),
+        smtp = MailEndpoint("127.0.0.1", ServerSetupTest.SMTP.port, MailTransportSecurity.NONE),
     )
 
     override fun before() {
@@ -43,7 +42,7 @@ class MailTestServer : ExternalResource() {
 
     /** A plain Angus store for test setup and assertions, outside the code under test. */
     fun rawStore(): Store = Session.getInstance(Properties()).getStore("imap").apply {
-        connect(config.host, config.imapPort, credentials.loginName, credentials.password)
+        connect(config.imap.host, config.imap.port, credentials.loginName, credentials.password)
     }
 
     fun createFolders(vararg names: String) {

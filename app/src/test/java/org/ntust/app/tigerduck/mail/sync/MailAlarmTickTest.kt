@@ -21,6 +21,7 @@ import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.RecordingNotifier
 import org.ntust.app.tigerduck.mail.RecordingScheduler
+import org.ntust.app.tigerduck.mail.schoolMailSite
 import org.ntust.app.tigerduck.mail.imap.MailSession
 import org.ntust.app.tigerduck.mail.imap.MailSessionFactory
 import org.ntust.app.tigerduck.mail.model.FolderStatus
@@ -37,7 +38,7 @@ class MailAlarmTickTest {
     private val state = InMemoryMailStateStore()
     private val notifier = RecordingNotifier()
     private val account by lazy {
-        MailAccount(InMemoryCredentialStore(), state, server.factory(), MailCache(tmp.root), FakeDemoGate(), RecordingScheduler(), notifier, scope)
+        MailAccount(InMemoryCredentialStore(), state, server.factory(), MailCache(tmp.root), FakeDemoGate(), schoolMailSite(), RecordingScheduler(), notifier, scope)
     }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

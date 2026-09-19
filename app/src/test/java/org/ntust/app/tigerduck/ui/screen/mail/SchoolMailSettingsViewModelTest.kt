@@ -22,6 +22,7 @@ import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.sync.ExactAlarmAccess
 import org.ntust.app.tigerduck.mail.testApplicationScope
 import java.io.File
+import org.ntust.app.tigerduck.mail.schoolMailSite
 
 class SchoolMailSettingsViewModelTest {
     @get:Rule val main = MainDispatcherRule()
@@ -44,7 +45,7 @@ class SchoolMailSettingsViewModelTest {
      */
     private fun viewModel(): SchoolMailSettingsViewModel {
         val account = MailAccount(
-            credentials, state, server.factory(), cache, demo,
+            credentials, state, server.factory(), cache, demo, schoolMailSite(),
             RecordingScheduler(), RecordingNotifier(), testApplicationScope(),
         )
         // The same TestDispatcher backs Dispatchers.Main and the injected @IoDispatcher, so the
@@ -54,7 +55,7 @@ class SchoolMailSettingsViewModelTest {
 
     private fun signIn(studentId: String, password: String) = runBlocking {
         val account = MailAccount(
-            credentials, state, server.factory(), cache, demo,
+            credentials, state, server.factory(), cache, demo, schoolMailSite(),
             RecordingScheduler(), RecordingNotifier(), testApplicationScope(),
         )
         val error = withTimeout(5_000) { account.signIn(studentId, password) }

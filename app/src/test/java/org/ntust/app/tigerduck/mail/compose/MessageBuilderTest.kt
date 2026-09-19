@@ -34,6 +34,14 @@ class MessageBuilderTest {
         MimeMessage(Session.getInstance(Properties()), ByteArrayInputStream(built.toBytes()))
 
     @Test
+    fun `the Message-ID takes the sender's own domain`() {
+        // Under the debug mail-server override the account is not on mail.ntust.edu.tw, and a
+        // mail claiming a Message-ID there would be claiming to come from the school.
+        val built = builder.build(mail().copy(from = MailAddress("Tester", "tester@gmail.com")))
+        assertEquals("<fixed@gmail.com>", built.messageId)
+    }
+
+    @Test
     fun `headers, recipients and a plain-text body`() {
         val built = builder.build(mail())
         assertEquals("<fixed@mail.ntust.edu.tw>", built.messageId)

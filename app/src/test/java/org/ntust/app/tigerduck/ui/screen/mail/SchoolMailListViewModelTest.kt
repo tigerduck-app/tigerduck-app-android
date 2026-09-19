@@ -31,6 +31,7 @@ import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.sync.MailChecker
 import org.ntust.app.tigerduck.mail.testApplicationScope
 import java.time.Instant
+import org.ntust.app.tigerduck.mail.schoolMailSite
 
 class SchoolMailListViewModelTest {
     @get:Rule val main = MainDispatcherRule()
@@ -45,9 +46,9 @@ class SchoolMailListViewModelTest {
     @Before
     fun setUp() {
         account = MailAccount(InMemoryCredentialStore(), state, server.factory(), MailCache(tmp.root),
-            FakeDemoGate(), RecordingScheduler(), RecordingNotifier(), testApplicationScope())
+            FakeDemoGate(), schoolMailSite(), RecordingScheduler(), RecordingNotifier(), testApplicationScope())
         runBlocking { account.signIn("b10000001", "pw") }
-        vm = SchoolMailListViewModel(repo, account, MailChecker(account, state, server.factory(), RecordingNotifier()) { 0 })
+        vm = SchoolMailListViewModel(repo, account, MailChecker(account, state, server.factory(), RecordingNotifier()) { 0 }, schoolMailSite())
     }
 
     @Test

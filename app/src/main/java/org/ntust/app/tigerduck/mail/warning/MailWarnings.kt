@@ -110,6 +110,29 @@ object MailWarnings {
     }
 
     /**
+     * Whether [host] belongs to the mailbox's own domain -- the question every rule here
+     * actually asks, of which [isSchoolDomain] is the school's answer.
+     *
+     * Every entry point below takes [domain] with [SCHOOL_MAIL_DOMAIN] as its default, so
+     * the rules are unchanged for the school account; the debug-only mail-server override
+     * passes the domain it points at instead. Without that, every message in a test mailbox
+     * is badged External and the whole warning layer reads as noise.
+     *
+     * The school keeps its own broader rule (any `ntust.edu.tw` host, so mail from
+     * `office@ntust.edu.tw` is not external). Another domain gets exact match or a
+     * subdomain of it and nothing more: the school rule works by knowing that
+     * `mail.ntust.edu.tw` sits under an institution's domain, and generalising that by
+     * dropping the first label would make every `*.com` address internal.
+     */
+    fun isHomeDomain(host: String, domain: String = SCHOOL_MAIL_DOMAIN): Boolean {
+        val home = normalize(domain)
+        if (home == SCHOOL_MAIL_DOMAIN) return isSchoolDomain(host)
+        if (home.isEmpty()) return false
+        val h = normalize(host)
+        return h == home || h.endsWith(".$home")
+    }
+
+    /**
      * RFC 5321 §4.5.5: a delivery status notification is sent with the null reverse-path, and the
      * **receiving** server writes that down as `Return-Path: <>`. That header therefore comes
      * from our own side of the delivery, unlike the `From` display name ("Mail Deliver System"),
@@ -145,15 +168,15 @@ object MailWarnings {
      * it applies only when there is no domain at all, so a bounce whose `From` names a real
      * outside domain stays external exactly as before.
      */
-    fun isExternal(address: String?, bounce: Boolean = false): Boolean {
-        val domain = address?.substringAfterLast('@', missingDelimiterValue = "").orEmpty()
-        if (domain.isEmpty()) return !bounce
-        return !isSchoolDomain(domain)
+    fun isExternal(address: String?, bounce: Boolean = false, domain: String = SCHOOL_MAIL_DOMAIN): Boolean {
+        val senderDomain = address?.substringAfterLast('@', missingDelimiterValue = "").orEmpty()
+        if (senderDomain.isEmpty()) return !bounce
+        return !isHomeDomain(senderDomain, domain)
     }
 
     /** What the two External-badge sites ask: [isExternal] with the [isBounce] exemption already applied. */
-    fun isExternalSender(from: MailAddress?, returnPath: String?): Boolean =
-        isExternal(from?.address, isBounce(returnPath))
+    fun isExternalSender(from: MailAddress?, returnPath: String?, domain: String = SCHOOL_MAIL_DOMAIN): Boolean =
+        isExternal(from?.address, isBounce(returnPath), domain)
 
     /**
      * True for a domain that reads as a mistyped [SCHOOL_MAIL_DOMAIN]: within
@@ -164,11 +187,12 @@ object MailWarnings {
      * The length check first is not only a shortcut: it keeps an attacker-supplied token from
      * reaching the quadratic distance loop at all.
      */
-    fun isMistypedSchoolMailDomain(domain: String): Boolean {
-        val host = toAscii(normalize(domain))
-        if (host.isEmpty() || isSchoolDomain(host)) return false
-        if (abs(host.length - SCHOOL_MAIL_DOMAIN.length) > MAX_DOMAIN_TYPO_EDITS) return false
-        return editDistance(host, SCHOOL_MAIL_DOMAIN) <= MAX_DOMAIN_TYPO_EDITS
+    fun isMistypedSchoolMailDomain(candidate: String, domain: String = SCHOOL_MAIL_DOMAIN): Boolean {
+        val home = toAscii(normalize(domain))
+        val host = toAscii(normalize(candidate))
+        if (host.isEmpty() || home.isEmpty() || isHomeDomain(host, domain)) return false
+        if (abs(host.length - home.length) > MAX_DOMAIN_TYPO_EDITS) return false
+        return editDistance(host, home) <= MAX_DOMAIN_TYPO_EDITS
     }
 
     /**
@@ -176,8 +200,8 @@ object MailWarnings {
      * what turns a delivery failure into "did you mistype the address?": a bounce from
      * `gmail.com` says nothing about a typo, so it gets no such claim.
      */
-    fun mentionsMistypedSchoolAddress(text: String): Boolean =
-        EMAIL.findAll(text).any { isMistypedSchoolMailDomain(it.value.trimEnd('.').substringAfterLast('@')) }
+    fun mentionsMistypedSchoolAddress(text: String, domain: String = SCHOOL_MAIL_DOMAIN): Boolean =
+        EMAIL.findAll(text).any { isMistypedSchoolMailDomain(it.value.trimEnd('.').substringAfterLast('@'), domain) }
 
     private fun editDistance(a: String, b: String): Int {
         if (a == b) return 0
@@ -204,11 +228,12 @@ object MailWarnings {
         links: List<MailLink>,
         attachments: List<MailAttachment>,
         returnPath: String? = null,
+        domain: String = SCHOOL_MAIL_DOMAIN,
     ): List<MailWarning> {
         val warnings = mutableListOf<MailWarning>()
         val sender = from?.address.orEmpty()
         val bounce = isBounce(returnPath)
-        val external = isExternal(sender, bounce)
+        val external = isExternal(sender, bounce, domain)
         if (external) warnings += MailWarning.ExternalSender(sender)
         from?.name?.let { name ->
             val shown = firstEmail(name)
@@ -220,13 +245,13 @@ object MailWarnings {
         val keyword = KEYWORDS.any { it in text }
         val outsideLink = links.any { link ->
             val href = sanitizeHref(link.href).trim()
-            href.startsWith("http", ignoreCase = true) && !isPlainSchoolLink(href)
+            href.startsWith("http", ignoreCase = true) && !isPlainHomeLink(href, domain)
         }
         if (keyword && (external || outsideLink)) warnings += MailWarning.PasswordBait
         val risky = attachments.filter { riskReason(it.fileName, it.contentType, text) != null }
             .map { cleanFileName(it.fileName) }
         if (risky.isNotEmpty()) warnings += MailWarning.RiskyAttachments(risky)
-        if (bounce && mentionsMistypedSchoolAddress(text)) warnings += MailWarning.MistypedRecipient
+        if (bounce && mentionsMistypedSchoolAddress(text, domain)) warnings += MailWarning.MistypedRecipient
         return warnings
     }
 
@@ -281,10 +306,10 @@ object MailWarnings {
         )
     }
 
-    /** True only when [href] matches [PLAIN_HTTP_LINK] and that host is a school domain. */
-    private fun isPlainSchoolLink(href: String): Boolean {
+    /** True only when [href] matches [PLAIN_HTTP_LINK] and that host is [isHomeDomain]. */
+    private fun isPlainHomeLink(href: String, domain: String): Boolean {
         val host = PLAIN_HTTP_LINK.matchEntire(href)?.groupValues?.get(1) ?: return false
-        return isSchoolDomain(host)
+        return isHomeDomain(host, domain)
     }
 
     /**

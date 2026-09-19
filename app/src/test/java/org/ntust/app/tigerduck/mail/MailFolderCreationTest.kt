@@ -35,12 +35,16 @@ class MailFolderCreationTest {
     private val sent = mutableListOf<String>()
     private val transport = MailTransport { _, message -> sent += message.messageId }
 
+    /** Shared by the account and the repository so a test can turn the developer override on for both. */
+    private val devServer = InMemoryMailDevServerStore()
+    private val site = MailSite(devServer)
+
     private inner class TestSetup(scope: CoroutineScope) {
         val cache = MailCache(tmp.root)
-        val account = MailAccount(credentials, state, server.factory(), cache, demo, RecordingScheduler(), RecordingNotifier(), scope)
+        val account = MailAccount(credentials, state, server.factory(), cache, demo, site, RecordingScheduler(), RecordingNotifier(), scope)
         val repository = MailRepository(
             account, server.factory(), cache, state,
-            MailSender(MessageBuilder(), transport, server.factory(), pause = {}), MessageBuilder(), demo, scope,
+            MailSender(MessageBuilder(), transport, server.factory(), pause = {}), MessageBuilder(), demo, site, scope,
         )
     }
 
@@ -162,6 +166,41 @@ class MailFolderCreationTest {
         val repo = TestSetup(backgroundScope).signedIn()
         repo.discardDraft(42) // must not throw
         assertEquals(emptyList<String>(), server.createAttempts)
+    }
+
+    /**
+     * The names are Mail2000's own, so against any other server they would appear as three
+     * new Chinese-named folders in the developer's own test mailbox — the one lasting mark
+     * the override could leave on it. Each caller falls back exactly as it does for an
+     * account whose folder could not be created.
+     */
+    @Test
+    fun `the debug mail-server override creates nothing on someone else's mailbox`() = runTest {
+        server.folders.keys.retainAll(setOf("INBOX"))
+        val uid = server.deliver("a")
+        devServer.settings = MailDevServerSettings(
+            enabled = true,
+            domain = "example.com",
+            imap = MailEndpoint("127.0.0.1", 3143, MailTransportSecurity.NONE),
+            smtp = MailEndpoint("127.0.0.1", 3025, MailTransportSecurity.NONE),
+        )
+        // The login name is not uppercased once the override is on, so it is typed as the server wants it.
+        val repo = TestSetup(backgroundScope).signedIn("B10000001", "pw")
+        repo.loadPage("INBOX", null)
+
+        repo.send(repo.outgoing("s"), answered = null)
+        assertEquals("sending still happens, it just files no copy", 1, sent.size)
+
+        assertTrue(
+            "no drafts folder means the draft is not kept, and the compose screen says so",
+            runCatching { repo.saveDraft(repo.draft("d"), replacingUid = null) }.exceptionOrNull() is MailError.Protocol,
+        )
+
+        assertTrue("deleting falls back to the permanent-delete confirmation", repo.deletesPermanently("INBOX"))
+        repo.delete("INBOX", uid)
+
+        assertEquals(emptyList<String>(), server.createAttempts)
+        assertEquals(setOf("INBOX"), server.folders.keys)
     }
 
     @Test
