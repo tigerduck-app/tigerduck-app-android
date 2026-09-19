@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.mail.sync
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
@@ -105,6 +106,11 @@ class MailChecker @Inject constructor(
                 state.inboxSeenUidNext = maxOf(state.inboxSeenUidNext, advanced)
                 CheckOutcome.NewMail(toNotify.size)
             }
+        } catch (e: CancellationException) {
+            // The one place in the package that used to let a cancellation through to classify,
+            // which has no case for one: the check was recorded as Failed:Protocol before the
+            // surrounding withContext rethrew it anyway.
+            throw e
         } catch (e: Exception) {
             val error = MailErrors.classify(e)
             if (error is MailError.AuthFailed) {

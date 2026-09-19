@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.mail.sync
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -56,6 +57,26 @@ class MailCheckerTest {
         assertEquals(CheckOutcome.NoChange, checker().check(CheckSource.WORKER))
         assertEquals(1, notifier.posted.size)
         assertEquals(0, server.openSessions)
+    }
+
+    /**
+     * A check that was called off is not a check that failed. The cancellation used to be caught
+     * with every other Exception and classified -- classify has no case for one -- so the run was
+     * recorded as Failed:Protocol before the surrounding withContext rethrew it anyway, leaving a
+     * failure in the diagnostics the student is asked to read out when mail stops arriving.
+     */
+    @Test
+    fun `a cancelled check is rethrown, not recorded as a failure`() = runTest {
+        account.signIn("b10000001", "pw")
+        state.diagnostics = emptyList()
+        // kotlinx recovers the stack trace across withContext, so this is a copy of the
+        // exception thrown below, not the same instance.
+        val thrown = runCatching {
+            checker(MailSessionFactory { throw CancellationException("called off") }).check(CheckSource.ALARM)
+        }.exceptionOrNull()
+        assertTrue("expected the cancellation to propagate, got $thrown", thrown is CancellationException)
+        assertEquals("called off", thrown?.message)
+        assertEquals(emptyList<String>(), state.diagnostics)
     }
 
     @Test

@@ -3,6 +3,8 @@ package org.ntust.app.tigerduck.mail
 import jakarta.mail.AuthenticationFailedException
 import jakarta.mail.MessagingException
 import jakarta.mail.search.SearchException
+import kotlinx.coroutines.CancellationException
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.net.ConnectException
@@ -19,6 +21,19 @@ class MailErrorsTest {
         assertTrue(MailErrors.classify(IllegalStateException("odd")) is MailError.Protocol)
         val already = MailError.Network()
         assertTrue(MailErrors.classify(already) === already)
+    }
+
+    /**
+     * There is no [MailError] that honestly describes a cancelled coroutine, and every caller of
+     * [MailErrors.classify] routes plain `Exception` through it -- so without this a cancellation
+     * would come back as [MailError.Protocol] and be recorded as a failure of a check or a
+     * sign-in that was merely called off.
+     */
+    @Test
+    fun `a cancellation is rethrown, never classified as a mail failure`() {
+        val cancelled = CancellationException("called off")
+        val thrown = runCatching { MailErrors.classify(cancelled) }.exceptionOrNull()
+        assertSame(cancelled, thrown)
     }
 
     @Test

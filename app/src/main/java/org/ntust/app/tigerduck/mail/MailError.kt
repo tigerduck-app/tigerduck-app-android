@@ -4,6 +4,7 @@ import jakarta.mail.AuthenticationFailedException
 import jakarta.mail.FolderClosedException
 import jakarta.mail.StoreClosedException
 import jakarta.mail.search.SearchException
+import kotlinx.coroutines.CancellationException
 import java.io.IOException
 import java.net.ConnectException
 import java.net.NoRouteToHostException
@@ -51,8 +52,17 @@ object MailErrors {
         return BUSY_MARKERS.any { it in text }
     }
 
+    /**
+     * Throws rather than returns for a [CancellationException]: a cancelled coroutine is not a
+     * mail failure and there is no [MailError] that honestly describes one. Every caller here
+     * routes `Exception` through this ([SessionHolder], `AngusMailSessionFactory.open`,
+     * `AngusMailTransport.send`, `MailAccount.signIn`, `MailChecker`), so without this one of
+     * them would eventually turn a cancellation into [MailError.Protocol] -- a failure recorded
+     * against a check or a sign-in that was merely called off.
+     */
     fun classify(t: Throwable): MailError {
         if (t is MailError) return t
+        if (t is CancellationException) throw t
         val seen = HashSet<Throwable>()
         var current: Throwable? = t
         while (current != null && seen.add(current)) {
