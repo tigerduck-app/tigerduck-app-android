@@ -27,6 +27,11 @@ import java.util.Date
  * chip for an entire release cycle. This asserts the outcome rather than the
  * call, so the next well-meaning builder change fails here instead of in a
  * user's status bar.
+ *
+ * The Samsung case is guarded separately. One UI ignores AOSP promotion and
+ * runs its own Now Bar pipeline, which the notifier reaches with a single
+ * undocumented extra; losing that extra would cost the chip on every Galaxy
+ * without failing anything else.
  */
 @RunWith(AndroidJUnit4::class)
 class LiveActivityPromotionTest {
@@ -90,6 +95,41 @@ class LiveActivityPromotionTest {
         assertTrue(extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER))
     }
 
+    /**
+     * The Samsung half of the same guarantee.
+     *
+     * `android.ongoingActivityNoti.automation` is what gets the Live Update
+     * past One UI's Now Bar allowlist — see [LiveActivityNotifier.apply]. It is
+     * an undocumented private extra, so nothing in the SDK will complain if a
+     * refactor drops it, and the only symptom is a chip that quietly stops
+     * appearing on Galaxy devices.
+     *
+     * Asserting the extra rather than the rendering is deliberate: whether
+     * SystemUI then draws it depends on the One UI version, on the app being
+     * backgrounded, and on the screen being on and unlocked, none of which an
+     * instrumented test controls.
+     */
+    @Test
+    fun samsungDevicesCarryTheNowBarAutomationExtra() {
+        assumeTrue(
+            "Only One UI reads these extras",
+            Build.MANUFACTURER.equals("samsung", ignoreCase = true),
+        )
+
+        val extras = postInClass().extras
+
+        assertTrue(
+            "The Now Bar automation extra is missing; One UI will fall back to " +
+                "its allowlist and show no chip.",
+            extras.getBoolean(SAMSUNG_AUTOMATION),
+        )
+        assertEquals(context.packageName, extras.getString(SAMSUNG_AUTOMATION_PACKAGE))
+        // style >= 1 sends NotificationEntry.isOngoingActivity() down Samsung's
+        // private-card lane, which sets mIsRon = false and cancels the bypass
+        // the extra above just bought. Absent is the only correct value.
+        assertEquals(0, extras.getInt(SAMSUNG_STYLE))
+    }
+
     private fun postInClass(): Notification {
         val notifier = LiveActivityNotifier(context, LiveActivityPreferences(context))
         notifier.apply(
@@ -130,6 +170,9 @@ class LiveActivityPromotionTest {
         /** `Notification.FLAG_PROMOTED_ONGOING`, which is @FlaggedApi and not always resolvable. */
         const val FLAG_PROMOTED_ONGOING = 0x00040000
         const val POST_NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS"
+        const val SAMSUNG_AUTOMATION = "android.ongoingActivityNoti.automation"
+        const val SAMSUNG_AUTOMATION_PACKAGE = "android.ongoingActivityNoti.automationPackage"
+        const val SAMSUNG_STYLE = "android.ongoingActivityNoti.style"
         const val POST_TIMEOUT_MS = 5_000L
         const val POLL_INTERVAL_MS = 50L
     }
