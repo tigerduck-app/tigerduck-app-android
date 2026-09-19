@@ -28,10 +28,13 @@ fun MailError.messageRes(): Int = when (this) {
     // No dedicated copy for these yet: they either aren't reachable from sign-in
     // (SearchUnsupported, FolderChanged surface in the list/search screens, not
     // built yet) or are internal-only (Protocol, DemoMode never reaches the UI).
+    // TooLarge does reach the user, from the source view of an outsized mail, and
+    // wants copy of its own -- that needs a new key in the app-translation submodule.
     is MailError.SearchUnsupported,
     is MailError.Protocol,
     is MailError.DemoMode,
     is MailError.FolderChanged,
+    is MailError.TooLarge,
     -> R.string.school_mail_error_generic
 }
 

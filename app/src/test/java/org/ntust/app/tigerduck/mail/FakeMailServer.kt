@@ -70,11 +70,12 @@ class FakeMailServer {
         seen: Boolean = false,
         messageId: String? = null,
         body: MailBody = MailBody(null, "body of $subject", emptyList(), emptyMap()),
+        sizeBytes: Long = 100,
     ): Long {
         val uid = nextUid++
         folders.getOrPut(folder) { mutableListOf() } += Stored(
             MailSummary(uid, from, emptyList(), emptyList(), emptyList(), subject, null, null,
-                MailFlags.NONE.copy(seen = seen), 100, false, messageId, null, null),
+                MailFlags.NONE.copy(seen = seen), sizeBytes, false, messageId, null, null),
             body,
         )
         return uid

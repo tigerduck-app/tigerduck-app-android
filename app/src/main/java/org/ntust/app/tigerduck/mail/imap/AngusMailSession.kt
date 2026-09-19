@@ -25,6 +25,7 @@ import org.eclipse.angus.mail.imap.protocol.Status
 import org.ntust.app.tigerduck.mail.MailCredentials
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailErrors
+import org.ntust.app.tigerduck.mail.MailLimits
 import org.ntust.app.tigerduck.mail.MailProperties
 import org.ntust.app.tigerduck.mail.MailServerConfig
 import org.ntust.app.tigerduck.mail.MailServerConfigSource
@@ -41,6 +42,7 @@ import org.ntust.app.tigerduck.mail.model.MailFlags
 import org.ntust.app.tigerduck.mail.model.MailPage
 import org.ntust.app.tigerduck.mail.model.MailSummary
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 
 class AngusMailSessionFactory(private val configs: MailServerConfigSource) : MailSessionFactory {
@@ -72,7 +74,8 @@ class AngusMailSession internal constructor(
 ) : MailSession {
     private var openFolder: IMAPFolder? = null
 
-    private sealed interface PartKind {
+    /** What one MIME leaf becomes in a [MailBody]. Internal so the rules in [kindOf] are directly testable. */
+    internal sealed interface PartKind {
         data class Text(val html: Boolean) : PartKind
         data class Inline(val contentId: String) : PartKind
         data object Attachment : PartKind
@@ -152,31 +155,6 @@ class AngusMailSession internal constructor(
             references = header("References")?.replace(WHITESPACE, " ")?.trim(),
             returnPath = header("Return-Path")?.trim(),
         )
-    }
-
-    private fun kindOf(part: Part): PartKind {
-        val disposition = runCatching { part.disposition?.lowercase() }.getOrNull()
-        val fileName = runCatching { part.fileName }.getOrNull()
-        val attachment = disposition == "attachment"
-        if (!attachment && fileName == null) {
-            if (part.isMimeType("text/html")) return PartKind.Text(html = true)
-            if (part.isMimeType("text/plain")) return PartKind.Text(html = false)
-        }
-        val contentId = runCatching { (part as? MimePart)?.contentID }.getOrNull()
-            ?.trim()?.removePrefix("<")?.removeSuffix(">")?.takeIf { it.isNotEmpty() }
-        if (!attachment && contentId != null && part.isMimeType("image/*") &&
-            (part.size < 0 || part.size <= INLINE_IMAGE_LIMIT)
-        ) return PartKind.Inline(contentId)
-        return PartKind.Attachment
-    }
-
-    private fun baseType(part: Part): String =
-        runCatching { ContentType(part.contentType).baseType.lowercase() }.getOrDefault("application/octet-stream")
-
-    private fun readText(part: Part): String {
-        val bytes = part.inputStream.use { it.readBytes() }
-        val charset = runCatching { ContentType(part.contentType).getParameter("charset") }.getOrNull()
-        return MailCharsets.decode(bytes, charset)
     }
 
     // --- read path -------------------------------------------------------------
@@ -293,8 +271,11 @@ class AngusMailSession internal constructor(
         for (leaf in MimeWalker.leaves(m)) {
             when (val kind = kindOf(leaf.part)) {
                 is PartKind.Text -> if (kind.html) html += readText(leaf.part) else plain += readText(leaf.part)
+                // [kindOf] only names a part inline once BODYSTRUCTURE has put it under the
+                // limit, and the same limit bounds the read: what the structure claimed and
+                // what the server then sends need not agree.
                 is PartKind.Inline -> inline[kind.contentId] =
-                    InlineImage(baseType(leaf.part), leaf.part.inputStream.use { it.readBytes() })
+                    InlineImage(baseType(leaf.part), readBounded(leaf.part, MailLimits.INLINE_IMAGE_BYTES.toInt()))
                 PartKind.Attachment -> attachments += MailAttachment(
                     partId = leaf.path,
                     fileName = TextCleaning.clean(runCatching { leaf.part.fileName }.getOrNull()).ifBlank { "attachment" },
@@ -476,14 +457,60 @@ class AngusMailSession internal constructor(
         runCatching { store.close() }
     }
 
-    private companion object {
+    internal companion object {
         // Fetched as one BODY.PEEK[HEADER.FIELDS (...)] per message, so "Return-Path" -- which
         // the receiving server writes and MailWarnings.isBounce reads -- costs no extra round
         // trip and is available to the list, not just to an opened mail.
         val SUMMARY_HEADERS =
             arrayOf("From", "Reply-To", "To", "Cc", "Subject", "Date", "Message-ID", "In-Reply-To", "References", "Return-Path")
         val WHITESPACE = Regex("\\s+")
-        /** Same cap as iOS: larger inline images are not inlined (they stay in the source view). */
-        const val INLINE_IMAGE_LIMIT = 5L * 1024 * 1024
+
+        fun kindOf(part: Part): PartKind {
+            val disposition = runCatching { part.disposition?.lowercase() }.getOrNull()
+            val fileName = runCatching { part.fileName }.getOrNull()
+            val attachment = disposition == "attachment"
+            if (!attachment && fileName == null) {
+                if (part.isMimeType("text/html")) return PartKind.Text(html = true)
+                if (part.isMimeType("text/plain")) return PartKind.Text(html = false)
+            }
+            val contentId = runCatching { (part as? MimePart)?.contentID }.getOrNull()
+                ?.trim()?.removePrefix("<")?.removeSuffix(">")?.takeIf { it.isNotEmpty() }
+            // A negative size means BODYSTRUCTURE did not say how big the part is. That used to
+            // count as inlineable, which skipped the limit altogether for exactly the parts whose
+            // size nothing had vouched for; an unknown size is now simply not small enough.
+            if (!attachment && contentId != null && part.isMimeType("image/*") &&
+                part.size in 0..MailLimits.INLINE_IMAGE_BYTES
+            ) return PartKind.Inline(contentId)
+            return PartKind.Attachment
+        }
+
+        fun baseType(part: Part): String =
+            runCatching { ContentType(part.contentType).baseType.lowercase() }.getOrDefault("application/octet-stream")
+
+        fun readText(part: Part): String {
+            val bytes = readBounded(part, MailLimits.TEXT_PART_BYTES)
+            val charset = runCatching { ContentType(part.contentType).getParameter("charset") }.getOrNull()
+            return MailCharsets.decode(bytes, charset)
+        }
+
+        /**
+         * At most [limit] bytes of [part], however much the part claims to hold (or does not claim:
+         * `BODYSTRUCTURE` need not say, and nothing makes what it says true). The body of a message
+         * is chosen entirely by whoever sent it, and reading it whole into a `ByteArrayOutputStream`
+         * first is what turns an oversized one into an `OutOfMemoryError` -- an `Error`, so the
+         * session's own `catch (e: Exception)` wrapper lets it through to the uncaught handler.
+         *
+         * Not `InputStream.readNBytes`, which needs API 33.
+         */
+        fun readBounded(part: Part, limit: Int): ByteArray = part.inputStream.use { input ->
+            val out = ByteArrayOutputStream()
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (out.size() < limit) {
+                val read = input.read(buffer, 0, minOf(buffer.size, limit - out.size()))
+                if (read < 0) break
+                out.write(buffer, 0, read)
+            }
+            out.toByteArray()
+        }
     }
 }

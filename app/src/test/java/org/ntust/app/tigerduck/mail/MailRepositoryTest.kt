@@ -74,6 +74,30 @@ class MailRepositoryTest {
         assertEquals("revisiting a mail's source must not re-download it", 1, server.rawSourceFetches)
     }
 
+    /**
+     * The source is buffered whole and then decoded into a String, so a mail near the server's
+     * own 50 MB SMTP SIZE limit would cost hundreds of megabytes before the cache's own ceiling
+     * could decline to keep it -- and an OutOfMemoryError is an Error, so nothing along this
+     * path catches it. The size the list already knows decides, before a byte is fetched.
+     */
+    @Test
+    fun `a mail over the source ceiling is refused before anything is downloaded`() = runTest {
+        val uid = server.deliver("huge", sizeBytes = MailLimits.SOURCE_BYTES + 1)
+        val repo = TestSetup(backgroundScope).signedIn()
+        repo.loadPage("INBOX", null)
+        val error = runCatching { repo.rawSource("INBOX", uid) }.exceptionOrNull()
+        assertTrue("expected TooLarge, got $error", error is MailError.TooLarge)
+        assertEquals("nothing may be fetched once it is refused", 0, server.rawSourceFetches)
+    }
+
+    @Test
+    fun `a mail exactly at the source ceiling still loads`() = runTest {
+        val uid = server.deliver("big", sizeBytes = MailLimits.SOURCE_BYTES)
+        val repo = TestSetup(backgroundScope).signedIn()
+        repo.loadPage("INBOX", null)
+        assertTrue(repo.rawSource("INBOX", uid).contains("Subject: big"))
+    }
+
     @Test
     fun `bodies come from the cache the second time`() = runTest {
         val uid = server.deliver("a")

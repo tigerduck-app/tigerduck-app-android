@@ -336,6 +336,14 @@ class MailRepository @Inject constructor(
         if (cachedValidity != null) {
             withContext(Dispatchers.IO) { cache.loadSource(folder, uid, cachedValidity) }?.let { return it }
         }
+        // Checked before a byte is fetched. The source is buffered whole and then decoded into a
+        // String, so a mail at the server's own 50 MB SMTP SIZE limit would cost ~150 MB resident
+        // before MailCache's 10 MB per-entry ceiling could decline to store it -- and an
+        // OutOfMemoryError is an Error, which neither the session's `io` nor the view model's
+        // `act` catches, so it would take the process with it. The size is the server's own
+        // RFC822.SIZE, the same number the list shows.
+        val size = summary(folder, uid)?.sizeBytes ?: 0L
+        if (size > MailLimits.SOURCE_BYTES) throw MailError.TooLarge(size, MailLimits.SOURCE_BYTES)
         val out = ByteArrayOutputStream()
         val validity = withSession { session ->
             val uidValidity = session.status(folder).uidValidity

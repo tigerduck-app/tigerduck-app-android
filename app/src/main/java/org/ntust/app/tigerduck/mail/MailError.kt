@@ -23,6 +23,8 @@ sealed class MailError(message: String, cause: Throwable? = null) : Exception(me
     class Certificate(cause: Throwable? = null) : MailError("certificate check failed", cause)
     class ServerBusy(cause: Throwable? = null) : MailError("server busy", cause)
     class SearchUnsupported(cause: Throwable? = null) : MailError("search unsupported", cause)
+    /** The mail is bigger than [MailLimits] will hold in memory at once, so it was not fetched. */
+    class TooLarge(val sizeBytes: Long, val limitBytes: Long) : MailError("message is $sizeBytes bytes, over the $limitBytes limit")
     class Protocol(message: String, cause: Throwable? = null) : MailError(message, cause)
     /** Thrown if anything tries to open a socket while the demo mailbox is active. */
     class DemoMode : MailError("demo mode never opens sockets")
