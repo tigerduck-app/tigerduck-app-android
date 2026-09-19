@@ -82,6 +82,11 @@ class ClassTableViewModel @Inject constructor(
     private val _liveSemesterCourses = MutableStateFlow<List<Course>>(emptyList())
     val liveSemesterCourses: StateFlow<List<Course>> = _liveSemesterCourses
 
+    // The term [_liveSemesterCourses] was loaded for. The live term is read
+    // off the calendar each time, so it can roll over while that list still
+    // holds the previous term's roster — see liveCoursesTerm.
+    private var liveSemesterCoursesTerm: String? = null
+
     private val _assignments = MutableStateFlow<List<Assignment>>(emptyList())
     val assignments: StateFlow<List<Assignment>> = _assignments
 
@@ -359,6 +364,19 @@ class ClassTableViewModel @Inject constructor(
             _liveSemesterCourses.value
         }
 
+    /**
+     * The term [liveCourses] actually holds, which is what a carousel card
+     * belongs to. Taken from whichever list it reads rather than recomputed
+     * from the calendar, so a term that rolls over while the view model is
+     * alive cannot pair the old roster with the new term.
+     */
+    private val liveCoursesTerm: String
+        get() = if (_currentSemester.value == liveSemesterCode) {
+            _currentSemester.value
+        } else {
+            liveSemesterCoursesTerm ?: liveSemesterCode
+        }
+
     val todayCourses: List<Course>
         get() {
             // Outside the term there is no "today" worth showing — the
@@ -382,6 +400,7 @@ class ClassTableViewModel @Inject constructor(
         } else {
             resolveCustomNames(dataCache.loadCourses(live))
         }
+        liveSemesterCoursesTerm = live
     }
 
     val activeWeekdays: List<Int>
@@ -471,7 +490,7 @@ class ClassTableViewModel @Inject constructor(
     fun selectCourse(course: Course, weekday: Int, periodId: String, fromLiveTerm: Boolean = false) {
         _selectedWeekday.value = weekday
         _selectedPeriodId.value = periodId
-        selectedCourseSemester = if (fromLiveTerm) liveSemesterCode else _currentSemester.value
+        selectedCourseSemester = if (fromLiveTerm) liveCoursesTerm else _currentSemester.value
         _selectedCourse.value = course
     }
 
