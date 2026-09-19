@@ -306,6 +306,30 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             _alwaysShowAllPeriods.value = value
         }
 
+    private val _showClassroomInClassTable =
+        MutableStateFlow(prefs.getBoolean("showClassroomInClassTable", false))
+
+    /**
+     * Observable form of [showClassroomInClassTable], for the class table,
+     * whose cells read it while the toggle lives on the Settings screen.
+     */
+    val showClassroomInClassTableFlow: StateFlow<Boolean> =
+        _showClassroomInClassTable.asStateFlow()
+
+    /**
+     * Print each course's room in the corner of its class-table cell. Off by
+     * default: the grid's job is which course, not where, and the cell is
+     * narrow enough that a second line is a deliberate trade. Device-local,
+     * like every display preference; the settings document the backend
+     * syncs does not carry it.
+     */
+    var showClassroomInClassTable: Boolean
+        get() = _showClassroomInClassTable.value
+        set(value) {
+            prefs.edit().putBoolean("showClassroomInClassTable", value).apply()
+            _showClassroomInClassTable.value = value
+        }
+
     var rememberAnnouncementFilter: Boolean
         get() = prefs.getBoolean("rememberAnnouncementFilter", false)
         set(value) = prefs.edit().putBoolean("rememberAnnouncementFilter", value).apply()
@@ -585,11 +609,12 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     /** Wipe every pref key. Used by the full-reset flow only. */
     fun clearAllPrefs() {
         prefs.edit().clear().apply()
-        // `alwaysShowAllPeriods` is the one preference read from an in-memory
-        // mirror rather than the file, so clearing the file alone leaves the
-        // class table pinned — and the Settings row reading "on" — until the
-        // next process start.
+        // `alwaysShowAllPeriods` and `showClassroomInClassTable` are read from
+        // in-memory mirrors rather than the file, so clearing the file alone
+        // leaves the class table pinned — and the Settings rows reading "on" —
+        // until the next process start.
         _alwaysShowAllPeriods.value = false
+        _showClassroomInClassTable.value = false
     }
 
     fun getString(key: String): String? = prefs.getString(key, null)

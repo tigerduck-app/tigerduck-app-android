@@ -46,6 +46,17 @@ enum class HapticScenario(
         userTunable = true,
         labelRes = R.string.haptic_scenario_class_table_long_press,
     ),
+    /**
+     * Copying the course code from the course detail dialog. Labelled with
+     * the row's own "Copy code" action, which is already translated.
+     */
+    CourseCodeCopy(
+        prefKey = "courseCodeCopy",
+        defaultStrengthPct = 60,
+        defaultDurationMs = 12,
+        userTunable = true,
+        labelRes = R.string.course_detail_copy_code,
+    ),
     FlipToLibrary(
         prefKey = "flipToLibrary",
         defaultStrengthPct = 60,

@@ -302,7 +302,12 @@ class BackgroundSyncWorker @AssistedInject constructor(
                                     classroomMap = classroomMap,
                                     moodleIdNumber = moodleByNo[courseNo]?.idnumber
                                         ?: "${r.semester}${r.courseNo}",
-                                    moodleNumericCourseId = moodleByNo[courseNo]?.id
+                                    moodleNumericCourseId = moodleByNo[courseNo]?.id,
+                                    // Carried here too: the next foreground
+                                    // merge takes this row as-is, so leaving
+                                    // them out would erase them.
+                                    dimension = CourseService.firstNonEmpty(results.map { it.dimension }),
+                                    allYear = CourseService.firstNonEmpty(results.map { it.allYear }),
                                 )
                             } else {
                                 CourseService.fallbackCourseFromMoodle(

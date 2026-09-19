@@ -5,15 +5,10 @@ package org.ntust.app.tigerduck.data.model
  * `main/` so the play and fdroid `UpdateChecker` stubs can share the type — on
  * fdroid the holding flow is permanently null, so the dialog never mounts.
  *
- * [availableVersionName] is best-effort: Play's `AppUpdateInfo` does not
- * expose a version *name*, only a versionCode, so the UI falls back to
- * displaying the versionCode when the name is unknown. Either reads as
- * "obviously newer" to the user, which is all the prompt needs to convey.
+ * Carries no version name: Play's `AppUpdateInfo` exposes only a versionCode,
+ * which is what the Later / Skip gate keys on and is meaningless to show a
+ * user, so the prompt names no version at all.
  */
 data class PendingUpdate(
     val availableVersionCode: Int,
-    val availableVersionName: String? = null,
-) {
-    /** Human-readable string for the dialog body. */
-    val displayVersion: String get() = availableVersionName ?: availableVersionCode.toString()
-}
+)

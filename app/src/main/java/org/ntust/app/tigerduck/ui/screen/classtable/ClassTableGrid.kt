@@ -42,6 +42,15 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 @Composable
 internal fun TimetableGrid(
     viewModel: ClassTableViewModel,
+    /**
+     * The collected course list, not `viewModel.courses.value`: a plain read
+     * of the StateFlow registers no dependency, so a course added into rows
+     * and days already on screen left every other input here unchanged and
+     * the grid was skipped until the next restart.
+     */
+    courses: List<Course>,
+    /** Print each course's room in its cell's corner; see [CourseRoomHint]. */
+    showRoomHints: Boolean,
     weekdays: List<Int>,
     periods: List<org.ntust.app.tigerduck.data.model.TimetablePeriod>,
     courseNosWithAssignments: Set<String>,
@@ -161,7 +170,7 @@ internal fun TimetableGrid(
                     periods.forEachIndexed { periodIndex, period ->
                         val y = cellHeight * periodIndex
 
-                        when (val role = viewModel.cellRole(periods, weekday, periodIndex)) {
+                        when (val role = ClassTableCellLayout.roleAt(courses, periods, weekday, periodIndex)) {
                             is CellRole.Empty -> {
                                 Box(
                                     modifier = Modifier
@@ -181,6 +190,13 @@ internal fun TimetableGrid(
                             is CellRole.SoloStart -> {
                                 SoloCourseCell(
                                     course = role.course,
+                                    // Solo cells only: a 衝堂 cluster splits the
+                                    // cell and leaves no corner to print in.
+                                    roomHint = if (showRoomHints) {
+                                        CourseRoomHint.room(role.course, weekday, period.id)
+                                    } else {
+                                        null
+                                    },
                                     spanCount = role.spanCount,
                                     dayColWidth = dayColWidth,
                                     cellHeight = cellHeight,

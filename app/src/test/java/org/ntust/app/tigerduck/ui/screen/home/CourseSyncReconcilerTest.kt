@@ -387,6 +387,17 @@ class CourseSyncReconcilerTest {
             CourseSyncReconciler.isFiled("1151OTHER", "CS101", "1142"))
     }
 
+    /**
+     * Moodle spells a summer term "114h", NTUST "114H". The raw compare filed
+     * every summer row under another term, so the reconcile ignored them.
+     */
+    @Test
+    fun `isFiled compares a summer term case-insensitively`() {
+        assertTrue(CourseSyncReconciler.isFiled("114hCS101", "CS101", "114H"))
+        assertTrue(CourseSyncReconciler.isFiled("114HCS101", "CS101", "114H"))
+        assertFalse(CourseSyncReconciler.isFiled("113hCS101", "CS101", "114H"))
+    }
+
     // ---- merging down from the server ----
 
     @Test
