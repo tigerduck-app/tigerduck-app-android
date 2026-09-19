@@ -351,13 +351,17 @@ class SchoolMailListViewModel @Inject constructor(
             val newest = s.messages.filter { it.folder == s.inboxFolder }.maxOfOrNull { it.uid } ?: 0L
             if (status.uidNext > newest + 1) fetchFirstPage() else checker.noteSeenByPage(status)
         } catch (e: MailError) {
-            // A rejected password still has to reach the account (spec §7.4) and a certificate
-            // failure still has to reach the user (spec §12.3) rather than being retried
-            // silently every minute -- but as a transient action failure, not as the page
-            // failing. Mail2000 caps connections and answers "server busy" under load, so one
+            // A rejected password still has to reach the account (spec §7.4) -- both paths below
+            // make that hop. Everything else is a transient action failure rather than the page
+            // failing: Mail2000 caps connections and answers "server busy" under load, so one
             // unlucky minute used to be enough to leave the header dot red for the rest of the
             // session. The refresh this poll can trigger reports its own failures itself.
-            actionFail(e)
+            //
+            // A certificate failure is the exception and stays sticky. It means the connection
+            // to the mail server could not be trusted, which on a campus network is exactly the
+            // interception case worth interrupting for, and a toast that fades after a few
+            // seconds every sixtieth second is something a user can miss indefinitely (§12.3).
+            if (e is MailError.Certificate) fail(e) else actionFail(e)
         }
     }
 

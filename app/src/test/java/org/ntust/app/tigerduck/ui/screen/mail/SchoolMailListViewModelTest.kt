@@ -212,14 +212,25 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
-    fun `a certificate failure during a poll reaches the UI instead of being swallowed`() {
+    fun `a certificate failure during a poll stays on screen instead of fading like other errors`() {
+        // Unlike a busy server, an untrusted certificate says the connection to the mail server
+        // could not be verified -- on a campus network, the interception case. A toast that
+        // fades after a few seconds, once a minute, is one a user can miss indefinitely, so
+        // this one error keeps the page in Failed (§12.3).
         repo.add("INBOX", mailSummary(1))
         vm.load()
         vm.startPolling()
         repo.statusError = MailError.Certificate()
         main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS + 1)
         main.dispatcher.scheduler.runCurrent()
-        assertTrue(vm.state.value.actionError is MailError.Certificate)
+
+        val state = vm.state.value
+        assertTrue("stays on the page", state.loadState is SchoolMailListViewModel.LoadState.Failed)
+        assertTrue(
+            (state.loadState as SchoolMailListViewModel.LoadState.Failed).error is MailError.Certificate,
+        )
+        // Not routed to the transient channel, so dismissing a toast cannot clear it.
+        assertNull(state.actionError)
         assertFalse(account.authFailed.value)
     }
 
