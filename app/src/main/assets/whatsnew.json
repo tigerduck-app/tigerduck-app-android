@@ -97,7 +97,7 @@
     "en": {
       "title": "What's new in 2.1.0",
       "highlights": [
-        "TigerSync settings screen reorganized",
+        "TigerSync settings page reorganized",
         "Notification settings sync across devices",
         "Fix the notification that never appeared when the Moodle login expired",
         "Live Updates lead time now matches the iOS version",

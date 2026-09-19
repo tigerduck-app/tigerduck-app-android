@@ -67,7 +67,8 @@ fun TabEditorScreen(
     var activeTabs by remember { mutableStateOf(appState.configuredTabs) }
 
     val allPinnable = AppFeature.pinnableFeatures.filter { feature ->
-        !feature.isLibraryRelated || appState.libraryFeatureEnabled
+        (!feature.isLibraryRelated || appState.libraryFeatureEnabled) &&
+            (!feature.isSchoolMail || appState.schoolMailVisible)
     }
 
     val availableTabs by remember(activeTabs, allPinnable) {
@@ -114,7 +115,7 @@ fun TabEditorScreen(
                 .padding(padding),
             contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp)
         ) {
-            // ── Section: 目前的 Tab ──
+            // ── Section: Current tabs ──
             item {
                 SectionHeader(title = stringResource(R.string.tab_editor_section_current_tabs))
             }
@@ -201,7 +202,7 @@ fun TabEditorScreen(
                             } // key(feature)
                         }
 
-                        // 更多 — always present, locked at bottom
+                        // More — always present, locked at bottom
                         HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
                         Row(
                             modifier = Modifier
@@ -242,7 +243,7 @@ fun TabEditorScreen(
                 )
             }
 
-            // ── Section: 其他可用的 Tab ──
+            // ── Section: Available tabs ──
             if (availableTabs.isNotEmpty()) {
                 item {
                     SectionHeader(title = stringResource(R.string.tab_editor_section_available_tabs))

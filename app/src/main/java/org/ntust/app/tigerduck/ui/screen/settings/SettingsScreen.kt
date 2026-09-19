@@ -58,6 +58,9 @@ import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
+import org.ntust.app.tigerduck.ui.screen.mail.ForgotMailPasswordLink
+import org.ntust.app.tigerduck.ui.screen.mail.MailAccountViewModel
+import org.ntust.app.tigerduck.ui.screen.mail.messageRes
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewDialog
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
@@ -74,15 +77,18 @@ fun SettingsScreen(
     onNavigateToTabEditor: () -> Unit = {},
     onNavigateToLanguagePicker: () -> Unit = {},
     onNavigateToLiveActivity: () -> Unit = {},
+    onNavigateToSchoolMailNotificationSettings: () -> Unit = {},
     onNavigateToNotificationPermissionSettings: () -> Unit = {},
     onNavigateToAssignmentReminders: () -> Unit = {},
     onNavigateToCloudSync: () -> Unit = {},
     onNavigateToLibrarySettings: () -> Unit = {},
+    onNavigateToSchoolMailSettings: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToNotificationDebug: () -> Unit = {},
     onNavigateToTriggersDebug: () -> Unit = {},
     onNavigateToServerFailureDebug: () -> Unit = {},
+    onNavigateToMailDevServerDebug: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsStateWithLifecycle()
@@ -91,6 +97,15 @@ fun SettingsScreen(
     val libLoginError by viewModel.libLoginError.collectAsStateWithLifecycle()
     val isNtustLoggedIn by viewModel.isNtustLoggedIn.collectAsStateWithLifecycle()
     val isLibraryLoggedIn by viewModel.isLibraryLoggedIn.collectAsStateWithLifecycle()
+    val mailViewModel: MailAccountViewModel = hiltViewModel()
+    val isMailSignedIn by mailViewModel.signedIn.collectAsStateWithLifecycle()
+    val mailAuthFailed by mailViewModel.authFailed.collectAsStateWithLifecycle()
+    val isMailSigningIn by mailViewModel.signingIn.collectAsStateWithLifecycle()
+    val mailError by mailViewModel.error.collectAsStateWithLifecycle()
+    var showMailLoginSheet by remember { mutableStateOf(false) }
+    LaunchedEffect(isMailSignedIn, mailAuthFailed) {
+        if (isMailSignedIn && !mailAuthFailed) showMailLoginSheet = false
+    }
 
     var showNtustLoginSheet by remember { mutableStateOf(false) }
     var showLibraryLoginSheet by remember { mutableStateOf(false) }
@@ -215,6 +230,24 @@ fun SettingsScreen(
                                 actionMinWidth = accountButtonMinWidth,
                             )
                         }
+
+                        if (viewModel.appState.schoolMailVisible) {
+                            HorizontalDivider()
+                            // Its own account (spec §7.1). A rejected password shows as
+                            // signed out so the button offers "Sign in" again.
+                            AccountRow(
+                                title = stringResource(R.string.school_mail_account_title),
+                                isLoggedIn = isMailSignedIn && !mailAuthFailed,
+                                subtitle = if (isMailSignedIn) mailViewModel.studentId else null,
+                                isLoggingIn = isMailSigningIn,
+                                onLogin = {
+                                    mailViewModel.clearError()
+                                    showMailLoginSheet = true
+                                },
+                                onLogout = { mailViewModel.signOut() },
+                                actionMinWidth = accountButtonMinWidth,
+                            )
+                        }
                     }
                 }
             }
@@ -238,7 +271,7 @@ fun SettingsScreen(
                             )
                             // Show the mode-appropriate display color but always
                             // persist the canonical (light) hex so the pair swaps
-                            // when the user toggles 顏色主題.
+                            // when the user toggles the color theme.
                             val accentPaletteDisplay = if (TigerDuckTheme.isDarkMode) {
                                 AppPreferences.themeColorsDark
                             } else {
@@ -398,6 +431,23 @@ fun SettingsScreen(
                         ) { onNavigateToAssignmentReminders() }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) { onNavigateToLiveActivity() }
+                        // School Mail's new-mail toggle and its notification
+                        // diagnostics log live behind this row, not on the
+                        // School Mail settings page — notification settings
+                        // belong with the app's other notification settings.
+                        // Gated on schoolMailVisible like every other School
+                        // Mail entry point (spec §12.5), and greyed out rather
+                        // than hidden while no mailbox is signed in: there is
+                        // nothing to set yet, but the setting is still worth
+                        // knowing about. Demo mode signs in like any other
+                        // account, so it lands on the enabled side.
+                        if (viewModel.appState.schoolMailVisible) {
+                            HorizontalDivider()
+                            SettingsLinkRow(
+                                stringResource(R.string.school_mail_notification_settings_title),
+                                enabled = isMailSignedIn,
+                            ) { onNavigateToSchoolMailNotificationSettings() }
+                        }
                         HorizontalDivider()
                         SettingsLinkRow(
                             stringResource(R.string.notification_permission_settings_nav_title)
@@ -421,6 +471,12 @@ fun SettingsScreen(
                     Column {
                         SettingsLinkRow(stringResource(R.string.settings_library_related_features)) {
                             onNavigateToLibrarySettings()
+                        }
+                        if (viewModel.appState.schoolMailVisible) {
+                            HorizontalDivider()
+                            SettingsLinkRow(stringResource(R.string.school_mail_account_title)) {
+                                onNavigateToSchoolMailSettings()
+                            }
                         }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
@@ -512,6 +568,10 @@ fun SettingsScreen(
                             HorizontalDivider()
                             SettingsLinkRow("Server failure simulation") { onNavigateToServerFailureDebug() }
                             HorizontalDivider()
+                            // Points School Mail at a non-school mail server, so the
+                            // feature can be exercised without a real school mailbox.
+                            SettingsLinkRow("Email") { onNavigateToMailDevServerDebug() }
+                            HorizontalDivider()
                             // One-shot UI surfaces (What's new, update prompt,
                             // flip-to-library first trigger) live behind here so
                             // they can be re-fired after a single dismissal.
@@ -524,6 +584,13 @@ fun SettingsScreen(
                                 onCheckedChange = {
                                     viewModel.appState.disableScreenCaptureProtection = it
                                 },
+                            )
+                            HorizontalDivider()
+                            SettingsToggleRow(
+                                label = "Show School Mail",
+                                checked = viewModel.appState.schoolMailDevEnabled,
+                                subtitle = "Release builds hide it until SCHOOL_MAIL_RELEASED is true.",
+                                onCheckedChange = { viewModel.appState.schoolMailDevEnabled = it },
                             )
                             HorizontalDivider()
                             @OptIn(ExperimentalFoundationApi::class)
@@ -587,6 +654,34 @@ fun SettingsScreen(
             loginError = libLoginError,
             onLogin = { u, p -> viewModel.loginLibrary(u, p) },
             onDismiss = { showLibraryLoginSheet = false },
+        )
+    }
+
+    if (showMailLoginSheet) {
+        // Under the debug mail-server override the server wants a whole address, not the
+        // bare ID the school takes, so the field says so and starts at the domain. The
+        // same two lines are in SchoolMailScreen's card and re-auth sheet; this is the
+        // third way into the same sign-in.
+        val mailAddressSuffix = mailViewModel.signInAddressSuffix
+        val mailPrefill = mailViewModel.signInPrefill
+        LoginSheet(
+            title = stringResource(R.string.school_mail_account_title),
+            subtitle = stringResource(R.string.school_mail_sign_in_note),
+            usernamePlaceholder = mailAddressSuffix?.let { "you$it" } ?: stringResource(R.string.sign_in_student_id),
+            passwordPlaceholder = stringResource(R.string.sign_in_password),
+            // The mail account's own ID where there is one, otherwise the stored NTUST ID
+            // and password — never the library account, and never under the debug mail
+            // server override. MailAccountViewModel.signInPrefill holds the whole rule,
+            // including the condition it exists under: nothing is ever submitted for the
+            // user. This row is the busiest of the three ways into this sign-in.
+            initialUsername = mailPrefill.username,
+            initialPassword = mailPrefill.password,
+            uppercaseInput = mailViewModel.devServer == null,
+            isLoggingIn = isMailSigningIn,
+            loginError = mailError?.let { stringResource(it.messageRes()) },
+            onLogin = { u, p -> mailViewModel.signIn(u, p) },
+            onDismiss = { showMailLoginSheet = false },
+            footer = { ForgotMailPasswordLink(browserPreference) },
         )
     }
 

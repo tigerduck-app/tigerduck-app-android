@@ -7,13 +7,14 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.mail.store.MailCredentialStore
 import org.ntust.app.tigerduck.shared.LibraryCredentialStore
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class CredentialManager @Inject constructor(@ApplicationContext context: Context) :
-    LibraryCredentialStore {
+    LibraryCredentialStore, MailCredentialStore {
 
     var isEncrypted: Boolean = false
         private set
@@ -166,6 +167,29 @@ class CredentialManager @Inject constructor(@ApplicationContext context: Context
             .remove("library_password")
             .remove("library_token")
             .remove("library_token_expiry")
+            .apply()
+    }
+
+    // ── School mail — its own account, never shared with the NTUST or library one ──
+
+    override var mailStudentId: String?
+        get() = prefs.getString("mail_student_id", null)
+        set(value) = if (value != null)
+            prefs.edit().putString("mail_student_id", value).apply()
+        else
+            prefs.edit().remove("mail_student_id").apply()
+
+    override var mailPassword: String?
+        get() = prefs.getString("mail_password", null)
+        set(value) = if (value != null)
+            prefs.edit().putString("mail_password", value).apply()
+        else
+            prefs.edit().remove("mail_password").apply()
+
+    override fun clearMailCredentials() {
+        prefs.edit()
+            .remove("mail_student_id")
+            .remove("mail_password")
             .apply()
     }
 

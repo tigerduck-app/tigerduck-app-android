@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LunchDining
+import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Mic
@@ -28,6 +29,7 @@ val AppFeature.icon: ImageVector
         AppFeature.CLASS_TABLE -> Icons.Filled.CalendarViewDay
         AppFeature.CALENDAR -> Icons.Filled.CalendarMonth
         AppFeature.ANNOUNCEMENTS -> Icons.Filled.Campaign
+        AppFeature.SCHOOL_MAIL -> Icons.Filled.Mail
         AppFeature.LIBRARY -> Icons.Filled.MenuBook
         AppFeature.SCORE -> Icons.Filled.BarChart
         AppFeature.COURSE_SELECTION -> Icons.Filled.EditNote

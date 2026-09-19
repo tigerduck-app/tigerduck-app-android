@@ -1,0 +1,37 @@
+From: office@mail.ntust.edu.tw
+To: b10000001@mail.ntust.edu.tw
+Subject: nested parts
+Date: Tue, 15 Sep 2026 19:30:00 +0800
+Message-ID: <nested-1@mail.ntust.edu.tw>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="outer"
+
+--outer
+Content-Type: multipart/alternative; boundary="middle"
+
+--middle
+Content-Type: text/plain; charset=UTF-8
+
+plain outside
+--middle
+Content-Type: multipart/related; boundary="inner"
+
+--inner
+Content-Type: text/html; charset=UTF-8
+
+<p>deep <b>html</b></p>
+--inner
+Content-Type: image/png
+Content-ID: <deep@x>
+Content-Transfer-Encoding: base64
+
+iVBORw0KGgo=
+--inner--
+--middle--
+--outer
+Content-Type: application/pdf; name="deep.pdf"
+Content-Disposition: attachment; filename="deep.pdf"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQK
+--outer--

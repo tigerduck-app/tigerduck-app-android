@@ -9,4 +9,6 @@ object NotificationChannels {
     const val BULLETINS_SILENT = "bulletins_silent"
     /** Account and sync failures the user has to act on. Server-composed copy. */
     const val SYSTEM = "system"
+    /** New mail in the school inbox. Default importance: a banner, not an alarm. */
+    const val SCHOOL_MAIL = "school_mail"
 }

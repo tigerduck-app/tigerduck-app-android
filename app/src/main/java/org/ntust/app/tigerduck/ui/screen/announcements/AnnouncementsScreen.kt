@@ -66,8 +66,10 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -335,10 +337,10 @@ private fun SearchBar(value: String, onValueChange: (String) -> Unit) {
 }
 
 /**
- * Two labeled chip rows mirroring iOS `BulletinFilterBar` — one for 處室
- * (department / org), one for 類別 (category / tag). Keeping the dimensions
- * visually separate is what tells users that the same bulletin can carry both
- * a department and one or more categories.
+ * Two labeled chip rows mirroring iOS `BulletinFilterBar` — one for the
+ * department (org) dimension, one for the category (tag) dimension. Keeping
+ * the dimensions visually separate is what tells users that the same bulletin
+ * can carry both a department and one or more categories.
  */
 @Composable
 private fun FilterSection(
@@ -413,16 +415,17 @@ private fun ChipRow(
 
 /**
  * Card layout mirrors iOS `BulletinCardView`:
- *  - Top row: unread dot, **filled accent badge for org (處室)**, importance
- *    badge, withdrawn badge, posted date.
+ *  - Top row: unread dot, **filled accent badge for the department (org)**,
+ *    importance badge, withdrawn badge, posted date.
  *  - Title row, semibold when unread.
  *  - Optional summary.
- *  - Bottom-right hashtag strip for content tags (類別).
+ *  - Bottom-right hashtag strip for content categories (tags).
  *
- * The org badge and tag strip are intentionally different visual styles so
- * 處室 reads as the primary source attribution while 類別 reads as
- * secondary metadata. The earlier mash-everything-into-one-line layout was
- * what made the user say "department is mixing with category".
+ * The department badge and the category strip are intentionally different
+ * visual styles so the department reads as the primary source attribution
+ * while the categories read as secondary metadata. The earlier
+ * mash-everything-into-one-line layout was what made the user say "department
+ * is mixing with category".
  */
 @Composable
 private fun BulletinCard(
@@ -430,14 +433,17 @@ private fun BulletinCard(
     taxonomy: TaxonomyResponse?,
     isRead: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val container = MaterialTheme.colorScheme.surfaceVariant
     val cs = MaterialTheme.colorScheme
+    // [modifier] lands on the same layout node as Surface's own clickable, so semantics set on
+    // it merge into the single card node an accessibility service focuses.
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
         color = container,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             // --- Top row: unread dot + org + importance + withdrawn + date.
@@ -467,7 +473,7 @@ private fun BulletinCard(
                     Text(
                         text = formatShortDate(it),
                         style = MaterialTheme.typography.labelSmall,
-                        color = cs.outline,
+                        color = cs.onSurfaceVariant,
                     )
                 }
             }
@@ -530,6 +536,12 @@ private fun SwipeableBulletinCard(
         if (isRead) R.string.bulletin_mark_as_unread_action
         else R.string.bulletin_mark_as_read_action
     )
+    // The same localized label the swipe icon announces. An accessibility service cannot
+    // perform a drag, and read state is functional, not decorative, so without this custom
+    // action the card's only reachable action was opening the bulletin.
+    val readActions = remember(iconDesc) {
+        listOf(CustomAccessibilityAction(iconDesc) { latestOnToggleRead(); true })
+    }
 
     Box(modifier = modifier.fillMaxWidth()) {
         val progress = (abs(swipeOffset.value) / thresholdPx).coerceIn(0f, 1f)
@@ -621,6 +633,7 @@ private fun SwipeableBulletinCard(
                 taxonomy = taxonomy,
                 isRead = isRead,
                 onClick = onClick,
+                modifier = Modifier.semantics { customActions = readActions },
             )
         }
     }
