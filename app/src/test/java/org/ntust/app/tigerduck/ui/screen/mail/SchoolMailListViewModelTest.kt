@@ -76,7 +76,7 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
-    fun `when only one of 收件匣 or 寄件備份 resolves, there is nothing to merge and the default stays 收件匣`() {
+    fun `when only one of Inbox or Sent resolves, there is nothing to merge and the default stays Inbox`() {
         repo.resolved = ResolvedFolders(mapOf(SpecialFolder.INBOX to "INBOX"), emptyList())
         repo.add("INBOX", mailSummary(1))
         vm.load()
@@ -240,7 +240,7 @@ class SchoolMailListViewModelTest {
     private fun selectAll() = vm.selectFolder(FolderSelection.AllMail)
 
     @Test
-    fun `所有信件 merges only the inbox and sent folders, newest first`() {
+    fun `All mail merges only the inbox and sent folders, newest first`() {
         repo.add("INBOX", mailSummary(1, sentAt = at(300)), mailSummary(2, sentAt = at(100)))
         repo.add(SENT, mailSummary(5, sentAt = at(200)))
         // The folders the merge deliberately leaves out: drafts, junk, trash, user folders.
@@ -276,7 +276,7 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
-    fun `a 寄件備份 row acted on through 所有信件 addresses 寄件備份, not the selected chip`() {
+    fun `a Sent row acted on through All mail addresses Sent, not the selected chip`() {
         repo.add("INBOX", mailSummary(1, sentAt = at(100)))
         repo.add(SENT, mailSummary(7, sentAt = at(200)))
         vm.load()
@@ -347,7 +347,7 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
-    fun `searching 所有信件 covers both folders and still reports a local-only fallback`() {
+    fun `searching All mail covers both folders and still reports a local-only fallback`() {
         repo.add("INBOX", mailSummary(1, subject = "期中考通知", sentAt = at(200)), mailSummary(2, subject = "other", sentAt = at(100)))
         repo.add(SENT, mailSummary(9, subject = "期中考回覆", sentAt = at(100)))
         vm.load()
@@ -364,7 +364,7 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
-    fun `所有信件 keeps checking for new mail and moving the seen marker, same as 收件匣 always did`() {
+    fun `All mail keeps checking for new mail and moving the seen marker, same as Inbox always did`() {
         // Inbox is one of the folders All mail merges, so the inbox is genuinely on screen while
         // viewing All mail -- defaulting to it must not cost the user the new-mail check or
         // silently let a notification re-fire for mail the merged list already showed.
@@ -388,7 +388,7 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
-    fun `所有信件 paints from each folder's cache before the server answers`() {
+    fun `All mail paints from each folder's cache before the server answers`() {
         repo.add("INBOX", mailSummary(1, sentAt = at(200)))
         repo.add(SENT, mailSummary(9, sentAt = at(100)))
         vm.load()
