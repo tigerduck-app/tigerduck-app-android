@@ -613,7 +613,7 @@
     <string name="school_mail_discard">Одбаци</string>
     <string name="school_mail_empty_message">У овој фасцикли нема ничега.</string>
     <string name="school_mail_empty_title">Нема порука</string>
-    <string name="school_mail_error_auth">Погрешан студентски ID или лозинка</string>
+    <string name="school_mail_error_auth">Погрешан број индекса или лозинка</string>
     <string name="school_mail_error_busy">Сервер за пошту је заузет. Покушајте поново касније.</string>
     <string name="school_mail_error_certificate">Није могуће проверити сертификат сервера за пошту. Ова мрежа можда није безбедна.</string>
     <string name="school_mail_error_generic">Дошло је до грешке са школском поштом</string>
@@ -653,7 +653,7 @@
     <string name="school_mail_no_sender">(Нема пошиљаоца)</string>
     <string name="school_mail_no_subject">(Нема теме)</string>
     <string name="school_mail_notification_settings_title">Обавештења за школску пошту</string>
-    <string name="school_mail_notification_title">Имејл:%1$@</string>
+    <string name="school_mail_notification_title">Порука: %1$@</string>
     <string name="school_mail_open">Отвори</string>
     <string name="school_mail_parse_failed">Формат ове поруке није могуће прочитати. Уместо тога приказује се изворни код.</string>
     <string name="school_mail_quote_header">Дана %1$@, %2$@ пише:</string>
@@ -676,7 +676,7 @@
     <string name="school_mail_settings_notifications">Обавештења о новим порукама</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck проверава нове поруке на сваких неколико минута, па обавештење може стићи мало касније.</string>
     <string name="school_mail_show_cc_bcc">Додај Cc/Bcc</string>
-    <string name="school_mail_sign_in_note">Ваш студентски ID и лозинка треба да буду исти као у школском систему. Ова лозинка је уједно и лозинка за кампус Wi-Fi (NTUST-PEAP); TigerDuck је чува само шифровано на овом уређају и никада је не отпрема.</string>
+    <string name="school_mail_sign_in_note">Ваш број индекса и лозинка треба да буду исти као у школском систему. Ова лозинка је уједно и лозинка за кампус Wi-Fi (NTUST-PEAP); TigerDuck је чува само шифровано на овом уређају и никада је не отпрема.</string>
     <string name="school_mail_sign_in_prompt_title">Пријавите се на школску пошту</string>
     <string name="school_mail_source_large_message">Ова порука има %1$@. Учитавање њеног изворног кода може потрошити много података.</string>
     <string name="school_mail_source_large_title">Учитати цео изворни код?</string>

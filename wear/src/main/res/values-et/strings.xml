@@ -613,7 +613,7 @@
     <string name="school_mail_discard">Loobu</string>
     <string name="school_mail_empty_message">Selles kaustas pole midagi.</string>
     <string name="school_mail_empty_title">Kirju pole</string>
-    <string name="school_mail_error_auth">Vale tudengi ID või parool</string>
+    <string name="school_mail_error_auth">Vale üliõpilase ID või parool</string>
     <string name="school_mail_error_busy">Postiserver on hõivatud. Proovi hiljem uuesti.</string>
     <string name="school_mail_error_certificate">Postiserveri sertifikaati ei õnnestunud kontrollida. See võrk ei pruugi olla turvaline.</string>
     <string name="school_mail_error_generic">Kooli e-postiga läks midagi valesti</string>
@@ -622,7 +622,7 @@
     <string name="school_mail_external_badge">Väline</string>
     <string name="school_mail_folder_all">Kogu e-post</string>
     <string name="school_mail_folder_drafts">Mustandid</string>
-    <string name="school_mail_folder_inbox">Saabunud</string>
+    <string name="school_mail_folder_inbox">Postkast</string>
     <string name="school_mail_folder_junk">Rämpspost</string>
     <string name="school_mail_folder_more">Rohkem…</string>
     <string name="school_mail_folder_sent">Saadetud</string>
@@ -653,7 +653,7 @@
     <string name="school_mail_no_sender">(Saatja puudub)</string>
     <string name="school_mail_no_subject">(Teema puudub)</string>
     <string name="school_mail_notification_settings_title">Kooli e-posti teavitused</string>
-    <string name="school_mail_notification_title">E-post:%1$@</string>
+    <string name="school_mail_notification_title">Kiri: %1$@</string>
     <string name="school_mail_open">Ava</string>
     <string name="school_mail_parse_failed">Selle kirja vormingut ei õnnestunud lugeda. Selle asemel kuvatakse lähtekoodi.</string>
     <string name="school_mail_quote_header">%1$@, %2$@ kirjutas:</string>
@@ -676,7 +676,7 @@
     <string name="school_mail_settings_notifications">Uue kirja teavitused</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck kontrollib uusi kirju iga paari minuti tagant, seega teavitus võib saabuda pisut hiljem.</string>
     <string name="school_mail_show_cc_bcc">Lisa Cc/Bcc</string>
-    <string name="school_mail_sign_in_note">Sinu tudengi ID ja parool peaksid olema samad, mis koolisüsteemis. See parool on ühtlasi ka kampuse Wi-Fi (NTUST-PEAP) parool; TigerDuck hoiab seda ainult krüpteeritult selles seadmes ega laadi seda kunagi üles.</string>
+    <string name="school_mail_sign_in_note">Sinu üliõpilase ID ja parool peaksid olema samad, mis koolisüsteemis. See parool on ühtlasi ka kampuse Wi-Fi (NTUST-PEAP) parool; TigerDuck hoiab seda ainult krüpteeritult selles seadmes ega laadi seda kunagi üles.</string>
     <string name="school_mail_sign_in_prompt_title">Logi sisse kooli e-posti</string>
     <string name="school_mail_source_large_message">Selle kirja suurus on %1$@. Selle lähtekoodi laadimine võib kulutada palju andmemahtu.</string>
     <string name="school_mail_source_large_title">Kas laadida kogu lähtekood?</string>

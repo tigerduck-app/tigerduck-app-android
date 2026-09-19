@@ -613,7 +613,7 @@
     <string name="school_mail_discard">Zavrzi</string>
     <string name="school_mail_empty_message">V tej mapi ni ničesar.</string>
     <string name="school_mail_empty_title">Ni sporočil</string>
-    <string name="school_mail_error_auth">Napačen študentski ID ali geslo</string>
+    <string name="school_mail_error_auth">Napačna študentska številka ali geslo</string>
     <string name="school_mail_error_busy">Poštni strežnik je zaseden. Poskusite znova pozneje.</string>
     <string name="school_mail_error_certificate">Ni bilo mogoče preveriti certifikata poštnega strežnika. To omrežje morda ni varno.</string>
     <string name="school_mail_error_generic">Pri šolski pošti je prišlo do napake</string>
@@ -653,7 +653,7 @@
     <string name="school_mail_no_sender">(Ni pošiljatelja)</string>
     <string name="school_mail_no_subject">(Ni zadeve)</string>
     <string name="school_mail_notification_settings_title">Obvestila šolske pošte</string>
-    <string name="school_mail_notification_title">E-pošta:%1$@</string>
+    <string name="school_mail_notification_title">Sporočilo: %1$@</string>
     <string name="school_mail_open">Odpri</string>
     <string name="school_mail_parse_failed">Oblike tega sporočila ni bilo mogoče prebrati. Namesto tega je prikazana izvorna koda.</string>
     <string name="school_mail_quote_header">Dne %1$@, %2$@ piše:</string>
@@ -676,7 +676,7 @@
     <string name="school_mail_settings_notifications">Obvestila o novih sporočilih</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck preveri novo pošto vsakih nekaj minut, zato lahko obvestilo prispe malo pozneje.</string>
     <string name="school_mail_show_cc_bcc">Dodaj Cc/Bcc</string>
-    <string name="school_mail_sign_in_note">Vaš študentski ID in geslo morata biti enaka kot v šolskem sistemu. To geslo je tudi geslo za kampusni Wi-Fi (NTUST-PEAP); TigerDuck ga shrani šifrirano samo na tej napravi in ga nikoli ne naloži v splet.</string>
+    <string name="school_mail_sign_in_note">Vaša študentska številka in geslo morata biti enaka kot v šolskem sistemu. To geslo je tudi geslo za kampusni Wi-Fi (NTUST-PEAP); TigerDuck ga shrani šifrirano samo na tej napravi in ga nikoli ne naloži v splet.</string>
     <string name="school_mail_sign_in_prompt_title">Prijavite se v šolsko pošto</string>
     <string name="school_mail_source_large_message">To sporočilo ima %1$@. Nalaganje njegove izvorne kode lahko porabi veliko podatkov.</string>
     <string name="school_mail_source_large_title">Naložim celotno izvorno kodo?</string>

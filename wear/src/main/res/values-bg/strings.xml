@@ -653,7 +653,7 @@
     <string name="school_mail_no_sender">(Няма подател)</string>
     <string name="school_mail_no_subject">(Няма тема)</string>
     <string name="school_mail_notification_settings_title">Известия за училищната поща</string>
-    <string name="school_mail_notification_title">Имейл:%1$@</string>
+    <string name="school_mail_notification_title">Имейл: %1$@</string>
     <string name="school_mail_open">Отвори</string>
     <string name="school_mail_parse_failed">Форматът на този имейл не можа да бъде разчетен. Вместо това се показва изходният код.</string>
     <string name="school_mail_quote_header">На %1$@, %2$@ написа:</string>

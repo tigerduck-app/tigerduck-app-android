@@ -613,7 +613,7 @@
     <string name="school_mail_discard">Odbaci</string>
     <string name="school_mail_empty_message">U ovoj mapi nema ničega.</string>
     <string name="school_mail_empty_title">Nema poruka</string>
-    <string name="school_mail_error_auth">Pogrešan studentski ID ili lozinka</string>
+    <string name="school_mail_error_auth">Pogrešan studentski broj ili lozinka</string>
     <string name="school_mail_error_busy">Poslužitelj pošte je zauzet. Pokušajte ponovno kasnije.</string>
     <string name="school_mail_error_certificate">Nije moguće provjeriti certifikat poslužitelja pošte. Ova mreža možda nije sigurna.</string>
     <string name="school_mail_error_generic">Nešto je pošlo po zlu sa školskom poštom</string>
@@ -621,7 +621,7 @@
     <string name="school_mail_exact_alarm_hint">Dopustite točne alarme kako bi TigerDuck mogao na vrijeme provjeravati poštu.</string>
     <string name="school_mail_external_badge">Vanjski</string>
     <string name="school_mail_folder_all">Sva pošta</string>
-    <string name="school_mail_folder_drafts">Nacrti</string>
+    <string name="school_mail_folder_drafts">Skice</string>
     <string name="school_mail_folder_inbox">Dolazna pošta</string>
     <string name="school_mail_folder_junk">Neželjena pošta</string>
     <string name="school_mail_folder_more">Više…</string>
@@ -637,7 +637,7 @@
     <string name="school_mail_guide_placeholder">Upute uskoro stižu.</string>
     <string name="school_mail_invalid_recipients">Provjerite ove adrese: %1$@</string>
     <string name="school_mail_keep_editing">Nastavi uređivanje</string>
-    <string name="school_mail_leave_title">Spremiti ovu poruku kao nacrt?</string>
+    <string name="school_mail_leave_title">Spremiti ovu poruku kao skicu?</string>
     <string name="school_mail_link_host">Vodi na %1$@</string>
     <string name="school_mail_link_insecure">Ova poveznica nije šifrirana.</string>
     <string name="school_mail_link_mismatch">Tekst poveznice prikazuje %1$@, no zapravo vodi na %2$@.</string>
@@ -653,7 +653,7 @@
     <string name="school_mail_no_sender">(Nema pošiljatelja)</string>
     <string name="school_mail_no_subject">(Nema predmeta)</string>
     <string name="school_mail_notification_settings_title">Obavijesti školske pošte</string>
-    <string name="school_mail_notification_title">E-pošta:%1$@</string>
+    <string name="school_mail_notification_title">Poruka: %1$@</string>
     <string name="school_mail_open">Otvori</string>
     <string name="school_mail_parse_failed">Format ove poruke nije moguće pročitati. Umjesto toga prikazuje se izvorni kod.</string>
     <string name="school_mail_quote_header">Dana %1$@, %2$@ piše:</string>
@@ -662,7 +662,7 @@
     <string name="school_mail_reply_all">Odgovori svima</string>
     <string name="school_mail_risky_message">%1$@ bi mogao naštetiti vašem uređaju. Nastavite samo ako vjerujete pošiljatelju.</string>
     <string name="school_mail_risky_title">Otvoriti ovaj privitak?</string>
-    <string name="school_mail_save_draft">Spremi nacrt</string>
+    <string name="school_mail_save_draft">Spremi skicu</string>
     <string name="school_mail_saved">Spremljeno</string>
     <string name="school_mail_search_local_only">Poslužitelj ne podržava ovu pretragu. Prikazuju se rezultati samo iz učitanih poruka.</string>
     <string name="school_mail_search_prompt">Pretraži poštu</string>
@@ -676,7 +676,7 @@
     <string name="school_mail_settings_notifications">Obavijesti o novim porukama</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck provjerava novu poštu svakih nekoliko minuta, pa obavijest može stići malo kasnije.</string>
     <string name="school_mail_show_cc_bcc">Dodaj Cc/Bcc</string>
-    <string name="school_mail_sign_in_note">Vaš studentski ID i lozinka trebaju biti isti kao u školskom sustavu. Ta je lozinka ujedno i lozinka za kampus Wi-Fi (NTUST-PEAP); TigerDuck je pohranjuje samo šifrirano na ovom uređaju i nikada je ne učitava.</string>
+    <string name="school_mail_sign_in_note">Vaš studentski broj i lozinka trebaju biti isti kao u školskom sustavu. Ta je lozinka ujedno i lozinka za kampus Wi-Fi (NTUST-PEAP); TigerDuck je pohranjuje samo šifrirano na ovom uređaju i nikada je ne učitava.</string>
     <string name="school_mail_sign_in_prompt_title">Prijavite se u školsku poštu</string>
     <string name="school_mail_source_large_message">Ova poruka ima %1$@. Učitavanje njezinog izvornog koda može potrošiti puno podataka.</string>
     <string name="school_mail_source_large_title">Učitati cijeli izvorni kod?</string>

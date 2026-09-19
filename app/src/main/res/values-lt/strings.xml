@@ -653,7 +653,7 @@
     <string name="school_mail_no_sender">(Nėra siuntėjo)</string>
     <string name="school_mail_no_subject">(Nėra temos)</string>
     <string name="school_mail_notification_settings_title">Mokyklos pašto pranešimai</string>
-    <string name="school_mail_notification_title">El. paštas:%1$@</string>
+    <string name="school_mail_notification_title">Laiškas: %1$@</string>
     <string name="school_mail_open">Atidaryti</string>
     <string name="school_mail_parse_failed">Nepavyko atpažinti šio laiško formato. Rodomas jo pirminis kodas.</string>
     <string name="school_mail_quote_header">%1$@, %2$@ rašė:</string>

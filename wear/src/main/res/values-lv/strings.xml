@@ -653,7 +653,7 @@
     <string name="school_mail_no_sender">(Nav sūtītāja)</string>
     <string name="school_mail_no_subject">(Nav tēmas)</string>
     <string name="school_mail_notification_settings_title">Skolas pasta paziņojumi</string>
-    <string name="school_mail_notification_title">E-pasts:%1$@</string>
+    <string name="school_mail_notification_title">Vēstule: %1$@</string>
     <string name="school_mail_open">Atvērt</string>
     <string name="school_mail_parse_failed">Neizdevās nolasīt šīs vēstules formātu. Tā vietā tiek rādīts tās pirmkods.</string>
     <string name="school_mail_quote_header">%1$@, %2$@ rakstīja:</string>
