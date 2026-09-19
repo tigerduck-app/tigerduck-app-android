@@ -48,9 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -65,6 +63,8 @@ import androidx.core.net.toUri
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.util.formatCredits
 
@@ -90,7 +90,6 @@ internal fun CourseDetailDialog(
     // and group chats, so the row that shows it also hands it over.
     val context = LocalContext.current
     val view = LocalView.current
-    val haptics = LocalHapticFeedback.current
     val codeCopiedMessage = stringResource(R.string.course_detail_code_copied)
     var copyCount by remember { mutableIntStateOf(0) }
     var codeCopied by remember { mutableStateOf(false) }
@@ -105,7 +104,9 @@ internal fun CourseDetailDialog(
     val copyCourseCode: () -> Unit = {
         context.getSystemService(ClipboardManager::class.java)
             ?.setPrimaryClip(ClipData.newPlainText("course_no", course.courseNo))
-        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+        // Through the app's own scenario, like every other haptic here, so
+        // the Settings → Vibration sliders govern it too.
+        Haptics.perform(context, HapticScenario.CourseCodeCopy)
         // The checkmark and the haptic are both invisible to TalkBack.
         @Suppress("DEPRECATION")
         view.announceForAccessibility(codeCopiedMessage)

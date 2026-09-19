@@ -10,8 +10,11 @@ class HapticsTest {
     @Test
     fun `tunable filter excludes library warning`() {
         val tunable = HapticScenario.tunable
-        assertEquals(6, tunable.size)
+        assertEquals(7, tunable.size)
         assertFalse(HapticScenario.LibraryWarning in tunable)
+        // Goes through the same per-scenario sliders as every other haptic,
+        // so muting them in Settings → Vibration silences the copy too.
+        assertTrue(HapticScenario.CourseCodeCopy in tunable)
     }
 
     @Test
