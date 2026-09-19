@@ -291,8 +291,8 @@ internal fun SettingsPickerRow(
             .fillMaxWidth()
             // `heightIn` (not `height`) so a long label that wraps to two
             // lines can grow the row instead of getting its descenders
-            // clipped — e.g. Mandarin labels like "中文教室名稱顯示方式"
-            // are tall enough to need the extra room.
+            // clipped — Mandarin labels are tall enough to need the extra
+            // room.
             .heightIn(min = SettingRowHeight)
             .clickable { expanded = true }
             .padding(horizontal = 16.dp, vertical = 8.dp),

@@ -115,7 +115,7 @@ object MailWarnings {
      * from our own side of the delivery, unlike the `From` display name ("Mail Deliver System"),
      * which any sender can type. It is the one signal here worth treating as a bounce marker.
      *
-     * Availability, per site: the list needs it too (it draws the 校外 badge), and it has it —
+     * Availability, per site: the list needs it too (it draws the External badge), and it has it —
      * [org.ntust.app.tigerduck.mail.imap.AngusMailSession] fetches an explicit `HEADER.FIELDS`
      * set per message rather than the IMAP ENVELOPE, so `Return-Path` is simply one more name on
      * that list and costs no extra round trip. It rides along in `MailSummary`, and therefore in
@@ -132,7 +132,7 @@ object MailWarnings {
      *
      * [bounce] is the single exemption, and it deliberately reverses what this used to say. A
      * Mail2000 delivery failure arrives as `From: "Mail Deliver System" <MAILER-DAEMON>` — a
-     * bare local part with no domain — so it was badged 校外 even though it came from the
+     * bare local part with no domain — so it was badged External even though it came from the
      * school's own mail system. That is wrong on its face and teaches people to ignore the
      * badge. Callers decide with [isBounce], i.e. from `Return-Path: <>`, which the receiving
      * server sets, never from the display name.
@@ -151,7 +151,7 @@ object MailWarnings {
         return !isSchoolDomain(domain)
     }
 
-    /** What the two 校外 badge sites ask: [isExternal] with the [isBounce] exemption already applied. */
+    /** What the two External-badge sites ask: [isExternal] with the [isBounce] exemption already applied. */
     fun isExternalSender(from: MailAddress?, returnPath: String?): Boolean =
         isExternal(from?.address, isBounce(returnPath))
 

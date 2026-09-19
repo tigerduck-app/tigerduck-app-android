@@ -90,7 +90,7 @@ class MailWarningsTest {
     @Test
     fun `a Mail2000 bounce is not marked 校外`() {
         // From: "Mail Deliver System" <MAILER-DAEMON> -- no domain -- but Return-Path: <> says the
-        // receiving server generated it, so badging it 校外 was simply wrong.
+        // receiving server generated it, so badging it External was simply wrong.
         val daemon = MailAddress("Mail Deliver System", "")
         assertFalse(MailWarnings.isExternalSender(daemon, "<>"))
         assertTrue("without the header it is judged exactly as before", MailWarnings.isExternalSender(daemon, null))

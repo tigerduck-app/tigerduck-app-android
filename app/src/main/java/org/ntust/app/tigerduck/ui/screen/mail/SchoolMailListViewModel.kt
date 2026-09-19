@@ -38,7 +38,7 @@ class SchoolMailListViewModel @Inject constructor(
         data class Failed(val error: MailError) : LoadState
     }
 
-    /** [kind] is null for 所有信件, which is no server folder and so has no [SpecialFolder]. */
+    /** [kind] is null for All mail, which is no server folder and so has no [SpecialFolder]. */
     data class FolderChip(val selection: FolderSelection, val kind: SpecialFolder?) {
         val key: String get() = kind?.name ?: "all"
     }
@@ -47,13 +47,13 @@ class SchoolMailListViewModel @Inject constructor(
         val chips: List<FolderChip> = emptyList(),
         val others: List<String> = emptyList(),
         /**
-         * Defaults to 所有信件: it is not a real folder name, so this can never spuriously match
+         * Defaults to All mail: it is not a real folder name, so this can never spuriously match
          * a chip [load] resolves and get "kept" by accident (see [load]'s `keep`) -- it only ever
          * survives past the first [load] when the merge actually exists. When it doesn't, `keep`
-         * falls through to the real 收件匣 folder, same as before 所有信件 existed.
+         * falls through to the real Inbox folder, same as before All mail existed.
          */
         val selected: FolderSelection = FolderSelection.AllMail,
-        /** The server names of the folders 所有信件 merges. Empty until [load] has resolved them. */
+        /** The server names of the folders All mail merges. Empty until [load] has resolved them. */
         val mergedFolders: List<String> = emptyList(),
         val messages: List<MailRow> = emptyList(),
         val loadState: LoadState = LoadState.Idle,
@@ -79,23 +79,23 @@ class SchoolMailListViewModel @Inject constructor(
         fun kindOf(folder: String): SpecialFolder? =
             chips.firstOrNull { (it.selection as? FolderSelection.Real)?.name == folder }?.kind
 
-        /** The resolved server name behind the 收件匣 chip, or null before [load] has resolved it. */
+        /** The resolved server name behind the Inbox chip, or null before [load] has resolved it. */
         val inboxFolder: String?
             get() = (chips.firstOrNull { it.kind == SpecialFolder.INBOX }?.selection as? FolderSelection.Real)?.name
 
         /**
-         * True whenever the inbox's own mail is genuinely on screen: viewing 收件匣 directly, or
-         * viewing 所有信件, which always merges 收件匣 in whenever it exists as a chip at all (see
+         * True whenever the inbox's own mail is genuinely on screen: viewing Inbox directly, or
+         * viewing All mail, which always merges Inbox in whenever it exists as a chip at all (see
          * [FolderSelection.AllMail.MERGED] and the `merged.size > 1` guard in [load]). Everything
          * that used to read "only do this for the inbox" -- new-mail polling, moving the
-         * notification seen marker -- reads this instead, so defaulting to 所有信件 costs the user
+         * notification seen marker -- reads this instead, so defaulting to All mail costs the user
          * none of that.
          */
         val inboxInView: Boolean get() = selectedKind == SpecialFolder.INBOX || selected == FolderSelection.AllMail
 
         /**
          * The real folders the current selection reads. Every repository call goes through this,
-         * so no synthetic name can reach the server: 所有信件 resolves to the folders it merges,
+         * so no synthetic name can reach the server: All mail resolves to the folders it merges,
          * and a selection that resolves to nothing simply reads nothing.
          */
         val targets: List<String>
@@ -130,12 +130,12 @@ class SchoolMailListViewModel @Inject constructor(
                 val real = SpecialFolder.entries.mapNotNull { kind ->
                     folders.nameOf(kind)?.let { FolderChip(FolderSelection.Real(it), kind) }
                 }
-                // 所有信件 only earns a chip when there are at least two folders to merge;
+                // All mail only earns a chip when there are at least two folders to merge;
                 // otherwise it would just be a second name for the one that resolved. It leads
                 // the row -- it is the default view, not an extra one tacked on at the end.
                 val chips = if (merged.size > 1) listOf(FolderChip(FolderSelection.AllMail, null)) + real else real
-                // Fallback once 所有信件 isn't available (or the previous selection no longer
-                // resolves): the real 收件匣 folder, same as the default before 所有信件 existed.
+                // Fallback once All mail isn't available (or the previous selection no longer
+                // resolves): the real Inbox folder, same as the default before All mail existed.
                 val inbox = FolderSelection.Real(folders.nameOf(SpecialFolder.INBOX) ?: "INBOX")
                 val current = _state.value.selected
                 val keep = when {
@@ -185,7 +185,7 @@ class SchoolMailListViewModel @Inject constructor(
     }
 
     /**
-     * Acts on [row]'s own folder, never on [UiState.selected]: in 所有信件 the selected chip is
+     * Acts on [row]'s own folder, never on [UiState.selected]: in All mail the selected chip is
      * not a folder at all, and the row next to this one may well live somewhere else.
      */
     fun toggleRead(row: MailRow) {
@@ -236,9 +236,9 @@ class SchoolMailListViewModel @Inject constructor(
 
     /**
      * Exactly one page per real folder the selection covers: one round trip for a normal folder,
-     * two for 所有信件, however far the merged list has already been scrolled. That bound is the
+     * two for All mail, however far the merged list has already been scrolled. That bound is the
      * reason the merged view refreshes only the newest page per folder -- Mail2000 caps
-     * connections and starts answering 「伺服器忙線中」 under load.
+     * connections and starts answering "server busy" under load.
      */
     private suspend fun fetchFirstPage() {
         val selection = _state.value.selected
@@ -249,8 +249,8 @@ class SchoolMailListViewModel @Inject constructor(
             val pages = targets.map { folder -> folder to repository.loadPage(folder, null) }
             if (_state.value.selected != selection) return
             _state.update { it.copy(messages = rowsOf(selection, pages), cursors = cursorsOf(pages), loadState = LoadState.Loaded) }
-            // Was "only for 收件匣 itself"; 所有信件 shows the inbox's own mail too, so it must
-            // move the notification seen marker exactly as viewing 收件匣 always did.
+            // Was "only for Inbox itself"; All mail shows the inbox's own mail too, so it must
+            // move the notification seen marker exactly as viewing Inbox always did.
             if (_state.value.inboxInView) {
                 runCatching { checker.noteSeenByPage(repository.inboxStatus()) }
             }
@@ -318,10 +318,10 @@ class SchoolMailListViewModel @Inject constructor(
     }
 
     /**
-     * Runs whenever the inbox's own mail is in view -- 收件匣 itself, or 所有信件 merging it in
+     * Runs whenever the inbox's own mail is in view -- Inbox itself, or All mail merging it in
      * (see [UiState.inboxInView]) -- every other real selection refreshes on pull-to-refresh
      * instead. [newest] is read from the inbox's own rows specifically, not [UiState.messages] as
-     * a whole: in 所有信件, messages also holds 寄件備份 rows, whose UIDs live in a completely
+     * a whole: in All mail, messages also holds Sent rows, whose UIDs live in a completely
      * unrelated namespace and would otherwise skew the "did the inbox actually grow" check.
      */
     private suspend fun poll() {
@@ -353,7 +353,7 @@ class SchoolMailListViewModel @Inject constructor(
     /**
      * A merged view is ordered by date, because the folders' UID spaces say nothing about each
      * other. A single folder is left exactly as the server returned it, so nothing about the
-     * existing lists changes just because 所有信件 exists.
+     * existing lists changes just because All mail exists.
      */
     private fun ordered(selection: FolderSelection, rows: List<MailRow>): List<MailRow> =
         if (selection is FolderSelection.AllMail) rows.sortedWith(NEWEST_FIRST) else rows

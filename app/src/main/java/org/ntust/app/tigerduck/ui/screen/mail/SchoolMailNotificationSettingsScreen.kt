@@ -1,13 +1,14 @@
-// 校園信箱通知 — School Mail's notification settings, reached from Settings →
-// 通知 rather than from the School Mail settings page. The new-mail toggle,
-// its hint, the exact-alarm gap warning and the 通知診斷 log were MOVED here
-// out of SchoolMailSettingsScreen, not copied: this is the one place in the
-// app the toggle lives, so there is no second copy to disagree with it.
+// The "School Mail notifications" page, reached from Settings → Notifications
+// rather than from the School Mail settings page. The new-mail toggle, its
+// hint, the exact-alarm gap warning and the notification diagnostics log were
+// MOVED here out of SchoolMailSettingsScreen, not copied: this is the one
+// place in the app the toggle lives, so there is no second copy to disagree
+// with it.
 //
 // It shares SchoolMailSettingsViewModel with SchoolMailSettingsScreen, which
-// keeps 寄件者顯示名稱. Both are thin readers/writers of the same
-// MailStateStore, so the toggle keeps exactly the scheduling side effects it
-// had before the move (MailBackgroundScheduler schedule/cancel).
+// keeps the "Name shown to recipients" field. Both are thin readers/writers of
+// the same MailStateStore, so the toggle keeps exactly the scheduling side
+// effects it had before the move (MailBackgroundScheduler schedule/cancel).
 //
 // iOS carries the same page with the same contents in the same order.
 

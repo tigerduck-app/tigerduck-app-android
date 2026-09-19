@@ -85,7 +85,7 @@ fun MoreScreen(navController: NavController, appState: AppState) {
             }
         }
 
-        // 頁面 section (first section)
+        // Pages section (first section)
         item { SectionHeader(title = stringResource(R.string.more_section_pages)) }
         item {
             FeatureGrid(

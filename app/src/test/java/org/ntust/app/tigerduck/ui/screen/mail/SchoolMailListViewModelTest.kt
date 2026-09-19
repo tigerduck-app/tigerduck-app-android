@@ -63,15 +63,15 @@ class SchoolMailListViewModelTest {
             ),
             s.chips.map { it.selection },
         )
-        // 所有信件 is the one chip with no SpecialFolder behind it -- there is no such server folder.
+        // All mail is the one chip with no SpecialFolder behind it -- there is no such server folder.
         assertNull(s.chips.single { it.selection == FolderSelection.AllMail }.kind)
-        // 所有信件 leads the row, and it is also what the screen opens on.
+        // All mail leads the row, and it is also what the screen opens on.
         assertEquals(FolderSelection.AllMail, s.selected)
         assertEquals(listOf("Moodle 課程討論區"), s.others)
         assertEquals(listOf(3L, 2L, 1L), s.displayed.map { it.uid })
         assertTrue(s.loadState is SchoolMailListViewModel.LoadState.Loaded)
-        // The inbox is part of 所有信件's merge, so opening on it still moves the seen marker --
-        // defaulting to 所有信件 must not cost the user the new-mail check.
+        // The inbox is part of All mail's merge, so opening on it still moves the seen marker --
+        // defaulting to All mail must not cost the user the new-mail check.
         assertEquals(4L, state.inboxSeenUidNext)
     }
 
@@ -233,7 +233,7 @@ class SchoolMailListViewModelTest {
         assertEquals(SchoolMailListViewModel.UiState(), vm.state.value)
     }
 
-    // --- 所有信件 ------------------------------------------------------------------------
+    // --- All mail ------------------------------------------------------------------------
 
     private fun at(millis: Long) = Instant.ofEpochMilli(millis)
 
@@ -257,7 +257,7 @@ class SchoolMailListViewModelTest {
 
     @Test
     fun `the same UID in two folders is two separate rows, and acting on one leaves the other alone`() {
-        // UIDs are unique only within a folder: 收件匣 and 寄件備份 both holding a UID 42 is
+        // UIDs are unique only within a folder: Inbox and Sent both holding a UID 42 is
         // ordinary, and a list keyed by UID alone would collapse them into one row.
         repo.add("INBOX", mailSummary(42, subject = "收到的", sentAt = at(200)))
         repo.add(SENT, mailSummary(42, subject = "寄出的", sentAt = at(100)))
@@ -292,7 +292,7 @@ class SchoolMailListViewModelTest {
 
     @Test
     fun `no repository call in the merged view is ever given a folder the server does not have`() {
-        // 所有信件 has no server-side existence at all -- a synthetic name reaching an IMAP
+        // All mail has no server-side existence at all -- a synthetic name reaching an IMAP
         // SELECT is the failure this whole design exists to make unrepresentable.
         repo.pageSize = 1
         repo.add("INBOX", mailSummary(1, subject = "期中考", sentAt = at(100)), mailSummary(2, sentAt = at(400)))
@@ -365,8 +365,8 @@ class SchoolMailListViewModelTest {
 
     @Test
     fun `所有信件 keeps checking for new mail and moving the seen marker, same as 收件匣 always did`() {
-        // 收件匣 is one of the folders 所有信件 merges, so the inbox is genuinely on screen while
-        // viewing 所有信件 -- defaulting to it must not cost the user the new-mail check or
+        // Inbox is one of the folders All mail merges, so the inbox is genuinely on screen while
+        // viewing All mail -- defaulting to it must not cost the user the new-mail check or
         // silently let a notification re-fire for mail the merged list already showed.
         repo.add("INBOX", mailSummary(1, sentAt = at(100)))
         repo.add(SENT, mailSummary(9, sentAt = at(200)))
@@ -383,7 +383,7 @@ class SchoolMailListViewModelTest {
 
         assertTrue(repo.statusCalls > statusCallsAfterLoad)
         assertEquals(3L, state.inboxSeenUidNext)
-        // The merged list itself picked up the new inbox mail, same as 收件匣 always refreshed.
+        // The merged list itself picked up the new inbox mail, same as Inbox always refreshed.
         assertEquals(listOf("INBOX" to 2L, SENT to 9L, "INBOX" to 1L), vm.state.value.messages.map { it.folder to it.uid })
     }
 

@@ -172,7 +172,7 @@ class SchoolMailMessageViewModel @Inject constructor(
         // Notification ids are derived from the UID alone, and only the inbox ever posts one.
         // A UID is unique only within its folder, so cancelling from anywhere else would clear
         // the notification of a different, unread inbox mail that happens to share the number --
-        // reachable from 寄件備份 directly, and one tap away in 所有信件.
+        // reachable from Sent directly, and one tap away in All mail.
         if (_state.value.folderKind == SpecialFolder.INBOX) notifier.cancelMessage(uid)
         if (!summary.flags.seen) {
             try {

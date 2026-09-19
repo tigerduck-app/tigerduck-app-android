@@ -270,7 +270,7 @@ fun SettingsScreen(
                             )
                             // Show the mode-appropriate display color but always
                             // persist the canonical (light) hex so the pair swaps
-                            // when the user toggles 顏色主題.
+                            // when the user toggles the color theme.
                             val accentPaletteDisplay = if (TigerDuckTheme.isDarkMode) {
                                 AppPreferences.themeColorsDark
                             } else {
@@ -430,13 +430,13 @@ fun SettingsScreen(
                         ) { onNavigateToAssignmentReminders() }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.live_activity_channel_name)) { onNavigateToLiveActivity() }
-                        // School Mail's new-mail toggle and its 通知診斷 log
-                        // live behind this row, not on the School Mail
-                        // settings page — notification settings belong with
-                        // the app's other notification settings. Gated on
-                        // schoolMailVisible like every other School Mail entry
-                        // point (spec §12.5), and greyed out rather than
-                        // hidden while no mailbox is signed in: there is
+                        // School Mail's new-mail toggle and its notification
+                        // diagnostics log live behind this row, not on the
+                        // School Mail settings page — notification settings
+                        // belong with the app's other notification settings.
+                        // Gated on schoolMailVisible like every other School
+                        // Mail entry point (spec §12.5), and greyed out rather
+                        // than hidden while no mailbox is signed in: there is
                         // nothing to set yet, but the setting is still worth
                         // knowing about. Demo mode signs in like any other
                         // account, so it lands on the enabled side.

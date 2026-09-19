@@ -335,10 +335,10 @@ private fun SearchBar(value: String, onValueChange: (String) -> Unit) {
 }
 
 /**
- * Two labeled chip rows mirroring iOS `BulletinFilterBar` — one for 處室
- * (department / org), one for 類別 (category / tag). Keeping the dimensions
- * visually separate is what tells users that the same bulletin can carry both
- * a department and one or more categories.
+ * Two labeled chip rows mirroring iOS `BulletinFilterBar` — one for the
+ * department (org) dimension, one for the category (tag) dimension. Keeping
+ * the dimensions visually separate is what tells users that the same bulletin
+ * can carry both a department and one or more categories.
  */
 @Composable
 private fun FilterSection(
@@ -413,16 +413,17 @@ private fun ChipRow(
 
 /**
  * Card layout mirrors iOS `BulletinCardView`:
- *  - Top row: unread dot, **filled accent badge for org (處室)**, importance
- *    badge, withdrawn badge, posted date.
+ *  - Top row: unread dot, **filled accent badge for the department (org)**,
+ *    importance badge, withdrawn badge, posted date.
  *  - Title row, semibold when unread.
  *  - Optional summary.
- *  - Bottom-right hashtag strip for content tags (類別).
+ *  - Bottom-right hashtag strip for content categories (tags).
  *
- * The org badge and tag strip are intentionally different visual styles so
- * 處室 reads as the primary source attribution while 類別 reads as
- * secondary metadata. The earlier mash-everything-into-one-line layout was
- * what made the user say "department is mixing with category".
+ * The department badge and the category strip are intentionally different
+ * visual styles so the department reads as the primary source attribution
+ * while the categories read as secondary metadata. The earlier
+ * mash-everything-into-one-line layout was what made the user say "department
+ * is mixing with category".
  */
 @Composable
 private fun BulletinCard(

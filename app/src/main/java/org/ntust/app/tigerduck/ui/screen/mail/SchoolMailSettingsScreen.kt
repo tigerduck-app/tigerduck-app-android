@@ -41,19 +41,20 @@ import org.ntust.app.tigerduck.ui.screen.settings.SubSettingsBarHeight
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /**
- * 校園信箱 settings, linked from Settings → 其他設定 like the library page
- * (spec §6.5).
+ * School Mail settings, linked from Settings → Other settings like the library
+ * page (spec §6.5).
  *
- * The new-mail toggle, its hint and the 通知診斷 section used to sit above
- * 寄件者顯示名稱 here. They moved to [SchoolMailNotificationSettingsScreen],
- * reached from Settings → 通知, so notification settings live with the app's
- * other notification settings and the toggle exists in exactly one place.
+ * The new-mail toggle, its hint and the notification diagnostics section used
+ * to sit above the "Name shown to recipients" field here. They moved to
+ * [SchoolMailNotificationSettingsScreen], reached from Settings →
+ * Notifications, so notification settings live with the app's other
+ * notification settings and the toggle exists in exactly one place.
  *
- * 寄件者顯示名稱 names the mailbox that signs outgoing mail, so signed out it
- * is greyed out rather than hidden — same rule as the 校園信箱通知 row in
- * Settings. The guide link below it stays live either way: it is about using
- * the mailbox from another app, which is the one thing a signed-out user here
- * might still want.
+ * "Name shown to recipients" names the mailbox that signs outgoing mail, so
+ * signed out it is greyed out rather than hidden — same rule as the School
+ * Mail notifications row in Settings. The guide link below it stays live
+ * either way: it is about using the mailbox from another app, which is the one
+ * thing a signed-out user here might still want.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -125,7 +126,7 @@ fun SchoolMailSettingsScreen(
 }
 
 /**
- * 快取大小 plus 清除快取. The figure covers everything under the mail cache root, so it is the
+ * Cache size plus Clear cache. The figure covers everything under the mail cache root, so it is the
  * disk the mailbox actually occupies, not just the message bodies. It reads "…" until the first
  * measurement lands, and clearing is offered only when there is something to clear — no
  * confirmation, since all of it is re-downloadable.

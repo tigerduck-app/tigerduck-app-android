@@ -54,7 +54,7 @@ class MailSenderTest {
 
     @Test
     fun `a failed sent copy never fails the send`() {
-        // No 寄件備份匣 exists, so the APPEND fails; the mail is still sent.
+        // No Sent folder exists on the server, so the APPEND fails; the mail is still sent.
         val sender = MailSender(MessageBuilder(), AngusMailTransport(server.config), AngusMailSessionFactory(server.config), pause = {})
         sender.send(server.credentials, mailToSelf(), sentFolder = "寄件備份匣")
         assertTrue(server.greenMail.waitForIncomingEmail(5_000, 1))

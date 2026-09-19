@@ -440,7 +440,7 @@ internal fun summarize(statuses: List<ServerStatus>): ServerStatus = when {
 /**
  * The one status vocabulary this dot speaks, shared so a page-local source reads the same as a
  * TigerSync row rather than inventing its own words for the same three states. Internal rather
- * than private for exactly that reason: 校園信箱 used to put the student ID here, which is an
+ * than private for exactly that reason: School Mail used to put the student ID here, which is an
  * identity, not a state, and said nothing about whether the mail server was answering.
  *
  * A page whose source has a genuinely different vocabulary (the library's signed-in / not

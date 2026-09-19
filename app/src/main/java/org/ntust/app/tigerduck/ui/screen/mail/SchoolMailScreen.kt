@@ -180,7 +180,7 @@ fun SchoolMailScreen(
     val isLoading = state.loadState is SchoolMailListViewModel.LoadState.Loading
     val currentDisplayed by rememberUpdatedState(state.displayed)
     LaunchedEffect(listState) {
-        // Rows are keyed by (folder, uid) -- in 所有信件 a UID alone names two different mails --
+        // Rows are keyed by (folder, uid) -- in All mail a UID alone names two different mails --
         // so the last visible *row* is found by matching those keys against what is displayed,
         // rather than by picking out one key type from among the header and spacer items.
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.mapNotNullTo(mutableSetOf()) { it.key as? String } }
@@ -285,8 +285,8 @@ fun SchoolMailScreen(
                         SwipeableMailCard(
                             row = row,
                             // The row's own folder decides everything, never the selected chip:
-                            // opened from 所有信件, a 寄件備份 mail has to behave exactly as it
-                            // would had the user opened 寄件備份 itself.
+                            // opened from All mail, a Sent mail has to behave exactly as it
+                            // would had the user opened Sent itself.
                             onClick = {
                                 if (state.kindOf(row.folder) == SpecialFolder.DRAFTS) onEditDraft(row.folder, row.uid)
                                 else onOpenMessage(row.folder, row.uid)

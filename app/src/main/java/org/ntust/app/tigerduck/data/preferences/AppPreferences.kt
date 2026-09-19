@@ -149,7 +149,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     )
     val syncAssignmentRemindersChanged: SharedFlow<Unit> = _syncAssignmentRemindersChanged.asSharedFlow()
 
-    /** "同步內容" (Synced content) toggle — assignment due-date reminders. */
+    /** "Synced content" toggle — assignment due-date reminders. */
     var syncAssignmentReminders: Boolean
         get() = prefs.getBoolean("syncAssignmentReminders", true)
         set(value) {
@@ -168,7 +168,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     )
     val syncLiveActivityChanged: SharedFlow<Unit> = _syncLiveActivityChanged.asSharedFlow()
 
-    /** "同步內容" (Synced content) toggle — Live Activity / Live Updates state. */
+    /** "Synced content" toggle — Live Activity / Live Updates state. */
     var syncLiveActivity: Boolean
         get() = prefs.getBoolean("syncLiveActivity", true)
         set(value) {
@@ -615,7 +615,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         return created
     }
 
-    /** Semester the user last viewed in 課表. Null until first pick. */
+    /** Semester the user last viewed in the class table. Null until first pick. */
     var classTableSelectedSemester: String?
         get() = prefs.getString("classTableSelectedSemester", null)
         set(value) {
@@ -663,7 +663,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             .apply()
 
     /**
-     * The term the 選課 system is currently open for (`LoginEnable`). Runs
+     * The term the course selection system is currently open for (`LoginEnable`). Runs
      * weeks ahead of the term in session, so it is not interchangeable with
      * the term in session from the published academic calendar.
      */

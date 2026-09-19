@@ -339,9 +339,9 @@ fun SchoolMailMessageScreen(
         }
     }
     state.confirmAttachment?.let { pending ->
-        // Spec lines 416/653 (「開啟或儲存前再確認一次」): the same confirmation, whether the
-        // attachment is about to be opened or saved -- "Confirm" rather than "Open" on the
-        // button since it now covers both.
+        // Spec lines 416/653 ("confirm once more before opening or saving"): the same
+        // confirmation, whether the attachment is about to be opened or saved -- "Confirm"
+        // rather than "Open" on the button since it now covers both.
         TigerDuckDialog(
             onDismissRequest = { viewModel.confirmAttachment(false) },
             title = stringResource(R.string.school_mail_risky_title),
