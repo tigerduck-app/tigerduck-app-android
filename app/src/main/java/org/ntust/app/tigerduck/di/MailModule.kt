@@ -10,6 +10,7 @@ import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.mail.AssetsMailDemoGate
+import org.ntust.app.tigerduck.mail.MailConnectionProbe
 import org.ntust.app.tigerduck.mail.MailDemoGate
 import org.ntust.app.tigerduck.mail.MailDevServerStore
 import org.ntust.app.tigerduck.mail.MailRepository
@@ -17,6 +18,7 @@ import org.ntust.app.tigerduck.mail.MailServerConfigSource
 import org.ntust.app.tigerduck.mail.MailSite
 import org.ntust.app.tigerduck.mail.SchoolMailRepository
 import org.ntust.app.tigerduck.mail.SharedPrefsMailDevServerStore
+import org.ntust.app.tigerduck.mail.SocketMailConnectionProbe
 import org.ntust.app.tigerduck.mail.compose.MessageBuilder
 import org.ntust.app.tigerduck.mail.imap.AngusMailSessionFactory
 import org.ntust.app.tigerduck.mail.imap.MailSessionFactory
@@ -50,6 +52,17 @@ object MailModule {
     @Singleton
     fun devServerStore(@ApplicationContext context: Context): MailDevServerStore =
         if (BuildConfig.DEBUG) SharedPrefsMailDevServerStore(context) else MailDevServerStore.None
+
+    /**
+     * Developer -> Email's "Test connection", guarded the same way and for the same reason:
+     * the probe is built only in a debug build, so its staged diagnosis -- and every string
+     * naming a stage, a verdict or an exception -- is dropped from a release APK along with
+     * the class, rather than sitting in it behind a branch.
+     */
+    @Provides
+    @Singleton
+    fun connectionProbe(credentials: MailCredentialStore, site: MailSite): MailConnectionProbe =
+        if (BuildConfig.DEBUG) SocketMailConnectionProbe(credentials, site) else MailConnectionProbe.Unavailable
 
     /**
      * Resolved per connection rather than provided as a value: [MailSite] can answer
