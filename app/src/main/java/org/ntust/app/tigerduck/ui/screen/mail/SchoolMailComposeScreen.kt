@@ -88,6 +88,10 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
     LaunchedEffect(state.done) {
         if (!state.done) return@LaunchedEffect
         if (state.savedDraft) Toast.makeText(context, R.string.school_mail_saved, Toast.LENGTH_SHORT).show()
+        // The mail went out; only the student's own copy of it is missing. A notice on the way
+        // out, not an error -- LENGTH_LONG because, unlike "Saved", it asks them to do something
+        // about it later.
+        if (state.sentCopyMissing) Toast.makeText(context, R.string.school_mail_sent_copy_not_saved, Toast.LENGTH_LONG).show()
         onDone()
     }
 

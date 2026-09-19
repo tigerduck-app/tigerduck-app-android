@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.mail.compose.ComposeRules
 import org.ntust.app.tigerduck.mail.compose.OutgoingAttachment
 import org.ntust.app.tigerduck.mail.compose.OutgoingMail
 import org.ntust.app.tigerduck.mail.sanitize.HtmlSanitizer
+import org.ntust.app.tigerduck.mail.smtp.SentCopy
 import org.ntust.app.tigerduck.mail.store.MailCache
 import java.io.File
 import java.io.InputStream
@@ -118,6 +119,13 @@ class SchoolMailComposeViewModel @Inject constructor(
         val errorAcknowledged: Boolean = false,
         val done: Boolean = false,
         val savedDraft: Boolean = false,
+        /**
+         * The mail went out but no copy of it reached the sent folder. A notice, never an
+         * [error]: the send succeeded, so failing the screen over it would tell the user the
+         * opposite of what happened -- and they would have no way to tell whether to send again.
+         * The screen shows it as a toast on its way out, beside the saved-draft one.
+         */
+        val sentCopyMissing: Boolean = false,
         internal val baseline: Fields = Fields(),
     ) {
         internal val fields get() = Fields(to, cc, bcc, subject, body, attachments.map { it.id })
@@ -306,9 +314,13 @@ class SchoolMailComposeViewModel @Inject constructor(
             val mail = OutgoingMail(repository.selfAddress(), to.addresses, cc.addresses, bcc.addresses,
                 s.subject.trim(), s.body, attachments, inReplyTo, references)
             val answered = if (sourceLoaded && (mode == ComposeMode.REPLY || mode == ComposeMode.REPLY_ALL)) sourceFolder to sourceUid else null
-            repository.send(mail, answered)
+            val copy = repository.send(mail, answered)
+            // The sent copy's APPEND logs in with the same stored password the send just used, so
+            // a rejection there is the §7.4 rejected password and has to reach the account -- even
+            // though the send itself succeeded and nothing was thrown for [withStaged] to classify.
+            if (copy is SentCopy.Failed && copy.error is MailError.AuthFailed) account.onAuthFailure()
             if (sourceLoaded && mode == ComposeMode.DRAFT) discardSentDraft()
-            _state.update { it.copy(done = true) }
+            _state.update { it.copy(done = true, sentCopyMissing = !copy.filed) }
         }
     }
 

@@ -28,6 +28,7 @@ import org.ntust.app.tigerduck.mail.mailSummary
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
 import org.ntust.app.tigerduck.mail.model.MailBody
+import org.ntust.app.tigerduck.mail.smtp.SentCopy
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.testApplicationScope
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.ComposeError
@@ -179,6 +180,46 @@ class SchoolMailComposeViewModelTest {
         vm.addPicked(listOf<Uri?>(null))
         assertEquals(ComposeError.TooLarge, vm.state.value.error)
         assertTrue(vm.state.value.attachments.isEmpty())
+    }
+
+    // --- the sent copy ---------------------------------------------------------------
+
+    @Test
+    fun `a filed sent copy raises no notice`() {
+        val vm = vm(ComposeMode.NEW)
+        vm.setTo("a@x.tw")
+        vm.send()
+        assertTrue(vm.state.value.done)
+        assertFalse(vm.state.value.sentCopyMissing)
+    }
+
+    @Test
+    fun `a sent copy that never reached the server is a notice, not a failed send`() {
+        listOf(SentCopy.NotAttempted, SentCopy.Unknown, SentCopy.Failed(MailError.ServerBusy())).forEach { outcome ->
+            repo.sentCopy = outcome
+            val vm = vm(ComposeMode.NEW)
+            vm.setTo("a@x.tw")
+            vm.send()
+            val s = vm.state.value
+            assertTrue("$outcome still sent the mail", s.done)
+            assertEquals("$outcome must never read as a failed send", null, s.error)
+            assertTrue("$outcome must say the copy is missing", s.sentCopyMissing)
+        }
+        assertEquals(3, repo.sent.size)
+    }
+
+    @Test
+    fun `a rejected password on the sent copy still reaches the account`() {
+        // The APPEND logs in with the same stored password; nothing throws, because the mail
+        // itself went out -- so only the outcome can carry the rejection to section 7.4.
+        repo.sentCopy = SentCopy.Failed(MailError.AuthFailed())
+        val vm = vm(ComposeMode.NEW)
+        vm.setTo("a@x.tw")
+        vm.send()
+        assertTrue(account.authFailed.value)
+        assertTrue("the send still succeeded", vm.state.value.done)
+        assertEquals(null, vm.state.value.error)
+        assertTrue(vm.state.value.sentCopyMissing)
     }
 
     @Test

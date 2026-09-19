@@ -683,6 +683,7 @@
     <string name="school_mail_send">Send</string>
     <string name="school_mail_send_confirm_title">Send this mail?</string>
     <string name="school_mail_send_failed">Couldn\'t send the mail</string>
+    <string name="school_mail_sent_copy_not_saved">Mail sent, but a copy wasn\'t saved to Sent</string>
     <string name="school_mail_settings_diagnostics">Notification diagnostics</string>
     <string name="school_mail_settings_display_name">Name shown to recipients</string>
     <string name="school_mail_settings_display_name_hint">Leave empty to show only your address.</string>
