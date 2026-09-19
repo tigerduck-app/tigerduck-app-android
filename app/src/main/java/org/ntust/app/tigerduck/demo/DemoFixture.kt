@@ -119,7 +119,7 @@ data class DemoFixture(
                 courseNo = courseNo,
                 courseName = localized(json, "name", lang),
                 instructor = localized(json, "instructor", lang),
-                credits = json.int("credits", 0),
+                credits = json.float("credits", 0f),
                 classroom = json.str("classroom").orEmpty(),
                 schedule = schedule,
                 classroomMap = classroomMap,
@@ -201,6 +201,9 @@ data class DemoFixture(
 
         private fun JsonObject.int(key: String, default: Int): Int =
             get(key)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asInt ?: default
+
+        private fun JsonObject.float(key: String, default: Float): Float =
+            get(key)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asFloat ?: default
 
         private fun JsonObject.obj(key: String): JsonObject? = get(key) as? JsonObject
 

@@ -38,7 +38,7 @@
     <string name="add_course_example">उदाहरण: EC1013701, Calculus, John Wang</string>
     <string name="add_course_not_found">कोई मिलान कोर्स नहीं मिला</string>
     <string name="add_course_placeholder">कोर्स कोड, नाम या इंस्ट्रक्टर दर्ज करें</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d क्रेडिट</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s क्रेडिट</string>
     <string name="add_course_search_failed">खोज विफल: %1$s</string>
     <string name="add_course_searching">खोज रहे हैं…</string>
     <string name="add_course_title">कोर्स जोड़ें</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">%1$s कोर्स टेबल रीसेट करें</string>
     <string name="class_table_semester_picker_label">सेमेस्टर</string>
     <string name="class_table_sign_in_required_message">अपनी क्लास टेबल देखने के लिए साइन इन करें</string>
-    <string name="class_table_total_credits_value">%1$d क्रेडिट</string>
+    <string name="class_table_total_credits_value">%1$s क्रेडिट</string>
     <string name="cloud_sync_assignments">असाइनमेंट</string>
     <string name="cloud_sync_class_table">क्लास टेबल</string>
     <string name="cloud_sync_class_table_footer">चुनें कि कौन सा क्लास टेबल डेटा डिवाइसों के बीच सिंक करना है।</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">कस्टम</string>
     <string name="course_color_picker_custom_label">कस्टम रंग</string>
     <string name="course_color_picker_title">रंग संपादित करें</string>
-    <string name="course_credits_value">क्रेडिट: %1$d</string>
+    <string name="course_credits_value">क्रेडिट: %1$s</string>
     <string name="course_detail_classroom_label">कक्षा</string>
+    <string name="course_detail_code_copied">कोड कॉपी हो गया</string>
     <string name="course_detail_code_label">कोड</string>
+    <string name="course_detail_copy_code">कोड कॉपी करें</string>
     <string name="course_detail_credits_label">क्रेडिट</string>
+    <string name="course_detail_dimension_label">आयाम</string>
     <string name="course_detail_due_prefix">देय: %1$s</string>
+    <string name="course_detail_duration_full_year">पूरा वर्ष</string>
+    <string name="course_detail_duration_label">अवधि</string>
+    <string name="course_detail_duration_one_semester">एक सेमेस्टर</string>
     <string name="course_detail_enrollment_label">नामांकन</string>
     <string name="course_detail_incomplete_assignments">अधूरे असाइनमेंट</string>
     <string name="course_detail_instructor_label">प्रशिक्षक</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R NTUST पोर्टल से नवीनतम कोर्स सूची लाता है।</string>
     <string name="desktop_class_table_empty_title">इस सेमेस्टर में कोई कोर्स नहीं</string>
     <string name="desktop_class_table_loading_value">%1$s लोड हो रहा है…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d कोर्स · %3$d क्रेडिट</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d कोर्स · %3$s क्रेडिट</string>
     <string name="desktop_home_section_upcoming_assignments">आगामी असाइनमेंट</string>
     <string name="desktop_more_not_implemented">अभी तक लागू नहीं</string>
     <string name="desktop_more_subtitle">Mac पर TigerDuck की सभी सुविधाएँ देखें। अधिकतर उपयोग होने वाली को साइडबार पर पिन करें।</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">यह प्रेषक स्कूल का पता नहीं है</string>
     <string name="school_mail_warning_password">स्कूल कभी भी मेल से आपका पासवर्ड नहीं माँगता।</string>
     <string name="score_academic_year_semester">शैक्षणिक वर्ष %1$s %2$s</string>
-    <string name="score_course_credits">%1$d क्रेडिट</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d क्रेडिट</string>
+    <string name="score_course_credits">%1$s क्रेडिट</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s क्रेडिट</string>
     <string name="score_course_detail_enrollment_label">नामांकन</string>
     <string name="score_course_detail_schedule_label">कक्षा अनुसूची</string>
     <string name="score_credit_earned">अर्जित</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">रैंक %1$s(%2$s)</string>
     <string name="score_semester_second">वसंत सेमेस्टर</string>
     <string name="score_semester_second_short">वसंत</string>
-    <string name="score_semester_total_credits">%1$d क्रेडिट</string>
+    <string name="score_semester_total_credits">%1$s क्रेडिट</string>
     <string name="score_semester_upper">शरद</string>
     <string name="score_sign_in_required_message">अपना ग्रेड इतिहास देखने के लिए साइन इन करें</string>
     <string name="score_term_format">वर्तमान सेमेस्टर: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">अतिरिक्त सर्वर सूचनाएँ प्राप्त करें</string>
     <string name="settings_server_push_update_failed">सर्वर ने बदलाव स्वीकार नहीं किया। कृपया बाद में पुनः प्रयास करें।</string>
     <string name="settings_show_absolute_assignment_time">असाइनमेंट देय समय के लिए पूरी तारीख दिखाएँ</string>
+    <string name="settings_show_classroom_on_class_table">समय-सारणी में कक्षाएँ दिखाएँ</string>
     <string name="settings_sync_brief_description">TigerSync आपको अपने सभी डिवाइस पर जानकारी सिंक करने देता है। सिंक के लिए सक्षम नहीं की गई जानकारी केवल इस डिवाइस पर रहती है।</string>
     <string name="settings_sync_disabled_note">जब सिंक बंद हो, तो सभी डेटा केवल इस डिवाइस पर ही रहता है।</string>
     <string name="settings_sync_status_off">बंद</string>

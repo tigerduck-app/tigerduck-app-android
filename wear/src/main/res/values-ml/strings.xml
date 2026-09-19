@@ -38,7 +38,7 @@
     <string name="add_course_example">ഉദാഹരണം: EC1013701, Calculus, John Wang</string>
     <string name="add_course_not_found">പൊരുത്തപ്പെടുന്ന കോഴ്‌സുകൾ കണ്ടെത്തിയില്ല</string>
     <string name="add_course_placeholder">കോഴ്‌സ് കോഡ്, പേര്, അല്ലെങ്കിൽ അധ്യാപകൻ നൽകുക</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d ക്രെഡിറ്റുകൾ</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s ക്രെഡിറ്റുകൾ</string>
     <string name="add_course_search_failed">തിരയൽ പരാജയപ്പെട്ടു: %1$s</string>
     <string name="add_course_searching">തിരയുന്നു…</string>
     <string name="add_course_title">കോഴ്‌സ് ചേർക്കുക</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">%1$s കോഴ്‌സ് ടേബിൾ റീസെറ്റ് ചെയ്യുക</string>
     <string name="class_table_semester_picker_label">സെമസ്റ്റർ</string>
     <string name="class_table_sign_in_required_message">നിങ്ങളുടെ ക്ലാസ് ടേബിൾ കാണാൻ സൈൻ ഇൻ ചെയ്യുക</string>
-    <string name="class_table_total_credits_value">%1$d ക്രെഡിറ്റുകൾ</string>
+    <string name="class_table_total_credits_value">%1$s ക്രെഡിറ്റുകൾ</string>
     <string name="cloud_sync_assignments">അസൈൻമെന്റുകൾ</string>
     <string name="cloud_sync_class_table">ക്ലാസ് ടേബിൾ</string>
     <string name="cloud_sync_class_table_footer">ഉപകരണങ്ങൾക്കിടയിൽ ഏത് ക്ലാസ് ടേബിൾ ഡാറ്റ സിങ്ക് ചെയ്യണമെന്ന് തിരഞ്ഞെടുക്കുക.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">ഇഷ്ടാനുസൃതം</string>
     <string name="course_color_picker_custom_label">ഇഷ്ടാനുസൃത നിറം</string>
     <string name="course_color_picker_title">നിറം എഡിറ്റ് ചെയ്യുക</string>
-    <string name="course_credits_value">ക്രെഡിറ്റുകൾ: %1$d</string>
+    <string name="course_credits_value">ക്രെഡിറ്റുകൾ: %1$s</string>
     <string name="course_detail_classroom_label">ക്ലാസ്റൂം</string>
+    <string name="course_detail_code_copied">കോഡ് പകർത്തി</string>
     <string name="course_detail_code_label">കോഡ്</string>
+    <string name="course_detail_copy_code">കോഡ് പകർത്തുക</string>
     <string name="course_detail_credits_label">ക്രെഡിറ്റുകൾ</string>
+    <string name="course_detail_dimension_label">മാനം</string>
     <string name="course_detail_due_prefix">അവസാന തീയതി: %1$s</string>
+    <string name="course_detail_duration_full_year">മുഴുവൻ വർഷം</string>
+    <string name="course_detail_duration_label">ദൈർഘ്യം</string>
+    <string name="course_detail_duration_one_semester">ഒരു സെമസ്റ്റർ</string>
     <string name="course_detail_enrollment_label">എൻറോൾമെന്റ്</string>
     <string name="course_detail_incomplete_assignments">അപൂർണ്ണ അസൈൻമെന്റുകൾ</string>
     <string name="course_detail_instructor_label">അധ്യാപകൻ</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R, NTUST പോർട്ടലിൽ നിന്ന് ഏറ്റവും പുതിയ കോഴ്‌സ് ലിസ്റ്റ് ലഭ്യമാക്കും.</string>
     <string name="desktop_class_table_empty_title">ഈ സെമസ്റ്ററിൽ കോഴ്‌സുകൾ ഇല്ല</string>
     <string name="desktop_class_table_loading_value">%1$s ലോഡ് ചെയ്യുന്നു…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d കോഴ്‌സുകൾ · %3$d ക്രെഡിറ്റുകൾ</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d കോഴ്‌സുകൾ · %3$s ക്രെഡിറ്റുകൾ</string>
     <string name="desktop_home_section_upcoming_assignments">വരാനിരിക്കുന്ന അസൈൻമെന്റുകൾ</string>
     <string name="desktop_more_not_implemented">ഇതുവരെ നടപ്പിലാക്കിയിട്ടില്ല</string>
     <string name="desktop_more_subtitle">Mac-ൽ TigerDuck നൽകുന്ന എല്ലാ സവിശേഷതകളും ബ്രൗസ് ചെയ്യുക. നിങ്ങൾ കൂടുതൽ ഉപയോഗിക്കുന്നവ പിൻ ചെയ്യുക, അപ്പോൾ അവ സൈഡ്‌ബാറിൽ കാണാം.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">ഈ അയച്ചയാൾ സ്കൂൾ വിലാസമല്ല</string>
     <string name="school_mail_warning_password">സ്കൂൾ ഒരിക്കലും ഇമെയിൽ വഴി നിങ്ങളുടെ പാസ്‌വേഡ് ചോദിക്കില്ല.</string>
     <string name="score_academic_year_semester">അക്കാദമിക് വർഷം %1$s %2$s</string>
-    <string name="score_course_credits">%1$d ക്രെഡിറ്റുകൾ</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d ക്രെഡിറ്റുകൾ</string>
+    <string name="score_course_credits">%1$s ക്രെഡിറ്റുകൾ</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s ക്രെഡിറ്റുകൾ</string>
     <string name="score_course_detail_enrollment_label">എൻറോൾമെന്റ്</string>
     <string name="score_course_detail_schedule_label">ക്ലാസ് ഷെഡ്യൂൾ</string>
     <string name="score_credit_earned">നേടിയത്</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">റാങ്ക് %1$s(%2$s)</string>
     <string name="score_semester_second">സ്പ്രിംഗ് സെമസ്റ്റർ</string>
     <string name="score_semester_second_short">സ്പ്രിംഗ്</string>
-    <string name="score_semester_total_credits">%1$d ക്രെഡിറ്റുകൾ</string>
+    <string name="score_semester_total_credits">%1$s ക്രെഡിറ്റുകൾ</string>
     <string name="score_semester_upper">ഫോൾ</string>
     <string name="score_sign_in_required_message">നിങ്ങളുടെ ഗ്രേഡ് ചരിത്രം കാണാൻ സൈൻ ഇൻ ചെയ്യുക</string>
     <string name="score_term_format">നിലവിലെ ടേം: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">അധിക സെർവർ അറിയിപ്പുകൾ സ്വീകരിക്കുക</string>
     <string name="settings_server_push_update_failed">സെർവർ മാറ്റം സ്വീകരിച്ചില്ല. പിന്നീട് വീണ്ടും ശ്രമിക്കുക.</string>
     <string name="settings_show_absolute_assignment_time">അസൈൻമെന്റ് കാലാവധിക്ക് പൂർണ്ണ തീയതി കാണിക്കുക</string>
+    <string name="settings_show_classroom_on_class_table">ടൈംടേബിളിൽ ക്ലാസ് മുറി കാണിക്കുക</string>
     <string name="settings_sync_brief_description">TigerSync നിങ്ങളുടെ എല്ലാ ഉപകരണങ്ങളിലും വിവരങ്ങൾ സമന്വയിപ്പിക്കാൻ അനുവദിക്കുന്നു. സിങ്കിന് പ്രാപ്തമാക്കാത്ത വിവരങ്ങൾ ഈ ഉപകരണത്തിൽ മാത്രം നിലനിൽക്കും.</string>
     <string name="settings_sync_disabled_note">സിങ്ക് ഓഫ് ആയിരിക്കുമ്പോൾ, എല്ലാ ഡാറ്റയും ഈ ഉപകരണത്തിൽ മാത്രം നിലനിൽക്കും.</string>
     <string name="settings_sync_status_off">ഓഫ്</string>

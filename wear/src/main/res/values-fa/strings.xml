@@ -38,7 +38,7 @@
     <string name="add_course_example">مثال: EC1013701، Calculus، John Wang</string>
     <string name="add_course_not_found">درسی مطابق پیدا نشد</string>
     <string name="add_course_placeholder">کد درس، نام یا مدرس را وارد کنید</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d واحد</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s واحد</string>
     <string name="add_course_search_failed">جست‌وجو ناموفق بود: %1$s</string>
     <string name="add_course_searching">در حال جستجو…</string>
     <string name="add_course_title">افزودن درس</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">بازنشانی جدول دروس %1$s</string>
     <string name="class_table_semester_picker_label">ترم</string>
     <string name="class_table_sign_in_required_message">برای مشاهده جدول کلاس خود وارد شوید</string>
-    <string name="class_table_total_credits_value">%1$d واحد</string>
+    <string name="class_table_total_credits_value">%1$s واحد</string>
     <string name="cloud_sync_assignments">تکالیف</string>
     <string name="cloud_sync_class_table">جدول کلاس‌ها</string>
     <string name="cloud_sync_class_table_footer">انتخاب کنید کدام داده‌های جدول کلاس بین دستگاه‌ها همگام‌سازی شود.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">سفارشی</string>
     <string name="course_color_picker_custom_label">رنگ سفارشی</string>
     <string name="course_color_picker_title">ویرایش رنگ</string>
-    <string name="course_credits_value">واحد: %1$d</string>
+    <string name="course_credits_value">واحد: %1$s</string>
     <string name="course_detail_classroom_label">کلاس درس</string>
+    <string name="course_detail_code_copied">کد کپی شد</string>
     <string name="course_detail_code_label">کد</string>
+    <string name="course_detail_copy_code">کپی کد</string>
     <string name="course_detail_credits_label">اعتبارات</string>
+    <string name="course_detail_dimension_label">بُعد</string>
     <string name="course_detail_due_prefix">سررسید: %1$s</string>
+    <string name="course_detail_duration_full_year">یک سال کامل</string>
+    <string name="course_detail_duration_label">مدت</string>
+    <string name="course_detail_duration_one_semester">یک نیم‌سال</string>
     <string name="course_detail_enrollment_label">ثبت نام</string>
     <string name="course_detail_incomplete_assignments">تکالیف ناقص</string>
     <string name="course_detail_instructor_label">مربی</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R آخرین فهرست درس‌ها را از درگاه NTUST می‌گیرد.</string>
     <string name="desktop_class_table_empty_title">درسی برای این ترم نیست</string>
     <string name="desktop_class_table_loading_value">در حال بارگذاری %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d درس · %3$d واحد</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d درس · %3$s واحد</string>
     <string name="desktop_home_section_upcoming_assignments">تکالیف پیش‌رو</string>
     <string name="desktop_more_not_implemented">هنوز پیاده‌سازی نشده</string>
     <string name="desktop_more_subtitle">همهٔ قابلیت‌های TigerDuck را در Mac ببینید. مواردی را که بیشتر استفاده می‌کنید به نوار کناری سنجاق کنید.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">این فرستنده آدرس مدرسه نیست</string>
     <string name="school_mail_warning_password">مدرسه هرگز از طریق ایمیل رمز عبور شما را نمی‌خواهد.</string>
     <string name="score_academic_year_semester">سال تحصیلی %1$s %2$s</string>
-    <string name="score_course_credits">%1$d واحد</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d واحد</string>
+    <string name="score_course_credits">%1$s واحد</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s واحد</string>
     <string name="score_course_detail_enrollment_label">ثبت نام</string>
     <string name="score_course_detail_schedule_label">برنامه کلاس</string>
     <string name="score_credit_earned">کسب‌شده</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">رتبه %1$s(%2$s)</string>
     <string name="score_semester_second">نیم‌سال دوم</string>
     <string name="score_semester_second_short">دوم</string>
-    <string name="score_semester_total_credits">%1$d واحد</string>
+    <string name="score_semester_total_credits">%1$s واحد</string>
     <string name="score_semester_upper">پاییز</string>
     <string name="score_sign_in_required_message">برای مشاهده سابقه نمره خود وارد شوید</string>
     <string name="score_term_format">ترم فعلی: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">دریافت اعلان‌های اضافی سرور</string>
     <string name="settings_server_push_update_failed">سرور این تغییر را نپذیرفت. بعداً دوباره امتحان کنید.</string>
     <string name="settings_show_absolute_assignment_time">نمایش تاریخ کامل برای زمان موعد تکلیف</string>
+    <string name="settings_show_classroom_on_class_table">نمایش کلاس‌ها در برنامهٔ درسی</string>
     <string name="settings_sync_brief_description">TigerSync به شما امکان می‌دهد اطلاعات انتخابی خود را در تمام دستگاه‌ها همگام کنید. اطلاعات غیرفعال فقط در این دستگاه باقی می‌مانند.</string>
     <string name="settings_sync_disabled_note">وقتی همگام‌سازی خاموش است، همه داده‌ها فقط در این دستگاه باقی می‌مانند.</string>
     <string name="settings_sync_status_off">خاموش</string>

@@ -38,7 +38,7 @@
     <string name="add_course_example">Exemplu: EC1013701, Calcul, Ion Popescu</string>
     <string name="add_course_not_found">Nu s-au găsit cursuri corespunzătoare</string>
     <string name="add_course_placeholder">Introdu codul cursului, denumirea sau instructorul</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d credite</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s credite</string>
     <string name="add_course_search_failed">Căutare eșuată: %1$s</string>
     <string name="add_course_searching">Se caută…</string>
     <string name="add_course_title">Adaugă curs</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Resetează orarul %1$s</string>
     <string name="class_table_semester_picker_label">Semestru</string>
     <string name="class_table_sign_in_required_message">Autentifică-te pentru a vedea orarul</string>
-    <string name="class_table_total_credits_value">%1$d credite</string>
+    <string name="class_table_total_credits_value">%1$s credite</string>
     <string name="cloud_sync_assignments">Teme</string>
     <string name="cloud_sync_class_table">Orar</string>
     <string name="cloud_sync_class_table_footer">Alegeți ce date din orar să fie sincronizate între dispozitive.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Personalizat</string>
     <string name="course_color_picker_custom_label">Culoare personalizată</string>
     <string name="course_color_picker_title">Editează culoarea</string>
-    <string name="course_credits_value">Credite: %1$d</string>
+    <string name="course_credits_value">Credite: %1$s</string>
     <string name="course_detail_classroom_label">Sală</string>
+    <string name="course_detail_code_copied">Cod copiat</string>
     <string name="course_detail_code_label">Cod</string>
+    <string name="course_detail_copy_code">Copiază codul</string>
     <string name="course_detail_credits_label">Credite</string>
+    <string name="course_detail_dimension_label">Dimensiune</string>
     <string name="course_detail_due_prefix">Scadență: %1$s</string>
+    <string name="course_detail_duration_full_year">An întreg</string>
+    <string name="course_detail_duration_label">Durată</string>
+    <string name="course_detail_duration_one_semester">Un semestru</string>
     <string name="course_detail_enrollment_label">Înscriere</string>
     <string name="course_detail_incomplete_assignments">Teme neterminate</string>
     <string name="course_detail_instructor_label">Profesor</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R preia cea mai recentă listă de cursuri din portalul NTUST.</string>
     <string name="desktop_class_table_empty_title">Niciun curs în acest semestru</string>
     <string name="desktop_class_table_loading_value">Se încarcă %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d cursuri · %3$d credite</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d cursuri · %3$s credite</string>
     <string name="desktop_home_section_upcoming_assignments">Teme viitoare</string>
     <string name="desktop_more_not_implemented">Neimplementat încă</string>
     <string name="desktop_more_subtitle">Răsfoiește toate funcțiile oferite de TigerDuck pe Mac. Fixează-le pe cele mai folosite, ca să apară în bara laterală.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">Acest expeditor nu este o adresă universitară</string>
     <string name="school_mail_warning_password">Universitatea nu îți va cere niciodată parola prin e-mail.</string>
     <string name="score_academic_year_semester">Anul academic %1$s %2$s</string>
-    <string name="score_course_credits">%1$d credite</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d credite</string>
+    <string name="score_course_credits">%1$s credite</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s credite</string>
     <string name="score_course_detail_enrollment_label">Înscriere</string>
     <string name="score_course_detail_schedule_label">Orar cursuri</string>
     <string name="score_credit_earned">Obținute</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">Locul %1$s(%2$s)</string>
     <string name="score_semester_second">Semestrul de primăvară</string>
     <string name="score_semester_second_short">Prim</string>
-    <string name="score_semester_total_credits">%1$d credite</string>
+    <string name="score_semester_total_credits">%1$s credite</string>
     <string name="score_semester_upper">Toamnă</string>
     <string name="score_sign_in_required_message">Conectează-te pentru a vedea istoricul notelor</string>
     <string name="score_term_format">Semestrul curent: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">Primește notificări suplimentare de la server</string>
     <string name="settings_server_push_update_failed">Serverul nu a acceptat modificarea. Încearcă din nou mai târziu.</string>
     <string name="settings_show_absolute_assignment_time">Afișează data completă pentru termenul temei</string>
+    <string name="settings_show_classroom_on_class_table">Afișează sălile în orar</string>
     <string name="settings_sync_brief_description">TigerSync vă permite să sincronizați informațiile alese pe toate dispozitivele. Informațiile neactivate rămân doar pe acest dispozitiv.</string>
     <string name="settings_sync_disabled_note">Când sincronizarea este dezactivată, toate datele rămân doar pe acest dispozitiv.</string>
     <string name="settings_sync_status_off">Oprit</string>

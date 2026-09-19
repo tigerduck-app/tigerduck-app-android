@@ -38,7 +38,7 @@
     <string name="add_course_example">Например: EC1013701, Высшая математика, Иван Иванов</string>
     <string name="add_course_not_found">Подходящие курсы не найдены</string>
     <string name="add_course_placeholder">Введите код курса, название или преподавателя</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d кредитов</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s кредитов</string>
     <string name="add_course_search_failed">Поиск не удался: %1$s</string>
     <string name="add_course_searching">Поиск…</string>
     <string name="add_course_title">Добавить курс</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Сбросить расписание %1$s</string>
     <string name="class_table_semester_picker_label">Семестр</string>
     <string name="class_table_sign_in_required_message">Войдите, чтобы просмотреть расписание занятий</string>
-    <string name="class_table_total_credits_value">%1$d кредитов</string>
+    <string name="class_table_total_credits_value">%1$s кредитов</string>
     <string name="cloud_sync_assignments">Задания</string>
     <string name="cloud_sync_class_table">Расписание</string>
     <string name="cloud_sync_class_table_footer">Выберите, какие данные расписания синхронизировать между устройствами.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Свой</string>
     <string name="course_color_picker_custom_label">Свой цвет</string>
     <string name="course_color_picker_title">Изменить цвет</string>
-    <string name="course_credits_value">Кредиты: %1$d</string>
+    <string name="course_credits_value">Кредиты: %1$s</string>
     <string name="course_detail_classroom_label">Аудитория</string>
+    <string name="course_detail_code_copied">Код скопирован</string>
     <string name="course_detail_code_label">Код</string>
+    <string name="course_detail_copy_code">Скопировать код</string>
     <string name="course_detail_credits_label">Кредиты</string>
+    <string name="course_detail_dimension_label">Направление</string>
     <string name="course_detail_due_prefix">Срок: %1$s</string>
+    <string name="course_detail_duration_full_year">Весь год</string>
+    <string name="course_detail_duration_label">Длительность</string>
+    <string name="course_detail_duration_one_semester">Один семестр</string>
     <string name="course_detail_enrollment_label">Запись</string>
     <string name="course_detail_incomplete_assignments">Незавершённые задания</string>
     <string name="course_detail_instructor_label">Преподаватель</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R получает последнее расписание с портала NTUST.</string>
     <string name="desktop_class_table_empty_title">В этом семестре нет курсов</string>
     <string name="desktop_class_table_loading_value">Загрузка %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d курсов · %3$d кредитов</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d курсов · %3$s кредитов</string>
     <string name="desktop_home_section_upcoming_assignments">Предстоящие задания</string>
     <string name="desktop_more_not_implemented">Ещё не реализовано</string>
     <string name="desktop_more_subtitle">Просмотрите все возможности TigerDuck на Mac. Закрепите часто используемые в боковой панели.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">Этот отправитель — не университетский адрес.</string>
     <string name="school_mail_warning_password">Университет никогда не запрашивает пароль по электронной почте.</string>
     <string name="score_academic_year_semester">Учебный год %1$s, %2$s семестр</string>
-    <string name="score_course_credits">%1$d кредитов</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d кредитов</string>
+    <string name="score_course_credits">%1$s кредитов</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s кредитов</string>
     <string name="score_course_detail_enrollment_label">Зачисление</string>
     <string name="score_course_detail_schedule_label">Расписание занятий</string>
     <string name="score_credit_earned">Получено</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">Место %1$s(%2$s)</string>
     <string name="score_semester_second">Весенний семестр</string>
     <string name="score_semester_second_short">Весна</string>
-    <string name="score_semester_total_credits">%1$d кредитов</string>
+    <string name="score_semester_total_credits">%1$s кредитов</string>
     <string name="score_semester_upper">Осенний</string>
     <string name="score_sign_in_required_message">Войдите, чтобы просмотреть историю оценок</string>
     <string name="score_term_format">Текущий семестр: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">Получать дополнительные уведомления сервера</string>
     <string name="settings_server_push_update_failed">Сервер не принял изменение. Повторите попытку позже.</string>
     <string name="settings_show_absolute_assignment_time">Показывать полную дату срока сдачи задания</string>
+    <string name="settings_show_classroom_on_class_table">Показывать аудитории в расписании</string>
     <string name="settings_sync_brief_description">TigerSync позволяет синхронизировать выбранную информацию на всех устройствах. Информация без синхронизации остаётся только на этом устройстве.</string>
     <string name="settings_sync_disabled_note">Когда синхронизация отключена, все данные остаются только на этом устройстве.</string>
     <string name="settings_sync_status_off">Выкл.</string>

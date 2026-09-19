@@ -38,7 +38,7 @@
     <string name="add_course_example">Contoh: EC1013701, Kalkulus, John Wang</string>
     <string name="add_course_not_found">Tiada kursus yang sepadan ditemui</string>
     <string name="add_course_placeholder">Masukkan kod kursus, nama, atau pengajar</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d kredit</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s kredit</string>
     <string name="add_course_search_failed">Carian gagal: %1$s</string>
     <string name="add_course_searching">Mencari…</string>
     <string name="add_course_title">Tambah kursus</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Tetapkan semula jadual %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Log masuk untuk melihat jadual kelas anda</string>
-    <string name="class_table_total_credits_value">%1$d kredit</string>
+    <string name="class_table_total_credits_value">%1$s kredit</string>
     <string name="cloud_sync_assignments">Tugasan</string>
     <string name="cloud_sync_class_table">Jadual kelas</string>
     <string name="cloud_sync_class_table_footer">Pilih data jadual kelas yang hendak disegerakkan antara peranti.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Khusus</string>
     <string name="course_color_picker_custom_label">Warna khusus</string>
     <string name="course_color_picker_title">Edit warna</string>
-    <string name="course_credits_value">Kredit: %1$d</string>
+    <string name="course_credits_value">Kredit: %1$s</string>
     <string name="course_detail_classroom_label">Bilik darjah</string>
+    <string name="course_detail_code_copied">Kod disalin</string>
     <string name="course_detail_code_label">Kod</string>
+    <string name="course_detail_copy_code">Salin kod</string>
     <string name="course_detail_credits_label">Kredit</string>
+    <string name="course_detail_dimension_label">Dimensi</string>
     <string name="course_detail_due_prefix">Tarikh akhir: %1$s</string>
+    <string name="course_detail_duration_full_year">Setahun penuh</string>
+    <string name="course_detail_duration_label">Tempoh</string>
+    <string name="course_detail_duration_one_semester">Satu semester</string>
     <string name="course_detail_enrollment_label">Pendaftaran</string>
     <string name="course_detail_incomplete_assignments">Tugasan tidak lengkap</string>
     <string name="course_detail_instructor_label">Pengajar</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R mengambil senarai kursus terkini dari portal NTUST.</string>
     <string name="desktop_class_table_empty_title">Tiada kursus pada semester ini</string>
     <string name="desktop_class_table_loading_value">Memuatkan %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kursus · %3$d kredit</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kursus · %3$s kredit</string>
     <string name="desktop_home_section_upcoming_assignments">Tugasan akan datang</string>
     <string name="desktop_more_not_implemented">Belum dilaksanakan</string>
     <string name="desktop_more_subtitle">Layari semua ciri TigerDuck di Mac. Pin yang paling kerap anda guna ke bar sisi.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">Penghantar ini bukan alamat sekolah</string>
     <string name="school_mail_warning_password">Sekolah tidak akan meminta kata laluan anda melalui e-mel.</string>
     <string name="score_academic_year_semester">Tahun Akademik %1$s %2$s</string>
-    <string name="score_course_credits">%1$d kredit</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d kredit</string>
+    <string name="score_course_credits">%1$s kredit</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s kredit</string>
     <string name="score_course_detail_enrollment_label">Pendaftaran</string>
     <string name="score_course_detail_schedule_label">Jadual kelas</string>
     <string name="score_credit_earned">Diperoleh</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">Kedudukan %1$s(%2$s)</string>
     <string name="score_semester_second">Semester musim bunga</string>
     <string name="score_semester_second_short">Bunga</string>
-    <string name="score_semester_total_credits">%1$d kredit</string>
+    <string name="score_semester_total_credits">%1$s kredit</string>
     <string name="score_semester_upper">Semester Pertama</string>
     <string name="score_sign_in_required_message">Log masuk untuk melihat sejarah gred anda</string>
     <string name="score_term_format">Semester semasa: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">Terima pemberitahuan tambahan daripada pelayan</string>
     <string name="settings_server_push_update_failed">Pelayan tidak menerima perubahan ini. Sila cuba lagi kemudian.</string>
     <string name="settings_show_absolute_assignment_time">Tunjukkan tarikh penuh untuk masa tamat tempoh tugasan</string>
+    <string name="settings_show_classroom_on_class_table">Tunjukkan bilik darjah dalam jadual</string>
     <string name="settings_sync_brief_description">TigerSync membolehkan anda menyegerakkan maklumat pilihan anda di semua peranti. Maklumat yang tidak didayakan kekal pada peranti ini sahaja.</string>
     <string name="settings_sync_disabled_note">Apabila segerak dimatikan, semua data kekal pada peranti ini sahaja.</string>
     <string name="settings_sync_status_off">Mati</string>

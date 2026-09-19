@@ -38,7 +38,7 @@
     <string name="add_course_example">Exemple: EC1013701, Càlcul, Joan Wang</string>
     <string name="add_course_not_found">No s\'ha trobat cap curs coincident</string>
     <string name="add_course_placeholder">Introduïu el codi del curs, el nom o el professor</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d crèdits</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s crèdits</string>
     <string name="add_course_search_failed">La cerca ha fallat: %1$s</string>
     <string name="add_course_searching">S’està cercant…</string>
     <string name="add_course_title">Afegeix un curs</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Restableix l\'horari de %1$s</string>
     <string name="class_table_semester_picker_label">Semestre</string>
     <string name="class_table_sign_in_required_message">Inicieu la sessió per veure la vostra taula de classe</string>
-    <string name="class_table_total_credits_value">%1$d crèdits</string>
+    <string name="class_table_total_credits_value">%1$s crèdits</string>
     <string name="cloud_sync_assignments">Tasques</string>
     <string name="cloud_sync_class_table">Horari de classes</string>
     <string name="cloud_sync_class_table_footer">Tria quines dades de l\'horari vols sincronitzar entre dispositius.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Personalitzat</string>
     <string name="course_color_picker_custom_label">Color personalitzat</string>
     <string name="course_color_picker_title">Edita el color</string>
-    <string name="course_credits_value">Crèdits: %1$d</string>
+    <string name="course_credits_value">Crèdits: %1$s</string>
     <string name="course_detail_classroom_label">Aula</string>
+    <string name="course_detail_code_copied">Codi copiat</string>
     <string name="course_detail_code_label">Codi</string>
+    <string name="course_detail_copy_code">Copia el codi</string>
     <string name="course_detail_credits_label">Crèdits</string>
+    <string name="course_detail_dimension_label">Dimensió</string>
     <string name="course_detail_due_prefix">Degut: %1$s</string>
+    <string name="course_detail_duration_full_year">Any complet</string>
+    <string name="course_detail_duration_label">Durada</string>
+    <string name="course_detail_duration_one_semester">Un semestre</string>
     <string name="course_detail_enrollment_label">Inscripció</string>
     <string name="course_detail_incomplete_assignments">Encàrrecs incomplets</string>
     <string name="course_detail_instructor_label">Professor</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R obté la llista de cursos més recent des del portal de NTUST.</string>
     <string name="desktop_class_table_empty_title">Cap curs aquest semestre</string>
     <string name="desktop_class_table_loading_value">S\'està carregant %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d cursos · %3$d crèdits</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d cursos · %3$s crèdits</string>
     <string name="desktop_home_section_upcoming_assignments">Tasques properes</string>
     <string name="desktop_more_not_implemented">Encara no implementat</string>
     <string name="desktop_more_subtitle">Explora totes les funcions que TigerDuck ofereix per a Mac. Fixa les que facis servir més perquè apareguin a la barra lateral.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">Aquest remitent no és una adreça universitària</string>
     <string name="school_mail_warning_password">La universitat mai no et demanarà la contrasenya per correu.</string>
     <string name="score_academic_year_semester">Any acadèmic %1$s %2$s</string>
-    <string name="score_course_credits">%1$d crèdits</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d crèdits</string>
+    <string name="score_course_credits">%1$s crèdits</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s crèdits</string>
     <string name="score_course_detail_enrollment_label">Inscripció</string>
     <string name="score_course_detail_schedule_label">Horari de classe</string>
     <string name="score_credit_earned">Obtinguts</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">Rànquing %1$s(%2$s)</string>
     <string name="score_semester_second">Semestre de primavera</string>
     <string name="score_semester_second_short">Prim.</string>
-    <string name="score_semester_total_credits">%1$d crèdits</string>
+    <string name="score_semester_total_credits">%1$s crèdits</string>
     <string name="score_semester_upper">Tardor</string>
     <string name="score_sign_in_required_message">Inicieu la sessió per veure el vostre historial de notes</string>
     <string name="score_term_format">Semestre actual: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">Rep notificacions addicionals del servidor</string>
     <string name="settings_server_push_update_failed">El servidor no ha acceptat el canvi. Torneu-ho a provar més tard.</string>
     <string name="settings_show_absolute_assignment_time">Mostra la data completa per al venciment de les tasques</string>
+    <string name="settings_show_classroom_on_class_table">Mostra les aules a l\'horari</string>
     <string name="settings_sync_brief_description">TigerSync permet sincronitzar la informació seleccionada entre tots els dispositius amb TigerSync activat. La informació no activada es queda només en aquest dispositiu.</string>
     <string name="settings_sync_disabled_note">Quan la sincronització és desactivada, totes les dades es queden només en aquest dispositiu.</string>
     <string name="settings_sync_status_off">Desactivat</string>

@@ -85,6 +85,7 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
 import org.ntust.app.tigerduck.ui.theme.courseColorPaletteDark
+import org.ntust.app.tigerduck.util.formatCredits
 
 private data class ConflictPickerTarget(
     val courseA: Course,
@@ -396,7 +397,7 @@ fun ClassTableScreen(
                     // left as a stray separator when there is none.
                     val credits = stringResource(
                         R.string.class_table_total_credits_value,
-                        viewModel.totalCredits
+                        viewModel.totalCredits.formatCredits()
                     )
                     Text(
                         text = viewModel.studentId

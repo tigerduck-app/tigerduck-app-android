@@ -21,11 +21,11 @@ object NtustScoreParser {
 
     // Order matters — `^(\d+)$` matches everything else so it must run last.
     private val creditPatterns: List<Pair<Regex, CreditType>> = listOf(
-        Regex("""^\[\s*(\d+)\s*]$""") to CreditType.EDUCATION_PROGRAM,
-        Regex("""^<\s*(\d+)\s*>$""") to CreditType.NOT_COUNTED,
-        Regex("""^#\s*(\d+)\s*$""") to CreditType.NOT_REQUIRED,
-        Regex("""^\(\s*(\d+)\s*\)$""") to CreditType.NOT_EARNED,
-        Regex("""^(\d+)$""") to CreditType.NORMAL,
+        Regex("""^\[\s*(\d+(?:\.\d+)?)\s*]$""") to CreditType.EDUCATION_PROGRAM,
+        Regex("""^<\s*(\d+(?:\.\d+)?)\s*>$""") to CreditType.NOT_COUNTED,
+        Regex("""^#\s*(\d+(?:\.\d+)?)\s*$""") to CreditType.NOT_REQUIRED,
+        Regex("""^\(\s*(\d+(?:\.\d+)?)\s*\)$""") to CreditType.NOT_EARNED,
+        Regex("""^(\d+(?:\.\d+)?)$""") to CreditType.NORMAL,
     )
 
     private val currentTermRegex = Regex("""期末評量時間\s*(\d{4})""")
@@ -130,9 +130,11 @@ object NtustScoreParser {
             if (cells.size < 4) continue
             val label = cleanText(cells[0])
             val breakdown = CreditBreakdown(
-                inPerson = cleanText(cells[1]).toIntOrNull() ?: 0,
-                distance = cleanText(cells[2]).toIntOrNull() ?: 0,
-                total = cleanText(cells[3]).toIntOrNull() ?: 0
+                // Float for the same reason as parseCredits: half credits
+                // add up into this table too.
+                inPerson = cleanText(cells[1]).toFloatOrNull() ?: 0f,
+                distance = cleanText(cells[2]).toFloatOrNull() ?: 0f,
+                total = cleanText(cells[3]).toFloatOrNull() ?: 0f
             )
             when (label) {
                 "已實得學分數" -> earned = breakdown
@@ -146,11 +148,11 @@ object NtustScoreParser {
     private fun cleanText(element: Element): String =
         element.text().split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
 
-    private fun parseCredits(raw: String): Pair<Int?, CreditType> {
+    private fun parseCredits(raw: String): Pair<Float?, CreditType> {
         val trimmed = raw.trim()
         for ((regex, type) in creditPatterns) {
             val match = regex.find(trimmed) ?: continue
-            val value = match.groupValues.getOrNull(1)?.toIntOrNull() ?: continue
+            val value = match.groupValues.getOrNull(1)?.toFloatOrNull() ?: continue
             return value to type
         }
         return null to CreditType.UNKNOWN

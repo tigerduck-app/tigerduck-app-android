@@ -38,7 +38,7 @@
     <string name="add_course_example">Exemplo: EC1013701, Cálculo, John Wang</string>
     <string name="add_course_not_found">Não foram encontradas cadeiras correspondentes</string>
     <string name="add_course_placeholder">Introduz o código, o nome ou o docente da cadeira</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d créditos</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s créditos</string>
     <string name="add_course_search_failed">Falha na pesquisa: %1$s</string>
     <string name="add_course_searching">A procurar…</string>
     <string name="add_course_title">Adicionar cadeira</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Repor horário de %1$s</string>
     <string name="class_table_semester_picker_label">Semestre</string>
     <string name="class_table_sign_in_required_message">Inicia sessão para ver o teu horário</string>
-    <string name="class_table_total_credits_value">%1$d créditos</string>
+    <string name="class_table_total_credits_value">%1$s créditos</string>
     <string name="cloud_sync_assignments">Tarefas</string>
     <string name="cloud_sync_class_table">Horário de aulas</string>
     <string name="cloud_sync_class_table_footer">Escolha que dados do horário sincronizar entre dispositivos.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Personalizado</string>
     <string name="course_color_picker_custom_label">Cor personalizada</string>
     <string name="course_color_picker_title">Editar cor</string>
-    <string name="course_credits_value">Créditos: %1$d</string>
+    <string name="course_credits_value">Créditos: %1$s</string>
     <string name="course_detail_classroom_label">Sala de aula</string>
+    <string name="course_detail_code_copied">Código copiado</string>
     <string name="course_detail_code_label">Código</string>
+    <string name="course_detail_copy_code">Copiar código</string>
     <string name="course_detail_credits_label">Créditos</string>
+    <string name="course_detail_dimension_label">Dimensão</string>
     <string name="course_detail_due_prefix">Prazo: %1$s</string>
+    <string name="course_detail_duration_full_year">Ano inteiro</string>
+    <string name="course_detail_duration_label">Duração</string>
+    <string name="course_detail_duration_one_semester">Um semestre</string>
     <string name="course_detail_enrollment_label">Inscrição</string>
     <string name="course_detail_incomplete_assignments">Tarefas incompletas</string>
     <string name="course_detail_instructor_label">Docente</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">O ⌘R obtém a lista de disciplinas mais recente do portal da NTUST.</string>
     <string name="desktop_class_table_empty_title">Sem disciplinas neste semestre</string>
     <string name="desktop_class_table_loading_value">A carregar %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d disciplinas · %3$d créditos</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d disciplinas · %3$s créditos</string>
     <string name="desktop_home_section_upcoming_assignments">Próximos trabalhos</string>
     <string name="desktop_more_not_implemented">Ainda não implementado</string>
     <string name="desktop_more_subtitle">Explora todas as funcionalidades que o TigerDuck oferece no Mac. Fixa as que mais usas para que apareçam na barra lateral.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">Este remetente não é um endereço universitário</string>
     <string name="school_mail_warning_password">A universidade nunca pede a tua palavra-passe por correio.</string>
     <string name="score_academic_year_semester">Ano Letivo %1$s %2$s</string>
-    <string name="score_course_credits">%1$d créditos</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d créditos</string>
+    <string name="score_course_credits">%1$s créditos</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s créditos</string>
     <string name="score_course_detail_enrollment_label">Inscrição</string>
     <string name="score_course_detail_schedule_label">Horário das aulas</string>
     <string name="score_credit_earned">Obtidos</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">Posição %1$s(%2$s)</string>
     <string name="score_semester_second">Semestre de primavera</string>
     <string name="score_semester_second_short">Prim</string>
-    <string name="score_semester_total_credits">%1$d créditos</string>
+    <string name="score_semester_total_credits">%1$s créditos</string>
     <string name="score_semester_upper">Outono</string>
     <string name="score_sign_in_required_message">Inicie sessão para ver o seu histórico de notas</string>
     <string name="score_term_format">Semestre atual: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">Receber notificações adicionais do servidor</string>
     <string name="settings_server_push_update_failed">O servidor não aceitou a alteração. Tenta novamente mais tarde.</string>
     <string name="settings_show_absolute_assignment_time">Mostrar data completa do prazo dos trabalhos</string>
+    <string name="settings_show_classroom_on_class_table">Mostrar as salas no horário</string>
     <string name="settings_sync_brief_description">O TigerSync permite sincronizar as informações escolhidas em todos os dispositivos. As informações não ativadas permanecem apenas neste dispositivo.</string>
     <string name="settings_sync_disabled_note">Quando a sincronização está desativada, todos os dados ficam apenas neste dispositivo.</string>
     <string name="settings_sync_status_off">Desligado</string>

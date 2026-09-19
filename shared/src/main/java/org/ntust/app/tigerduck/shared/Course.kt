@@ -7,7 +7,13 @@ data class Course(
     val courseNo: String,
     val courseName: String,
     val instructor: String = "",
-    val credits: Int = 0,
+    /**
+     * Fractional: NTUST issues 0.5-credit courses. A primitive, so Gson's
+     * Unsafe path leaves 0.0f rather than null on a cache that predates the
+     * change, and JSON has one number type — `"credits":3` written by an
+     * older version still reads back as 3.0f without a DataMigration step.
+     */
+    val credits: Float = 0f,
     val classroom: String = "",
     val enrolledCount: Int = 0,
     val maxCount: Int = 0,
@@ -149,7 +155,7 @@ data class Course(
             courseNo: String,
             courseName: String,
             instructor: String = "",
-            credits: Int = 0,
+            credits: Float = 0f,
             classroom: String = "",
             enrolledCount: Int = 0,
             maxCount: Int = 0,

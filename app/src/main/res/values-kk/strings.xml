@@ -38,7 +38,7 @@
     <string name="add_course_example">Мысалы: EC1013701, Calculus, John Wang</string>
     <string name="add_course_not_found">Сәйкес курстар табылмады</string>
     <string name="add_course_placeholder">Курс кодын, атауын немесе оқытушыны енгізіңіз</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d кредит</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s кредит</string>
     <string name="add_course_search_failed">Іздеу сәтсіз аяқталды: %1$s</string>
     <string name="add_course_searching">Іздеу…</string>
     <string name="add_course_title">Курс қосу</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">%1$s сабақ кестесін қалпына келтіру</string>
     <string name="class_table_semester_picker_label">Семестр</string>
     <string name="class_table_sign_in_required_message">Сабақ кестесін қарау үшін жүйеге кіріңіз</string>
-    <string name="class_table_total_credits_value">%1$d кредит</string>
+    <string name="class_table_total_credits_value">%1$s кредит</string>
     <string name="cloud_sync_assignments">Тапсырмалар</string>
     <string name="cloud_sync_class_table">Сабақ кестесі</string>
     <string name="cloud_sync_class_table_footer">Құрылғылар арасында қандай сабақ кестесі деректерін синхрондау керектігін таңдаңыз.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Жеке</string>
     <string name="course_color_picker_custom_label">Жеке түс</string>
     <string name="course_color_picker_title">Түсті өңдеу</string>
-    <string name="course_credits_value">Кредит: %1$d</string>
+    <string name="course_credits_value">Кредит: %1$s</string>
     <string name="course_detail_classroom_label">Аудитория</string>
+    <string name="course_detail_code_copied">Код көшірілді</string>
     <string name="course_detail_code_label">Код</string>
+    <string name="course_detail_copy_code">Кодты көшіру</string>
     <string name="course_detail_credits_label">Кредиттер</string>
+    <string name="course_detail_dimension_label">Бағыт</string>
     <string name="course_detail_due_prefix">Тапсыру мерзімі: %1$s</string>
+    <string name="course_detail_duration_full_year">Бір жыл</string>
+    <string name="course_detail_duration_label">Ұзақтығы</string>
+    <string name="course_detail_duration_one_semester">Бір семестр</string>
     <string name="course_detail_enrollment_label">Тіркелу</string>
     <string name="course_detail_incomplete_assignments">Аяқталмаған тапсырмалар</string>
     <string name="course_detail_instructor_label">Оқытушы</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R NTUST порталынан соңғы курстар тізімін алады.</string>
     <string name="desktop_class_table_empty_title">Бұл семестрде курстар жоқ</string>
     <string name="desktop_class_table_loading_value">%1$s жүктелуде…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d курс · %3$d кредит</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d курс · %3$s кредит</string>
     <string name="desktop_home_section_upcoming_assignments">Алдағы тапсырмалар</string>
     <string name="desktop_more_not_implemented">Әлі іске асырылмаған</string>
     <string name="desktop_more_subtitle">TigerDuck Mac-те ұсынатын барлық мүмкіндіктерді шолыңыз. Жиі пайдаланатындарыңызды бүйірлік панельде көрінуі үшін бекітіңіз.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">Бұл жіберуші мектеп мекенжайы емес</string>
     <string name="school_mail_warning_password">Мектеп құпия сөзіңізді ешқашан электрондық хат арқылы сұрамайды.</string>
     <string name="score_academic_year_semester">%1$s оқу жылы %2$s семестр</string>
-    <string name="score_course_credits">%1$d кредит</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d кредит</string>
+    <string name="score_course_credits">%1$s кредит</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s кредит</string>
     <string name="score_course_detail_enrollment_label">Тіркелу</string>
     <string name="score_course_detail_schedule_label">Сабақ кестесі</string>
     <string name="score_credit_earned">Алынған</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">Орын %1$s(%2$s)</string>
     <string name="score_semester_second">Көктемгі семестр</string>
     <string name="score_semester_second_short">Көктем</string>
-    <string name="score_semester_total_credits">%1$d кредит</string>
+    <string name="score_semester_total_credits">%1$s кредит</string>
     <string name="score_semester_upper">Күзгі</string>
     <string name="score_sign_in_required_message">Баға тарихыңызды көру үшін кіріңіз</string>
     <string name="score_term_format">Ағымдағы семестр: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">Қосымша сервер хабарландыруларын алу</string>
     <string name="settings_server_push_update_failed">Сервер өзгерісті қабылдамады. Кейінірек қайталап көріңіз.</string>
     <string name="settings_show_absolute_assignment_time">Тапсырма мерзімі үшін толық күнді көрсету</string>
+    <string name="settings_show_classroom_on_class_table">Кестеде аудиторияларды көрсету</string>
     <string name="settings_sync_brief_description">TigerSync таңдалған ақпаратты барлық құрылғылар арасында синхрондауға мүмкіндік береді. Синхрондалмаған ақпарат тек осы құрылғыда қалады.</string>
     <string name="settings_sync_disabled_note">Синхрондау өшірулі кезде барлық деректер тек осы құрылғыда сақталады.</string>
     <string name="settings_sync_status_off">Өшірулі</string>

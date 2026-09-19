@@ -38,7 +38,7 @@
     <string name="add_course_example">Exempel: EC1013701, Kalkyl, Johan Wang</string>
     <string name="add_course_not_found">Inga matchande kurser hittades</string>
     <string name="add_course_placeholder">Ange kurskod, namn eller lärare</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d hp</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s hp</string>
     <string name="add_course_search_failed">Sökning misslyckades: %1$s</string>
     <string name="add_course_searching">Söker…</string>
     <string name="add_course_title">Lägg till kurs</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Återställ schemat för %1$s</string>
     <string name="class_table_semester_picker_label">Termin</string>
     <string name="class_table_sign_in_required_message">Logga in för att visa ditt schema</string>
-    <string name="class_table_total_credits_value">%1$d hp</string>
+    <string name="class_table_total_credits_value">%1$s hp</string>
     <string name="cloud_sync_assignments">Uppgifter</string>
     <string name="cloud_sync_class_table">Schema</string>
     <string name="cloud_sync_class_table_footer">Välj vilka schemadata som ska synkroniseras mellan enheter.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Anpassad</string>
     <string name="course_color_picker_custom_label">Anpassad färg</string>
     <string name="course_color_picker_title">Redigera färg</string>
-    <string name="course_credits_value">Hp: %1$d</string>
+    <string name="course_credits_value">Hp: %1$s</string>
     <string name="course_detail_classroom_label">Klassrum</string>
+    <string name="course_detail_code_copied">Koden kopierad</string>
     <string name="course_detail_code_label">Kurskod</string>
+    <string name="course_detail_copy_code">Kopiera kod</string>
     <string name="course_detail_credits_label">Högskolepoäng</string>
+    <string name="course_detail_dimension_label">Dimension</string>
     <string name="course_detail_due_prefix">Deadline: %1$s</string>
+    <string name="course_detail_duration_full_year">Helt år</string>
+    <string name="course_detail_duration_label">Längd</string>
+    <string name="course_detail_duration_one_semester">En termin</string>
     <string name="course_detail_enrollment_label">Registrering</string>
     <string name="course_detail_incomplete_assignments">Ofullständiga uppgifter</string>
     <string name="course_detail_instructor_label">Lärare</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R hämtar senaste kurslistan från NTUST-portalen.</string>
     <string name="desktop_class_table_empty_title">Inga kurser denna termin</string>
     <string name="desktop_class_table_loading_value">Läser in %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kurser · %3$d poäng</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kurser · %3$s poäng</string>
     <string name="desktop_home_section_upcoming_assignments">Kommande uppgifter</string>
     <string name="desktop_more_not_implemented">Inte implementerat ännu</string>
     <string name="desktop_more_subtitle">Bläddra bland alla TigerDuck-funktioner på Mac. Fäst de du använder mest i sidofältet.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">Avsändaren är inte en skoladress</string>
     <string name="school_mail_warning_password">Skolan frågar aldrig efter ditt lösenord via e-post.</string>
     <string name="score_academic_year_semester">Läsår %1$s %2$s</string>
-    <string name="score_course_credits">%1$d hp</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d hp</string>
+    <string name="score_course_credits">%1$s hp</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s hp</string>
     <string name="score_course_detail_enrollment_label">Registrering</string>
     <string name="score_course_detail_schedule_label">Kursschema</string>
     <string name="score_credit_earned">Intjänade</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">Rankning %1$s(%2$s)</string>
     <string name="score_semester_second">Vårtermin</string>
     <string name="score_semester_second_short">Vår</string>
-    <string name="score_semester_total_credits">%1$d hp</string>
+    <string name="score_semester_total_credits">%1$s hp</string>
     <string name="score_semester_upper">Höst</string>
     <string name="score_sign_in_required_message">Logga in för att se ditt betygshistorik</string>
     <string name="score_term_format">Aktuell termin: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">Ta emot ytterligare serveraviseringar</string>
     <string name="settings_server_push_update_failed">Servern accepterade inte ändringen. Försök igen senare.</string>
     <string name="settings_show_absolute_assignment_time">Visa fullständigt datum för uppgiftens förfallodatum</string>
+    <string name="settings_show_classroom_on_class_table">Visa salar i schemat</string>
     <string name="settings_sync_brief_description">TigerSync låter dig synkronisera vald information på alla enheter. Information utan synkronisering förblir bara på den här enheten.</string>
     <string name="settings_sync_disabled_note">När synkronisering är avstängd stannar all data bara på den här enheten.</string>
     <string name="settings_sync_status_off">Av</string>

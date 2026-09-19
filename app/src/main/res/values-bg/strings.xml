@@ -38,7 +38,7 @@
     <string name="add_course_example">Например: EC1013701, Смятане, Иван Иванов</string>
     <string name="add_course_not_found">Не са намерени съвпадащи курсове</string>
     <string name="add_course_placeholder">Въведете код на курса, наименование или преподавател</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d кредити</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s кредити</string>
     <string name="add_course_search_failed">Търсенето е неуспешно: %1$s</string>
     <string name="add_course_searching">Търсене…</string>
     <string name="add_course_title">Добавяне на курс</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Нулиране на разписанието за %1$s</string>
     <string name="class_table_semester_picker_label">Семестър</string>
     <string name="class_table_sign_in_required_message">Влезте, за да видите таблицата на вашия клас</string>
-    <string name="class_table_total_credits_value">%1$d кредити</string>
+    <string name="class_table_total_credits_value">%1$s кредити</string>
     <string name="cloud_sync_assignments">Задачи</string>
     <string name="cloud_sync_class_table">Разписание</string>
     <string name="cloud_sync_class_table_footer">Изберете кои данни от разписанието да се синхронизират между устройствата.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">По избор</string>
     <string name="course_color_picker_custom_label">Цвят по избор</string>
     <string name="course_color_picker_title">Редактиране на цвят</string>
-    <string name="course_credits_value">Кредити: %1$d</string>
+    <string name="course_credits_value">Кредити: %1$s</string>
     <string name="course_detail_classroom_label">Класна стая</string>
+    <string name="course_detail_code_copied">Кодът е копиран</string>
     <string name="course_detail_code_label">Код</string>
+    <string name="course_detail_copy_code">Копиране на кода</string>
     <string name="course_detail_credits_label">Кредити</string>
+    <string name="course_detail_dimension_label">Измерение</string>
     <string name="course_detail_due_prefix">Падеж: %1$s</string>
+    <string name="course_detail_duration_full_year">Цяла година</string>
+    <string name="course_detail_duration_label">Продължителност</string>
+    <string name="course_detail_duration_one_semester">Един семестър</string>
     <string name="course_detail_enrollment_label">Записване</string>
     <string name="course_detail_incomplete_assignments">Незавършени задачи</string>
     <string name="course_detail_instructor_label">Инструктор</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R извлича най-новия списък с курсове от портала на NTUST.</string>
     <string name="desktop_class_table_empty_title">Няма курсове този семестър</string>
     <string name="desktop_class_table_loading_value">Зареждане на %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d курса · %3$d кредита</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d курса · %3$s кредита</string>
     <string name="desktop_home_section_upcoming_assignments">Предстоящи задачи</string>
     <string name="desktop_more_not_implemented">Все още не е реализирано</string>
     <string name="desktop_more_subtitle">Разгледайте всички функции, които TigerDuck предлага за Mac. Закачете най-често използваните, за да се показват в страничната лента.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">Този подател не е училищен адрес</string>
     <string name="school_mail_warning_password">Училището никога не иска паролата ви по имейл.</string>
     <string name="score_academic_year_semester">Учебна година %1$s %2$s</string>
-    <string name="score_course_credits">%1$d кредити</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d кредита</string>
+    <string name="score_course_credits">%1$s кредити</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s кредита</string>
     <string name="score_course_detail_enrollment_label">Записване</string>
     <string name="score_course_detail_schedule_label">Разписание на часовете</string>
     <string name="score_credit_earned">Получени</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">Класиране %1$s(%2$s)</string>
     <string name="score_semester_second">Пролетен семестър</string>
     <string name="score_semester_second_short">Пролет</string>
-    <string name="score_semester_total_credits">%1$d кредити</string>
+    <string name="score_semester_total_credits">%1$s кредити</string>
     <string name="score_semester_upper">Есен</string>
     <string name="score_sign_in_required_message">Влезте, за да видите историята на оценките си</string>
     <string name="score_term_format">Текущ семестър: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">Получаване на допълнителни известия от сървъра</string>
     <string name="settings_server_push_update_failed">Сървърът не прие промяната. Опитайте отново по-късно.</string>
     <string name="settings_show_absolute_assignment_time">Показване на пълна дата за крайния срок на задание</string>
+    <string name="settings_show_classroom_on_class_table">Показване на залите в графика</string>
     <string name="settings_sync_brief_description">TigerSync ви позволява да синхронизирате избраната информация между всички устройства с включен TigerSync. Информацията, която не е включена, остава само на това устройство.</string>
     <string name="settings_sync_disabled_note">Когато синхронизацията е изключена, всички данни остават само на това устройство.</string>
     <string name="settings_sync_status_off">Изкл.</string>

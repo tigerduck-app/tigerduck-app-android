@@ -38,7 +38,7 @@
     <string name="add_course_example">Örnek: EC1013701, Kalkülüs, John Wang</string>
     <string name="add_course_not_found">Eşleşen ders bulunamadı</string>
     <string name="add_course_placeholder">Ders kodu, adı veya öğretim üyesi girin</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d kredi</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s kredi</string>
     <string name="add_course_search_failed">Arama başarısız: %1$s</string>
     <string name="add_course_searching">Aranıyor…</string>
     <string name="add_course_title">Ders ekle</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">%1$s ders programını sıfırla</string>
     <string name="class_table_semester_picker_label">Dönem</string>
     <string name="class_table_sign_in_required_message">Ders programınızı görmek için oturum açın</string>
-    <string name="class_table_total_credits_value">%1$d kredi</string>
+    <string name="class_table_total_credits_value">%1$s kredi</string>
     <string name="cloud_sync_assignments">Ödevler</string>
     <string name="cloud_sync_class_table">Ders programı</string>
     <string name="cloud_sync_class_table_footer">Cihazlar arasında hangi ders programı verilerinin senkronize edileceğini seçin.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Özel</string>
     <string name="course_color_picker_custom_label">Özel renk</string>
     <string name="course_color_picker_title">Rengi düzenle</string>
-    <string name="course_credits_value">Kredi: %1$d</string>
+    <string name="course_credits_value">Kredi: %1$s</string>
     <string name="course_detail_classroom_label">Derslik</string>
+    <string name="course_detail_code_copied">Kod kopyalandı</string>
     <string name="course_detail_code_label">Kod</string>
+    <string name="course_detail_copy_code">Kodu kopyala</string>
     <string name="course_detail_credits_label">Kredi</string>
+    <string name="course_detail_dimension_label">Boyut</string>
     <string name="course_detail_due_prefix">Son tarih: %1$s</string>
+    <string name="course_detail_duration_full_year">Tüm yıl</string>
+    <string name="course_detail_duration_label">Süre</string>
+    <string name="course_detail_duration_one_semester">Bir dönem</string>
     <string name="course_detail_enrollment_label">Kayıt</string>
     <string name="course_detail_incomplete_assignments">Tamamlanmamış ödevler</string>
     <string name="course_detail_instructor_label">Eğitmen</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R, NTUST portalından en güncel ders listesini getirir.</string>
     <string name="desktop_class_table_empty_title">Bu dönemde ders yok</string>
     <string name="desktop_class_table_loading_value">%1$s yükleniyor…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d ders · %3$d kredi</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d ders · %3$s kredi</string>
     <string name="desktop_home_section_upcoming_assignments">Yaklaşan ödevler</string>
     <string name="desktop_more_not_implemented">Henüz uygulanmadı</string>
     <string name="desktop_more_subtitle">Mac\'te TigerDuck\'ın tüm özelliklerine göz atın. En çok kullandıklarınızı kenar çubuğuna sabitleyin.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">Bu gönderen okul adresi değil</string>
     <string name="school_mail_warning_password">Okul, şifrenizi asla e-posta yoluyla istemez.</string>
     <string name="score_academic_year_semester">%1$s Akademik Yılı %2$s</string>
-    <string name="score_course_credits">%1$d kredi</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d kredi</string>
+    <string name="score_course_credits">%1$s kredi</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s kredi</string>
     <string name="score_course_detail_enrollment_label">Kayıt</string>
     <string name="score_course_detail_schedule_label">Ders programı</string>
     <string name="score_credit_earned">Kazanılan</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">Sıralama %1$s(%2$s)</string>
     <string name="score_semester_second">Bahar dönemi</string>
     <string name="score_semester_second_short">Bahar</string>
-    <string name="score_semester_total_credits">%1$d kredi</string>
+    <string name="score_semester_total_credits">%1$s kredi</string>
     <string name="score_semester_upper">Güz</string>
     <string name="score_sign_in_required_message">Not geçmişinizi görüntülemek için giriş yapın</string>
     <string name="score_term_format">Mevcut dönem: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">Ek sunucu bildirimlerini al</string>
     <string name="settings_server_push_update_failed">Sunucu değişikliği kabul etmedi. Daha sonra tekrar deneyin.</string>
     <string name="settings_show_absolute_assignment_time">Ödev teslim saatinde tam tarihi göster</string>
+    <string name="settings_show_classroom_on_class_table">Ders programında derslikleri göster</string>
     <string name="settings_sync_brief_description">TigerSync, seçtiğiniz bilgileri tüm cihazlarınızda senkronize etmenizi sağlar. Etkinleştirilmemiş bilgiler yalnızca bu cihazda kalır.</string>
     <string name="settings_sync_disabled_note">Senkronizasyon kapalıyken tüm veriler yalnızca bu cihazda kalır.</string>
     <string name="settings_sync_status_off">Kapalı</string>

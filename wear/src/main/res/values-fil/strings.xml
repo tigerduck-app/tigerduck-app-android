@@ -38,7 +38,7 @@
     <string name="add_course_example">Halimbawa: EC1013701, Calculus, John Wang</string>
     <string name="add_course_not_found">Walang nahanap na magkakatugmang kurso</string>
     <string name="add_course_placeholder">Ilagay ang course code, pangalan, o instructor</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d na credit</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s na credit</string>
     <string name="add_course_search_failed">Nabigong maghanap: %1$s</string>
     <string name="add_course_searching">Naghahanap…</string>
     <string name="add_course_title">Magdagdag ng kurso</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">I-reset ang talaan ng kurso ng %1$s</string>
     <string name="class_table_semester_picker_label">Semestre</string>
     <string name="class_table_sign_in_required_message">Mag-sign in upang tingnan ang iyong talahanayan ng klase</string>
-    <string name="class_table_total_credits_value">%1$d na credit</string>
+    <string name="class_table_total_credits_value">%1$s na credit</string>
     <string name="cloud_sync_assignments">Mga Assignment</string>
     <string name="cloud_sync_class_table">Iskedyul ng klase</string>
     <string name="cloud_sync_class_table_footer">Piliin kung aling data ng iskedyul ang isi-sync sa mga device.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Pasadya</string>
     <string name="course_color_picker_custom_label">Pasadyang kulay</string>
     <string name="course_color_picker_title">I-edit ang kulay</string>
-    <string name="course_credits_value">Mga credit: %1$d</string>
+    <string name="course_credits_value">Mga credit: %1$s</string>
     <string name="course_detail_classroom_label">Silid-aralan</string>
+    <string name="course_detail_code_copied">Nakopya ang code</string>
     <string name="course_detail_code_label">Code</string>
+    <string name="course_detail_copy_code">Kopyahin ang code</string>
     <string name="course_detail_credits_label">Mga kredito</string>
+    <string name="course_detail_dimension_label">Dimensyon</string>
     <string name="course_detail_due_prefix">Dapat bayaran: %1$s</string>
+    <string name="course_detail_duration_full_year">Buong taon</string>
+    <string name="course_detail_duration_label">Tagal</string>
+    <string name="course_detail_duration_one_semester">Isang semestre</string>
     <string name="course_detail_enrollment_label">Pagpapatala</string>
     <string name="course_detail_incomplete_assignments">Mga hindi kumpleto na takdang-aralin</string>
     <string name="course_detail_instructor_label">Tagapagturo</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">Kinukuha ng ⌘R ang pinakabagong listahan ng kurso mula sa portal ng NTUST.</string>
     <string name="desktop_class_table_empty_title">Walang kurso sa semestre na ito</string>
     <string name="desktop_class_table_loading_value">Naglo-load ng %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kurso · %3$d credits</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kurso · %3$s credits</string>
     <string name="desktop_home_section_upcoming_assignments">Mga paparating na takdang aralin</string>
     <string name="desktop_more_not_implemented">Hindi pa naipapatupad</string>
     <string name="desktop_more_subtitle">Tingnan ang lahat ng feature ng TigerDuck sa Mac. I-pin ang madalas mong gamitin sa sidebar.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">Hindi school address ang nagpadala nito</string>
     <string name="school_mail_warning_password">Hindi kailanman hihingi ang paaralan ng password mo sa pamamagitan ng mail.</string>
     <string name="score_academic_year_semester">Taong Akademiko %1$s %2$s</string>
-    <string name="score_course_credits">%1$d na credit</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d na credit</string>
+    <string name="score_course_credits">%1$s na credit</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s na credit</string>
     <string name="score_course_detail_enrollment_label">Pagpapatala</string>
     <string name="score_course_detail_schedule_label">Iskedyul ng klase</string>
     <string name="score_credit_earned">Nakuha</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">Ranggo %1$s(%2$s)</string>
     <string name="score_semester_second">Ikalawang semestre</string>
     <string name="score_semester_second_short">Ika-2</string>
-    <string name="score_semester_total_credits">%1$d na credit</string>
+    <string name="score_semester_total_credits">%1$s na credit</string>
     <string name="score_semester_upper">Unang Semestre</string>
     <string name="score_sign_in_required_message">Mag-sign in upang tingnan ang iyong kasaysayan ng grado</string>
     <string name="score_term_format">Kasalukuyang term: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">Tumanggap ng mga karagdagang abiso ng server</string>
     <string name="settings_server_push_update_failed">Hindi tinanggap ng server ang pagbabago. Subukang muli mamaya.</string>
     <string name="settings_show_absolute_assignment_time">Ipakita ang kumpletong petsa para sa due time ng takdang-aralin</string>
+    <string name="settings_show_classroom_on_class_table">Ipakita ang mga silid-aralan sa iskedyul</string>
     <string name="settings_sync_brief_description">Pinapayagan ka ng TigerSync na i-sync ang iyong napiling impormasyon sa lahat ng device. Ang impormasyong hindi naka-enable ay mananatili lamang sa device na ito.</string>
     <string name="settings_sync_disabled_note">Kapag naka-off ang sync, ang lahat ng data ay nananatili sa device na ito lamang.</string>
     <string name="settings_sync_status_off">Naka-off</string>

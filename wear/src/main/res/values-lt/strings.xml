@@ -38,7 +38,7 @@
     <string name="add_course_example">Pvz.: EC1013701, Matematika, Jonas Jonaitis</string>
     <string name="add_course_not_found">Atitinkamų kursų nerasta</string>
     <string name="add_course_placeholder">Įveskite kurso kodą, pavadinimą arba dėstytoją</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d kreditai</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s kreditai</string>
     <string name="add_course_search_failed">Paieška nepavyko: %1$s</string>
     <string name="add_course_searching">Ieškoma…</string>
     <string name="add_course_title">Pridėti kursą</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Atstatyti %1$s tvarkaraštį</string>
     <string name="class_table_semester_picker_label">Semestras</string>
     <string name="class_table_sign_in_required_message">Prisijunkite, kad matytumėte savo tvarkaraštį</string>
-    <string name="class_table_total_credits_value">%1$d kreditai</string>
+    <string name="class_table_total_credits_value">%1$s kreditai</string>
     <string name="cloud_sync_assignments">Užduotys</string>
     <string name="cloud_sync_class_table">Tvarkaraštis</string>
     <string name="cloud_sync_class_table_footer">Pasirinkite, kuriuos tvarkaraščio duomenis sinchronizuoti tarp įrenginių.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Tinkintas</string>
     <string name="course_color_picker_custom_label">Tinkinta spalva</string>
     <string name="course_color_picker_title">Redaguoti spalvą</string>
-    <string name="course_credits_value">Kreditai: %1$d</string>
+    <string name="course_credits_value">Kreditai: %1$s</string>
     <string name="course_detail_classroom_label">Auditorija</string>
+    <string name="course_detail_code_copied">Kodas nukopijuotas</string>
     <string name="course_detail_code_label">Kodas</string>
+    <string name="course_detail_copy_code">Kopijuoti kodą</string>
     <string name="course_detail_credits_label">Kreditai</string>
+    <string name="course_detail_dimension_label">Dimensija</string>
     <string name="course_detail_due_prefix">Terminas: %1$s</string>
+    <string name="course_detail_duration_full_year">Visi metai</string>
+    <string name="course_detail_duration_label">Trukmė</string>
+    <string name="course_detail_duration_one_semester">Vienas semestras</string>
     <string name="course_detail_enrollment_label">Studentų skaičius</string>
     <string name="course_detail_incomplete_assignments">Neatliktos užduotys</string>
     <string name="course_detail_instructor_label">Dėstytojas</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R gauna naujausią kursų sąrašą iš NTUST portalo.</string>
     <string name="desktop_class_table_empty_title">Šį semestrą kursų nėra</string>
     <string name="desktop_class_table_loading_value">Įkeliama %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kursai · %3$d kreditai</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kursai · %3$s kreditai</string>
     <string name="desktop_home_section_upcoming_assignments">Artėjančios užduotys</string>
     <string name="desktop_more_not_implemented">Dar neįgyvendinta</string>
     <string name="desktop_more_subtitle">Peržiūrėkite visas TigerDuck funkcijas, pasiekiamas Mac programėlėje. Prisekite dažniausiai naudojamas, kad jos būtų rodomos šoninėje juostoje.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">Šis siuntėjas nėra mokyklos adresas</string>
     <string name="school_mail_warning_password">Mokykla niekada neprašo slaptažodžio el. paštu.</string>
     <string name="score_academic_year_semester">Akademiniai metai %1$s %2$s</string>
-    <string name="score_course_credits">%1$d kreditai</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d kreditai</string>
+    <string name="score_course_credits">%1$s kreditai</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s kreditai</string>
     <string name="score_course_detail_enrollment_label">Registracija</string>
     <string name="score_course_detail_schedule_label">Pamokų tvarkaraštis</string>
     <string name="score_credit_earned">Gauta</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">Vieta %1$s(%2$s)</string>
     <string name="score_semester_second">Pavasario semestras</string>
     <string name="score_semester_second_short">Pavasaris</string>
-    <string name="score_semester_total_credits">%1$d kreditai</string>
+    <string name="score_semester_total_credits">%1$s kreditai</string>
     <string name="score_semester_upper">Ruduo</string>
     <string name="score_sign_in_required_message">Prisijunkite, kad peržiūrėtumėte savo pažymių istoriją</string>
     <string name="score_term_format">Dabartinis semestras: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">Gauti papildomus serverio pranešimus</string>
     <string name="settings_server_push_update_failed">Serveris nepriėmė pakeitimo. Bandykite dar kartą vėliau.</string>
     <string name="settings_show_absolute_assignment_time">Rodyti pilną datą užduoties terminui</string>
+    <string name="settings_show_classroom_on_class_table">Rodyti auditorijas tvarkaraštyje</string>
     <string name="settings_sync_brief_description">TigerSync leidžia sinchronizuoti pasirinktą informaciją visuose įrenginiuose. Nesinchronizuota informacija lieka tik šiame įrenginyje.</string>
     <string name="settings_sync_disabled_note">Kai sinchronizacija išjungta, visi duomenys lieka tik šiame įrenginyje.</string>
     <string name="settings_sync_status_off">Išjungta</string>

@@ -38,7 +38,7 @@
     <string name="add_course_example">Przykład: EC1013701, Analiza matematyczna, John Wang</string>
     <string name="add_course_not_found">Nie znaleziono pasujących przedmiotów</string>
     <string name="add_course_placeholder">Wprowadź kod przedmiotu, nazwę lub wykładowcę</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d ECTS</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s ECTS</string>
     <string name="add_course_search_failed">Wyszukiwanie nie powiodło się: %1$s</string>
     <string name="add_course_searching">Wyszukiwanie…</string>
     <string name="add_course_title">Dodaj przedmiot</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Resetuj plan zajęć %1$s</string>
     <string name="class_table_semester_picker_label">Semestr</string>
     <string name="class_table_sign_in_required_message">Zaloguj się, aby zobaczyć plan zajęć</string>
-    <string name="class_table_total_credits_value">%1$d ECTS</string>
+    <string name="class_table_total_credits_value">%1$s ECTS</string>
     <string name="cloud_sync_assignments">Zadania</string>
     <string name="cloud_sync_class_table">Plan zajęć</string>
     <string name="cloud_sync_class_table_footer">Wybierz, które dane planu zajęć synchronizować między urządzeniami.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Niestandardowy</string>
     <string name="course_color_picker_custom_label">Kolor niestandardowy</string>
     <string name="course_color_picker_title">Edytuj kolor</string>
-    <string name="course_credits_value">Punkty ECTS: %1$d</string>
+    <string name="course_credits_value">Punkty ECTS: %1$s</string>
     <string name="course_detail_classroom_label">Sala</string>
+    <string name="course_detail_code_copied">Skopiowano kod</string>
     <string name="course_detail_code_label">Kod</string>
+    <string name="course_detail_copy_code">Kopiuj kod</string>
     <string name="course_detail_credits_label">Punkty ECTS</string>
+    <string name="course_detail_dimension_label">Wymiar</string>
     <string name="course_detail_due_prefix">Termin: %1$s</string>
+    <string name="course_detail_duration_full_year">Cały rok</string>
+    <string name="course_detail_duration_label">Czas trwania</string>
+    <string name="course_detail_duration_one_semester">Jeden semestr</string>
     <string name="course_detail_enrollment_label">Liczba zapisanych</string>
     <string name="course_detail_incomplete_assignments">Niezakończone zadania</string>
     <string name="course_detail_instructor_label">Wykładowca</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R pobiera najnowszą listę kursów z portalu NTUST.</string>
     <string name="desktop_class_table_empty_title">Brak kursów w tym semestrze</string>
     <string name="desktop_class_table_loading_value">Ładowanie %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kursów · %3$d punktów</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kursów · %3$s punktów</string>
     <string name="desktop_home_section_upcoming_assignments">Nadchodzące zadania</string>
     <string name="desktop_more_not_implemented">Jeszcze nie zaimplementowane</string>
     <string name="desktop_more_subtitle">Przejrzyj wszystkie funkcje TigerDuck na Macu. Przypnij najczęściej używane do paska bocznego.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">Ten nadawca to nie adres uczelniany.</string>
     <string name="school_mail_warning_password">Uczelnia nigdy nie prosi o hasło e-mailem.</string>
     <string name="score_academic_year_semester">Rok akademicki %1$s %2$s</string>
-    <string name="score_course_credits">%1$d ECTS</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d ECTS</string>
+    <string name="score_course_credits">%1$s ECTS</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s ECTS</string>
     <string name="score_course_detail_enrollment_label">Rejestracja</string>
     <string name="score_course_detail_schedule_label">Plan zajęć</string>
     <string name="score_credit_earned">Zdobyte</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">Pozycja %1$s(%2$s)</string>
     <string name="score_semester_second">Semestr letni</string>
     <string name="score_semester_second_short">Lato</string>
-    <string name="score_semester_total_credits">%1$d ECTS</string>
+    <string name="score_semester_total_credits">%1$s ECTS</string>
     <string name="score_semester_upper">Jesień</string>
     <string name="score_sign_in_required_message">Zaloguj się, aby zobaczyć historię ocen</string>
     <string name="score_term_format">Bieżący semestr: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">Otrzymuj dodatkowe powiadomienia serwera</string>
     <string name="settings_server_push_update_failed">Serwer nie zaakceptował zmiany. Spróbuj ponownie później.</string>
     <string name="settings_show_absolute_assignment_time">Pokaż pełną datę terminu zadania</string>
+    <string name="settings_show_classroom_on_class_table">Pokazuj sale w planie zajęć</string>
     <string name="settings_sync_brief_description">TigerSync umożliwia synchronizację wybranych informacji na wszystkich urządzeniach. Informacje bez synchronizacji pozostają tylko na tym urządzeniu.</string>
     <string name="settings_sync_disabled_note">Gdy synchronizacja jest wyłączona, wszystkie dane pozostają tylko na tym urządzeniu.</string>
     <string name="settings_sync_status_off">Wył.</string>

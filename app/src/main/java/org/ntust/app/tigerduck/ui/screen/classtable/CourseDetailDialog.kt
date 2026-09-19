@@ -51,6 +51,7 @@ import androidx.core.net.toUri
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.util.formatCredits
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -156,7 +157,7 @@ internal fun CourseDetailDialog(
                     )
                     InfoRow(
                         label = stringResource(R.string.course_detail_credits_label),
-                        value = course.credits.toString(),
+                        value = course.credits.formatCredits(),
                     )
                     InfoRow(
                         label = stringResource(R.string.course_detail_enrollment_label),

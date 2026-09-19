@@ -38,7 +38,7 @@
     <string name="add_course_example">Primer: EC1013701, Matematična analiza, Janez Novak</string>
     <string name="add_course_not_found">Ni najdenih ustreznih predmetov</string>
     <string name="add_course_placeholder">Vnesite kodo predmeta, ime ali predavatelja</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d kreditnih točk</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s kreditnih točk</string>
     <string name="add_course_search_failed">Iskanje ni uspelo: %1$s</string>
     <string name="add_course_searching">Iskanje…</string>
     <string name="add_course_title">Dodaj predmet</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Ponastavi urnik %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Prijavite se za ogled urnika</string>
-    <string name="class_table_total_credits_value">%1$d kreditnih točk</string>
+    <string name="class_table_total_credits_value">%1$s kreditnih točk</string>
     <string name="cloud_sync_assignments">Naloge</string>
     <string name="cloud_sync_class_table">Urnik</string>
     <string name="cloud_sync_class_table_footer">Izberite, katere podatke urnika želite sinhronizirati med napravami.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Po meri</string>
     <string name="course_color_picker_custom_label">Barva po meri</string>
     <string name="course_color_picker_title">Uredi barvo</string>
-    <string name="course_credits_value">Kreditne točke: %1$d</string>
+    <string name="course_credits_value">Kreditne točke: %1$s</string>
     <string name="course_detail_classroom_label">Učilnica</string>
+    <string name="course_detail_code_copied">Koda kopirana</string>
     <string name="course_detail_code_label">Koda</string>
+    <string name="course_detail_copy_code">Kopiraj kodo</string>
     <string name="course_detail_credits_label">Krediti</string>
+    <string name="course_detail_dimension_label">Dimenzija</string>
     <string name="course_detail_due_prefix">Rok: %1$s</string>
+    <string name="course_detail_duration_full_year">Celo leto</string>
+    <string name="course_detail_duration_label">Trajanje</string>
+    <string name="course_detail_duration_one_semester">En semester</string>
     <string name="course_detail_enrollment_label">Vpis</string>
     <string name="course_detail_incomplete_assignments">Nedokončane naloge</string>
     <string name="course_detail_instructor_label">Predavatelj</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R pridobi najnovejši seznam predmetov s portala NTUST.</string>
     <string name="desktop_class_table_empty_title">V tem semestru ni predmetov</string>
     <string name="desktop_class_table_loading_value">Nalaganje %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d predmetov · %3$d kreditov</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d predmetov · %3$s kreditov</string>
     <string name="desktop_home_section_upcoming_assignments">Prihajajoče naloge</string>
     <string name="desktop_more_not_implemented">Še ni implementirano</string>
     <string name="desktop_more_subtitle">Prebrskajte vse funkcije, ki jih TigerDuck ponuja za Mac. Pripnite tiste, ki jih uporabljate največ, da se prikažejo v stranski vrstici.</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">Ta pošiljatelj ni šolski naslov</string>
     <string name="school_mail_warning_password">Šola nikoli ne zahteva gesla po e-pošti.</string>
     <string name="score_academic_year_semester">Šolsko leto %1$s %2$s</string>
-    <string name="score_course_credits">%1$d kreditnih točk</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d KT</string>
+    <string name="score_course_credits">%1$s kreditnih točk</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s KT</string>
     <string name="score_course_detail_enrollment_label">Vpis</string>
     <string name="score_course_detail_schedule_label">Urnik pouka</string>
     <string name="score_credit_earned">Pridobljene</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">Uvrstitev %1$s(%2$s)</string>
     <string name="score_semester_second">Letni semester</string>
     <string name="score_semester_second_short">Pomlad</string>
-    <string name="score_semester_total_credits">%1$d kreditnih točk</string>
+    <string name="score_semester_total_credits">%1$s kreditnih točk</string>
     <string name="score_semester_upper">Jesen</string>
     <string name="score_sign_in_required_message">Prijavite se za ogled zgodovine ocen</string>
     <string name="score_term_format">Trenutni semester: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">Prejemaj dodatna obvestila strežnika</string>
     <string name="settings_server_push_update_failed">Strežnik spremembe ni sprejel. Poskusite znova pozneje.</string>
     <string name="settings_show_absolute_assignment_time">Prikaži polni datum za rok oddaje naloge</string>
+    <string name="settings_show_classroom_on_class_table">Prikaži učilnice v urniku</string>
     <string name="settings_sync_brief_description">TigerSync omogoča sinhronizacijo izbranih podatkov med vsemi napravami. Neaktivni podatki ostanejo samo na tej napravi.</string>
     <string name="settings_sync_disabled_note">Ko je sinhronizacija izklopljena, vsi podatki ostanejo samo na tej napravi.</string>
     <string name="settings_sync_status_off">Izklopljeno</string>

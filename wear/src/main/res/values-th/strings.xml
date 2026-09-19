@@ -38,7 +38,7 @@
     <string name="add_course_example">ตัวอย่าง: EC1013701, แคลคูลัส, John Wang</string>
     <string name="add_course_not_found">ไม่พบรายวิชาที่ตรงกัน</string>
     <string name="add_course_placeholder">ใส่รหัสวิชา ชื่อวิชา หรือชื่ออาจารย์</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d หน่วยกิต</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s หน่วยกิต</string>
     <string name="add_course_search_failed">ค้นหาล้มเหลว: %1$s</string>
     <string name="add_course_searching">กำลังค้นหา…</string>
     <string name="add_course_title">เพิ่มรายวิชา</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">รีเซ็ตตารางเรียน %1$s</string>
     <string name="class_table_semester_picker_label">ภาคการศึกษา</string>
     <string name="class_table_sign_in_required_message">เข้าสู่ระบบเพื่อดูตารางเรียนของคุณ</string>
-    <string name="class_table_total_credits_value">%1$d หน่วยกิต</string>
+    <string name="class_table_total_credits_value">%1$s หน่วยกิต</string>
     <string name="cloud_sync_assignments">งานที่ได้รับมอบหมาย</string>
     <string name="cloud_sync_class_table">ตารางเรียน</string>
     <string name="cloud_sync_class_table_footer">เลือกข้อมูลตารางเรียนที่จะซิงค์ระหว่างอุปกรณ์</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">กำหนดเอง</string>
     <string name="course_color_picker_custom_label">สีกำหนดเอง</string>
     <string name="course_color_picker_title">แก้ไขสี</string>
-    <string name="course_credits_value">หน่วยกิต: %1$d</string>
+    <string name="course_credits_value">หน่วยกิต: %1$s</string>
     <string name="course_detail_classroom_label">ห้องเรียน</string>
+    <string name="course_detail_code_copied">คัดลอกรหัสแล้ว</string>
     <string name="course_detail_code_label">รหัส</string>
+    <string name="course_detail_copy_code">คัดลอกรหัส</string>
     <string name="course_detail_credits_label">หน่วยกิต</string>
+    <string name="course_detail_dimension_label">มิติ</string>
     <string name="course_detail_due_prefix">ครบกำหนด: %1$s</string>
+    <string name="course_detail_duration_full_year">ทั้งปี</string>
+    <string name="course_detail_duration_label">ระยะเวลา</string>
+    <string name="course_detail_duration_one_semester">หนึ่งภาคเรียน</string>
     <string name="course_detail_enrollment_label">จำนวนผู้ลงทะเบียน</string>
     <string name="course_detail_incomplete_assignments">การบ้านที่ยังไม่เสร็จ</string>
     <string name="course_detail_instructor_label">อาจารย์ผู้สอน</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R จะดึงรายการวิชาล่าสุดจากพอร์ทัล NTUST</string>
     <string name="desktop_class_table_empty_title">ไม่มีรายวิชาในภาคนี้</string>
     <string name="desktop_class_table_loading_value">กำลังโหลด %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d วิชา · %3$d หน่วยกิต</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d วิชา · %3$s หน่วยกิต</string>
     <string name="desktop_home_section_upcoming_assignments">การบ้านที่จะมาถึง</string>
     <string name="desktop_more_not_implemented">ยังไม่ได้ใช้งาน</string>
     <string name="desktop_more_subtitle">สำรวจฟีเจอร์ทั้งหมดของ TigerDuck บน Mac ปักหมุดที่ใช้บ่อยลงในแถบด้านข้าง</string>
@@ -710,8 +716,8 @@
     <string name="school_mail_warning_external">ผู้ส่งรายนี้ไม่ใช่ที่อยู่อีเมลของมหาวิทยาลัย</string>
     <string name="school_mail_warning_password">ทางมหาวิทยาลัยจะไม่ขอรหัสผ่านของคุณทางอีเมลเด็ดขาด</string>
     <string name="score_academic_year_semester">ปีการศึกษา %1$s %2$s</string>
-    <string name="score_course_credits">%1$d หน่วยกิต</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d หน่วยกิต</string>
+    <string name="score_course_credits">%1$s หน่วยกิต</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s หน่วยกิต</string>
     <string name="score_course_detail_enrollment_label">การลงทะเบียน</string>
     <string name="score_course_detail_schedule_label">ตารางเรียน</string>
     <string name="score_credit_earned">ได้รับแล้ว</string>
@@ -765,7 +771,7 @@
     <string name="score_semester_ranking">อันดับ %1$s(%2$s)</string>
     <string name="score_semester_second">ภาคปลาย</string>
     <string name="score_semester_second_short">ปลาย</string>
-    <string name="score_semester_total_credits">%1$d หน่วยกิต</string>
+    <string name="score_semester_total_credits">%1$s หน่วยกิต</string>
     <string name="score_semester_upper">ภาคต้น</string>
     <string name="score_sign_in_required_message">ลงชื่อเข้าใช้เพื่อดูประวัติเกรดของคุณ</string>
     <string name="score_term_format">ภาคการศึกษาปัจจุบัน: %1$s-%2$s</string>
@@ -853,6 +859,7 @@
     <string name="settings_server_push_label">รับการแจ้งเตือนเซิร์ฟเวอร์เพิ่มเติม</string>
     <string name="settings_server_push_update_failed">เซิร์ฟเวอร์ไม่ยอมรับการเปลี่ยนแปลงนี้ โปรดลองใหม่อีกครั้งภายหลัง</string>
     <string name="settings_show_absolute_assignment_time">แสดงวันที่เต็มสำหรับเวลาครบกำหนดการบ้าน</string>
+    <string name="settings_show_classroom_on_class_table">แสดงห้องเรียนในตารางเรียน</string>
     <string name="settings_sync_brief_description">TigerSync ช่วยให้คุณซิงค์ข้อมูลที่เลือกในอุปกรณ์ทั้งหมด ข้อมูลที่ไม่ได้เปิดใช้จะอยู่ในอุปกรณ์นี้เท่านั้น</string>
     <string name="settings_sync_disabled_note">เมื่อปิดการซิงค์ ข้อมูลทั้งหมดจะอยู่บนอุปกรณ์นี้เท่านั้น</string>
     <string name="settings_sync_status_off">ปิด</string>

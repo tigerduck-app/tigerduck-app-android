@@ -135,7 +135,14 @@ class SchedulePersistence(private val context: Context) {
         val courseNo: String,
         val courseName: String,
         val instructor: String,
+        /** Whole credits. An older phone sends only this; see [creditsExact]. */
         val credits: Int,
+        /**
+         * The real, possibly fractional count. Nullable because a phone that
+         * predates half-credit support omits the key entirely, and Gson's
+         * Unsafe path leaves it null rather than applying the default.
+         */
+        val creditsExact: Float? = null,
         val classroom: String,
         val scheduleJson: String,
         // Older phones (pre-classroomMap) won't include this field; Gson
@@ -150,7 +157,7 @@ class SchedulePersistence(private val context: Context) {
             courseNo = courseNo,
             courseName = courseName,
             instructor = instructor,
-            credits = credits,
+            credits = creditsExact ?: credits.toFloat(),
             classroom = classroom,
             scheduleJson = scheduleJson,
             classroomMapJson = classroomMapJson?.takeIf { it.isNotEmpty() } ?: "{}",
