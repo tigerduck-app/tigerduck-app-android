@@ -61,6 +61,7 @@ import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.util.formatCredits
+import org.ntust.app.tigerduck.util.toCreditsOrZero
 
 // Course codes are ASCII alphanumeric with at least one digit
 // (e.g. "EC1013701", "GE1002101"). Anything else is treated as a name or
@@ -537,7 +538,7 @@ private fun groupResults(
                 courseNo = result.courseNo,
                 courseName = result.courseName,
                 instructor = result.courseTeacher,
-                credits = result.creditPoint.toFloatOrNull() ?: 0f,
+                credits = result.creditPoint.toCreditsOrZero(),
                 classroom = result.classRoomNo ?: "",
                 enrolledCount = result.chooseStudent ?: 0,
                 maxCount = result.maxEnrollment,

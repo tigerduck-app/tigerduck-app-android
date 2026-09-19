@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import org.ntust.app.tigerduck.util.toCreditsOrZero
 
 sealed class CourseServiceError : Exception() {
     class NotAuthenticated : CourseServiceError()
@@ -274,7 +275,7 @@ class CourseService @Inject constructor(
                 courseNo = first.courseNo,
                 courseName = first.courseName,
                 instructor = first.courseTeacher,
-                credits = first.creditPoint.toFloatOrNull() ?: 0f,
+                credits = first.creditPoint.toCreditsOrZero(),
                 classroom = allRooms.joinToString(", "),
                 enrolledCount = first.chooseStudent ?: 0,
                 maxCount = first.maxEnrollment,

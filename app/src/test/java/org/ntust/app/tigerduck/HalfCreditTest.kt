@@ -11,6 +11,7 @@ import org.ntust.app.tigerduck.data.model.NtustGradePoints
 import org.ntust.app.tigerduck.network.NtustScoreParser
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.formatCredits
+import org.ntust.app.tigerduck.util.toCreditsOrZero
 import java.util.Locale
 
 /**
@@ -80,6 +81,23 @@ class HalfCreditTest {
         // Locale-aware: a comma-decimal locale writes the half its own way.
         assertEquals("0,5", 0.5f.formatCredits(Locale.GERMANY))
         assertEquals("3", 3f.formatCredits(Locale.GERMANY))
+    }
+
+    /**
+     * `toFloatOrNull` accepts "NaN" and "Infinity", which the old
+     * `toIntOrNull` rejected — and Gson refuses to encode either, from a
+     * `saveCourses` / `publish` call that does not wrap the encode.
+     */
+    @Test
+    fun `a credit string that is not a real number reads as zero`() {
+        assertEquals(0f, "NaN".toCreditsOrZero(), 0f)
+        assertEquals(0f, "Infinity".toCreditsOrZero(), 0f)
+        assertEquals(0f, "-Infinity".toCreditsOrZero(), 0f)
+        assertEquals(0f, "-1".toCreditsOrZero(), 0f)
+        assertEquals(0f, "".toCreditsOrZero(), 0f)
+        assertEquals(0f, null.toCreditsOrZero(), 0f)
+        assertEquals(0.5f, "0.5".toCreditsOrZero(), 0f)
+        assertEquals(3f, "3".toCreditsOrZero(), 0f)
     }
 
     /**

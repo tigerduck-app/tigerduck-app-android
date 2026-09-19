@@ -43,6 +43,25 @@ class WearScheduleBridgeDtoTest {
         assertEquals("OS", dto.courseName)
     }
 
+    /**
+     * The wire keeps a whole-credit `credits` for watches that predate
+     * `creditsExact`: their Gson reads that key with nextInt(), which throws
+     * on a fractional token, and SchedulePersistence turns the throw into an
+     * empty schedule. Truncating there and carrying the real value beside it
+     * is what keeps those watches showing a timetable at all.
+     */
+    @Test
+    fun `a half credit truncates on the legacy key and survives on the exact one`() {
+        val dto = Course(
+            courseNo = "GE301",
+            courseName = "Service Learning",
+            credits = 0.5f,
+            scheduleJson = """{"1":["3"]}""",
+        ).toWearDto()
+        assertEquals(0, dto.credits)
+        assertEquals(0.5f, dto.creditsExact)
+    }
+
     @Test
     fun `all fields are mapped correctly`() {
         val course = Course(
