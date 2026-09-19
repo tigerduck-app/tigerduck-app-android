@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Walang nagpadala)</string>
     <string name="school_mail_no_subject">(Walang paksa)</string>
     <string name="school_mail_notification_settings_title">Mga notification ng mail ng paaralan</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Buksan</string>
     <string name="school_mail_parse_failed">Hindi mabasa ang format ng mail na ito. Ipinapakita na lang ang source nito.</string>
     <string name="school_mail_quote_header">Noong %1$@, sumulat si %2$@:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Magdagdag ng Cc/Bcc</string>
     <string name="school_mail_sign_in_note">Dapat magkapareho ang ID at password mo sa sistemang akademiko. Ang password na ito rin ang password ng campus Wi-Fi (NTUST-PEAP); ino-encrypt lang ito ng TigerDuck at ise-save sa device na ito, at hindi kailanman ina-upload.</string>
     <string name="school_mail_sign_in_prompt_title">Mag-sign in sa mail ng paaralan</string>
-    <string name="school_mail_source_large_message">Ang mail na ito ay %1$@. Puwedeng gumamit ng maraming data ang pag-load ng source nito.</string>
-    <string name="school_mail_source_large_title">I-load ang buong source?</string>
     <string name="school_mail_subject">Paksa</string>
     <string name="school_mail_to">Kay</string>
     <string name="school_mail_too_large">Lumagpas sa 50 MB limit ang mga attachment</string>

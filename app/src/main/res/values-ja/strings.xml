@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">（差出人なし）</string>
     <string name="school_mail_no_subject">（件名なし）</string>
     <string name="school_mail_notification_settings_title">学内メール通知</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">開く</string>
     <string name="school_mail_parse_failed">このメールの形式を読み取れませんでした。代わりにソースを表示します。</string>
     <string name="school_mail_quote_header">%1$@ %2$@さんは書きました：</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Cc/Bccを追加</string>
     <string name="school_mail_sign_in_note">学籍番号とパスワードは校務システムと同じものを使用してください。このパスワードはキャンパスWi-Fi（NTUST-PEAP）のパスワードでもあります。TigerDuckはこの端末上で暗号化して保存するのみで、アップロードすることはありません。</string>
     <string name="school_mail_sign_in_prompt_title">学内メールにサインイン</string>
-    <string name="school_mail_source_large_message">このメールは%1$@です。ソースを読み込むと通信量が多くなる場合があります。</string>
-    <string name="school_mail_source_large_title">完全なソースを読み込みますか？</string>
     <string name="school_mail_subject">件名</string>
     <string name="school_mail_to">宛先</string>
     <string name="school_mail_too_large">添付ファイルが50 MBの上限を超えています</string>

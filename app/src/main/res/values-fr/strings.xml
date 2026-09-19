@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Ajouter Cc/Cci</string>
     <string name="school_mail_sign_in_note">Votre numéro d\'étudiant et votre mot de passe doivent être identiques à ceux du système universitaire. Ce mot de passe est aussi celui du Wi-Fi du campus (NTUST-PEAP) ; TigerDuck le stocke uniquement de façon chiffrée sur cet appareil et ne le transmet jamais en ligne.</string>
     <string name="school_mail_sign_in_prompt_title">Se connecter à la messagerie universitaire</string>
-    <string name="school_mail_source_large_message">Ce message pèse %1$@. Charger son code source peut consommer beaucoup de données.</string>
-    <string name="school_mail_source_large_title">Charger le code source complet ?</string>
     <string name="school_mail_subject">Objet</string>
     <string name="school_mail_to">À</string>
     <string name="school_mail_too_large">Les pièces jointes dépassent la limite de 50 Mo</string>

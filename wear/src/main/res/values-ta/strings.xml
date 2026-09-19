@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(அனுப்புநர் இல்லை)</string>
     <string name="school_mail_no_subject">(பொருள் இல்லை)</string>
     <string name="school_mail_notification_settings_title">பள்ளி மின்னஞ்சல் அறிவிப்புகள்</string>
-    <string name="school_mail_notification_title">மின்னஞ்சல்:%1$@</string>
+    <string name="school_mail_notification_title">மின்னஞ்சல்: %1$@</string>
     <string name="school_mail_open">திற</string>
     <string name="school_mail_parse_failed">இந்த மின்னஞ்சலின் வடிவமைப்பைப் படிக்க முடியவில்லை. அதற்குப் பதிலாக அதன் மூலத்தைக் காட்டுகிறது.</string>
     <string name="school_mail_quote_header">தேதி: %1$@ — எழுதியவர்: %2$@</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Cc/Bcc சேர்</string>
     <string name="school_mail_sign_in_note">உங்கள் ID மற்றும் கடவுச்சொல் கல்வி அமைப்பில் உள்ளதைப் போலவே இருக்க வேண்டும். இந்தக் கடவுச்சொல் வளாக Wi-Fi (NTUST-PEAP) கடவுச்சொல்லாகவும் உள்ளது; TigerDuck இதை இந்தச் சாதனத்தில் மறையாக்கம் செய்து மட்டுமே சேமிக்கும், ஒருபோதும் பதிவேற்றாது.</string>
     <string name="school_mail_sign_in_prompt_title">பள்ளி மின்னஞ்சலில் உள்நுழைக</string>
-    <string name="school_mail_source_large_message">இந்த மின்னஞ்சல் %1$@ ஆகும். இதன் மூலத்தை ஏற்றுவது அதிக டேட்டாவைப் பயன்படுத்தலாம்.</string>
-    <string name="school_mail_source_large_title">முழு மூலத்தையும் ஏற்றவா?</string>
     <string name="school_mail_subject">பொருள்</string>
     <string name="school_mail_to">பெறுநர்</string>
     <string name="school_mail_too_large">இணைப்புகள் 50 MB வரம்பை மீறுகின்றன</string>

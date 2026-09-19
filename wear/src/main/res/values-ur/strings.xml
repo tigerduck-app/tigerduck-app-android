@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(کوئی بھیجنے والا نہیں)</string>
     <string name="school_mail_no_subject">(کوئی موضوع نہیں)</string>
     <string name="school_mail_notification_settings_title">اسکول ای میل اطلاعات</string>
-    <string name="school_mail_notification_title">ای میل:%1$@</string>
+    <string name="school_mail_notification_title">ای میل: %1$@</string>
     <string name="school_mail_open">کھولیں</string>
     <string name="school_mail_parse_failed">اس ای میل کا فارمیٹ نہیں پڑھا جا سکا۔ اس کے بجائے اس کا سورس دکھایا جا رہا ہے۔</string>
     <string name="school_mail_quote_header">%1$@ کو %2$@ نے لکھا:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Cc/Bcc شامل کریں</string>
     <string name="school_mail_sign_in_note">آپ کا ID اور پاس ورڈ اکیڈمک سسٹم جیسا ہی ہونا چاہیے۔ یہ پاس ورڈ کیمپس Wi-Fi (NTUST-PEAP) کا پاس ورڈ بھی ہے؛ TigerDuck اسے صرف اس ڈیوائس پر خفیہ کر کے محفوظ رکھتا ہے، کبھی اپ لوڈ نہیں کرتا۔</string>
     <string name="school_mail_sign_in_prompt_title">اسکول ای میل میں سائن ان کریں</string>
-    <string name="school_mail_source_large_message">یہ ای میل %1$@ کی ہے۔ اس کا سورس لوڈ کرنے میں کافی ڈیٹا استعمال ہو سکتا ہے۔</string>
-    <string name="school_mail_source_large_title">کیا مکمل سورس لوڈ کریں؟</string>
     <string name="school_mail_subject">موضوع</string>
     <string name="school_mail_to">وصول کنندہ</string>
     <string name="school_mail_too_large">منسلکات 50 MB کی حد سے تجاوز کر گئے ہیں</string>

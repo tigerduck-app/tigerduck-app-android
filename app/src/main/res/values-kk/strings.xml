@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Жіберуші жоқ)</string>
     <string name="school_mail_no_subject">(Тақырыбы жоқ)</string>
     <string name="school_mail_notification_settings_title">Мектеп поштасы хабарландырулары</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Ашу</string>
     <string name="school_mail_parse_failed">Бұл хаттың пішімін оқу мүмкін болмады. Оның орнына бастапқы коды көрсетілуде.</string>
     <string name="school_mail_quote_header">%1$@ күні %2$@ былай деп жазды:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Cc/Bcc қосу</string>
     <string name="school_mail_sign_in_note">Студент ID және құпия сөзіңіз мектеп жүйесіндегімен бірдей болуы керек. Бұл құпия сөз кампус Wi-Fi (NTUST-PEAP) құпия сөзі де болып табылады; TigerDuck қолданбасы оны тек осы құрылғыда шифрланған түрде сақтайды және ешқашан жүктемейді.</string>
     <string name="school_mail_sign_in_prompt_title">Мектеп поштасына кіру</string>
-    <string name="school_mail_source_large_message">Бұл хаттың көлемі %1$@. Оның бастапқы кодын жүктеу көп трафик жұмсауы мүмкін.</string>
-    <string name="school_mail_source_large_title">Толық бастапқы код жүктелсін бе?</string>
     <string name="school_mail_subject">Тақырып</string>
     <string name="school_mail_to">Кімге</string>
     <string name="school_mail_too_large">Тіркемелер 50 МБ шегінен асып кетті</string>

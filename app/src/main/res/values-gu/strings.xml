@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(કોઈ પ્રેષક નથી)</string>
     <string name="school_mail_no_subject">(કોઈ વિષય નથી)</string>
     <string name="school_mail_notification_settings_title">શાળા મેઇલ નોટિફિકેશન</string>
-    <string name="school_mail_notification_title">મેઇલ:%1$@</string>
+    <string name="school_mail_notification_title">મેઇલ: %1$@</string>
     <string name="school_mail_open">ખોલો</string>
     <string name="school_mail_parse_failed">આ મેઇલનું ફોર્મેટ વાંચી શકાયું નહીં. તેના બદલે તેનો સોર્સ બતાવવામાં આવી રહ્યો છે.</string>
     <string name="school_mail_quote_header">%1$@ ના રોજ %2$@ એ લખ્યું:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Cc/Bcc ઉમેરો</string>
     <string name="school_mail_sign_in_note">તમારું ID અને પાસવર્ડ શૈક્ષણિક સિસ્ટમ જેવું જ હોવું જોઈએ. આ પાસવર્ડ કેમ્પસ Wi-Fi (NTUST-PEAP) નો પણ પાસવર્ડ છે; TigerDuck તેને ફક્ત આ ડિવાઇસ પર એન્ક્રિપ્ટ કરીને રાખે છે અને ક્યારેય અપલોડ કરતું નથી.</string>
     <string name="school_mail_sign_in_prompt_title">શાળા મેઇલમાં સાઇન ઇન કરો</string>
-    <string name="school_mail_source_large_message">આ મેઇલ %1$@ નો છે. તેનો સોર્સ લોડ કરવામાં ઘણો ડેટા વપરાઈ શકે છે.</string>
-    <string name="school_mail_source_large_title">સંપૂર્ણ સોર્સ લોડ કરવો છે?</string>
     <string name="school_mail_subject">વિષય</string>
     <string name="school_mail_to">પ્રતિ</string>
     <string name="school_mail_too_large">એટેચમેન્ટ 50 MB ની મર્યાદા કરતાં વધુ છે</string>

@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Enginn sendandi)</string>
     <string name="school_mail_no_subject">(Ekkert efni)</string>
     <string name="school_mail_notification_settings_title">Tilkynningar frá Skólapósti</string>
-    <string name="school_mail_notification_title">Póstur:%1$@</string>
+    <string name="school_mail_notification_title">Póstur: %1$@</string>
     <string name="school_mail_open">Opna</string>
     <string name="school_mail_parse_failed">Ekki tókst að lesa snið þessa pósts. Frumkóði er sýndur í staðinn.</string>
     <string name="school_mail_quote_header">Þann %1$@ skrifaði %2$@:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Bæta við Cc/Bcc</string>
     <string name="school_mail_sign_in_note">Námsmannsnúmerið og lykilorðið þitt eiga að vera þau sömu og í kerfi skólans. Þetta lykilorð er einnig lykilorðið fyrir þráðlausa netið á háskólasvæðinu (NTUST-PEAP); TigerDuck geymir það aðeins dulkóðað á þessu tæki og sendir það aldrei upp á netið.</string>
     <string name="school_mail_sign_in_prompt_title">Skrá sig inn í Skólapóst</string>
-    <string name="school_mail_source_large_message">Þessi póstur er %1$@. Að hlaða inn frumkóðanum getur notað talsvert gagnamagn.</string>
-    <string name="school_mail_source_large_title">Hlaða inn öllum frumkóðanum?</string>
     <string name="school_mail_subject">Efni</string>
     <string name="school_mail_to">Til</string>
     <string name="school_mail_too_large">Viðhengi fara yfir 50 MB mörkin</string>

@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Нет отправителя)</string>
     <string name="school_mail_no_subject">(Без темы)</string>
     <string name="school_mail_notification_settings_title">Уведомления университетской почты</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Открыть</string>
     <string name="school_mail_parse_failed">Не удалось распознать формат письма. Показан исходный код.</string>
     <string name="school_mail_quote_header">%1$@, пользователь %2$@ писал:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Добавить копию/скрытую копию</string>
     <string name="school_mail_sign_in_note">Логин и пароль должны совпадать с учётными данными системы университета. Этот пароль также используется для кампусной сети Wi-Fi (NTUST-PEAP); TigerDuck хранит его только в зашифрованном виде на этом устройстве и никогда его не выгружает.</string>
     <string name="school_mail_sign_in_prompt_title">Войти в университетскую почту</string>
-    <string name="school_mail_source_large_message">Это письмо весит %1$@. Загрузка исходного кода может расходовать много трафика.</string>
-    <string name="school_mail_source_large_title">Загрузить полный исходный код?</string>
     <string name="school_mail_subject">Тема</string>
     <string name="school_mail_to">Кому</string>
     <string name="school_mail_too_large">Вложения превышают лимит 50 МБ</string>

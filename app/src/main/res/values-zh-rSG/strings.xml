@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">（没有发件人）</string>
     <string name="school_mail_no_subject">（没有主题）</string>
     <string name="school_mail_notification_settings_title">校园信箱通知</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">打开</string>
     <string name="school_mail_parse_failed">无法解析这封邮件的格式，改为显示源代码。</string>
     <string name="school_mail_quote_header">于 %1$@，%2$@ 写道：</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">添加抄送／密送</string>
     <string name="school_mail_sign_in_note">账号密码应与校务系统相同。此密码也是校园 Wi-Fi（NTUST-PEAP）密码，TigerDuck 只会加密保存在这台设备上，不会上传。</string>
     <string name="school_mail_sign_in_prompt_title">登录校园邮箱</string>
-    <string name="school_mail_source_large_message">这封邮件有 %1$@，加载源代码可能会消耗较多流量。</string>
-    <string name="school_mail_source_large_title">要加载完整源代码吗？</string>
     <string name="school_mail_subject">主题</string>
     <string name="school_mail_to">收件人</string>
     <string name="school_mail_too_large">附件超过 50 MB 上限</string>

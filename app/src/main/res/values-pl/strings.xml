@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Brak nadawcy)</string>
     <string name="school_mail_no_subject">(Brak tematu)</string>
     <string name="school_mail_notification_settings_title">Powiadomienia poczty uczelnianej</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Otwórz</string>
     <string name="school_mail_parse_failed">Nie udało się odczytać formatu wiadomości. Wyświetlono jej kod źródłowy.</string>
     <string name="school_mail_quote_header">W dniu %1$@ użytkownik %2$@ napisał:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Dodaj DW/UDW</string>
     <string name="school_mail_sign_in_note">Twój login i hasło powinny być takie same jak w systemie uczelnianym. To hasło jest też hasłem do kampusowej sieci Wi-Fi (NTUST-PEAP); TigerDuck przechowuje je wyłącznie w postaci zaszyfrowanej na tym urządzeniu i nigdy go nie przesyła.</string>
     <string name="school_mail_sign_in_prompt_title">Zaloguj się do poczty uczelnianej</string>
-    <string name="school_mail_source_large_message">Ta wiadomość ma rozmiar %1$@. Wczytanie jej kodu źródłowego może zużyć dużo danych.</string>
-    <string name="school_mail_source_large_title">Wczytać pełny kod źródłowy?</string>
     <string name="school_mail_subject">Temat</string>
     <string name="school_mail_to">Do</string>
     <string name="school_mail_too_large">Załączniki przekraczają limit 50 MB</string>

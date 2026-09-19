@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Tidak ada pengirim)</string>
     <string name="school_mail_no_subject">(Tidak ada subjek)</string>
     <string name="school_mail_notification_settings_title">Notifikasi email sekolah</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Buka</string>
     <string name="school_mail_parse_failed">Tidak dapat membaca format email ini. Menampilkan kode sumbernya.</string>
     <string name="school_mail_quote_header">Pada %1$@, %2$@ menulis:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Tambahkan Cc/Bcc</string>
     <string name="school_mail_sign_in_note">ID dan kata sandimu harus sama dengan sistem sekolah. Kata sandi ini juga merupakan kata sandi Wi-Fi kampus (NTUST-PEAP); TigerDuck hanya menyimpannya terenkripsi di perangkat ini dan tidak pernah mengunggahnya.</string>
     <string name="school_mail_sign_in_prompt_title">Masuk ke email sekolah</string>
-    <string name="school_mail_source_large_message">Email ini berukuran %1$@. Memuat kode sumbernya bisa menghabiskan banyak kuota.</string>
-    <string name="school_mail_source_large_title">Muat seluruh kode sumber?</string>
     <string name="school_mail_subject">Subjek</string>
     <string name="school_mail_to">Kepada</string>
     <string name="school_mail_too_large">Lampiran melebihi batas 50 MB</string>

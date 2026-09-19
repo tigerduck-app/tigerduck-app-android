@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(بلا مرسل)</string>
     <string name="school_mail_no_subject">(بلا موضوع)</string>
     <string name="school_mail_notification_settings_title">إشعارات البريد المدرسي</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">فتح</string>
     <string name="school_mail_parse_failed">تعذّرت قراءة تنسيق هذه الرسالة، سيتم عرض مصدرها بدلاً من ذلك.</string>
     <string name="school_mail_quote_header">في %1$@، كتب %2$@:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">إضافة نسخة/نسخة مخفية</string>
     <string name="school_mail_sign_in_note">يجب أن يكون رقم الطالب وكلمة المرور مطابقين لبيانات النظام الجامعي. هذه الكلمة هي نفسها كلمة مرور شبكة Wi-Fi الجامعية (NTUST-PEAP)؛ يخزّنها TigerDuck مشفّرة على هذا الجهاز فقط ولا يرفعها أبدًا.</string>
     <string name="school_mail_sign_in_prompt_title">تسجيل الدخول إلى البريد المدرسي</string>
-    <string name="school_mail_source_large_message">حجم هذه الرسالة %1$@، وقد يستهلك تحميل مصدرها بيانات كثيرة.</string>
-    <string name="school_mail_source_large_title">هل تريد تحميل المصدر الكامل؟</string>
     <string name="school_mail_subject">الموضوع</string>
     <string name="school_mail_to">إلى</string>
     <string name="school_mail_too_large">المرفقات تتجاوز الحد الأقصى البالغ 50 ميغابايت</string>

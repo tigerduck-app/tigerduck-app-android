@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Geen afzender)</string>
     <string name="school_mail_no_subject">(Geen onderwerp)</string>
     <string name="school_mail_notification_settings_title">Schoolmail-meldingen</string>
-    <string name="school_mail_notification_title">E-mail:%1$@</string>
+    <string name="school_mail_notification_title">E-mail: %1$@</string>
     <string name="school_mail_open">Openen</string>
     <string name="school_mail_parse_failed">De opmaak van deze mail kon niet worden gelezen. De broncode wordt in plaats daarvan getoond.</string>
     <string name="school_mail_quote_header">Op %1$@ schreef %2$@:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Cc/Bcc toevoegen</string>
     <string name="school_mail_sign_in_note">Je studentnummer en wachtwoord zijn dezelfde als voor het systeem van de school. Dit wachtwoord is ook het wachtwoord voor de campus wifi (NTUST-PEAP); TigerDuck bewaart het alleen versleuteld op dit apparaat en uploadt het nooit.</string>
     <string name="school_mail_sign_in_prompt_title">Aanmelden bij Schoolmail</string>
-    <string name="school_mail_source_large_message">Deze mail is %1$@ groot. Het laden van de broncode kan veel data verbruiken.</string>
-    <string name="school_mail_source_large_title">Volledige broncode laden?</string>
     <string name="school_mail_subject">Onderwerp</string>
     <string name="school_mail_to">Aan</string>
     <string name="school_mail_too_large">Bijlagen overschrijden de limiet van 50 MB</string>

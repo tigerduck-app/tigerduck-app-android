@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Gönderen yok)</string>
     <string name="school_mail_no_subject">(Konu yok)</string>
     <string name="school_mail_notification_settings_title">Okul Postası bildirimleri</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Aç</string>
     <string name="school_mail_parse_failed">Bu postanın biçimi okunamadı. Bunun yerine kaynağı gösteriliyor.</string>
     <string name="school_mail_quote_header">%1$@ tarihinde %2$@ şunu yazdı:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Cc/Bcc ekle</string>
     <string name="school_mail_sign_in_note">Öğrenci numaranız ve şifreniz okul sistemindekiyle aynı olmalıdır. Bu şifre aynı zamanda kampüs Wi-Fi (NTUST-PEAP) şifresidir; TigerDuck uygulaması bunu yalnızca bu cihazda şifreli olarak saklar ve hiçbir zaman yüklemez.</string>
     <string name="school_mail_sign_in_prompt_title">Okul postasına giriş yapın</string>
-    <string name="school_mail_source_large_message">Bu posta %1$@ boyutunda. Kaynağını yüklemek çok veri kullanabilir.</string>
-    <string name="school_mail_source_large_title">Tüm kaynak yüklensin mi?</string>
     <string name="school_mail_subject">Konu</string>
     <string name="school_mail_to">Kime</string>
     <string name="school_mail_too_large">Ekler 50 MB sınırını aşıyor</string>

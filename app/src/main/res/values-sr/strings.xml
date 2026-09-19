@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Додај Cc/Bcc</string>
     <string name="school_mail_sign_in_note">Ваш број индекса и лозинка треба да буду исти као у школском систему. Ова лозинка је уједно и лозинка за кампус Wi-Fi (NTUST-PEAP); TigerDuck је чува само шифровано на овом уређају и никада је не отпрема.</string>
     <string name="school_mail_sign_in_prompt_title">Пријавите се на школску пошту</string>
-    <string name="school_mail_source_large_message">Ова порука има %1$@. Учитавање њеног изворног кода може потрошити много података.</string>
-    <string name="school_mail_source_large_title">Учитати цео изворни код?</string>
     <string name="school_mail_subject">Тема</string>
     <string name="school_mail_to">Прима</string>
     <string name="school_mail_too_large">Прилози прелазе ограничење од 50 MB</string>

@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(పంపినవారు లేరు)</string>
     <string name="school_mail_no_subject">(విషయం లేదు)</string>
     <string name="school_mail_notification_settings_title">స్కూల్ ఇమెయిల్ నోటిఫికేషన్‌లు</string>
-    <string name="school_mail_notification_title">ఇమెయిల్:%1$@</string>
+    <string name="school_mail_notification_title">ఇమెయిల్: %1$@</string>
     <string name="school_mail_open">తెరవండి</string>
     <string name="school_mail_parse_failed">ఈ ఇమెయిల్ ఫార్మాట్‌ను చదవలేకపోయింది. బదులుగా దాని మూలాన్ని చూపిస్తోంది.</string>
     <string name="school_mail_quote_header">తేదీ: %1$@ — రాసినవారు: %2$@</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Cc/Bcc జోడించండి</string>
     <string name="school_mail_sign_in_note">మీ ID మరియు పాస్‌వర్డ్ అకాడెమిక్ సిస్టమ్‌లో ఉన్నట్లే ఉండాలి. ఈ పాస్‌వర్డ్ క్యాంపస్ Wi-Fi (NTUST-PEAP) పాస్‌వర్డ్ కూడా; TigerDuck దీన్ని ఈ పరికరంలో ఎన్‌క్రిప్ట్ చేసి మాత్రమే నిల్వ చేస్తుంది, ఎప్పుడూ అప్‌లోడ్ చేయదు.</string>
     <string name="school_mail_sign_in_prompt_title">స్కూల్ ఇమెయిల్‌లో సైన్ ఇన్ చేయండి</string>
-    <string name="school_mail_source_large_message">ఈ ఇమెయిల్ %1$@ ఉంది. దీని మూలాన్ని లోడ్ చేయడం చాలా డేటాను ఉపయోగించవచ్చు.</string>
-    <string name="school_mail_source_large_title">పూర్తి మూలాన్ని లోడ్ చేయాలా?</string>
     <string name="school_mail_subject">విషయం</string>
     <string name="school_mail_to">స్వీకర్త</string>
     <string name="school_mail_too_large">జోడింపులు 50 MB పరిమితిని దాటాయి</string>

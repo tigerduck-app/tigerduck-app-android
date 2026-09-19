@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Fără expeditor)</string>
     <string name="school_mail_no_subject">(Fără subiect)</string>
     <string name="school_mail_notification_settings_title">Notificări E-mail universitar</string>
-    <string name="school_mail_notification_title">E-mail:%1$@</string>
+    <string name="school_mail_notification_title">E-mail: %1$@</string>
     <string name="school_mail_open">Deschide</string>
     <string name="school_mail_parse_failed">Formatul acestui e-mail nu a putut fi citit. Se afișează sursa în schimb.</string>
     <string name="school_mail_quote_header">Pe %1$@, %2$@ a scris:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Adaugă Cc/Bcc</string>
     <string name="school_mail_sign_in_note">Numărul de matricol și parola ta trebuie să fie aceleași ca în sistemul universitar. Această parolă este și parola Wi-Fi din campus (NTUST-PEAP); TigerDuck o stochează doar criptat pe acest dispozitiv și nu o încarcă niciodată online.</string>
     <string name="school_mail_sign_in_prompt_title">Conectează-te la e-mailul universitar</string>
-    <string name="school_mail_source_large_message">Acest e-mail are %1$@. Încărcarea sursei sale poate consuma multe date.</string>
-    <string name="school_mail_source_large_title">Încarci sursa completă?</string>
     <string name="school_mail_subject">Subiect</string>
     <string name="school_mail_to">Către</string>
     <string name="school_mail_too_large">Atașamentele depășesc limita de 50 MB</string>

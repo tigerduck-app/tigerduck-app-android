@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(No sender)</string>
     <string name="school_mail_no_subject">(No subject)</string>
     <string name="school_mail_notification_settings_title">School Mail notifications</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Open</string>
     <string name="school_mail_parse_failed">Couldn\'t read this mail\'s format. Showing its source instead.</string>
     <string name="school_mail_quote_header">On %1$@, %2$@ wrote:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Add Cc/Bcc</string>
     <string name="school_mail_sign_in_note">Your ID and password should be the same as the school system\'s. This password is also the campus Wi-Fi (NTUST-PEAP) password; TigerDuck only stores it encrypted on this device and never uploads it.</string>
     <string name="school_mail_sign_in_prompt_title">Sign in to school mail</string>
-    <string name="school_mail_source_large_message">This mail is %1$@. Loading its source can use a lot of data.</string>
-    <string name="school_mail_source_large_title">Load the full source?</string>
     <string name="school_mail_subject">Subject</string>
     <string name="school_mail_to">To</string>
     <string name="school_mail_too_large">Attachments are over the 50 MB limit</string>

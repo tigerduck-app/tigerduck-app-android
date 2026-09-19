@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Pridėti Cc/Bcc</string>
     <string name="school_mail_sign_in_note">Jūsų studento ID ir slaptažodis turėtų būti tokie patys kaip mokyklos sistemoje. Šis slaptažodis taip pat naudojamas kampuso Wi-Fi (NTUST-PEAP) tinkle; TigerDuck jį saugo tik užšifruotą šiame įrenginyje ir niekada neįkelia į serverį.</string>
     <string name="school_mail_sign_in_prompt_title">Prisijunkite prie mokyklos pašto</string>
-    <string name="school_mail_source_large_message">Šio laiško dydis – %1$@. Jo pirminio kodo įkėlimas gali sunaudoti daug duomenų.</string>
-    <string name="school_mail_source_large_title">Įkelti visą pirminį kodą?</string>
     <string name="school_mail_subject">Tema</string>
     <string name="school_mail_to">Kam</string>
     <string name="school_mail_too_large">Priedai viršija 50 MB ribą</string>

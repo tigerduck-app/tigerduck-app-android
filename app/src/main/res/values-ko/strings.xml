@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(보낸 사람 없음)</string>
     <string name="school_mail_no_subject">(제목 없음)</string>
     <string name="school_mail_notification_settings_title">학교 메일 알림</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">열기</string>
     <string name="school_mail_parse_failed">이 메일의 형식을 읽을 수 없습니다. 대신 소스를 표시합니다.</string>
     <string name="school_mail_quote_header">%1$@에 %2$@님이 작성:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">참조/숨은참조 추가</string>
     <string name="school_mail_sign_in_note">학번과 비밀번호는 학교 시스템과 동일해야 합니다. 이 비밀번호는 캠퍼스 Wi-Fi(NTUST-PEAP) 비밀번호이기도 합니다. TigerDuck은 이 기기에만 암호화하여 저장하며 절대 업로드하지 않습니다.</string>
     <string name="school_mail_sign_in_prompt_title">학교 메일 로그인</string>
-    <string name="school_mail_source_large_message">이 메일은 %1$@입니다. 소스를 불러오면 데이터를 많이 사용할 수 있습니다.</string>
-    <string name="school_mail_source_large_title">전체 소스를 불러올까요?</string>
     <string name="school_mail_subject">제목</string>
     <string name="school_mail_to">받는사람</string>
     <string name="school_mail_too_large">첨부 파일이 50MB 제한을 초과했습니다</string>

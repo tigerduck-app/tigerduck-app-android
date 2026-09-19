@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Χωρίς αποστολέα)</string>
     <string name="school_mail_no_subject">(Χωρίς θέμα)</string>
     <string name="school_mail_notification_settings_title">Ειδοποιήσεις Πανεπιστημιακού email</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Άνοιγμα</string>
     <string name="school_mail_parse_failed">Δεν ήταν δυνατή η ανάγνωση της μορφής αυτού του email. Εμφανίζεται ο πηγαίος κώδικας.</string>
     <string name="school_mail_quote_header">Στις %1$@, ο/η %2$@ έγραψε:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Προσθήκη Κοιν./Κρυφή κοιν.</string>
     <string name="school_mail_sign_in_note">Ο αριθμός μητρώου και ο κωδικός πρόσβασής σου πρέπει να είναι ίδιοι με αυτούς του συστήματος του πανεπιστημίου. Αυτός ο κωδικός είναι επίσης ο κωδικός του Wi-Fi της πανεπιστημιούπολης (NTUST-PEAP)· το TigerDuck τον αποθηκεύει κρυπτογραφημένο μόνο σε αυτήν τη συσκευή και δεν τον μεταφορτώνει ποτέ.</string>
     <string name="school_mail_sign_in_prompt_title">Σύνδεση στο πανεπιστημιακό email</string>
-    <string name="school_mail_source_large_message">Αυτό το email είναι %1$@. Η φόρτωση του πηγαίου κώδικα μπορεί να καταναλώσει πολλά δεδομένα.</string>
-    <string name="school_mail_source_large_title">Φόρτωση ολόκληρου του πηγαίου κώδικα;</string>
     <string name="school_mail_subject">Θέμα</string>
     <string name="school_mail_to">Προς</string>
     <string name="school_mail_too_large">Τα συνημμένα υπερβαίνουν το όριο των 50 MB</string>

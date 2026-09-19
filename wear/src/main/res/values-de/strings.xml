@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Kein Absender)</string>
     <string name="school_mail_no_subject">(Kein Betreff)</string>
     <string name="school_mail_notification_settings_title">Uni-Mail-Benachrichtigungen</string>
-    <string name="school_mail_notification_title">E-Mail:%1$@</string>
+    <string name="school_mail_notification_title">E-Mail: %1$@</string>
     <string name="school_mail_open">Öffnen</string>
     <string name="school_mail_parse_failed">Das Format dieser E-Mail konnte nicht gelesen werden. Es wird stattdessen der Quelltext angezeigt.</string>
     <string name="school_mail_quote_header">Am %1$@ schrieb %2$@:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Cc/Bcc hinzufügen</string>
     <string name="school_mail_sign_in_note">Matrikelnummer und Passwort entsprechen denen des Hochschulsystems. Dieses Passwort ist zugleich das Passwort für das Campus-WLAN (NTUST-PEAP); TigerDuck speichert es nur verschlüsselt auf diesem Gerät und lädt es niemals hoch.</string>
     <string name="school_mail_sign_in_prompt_title">Bei Uni-Mail anmelden</string>
-    <string name="school_mail_source_large_message">Diese E-Mail ist %1$@ groß. Das Laden des Quelltexts kann viel Datenvolumen verbrauchen.</string>
-    <string name="school_mail_source_large_title">Vollständigen Quelltext laden?</string>
     <string name="school_mail_subject">Betreff</string>
     <string name="school_mail_to">An</string>
     <string name="school_mail_too_large">Anhänge überschreiten das Limit von 50 MB</string>

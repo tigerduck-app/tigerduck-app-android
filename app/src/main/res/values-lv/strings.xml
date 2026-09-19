@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Pievienot Cc/Bcc</string>
     <string name="school_mail_sign_in_note">Jūsu studenta ID un parolei jāsakrīt ar skolas sistēmā izmantoto. Šī parole ir arī kampusa Wi-Fi (NTUST-PEAP) parole; TigerDuck to glabā tikai šifrētu šajā ierīcē un nekad neaugšupielādē.</string>
     <string name="school_mail_sign_in_prompt_title">Piesakieties skolas pastā</string>
-    <string name="school_mail_source_large_message">Šīs vēstules izmērs ir %1$@. Tās pirmkoda ielāde var patērēt daudz datu.</string>
-    <string name="school_mail_source_large_title">Vai ielādēt visu pirmkodu?</string>
     <string name="school_mail_subject">Tēma</string>
     <string name="school_mail_to">Kam</string>
     <string name="school_mail_too_large">Pielikumi pārsniedz 50 MB limitu</string>

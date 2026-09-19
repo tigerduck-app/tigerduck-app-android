@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Dodaj Cc/Bcc</string>
     <string name="school_mail_sign_in_note">Vaša študentska številka in geslo morata biti enaka kot v šolskem sistemu. To geslo je tudi geslo za kampusni Wi-Fi (NTUST-PEAP); TigerDuck ga shrani šifrirano samo na tej napravi in ga nikoli ne naloži v splet.</string>
     <string name="school_mail_sign_in_prompt_title">Prijavite se v šolsko pošto</string>
-    <string name="school_mail_source_large_message">To sporočilo ima %1$@. Nalaganje njegove izvorne kode lahko porabi veliko podatkov.</string>
-    <string name="school_mail_source_large_title">Naložim celotno izvorno kodo?</string>
     <string name="school_mail_subject">Zadeva</string>
     <string name="school_mail_to">Komu</string>
     <string name="school_mail_too_large">Priloge presegajo omejitev 50 MB</string>

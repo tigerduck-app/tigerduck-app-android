@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Bez odosielateľa)</string>
     <string name="school_mail_no_subject">(Bez predmetu)</string>
     <string name="school_mail_notification_settings_title">Oznámenia školskej pošty</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Otvoriť</string>
     <string name="school_mail_parse_failed">Formát správy sa nepodarilo rozpoznať. Zobrazuje sa jej zdrojový kód.</string>
     <string name="school_mail_quote_header">Dňa %1$@ používateľ %2$@ napísal:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Pridať kópiu/skrytú kópiu</string>
     <string name="school_mail_sign_in_note">Vaše prihlasovacie meno a heslo by mali byť rovnaké ako v školskom systéme. Toto heslo je zároveň heslom pre kampusovú sieť Wi-Fi (NTUST-PEAP); TigerDuck ho na tomto zariadení ukladá len v zašifrovanej podobe a nikdy ho nikam neodosiela.</string>
     <string name="school_mail_sign_in_prompt_title">Prihlásiť sa do školskej pošty</string>
-    <string name="school_mail_source_large_message">Táto správa má veľkosť %1$@. Načítanie jej zdrojového kódu môže spotrebovať veľa dát.</string>
-    <string name="school_mail_source_large_title">Načítať celý zdrojový kód?</string>
     <string name="school_mail_subject">Predmet</string>
     <string name="school_mail_to">Komu</string>
     <string name="school_mail_too_large">Prílohy prekračujú limit 50 MB</string>

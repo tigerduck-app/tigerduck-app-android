@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(بدون فرستنده)</string>
     <string name="school_mail_no_subject">(بدون موضوع)</string>
     <string name="school_mail_notification_settings_title">اعلان‌های ایمیل مدرسه</string>
-    <string name="school_mail_notification_title">ایمیل:%1$@</string>
+    <string name="school_mail_notification_title">ایمیل: %1$@</string>
     <string name="school_mail_open">باز کردن</string>
     <string name="school_mail_parse_failed">قالب این ایمیل خوانده نشد. به‌جای آن، منبع آن نمایش داده می‌شود.</string>
     <string name="school_mail_quote_header">در %1$@، %2$@ نوشت:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">افزودن Cc/Bcc</string>
     <string name="school_mail_sign_in_note">شماره دانشجویی و رمز عبور شما باید همان سیستم دانشگاه باشد. این رمز عبور، رمز عبور Wi-Fi پردیس (NTUST-PEAP) هم هست؛ TigerDuck آن را فقط به‌صورت رمزگذاری‌شده روی همین دستگاه ذخیره می‌کند و هرگز آپلود نمی‌کند.</string>
     <string name="school_mail_sign_in_prompt_title">ورود به ایمیل مدرسه</string>
-    <string name="school_mail_source_large_message">حجم این ایمیل %1$@ است. بارگذاری منبع آن ممکن است داده زیادی مصرف کند.</string>
-    <string name="school_mail_source_large_title">منبع کامل بارگذاری شود؟</string>
     <string name="school_mail_subject">موضوع</string>
     <string name="school_mail_to">گیرنده</string>
     <string name="school_mail_too_large">پیوست‌ها از محدودیت 50 مگابایت بیشتر است</string>

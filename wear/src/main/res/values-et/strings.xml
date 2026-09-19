@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Lisa Cc/Bcc</string>
     <string name="school_mail_sign_in_note">Sinu üliõpilase ID ja parool peaksid olema samad, mis koolisüsteemis. See parool on ühtlasi ka kampuse Wi-Fi (NTUST-PEAP) parool; TigerDuck hoiab seda ainult krüpteeritult selles seadmes ega laadi seda kunagi üles.</string>
     <string name="school_mail_sign_in_prompt_title">Logi sisse kooli e-posti</string>
-    <string name="school_mail_source_large_message">Selle kirja suurus on %1$@. Selle lähtekoodi laadimine võib kulutada palju andmemahtu.</string>
-    <string name="school_mail_source_large_title">Kas laadida kogu lähtekood?</string>
     <string name="school_mail_subject">Teema</string>
     <string name="school_mail_to">Kellele</string>
     <string name="school_mail_too_large">Manused ületavad 50 MB piirangu</string>

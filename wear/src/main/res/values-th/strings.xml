@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(ไม่มีผู้ส่ง)</string>
     <string name="school_mail_no_subject">(ไม่มีหัวเรื่อง)</string>
     <string name="school_mail_notification_settings_title">การแจ้งเตือนอีเมลมหาวิทยาลัย</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">เปิด</string>
     <string name="school_mail_parse_failed">ไม่สามารถอ่านรูปแบบของอีเมลนี้ได้ กำลังแสดงซอร์สโค้ดแทน</string>
     <string name="school_mail_quote_header">เมื่อ %1$@ %2$@ เขียนว่า:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">เพิ่ม Cc/Bcc</string>
     <string name="school_mail_sign_in_note">รหัสนักศึกษาและรหัสผ่านควรตรงกับระบบของมหาวิทยาลัย รหัสผ่านนี้ยังเป็นรหัสผ่าน Wi-Fi ของมหาวิทยาลัย (NTUST-PEAP) ด้วย TigerDuck จะเข้ารหัสและจัดเก็บไว้ในอุปกรณ์นี้เท่านั้น ไม่อัปโหลดขึ้นที่ใดทั้งสิ้น</string>
     <string name="school_mail_sign_in_prompt_title">เข้าสู่ระบบอีเมลมหาวิทยาลัย</string>
-    <string name="school_mail_source_large_message">อีเมลนี้มีขนาด %1$@ การโหลดซอร์สโค้ดอาจใช้ข้อมูลจำนวนมาก</string>
-    <string name="school_mail_source_large_title">โหลดซอร์สโค้ดทั้งหมดหรือไม่?</string>
     <string name="school_mail_subject">หัวเรื่อง</string>
     <string name="school_mail_to">ถึง</string>
     <string name="school_mail_too_large">ไฟล์แนบเกินขีดจำกัด 50 MB</string>

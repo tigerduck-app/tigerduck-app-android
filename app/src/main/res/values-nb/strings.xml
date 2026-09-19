@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Ingen avsender)</string>
     <string name="school_mail_no_subject">(Intet emne)</string>
     <string name="school_mail_notification_settings_title">Varsler for Skolepost</string>
-    <string name="school_mail_notification_title">E-post:%1$@</string>
+    <string name="school_mail_notification_title">E-post: %1$@</string>
     <string name="school_mail_open">Åpne</string>
     <string name="school_mail_parse_failed">Kunne ikke lese formatet til denne e-posten. Viser kildekoden i stedet.</string>
     <string name="school_mail_quote_header">Den %1$@ skrev %2$@:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Legg til Cc/Bcc</string>
     <string name="school_mail_sign_in_note">Studentnummeret og passordet ditt skal være det samme som i skolens system. Dette passordet er også passordet til campus-wifi (NTUST-PEAP); TigerDuck lagrer det bare kryptert på denne enheten og laster det aldri opp.</string>
     <string name="school_mail_sign_in_prompt_title">Logg på Skolepost</string>
-    <string name="school_mail_source_large_message">Denne e-posten er %1$@. Innlasting av kildekoden kan bruke mye data.</string>
-    <string name="school_mail_source_large_title">Laste inn hele kildekoden?</string>
     <string name="school_mail_subject">Emne</string>
     <string name="school_mail_to">Til</string>
     <string name="school_mail_too_large">Vedlegg overskrider grensen på 50 MB</string>

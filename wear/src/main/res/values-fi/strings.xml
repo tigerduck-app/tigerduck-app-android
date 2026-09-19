@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Ei lähettäjää)</string>
     <string name="school_mail_no_subject">(Ei aihetta)</string>
     <string name="school_mail_notification_settings_title">Koulusähköpostin ilmoitukset</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Avaa</string>
     <string name="school_mail_parse_failed">Tämän viestin muotoa ei voitu lukea. Sen sijaan näytetään lähde.</string>
     <string name="school_mail_quote_header">%1$@, %2$@ kirjoitti:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Lisää Kopio/Piilokopio</string>
     <string name="school_mail_sign_in_note">Opiskelijanumerosi ja salasanasi tulee olla samat kuin koulun järjestelmässä. Tämä salasana on myös kampuksen Wi-Fi-salasana (NTUST-PEAP); TigerDuck tallentaa sen vain salattuna tälle laitteelle eikä koskaan lataa sitä palvelimelle.</string>
     <string name="school_mail_sign_in_prompt_title">Kirjaudu koulusähköpostiin</string>
-    <string name="school_mail_source_large_message">Tämän viestin koko on %1$@. Sen lähteen lataaminen voi kuluttaa paljon dataa.</string>
-    <string name="school_mail_source_large_title">Ladataanko koko lähde?</string>
     <string name="school_mail_subject">Aihe</string>
     <string name="school_mail_to">Vastaanottaja</string>
     <string name="school_mail_too_large">Liitteet ylittävät 50 Mt:n rajan</string>

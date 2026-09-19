@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(אין שולח)</string>
     <string name="school_mail_no_subject">(אין נושא)</string>
     <string name="school_mail_notification_settings_title">התראות דואר בית הספר</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">פתח</string>
     <string name="school_mail_parse_failed">לא ניתן היה לקרוא את הפורמט של ההודעה הזו. במקום זאת מוצג המקור שלה.</string>
     <string name="school_mail_quote_header">בתאריך %1$@, %2$@ כתב/ה:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">הוסף עותק/עותק מוסתר</string>
     <string name="school_mail_sign_in_note">מספר הסטודנט והסיסמה שלך צריכים להיות זהים לאלה של מערכת בית הספר. הסיסמה הזו היא גם סיסמת ה-Wi-Fi של הקמפוס (NTUST-PEAP); TigerDuck שומר אותה מוצפנת במכשיר הזה בלבד ולעולם לא מעלה אותה.</string>
     <string name="school_mail_sign_in_prompt_title">התחברות לדואר בית הספר</string>
-    <string name="school_mail_source_large_message">גודל ההודעה הזו הוא %1$@. טעינת המקור שלה עשויה לצרוך הרבה נתונים.</string>
-    <string name="school_mail_source_large_title">לטעון את המקור המלא?</string>
     <string name="school_mail_subject">נושא</string>
     <string name="school_mail_to">אל</string>
     <string name="school_mail_too_large">הקבצים המצורפים חורגים מהמגבלה של 50MB</string>

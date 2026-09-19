@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Nessun mittente)</string>
     <string name="school_mail_no_subject">(Nessun oggetto)</string>
     <string name="school_mail_notification_settings_title">Notifiche di Posta universitaria</string>
-    <string name="school_mail_notification_title">Posta:%1$@</string>
+    <string name="school_mail_notification_title">Posta: %1$@</string>
     <string name="school_mail_open">Apri</string>
     <string name="school_mail_parse_failed">Impossibile leggere il formato di questo messaggio. Viene mostrato il codice sorgente.</string>
     <string name="school_mail_quote_header">Il %1$@, %2$@ ha scritto:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Aggiungi Cc/Ccn</string>
     <string name="school_mail_sign_in_note">Il numero di matricola e la password devono essere gli stessi del sistema universitario. Questa password è anche quella del Wi-Fi del campus (NTUST-PEAP); TigerDuck la salva solo in forma crittografata su questo dispositivo e non la carica mai online.</string>
     <string name="school_mail_sign_in_prompt_title">Accedi alla posta universitaria</string>
-    <string name="school_mail_source_large_message">Questo messaggio è di %1$@. Caricarne il codice sorgente può consumare molti dati.</string>
-    <string name="school_mail_source_large_title">Caricare il codice sorgente completo?</string>
     <string name="school_mail_subject">Oggetto</string>
     <string name="school_mail_to">A</string>
     <string name="school_mail_too_large">Gli allegati superano il limite di 50 MB</string>

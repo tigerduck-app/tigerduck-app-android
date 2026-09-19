@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Sense remitent)</string>
     <string name="school_mail_no_subject">(Sense assumpte)</string>
     <string name="school_mail_notification_settings_title">Notificacions del Correu universitari</string>
-    <string name="school_mail_notification_title">Correu:%1$@</string>
+    <string name="school_mail_notification_title">Correu: %1$@</string>
     <string name="school_mail_open">Obre</string>
     <string name="school_mail_parse_failed">No s\'ha pogut llegir el format d\'aquest correu. Es mostra el seu codi font.</string>
     <string name="school_mail_quote_header">El %1$@, %2$@ va escriure:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Afegeix Cc/Cco</string>
     <string name="school_mail_sign_in_note">El teu número d\'estudiant i contrasenya han de ser els mateixos que els del sistema universitari. Aquesta contrasenya també és la del Wi-Fi del campus (NTUST-PEAP); TigerDuck només la desa xifrada en aquest dispositiu i mai la puja a internet.</string>
     <string name="school_mail_sign_in_prompt_title">Inicia la sessió al correu universitari</string>
-    <string name="school_mail_source_large_message">Aquest correu pesa %1$@. Carregar-ne el codi font pot consumir moltes dades.</string>
-    <string name="school_mail_source_large_title">Vols carregar el codi font complet?</string>
     <string name="school_mail_subject">Assumpte</string>
     <string name="school_mail_to">Per a</string>
     <string name="school_mail_too_large">Els fitxers adjunts superen el límit de 50 MB</string>

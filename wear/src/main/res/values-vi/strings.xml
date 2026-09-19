@@ -666,7 +666,7 @@
     <string name="school_mail_no_sender">(Không có người gửi)</string>
     <string name="school_mail_no_subject">(Không có chủ đề)</string>
     <string name="school_mail_notification_settings_title">Thông báo Email trường</string>
-    <string name="school_mail_notification_title">Email:%1$@</string>
+    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Mở</string>
     <string name="school_mail_parse_failed">Không thể đọc định dạng của thư này. Đang hiển thị mã nguồn thay thế.</string>
     <string name="school_mail_quote_header">Vào %1$@, %2$@ đã viết:</string>
@@ -692,8 +692,6 @@
     <string name="school_mail_show_cc_bcc">Thêm Cc/Bcc</string>
     <string name="school_mail_sign_in_note">Mã số và mật khẩu của bạn nên giống với hệ thống của trường. Mật khẩu này cũng là mật khẩu Wi-Fi khuôn viên trường (NTUST-PEAP); TigerDuck chỉ lưu trữ mã hóa trên thiết bị này và không bao giờ tải lên.</string>
     <string name="school_mail_sign_in_prompt_title">Đăng nhập Email trường</string>
-    <string name="school_mail_source_large_message">Thư này có dung lượng %1$@. Việc tải mã nguồn có thể tốn nhiều dữ liệu.</string>
-    <string name="school_mail_source_large_title">Tải toàn bộ mã nguồn?</string>
     <string name="school_mail_subject">Chủ đề</string>
     <string name="school_mail_to">Đến</string>
     <string name="school_mail_too_large">Tệp đính kèm vượt quá giới hạn 50 MB</string>
