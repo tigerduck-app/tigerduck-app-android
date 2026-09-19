@@ -62,6 +62,17 @@ data class MailDevServerSettings(
  */
 interface MailDevServerStore {
     var settings: MailDevServerSettings
+
+    /**
+     * What a release build is given instead of the preferences-backed store, so that the
+     * store, the preferences file it would read and the name of that file are all absent
+     * from the built APK rather than merely unreachable. See `MailModule.devServerStore`.
+     */
+    object None : MailDevServerStore {
+        override var settings: MailDevServerSettings
+            get() = MailDevServerSettings.OFF
+            set(_) = Unit
+    }
 }
 
 class SharedPrefsMailDevServerStore(context: Context) : MailDevServerStore {

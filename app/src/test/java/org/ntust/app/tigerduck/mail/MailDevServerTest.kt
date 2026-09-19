@@ -98,6 +98,16 @@ class MailDevServerTest {
         assertEquals(MailServerConfig.NTUST, exploding.config(debug = false))
     }
 
+    @Test
+    fun `the store a release build is given holds no override and keeps none`() {
+        // MailModule hands this one out when BuildConfig.DEBUG is false, so the
+        // preferences-backed store is never built there at all.
+        val none = MailDevServerStore.None
+        none.settings = gmail
+        assertEquals(MailDevServerSettings.OFF, none.settings)
+        assertEquals(MailServerConfig.NTUST, MailSite(none).config())
+    }
+
     // --- requirement 2: the school host keeps its transport -------------------------------
 
     @Test

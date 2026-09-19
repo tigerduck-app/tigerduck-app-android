@@ -7,6 +7,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.mail.AssetsMailDemoGate
 import org.ntust.app.tigerduck.mail.MailDemoGate
@@ -40,10 +41,15 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object MailModule {
+    /**
+     * `BuildConfig.DEBUG` is a compile-time constant, so a release build never constructs
+     * the preferences-backed store: R8 drops it, and with it the name of the file it would
+     * have read. The override is absent from a release APK, not hidden inside one.
+     */
     @Provides
     @Singleton
     fun devServerStore(@ApplicationContext context: Context): MailDevServerStore =
-        SharedPrefsMailDevServerStore(context)
+        if (BuildConfig.DEBUG) SharedPrefsMailDevServerStore(context) else MailDevServerStore.None
 
     /**
      * Resolved per connection rather than provided as a value: [MailSite] can answer
