@@ -474,9 +474,8 @@ private fun ServerPushPopupHost(coordinator: ServerPushPopupCoordinator) {
 private fun UpdatePromptHost(updateChecker: UpdateChecker) {
     val pending by updateChecker.pendingUpdate.collectAsStateWithLifecycle()
     val activity = LocalContext.current as? Activity ?: return
-    pending?.let { p ->
+    if (pending != null) {
         UpdatePromptDialog(
-            pending = p,
             onUpdateNow = { updateChecker.onUpdateNow(activity) },
             onLater = { updateChecker.onLater() },
             onSkipThisVersion = { updateChecker.onSkipThisVersion() },

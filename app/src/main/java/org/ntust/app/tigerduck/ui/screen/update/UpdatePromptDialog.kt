@@ -24,8 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.data.model.PendingUpdate
-import org.ntust.app.tigerduck.util.replaceIosArg
 
 /**
  * Three-action "an update is ready" prompt, mounted at the app root by
@@ -40,7 +38,6 @@ import org.ntust.app.tigerduck.util.replaceIosArg
  */
 @Composable
 fun UpdatePromptDialog(
-    pending: PendingUpdate,
     onUpdateNow: () -> Unit,
     onLater: () -> Unit,
     onSkipThisVersion: () -> Unit,
@@ -77,10 +74,10 @@ fun UpdatePromptDialog(
                 )
 
                 Text(
-                    // Auto-generated copy carries iOS's `%1$@` placeholder;
-                    // see IosPlaceholder.kt for the centralized shim.
-                    text = stringResource(R.string.update_available_message)
-                        .replaceIosArg(1, pending.displayVersion),
+                    // No version in the copy: Play's AppUpdateInfo exposes
+                    // only the versionCode ("26"), never the name users know
+                    // ("2.1.0"), and a bare build number reads as noise.
+                    text = stringResource(R.string.update_available_message),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
