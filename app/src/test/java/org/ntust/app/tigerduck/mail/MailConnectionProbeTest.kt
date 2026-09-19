@@ -5,6 +5,7 @@ import jakarta.mail.MessagingException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -158,6 +159,7 @@ class MailConnectionProbeTest {
 
         assertTrue(leg, Regex("""TCP\s+ok""").containsMatchIn(leg))
         assertTrue(leg, "no password is stored" in leg)
+        assertTrue("and it says what to do about it", "fill in Test credentials" in leg)
         assertFalse("not attempted is not a failure", "AUTH failed" in leg)
     }
 
@@ -167,11 +169,104 @@ class MailConnectionProbeTest {
         // travel to someone else's server for the sake of a diagnostic.
         credentials.mailStudentId = "b10000001"
         credentials.mailPassword = "school-password"
-        val leg = probe.test(local).leg("IMAP")
+        val leg = probe.test(local, MailProbeCredentials.NONE).leg("IMAP")
 
         assertTrue(leg, Regex("""TCP\s+ok""").containsMatchIn(leg))
         assertTrue(leg, "the stored password was typed for ${MailServerConfig.DOMAIN}" in leg)
         assertFalse("nothing was sent, so nothing can have been accepted", "accepted" in leg)
+    }
+
+    // --- credentials typed for one test run --------------------------------------------------
+
+    /**
+     * The case the whole feature is for: sign-in fails, so nothing was ever saved, and
+     * without typed credentials the stage that would explain the failure has nothing to try.
+     */
+    @Test
+    fun `credentials typed for the test are used when nothing is stored`() = runTest {
+        store.settings = local
+        val leg = probe.test(local, MailProbeCredentials(server.credentials.loginName, server.credentials.password))
+            .leg("IMAP")
+
+        assertTrue(leg, Regex("""AUTH\s+ok\s+accepted""").containsMatchIn(leg))
+        assertTrue("the report says which credentials it used", "(typed for this test)" in leg)
+        assertFalse(leg, "no password is stored" in leg)
+    }
+
+    @Test
+    fun `typed credentials are preferred over the stored ones`() = runTest {
+        signedInHere()
+        val leg = probe.test(local, MailProbeCredentials(server.credentials.loginName, "not-the-password"))
+            .leg("IMAP")
+
+        // The stored password is the right one here, so an AUTH failure can only mean the
+        // typed one was what went on the wire.
+        assertTrue(leg, Regex("""AUTH\s+AUTH failed""").containsMatchIn(leg))
+        assertTrue(leg, "(typed for this test)" in leg)
+        assertTrue("the raw exception is still the product", "jakarta.mail.AuthenticationFailedException" in leg)
+    }
+
+    @Test
+    fun `typed credentials are offered to a host the stored password would be withheld from`() = runTest {
+        // Signed in to the school while the draft points elsewhere: the stored password is
+        // scoped out, but one typed here for this run is neither saved nor an accident.
+        credentials.mailStudentId = "b10000001"
+        credentials.mailPassword = "school-password"
+        val report = probe.test(local, MailProbeCredentials(server.credentials.loginName, server.credentials.password))
+
+        listOf("IMAP", "SMTP").forEach { label ->
+            val leg = report.leg(label)
+            assertTrue(leg, Regex("""AUTH\s+ok\s+accepted""").containsMatchIn(leg))
+            assertFalse("host scoping may not apply to what was typed here", "was typed for" in leg)
+        }
+        assertTrue("the school password itself is still nowhere near the wire", "school-password" !in report)
+    }
+
+    @Test
+    fun `the saved-credential path still scopes when the fields are left blank`() = runTest {
+        credentials.mailStudentId = "b10000001"
+        credentials.mailPassword = "school-password"
+        // Blank is blank however it is spelled, including whitespace in the username field.
+        listOf(MailProbeCredentials.NONE, MailProbeCredentials("   ", "")).forEach { blank ->
+            val leg = probe.test(local, blank).leg("IMAP")
+            assertTrue(leg, "the stored password was typed for ${MailServerConfig.DOMAIN}" in leg)
+            assertFalse(leg, "accepted" in leg)
+        }
+    }
+
+    @Test
+    fun `half-typed credentials are reported rather than half-attempted`() = runTest {
+        signedInHere()
+
+        val noUsername = probe.test(local, MailProbeCredentials("", server.credentials.password)).leg("IMAP")
+        assertTrue(noUsername, "a password was typed for the test but no username" in noUsername)
+        assertFalse("a half-formed LOGIN is never sent", "accepted" in noUsername)
+        assertFalse("not attempted is not a failure", "AUTH failed" in noUsername)
+
+        val noPassword = probe.test(local, MailProbeCredentials(server.credentials.loginName, "")).leg("IMAP")
+        assertTrue(noPassword, "a username was typed for the test but no password" in noPassword)
+        assertFalse(noPassword, "accepted" in noPassword)
+
+        // Half-typed never quietly falls back to the stored password, which is the one that
+        // would otherwise be sent here.
+        assertFalse(noUsername, "(the signed-in account)" in noUsername)
+        assertFalse(noPassword, "(the signed-in account)" in noPassword)
+    }
+
+    @Test
+    fun `typed credentials are never written anywhere`() = runTest {
+        store.settings = local
+        probe.test(local, MailProbeCredentials(server.credentials.loginName, server.credentials.password))
+
+        assertNull("the probe may not sign anyone in", credentials.mailStudentId)
+        assertNull(credentials.mailPassword)
+    }
+
+    @Test
+    fun `a typed password is not printed by the credential holder`() {
+        val typed = MailProbeCredentials("someone@probe.example", "typed-secret")
+        assertFalse(typed.toString(), "typed-secret" in typed.toString())
+        assertTrue(typed.toString(), "someone@probe.example" in typed.toString())
     }
 
     @Test
@@ -191,8 +286,12 @@ class MailConnectionProbeTest {
     fun `the probe a release build is given tests nothing`() = runTest {
         // MailModule hands this one out when BuildConfig.DEBUG is false, so the real probe
         // and every stage name in it are never built into the APK.
-        val report = MailConnectionProbe.Unavailable.test(local)
-        assertEquals("Debug builds only.", report)
+        assertEquals("Debug builds only.", MailConnectionProbe.Unavailable.test(local))
+        // Typed credentials change nothing there either: there is no probe to give them to.
+        assertEquals(
+            "Debug builds only.",
+            MailConnectionProbe.Unavailable.test(local, MailProbeCredentials("someone@probe.example", "typed")),
+        )
     }
 
     // --- telling a refusal from a silence ------------------------------------------------------

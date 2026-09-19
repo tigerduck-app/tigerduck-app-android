@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -54,6 +55,7 @@ import org.ntust.app.tigerduck.mail.MailConnectionProbe
 import org.ntust.app.tigerduck.mail.MailDevServerController
 import org.ntust.app.tigerduck.mail.MailDevServerSettings
 import org.ntust.app.tigerduck.mail.MailEndpoint
+import org.ntust.app.tigerduck.mail.MailProbeCredentials
 import org.ntust.app.tigerduck.mail.MailServerConfig
 import org.ntust.app.tigerduck.mail.MailSite
 import org.ntust.app.tigerduck.mail.MailTransportSecurity
@@ -67,7 +69,9 @@ import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
  *
  * Also carries "Test connection" ([MailConnectionProbe]), which says stage by stage why the
  * typed server will not connect. It answers with the raw exception rather than one of the
- * five messages School Mail shows students, which is the whole reason it exists.
+ * five messages School Mail shows students, which is the whole reason it exists. Its "Test
+ * credentials" fields ([MailProbeCredentials]) are what let the AUTH stage run at all when
+ * signing in is the thing that is broken -- a failed sign-in saves no password for it to try.
  *
  * Debug builds only: the route is registered inside `AppNavigation`'s `BuildConfig.DEBUG`
  * block, [MailSite] reads nothing here in a release build, and `MailModule` builds no probe
@@ -93,6 +97,13 @@ fun MailDevServerDebugScreen(onBack: () -> Unit) {
     var testing by remember { mutableStateOf(false) }
     var testJob by remember { mutableStateOf<Job?>(null) }
 
+    // Credentials for one Test connection run. `remember`, never `rememberSaveable`: saved
+    // instance state is written out by the system, and the one promise these fields make is
+    // that they are held nowhere -- not in preferences, not in MailCredentialStore, not in
+    // MailAccount -- and are gone the moment this screen leaves composition.
+    var testUsername by remember { mutableStateOf("") }
+    var testPassword by remember { mutableStateOf("") }
+
     fun trimmed() = draft.copy(
         domain = draft.domain.trim(),
         imap = draft.imap.copy(host = draft.imap.host.trim()),
@@ -110,7 +121,7 @@ fun MailDevServerDebugScreen(onBack: () -> Unit) {
         testing = true
         testJob = scope.launch {
             try {
-                report = probe.test(trimmed())
+                report = probe.test(trimmed(), MailProbeCredentials(testUsername, testPassword))
             } catch (e: CancellationException) {
                 report = "Cancelled."
                 throw e
@@ -196,6 +207,53 @@ fun MailDevServerDebugScreen(onBack: () -> Unit) {
                 endpoint = draft.smtp,
                 onChange = { draft = draft.copy(smtp = it) },
             )
+
+            HorizontalDivider()
+
+            Text(
+                "Test credentials",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Used by Test connection and by nothing else. Never saved — not to preferences, " +
+                    "not to the credential store, not to the mail account — and gone as soon as you " +
+                    "leave this screen. Fill both in when signing in is what is failing: a sign-in " +
+                    "that failed stored no password, so without them the AUTH stage has nothing to " +
+                    "try and says so instead of answering. Leave both blank and the signed-in " +
+                    "account's own password is used, still only against the host it was saved for.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = testUsername,
+                onValueChange = { testUsername = it },
+                label = { Text("Username for the test") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next,
+                    autoCorrectEnabled = false,
+                    capitalization = KeyboardCapitalization.None,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = testPassword,
+                onValueChange = { testPassword = it },
+                label = { Text("Password for the test") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Done,
+                    autoCorrectEnabled = false,
+                    capitalization = KeyboardCapitalization.None,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            HorizontalDivider()
 
             error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
             note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }

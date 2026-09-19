@@ -42,12 +42,44 @@ interface MailConnectionProbe {
      * Tests [draft] -- what is on screen, not what is applied -- and returns the report to
      * show. Never throws for a connection failure: a failure *is* the answer. Cancelling
      * the calling coroutine closes whatever socket is in flight.
+     *
+     * [typed] is what was put in the screen's "Test credentials" fields, if anything; blank
+     * falls back to the signed-in account's saved password, scoped as it has always been.
      */
-    suspend fun test(draft: MailDevServerSettings): String
+    suspend fun test(
+        draft: MailDevServerSettings,
+        typed: MailProbeCredentials = MailProbeCredentials.NONE,
+    ): String
 
     /** What a release build is given, so no probe, and no text of one, is built into the APK. */
     object Unavailable : MailConnectionProbe {
-        override suspend fun test(draft: MailDevServerSettings): String = "Debug builds only."
+        override suspend fun test(draft: MailDevServerSettings, typed: MailProbeCredentials): String =
+            "Debug builds only."
+    }
+}
+
+/**
+ * A username and password typed into Developer -> Email's "Test credentials" fields, for one
+ * run of the probe and nothing else.
+ *
+ * This exists because the diagnostic could not otherwise answer the question it was built
+ * for. The AUTH stage reads the *saved* password, and a sign-in that fails saves none -- so
+ * "it says wrong student ID or password and I don't know why", the one thing that sends
+ * anyone to this screen, was exactly the case where the stage that would explain it had
+ * nothing to try.
+ *
+ * Deliberately not a credential store of any kind: it is created from screen state, handed
+ * to one [MailConnectionProbe.test] call and dropped. Nothing here is written to
+ * preferences, to `MailCredentialStore` or to `MailAccount`, and nothing survives leaving
+ * the screen.
+ */
+data class MailProbeCredentials(val username: String, val password: String) {
+    /** Password excluded on purpose: a probe report or a log line must not be able to leak it. */
+    override fun toString(): String = "MailProbeCredentials(username=$username, password=***)"
+
+    companion object {
+        /** Nothing typed: the saved-credential path, host-scoping intact. */
+        val NONE = MailProbeCredentials("", "")
     }
 }
 
@@ -70,7 +102,7 @@ class SocketMailConnectionProbe(
     private val site: MailSite,
 ) : MailConnectionProbe {
 
-    override suspend fun test(draft: MailDevServerSettings): String {
+    override suspend fun test(draft: MailDevServerSettings, typed: MailProbeCredentials): String {
         if (!draft.enabled) return REFUSED_OFF
         if (!draft.isComplete) return REFUSED_INCOMPLETE
         val config = draft.toConfig()
@@ -81,14 +113,19 @@ class SocketMailConnectionProbe(
         // something else changes it mid-run.
         val inForce = site.config()
         return withContext(Dispatchers.IO) {
-            val legs = Leg.entries.map { leg -> probe(leg, config, inForce) }
+            val legs = Leg.entries.map { leg -> probe(leg, config, inForce, typed) }
             legs.joinToString("\n\n") { it.joinToString("\n") }
         }
     }
 
     // --- one endpoint, stage by stage ---------------------------------------------------
 
-    private suspend fun probe(leg: Leg, config: MailServerConfig, inForce: MailServerConfig): List<String> {
+    private suspend fun probe(
+        leg: Leg,
+        config: MailServerConfig,
+        inForce: MailServerConfig,
+        typed: MailProbeCredentials,
+    ): List<String> {
         val endpoint = leg.endpoint(config)
         val steps = mutableListOf<Step>()
 
@@ -103,7 +140,7 @@ class SocketMailConnectionProbe(
         steps += wire(leg, endpoint)
         if (steps.any { it.verdict.failed }) return render(leg, endpoint, steps)
 
-        steps += auth(leg, config, inForce)
+        steps += auth(leg, config, inForce, typed)
         return render(leg, endpoint, steps)
     }
 
@@ -203,47 +240,90 @@ class SocketMailConnectionProbe(
     // --- the authentication stage -------------------------------------------------------
 
     /**
-     * The stored password belongs to whatever server it was typed against, so it is offered
-     * only to that same host. Otherwise testing a third-party draft while signed in to the
-     * school would hand the school password to someone else's server -- the mirror image of
-     * the school host this whole probe refuses, and just as much not worth a diagnostic.
+     * Signs in, with whichever of the two credentials the screen offers.
+     *
+     * Credentials typed for this run win outright and go to whatever host is on screen. The
+     * host-scoping rule below is about the *saved* password reaching a third-party server by
+     * accident; one typed into this screen, for this test, is neither saved nor an accident,
+     * and refusing it would put the stage straight back to being unable to run in the only
+     * case it is wanted for.
+     *
+     * Half-typed is reported rather than attempted: a LOGIN with an empty user or an empty
+     * password is answered by "authentication failed", which is precisely the sentence this
+     * screen exists to get behind.
      */
-    private suspend fun auth(leg: Leg, config: MailServerConfig, inForce: MailServerConfig): Step {
-        val id = credentials.mailStudentId
-        val password = credentials.mailPassword
-        if (id.isNullOrBlank() || password.isNullOrEmpty()) {
-            return Step(AUTH, MailProbeVerdict.SKIPPED, listOf("not attempted: no password is stored to try"))
+    private suspend fun auth(
+        leg: Leg,
+        config: MailServerConfig,
+        inForce: MailServerConfig,
+        typed: MailProbeCredentials,
+    ): Step {
+        val login = when (val chosen = chooseLogin(leg, config, inForce, typed)) {
+            is Chosen.Skip -> return Step(AUTH, MailProbeVerdict.SKIPPED, chosen.detail)
+            is Chosen.Login -> chosen
         }
-        val storedFor = leg.endpoint(inForce).host
-        val draftHost = leg.endpoint(config).host
-        if (!storedFor.equals(draftHost, ignoreCase = true)) {
-            return Step(
-                AUTH,
-                MailProbeVerdict.SKIPPED,
-                listOf(
-                    "not attempted: the stored password was typed for $storedFor, not $draftHost",
-                    "save the draft and sign in there if you want LOGIN tested too",
-                ),
-            )
-        }
-        val creds = MailCredentials(id, password, config.domain)
         val startedAt = System.nanoTime()
         return try {
-            connect(leg, config, creds)
+            connect(leg, config, login.name, login.password)
             Step(
                 AUTH,
                 MailProbeVerdict.OK,
-                listOf("accepted \"${creds.loginName}\" in ${millisSince(startedAt)} ms"),
+                listOf("accepted \"${login.name}\"${login.source} in ${millisSince(startedAt)} ms"),
             )
         } catch (e: AuthenticationFailedException) {
-            Step(AUTH, MailProbeVerdict.AUTH_FAILED, listOf("as \"${creds.loginName}\"") + probeRawChain(e))
+            Step(AUTH, MailProbeVerdict.AUTH_FAILED, listOf("as \"${login.name}\"${login.source}") + probeRawChain(e))
         } catch (e: Exception) {
-            Step(AUTH, MailProbeVerdict.FAILED, listOf("as \"${creds.loginName}\"") + probeRawChain(e))
+            Step(AUTH, MailProbeVerdict.FAILED, listOf("as \"${login.name}\"${login.source}") + probeRawChain(e))
         }
     }
 
+    /** What AUTH will sign in with, or why it will not try. */
+    private sealed interface Chosen {
+        class Login(val name: String, val password: String, val source: String) : Chosen
+        class Skip(val detail: List<String>) : Chosen
+    }
+
+    private fun chooseLogin(
+        leg: Leg,
+        config: MailServerConfig,
+        inForce: MailServerConfig,
+        typed: MailProbeCredentials,
+    ): Chosen {
+        val name = typed.username.trim()
+        if (name.isNotEmpty() || typed.password.isNotEmpty()) {
+            if (name.isEmpty()) return Chosen.Skip(HALF_TYPED_NO_USERNAME)
+            if (typed.password.isEmpty()) return Chosen.Skip(HALF_TYPED_NO_PASSWORD)
+            // Sent exactly as typed. The school's uppercasing convention in
+            // [MailCredentials.loginName] is about the school account, and this is a
+            // literal: what is on screen has to be what went on the wire, or the report is
+            // answering about some other login name than the one being asked about.
+            return Chosen.Login(name, typed.password, TYPED)
+        }
+
+        val id = credentials.mailStudentId
+        val password = credentials.mailPassword
+        if (id.isNullOrBlank() || password.isNullOrEmpty()) return Chosen.Skip(NO_STORED_PASSWORD)
+
+        // The stored password belongs to whatever server it was typed against, so it is
+        // offered only to that same host. Otherwise testing a third-party draft while signed
+        // in to the school would hand the school password to someone else's server -- the
+        // mirror image of the school host this whole probe refuses, and just as much not
+        // worth a diagnostic.
+        val storedFor = leg.endpoint(inForce).host
+        val draftHost = leg.endpoint(config).host
+        if (!storedFor.equals(draftHost, ignoreCase = true)) {
+            return Chosen.Skip(
+                listOf(
+                    "not attempted: the stored password was typed for $storedFor, not $draftHost",
+                    "fill in Test credentials above to sign in here, or save the draft and sign in there",
+                ),
+            )
+        }
+        return Chosen.Login(MailCredentials(id, password, config.domain).loginName, password, SAVED)
+    }
+
     /** Angus with the app's own properties: this stage is the app's connection, not a copy of it. */
-    private suspend fun connect(leg: Leg, config: MailServerConfig, creds: MailCredentials) {
+    private suspend fun connect(leg: Leg, config: MailServerConfig, loginName: String, password: String) {
         val protocol = when (leg) {
             Leg.IMAP -> MailProperties.imapProtocol(config)
             Leg.SMTP -> MailProperties.smtpProtocol(config)
@@ -260,7 +340,7 @@ class SocketMailConnectionProbe(
         val endpoint = leg.endpoint(config)
         try {
             closingOnCancel(Closeable { runCatching { service.close() } }) {
-                service.connect(endpoint.host, endpoint.port, creds.loginName, creds.password)
+                service.connect(endpoint.host, endpoint.port, loginName, password)
             }
         } finally {
             runCatching { service.close() }
@@ -311,6 +391,23 @@ class SocketMailConnectionProbe(
         const val TCP = "TCP"
         const val TLS = "TLS"
         const val AUTH = "AUTH"
+
+        /** Which of the two credentials a line is about, so no report is ambiguous about it. */
+        const val TYPED = " (typed for this test)"
+        const val SAVED = " (the signed-in account)"
+
+        val NO_STORED_PASSWORD = listOf(
+            "not attempted: no password is stored to try",
+            "fill in Test credentials above -- a sign-in that failed stores nothing to test with",
+        )
+        val HALF_TYPED_NO_USERNAME = listOf(
+            "not attempted: a password was typed for the test but no username",
+            "fill both in, or clear both to fall back to the signed-in account",
+        )
+        val HALF_TYPED_NO_PASSWORD = listOf(
+            "not attempted: a username was typed for the test but no password",
+            "fill both in, or clear both to fall back to the signed-in account",
+        )
 
         const val REFUSED_OFF =
             "The override switch is off, so there is nothing to test. Turn it on and test again — " +
