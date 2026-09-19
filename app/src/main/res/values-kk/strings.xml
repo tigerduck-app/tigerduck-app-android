@@ -683,6 +683,10 @@
     <string name="school_mail_send">Жіберу</string>
     <string name="school_mail_send_confirm_title">Бұл хат жіберілсін бе?</string>
     <string name="school_mail_send_failed">Хатты жіберу мүмкін болмады</string>
+    <string name="school_mail_sent_copy_failed">Хат жіберілді, бірақ көшірмесі Жіберілген қалтасына сақтала алмады.</string>
+    <string name="school_mail_sent_copy_no_folder">Хат жіберілді, бірақ көшірмені сақтайтын Жіберілген қалтасы жоқ.</string>
+    <string name="school_mail_sent_copy_not_saved">Хат жіберілді, бірақ көшірмесі Жіберілген қалтасына сақталмады</string>
+    <string name="school_mail_sent_copy_unknown">Хат жіберілді. TigerDuck сервердің өз көшірмесі Жіберілген қалтасында бар-жоғын тексере алмады, сондықтан жаңасын қоспады.</string>
     <string name="school_mail_settings_diagnostics">Хабарландыру диагностикасы</string>
     <string name="school_mail_settings_display_name">Алушыларға көрсетілетін атау</string>
     <string name="school_mail_settings_display_name_hint">Тек мекенжайыңыз көрсетілуі үшін бос қалдырыңыз.</string>

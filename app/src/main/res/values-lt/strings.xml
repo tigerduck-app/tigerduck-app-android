@@ -683,6 +683,10 @@
     <string name="school_mail_send">Siųsti</string>
     <string name="school_mail_send_confirm_title">Siųsti šį laišką?</string>
     <string name="school_mail_send_failed">Nepavyko išsiųsti laiško</string>
+    <string name="school_mail_sent_copy_failed">Laiškas buvo išsiųstas, bet kopijos nepavyko išsaugoti aplanke Išsiųsti.</string>
+    <string name="school_mail_sent_copy_no_folder">Laiškas buvo išsiųstas, bet nėra aplanko Išsiųsti, kuriame būtų galima laikyti kopiją.</string>
+    <string name="school_mail_sent_copy_not_saved">Laiškas išsiųstas, bet kopija nebuvo išsaugota aplanke Išsiųsti</string>
+    <string name="school_mail_sent_copy_unknown">Laiškas buvo išsiųstas. TigerDuck negalėjo patikrinti, ar serveris jau turėjo savo kopiją aplanke Išsiųsti, todėl jos nepridėjo.</string>
     <string name="school_mail_settings_diagnostics">Pranešimų diagnostika</string>
     <string name="school_mail_settings_display_name">Vardas, matomas gavėjams</string>
     <string name="school_mail_settings_display_name_hint">Palikite tuščią, jei norite rodyti tik savo adresą.</string>

@@ -683,6 +683,10 @@
     <string name="school_mail_send">Lähetä</string>
     <string name="school_mail_send_confirm_title">Lähetetäänkö tämä viesti?</string>
     <string name="school_mail_send_failed">Viestiä ei voitu lähettää</string>
+    <string name="school_mail_sent_copy_failed">Viesti lähetettiin, mutta kopiota ei voitu tallentaa Lähetetyt-kansioon.</string>
+    <string name="school_mail_sent_copy_no_folder">Viesti lähetettiin, mutta Lähetetyt-kansiota ei ole, johon kopion voisi tallentaa.</string>
+    <string name="school_mail_sent_copy_not_saved">Viesti lähetetty, mutta kopiota ei tallennettu Lähetetyt-kansioon</string>
+    <string name="school_mail_sent_copy_unknown">Viesti lähetettiin. TigerDuck ei pystynyt tarkistamaan, oliko palvelimella jo omaa kopiotaan Lähetetyt-kansiossa, joten se ei lisännyt kopiota.</string>
     <string name="school_mail_settings_diagnostics">Ilmoitusten diagnostiikka</string>
     <string name="school_mail_settings_display_name">Vastaanottajille näytettävä nimi</string>
     <string name="school_mail_settings_display_name_hint">Jätä tyhjäksi, jos haluat näyttää vain osoitteesi.</string>

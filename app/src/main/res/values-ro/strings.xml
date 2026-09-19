@@ -683,6 +683,10 @@
     <string name="school_mail_send">Trimite</string>
     <string name="school_mail_send_confirm_title">Trimiți acest e-mail?</string>
     <string name="school_mail_send_failed">E-mailul nu a putut fi trimis</string>
+    <string name="school_mail_sent_copy_failed">E-mailul a fost trimis, dar copia nu a putut fi salvată în Trimise.</string>
+    <string name="school_mail_sent_copy_no_folder">E-mailul a fost trimis, dar nu există un folder Trimise în care să se păstreze o copie.</string>
+    <string name="school_mail_sent_copy_not_saved">E-mail trimis, dar copia nu a fost salvată în Trimise</string>
+    <string name="school_mail_sent_copy_unknown">E-mailul a fost trimis. TigerDuck nu a putut verifica dacă serverul avea deja propria copie în Trimise, așa că nu a adăugat una.</string>
     <string name="school_mail_settings_diagnostics">Diagnosticarea notificărilor</string>
     <string name="school_mail_settings_display_name">Numele afișat destinatarilor</string>
     <string name="school_mail_settings_display_name_hint">Lasă necompletat pentru a afișa doar adresa ta.</string>

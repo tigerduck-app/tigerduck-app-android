@@ -683,6 +683,10 @@
     <string name="school_mail_send">送信</string>
     <string name="school_mail_send_confirm_title">このメールを送信しますか？</string>
     <string name="school_mail_send_failed">メールを送信できませんでした</string>
+    <string name="school_mail_sent_copy_failed">メールは送信されましたが、コピーを送信済みフォルダに保存できませんでした。</string>
+    <string name="school_mail_sent_copy_no_folder">メールは送信されましたが、コピーを保存できる送信済みフォルダがありません。</string>
+    <string name="school_mail_sent_copy_not_saved">メールは送信されましたが、コピーは送信済みフォルダに保存されませんでした</string>
+    <string name="school_mail_sent_copy_unknown">メールは送信されました。TigerDuck は送信済みフォルダでサーバー側のコピーを確認できなかったため、追加しませんでした。</string>
     <string name="school_mail_settings_diagnostics">通知の診断</string>
     <string name="school_mail_settings_display_name">受信者に表示される名前</string>
     <string name="school_mail_settings_display_name_hint">空欄にするとアドレスのみが表示されます。</string>

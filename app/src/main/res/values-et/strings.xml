@@ -683,6 +683,10 @@
     <string name="school_mail_send">Saada</string>
     <string name="school_mail_send_confirm_title">Kas saata see kiri?</string>
     <string name="school_mail_send_failed">Kirja saatmine ebaõnnestus</string>
+    <string name="school_mail_sent_copy_failed">Kiri saadeti, kuid koopiat ei õnnestunud kausta Saadetud salvestada.</string>
+    <string name="school_mail_sent_copy_no_folder">Kiri saadeti, kuid kausta Saadetud pole, kuhu koopiat hoida.</string>
+    <string name="school_mail_sent_copy_not_saved">Kiri saadeti, kuid koopiat ei salvestatud kausta Saadetud</string>
+    <string name="school_mail_sent_copy_unknown">Kiri saadeti. TigerDuck ei saanud kontrollida, kas serveril oli juba oma koopia kaustas Saadetud, seega ei lisanud ühtegi.</string>
     <string name="school_mail_settings_diagnostics">Teavituste diagnostika</string>
     <string name="school_mail_settings_display_name">Saajatele kuvatav nimi</string>
     <string name="school_mail_settings_display_name_hint">Jäta tühjaks, et kuvada ainult oma aadressi.</string>

@@ -683,6 +683,10 @@
     <string name="school_mail_send">Sūtīt</string>
     <string name="school_mail_send_confirm_title">Vai sūtīt šo vēstuli?</string>
     <string name="school_mail_send_failed">Neizdevās nosūtīt vēstuli</string>
+    <string name="school_mail_sent_copy_failed">Vēstule tika nosūtīta, bet kopiju neizdevās saglabāt mapē Nosūtītie.</string>
+    <string name="school_mail_sent_copy_no_folder">Vēstule tika nosūtīta, bet nav mapes Nosūtītie, kurā saglabāt kopiju.</string>
+    <string name="school_mail_sent_copy_not_saved">Vēstule nosūtīta, bet kopija netika saglabāta mapē Nosūtītie</string>
+    <string name="school_mail_sent_copy_unknown">Vēstule tika nosūtīta. TigerDuck nevarēja pārbaudīt, vai serverim jau bija sava kopija mapē Nosūtītie, tāpēc kopiju nepievienoja.</string>
     <string name="school_mail_settings_diagnostics">Paziņojumu diagnostika</string>
     <string name="school_mail_settings_display_name">Vārds, ko redz saņēmēji</string>
     <string name="school_mail_settings_display_name_hint">Atstājiet tukšu, lai rādītu tikai savu adresi.</string>

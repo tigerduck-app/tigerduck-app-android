@@ -683,6 +683,10 @@
     <string name="school_mail_send">Küldés</string>
     <string name="school_mail_send_confirm_title">Elküldi ezt az üzenetet?</string>
     <string name="school_mail_send_failed">Nem sikerült elküldeni az üzenetet</string>
+    <string name="school_mail_sent_copy_failed">Az üzenet elküldve, de a másolatot nem sikerült elmenteni az Elküldött üzenetek mappába.</string>
+    <string name="school_mail_sent_copy_no_folder">Az üzenet elküldve, de nincs Elküldött üzenetek mappa, amelybe el lehetne menteni a másolatot.</string>
+    <string name="school_mail_sent_copy_not_saved">Elküldve, de a másolat nem mentődött el az Elküldött üzenetek mappába</string>
+    <string name="school_mail_sent_copy_unknown">Az üzenet elküldve. A TigerDuck nem tudta ellenőrizni, hogy megvan-e a szerver saját másolata az Elküldött üzenetek mappában, ezért nem adott hozzá újat.</string>
     <string name="school_mail_settings_diagnostics">Értesítési diagnosztika</string>
     <string name="school_mail_settings_display_name">A címzetteknek megjelenő név</string>
     <string name="school_mail_settings_display_name_hint">Hagyja üresen, ha csak a címét szeretné megjeleníteni.</string>

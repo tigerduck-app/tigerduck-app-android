@@ -683,6 +683,10 @@
     <string name="school_mail_send">Пошаљи</string>
     <string name="school_mail_send_confirm_title">Да пошаљем ову поруку?</string>
     <string name="school_mail_send_failed">Порука није послата</string>
+    <string name="school_mail_sent_copy_failed">Порука је послата, али копију није било могуће сачувати у фасцикли Послато.</string>
+    <string name="school_mail_sent_copy_no_folder">Порука је послата, али не постоји фасцикла Послато у коју би се сачувала копија.</string>
+    <string name="school_mail_sent_copy_not_saved">Порука је послата, али копија није сачувана у фасцикли Послато</string>
+    <string name="school_mail_sent_copy_unknown">Порука је послата. TigerDuck није могао да провери да ли сервер већ има сопствену копију у фасцикли Послато, па је није додао.</string>
     <string name="school_mail_settings_diagnostics">Дијагностика обавештења</string>
     <string name="school_mail_settings_display_name">Име које виде примаоци</string>
     <string name="school_mail_settings_display_name_hint">Оставите празно да би се приказивала само ваша адреса.</string>

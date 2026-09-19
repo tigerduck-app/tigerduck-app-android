@@ -683,6 +683,10 @@
     <string name="school_mail_send">Ipadala</string>
     <string name="school_mail_send_confirm_title">Ipadala ang mail na ito?</string>
     <string name="school_mail_send_failed">Hindi maipadala ang mail</string>
+    <string name="school_mail_sent_copy_failed">Naipadala ang mail, pero hindi na-save ang kopya sa Naipadala.</string>
+    <string name="school_mail_sent_copy_no_folder">Naipadala ang mail, pero walang folder na Naipadala na mapaglalagyan ng kopya.</string>
+    <string name="school_mail_sent_copy_not_saved">Naipadala ang mail, pero hindi na-save ang kopya sa Naipadala</string>
+    <string name="school_mail_sent_copy_unknown">Naipadala ang mail. Hindi ma-check ng TigerDuck kung mayroon nang sariling kopya ang server sa Naipadala, kaya hindi na ito nagdagdag ng kopya.</string>
     <string name="school_mail_settings_diagnostics">Diagnostics ng notification</string>
     <string name="school_mail_settings_display_name">Pangalan na ipinapakita sa mga tatanggap</string>
     <string name="school_mail_settings_display_name_hint">Iwanang blangko para ipakita lang ang address mo.</string>

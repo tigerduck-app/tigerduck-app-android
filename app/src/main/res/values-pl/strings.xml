@@ -683,6 +683,10 @@
     <string name="school_mail_send">Wyślij</string>
     <string name="school_mail_send_confirm_title">Wysłać tę wiadomość?</string>
     <string name="school_mail_send_failed">Nie udało się wysłać wiadomości</string>
+    <string name="school_mail_sent_copy_failed">Wiadomość została wysłana, ale nie udało się zapisać kopii w folderze Wysłane.</string>
+    <string name="school_mail_sent_copy_no_folder">Wiadomość została wysłana, ale nie ma folderu Wysłane, w którym można by zapisać kopię.</string>
+    <string name="school_mail_sent_copy_not_saved">Wiadomość wysłana, ale kopia nie została zapisana w folderze Wysłane</string>
+    <string name="school_mail_sent_copy_unknown">Wiadomość została wysłana. TigerDuck nie mógł sprawdzić, czy serwer ma już własną kopię w folderze Wysłane, więc jej nie dodał.</string>
     <string name="school_mail_settings_diagnostics">Diagnostyka powiadomień</string>
     <string name="school_mail_settings_display_name">Nazwa widoczna dla odbiorców</string>
     <string name="school_mail_settings_display_name_hint">Pozostaw puste, aby pokazywać tylko adres.</string>

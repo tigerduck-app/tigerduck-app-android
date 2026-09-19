@@ -683,6 +683,10 @@
     <string name="school_mail_send">పంపు</string>
     <string name="school_mail_send_confirm_title">ఈ ఇమెయిల్‌ను పంపాలా?</string>
     <string name="school_mail_send_failed">ఇమెయిల్‌ను పంపలేకపోయింది</string>
+    <string name="school_mail_sent_copy_failed">ఇమెయిల్ పంపబడింది, కానీ కాపీని పంపినవిలో సేవ్ చేయలేకపోయింది.</string>
+    <string name="school_mail_sent_copy_no_folder">ఇమెయిల్ పంపబడింది, కానీ కాపీని ఉంచడానికి పంపినవి ఫోల్డర్ లేదు.</string>
+    <string name="school_mail_sent_copy_not_saved">ఇమెయిల్ పంపబడింది, కానీ దాని కాపీ పంపినవిలో సేవ్ కాలేదు</string>
+    <string name="school_mail_sent_copy_unknown">ఇమెయిల్ పంపబడింది. పంపినవిలో సర్వర్ సొంత కాపీ ఇప్పటికే ఉందా అని TigerDuck తనిఖీ చేయలేకపోయింది, కాబట్టి అది కొత్త కాపీని జోడించలేదు.</string>
     <string name="school_mail_settings_diagnostics">నోటిఫికేషన్ డయాగ్నోస్టిక్స్</string>
     <string name="school_mail_settings_display_name">స్వీకర్తలకు చూపించే పేరు</string>
     <string name="school_mail_settings_display_name_hint">మీ చిరునామాను మాత్రమే చూపించడానికి దీన్ని ఖాళీగా వదిలేయండి.</string>

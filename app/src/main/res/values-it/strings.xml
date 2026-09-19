@@ -683,6 +683,10 @@
     <string name="school_mail_send">Invia</string>
     <string name="school_mail_send_confirm_title">Inviare questo messaggio?</string>
     <string name="school_mail_send_failed">Impossibile inviare il messaggio</string>
+    <string name="school_mail_sent_copy_failed">Il messaggio è stato inviato, ma non è stato possibile salvare la copia in Posta inviata.</string>
+    <string name="school_mail_sent_copy_no_folder">Il messaggio è stato inviato, ma non esiste una cartella Posta inviata in cui conservare una copia.</string>
+    <string name="school_mail_sent_copy_not_saved">Messaggio inviato, ma la copia non è stata salvata in Posta inviata</string>
+    <string name="school_mail_sent_copy_unknown">Il messaggio è stato inviato. TigerDuck non è riuscito a verificare se il server avesse già una propria copia in Posta inviata, quindi non ne ha aggiunta una.</string>
     <string name="school_mail_settings_diagnostics">Diagnostica delle notifiche</string>
     <string name="school_mail_settings_display_name">Nome visualizzato dai destinatari</string>
     <string name="school_mail_settings_display_name_hint">Lascia vuoto per mostrare solo il tuo indirizzo.</string>

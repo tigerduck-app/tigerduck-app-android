@@ -683,6 +683,10 @@
     <string name="school_mail_send">שלח</string>
     <string name="school_mail_send_confirm_title">לשלוח את ההודעה הזו?</string>
     <string name="school_mail_send_failed">לא ניתן היה לשלוח את ההודעה</string>
+    <string name="school_mail_sent_copy_failed">ההודעה נשלחה, אך לא ניתן היה לשמור את העותק בתיקיית נשלח.</string>
+    <string name="school_mail_sent_copy_no_folder">ההודעה נשלחה, אך אין תיקיית נשלח לשמירת עותק.</string>
+    <string name="school_mail_sent_copy_not_saved">ההודעה נשלחה, אך העותק לא נשמר בתיקיית נשלח</string>
+    <string name="school_mail_sent_copy_unknown">ההודעה נשלחה. TigerDuck לא הצליח לבדוק אם לשרת כבר יש עותק משלו בתיקיית נשלח, ולכן לא הוסיף עותק.</string>
     <string name="school_mail_settings_diagnostics">אבחון התראות</string>
     <string name="school_mail_settings_display_name">השם שמוצג לנמענים</string>
     <string name="school_mail_settings_display_name_hint">השאר ריק כדי להציג רק את הכתובת שלך.</string>

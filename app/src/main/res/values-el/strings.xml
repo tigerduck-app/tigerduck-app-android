@@ -683,6 +683,10 @@
     <string name="school_mail_send">Αποστολή</string>
     <string name="school_mail_send_confirm_title">Αποστολή αυτού του email;</string>
     <string name="school_mail_send_failed">Δεν ήταν δυνατή η αποστολή του email</string>
+    <string name="school_mail_sent_copy_failed">Το email στάλθηκε, αλλά το αντίγραφο δεν ήταν δυνατό να αποθηκευτεί στα Απεσταλμένα.</string>
+    <string name="school_mail_sent_copy_no_folder">Το email στάλθηκε, αλλά δεν υπάρχει φάκελος Απεσταλμένων για να κρατηθεί αντίγραφο.</string>
+    <string name="school_mail_sent_copy_not_saved">Email στάλθηκε, αλλά δεν αποθηκεύτηκε αντίγραφο στα Απεσταλμένα</string>
+    <string name="school_mail_sent_copy_unknown">Το email στάλθηκε. Το TigerDuck δεν μπόρεσε να ελέγξει αν ο διακομιστής είχε ήδη δικό του αντίγραφο στα Απεσταλμένα, γι\' αυτό δεν πρόσθεσε κάποιο.</string>
     <string name="school_mail_settings_diagnostics">Διαγνωστικά ειδοποιήσεων</string>
     <string name="school_mail_settings_display_name">Όνομα που βλέπουν οι παραλήπτες</string>
     <string name="school_mail_settings_display_name_hint">Άφησέ το κενό για να εμφανίζεται μόνο η διεύθυνσή σου.</string>

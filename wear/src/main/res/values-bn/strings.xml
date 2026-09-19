@@ -683,6 +683,10 @@
     <string name="school_mail_send">পাঠান</string>
     <string name="school_mail_send_confirm_title">এই মেইলটি পাঠাবেন?</string>
     <string name="school_mail_send_failed">মেইল পাঠানো যায়নি</string>
+    <string name="school_mail_sent_copy_failed">মেইল পাঠানো হয়েছে, কিন্তু কপিটি প্রেরিতে সংরক্ষণ করা যায়নি।</string>
+    <string name="school_mail_sent_copy_no_folder">মেইল পাঠানো হয়েছে, কিন্তু কপি রাখার জন্য কোনো প্রেরিত ফোল্ডার নেই।</string>
+    <string name="school_mail_sent_copy_not_saved">মেইল পাঠানো হয়েছে, কিন্তু এর কপি প্রেরিতে সংরক্ষিত হয়নি</string>
+    <string name="school_mail_sent_copy_unknown">মেইল পাঠানো হয়েছে। TigerDuck প্রেরিতে সার্ভারের নিজস্ব কপি আছে কিনা তা পরীক্ষা করতে পারেনি, তাই নতুন কপি যোগ করেনি।</string>
     <string name="school_mail_settings_diagnostics">বিজ্ঞপ্তি ডায়াগনস্টিকস</string>
     <string name="school_mail_settings_display_name">প্রাপকদের কাছে দেখানো নাম</string>
     <string name="school_mail_settings_display_name_hint">শুধু আপনার ঠিকানা দেখাতে এটি খালি রাখুন।</string>

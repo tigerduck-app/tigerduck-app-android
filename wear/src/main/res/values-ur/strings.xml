@@ -683,6 +683,10 @@
     <string name="school_mail_send">بھیجیں</string>
     <string name="school_mail_send_confirm_title">کیا یہ ای میل بھیجیں؟</string>
     <string name="school_mail_send_failed">ای میل بھیجی نہیں جا سکی</string>
+    <string name="school_mail_sent_copy_failed">ای میل بھیج دی گئی، لیکن کاپی بھیجی گئی میں محفوظ نہیں ہو سکی۔</string>
+    <string name="school_mail_sent_copy_no_folder">ای میل بھیج دی گئی، لیکن کاپی محفوظ کرنے کے لیے کوئی بھیجی گئی فولڈر نہیں ہے۔</string>
+    <string name="school_mail_sent_copy_not_saved">ای میل بھیج دی گئی، لیکن اس کی کاپی بھیجی گئی میں محفوظ نہیں ہوئی</string>
+    <string name="school_mail_sent_copy_unknown">ای میل بھیج دی گئی۔ TigerDuck یہ چیک نہیں کر سکا کہ سرور کی اپنی کاپی بھیجی گئی میں موجود ہے یا نہیں، اس لیے اس نے نئی کاپی شامل نہیں کی۔</string>
     <string name="school_mail_settings_diagnostics">اطلاعات کی تشخیص</string>
     <string name="school_mail_settings_display_name">وصول کنندگان کو دکھایا جانے والا نام</string>
     <string name="school_mail_settings_display_name_hint">صرف اپنا پتہ دکھانے کے لیے اسے خالی چھوڑ دیں۔</string>

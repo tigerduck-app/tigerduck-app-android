@@ -683,6 +683,10 @@
     <string name="school_mail_send">إرسال</string>
     <string name="school_mail_send_confirm_title">هل تريد إرسال هذه الرسالة؟</string>
     <string name="school_mail_send_failed">تعذّر إرسال الرسالة</string>
+    <string name="school_mail_sent_copy_failed">تم إرسال الرسالة، لكن تعذّر حفظ النسخة في البريد المرسل.</string>
+    <string name="school_mail_sent_copy_no_folder">تم إرسال الرسالة، لكن لا يوجد مجلد البريد المرسل لحفظ نسخة فيه.</string>
+    <string name="school_mail_sent_copy_not_saved">تم إرسال الرسالة، لكن لم يتم حفظ نسخة في البريد المرسل</string>
+    <string name="school_mail_sent_copy_unknown">تم إرسال الرسالة. تعذّر على TigerDuck التحقق من وجود نسخة الخادم الخاصة في البريد المرسل، لذلك لم يُضِف نسخة.</string>
     <string name="school_mail_settings_diagnostics">تشخيص الإشعارات</string>
     <string name="school_mail_settings_display_name">الاسم الذي يظهر للمستلمين</string>
     <string name="school_mail_settings_display_name_hint">اتركه فارغًا لإظهار عنوانك فقط.</string>

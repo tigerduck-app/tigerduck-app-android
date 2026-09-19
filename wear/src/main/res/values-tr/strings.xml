@@ -683,6 +683,10 @@
     <string name="school_mail_send">Gönder</string>
     <string name="school_mail_send_confirm_title">Bu posta gönderilsin mi?</string>
     <string name="school_mail_send_failed">Posta gönderilemedi</string>
+    <string name="school_mail_sent_copy_failed">Posta gönderildi, ancak kopyası Gönderilmişe kaydedilemedi.</string>
+    <string name="school_mail_sent_copy_no_folder">Posta gönderildi, ancak kopyayı saklayacak bir Gönderilmiş klasörü yok.</string>
+    <string name="school_mail_sent_copy_not_saved">Posta gönderildi, ancak kopyası Gönderilmişe kaydedilmedi</string>
+    <string name="school_mail_sent_copy_unknown">Posta gönderildi. TigerDuck sunucunun kendi kopyasının Gönderilmişte olup olmadığını kontrol edemediği için yeni bir kopya eklemedi.</string>
     <string name="school_mail_settings_diagnostics">Bildirim tanılaması</string>
     <string name="school_mail_settings_display_name">Alıcılara gösterilen ad</string>
     <string name="school_mail_settings_display_name_hint">Yalnızca adresinizin gösterilmesi için boş bırakın.</string>

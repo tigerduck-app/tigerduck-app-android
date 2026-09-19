@@ -683,6 +683,10 @@
     <string name="school_mail_send">ಕಳುಹಿಸಿ</string>
     <string name="school_mail_send_confirm_title">ಈ ಇಮೇಲ್ ಕಳುಹಿಸಬೇಕೇ?</string>
     <string name="school_mail_send_failed">ಇಮೇಲ್ ಕಳುಹಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ</string>
+    <string name="school_mail_sent_copy_failed">ಇಮೇಲ್ ಕಳುಹಿಸಲಾಗಿದೆ, ಆದರೆ ನಕಲನ್ನು ಕಳುಹಿಸಿದವುಗಳಲ್ಲಿ ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.</string>
+    <string name="school_mail_sent_copy_no_folder">ಇಮೇಲ್ ಕಳುಹಿಸಲಾಗಿದೆ, ಆದರೆ ನಕಲನ್ನು ಇರಿಸಲು ಯಾವುದೇ ಕಳುಹಿಸಿದವು ಫೋಲ್ಡರ್ ಇಲ್ಲ.</string>
+    <string name="school_mail_sent_copy_not_saved">ಇಮೇಲ್ ಕಳುಹಿಸಲಾಗಿದೆ, ಆದರೆ ಅದರ ನಕಲನ್ನು ಕಳುಹಿಸಿದವುಗಳಲ್ಲಿ ಉಳಿಸಲಾಗಿಲ್ಲ</string>
+    <string name="school_mail_sent_copy_unknown">ಇಮೇಲ್ ಕಳುಹಿಸಲಾಗಿದೆ. ಕಳುಹಿಸಿದವುಗಳಲ್ಲಿ ಸರ್ವರ್‌ನ ಸ್ವಂತ ನಕಲು ಈಗಾಗಲೇ ಇದೆಯೇ ಎಂದು TigerDuck ಪರಿಶೀಲಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ, ಆದ್ದರಿಂದ ಅದು ಹೊಸ ನಕಲನ್ನು ಸೇರಿಸಲಿಲ್ಲ.</string>
     <string name="school_mail_settings_diagnostics">ಅಧಿಸೂಚನೆ ಡಯಾಗ್ನೋಸ್ಟಿಕ್ಸ್</string>
     <string name="school_mail_settings_display_name">ಸ್ವೀಕರಿಸುವವರಿಗೆ ತೋರಿಸುವ ಹೆಸರು</string>
     <string name="school_mail_settings_display_name_hint">ನಿಮ್ಮ ವಿಳಾಸವನ್ನು ಮಾತ್ರ ತೋರಿಸಲು ಇದನ್ನು ಖಾಲಿ ಬಿಡಿ.</string>

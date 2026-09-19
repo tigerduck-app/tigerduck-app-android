@@ -683,6 +683,10 @@
     <string name="school_mail_send">傳送</string>
     <string name="school_mail_send_confirm_title">要傳送這封信嗎？</string>
     <string name="school_mail_send_failed">無法傳送郵件</string>
+    <string name="school_mail_sent_copy_failed">郵件已傳送，但副本無法儲存到寄件備份。</string>
+    <string name="school_mail_sent_copy_no_folder">郵件已傳送，但目前沒有寄件備份資料夾可以保留副本。</string>
+    <string name="school_mail_sent_copy_not_saved">郵件已傳送，但副本未儲存到寄件備份</string>
+    <string name="school_mail_sent_copy_unknown">郵件已傳送。TigerDuck 無法確認寄件備份中是否已有伺服器自己的副本，因此未再新增一份。</string>
     <string name="school_mail_settings_diagnostics">通知診斷</string>
     <string name="school_mail_settings_display_name">寄件者顯示名稱</string>
     <string name="school_mail_settings_display_name_hint">空白時只顯示信箱位址。</string>

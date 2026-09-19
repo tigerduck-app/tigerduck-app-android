@@ -683,6 +683,10 @@
     <string name="school_mail_send">ส่ง</string>
     <string name="school_mail_send_confirm_title">ส่งอีเมลนี้หรือไม่?</string>
     <string name="school_mail_send_failed">ส่งอีเมลไม่สำเร็จ</string>
+    <string name="school_mail_sent_copy_failed">ส่งอีเมลแล้ว แต่บันทึกสำเนาลงในส่งแล้วไม่สำเร็จ</string>
+    <string name="school_mail_sent_copy_no_folder">ส่งอีเมลแล้ว แต่ไม่มีโฟลเดอร์ส่งแล้วสำหรับเก็บสำเนา</string>
+    <string name="school_mail_sent_copy_not_saved">ส่งอีเมลแล้ว แต่ไม่ได้บันทึกสำเนาไว้ในส่งแล้ว</string>
+    <string name="school_mail_sent_copy_unknown">ส่งอีเมลแล้ว TigerDuck ตรวจสอบสำเนาของเซิร์ฟเวอร์ในส่งแล้วไม่ได้ จึงไม่ได้เพิ่มสำเนาให้</string>
     <string name="school_mail_settings_diagnostics">การวินิจฉัยการแจ้งเตือน</string>
     <string name="school_mail_settings_display_name">ชื่อที่แสดงให้ผู้รับเห็น</string>
     <string name="school_mail_settings_display_name_hint">เว้นว่างไว้เพื่อแสดงเฉพาะที่อยู่อีเมลของคุณ</string>

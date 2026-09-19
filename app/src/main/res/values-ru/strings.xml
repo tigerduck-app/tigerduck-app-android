@@ -683,6 +683,10 @@
     <string name="school_mail_send">Отправить</string>
     <string name="school_mail_send_confirm_title">Отправить это письмо?</string>
     <string name="school_mail_send_failed">Не удалось отправить письмо</string>
+    <string name="school_mail_sent_copy_failed">Письмо было отправлено, но не удалось сохранить копию в Отправленных.</string>
+    <string name="school_mail_sent_copy_no_folder">Письмо было отправлено, но папки «Отправленные» нет, чтобы сохранить в ней копию.</string>
+    <string name="school_mail_sent_copy_not_saved">Письмо отправлено, но копия не сохранена в Отправленных</string>
+    <string name="school_mail_sent_copy_unknown">Письмо было отправлено. TigerDuck не смог проверить, есть ли в Отправленных копия сервера, поэтому не стал добавлять свою.</string>
     <string name="school_mail_settings_diagnostics">Диагностика уведомлений</string>
     <string name="school_mail_settings_display_name">Имя, которое видят получатели</string>
     <string name="school_mail_settings_display_name_hint">Оставьте пустым, чтобы показывать только адрес.</string>

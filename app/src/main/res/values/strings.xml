@@ -683,7 +683,10 @@
     <string name="school_mail_send">Send</string>
     <string name="school_mail_send_confirm_title">Send this mail?</string>
     <string name="school_mail_send_failed">Couldn\'t send the mail</string>
+    <string name="school_mail_sent_copy_failed">The mail was sent, but the copy couldn\'t be saved to Sent.</string>
+    <string name="school_mail_sent_copy_no_folder">The mail was sent, but there\'s no Sent folder to keep a copy in.</string>
     <string name="school_mail_sent_copy_not_saved">Mail sent, but a copy wasn\'t saved to Sent</string>
+    <string name="school_mail_sent_copy_unknown">The mail was sent. TigerDuck couldn\'t check Sent for the server\'s own copy, so it didn\'t add one.</string>
     <string name="school_mail_settings_diagnostics">Notification diagnostics</string>
     <string name="school_mail_settings_display_name">Name shown to recipients</string>
     <string name="school_mail_settings_display_name_hint">Leave empty to show only your address.</string>

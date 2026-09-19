@@ -683,6 +683,10 @@
     <string name="school_mail_send">Gửi</string>
     <string name="school_mail_send_confirm_title">Gửi thư này?</string>
     <string name="school_mail_send_failed">Không thể gửi thư</string>
+    <string name="school_mail_sent_copy_failed">Thư đã được gửi, nhưng không thể lưu bản sao vào Đã gửi.</string>
+    <string name="school_mail_sent_copy_no_folder">Thư đã được gửi, nhưng không có thư mục Đã gửi để lưu bản sao.</string>
+    <string name="school_mail_sent_copy_not_saved">Đã gửi thư, nhưng bản sao chưa được lưu vào Đã gửi</string>
+    <string name="school_mail_sent_copy_unknown">Thư đã được gửi. TigerDuck không thể kiểm tra xem Đã gửi đã có bản sao của máy chủ hay chưa, nên đã không thêm bản sao mới.</string>
     <string name="school_mail_settings_diagnostics">Chẩn đoán thông báo</string>
     <string name="school_mail_settings_display_name">Tên hiển thị cho người nhận</string>
     <string name="school_mail_settings_display_name_hint">Để trống để chỉ hiển thị địa chỉ của bạn.</string>

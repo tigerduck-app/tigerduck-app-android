@@ -683,6 +683,10 @@
     <string name="school_mail_send">Pošlji</string>
     <string name="school_mail_send_confirm_title">Želite poslati to sporočilo?</string>
     <string name="school_mail_send_failed">Sporočila ni bilo mogoče poslati</string>
+    <string name="school_mail_sent_copy_failed">Sporočilo je bilo poslano, vendar kopije ni bilo mogoče shraniti v Poslano.</string>
+    <string name="school_mail_sent_copy_no_folder">Sporočilo je bilo poslano, vendar ne obstaja mapa Poslano, v katero bi shranili kopijo.</string>
+    <string name="school_mail_sent_copy_not_saved">Sporočilo je poslano, vendar kopija ni bila shranjena v Poslano</string>
+    <string name="school_mail_sent_copy_unknown">Sporočilo je bilo poslano. TigerDuck ni mogel preveriti, ali ima strežnik že svojo kopijo v Poslano, zato je ni dodal.</string>
     <string name="school_mail_settings_diagnostics">Diagnostika obvestil</string>
     <string name="school_mail_settings_display_name">Ime, ki ga vidijo prejemniki</string>
     <string name="school_mail_settings_display_name_hint">Pustite prazno, če želite prikazati samo svoj naslov.</string>

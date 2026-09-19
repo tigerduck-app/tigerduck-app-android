@@ -683,6 +683,10 @@
     <string name="school_mail_send">ارسال</string>
     <string name="school_mail_send_confirm_title">این ایمیل ارسال شود؟</string>
     <string name="school_mail_send_failed">ارسال ایمیل ممکن نشد</string>
+    <string name="school_mail_sent_copy_failed">ایمیل ارسال شد، ولی ذخیرهٔ کپی در ارسال‌شده ممکن نشد.</string>
+    <string name="school_mail_sent_copy_no_folder">ایمیل ارسال شد، ولی پوشه ارسال‌شده‌ای برای نگه‌داشتن کپی وجود ندارد.</string>
+    <string name="school_mail_sent_copy_not_saved">ایمیل ارسال شد، ولی کپی آن در ارسال‌شده ذخیره نشد</string>
+    <string name="school_mail_sent_copy_unknown">ایمیل ارسال شد. TigerDuck نتوانست بررسی کند که آیا کپی خود سرور در ارسال‌شده وجود دارد یا نه، بنابراین کپی جدیدی اضافه نکرد.</string>
     <string name="school_mail_settings_diagnostics">عیب‌یابی اعلان‌ها</string>
     <string name="school_mail_settings_display_name">نامی که به گیرندگان نشان داده می‌شود</string>
     <string name="school_mail_settings_display_name_hint">برای نمایش فقط آدرس خود، این قسمت را خالی بگذارید.</string>

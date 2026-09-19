@@ -683,6 +683,10 @@
     <string name="school_mail_send">Надіслати</string>
     <string name="school_mail_send_confirm_title">Надіслати цей лист?</string>
     <string name="school_mail_send_failed">Не вдалося надіслати лист</string>
+    <string name="school_mail_sent_copy_failed">Лист надіслано, але копію не вдалося зберегти в Надісланих.</string>
+    <string name="school_mail_sent_copy_no_folder">Лист надіслано, але теки «Надіслані» немає, щоб зберегти в ній копію.</string>
+    <string name="school_mail_sent_copy_not_saved">Лист надіслано, але копію не збережено в Надісланих</string>
+    <string name="school_mail_sent_copy_unknown">Лист надіслано. TigerDuck не зміг перевірити, чи є в Надісланих копія від сервера, тому не додав свою.</string>
     <string name="school_mail_settings_diagnostics">Діагностика сповіщень</string>
     <string name="school_mail_settings_display_name">Ім\'я, яке бачать отримувачі</string>
     <string name="school_mail_settings_display_name_hint">Залиште порожнім, щоб показувати лише адресу.</string>

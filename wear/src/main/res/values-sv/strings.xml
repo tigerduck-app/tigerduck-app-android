@@ -683,6 +683,10 @@
     <string name="school_mail_send">Skicka</string>
     <string name="school_mail_send_confirm_title">Skicka det här mejlet?</string>
     <string name="school_mail_send_failed">Mejlet kunde inte skickas</string>
+    <string name="school_mail_sent_copy_failed">Mejlet skickades, men kopian kunde inte sparas i Skickat.</string>
+    <string name="school_mail_sent_copy_no_folder">Mejlet skickades, men det finns ingen mapp Skickat att spara en kopia i.</string>
+    <string name="school_mail_sent_copy_not_saved">Mejl skickat, men en kopia sparades inte i Skickat</string>
+    <string name="school_mail_sent_copy_unknown">Mejlet skickades. TigerDuck kunde inte kontrollera om servern redan hade en egen kopia i Skickat, så det lade inte till någon.</string>
     <string name="school_mail_settings_diagnostics">Aviseringsdiagnostik</string>
     <string name="school_mail_settings_display_name">Namn som visas för mottagare</string>
     <string name="school_mail_settings_display_name_hint">Lämna tomt för att bara visa din adress.</string>

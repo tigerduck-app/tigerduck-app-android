@@ -683,6 +683,10 @@
     <string name="school_mail_send">મોકલો</string>
     <string name="school_mail_send_confirm_title">આ મેઇલ મોકલવો છે?</string>
     <string name="school_mail_send_failed">મેઇલ મોકલી શકાયો નહીં</string>
+    <string name="school_mail_sent_copy_failed">મેઇલ મોકલાયો, પણ કૉપિ મોકલેલમાં સેવ થઈ શકી નહીં.</string>
+    <string name="school_mail_sent_copy_no_folder">મેઇલ મોકલાયો, પણ કૉપિ રાખવા માટે કોઈ મોકલેલ ફોલ્ડર નથી.</string>
+    <string name="school_mail_sent_copy_not_saved">મેઇલ મોકલાયો, પણ તેની કૉપિ મોકલેલમાં સેવ ન થઈ</string>
+    <string name="school_mail_sent_copy_unknown">મેઇલ મોકલાયો. TigerDuck મોકલેલમાં સર્વરની પોતાની કૉપિ પહેલેથી છે કે નહીં એ ચેક કરી શક્યું નહીં, તેથી તેણે નવી કૉપિ ઉમેરી નહીં.</string>
     <string name="school_mail_settings_diagnostics">નોટિફિકેશન ડાયગ્નોસ્ટિક્સ</string>
     <string name="school_mail_settings_display_name">પ્રાપકોને દેખાતું નામ</string>
     <string name="school_mail_settings_display_name_hint">ફક્ત તમારું સરનામું બતાવવા આને ખાલી રાખો.</string>

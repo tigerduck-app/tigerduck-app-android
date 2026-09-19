@@ -683,6 +683,10 @@
     <string name="school_mail_send">അയയ്ക്കുക</string>
     <string name="school_mail_send_confirm_title">ഈ ഇമെയിൽ അയയ്ക്കണോ?</string>
     <string name="school_mail_send_failed">ഇമെയിൽ അയയ്ക്കാനായില്ല</string>
+    <string name="school_mail_sent_copy_failed">ഇമെയിൽ അയച്ചു, പക്ഷേ പകർപ്പ് അയച്ചവയിൽ സേവ് ചെയ്യാനായില്ല.</string>
+    <string name="school_mail_sent_copy_no_folder">ഇമെയിൽ അയച്ചു, പക്ഷേ പകർപ്പ് സൂക്ഷിക്കാൻ അയച്ചവ ഫോൾഡർ ഇല്ല.</string>
+    <string name="school_mail_sent_copy_not_saved">ഇമെയിൽ അയച്ചു, പക്ഷേ അതിന്റെ പകർപ്പ് അയച്ചവയിൽ സേവ് ചെയ്തില്ല</string>
+    <string name="school_mail_sent_copy_unknown">ഇമെയിൽ അയച്ചു. അയച്ചവയിൽ സെർവറിന്റെ സ്വന്തം പകർപ്പ് ഇതിനകം ഉണ്ടോ എന്ന് TigerDuck-ന് പരിശോധിക്കാനായില്ല, അതിനാൽ അത് പുതിയ പകർപ്പ് ചേർത്തില്ല.</string>
     <string name="school_mail_settings_diagnostics">അറിയിപ്പ് ഡയഗ്നോസ്റ്റിക്സ്</string>
     <string name="school_mail_settings_display_name">സ്വീകർത്താക്കൾക്ക് കാണിക്കുന്ന പേര്</string>
     <string name="school_mail_settings_display_name_hint">നിങ്ങളുടെ വിലാസം മാത്രം കാണിക്കാൻ ഇത് ശൂന്യമായി വിടുക.</string>

@@ -683,6 +683,10 @@
     <string name="school_mail_send">Envia</string>
     <string name="school_mail_send_confirm_title">Vols enviar aquest correu?</string>
     <string name="school_mail_send_failed">No s\'ha pogut enviar el correu</string>
+    <string name="school_mail_sent_copy_failed">El correu s\'ha enviat, però no s\'ha pogut desar la còpia a Enviats.</string>
+    <string name="school_mail_sent_copy_no_folder">El correu s\'ha enviat, però no hi ha cap carpeta Enviats on desar-hi una còpia.</string>
+    <string name="school_mail_sent_copy_not_saved">Correu enviat, però no s\'ha desat cap còpia a Enviats</string>
+    <string name="school_mail_sent_copy_unknown">El correu s\'ha enviat. TigerDuck no ha pogut comprovar si el servidor ja tenia la seva pròpia còpia a Enviats, així que no n\'ha afegit cap.</string>
     <string name="school_mail_settings_diagnostics">Diagnòstic de notificacions</string>
     <string name="school_mail_settings_display_name">Nom que veuran els destinataris</string>
     <string name="school_mail_settings_display_name_hint">Deixa-ho buit per mostrar només la teva adreça.</string>

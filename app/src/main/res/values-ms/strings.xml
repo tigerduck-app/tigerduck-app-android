@@ -683,6 +683,10 @@
     <string name="school_mail_send">Hantar</string>
     <string name="school_mail_send_confirm_title">Hantar e-mel ini?</string>
     <string name="school_mail_send_failed">Tidak dapat menghantar e-mel</string>
+    <string name="school_mail_sent_copy_failed">E-mel telah dihantar, tetapi salinan tidak dapat disimpan ke Dihantar.</string>
+    <string name="school_mail_sent_copy_no_folder">E-mel telah dihantar, tetapi tiada folder Dihantar untuk menyimpan salinan.</string>
+    <string name="school_mail_sent_copy_not_saved">E-mel telah dihantar, tetapi salinan tidak disimpan ke Dihantar</string>
+    <string name="school_mail_sent_copy_unknown">E-mel telah dihantar. TigerDuck tidak dapat memeriksa sama ada pelayan sudah mempunyai salinannya sendiri dalam Dihantar, jadi salinan baharu tidak ditambah.</string>
     <string name="school_mail_settings_diagnostics">Diagnostik pemberitahuan</string>
     <string name="school_mail_settings_display_name">Nama yang dipaparkan kepada penerima</string>
     <string name="school_mail_settings_display_name_hint">Biarkan kosong untuk memaparkan alamat anda sahaja.</string>

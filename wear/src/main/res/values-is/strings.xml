@@ -683,6 +683,10 @@
     <string name="school_mail_send">Senda</string>
     <string name="school_mail_send_confirm_title">Senda þennan póst?</string>
     <string name="school_mail_send_failed">Ekki tókst að senda póstinn</string>
+    <string name="school_mail_sent_copy_failed">Pósturinn var sendur, en ekki tókst að vista afritið í Sent.</string>
+    <string name="school_mail_sent_copy_no_folder">Pósturinn var sendur, en það er engin Sent-mappa til að geyma afrit í.</string>
+    <string name="school_mail_sent_copy_not_saved">Póstur sendur, en afrit var ekki vistað í Sent</string>
+    <string name="school_mail_sent_copy_unknown">Pósturinn var sendur. TigerDuck gat ekki athugað hvort póstþjónninn ætti nú þegar sitt eigið afrit í Sent, svo bætti TigerDuck engu við.</string>
     <string name="school_mail_settings_diagnostics">Greining á tilkynningum</string>
     <string name="school_mail_settings_display_name">Nafn sem viðtakendur sjá</string>
     <string name="school_mail_settings_display_name_hint">Skildu eftir autt til að sýna aðeins netfangið þitt.</string>

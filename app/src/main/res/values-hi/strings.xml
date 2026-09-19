@@ -683,6 +683,10 @@
     <string name="school_mail_send">भेजें</string>
     <string name="school_mail_send_confirm_title">यह मेल भेजें?</string>
     <string name="school_mail_send_failed">मेल नहीं भेजा जा सका</string>
+    <string name="school_mail_sent_copy_failed">मेल भेज दिया गया, लेकिन कॉपी को भेजे गए में सेव नहीं किया जा सका।</string>
+    <string name="school_mail_sent_copy_no_folder">मेल भेज दिया गया, लेकिन कॉपी रखने के लिए कोई भेजे गए फ़ोल्डर नहीं है।</string>
+    <string name="school_mail_sent_copy_not_saved">मेल भेज दिया गया, लेकिन कॉपी भेजे गए में सेव नहीं हुई</string>
+    <string name="school_mail_sent_copy_unknown">मेल भेज दिया गया। TigerDuck यह जाँच नहीं कर सका कि भेजे गए में सर्वर की अपनी कॉपी पहले से मौजूद है या नहीं, इसलिए उसने नई कॉपी नहीं जोड़ी।</string>
     <string name="school_mail_settings_diagnostics">नोटिफिकेशन डायग्नोस्टिक्स</string>
     <string name="school_mail_settings_display_name">प्राप्तकर्ताओं को दिखने वाला नाम</string>
     <string name="school_mail_settings_display_name_hint">सिर्फ़ अपना पता दिखाने के लिए इसे खाली छोड़ें।</string>

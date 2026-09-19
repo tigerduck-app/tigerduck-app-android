@@ -683,6 +683,10 @@
     <string name="school_mail_send">Verzenden</string>
     <string name="school_mail_send_confirm_title">Deze mail verzenden?</string>
     <string name="school_mail_send_failed">Mail kon niet worden verzonden</string>
+    <string name="school_mail_sent_copy_failed">De mail is verzonden, maar de kopie kon niet worden opgeslagen in Verzonden.</string>
+    <string name="school_mail_sent_copy_no_folder">De mail is verzonden, maar er is geen map Verzonden om een kopie in te bewaren.</string>
+    <string name="school_mail_sent_copy_not_saved">Mail verzonden, maar er is geen kopie opgeslagen in Verzonden</string>
+    <string name="school_mail_sent_copy_unknown">De mail is verzonden. TigerDuck kon bij de server niet controleren of er al een kopie in Verzonden stond, dus heeft TigerDuck er geen toegevoegd.</string>
     <string name="school_mail_settings_diagnostics">Meldingsdiagnose</string>
     <string name="school_mail_settings_display_name">Naam die ontvangers zien</string>
     <string name="school_mail_settings_display_name_hint">Laat leeg om alleen je adres te tonen.</string>

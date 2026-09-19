@@ -683,6 +683,10 @@
     <string name="school_mail_send">Senden</string>
     <string name="school_mail_send_confirm_title">Diese E-Mail senden?</string>
     <string name="school_mail_send_failed">E-Mail konnte nicht gesendet werden</string>
+    <string name="school_mail_sent_copy_failed">Die E-Mail wurde gesendet, aber die Kopie konnte nicht in Gesendet gespeichert werden.</string>
+    <string name="school_mail_sent_copy_no_folder">Die E-Mail wurde gesendet, aber es gibt keinen Ordner Gesendet, in dem eine Kopie abgelegt werden kann.</string>
+    <string name="school_mail_sent_copy_not_saved">E-Mail gesendet, aber keine Kopie in Gesendet gespeichert</string>
+    <string name="school_mail_sent_copy_unknown">Die E-Mail wurde gesendet. TigerDuck konnte nicht prüfen, ob der Server bereits eine eigene Kopie in Gesendet hatte, und hat deshalb keine hinzugefügt.</string>
     <string name="school_mail_settings_diagnostics">Benachrichtigungsdiagnose</string>
     <string name="school_mail_settings_display_name">Name, den Empfänger sehen</string>
     <string name="school_mail_settings_display_name_hint">Leer lassen, um nur deine Adresse anzuzeigen.</string>

@@ -683,6 +683,10 @@
     <string name="school_mail_send">Envoyer</string>
     <string name="school_mail_send_confirm_title">Envoyer ce message ?</string>
     <string name="school_mail_send_failed">Impossible d\'envoyer le message</string>
+    <string name="school_mail_sent_copy_failed">Le message a été envoyé, mais la copie n\'a pas pu être enregistrée dans Envoyés.</string>
+    <string name="school_mail_sent_copy_no_folder">Le message a été envoyé, mais il n\'y a pas de dossier Envoyés où conserver une copie.</string>
+    <string name="school_mail_sent_copy_not_saved">Message envoyé, mais la copie n\'a pas été enregistrée dans Envoyés</string>
+    <string name="school_mail_sent_copy_unknown">Le message a été envoyé. TigerDuck n\'a pas pu vérifier si le serveur avait déjà sa propre copie dans Envoyés, il n\'en a donc pas ajouté.</string>
     <string name="school_mail_settings_diagnostics">Diagnostic des notifications</string>
     <string name="school_mail_settings_display_name">Nom affiché aux destinataires</string>
     <string name="school_mail_settings_display_name_hint">Laissez vide pour n\'afficher que votre adresse.</string>

@@ -683,6 +683,10 @@
     <string name="school_mail_send">Изпрати</string>
     <string name="school_mail_send_confirm_title">Да изпратя ли този имейл?</string>
     <string name="school_mail_send_failed">Имейлът не можа да бъде изпратен</string>
+    <string name="school_mail_sent_copy_failed">Имейлът бе изпратен, но копието не можа да се запази в Изпратени.</string>
+    <string name="school_mail_sent_copy_no_folder">Имейлът бе изпратен, но няма папка Изпратени, в която да се съхрани копие.</string>
+    <string name="school_mail_sent_copy_not_saved">Имейлът е изпратен, но копие не бе запазено в Изпратени</string>
+    <string name="school_mail_sent_copy_unknown">Имейлът бе изпратен. TigerDuck не успя да провери дали сървърът вече има собствено копие в Изпратени, затова реши да не добавя такова.</string>
     <string name="school_mail_settings_diagnostics">Диагностика на известията</string>
     <string name="school_mail_settings_display_name">Име, показвано на получателите</string>
     <string name="school_mail_settings_display_name_hint">Оставете празно, за да се показва само адресът ви.</string>

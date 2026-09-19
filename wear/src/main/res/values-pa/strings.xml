@@ -683,6 +683,10 @@
     <string name="school_mail_send">ਭੇਜੋ</string>
     <string name="school_mail_send_confirm_title">ਇਹ ਮੇਲ ਭੇਜਣੀ ਹੈ?</string>
     <string name="school_mail_send_failed">ਮੇਲ ਨਹੀਂ ਭੇਜੀ ਜਾ ਸਕੀ</string>
+    <string name="school_mail_sent_copy_failed">ਮੇਲ ਭੇਜ ਦਿੱਤੀ ਗਈ, ਪਰ ਕਾਪੀ ਭੇਜੀ ਵਿੱਚ ਸੇਵ ਨਹੀਂ ਹੋ ਸਕੀ।</string>
+    <string name="school_mail_sent_copy_no_folder">ਮੇਲ ਭੇਜ ਦਿੱਤੀ ਗਈ, ਪਰ ਕਾਪੀ ਰੱਖਣ ਲਈ ਕੋਈ ਭੇਜੀ ਫੋਲਡਰ ਨਹੀਂ ਹੈ।</string>
+    <string name="school_mail_sent_copy_not_saved">ਮੇਲ ਭੇਜ ਦਿੱਤੀ ਗਈ, ਪਰ ਇਸਦੀ ਕਾਪੀ ਭੇਜੀ ਵਿੱਚ ਸੇਵ ਨਹੀਂ ਹੋਈ</string>
+    <string name="school_mail_sent_copy_unknown">ਮੇਲ ਭੇਜ ਦਿੱਤੀ ਗਈ। TigerDuck ਇਹ ਚੈੱਕ ਨਹੀਂ ਕਰ ਸਕਿਆ ਕਿ ਭੇਜੀ ਵਿੱਚ ਸਰਵਰ ਦੀ ਆਪਣੀ ਕਾਪੀ ਪਹਿਲਾਂ ਤੋਂ ਹੈ ਜਾਂ ਨਹੀਂ, ਇਸ ਲਈ ਇਸਨੇ ਨਵੀਂ ਕਾਪੀ ਸ਼ਾਮਲ ਨਹੀਂ ਕੀਤੀ।</string>
     <string name="school_mail_settings_diagnostics">ਸੂਚਨਾ ਡਾਇਗਨੌਸਟਿਕਸ</string>
     <string name="school_mail_settings_display_name">ਪ੍ਰਾਪਤਕਰਤਾਵਾਂ ਨੂੰ ਦਿਖਣ ਵਾਲਾ ਨਾਮ</string>
     <string name="school_mail_settings_display_name_hint">ਸਿਰਫ਼ ਆਪਣਾ ਪਤਾ ਦਿਖਾਉਣ ਲਈ ਇਸਨੂੰ ਖਾਲੀ ਛੱਡੋ।</string>

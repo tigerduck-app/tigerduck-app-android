@@ -683,6 +683,10 @@
     <string name="school_mail_send">Kirim</string>
     <string name="school_mail_send_confirm_title">Kirim email ini?</string>
     <string name="school_mail_send_failed">Tidak dapat mengirim email</string>
+    <string name="school_mail_sent_copy_failed">Email sudah terkirim, tetapi salinannya tidak dapat disimpan ke Terkirim.</string>
+    <string name="school_mail_sent_copy_no_folder">Email sudah terkirim, tetapi tidak ada folder Terkirim untuk menyimpan salinan.</string>
+    <string name="school_mail_sent_copy_not_saved">Email terkirim, tetapi salinan tidak tersimpan di Terkirim</string>
+    <string name="school_mail_sent_copy_unknown">Email sudah terkirim. TigerDuck tidak dapat memeriksa apakah server sudah memiliki salinannya sendiri di Terkirim, sehingga tidak menambahkan salinan baru.</string>
     <string name="school_mail_settings_diagnostics">Diagnostik notifikasi</string>
     <string name="school_mail_settings_display_name">Nama yang ditampilkan ke penerima</string>
     <string name="school_mail_settings_display_name_hint">Biarkan kosong untuk hanya menampilkan alamat emailmu.</string>

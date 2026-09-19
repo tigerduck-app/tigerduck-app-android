@@ -683,6 +683,10 @@
     <string name="school_mail_send">Odoslať</string>
     <string name="school_mail_send_confirm_title">Odoslať túto správu?</string>
     <string name="school_mail_send_failed">Správu sa nepodarilo odoslať</string>
+    <string name="school_mail_sent_copy_failed">Správa bola odoslaná, ale kópiu sa nepodarilo uložiť do Odoslaných.</string>
+    <string name="school_mail_sent_copy_no_folder">Správa bola odoslaná, ale neexistuje priečinok Odoslané, do ktorého by sa dala uložiť kópia.</string>
+    <string name="school_mail_sent_copy_not_saved">Správa odoslaná, ale kópia sa neuložila do Odoslaných</string>
+    <string name="school_mail_sent_copy_unknown">Správa bola odoslaná. TigerDuck nemohol skontrolovať, či server už mal vlastnú kópiu v Odoslaných, takže žiadnu nepridal.</string>
     <string name="school_mail_settings_diagnostics">Diagnostika oznámení</string>
     <string name="school_mail_settings_display_name">Meno zobrazené príjemcom</string>
     <string name="school_mail_settings_display_name_hint">Nechajte prázdne, ak chcete zobraziť len svoju adresu.</string>

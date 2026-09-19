@@ -683,6 +683,10 @@
     <string name="school_mail_send">Send</string>
     <string name="school_mail_send_confirm_title">Sende denne e-posten?</string>
     <string name="school_mail_send_failed">Kunne ikke sende e-posten</string>
+    <string name="school_mail_sent_copy_failed">E-posten ble sendt, men kopien kunne ikke lagres i Sendt.</string>
+    <string name="school_mail_sent_copy_no_folder">E-posten ble sendt, men det finnes ingen Sendt-mappe å lagre en kopi i.</string>
+    <string name="school_mail_sent_copy_not_saved">E-post sendt, men en kopi ble ikke lagret i Sendt</string>
+    <string name="school_mail_sent_copy_unknown">E-posten ble sendt. TigerDuck kunne ikke sjekke om serveren allerede hadde sin egen kopi i Sendt, så la TigerDuck ikke til noen.</string>
     <string name="school_mail_settings_diagnostics">Varseldiagnostikk</string>
     <string name="school_mail_settings_display_name">Navn som vises til mottakere</string>
     <string name="school_mail_settings_display_name_hint">La stå tomt for å bare vise adressen din.</string>

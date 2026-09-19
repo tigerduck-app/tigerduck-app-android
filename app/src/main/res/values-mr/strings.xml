@@ -683,6 +683,10 @@
     <string name="school_mail_send">पाठवा</string>
     <string name="school_mail_send_confirm_title">हा मेल पाठवायचा?</string>
     <string name="school_mail_send_failed">मेल पाठवता आला नाही</string>
+    <string name="school_mail_sent_copy_failed">मेल पाठवला गेला, पण कॉपी पाठवलेले मध्ये जतन करता आली नाही.</string>
+    <string name="school_mail_sent_copy_no_folder">मेल पाठवला गेला, पण कॉपी ठेवण्यासाठी पाठवलेले फोल्डर नाही.</string>
+    <string name="school_mail_sent_copy_not_saved">मेल पाठवला गेला, पण त्याची कॉपी पाठवलेले मध्ये जतन झाली नाही</string>
+    <string name="school_mail_sent_copy_unknown">मेल पाठवला गेला. TigerDuck ला पाठवलेले मध्ये सर्व्हरची स्वतःची कॉपी आहे का हे तपासता आले नाही, त्यामुळे त्याने नवीन कॉपी जोडली नाही.</string>
     <string name="school_mail_settings_diagnostics">नोटिफिकेशन डायग्नोस्टिक्स</string>
     <string name="school_mail_settings_display_name">प्राप्तकर्त्यांना दिसणारे नाव</string>
     <string name="school_mail_settings_display_name_hint">फक्त तुमचा पत्ता दाखवण्यासाठी हे रिकामे ठेवा.</string>

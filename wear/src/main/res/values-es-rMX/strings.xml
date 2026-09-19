@@ -683,6 +683,10 @@
     <string name="school_mail_send">Enviar</string>
     <string name="school_mail_send_confirm_title">¿Enviar este correo?</string>
     <string name="school_mail_send_failed">No se pudo enviar el correo</string>
+    <string name="school_mail_sent_copy_failed">El correo se envió, pero no se pudo guardar la copia en Enviados.</string>
+    <string name="school_mail_sent_copy_no_folder">El correo se envió, pero no hay ninguna carpeta Enviados donde guardar una copia.</string>
+    <string name="school_mail_sent_copy_not_saved">Correo enviado, pero no se guardó una copia en Enviados</string>
+    <string name="school_mail_sent_copy_unknown">El correo se envió. TigerDuck no pudo comprobar si el servidor ya tenía su propia copia en Enviados, así que no añadió ninguna.</string>
     <string name="school_mail_settings_diagnostics">Diagnóstico de notificaciones</string>
     <string name="school_mail_settings_display_name">Nombre que ven los destinatarios</string>
     <string name="school_mail_settings_display_name_hint">Déjalo en blanco para mostrar solo tu dirección.</string>

@@ -683,6 +683,10 @@
     <string name="school_mail_send">Odeslat</string>
     <string name="school_mail_send_confirm_title">Odeslat tuto zprávu?</string>
     <string name="school_mail_send_failed">Zprávu se nepodařilo odeslat</string>
+    <string name="school_mail_sent_copy_failed">Zpráva byla odeslána, ale kopii se nepodařilo uložit do složky Odeslaná pošta.</string>
+    <string name="school_mail_sent_copy_no_folder">Zpráva byla odeslána, ale neexistuje složka Odeslaná pošta, do které by se dala uložit kopie.</string>
+    <string name="school_mail_sent_copy_not_saved">Zpráva odeslána, ale kopie se neuložila do složky Odeslaná pošta</string>
+    <string name="school_mail_sent_copy_unknown">Zpráva byla odeslána. TigerDuck nemohl zkontrolovat, jestli server už měl vlastní kopii ve složce Odeslaná pošta, takže žádnou nepřidal.</string>
     <string name="school_mail_settings_diagnostics">Diagnostika oznámení</string>
     <string name="school_mail_settings_display_name">Jméno zobrazené příjemcům</string>
     <string name="school_mail_settings_display_name_hint">Ponechte prázdné, chcete-li zobrazit jen svou adresu.</string>
