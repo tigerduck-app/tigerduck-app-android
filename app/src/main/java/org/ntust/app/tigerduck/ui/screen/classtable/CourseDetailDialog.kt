@@ -155,6 +155,18 @@ internal fun CourseDetailDialog(
                         label = stringResource(R.string.course_detail_code_label),
                         value = course.courseNo,
                     )
+                    CourseDetailMetadata.dimension(course.dimension)?.let {
+                        InfoRow(
+                            label = stringResource(R.string.course_detail_dimension_label),
+                            value = it,
+                        )
+                    }
+                    CourseDetailMetadata.durationLabel(course.allYear)?.let {
+                        InfoRow(
+                            label = stringResource(R.string.course_detail_duration_label),
+                            value = stringResource(it),
+                        )
+                    }
                     InfoRow(
                         label = stringResource(R.string.course_detail_credits_label),
                         value = course.credits.formatCredits(),

@@ -53,6 +53,21 @@ data class Course(
      * visually unchanged. Reverting to default sets this back to null.
      */
     val customCourseName: String? = null,
+    /**
+     * General-education dimension from QueryCourse (`Dimension`), e.g. "C".
+     * Blank for every course that carries none, which is most of them.
+     *
+     * Nullable, like [classroomMapJson], so a cache file written before this
+     * field existed still decodes: Gson's Unsafe path leaves it null.
+     */
+    val dimension: String? = null,
+    /**
+     * Term span from QueryCourse (`AllYear`): "F" = full academic year,
+     * "H" = a single semester. Null or blank when the portal reported
+     * neither, or for a row cached before this field existed. Nullable for the
+     * same reason as [dimension].
+     */
+    val allYear: String? = null,
 ) {
     /** Resolved name for display: user override if set, else the derived default. */
     val displayName: String
@@ -164,6 +179,8 @@ data class Course(
             moodleIdNumber: String? = null,
             moodleNumericCourseId: Int? = null,
             isManual: Boolean = false,
+            dimension: String? = null,
+            allYear: String? = null,
         ): Course {
             val stringKeyMap = schedule.mapKeys { it.key.toString() }
             val json = scheduleGson.toJson(stringKeyMap)
@@ -181,6 +198,8 @@ data class Course(
                 moodleIdNumber = moodleIdNumber,
                 moodleNumericCourseId = moodleNumericCourseId,
                 isManual = isManual,
+                dimension = dimension,
+                allYear = allYear,
             )
         }
 

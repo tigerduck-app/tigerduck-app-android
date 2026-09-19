@@ -365,6 +365,8 @@ fun AddCourseSheet(
                                         maxCount = group.maxCount,
                                         schedule = group.schedule,
                                         classroomMap = group.classroomMap,
+                                        dimension = group.dimension,
+                                        allYear = group.allYear,
                                     )
                                     if (onAdd(course)) {
                                         addedCourseNo = group.courseNo
@@ -472,7 +474,13 @@ private data class GroupedCourse(
     val schedule: Map<Int, List<String>>,
     /** "weekday-period" -> deduped room for that slot. See [Course.classroom]. */
     val classroomMap: Map<String, String>,
-    val nodeDisplay: String
+    val nodeDisplay: String,
+    /**
+     * Carried straight from QueryCourse so a course added by hand shows its
+     * dimension and term span without waiting for the next refresh.
+     */
+    val dimension: String?,
+    val allYear: String?,
 )
 
 /**
@@ -530,7 +538,11 @@ private fun groupResults(
                 classroom = newClassroom,
                 schedule = merged,
                 classroomMap = existing.classroomMap + partialClassroomMap,
-                nodeDisplay = nodeStr
+                nodeDisplay = nodeStr,
+                // Same first-non-empty rule as CourseService.lookupOrFallback:
+                // the row naming the dimension need not be the first seen.
+                dimension = CourseService.firstNonEmpty(listOf(existing.dimension, result.dimension)),
+                allYear = CourseService.firstNonEmpty(listOf(existing.allYear, result.allYear)),
             )
         } else {
             order.add(key)
@@ -544,7 +556,9 @@ private fun groupResults(
                 maxCount = result.maxEnrollment,
                 schedule = partial,
                 classroomMap = partialClassroomMap,
-                nodeDisplay = result.node ?: ""
+                nodeDisplay = result.node ?: "",
+                dimension = CourseService.firstNonEmpty(listOf(result.dimension)),
+                allYear = CourseService.firstNonEmpty(listOf(result.allYear)),
             )
         }
     }
