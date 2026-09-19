@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Μήπως έγραψες λάθος μια διεύθυνση στο email που μόλις έστειλες;</string>
     <string name="school_mail_cache_size">Μέγεθος προσωρινής μνήμης</string>
     <string name="school_mail_cc">Κοιν.</string>
+    <string name="school_mail_check_baseline_reset">Το σημείο εκκίνησης επαναφέρθηκε</string>
+    <string name="school_mail_check_failed">Ο έλεγχος απέτυχε: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Δεν υπάρχουν νέα email</string>
+    <string name="school_mail_check_sign_in_failed">Η σύνδεση απέτυχε</string>
+    <string name="school_mail_check_skipped_auth_failed">Παραλείφθηκε: η σύνδεση απέτυχε</string>
+    <string name="school_mail_check_skipped_busy">Παραλείφθηκε: υπήρχε ήδη άλλος έλεγχος σε εξέλιξη</string>
+    <string name="school_mail_check_skipped_disabled">Παραλείφθηκε: οι ειδοποιήσεις είναι απενεργοποιημένες</string>
+    <string name="school_mail_check_skipped_signed_out">Παραλείφθηκε: αποσυνδεδεμένος</string>
+    <string name="school_mail_check_trigger_background">Έλεγχος στο παρασκήνιο</string>
+    <string name="school_mail_check_trigger_foreground">Η εφαρμογή άνοιξε</string>
+    <string name="school_mail_check_trigger_page">Οθόνη Πανεπιστημιακού email</string>
     <string name="school_mail_clear_cache">Εκκαθάριση προσωρινής μνήμης</string>
     <string name="school_mail_compose">Νέο email</string>
     <string name="school_mail_copy_all">Αντιγραφή όλων</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Δεν ήταν δυνατή η επαλήθευση του πιστοποιητικού του διακομιστή email. Αυτό το δίκτυο μπορεί να μην είναι ασφαλές.</string>
     <string name="school_mail_error_generic">Κάτι πήγε στραβά με το πανεπιστημιακό email</string>
     <string name="school_mail_error_network">Δεν είναι δυνατή η σύνδεση με τον διακομιστή email</string>
+    <string name="school_mail_error_too_large">Αυτό το email είναι πολύ μεγάλο για να ανοίξει</string>
     <string name="school_mail_exact_alarm_hint">Επίτρεψε τις ακριβείς ειδοποιήσεις ώστε το TigerDuck να μπορεί να ελέγχει έγκαιρα για νέα email.</string>
     <string name="school_mail_external_badge">Εξωτερικός</string>
     <string name="school_mail_folder_all">Όλα τα μηνύματα</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Φόρτωση εικόνων</string>
     <string name="school_mail_mark_read">Σήμανση ως αναγνωσμένου</string>
     <string name="school_mail_mark_unread">Σήμανση ως μη αναγνωσμένου</string>
+    <string name="school_mail_message_actions">Περισσότερες ενέργειες</string>
     <string name="school_mail_move_to">Μετακίνηση σε…</string>
     <string name="school_mail_new_mail_count">%1$@ νέα email</string>
     <string name="school_mail_no_recipient">Πρόσθεσε τουλάχιστον έναν παραλήπτη</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Οι απομακρυσμένες εικόνες είναι αποκλεισμένες</string>
     <string name="school_mail_reply">Απάντηση</string>
     <string name="school_mail_reply_all">Απάντηση σε όλους</string>
+    <string name="school_mail_reply_menu">Επιλογές απάντησης</string>
     <string name="school_mail_risky_message">Το %1$@ θα μπορούσε να βλάψει τη συσκευή σου. Συνέχισε μόνο αν εμπιστεύεσαι τον αποστολέα.</string>
     <string name="school_mail_risky_title">Άνοιγμα αυτού του συνημμένου;</string>
     <string name="school_mail_save_draft">Αποθήκευση πρόχειρου</string>

@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">کیا آپ نے ابھی بھیجی گئی ای میل میں پتہ غلط ٹائپ کیا؟</string>
     <string name="school_mail_cache_size">کیش سائز</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">ابتدائی نقطہ ری سیٹ ہو گیا</string>
+    <string name="school_mail_check_failed">چیک ناکام ہوا: %1$@</string>
+    <string name="school_mail_check_no_new_mail">کوئی نئی ای میل نہیں</string>
+    <string name="school_mail_check_sign_in_failed">سائن ان ناکام ہو گیا</string>
+    <string name="school_mail_check_skipped_auth_failed">چھوڑ دیا گیا: سائن ان ناکام ہو گیا</string>
+    <string name="school_mail_check_skipped_busy">چھوڑ دیا گیا: ایک اور چیک پہلے سے جاری تھا</string>
+    <string name="school_mail_check_skipped_disabled">چھوڑ دیا گیا: اطلاعات غیر فعال ہیں</string>
+    <string name="school_mail_check_skipped_signed_out">چھوڑ دیا گیا: سائن آؤٹ تھا</string>
+    <string name="school_mail_check_trigger_background">پس منظر چیک</string>
+    <string name="school_mail_check_trigger_foreground">ایپ کھولی گئی</string>
+    <string name="school_mail_check_trigger_page">اسکول ای میل اسکرین</string>
     <string name="school_mail_clear_cache">کیش صاف کریں</string>
     <string name="school_mail_compose">نئی ای میل</string>
     <string name="school_mail_copy_all">سب کاپی کریں</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">میل سرور کا سرٹیفیکیٹ تصدیق نہیں ہو سکا۔ یہ نیٹ ورک محفوظ نہیں ہو سکتا۔</string>
     <string name="school_mail_error_generic">اسکول ای میل میں کچھ گڑبڑ ہو گئی</string>
     <string name="school_mail_error_network">میل سرور تک رسائی نہیں ہو سکی</string>
+    <string name="school_mail_error_too_large">یہ ای میل کھولنے کے لیے بہت بڑی ہے</string>
     <string name="school_mail_exact_alarm_hint">TigerDuck کو وقت پر ای میل چیک کرنے کے لیے صحیح الارم کی اجازت دیں۔</string>
     <string name="school_mail_external_badge">بیرونی</string>
     <string name="school_mail_folder_all">تمام میل</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">تصاویر لوڈ کریں</string>
     <string name="school_mail_mark_read">پڑھا ہوا نشان زد کریں</string>
     <string name="school_mail_mark_unread">غیر پڑھا ہوا نشان زد کریں</string>
+    <string name="school_mail_message_actions">مزید کارروائیاں</string>
     <string name="school_mail_move_to">منتقل کریں…</string>
     <string name="school_mail_new_mail_count">%1$@ نئی ای میلیں</string>
     <string name="school_mail_no_recipient">کم از کم ایک وصول کنندہ شامل کریں</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">ریموٹ تصاویر مسدود ہیں</string>
     <string name="school_mail_reply">جواب دیں</string>
     <string name="school_mail_reply_all">سب کو جواب دیں</string>
+    <string name="school_mail_reply_menu">جواب کے اختیارات</string>
     <string name="school_mail_risky_message">%1$@ آپ کے ڈیوائس کو نقصان پہنچا سکتا ہے۔ صرف اس صورت میں جاری رکھیں اگر آپ کو بھیجنے والے پر بھروسا ہے۔</string>
     <string name="school_mail_risky_title">کیا یہ منسلکہ کھولیں؟</string>
     <string name="school_mail_save_draft">مسودہ محفوظ کریں</string>

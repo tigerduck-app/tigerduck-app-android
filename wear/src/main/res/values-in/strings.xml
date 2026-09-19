@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Apakah kamu salah mengetik alamat di email yang baru saja kamu kirim?</string>
     <string name="school_mail_cache_size">Ukuran cache</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Titik awal direset</string>
+    <string name="school_mail_check_failed">Pemeriksaan gagal: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Tidak ada email baru</string>
+    <string name="school_mail_check_sign_in_failed">Gagal masuk</string>
+    <string name="school_mail_check_skipped_auth_failed">Dilewati: gagal masuk</string>
+    <string name="school_mail_check_skipped_busy">Dilewati: ada pemeriksaan lain yang sedang berjalan</string>
+    <string name="school_mail_check_skipped_disabled">Dilewati: notifikasi nonaktif</string>
+    <string name="school_mail_check_skipped_signed_out">Dilewati: sudah keluar</string>
+    <string name="school_mail_check_trigger_background">Pemeriksaan latar belakang</string>
+    <string name="school_mail_check_trigger_foreground">Aplikasi dibuka</string>
+    <string name="school_mail_check_trigger_page">Layar email sekolah</string>
     <string name="school_mail_clear_cache">Hapus cache</string>
     <string name="school_mail_compose">Email baru</string>
     <string name="school_mail_copy_all">Salin semua</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Tidak dapat memverifikasi sertifikat server email. Jaringan ini mungkin tidak aman.</string>
     <string name="school_mail_error_generic">Terjadi kesalahan pada email sekolah</string>
     <string name="school_mail_error_network">Tidak dapat menghubungi server email</string>
+    <string name="school_mail_error_too_large">Email ini terlalu besar untuk dibuka</string>
     <string name="school_mail_exact_alarm_hint">Izinkan alarm tepat waktu agar TigerDuck bisa memeriksa email tepat waktu.</string>
     <string name="school_mail_external_badge">Eksternal</string>
     <string name="school_mail_folder_all">Semua Email</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Muat gambar</string>
     <string name="school_mail_mark_read">Tandai sudah dibaca</string>
     <string name="school_mail_mark_unread">Tandai belum dibaca</string>
+    <string name="school_mail_message_actions">Tindakan lainnya</string>
     <string name="school_mail_move_to">Pindahkan ke…</string>
     <string name="school_mail_new_mail_count">%1$@ email baru</string>
     <string name="school_mail_no_recipient">Tambahkan setidaknya satu penerima</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Gambar jarak jauh diblokir</string>
     <string name="school_mail_reply">Balas</string>
     <string name="school_mail_reply_all">Balas semua</string>
+    <string name="school_mail_reply_menu">Opsi balasan</string>
     <string name="school_mail_risky_message">%1$@ dapat membahayakan perangkatmu. Lanjutkan hanya jika kamu memercayai pengirimnya.</string>
     <string name="school_mail_risky_title">Buka lampiran ini?</string>
     <string name="school_mail_save_draft">Simpan draf</string>

@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Adakah anda tersilap menaip alamat dalam e-mel yang baru sahaja anda hantar?</string>
     <string name="school_mail_cache_size">Saiz cache</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Titik permulaan ditetapkan semula</string>
+    <string name="school_mail_check_failed">Pemeriksaan gagal: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Tiada e-mel baharu</string>
+    <string name="school_mail_check_sign_in_failed">Log masuk gagal</string>
+    <string name="school_mail_check_skipped_auth_failed">Dilangkau: log masuk gagal</string>
+    <string name="school_mail_check_skipped_busy">Dilangkau: pemeriksaan lain sedang berjalan</string>
+    <string name="school_mail_check_skipped_disabled">Dilangkau: pemberitahuan dimatikan</string>
+    <string name="school_mail_check_skipped_signed_out">Dilangkau: telah log keluar</string>
+    <string name="school_mail_check_trigger_background">Pemeriksaan latar belakang</string>
+    <string name="school_mail_check_trigger_foreground">Aplikasi dibuka</string>
+    <string name="school_mail_check_trigger_page">Skrin e-mel sekolah</string>
     <string name="school_mail_clear_cache">Kosongkan cache</string>
     <string name="school_mail_compose">E-mel baharu</string>
     <string name="school_mail_copy_all">Salin kesemuanya</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Tidak dapat mengesahkan sijil pelayan e-mel. Rangkaian ini mungkin tidak selamat.</string>
     <string name="school_mail_error_generic">Berlaku ralat pada e-mel sekolah</string>
     <string name="school_mail_error_network">Tidak dapat menghubungi pelayan e-mel</string>
+    <string name="school_mail_error_too_large">E-mel ini terlalu besar untuk dibuka</string>
     <string name="school_mail_exact_alarm_hint">Benarkan penggera tepat supaya TigerDuck dapat menyemak e-mel tepat pada masanya.</string>
     <string name="school_mail_external_badge">Luaran</string>
     <string name="school_mail_folder_all">Semua Mel</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Muatkan imej</string>
     <string name="school_mail_mark_read">Tandakan sebagai sudah dibaca</string>
     <string name="school_mail_mark_unread">Tandakan sebagai belum dibaca</string>
+    <string name="school_mail_message_actions">Tindakan lain</string>
     <string name="school_mail_move_to">Alih ke…</string>
     <string name="school_mail_new_mail_count">%1$@ e-mel baharu</string>
     <string name="school_mail_no_recipient">Tambah sekurang-kurangnya seorang penerima</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Imej jarak jauh disekat</string>
     <string name="school_mail_reply">Balas</string>
     <string name="school_mail_reply_all">Balas semua</string>
+    <string name="school_mail_reply_menu">Pilihan balasan</string>
     <string name="school_mail_risky_message">%1$@ boleh memudaratkan peranti anda. Teruskan hanya jika anda mempercayai penghantarnya.</string>
     <string name="school_mail_risky_title">Buka lampiran ini?</string>
     <string name="school_mail_save_draft">Simpan draf</string>

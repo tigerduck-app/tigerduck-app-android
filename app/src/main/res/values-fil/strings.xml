@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Nagkamali ka ba ng type sa address sa mail na kakapadala mo lang?</string>
     <string name="school_mail_cache_size">Laki ng cache</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Na-reset ang panimulang punto</string>
+    <string name="school_mail_check_failed">Nabigo ang check: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Walang bagong mail</string>
+    <string name="school_mail_check_sign_in_failed">Nabigo ang sign-in</string>
+    <string name="school_mail_check_skipped_auth_failed">Nilaktawan: nabigo ang sign-in</string>
+    <string name="school_mail_check_skipped_busy">Nilaktawan: may isa pang check na tumatakbo na</string>
+    <string name="school_mail_check_skipped_disabled">Nilaktawan: naka-off ang mga notification</string>
+    <string name="school_mail_check_skipped_signed_out">Nilaktawan: naka-sign out</string>
+    <string name="school_mail_check_trigger_background">Check sa background</string>
+    <string name="school_mail_check_trigger_foreground">Binuksan ang app</string>
+    <string name="school_mail_check_trigger_page">Screen ng Mail ng paaralan</string>
     <string name="school_mail_clear_cache">I-clear ang cache</string>
     <string name="school_mail_compose">Bagong mail</string>
     <string name="school_mail_copy_all">Kopyahin lahat</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Hindi ma-verify ang certificate ng mail server. Baka hindi safe ang network na ito.</string>
     <string name="school_mail_error_generic">May nagkamali sa mail ng paaralan</string>
     <string name="school_mail_error_network">Hindi maabot ang mail server</string>
+    <string name="school_mail_error_too_large">Masyadong malaki ang mail na ito para mabuksan</string>
     <string name="school_mail_exact_alarm_hint">Payagan ang eksaktong alarm para ma-check ng TigerDuck ang mail sa tamang oras.</string>
     <string name="school_mail_external_badge">Panlabas</string>
     <string name="school_mail_folder_all">Lahat ng Mail</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">I-load ang mga larawan</string>
     <string name="school_mail_mark_read">Markahan bilang nabasa na</string>
     <string name="school_mail_mark_unread">Markahan bilang hindi pa nababasa</string>
+    <string name="school_mail_message_actions">Higit pang mga aksyon</string>
     <string name="school_mail_move_to">Ilipat sa…</string>
     <string name="school_mail_new_mail_count">%1$@ na bagong mail</string>
     <string name="school_mail_no_recipient">Magdagdag ng kahit isang tatanggap</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Naka-block ang mga larawan mula sa labas</string>
     <string name="school_mail_reply">Sagutin</string>
     <string name="school_mail_reply_all">Sagutin lahat</string>
+    <string name="school_mail_reply_menu">Mga opsyon sa pagsagot</string>
     <string name="school_mail_risky_message">Puwedeng makasama sa device mo ang %1$@. Ituloy lang kung pinagkakatiwalaan mo ang nagpadala.</string>
     <string name="school_mail_risky_title">Buksan ang attachment na ito?</string>
     <string name="school_mail_save_draft">I-save ang draft</string>

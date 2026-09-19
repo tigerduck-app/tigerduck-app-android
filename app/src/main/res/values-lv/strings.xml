@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Vai tikko nosūtītajā vēstulē kļūdījāties, ievadot adresi?</string>
     <string name="school_mail_cache_size">Kešatmiņas izmērs</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Sākuma punkts ir atiestatīts</string>
+    <string name="school_mail_check_failed">Pārbaude neizdevās: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Jaunu vēstuļu nav</string>
+    <string name="school_mail_check_sign_in_failed">Neizdevās pieteikties</string>
+    <string name="school_mail_check_skipped_auth_failed">Izlaists: neizdevās pieteikties</string>
+    <string name="school_mail_check_skipped_busy">Izlaists: jau notika cita pārbaude</string>
+    <string name="school_mail_check_skipped_disabled">Izlaists: paziņojumi ir izslēgti</string>
+    <string name="school_mail_check_skipped_signed_out">Izlaists: esat izrakstījies</string>
+    <string name="school_mail_check_trigger_background">Pārbaude fonā</string>
+    <string name="school_mail_check_trigger_foreground">Lietotne ir atvērta</string>
+    <string name="school_mail_check_trigger_page">Ekrāns „Skolas pasts”</string>
     <string name="school_mail_clear_cache">Notīrīt kešatmiņu</string>
     <string name="school_mail_compose">Jauna vēstule</string>
     <string name="school_mail_copy_all">Kopēt visu</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Neizdevās pārbaudīt pasta servera sertifikātu. Šis tīkls, iespējams, nav drošs.</string>
     <string name="school_mail_error_generic">Radās kļūda ar skolas pastu</string>
     <string name="school_mail_error_network">Nevar sasniegt pasta serveri</string>
+    <string name="school_mail_error_too_large">Šī vēstule ir pārāk liela, lai to atvērtu</string>
     <string name="school_mail_exact_alarm_hint">Atļaujiet precīzus signālus, lai TigerDuck varētu laikus pārbaudīt pastu.</string>
     <string name="school_mail_external_badge">Ārējs</string>
     <string name="school_mail_folder_all">Visas vēstules</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Ielādēt attēlus</string>
     <string name="school_mail_mark_read">Atzīmēt kā lasītu</string>
     <string name="school_mail_mark_unread">Atzīmēt kā nelasītu</string>
+    <string name="school_mail_message_actions">Vairāk darbību</string>
     <string name="school_mail_move_to">Pārvietot uz…</string>
     <string name="school_mail_new_mail_count">%1$@ jaunas vēstules</string>
     <string name="school_mail_no_recipient">Pievienojiet vismaz vienu saņēmēju</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Attālie attēli ir bloķēti</string>
     <string name="school_mail_reply">Atbildēt</string>
     <string name="school_mail_reply_all">Atbildēt visiem</string>
+    <string name="school_mail_reply_menu">Atbildes opcijas</string>
     <string name="school_mail_risky_message">%1$@ var kaitēt jūsu ierīcei. Turpiniet tikai tad, ja uzticaties sūtītājam.</string>
     <string name="school_mail_risky_title">Vai atvērt šo pielikumu?</string>
     <string name="school_mail_save_draft">Saglabāt melnrakstu</string>

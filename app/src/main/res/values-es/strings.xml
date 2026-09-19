@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">¿Escribiste mal alguna dirección en el correo que acabas de enviar?</string>
     <string name="school_mail_cache_size">Tamaño de la caché</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Punto de partida reiniciado</string>
+    <string name="school_mail_check_failed">Error en la comprobación: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Sin correo nuevo</string>
+    <string name="school_mail_check_sign_in_failed">No se pudo iniciar sesión</string>
+    <string name="school_mail_check_skipped_auth_failed">Omitida: no se pudo iniciar sesión</string>
+    <string name="school_mail_check_skipped_busy">Omitida: ya había otra comprobación en curso</string>
+    <string name="school_mail_check_skipped_disabled">Omitida: las notificaciones están desactivadas</string>
+    <string name="school_mail_check_skipped_signed_out">Omitida: sesión cerrada</string>
+    <string name="school_mail_check_trigger_background">Comprobación en segundo plano</string>
+    <string name="school_mail_check_trigger_foreground">Aplicación abierta</string>
+    <string name="school_mail_check_trigger_page">Pantalla de Correo universitario</string>
     <string name="school_mail_clear_cache">Borrar caché</string>
     <string name="school_mail_compose">Nuevo correo</string>
     <string name="school_mail_copy_all">Copiar todo</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">No se pudo verificar el certificado del servidor de correo. Puede que esta red no sea segura.</string>
     <string name="school_mail_error_generic">Se produjo un error en el correo universitario</string>
     <string name="school_mail_error_network">No se puede conectar con el servidor de correo</string>
+    <string name="school_mail_error_too_large">Este correo es demasiado grande para abrirlo</string>
     <string name="school_mail_exact_alarm_hint">Permite las alarmas exactas para que TigerDuck pueda comprobar el correo a tiempo.</string>
     <string name="school_mail_external_badge">Externo</string>
     <string name="school_mail_folder_all">Todos</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Cargar imágenes</string>
     <string name="school_mail_mark_read">Marcar como leído</string>
     <string name="school_mail_mark_unread">Marcar como no leído</string>
+    <string name="school_mail_message_actions">Más acciones</string>
     <string name="school_mail_move_to">Mover a…</string>
     <string name="school_mail_new_mail_count">%1$@ correos nuevos</string>
     <string name="school_mail_no_recipient">Añade al menos un destinatario</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Las imágenes remotas están bloqueadas</string>
     <string name="school_mail_reply">Responder</string>
     <string name="school_mail_reply_all">Responder a todos</string>
+    <string name="school_mail_reply_menu">Opciones de respuesta</string>
     <string name="school_mail_risky_message">%1$@ podría dañar tu dispositivo. Continúa solo si confías en el remitente.</string>
     <string name="school_mail_risky_title">¿Abrir este adjunto?</string>
     <string name="school_mail_save_draft">Guardar borrador</string>

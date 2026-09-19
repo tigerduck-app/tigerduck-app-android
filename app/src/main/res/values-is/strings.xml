@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Skrifaðir þú vitlaust netfang í póstinn sem þú sendir rétt í þessu?</string>
     <string name="school_mail_cache_size">Stærð skyndiminnis</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Upphafspunktur núllstilltur</string>
+    <string name="school_mail_check_failed">Athugun mistókst: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Enginn nýr póstur</string>
+    <string name="school_mail_check_sign_in_failed">Innskráning mistókst</string>
+    <string name="school_mail_check_skipped_auth_failed">Sleppt: innskráning mistókst</string>
+    <string name="school_mail_check_skipped_busy">Sleppt: önnur athugun var þegar í gangi</string>
+    <string name="school_mail_check_skipped_disabled">Sleppt: tilkynningar eru óvirkar</string>
+    <string name="school_mail_check_skipped_signed_out">Sleppt: skráður út</string>
+    <string name="school_mail_check_trigger_background">Athugun í bakgrunni</string>
+    <string name="school_mail_check_trigger_foreground">Forritið opnað</string>
+    <string name="school_mail_check_trigger_page">Skjár Skólapósts</string>
     <string name="school_mail_clear_cache">Hreinsa skyndiminni</string>
     <string name="school_mail_compose">Nýr póstur</string>
     <string name="school_mail_copy_all">Afrita allt</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Ekki tókst að staðfesta skilríki póstþjónsins. Þetta net er hugsanlega ekki öruggt.</string>
     <string name="school_mail_error_generic">Eitthvað fór úrskeiðis með Skólapósti</string>
     <string name="school_mail_error_network">Næst ekki samband við póstþjóninn</string>
+    <string name="school_mail_error_too_large">Þessi póstur er of stór til að opna</string>
     <string name="school_mail_exact_alarm_hint">Leyfðu nákvæma vekjara svo TigerDuck geti athugað með póst á réttum tíma.</string>
     <string name="school_mail_external_badge">Utanaðkomandi</string>
     <string name="school_mail_folder_all">Allur póstur</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Hlaða inn myndum</string>
     <string name="school_mail_mark_read">Merkja sem lesið</string>
     <string name="school_mail_mark_unread">Merkja sem ólesið</string>
+    <string name="school_mail_message_actions">Fleiri aðgerðir</string>
     <string name="school_mail_move_to">Flytja í…</string>
     <string name="school_mail_new_mail_count">%1$@ ný skeyti</string>
     <string name="school_mail_no_recipient">Bættu við að minnsta kosti einum viðtakanda</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Myndir sóttar af netinu eru útilokaðar</string>
     <string name="school_mail_reply">Svara</string>
     <string name="school_mail_reply_all">Svara öllum</string>
+    <string name="school_mail_reply_menu">Svarmöguleikar</string>
     <string name="school_mail_risky_message">%1$@ gæti skaðað tækið þitt. Haltu aðeins áfram ef þú treystir sendandanum.</string>
     <string name="school_mail_risky_title">Opna þetta viðhengi?</string>
     <string name="school_mail_save_draft">Vista drög</string>

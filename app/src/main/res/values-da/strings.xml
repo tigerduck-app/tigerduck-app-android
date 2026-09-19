@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Kom du til at stave en adresse forkert i den mail, du lige sendte?</string>
     <string name="school_mail_cache_size">Cachestørrelse</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Udgangspunkt nulstillet</string>
+    <string name="school_mail_check_failed">Tjek mislykkedes: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Ingen ny mail</string>
+    <string name="school_mail_check_sign_in_failed">Login mislykkedes</string>
+    <string name="school_mail_check_skipped_auth_failed">Oversprunget: login mislykkedes</string>
+    <string name="school_mail_check_skipped_busy">Oversprunget: der var allerede en anden tjek i gang</string>
+    <string name="school_mail_check_skipped_disabled">Oversprunget: notifikationer er slået fra</string>
+    <string name="school_mail_check_skipped_signed_out">Oversprunget: logget ud</string>
+    <string name="school_mail_check_trigger_background">Tjek i baggrunden</string>
+    <string name="school_mail_check_trigger_foreground">App åbnet</string>
+    <string name="school_mail_check_trigger_page">Skærmen for Skolemail</string>
     <string name="school_mail_clear_cache">Ryd cache</string>
     <string name="school_mail_compose">Ny mail</string>
     <string name="school_mail_copy_all">Kopiér alt</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Mailserverens certifikat kunne ikke bekræftes. Dette netværk er muligvis ikke sikkert.</string>
     <string name="school_mail_error_generic">Der opstod en fejl med Skolemail</string>
     <string name="school_mail_error_network">Kan ikke oprette forbindelse til mailserveren</string>
+    <string name="school_mail_error_too_large">Denne mail er for stor til at åbne</string>
     <string name="school_mail_exact_alarm_hint">Tillad præcise alarmer, så TigerDuck kan tjekke mail til tiden.</string>
     <string name="school_mail_external_badge">Ekstern</string>
     <string name="school_mail_folder_all">Alle mails</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Indlæs billeder</string>
     <string name="school_mail_mark_read">Markér som læst</string>
     <string name="school_mail_mark_unread">Markér som ulæst</string>
+    <string name="school_mail_message_actions">Flere handlinger</string>
     <string name="school_mail_move_to">Flyt til…</string>
     <string name="school_mail_new_mail_count">%1$@ nye mails</string>
     <string name="school_mail_no_recipient">Tilføj mindst én modtager</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Eksterne billeder er blokeret</string>
     <string name="school_mail_reply">Svar</string>
     <string name="school_mail_reply_all">Svar til alle</string>
+    <string name="school_mail_reply_menu">Svarmuligheder</string>
     <string name="school_mail_risky_message">%1$@ kan skade din enhed. Fortsæt kun, hvis du stoler på afsenderen.</string>
     <string name="school_mail_risky_title">Åbn denne vedhæftning?</string>
     <string name="school_mail_save_draft">Gem kladde</string>

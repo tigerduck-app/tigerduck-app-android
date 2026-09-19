@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Czy w adresie w wiadomości wysłanej przed chwilą mógł być błąd?</string>
     <string name="school_mail_cache_size">Rozmiar pamięci podręcznej</string>
     <string name="school_mail_cc">DW</string>
+    <string name="school_mail_check_baseline_reset">Zresetowano punkt początkowy</string>
+    <string name="school_mail_check_failed">Sprawdzanie nie powiodło się: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Brak nowych wiadomości</string>
+    <string name="school_mail_check_sign_in_failed">Nie udało się zalogować</string>
+    <string name="school_mail_check_skipped_auth_failed">Pominięto: nie udało się zalogować</string>
+    <string name="school_mail_check_skipped_busy">Pominięto: inne sprawdzanie było już w toku</string>
+    <string name="school_mail_check_skipped_disabled">Pominięto: powiadomienia są wyłączone</string>
+    <string name="school_mail_check_skipped_signed_out">Pominięto: wylogowano</string>
+    <string name="school_mail_check_trigger_background">Sprawdzanie w tle</string>
+    <string name="school_mail_check_trigger_foreground">Otwarto aplikację</string>
+    <string name="school_mail_check_trigger_page">Ekran Poczty uczelnianej</string>
     <string name="school_mail_clear_cache">Wyczyść pamięć podręczną</string>
     <string name="school_mail_compose">Nowa wiadomość</string>
     <string name="school_mail_copy_all">Kopiuj wszystko</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Nie udało się zweryfikować certyfikatu serwera poczty. Ta sieć może być niebezpieczna.</string>
     <string name="school_mail_error_generic">Coś poszło nie tak z pocztą uczelnianą</string>
     <string name="school_mail_error_network">Nie można połączyć się z serwerem poczty</string>
+    <string name="school_mail_error_too_large">Ta wiadomość jest zbyt duża, aby ją otworzyć</string>
     <string name="school_mail_exact_alarm_hint">Zezwól na dokładne alarmy, aby TigerDuck mógł sprawdzać pocztę na czas.</string>
     <string name="school_mail_external_badge">Zewnętrzny</string>
     <string name="school_mail_folder_all">Cała poczta</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Wczytaj obrazy</string>
     <string name="school_mail_mark_read">Oznacz jako przeczytane</string>
     <string name="school_mail_mark_unread">Oznacz jako nieprzeczytane</string>
+    <string name="school_mail_message_actions">Więcej działań</string>
     <string name="school_mail_move_to">Przenieś do…</string>
     <string name="school_mail_new_mail_count">Nowe wiadomości: %1$@</string>
     <string name="school_mail_no_recipient">Dodaj co najmniej jednego odbiorcę</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Zdalne obrazy są zablokowane</string>
     <string name="school_mail_reply">Odpowiedz</string>
     <string name="school_mail_reply_all">Odpowiedz wszystkim</string>
+    <string name="school_mail_reply_menu">Opcje odpowiedzi</string>
     <string name="school_mail_risky_message">%1$@ może zaszkodzić Twojemu urządzeniu. Kontynuuj tylko wtedy, gdy ufasz nadawcy.</string>
     <string name="school_mail_risky_title">Otworzyć ten załącznik?</string>
     <string name="school_mail_save_draft">Zapisz kopię roboczą</string>

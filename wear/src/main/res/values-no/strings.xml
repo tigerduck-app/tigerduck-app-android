@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Skrev du feil på en adresse i e-posten du nettopp sendte?</string>
     <string name="school_mail_cache_size">Bufferstørrelse</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Utgangspunkt tilbakestilt</string>
+    <string name="school_mail_check_failed">Sjekk mislyktes: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Ingen ny e-post</string>
+    <string name="school_mail_check_sign_in_failed">Pålogging mislyktes</string>
+    <string name="school_mail_check_skipped_auth_failed">Hoppet over: pålogging mislyktes</string>
+    <string name="school_mail_check_skipped_busy">Hoppet over: en annen sjekk pågikk allerede</string>
+    <string name="school_mail_check_skipped_disabled">Hoppet over: varsler er slått av</string>
+    <string name="school_mail_check_skipped_signed_out">Hoppet over: utlogget</string>
+    <string name="school_mail_check_trigger_background">Sjekk i bakgrunnen</string>
+    <string name="school_mail_check_trigger_foreground">Appen ble åpnet</string>
+    <string name="school_mail_check_trigger_page">Skjermen for Skolepost</string>
     <string name="school_mail_clear_cache">Tøm buffer</string>
     <string name="school_mail_compose">Ny e-post</string>
     <string name="school_mail_copy_all">Kopier alt</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Kunne ikke bekrefte sertifikatet til mailserveren. Dette nettverket er kanskje ikke trygt.</string>
     <string name="school_mail_error_generic">Noe gikk galt med Skolepost</string>
     <string name="school_mail_error_network">Får ikke kontakt med mailserveren</string>
+    <string name="school_mail_error_too_large">Denne e-posten er for stor til å åpne</string>
     <string name="school_mail_exact_alarm_hint">Tillat eksakte alarmer, slik at TigerDuck kan sjekke e-post i tide.</string>
     <string name="school_mail_external_badge">Ekstern</string>
     <string name="school_mail_folder_all">Alle meldinger</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Last inn bilder</string>
     <string name="school_mail_mark_read">Merk som lest</string>
     <string name="school_mail_mark_unread">Merk som ulest</string>
+    <string name="school_mail_message_actions">Flere handlinger</string>
     <string name="school_mail_move_to">Flytt til…</string>
     <string name="school_mail_new_mail_count">%1$@ nye e-poster</string>
     <string name="school_mail_no_recipient">Legg til minst én mottaker</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Eksterne bilder er blokkert</string>
     <string name="school_mail_reply">Svar</string>
     <string name="school_mail_reply_all">Svar til alle</string>
+    <string name="school_mail_reply_menu">Svaralternativer</string>
     <string name="school_mail_risky_message">%1$@ kan skade enheten din. Fortsett bare hvis du stoler på avsenderen.</string>
     <string name="school_mail_risky_title">Åpne dette vedlegget?</string>
     <string name="school_mail_save_draft">Lagre kladd</string>

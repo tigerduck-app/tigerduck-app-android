@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Вы не ошиблись адресом в письме, которое только что отправили?</string>
     <string name="school_mail_cache_size">Размер кэша</string>
     <string name="school_mail_cc">Копия</string>
+    <string name="school_mail_check_baseline_reset">Точка отсчёта сброшена</string>
+    <string name="school_mail_check_failed">Проверка не удалась: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Новых писем нет</string>
+    <string name="school_mail_check_sign_in_failed">Не удалось войти</string>
+    <string name="school_mail_check_skipped_auth_failed">Пропущено: не удалось войти</string>
+    <string name="school_mail_check_skipped_busy">Пропущено: уже выполнялась другая проверка</string>
+    <string name="school_mail_check_skipped_disabled">Пропущено: уведомления отключены</string>
+    <string name="school_mail_check_skipped_signed_out">Пропущено: выполнен выход из аккаунта</string>
+    <string name="school_mail_check_trigger_background">Фоновая проверка</string>
+    <string name="school_mail_check_trigger_foreground">Приложение открыто</string>
+    <string name="school_mail_check_trigger_page">Экран «Университетская почта»</string>
     <string name="school_mail_clear_cache">Очистить кэш</string>
     <string name="school_mail_compose">Новое письмо</string>
     <string name="school_mail_copy_all">Копировать всё</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Не удалось проверить сертификат почтового сервера. Эта сеть может быть небезопасна.</string>
     <string name="school_mail_error_generic">Что-то пошло не так с университетской почтой</string>
     <string name="school_mail_error_network">Не удаётся подключиться к почтовому серверу</string>
+    <string name="school_mail_error_too_large">Это письмо слишком большое, чтобы его открыть</string>
     <string name="school_mail_exact_alarm_hint">Разрешите точные будильники, чтобы TigerDuck мог вовремя проверять почту.</string>
     <string name="school_mail_external_badge">Внешний</string>
     <string name="school_mail_folder_all">Вся почта</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Загрузить изображения</string>
     <string name="school_mail_mark_read">Отметить как прочитанное</string>
     <string name="school_mail_mark_unread">Отметить как непрочитанное</string>
+    <string name="school_mail_message_actions">Другие действия</string>
     <string name="school_mail_move_to">Переместить в…</string>
     <string name="school_mail_new_mail_count">Новых писем: %1$@</string>
     <string name="school_mail_no_recipient">Добавьте хотя бы одного получателя</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Удалённые изображения заблокированы</string>
     <string name="school_mail_reply">Ответить</string>
     <string name="school_mail_reply_all">Ответить всем</string>
+    <string name="school_mail_reply_menu">Варианты ответа</string>
     <string name="school_mail_risky_message">%1$@ может навредить вашему устройству. Продолжайте, только если доверяете отправителю.</string>
     <string name="school_mail_risky_title">Открыть это вложение?</string>
     <string name="school_mail_save_draft">Сохранить черновик</string>

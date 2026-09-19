@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Avez-vous mal saisi une adresse dans le message que vous venez d\'envoyer ?</string>
     <string name="school_mail_cache_size">Taille du cache</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Point de départ réinitialisé</string>
+    <string name="school_mail_check_failed">Échec de la vérification : %1$@</string>
+    <string name="school_mail_check_no_new_mail">Aucun nouveau message</string>
+    <string name="school_mail_check_sign_in_failed">Échec de connexion</string>
+    <string name="school_mail_check_skipped_auth_failed">Ignorée : échec de connexion</string>
+    <string name="school_mail_check_skipped_busy">Ignorée : une autre vérification était déjà en cours</string>
+    <string name="school_mail_check_skipped_disabled">Ignorée : notifications désactivées</string>
+    <string name="school_mail_check_skipped_signed_out">Ignorée : déconnecté</string>
+    <string name="school_mail_check_trigger_background">Vérification en arrière-plan</string>
+    <string name="school_mail_check_trigger_foreground">Application ouverte</string>
+    <string name="school_mail_check_trigger_page">Écran de Messagerie universitaire</string>
     <string name="school_mail_clear_cache">Vider le cache</string>
     <string name="school_mail_compose">Nouveau message</string>
     <string name="school_mail_copy_all">Tout copier</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Impossible de vérifier le certificat du serveur de messagerie. Ce réseau n\'est peut-être pas sûr.</string>
     <string name="school_mail_error_generic">Une erreur s\'est produite avec la messagerie universitaire</string>
     <string name="school_mail_error_network">Impossible de joindre le serveur de messagerie</string>
+    <string name="school_mail_error_too_large">Ce message est trop volumineux pour être ouvert</string>
     <string name="school_mail_exact_alarm_hint">Autorisez les alarmes exactes pour que TigerDuck puisse vérifier les messages à l\'heure.</string>
     <string name="school_mail_external_badge">Externe</string>
     <string name="school_mail_folder_all">Tous les messages</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Charger les images</string>
     <string name="school_mail_mark_read">Marquer comme lu</string>
     <string name="school_mail_mark_unread">Marquer comme non lu</string>
+    <string name="school_mail_message_actions">Plus d\'actions</string>
     <string name="school_mail_move_to">Déplacer vers…</string>
     <string name="school_mail_new_mail_count">%1$@ nouveaux messages</string>
     <string name="school_mail_no_recipient">Ajoutez au moins un destinataire</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Les images distantes sont bloquées</string>
     <string name="school_mail_reply">Répondre</string>
     <string name="school_mail_reply_all">Répondre à tous</string>
+    <string name="school_mail_reply_menu">Options de réponse</string>
     <string name="school_mail_risky_message">%1$@ pourrait endommager votre appareil. Ne continuez que si vous faites confiance à l\'expéditeur.</string>
     <string name="school_mail_risky_title">Ouvrir cette pièce jointe ?</string>
     <string name="school_mail_save_draft">Enregistrer le brouillon</string>

@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">آیا در ایمیلی که همین الان فرستادید، آدرس را اشتباه تایپ کردید؟</string>
     <string name="school_mail_cache_size">حجم کش</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">نقطه شروع بازنشانی شد</string>
+    <string name="school_mail_check_failed">بررسی ناموفق بود: %1$@</string>
+    <string name="school_mail_check_no_new_mail">ایمیل جدیدی نیست</string>
+    <string name="school_mail_check_sign_in_failed">ورود ناموفق بود</string>
+    <string name="school_mail_check_skipped_auth_failed">صرف‌نظر شد: ورود ناموفق بود</string>
+    <string name="school_mail_check_skipped_busy">صرف‌نظر شد: بررسی دیگری از قبل در حال اجرا بود</string>
+    <string name="school_mail_check_skipped_disabled">صرف‌نظر شد: اعلان‌ها غیرفعال است</string>
+    <string name="school_mail_check_skipped_signed_out">صرف‌نظر شد: از حساب خارج شده بودید</string>
+    <string name="school_mail_check_trigger_background">بررسی در پس‌زمینه</string>
+    <string name="school_mail_check_trigger_foreground">برنامه باز شد</string>
+    <string name="school_mail_check_trigger_page">صفحه ایمیل مدرسه</string>
     <string name="school_mail_clear_cache">پاک کردن کش</string>
     <string name="school_mail_compose">ایمیل جدید</string>
     <string name="school_mail_copy_all">کپی همه</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">تأیید گواهی سرور ایمیل ممکن نشد. ممکن است این شبکه امن نباشد.</string>
     <string name="school_mail_error_generic">مشکلی در ایمیل مدرسه پیش آمد</string>
     <string name="school_mail_error_network">دسترسی به سرور ایمیل ممکن نشد</string>
+    <string name="school_mail_error_too_large">این ایمیل برای باز شدن خیلی بزرگ است</string>
     <string name="school_mail_exact_alarm_hint">اجازهٔ هشدارهای دقیق بدهید تا TigerDuck بتواند ایمیل را به‌موقع بررسی کند.</string>
     <string name="school_mail_external_badge">خارجی</string>
     <string name="school_mail_folder_all">همهٔ ایمیل‌ها</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">بارگذاری تصاویر</string>
     <string name="school_mail_mark_read">علامت‌گذاری به‌عنوان خوانده‌شده</string>
     <string name="school_mail_mark_unread">علامت‌گذاری به‌عنوان خوانده‌نشده</string>
+    <string name="school_mail_message_actions">اقدامات بیشتر</string>
     <string name="school_mail_move_to">انتقال به…</string>
     <string name="school_mail_new_mail_count">%1$@ ایمیل جدید</string>
     <string name="school_mail_no_recipient">دست‌کم یک گیرنده اضافه کنید</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">تصاویر دوردست مسدود شده‌اند</string>
     <string name="school_mail_reply">پاسخ</string>
     <string name="school_mail_reply_all">پاسخ به همه</string>
+    <string name="school_mail_reply_menu">گزینه‌های پاسخ</string>
     <string name="school_mail_risky_message">%1$@ می‌تواند به دستگاه شما آسیب برساند. فقط در صورتی ادامه دهید که به فرستنده اعتماد دارید.</string>
     <string name="school_mail_risky_title">این پیوست باز شود؟</string>
     <string name="school_mail_save_draft">ذخیرهٔ پیش‌نویس</string>

@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Heb je een adres verkeerd getypt in de mail die je zojuist hebt verstuurd?</string>
     <string name="school_mail_cache_size">Cachegrootte</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Startpunt opnieuw ingesteld</string>
+    <string name="school_mail_check_failed">Controle mislukt: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Geen nieuwe mail</string>
+    <string name="school_mail_check_sign_in_failed">Aanmelden mislukt</string>
+    <string name="school_mail_check_skipped_auth_failed">Overgeslagen: aanmelden mislukt</string>
+    <string name="school_mail_check_skipped_busy">Overgeslagen: er liep al een andere controle</string>
+    <string name="school_mail_check_skipped_disabled">Overgeslagen: meldingen staan uit</string>
+    <string name="school_mail_check_skipped_signed_out">Overgeslagen: uitgelogd</string>
+    <string name="school_mail_check_trigger_background">Achtergrondcontrole</string>
+    <string name="school_mail_check_trigger_foreground">App geopend</string>
+    <string name="school_mail_check_trigger_page">Schoolmail-scherm</string>
     <string name="school_mail_clear_cache">Cache wissen</string>
     <string name="school_mail_compose">Nieuwe mail</string>
     <string name="school_mail_copy_all">Alles kopiëren</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Het certificaat van de mailserver kon niet worden geverifieerd. Dit netwerk is mogelijk niet veilig.</string>
     <string name="school_mail_error_generic">Er is iets misgegaan met Schoolmail</string>
     <string name="school_mail_error_network">Kan de mailserver niet bereiken</string>
+    <string name="school_mail_error_too_large">Deze mail is te groot om te openen</string>
     <string name="school_mail_exact_alarm_hint">Sta exacte alarmen toe, zodat TigerDuck op tijd naar nieuwe e-mail kan kijken.</string>
     <string name="school_mail_external_badge">Extern</string>
     <string name="school_mail_folder_all">Alle berichten</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Afbeeldingen laden</string>
     <string name="school_mail_mark_read">Als gelezen markeren</string>
     <string name="school_mail_mark_unread">Als ongelezen markeren</string>
+    <string name="school_mail_message_actions">Meer acties</string>
     <string name="school_mail_move_to">Verplaatsen naar…</string>
     <string name="school_mail_new_mail_count">%1$@ nieuwe e-mails</string>
     <string name="school_mail_no_recipient">Voeg minstens één ontvanger toe</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Externe afbeeldingen zijn geblokkeerd</string>
     <string name="school_mail_reply">Beantwoorden</string>
     <string name="school_mail_reply_all">Allen beantwoorden</string>
+    <string name="school_mail_reply_menu">Antwoordopties</string>
     <string name="school_mail_risky_message">%1$@ kan je apparaat schaden. Ga alleen verder als je de afzender vertrouwt.</string>
     <string name="school_mail_risky_title">Deze bijlage openen?</string>
     <string name="school_mail_save_draft">Concept opslaan</string>

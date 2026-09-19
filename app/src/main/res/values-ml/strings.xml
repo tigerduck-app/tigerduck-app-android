@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">ഇപ്പോൾ അയച്ച ഇമെയിലിൽ വിലാസം തെറ്റായി ടൈപ്പ് ചെയ്തോ?</string>
     <string name="school_mail_cache_size">കാഷെ വലുപ്പം</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">ആരംഭ പോയിന്റ് റീസെറ്റ് ചെയ്തു</string>
+    <string name="school_mail_check_failed">പരിശോധന പരാജയപ്പെട്ടു: %1$@</string>
+    <string name="school_mail_check_no_new_mail">പുതിയ ഇമെയിൽ ഇല്ല</string>
+    <string name="school_mail_check_sign_in_failed">സൈൻ ഇൻ പരാജയപ്പെട്ടു</string>
+    <string name="school_mail_check_skipped_auth_failed">ഒഴിവാക്കി: സൈൻ ഇൻ പരാജയപ്പെട്ടു</string>
+    <string name="school_mail_check_skipped_busy">ഒഴിവാക്കി: മറ്റൊരു പരിശോധന ഇതിനകം നടക്കുകയായിരുന്നു</string>
+    <string name="school_mail_check_skipped_disabled">ഒഴിവാക്കി: അറിയിപ്പുകൾ നിർജ്ജീവമാണ്</string>
+    <string name="school_mail_check_skipped_signed_out">ഒഴിവാക്കി: സൈൻ ഔട്ട് ആയിരുന്നു</string>
+    <string name="school_mail_check_trigger_background">പശ്ചാത്തല പരിശോധന</string>
+    <string name="school_mail_check_trigger_foreground">ആപ്പ് തുറന്നു</string>
+    <string name="school_mail_check_trigger_page">സ്കൂൾ ഇമെയിൽ സ്ക്രീൻ</string>
     <string name="school_mail_clear_cache">കാഷെ മായ്ക്കുക</string>
     <string name="school_mail_compose">പുതിയ ഇമെയിൽ</string>
     <string name="school_mail_copy_all">എല്ലാം പകർത്തുക</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">മെയിൽ സെർവറിന്റെ സർട്ടിഫിക്കറ്റ് പരിശോധിക്കാനായില്ല. ഈ നെറ്റ്‌വർക്ക് സുരക്ഷിതമല്ലായിരിക്കാം.</string>
     <string name="school_mail_error_generic">സ്കൂൾ ഇമെയിലിൽ എന്തോ പിഴവ് സംഭവിച്ചു</string>
     <string name="school_mail_error_network">മെയിൽ സെർവറിൽ എത്താനായില്ല</string>
+    <string name="school_mail_error_too_large">ഈ ഇമെയിൽ തുറക്കാൻ കഴിയാത്തത്ര വലുതാണ്</string>
     <string name="school_mail_exact_alarm_hint">TigerDuck-ന് കൃത്യസമയത്ത് ഇമെയിൽ പരിശോധിക്കാൻ കൃത്യമായ അലാറങ്ങൾ അനുവദിക്കുക.</string>
     <string name="school_mail_external_badge">ബാഹ്യം</string>
     <string name="school_mail_folder_all">എല്ലാ മെയിലും</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">ചിത്രങ്ങൾ ലോഡ് ചെയ്യുക</string>
     <string name="school_mail_mark_read">വായിച്ചതായി അടയാളപ്പെടുത്തുക</string>
     <string name="school_mail_mark_unread">വായിക്കാത്തതായി അടയാളപ്പെടുത്തുക</string>
+    <string name="school_mail_message_actions">കൂടുതൽ പ്രവർത്തനങ്ങൾ</string>
     <string name="school_mail_move_to">നീക്കുക…</string>
     <string name="school_mail_new_mail_count">%1$@ പുതിയ ഇമെയിലുകൾ</string>
     <string name="school_mail_no_recipient">കുറഞ്ഞത് ഒരു സ്വീകർത്താവിനെയെങ്കിലും ചേർക്കുക</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">റിമോട്ട് ചിത്രങ്ങൾ ബ്ലോക്ക് ചെയ്തിരിക്കുന്നു</string>
     <string name="school_mail_reply">മറുപടി</string>
     <string name="school_mail_reply_all">എല്ലാവർക്കും മറുപടി</string>
+    <string name="school_mail_reply_menu">മറുപടി ഓപ്ഷനുകൾ</string>
     <string name="school_mail_risky_message">%1$@ നിങ്ങളുടെ ഉപകരണത്തിന് ദോഷം ചെയ്‌തേക്കാം. അയച്ചയാളെ വിശ്വാസമുണ്ടെങ്കിൽ മാത്രം തുടരുക.</string>
     <string name="school_mail_risky_title">ഈ അറ്റാച്ച്‌മെന്റ് തുറക്കണോ?</string>
     <string name="school_mail_save_draft">ഡ്രാഫ്റ്റ് സേവ് ചെയ്യുക</string>

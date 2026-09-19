@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Az önce gönderdiğiniz postada bir adresi yanlış mı yazdınız?</string>
     <string name="school_mail_cache_size">Önbellek boyutu</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Başlangıç noktası sıfırlandı</string>
+    <string name="school_mail_check_failed">Kontrol başarısız oldu: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Yeni posta yok</string>
+    <string name="school_mail_check_sign_in_failed">Giriş başarısız oldu</string>
+    <string name="school_mail_check_skipped_auth_failed">Atlandı: giriş başarısız oldu</string>
+    <string name="school_mail_check_skipped_busy">Atlandı: başka bir kontrol zaten yapılıyordu</string>
+    <string name="school_mail_check_skipped_disabled">Atlandı: bildirimler kapalı</string>
+    <string name="school_mail_check_skipped_signed_out">Atlandı: oturum kapalı</string>
+    <string name="school_mail_check_trigger_background">Arka planda kontrol</string>
+    <string name="school_mail_check_trigger_foreground">Uygulama açıldı</string>
+    <string name="school_mail_check_trigger_page">Okul Postası ekranı</string>
     <string name="school_mail_clear_cache">Önbelleği temizle</string>
     <string name="school_mail_compose">Yeni posta</string>
     <string name="school_mail_copy_all">Tümünü kopyala</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Posta sunucusunun sertifikası doğrulanamadı. Bu ağ güvenli olmayabilir.</string>
     <string name="school_mail_error_generic">Okul postasında bir sorun oluştu</string>
     <string name="school_mail_error_network">Posta sunucusuna ulaşılamıyor</string>
+    <string name="school_mail_error_too_large">Bu posta açılamayacak kadar büyük</string>
     <string name="school_mail_exact_alarm_hint">TigerDuck uygulamasının postaları zamanında kontrol edebilmesi için tam zamanlı alarmlara izin verin.</string>
     <string name="school_mail_external_badge">Harici</string>
     <string name="school_mail_folder_all">Tüm Postalar</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Görselleri yükle</string>
     <string name="school_mail_mark_read">Okundu olarak işaretle</string>
     <string name="school_mail_mark_unread">Okunmadı olarak işaretle</string>
+    <string name="school_mail_message_actions">Diğer işlemler</string>
     <string name="school_mail_move_to">Taşı…</string>
     <string name="school_mail_new_mail_count">%1$@ yeni posta</string>
     <string name="school_mail_no_recipient">En az bir alıcı ekleyin</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Uzak sunucudaki görseller engellendi</string>
     <string name="school_mail_reply">Yanıtla</string>
     <string name="school_mail_reply_all">Tümünü yanıtla</string>
+    <string name="school_mail_reply_menu">Yanıt seçenekleri</string>
     <string name="school_mail_risky_message">%1$@ cihazınıza zarar verebilir. Yalnızca gönderene güveniyorsanız devam edin.</string>
     <string name="school_mail_risky_title">Bu ek açılsın mı?</string>
     <string name="school_mail_save_draft">Taslağı kaydet</string>

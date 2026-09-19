@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Hast du dich bei einer Adresse in der zuletzt gesendeten E-Mail vertippt?</string>
     <string name="school_mail_cache_size">Cache-Größe</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Ausgangspunkt zurückgesetzt</string>
+    <string name="school_mail_check_failed">Abruf fehlgeschlagen: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Keine neuen E-Mails</string>
+    <string name="school_mail_check_sign_in_failed">Anmeldung fehlgeschlagen</string>
+    <string name="school_mail_check_skipped_auth_failed">Übersprungen: Anmeldung fehlgeschlagen</string>
+    <string name="school_mail_check_skipped_busy">Übersprungen: Es lief bereits ein anderer Abruf</string>
+    <string name="school_mail_check_skipped_disabled">Übersprungen: Benachrichtigungen sind deaktiviert</string>
+    <string name="school_mail_check_skipped_signed_out">Übersprungen: abgemeldet</string>
+    <string name="school_mail_check_trigger_background">Abruf im Hintergrund</string>
+    <string name="school_mail_check_trigger_foreground">App geöffnet</string>
+    <string name="school_mail_check_trigger_page">Uni-Mail-Bildschirm</string>
     <string name="school_mail_clear_cache">Cache leeren</string>
     <string name="school_mail_compose">Neue E-Mail</string>
     <string name="school_mail_copy_all">Alles kopieren</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Das Zertifikat des Mailservers konnte nicht überprüft werden. Dieses Netzwerk ist möglicherweise nicht sicher.</string>
     <string name="school_mail_error_generic">Bei Uni-Mail ist ein Fehler aufgetreten</string>
     <string name="school_mail_error_network">Mailserver nicht erreichbar</string>
+    <string name="school_mail_error_too_large">Diese E-Mail ist zum Öffnen zu groß</string>
     <string name="school_mail_exact_alarm_hint">Erlaube exakte Alarme, damit TigerDuck pünktlich nach E-Mails schauen kann.</string>
     <string name="school_mail_external_badge">Extern</string>
     <string name="school_mail_folder_all">Alle Nachrichten</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Bilder laden</string>
     <string name="school_mail_mark_read">Als gelesen markieren</string>
     <string name="school_mail_mark_unread">Als ungelesen markieren</string>
+    <string name="school_mail_message_actions">Weitere Aktionen</string>
     <string name="school_mail_move_to">Verschieben nach…</string>
     <string name="school_mail_new_mail_count">%1$@ neue E-Mails</string>
     <string name="school_mail_no_recipient">Füge mindestens einen Empfänger hinzu</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Externe Bilder sind blockiert</string>
     <string name="school_mail_reply">Antworten</string>
     <string name="school_mail_reply_all">Allen antworten</string>
+    <string name="school_mail_reply_menu">Antwortoptionen</string>
     <string name="school_mail_risky_message">%1$@ könnte dein Gerät schädigen. Fahre nur fort, wenn du dem Absender vertraust.</string>
     <string name="school_mail_risky_title">Diesen Anhang öffnen?</string>
     <string name="school_mail_save_draft">Entwurf speichern</string>

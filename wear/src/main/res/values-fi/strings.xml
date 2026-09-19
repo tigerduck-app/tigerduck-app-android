@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Kirjoititko osoitteen väärin juuri lähettämässäsi viestissä?</string>
     <string name="school_mail_cache_size">Välimuistin koko</string>
     <string name="school_mail_cc">Kopio</string>
+    <string name="school_mail_check_baseline_reset">Lähtökohta nollattu</string>
+    <string name="school_mail_check_failed">Tarkistus epäonnistui: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Ei uusia viestejä</string>
+    <string name="school_mail_check_sign_in_failed">Kirjautuminen epäonnistui</string>
+    <string name="school_mail_check_skipped_auth_failed">Ohitettu: kirjautuminen epäonnistui</string>
+    <string name="school_mail_check_skipped_busy">Ohitettu: toinen tarkistus oli jo käynnissä</string>
+    <string name="school_mail_check_skipped_disabled">Ohitettu: ilmoitukset on poistettu käytöstä</string>
+    <string name="school_mail_check_skipped_signed_out">Ohitettu: olet kirjautunut ulos</string>
+    <string name="school_mail_check_trigger_background">Taustatarkistus</string>
+    <string name="school_mail_check_trigger_foreground">Sovellus avattiin</string>
+    <string name="school_mail_check_trigger_page">Koulusähköposti-näyttö</string>
     <string name="school_mail_clear_cache">Tyhjennä välimuisti</string>
     <string name="school_mail_compose">Uusi viesti</string>
     <string name="school_mail_copy_all">Kopioi kaikki</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Postipalvelimen varmennetta ei voitu vahvistaa. Tämä verkko ei ehkä ole turvallinen.</string>
     <string name="school_mail_error_generic">Koulusähköpostissa tapahtui virhe</string>
     <string name="school_mail_error_network">Postipalvelimeen ei saada yhteyttä</string>
+    <string name="school_mail_error_too_large">Tämä viesti on liian suuri avattavaksi</string>
     <string name="school_mail_exact_alarm_hint">Salli tarkat hälytykset, jotta TigerDuck voi tarkistaa uudet viestit ajallaan.</string>
     <string name="school_mail_external_badge">Ulkoinen</string>
     <string name="school_mail_folder_all">Kaikki viestit</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Lataa kuvat</string>
     <string name="school_mail_mark_read">Merkitse luetuksi</string>
     <string name="school_mail_mark_unread">Merkitse lukemattomaksi</string>
+    <string name="school_mail_message_actions">Lisää toimintoja</string>
     <string name="school_mail_move_to">Siirrä…</string>
     <string name="school_mail_new_mail_count">%1$@ uutta viestiä</string>
     <string name="school_mail_no_recipient">Lisää vähintään yksi vastaanottaja</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Etäkuvat on estetty</string>
     <string name="school_mail_reply">Vastaa</string>
     <string name="school_mail_reply_all">Vastaa kaikille</string>
+    <string name="school_mail_reply_menu">Vastausvaihtoehdot</string>
     <string name="school_mail_risky_message">%1$@ voi vahingoittaa laitettasi. Jatka vain, jos luotat lähettäjään.</string>
     <string name="school_mail_risky_title">Avataanko tämä liite?</string>
     <string name="school_mail_save_draft">Tallenna luonnos</string>

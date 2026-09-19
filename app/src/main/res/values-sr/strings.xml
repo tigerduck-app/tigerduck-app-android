@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Да ли сте погрешно унели адресу у поруци коју сте управо послали?</string>
     <string name="school_mail_cache_size">Величина кеша</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Почетна тачка је ресетована</string>
+    <string name="school_mail_check_failed">Провера није успела: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Нема нових порука</string>
+    <string name="school_mail_check_sign_in_failed">Пријава није успела</string>
+    <string name="school_mail_check_skipped_auth_failed">Прескочено: пријава није успела</string>
+    <string name="school_mail_check_skipped_busy">Прескочено: друга провера је већ била у току</string>
+    <string name="school_mail_check_skipped_disabled">Прескочено: обавештења су искључена</string>
+    <string name="school_mail_check_skipped_signed_out">Прескочено: одјављени сте</string>
+    <string name="school_mail_check_trigger_background">Провера у позадини</string>
+    <string name="school_mail_check_trigger_foreground">Апликација је отворена</string>
+    <string name="school_mail_check_trigger_page">Екран „Школска пошта”</string>
     <string name="school_mail_clear_cache">Обриши кеш</string>
     <string name="school_mail_compose">Нова порука</string>
     <string name="school_mail_copy_all">Копирај све</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Није могуће проверити сертификат сервера за пошту. Ова мрежа можда није безбедна.</string>
     <string name="school_mail_error_generic">Дошло је до грешке са школском поштом</string>
     <string name="school_mail_error_network">Није могуће успоставити везу са сервером за пошту</string>
+    <string name="school_mail_error_too_large">Ова порука је превелика да би се отворила</string>
     <string name="school_mail_exact_alarm_hint">Дозволите тачне аларме да би TigerDuck могао на време да проверава пошту.</string>
     <string name="school_mail_external_badge">Спољни</string>
     <string name="school_mail_folder_all">Сва пошта</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Учитај слике</string>
     <string name="school_mail_mark_read">Означи као прочитано</string>
     <string name="school_mail_mark_unread">Означи као непрочитано</string>
+    <string name="school_mail_message_actions">Још радњи</string>
     <string name="school_mail_move_to">Премести у…</string>
     <string name="school_mail_new_mail_count">%1$@ нових порука</string>
     <string name="school_mail_no_recipient">Додајте бар једног примаоца</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Удаљене слике су блокиране</string>
     <string name="school_mail_reply">Одговори</string>
     <string name="school_mail_reply_all">Одговори свима</string>
+    <string name="school_mail_reply_menu">Опције одговора</string>
     <string name="school_mail_risky_message">%1$@ може да оштети ваш уређај. Наставите само ако верујете пошиљаоцу.</string>
     <string name="school_mail_risky_title">Да отворим овај прилог?</string>
     <string name="school_mail_save_draft">Сачувај нацрт</string>

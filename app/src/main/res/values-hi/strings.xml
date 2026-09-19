@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">क्या आपने अभी भेजे गए मेल में कोई पता गलत टाइप किया था?</string>
     <string name="school_mail_cache_size">कैश आकार</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">शुरुआती बिंदु रीसेट हुआ</string>
+    <string name="school_mail_check_failed">जाँच विफल: %1$@</string>
+    <string name="school_mail_check_no_new_mail">कोई नया मेल नहीं</string>
+    <string name="school_mail_check_sign_in_failed">साइन-इन विफल</string>
+    <string name="school_mail_check_skipped_auth_failed">छोड़ा गया: साइन-इन विफल</string>
+    <string name="school_mail_check_skipped_busy">छोड़ा गया: एक और जाँच पहले से चल रही थी</string>
+    <string name="school_mail_check_skipped_disabled">छोड़ा गया: नोटिफिकेशन अक्षम हैं</string>
+    <string name="school_mail_check_skipped_signed_out">छोड़ा गया: साइन आउट था</string>
+    <string name="school_mail_check_trigger_background">बैकग्राउंड जाँच</string>
+    <string name="school_mail_check_trigger_foreground">ऐप खोला गया</string>
+    <string name="school_mail_check_trigger_page">स्कूल मेल स्क्रीन</string>
     <string name="school_mail_clear_cache">कैश साफ़ करें</string>
     <string name="school_mail_compose">नया मेल</string>
     <string name="school_mail_copy_all">सभी कॉपी करें</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">मेल सर्वर का प्रमाणपत्र सत्यापित नहीं हो सका। यह नेटवर्क सुरक्षित नहीं हो सकता।</string>
     <string name="school_mail_error_generic">स्कूल मेल में कुछ गड़बड़ हो गई</string>
     <string name="school_mail_error_network">मेल सर्वर तक नहीं पहुँच सके</string>
+    <string name="school_mail_error_too_large">यह मेल खोलने के लिए बहुत बड़ा है</string>
     <string name="school_mail_exact_alarm_hint">सटीक अलार्म की अनुमति दें ताकि TigerDuck समय पर मेल जाँच सके।</string>
     <string name="school_mail_external_badge">बाहरी</string>
     <string name="school_mail_folder_all">सभी मेल</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">इमेज लोड करें</string>
     <string name="school_mail_mark_read">पढ़ा हुआ चिह्नित करें</string>
     <string name="school_mail_mark_unread">अपठित चिह्नित करें</string>
+    <string name="school_mail_message_actions">अधिक कार्रवाइयां</string>
     <string name="school_mail_move_to">यहाँ ले जाएं…</string>
     <string name="school_mail_new_mail_count">%1$@ नए मेल</string>
     <string name="school_mail_no_recipient">कम से कम एक प्राप्तकर्ता जोड़ें</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">रिमोट इमेज ब्लॉक हैं</string>
     <string name="school_mail_reply">जवाब दें</string>
     <string name="school_mail_reply_all">सभी को जवाब दें</string>
+    <string name="school_mail_reply_menu">जवाब के विकल्प</string>
     <string name="school_mail_risky_message">%1$@ आपके डिवाइस को नुकसान पहुँचा सकता है। तभी जारी रखें जब आपको प्रेषक पर भरोसा हो।</string>
     <string name="school_mail_risky_title">यह अटैचमेंट खोलें?</string>
     <string name="school_mail_save_draft">ड्राफ़्ट सेव करें</string>

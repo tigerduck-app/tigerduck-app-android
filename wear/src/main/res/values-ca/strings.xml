@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Has escrit malament alguna adreça al correu que acabes d\'enviar?</string>
     <string name="school_mail_cache_size">Mida de la memòria cau</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Punt de partida reiniciat</string>
+    <string name="school_mail_check_failed">La comprovació ha fallat: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Sense correu nou</string>
+    <string name="school_mail_check_sign_in_failed">No s\'ha pogut iniciar la sessió</string>
+    <string name="school_mail_check_skipped_auth_failed">Omesa: no s\'ha pogut iniciar la sessió</string>
+    <string name="school_mail_check_skipped_busy">Omesa: ja s\'estava fent una altra comprovació</string>
+    <string name="school_mail_check_skipped_disabled">Omesa: les notificacions estan desactivades</string>
+    <string name="school_mail_check_skipped_signed_out">Omesa: sessió tancada</string>
+    <string name="school_mail_check_trigger_background">Comprovació en segon pla</string>
+    <string name="school_mail_check_trigger_foreground">Aplicació oberta</string>
+    <string name="school_mail_check_trigger_page">Pantalla del Correu universitari</string>
     <string name="school_mail_clear_cache">Esborra la memòria cau</string>
     <string name="school_mail_compose">Correu nou</string>
     <string name="school_mail_copy_all">Copia-ho tot</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">No s\'ha pogut verificar el certificat del servidor de correu. Aquesta xarxa podria no ser segura.</string>
     <string name="school_mail_error_generic">S\'ha produït un error al correu universitari</string>
     <string name="school_mail_error_network">No es pot connectar amb el servidor de correu</string>
+    <string name="school_mail_error_too_large">Aquest correu és massa gran per obrir-lo</string>
     <string name="school_mail_exact_alarm_hint">Permet les alarmes exactes perquè TigerDuck pugui comprovar el correu a temps.</string>
     <string name="school_mail_external_badge">Extern</string>
     <string name="school_mail_folder_all">Tot el correu</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Carrega les imatges</string>
     <string name="school_mail_mark_read">Marca com a llegit</string>
     <string name="school_mail_mark_unread">Marca com a no llegit</string>
+    <string name="school_mail_message_actions">Més accions</string>
     <string name="school_mail_move_to">Mou a…</string>
     <string name="school_mail_new_mail_count">%1$@ correus nous</string>
     <string name="school_mail_no_recipient">Afegeix almenys un destinatari</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Les imatges remotes estan bloquejades</string>
     <string name="school_mail_reply">Respon</string>
     <string name="school_mail_reply_all">Respon a tots</string>
+    <string name="school_mail_reply_menu">Opcions de resposta</string>
     <string name="school_mail_risky_message">%1$@ podria fer mal al teu dispositiu. Continua només si confies en el remitent.</string>
     <string name="school_mail_risky_title">Vols obrir aquest fitxer adjunt?</string>
     <string name="school_mail_save_draft">Desa l\'esborrany</string>

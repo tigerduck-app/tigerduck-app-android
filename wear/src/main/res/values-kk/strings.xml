@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Жаңа ғана жіберген хатыңызда мекенжайды қате жазып алдыңыз ба?</string>
     <string name="school_mail_cache_size">Кэш көлемі</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Бастапқы нүкте қалпына келтірілді</string>
+    <string name="school_mail_check_failed">Тексеру сәтсіз аяқталды: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Жаңа хат жоқ</string>
+    <string name="school_mail_check_sign_in_failed">Кіру сәтсіз аяқталды</string>
+    <string name="school_mail_check_skipped_auth_failed">Өткізіп жіберілді: кіру сәтсіз аяқталды</string>
+    <string name="school_mail_check_skipped_busy">Өткізіп жіберілді: басқа тексеру орындалып жатқан еді</string>
+    <string name="school_mail_check_skipped_disabled">Өткізіп жіберілді: хабарландырулар өшірулі</string>
+    <string name="school_mail_check_skipped_signed_out">Өткізіп жіберілді: шығылған</string>
+    <string name="school_mail_check_trigger_background">Фондық тексеру</string>
+    <string name="school_mail_check_trigger_foreground">Қолданба ашылды</string>
+    <string name="school_mail_check_trigger_page">Мектеп поштасы экраны</string>
     <string name="school_mail_clear_cache">Кэшті тазарту</string>
     <string name="school_mail_compose">Жаңа хат</string>
     <string name="school_mail_copy_all">Барлығын көшіру</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Пошта серверінің сертификатын растау мүмкін болмады. Бұл желі қауіпсіз болмауы мүмкін.</string>
     <string name="school_mail_error_generic">Мектеп поштасында қате орын алды</string>
     <string name="school_mail_error_network">Пошта серверіне қосылу мүмкін емес</string>
+    <string name="school_mail_error_too_large">Бұл хат тым үлкен, оны ашу мүмкін емес</string>
     <string name="school_mail_exact_alarm_hint">TigerDuck қолданбасы хаттарды уақытында тексере алуы үшін дәл уақыттағы дабылдарға рұқсат беріңіз.</string>
     <string name="school_mail_external_badge">Сыртқы</string>
     <string name="school_mail_folder_all">Барлық хаттар</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Суреттерді жүктеу</string>
     <string name="school_mail_mark_read">Оқылды деп белгілеу</string>
     <string name="school_mail_mark_unread">Оқылмады деп белгілеу</string>
+    <string name="school_mail_message_actions">Көбірек әрекеттер</string>
     <string name="school_mail_move_to">Жылжыту…</string>
     <string name="school_mail_new_mail_count">%1$@ жаңа хат</string>
     <string name="school_mail_no_recipient">Кемінде бір алушы қосыңыз</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Қашықтағы суреттер бұғатталды</string>
     <string name="school_mail_reply">Жауап беру</string>
     <string name="school_mail_reply_all">Барлығына жауап беру</string>
+    <string name="school_mail_reply_menu">Жауап беру опциялары</string>
     <string name="school_mail_risky_message">%1$@ құрылғыңызға зиян тигізуі мүмкін. Тек жіберушіге сенсеңіз ғана жалғастырыңыз.</string>
     <string name="school_mail_risky_title">Бұл тіркеме ашылсын ба?</string>
     <string name="school_mail_save_draft">Жобаны сақтау</string>

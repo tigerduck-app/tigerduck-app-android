@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Kas kirjutasid äsja saadetud kirjas aadressi valesti?</string>
     <string name="school_mail_cache_size">Vahemälu suurus</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Lähtepunkt lähtestati</string>
+    <string name="school_mail_check_failed">Kontroll ebaõnnestus: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Uusi kirju ei ole</string>
+    <string name="school_mail_check_sign_in_failed">Sisselogimine ebaõnnestus</string>
+    <string name="school_mail_check_skipped_auth_failed">Vahele jäetud: sisselogimine ebaõnnestus</string>
+    <string name="school_mail_check_skipped_busy">Vahele jäetud: teine kontroll oli juba käimas</string>
+    <string name="school_mail_check_skipped_disabled">Vahele jäetud: teavitused on väljas</string>
+    <string name="school_mail_check_skipped_signed_out">Vahele jäetud: oled välja logitud</string>
+    <string name="school_mail_check_trigger_background">Taustakontroll</string>
+    <string name="school_mail_check_trigger_foreground">Rakendus avati</string>
+    <string name="school_mail_check_trigger_page">Ekraan „Kooli e-post”</string>
     <string name="school_mail_clear_cache">Tühjenda vahemälu</string>
     <string name="school_mail_compose">Uus kiri</string>
     <string name="school_mail_copy_all">Kopeeri kõik</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Postiserveri sertifikaati ei õnnestunud kontrollida. See võrk ei pruugi olla turvaline.</string>
     <string name="school_mail_error_generic">Kooli e-postiga läks midagi valesti</string>
     <string name="school_mail_error_network">Postiserverini ei õnnestu jõuda</string>
+    <string name="school_mail_error_too_large">See kiri on liiga suur, et avada</string>
     <string name="school_mail_exact_alarm_hint">Luba täpsed alarmid, et TigerDuck saaks õigel ajal posti kontrollida.</string>
     <string name="school_mail_external_badge">Väline</string>
     <string name="school_mail_folder_all">Kogu e-post</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Laadi pildid</string>
     <string name="school_mail_mark_read">Märgi loetuks</string>
     <string name="school_mail_mark_unread">Märgi lugemata</string>
+    <string name="school_mail_message_actions">Rohkem toiminguid</string>
     <string name="school_mail_move_to">Teisalda kausta…</string>
     <string name="school_mail_new_mail_count">%1$@ uut kirja</string>
     <string name="school_mail_no_recipient">Lisa vähemalt üks saaja</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Kaugpildid on blokeeritud</string>
     <string name="school_mail_reply">Vasta</string>
     <string name="school_mail_reply_all">Vasta kõigile</string>
+    <string name="school_mail_reply_menu">Vastamise valikud</string>
     <string name="school_mail_risky_message">%1$@ võib su seadet kahjustada. Jätka ainult siis, kui usaldad saatjat.</string>
     <string name="school_mail_risky_title">Kas avada see manus?</string>
     <string name="school_mail_save_draft">Salvesta mustand</string>

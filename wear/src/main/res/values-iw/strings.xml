@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">האם טעית בהקלדת כתובת בהודעה ששלחת הרגע?</string>
     <string name="school_mail_cache_size">גודל המטמון</string>
     <string name="school_mail_cc">עותק</string>
+    <string name="school_mail_check_baseline_reset">נקודת ההתחלה אופסה</string>
+    <string name="school_mail_check_failed">הבדיקה נכשלה: %1$@</string>
+    <string name="school_mail_check_no_new_mail">אין דואר חדש</string>
+    <string name="school_mail_check_sign_in_failed">הכניסה נכשלה</string>
+    <string name="school_mail_check_skipped_auth_failed">דולג: הכניסה נכשלה</string>
+    <string name="school_mail_check_skipped_busy">דולג: בדיקה אחרת כבר פעלה</string>
+    <string name="school_mail_check_skipped_disabled">דולג: ההתראות כבויות</string>
+    <string name="school_mail_check_skipped_signed_out">דולג: מנותק</string>
+    <string name="school_mail_check_trigger_background">בדיקה ברקע</string>
+    <string name="school_mail_check_trigger_foreground">פתיחת האפליקציה</string>
+    <string name="school_mail_check_trigger_page">מסך דואר בית הספר</string>
     <string name="school_mail_clear_cache">נקה מטמון</string>
     <string name="school_mail_compose">הודעה חדשה</string>
     <string name="school_mail_copy_all">העתק הכול</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">לא ניתן לאמת את האישור של שרת הדואר. ייתכן שהרשת הזו אינה בטוחה.</string>
     <string name="school_mail_error_generic">משהו השתבש בדואר בית הספר</string>
     <string name="school_mail_error_network">לא ניתן להתחבר לשרת הדואר</string>
+    <string name="school_mail_error_too_large">ההודעה הזו גדולה מדי לפתיחה</string>
     <string name="school_mail_exact_alarm_hint">אפשר התראות מדויקות כדי ש-TigerDuck יוכל לבדוק דואר בזמן.</string>
     <string name="school_mail_external_badge">חיצוני</string>
     <string name="school_mail_folder_all">כל הדואר</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">טען תמונות</string>
     <string name="school_mail_mark_read">סמן כנקרא</string>
     <string name="school_mail_mark_unread">סמן כלא נקרא</string>
+    <string name="school_mail_message_actions">פעולות נוספות</string>
     <string name="school_mail_move_to">העבר אל…</string>
     <string name="school_mail_new_mail_count">%1$@ הודעות דואר חדשות</string>
     <string name="school_mail_no_recipient">הוסף נמען אחד לפחות</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">תמונות מרוחקות חסומות</string>
     <string name="school_mail_reply">השב</string>
     <string name="school_mail_reply_all">השב לכולם</string>
+    <string name="school_mail_reply_menu">אפשרויות מענה</string>
     <string name="school_mail_risky_message">%1$@ עלול לפגוע במכשיר שלך. המשך רק אם אתה סומך על השולח.</string>
     <string name="school_mail_risky_title">לפתוח את הקובץ המצורף הזה?</string>
     <string name="school_mail_save_draft">שמור טיוטה</string>

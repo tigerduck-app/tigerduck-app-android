@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Elképzelhető, hogy elgépelt egy címet a nemrég elküldött üzenetben?</string>
     <string name="school_mail_cache_size">Gyorsítótár mérete</string>
     <string name="school_mail_cc">Másolat</string>
+    <string name="school_mail_check_baseline_reset">Kiindulópont visszaállítva</string>
+    <string name="school_mail_check_failed">Az ellenőrzés sikertelen volt: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Nincs új üzenet</string>
+    <string name="school_mail_check_sign_in_failed">Nem sikerült bejelentkezni</string>
+    <string name="school_mail_check_skipped_auth_failed">Kihagyva: nem sikerült bejelentkezni</string>
+    <string name="school_mail_check_skipped_busy">Kihagyva: már folyamatban volt egy másik ellenőrzés</string>
+    <string name="school_mail_check_skipped_disabled">Kihagyva: az értesítések ki vannak kapcsolva</string>
+    <string name="school_mail_check_skipped_signed_out">Kihagyva: ki van jelentkezve</string>
+    <string name="school_mail_check_trigger_background">Háttérellenőrzés</string>
+    <string name="school_mail_check_trigger_foreground">Az alkalmazás megnyílt</string>
+    <string name="school_mail_check_trigger_page">Iskolai posta képernyő</string>
     <string name="school_mail_clear_cache">Gyorsítótár törlése</string>
     <string name="school_mail_compose">Új üzenet</string>
     <string name="school_mail_copy_all">Összes másolása</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Nem sikerült ellenőrizni a levelezőszerver tanúsítványát. Lehet, hogy ez a hálózat nem biztonságos.</string>
     <string name="school_mail_error_generic">Hiba történt az iskolai postában</string>
     <string name="school_mail_error_network">A levelezőszerver nem érhető el</string>
+    <string name="school_mail_error_too_large">Ez az üzenet túl nagy a megnyitáshoz</string>
     <string name="school_mail_exact_alarm_hint">Engedélyezze a pontos ébresztőket, hogy a TigerDuck időben ellenőrizhesse az új üzeneteket.</string>
     <string name="school_mail_external_badge">Külső</string>
     <string name="school_mail_folder_all">Összes levél</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Képek betöltése</string>
     <string name="school_mail_mark_read">Megjelölés olvasottként</string>
     <string name="school_mail_mark_unread">Megjelölés olvasatlanként</string>
+    <string name="school_mail_message_actions">További műveletek</string>
     <string name="school_mail_move_to">Áthelyezés…</string>
     <string name="school_mail_new_mail_count">%1$@ új üzenet</string>
     <string name="school_mail_no_recipient">Adjon meg legalább egy címzettet</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">A távoli képek le vannak tiltva</string>
     <string name="school_mail_reply">Válasz</string>
     <string name="school_mail_reply_all">Válasz mindenkinek</string>
+    <string name="school_mail_reply_menu">Válaszlehetőségek</string>
     <string name="school_mail_risky_message">%1$@ kárt tehet az eszközében. Csak akkor folytassa, ha megbízik a feladóban.</string>
     <string name="school_mail_risky_title">Megnyitja ezt a mellékletet?</string>
     <string name="school_mail_save_draft">Piszkozat mentése</string>

@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Neobsahuje adresa v právě odeslané zprávě překlep?</string>
     <string name="school_mail_cache_size">Velikost mezipaměti</string>
     <string name="school_mail_cc">Kopie</string>
+    <string name="school_mail_check_baseline_reset">Počáteční bod obnoven</string>
+    <string name="school_mail_check_failed">Kontrola se nezdařila: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Žádná nová pošta</string>
+    <string name="school_mail_check_sign_in_failed">Přihlášení se nezdařilo</string>
+    <string name="school_mail_check_skipped_auth_failed">Přeskočeno: přihlášení se nezdařilo</string>
+    <string name="school_mail_check_skipped_busy">Přeskočeno: jiná kontrola už probíhala</string>
+    <string name="school_mail_check_skipped_disabled">Přeskočeno: oznámení jsou vypnutá</string>
+    <string name="school_mail_check_skipped_signed_out">Přeskočeno: odhlášen</string>
+    <string name="school_mail_check_trigger_background">Kontrola na pozadí</string>
+    <string name="school_mail_check_trigger_foreground">Aplikace otevřena</string>
+    <string name="school_mail_check_trigger_page">Obrazovka Školní pošty</string>
     <string name="school_mail_clear_cache">Vymazat mezipaměť</string>
     <string name="school_mail_compose">Nový e-mail</string>
     <string name="school_mail_copy_all">Kopírovat vše</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Nepodařilo se ověřit certifikát poštovního serveru. Tato síť nemusí být bezpečná.</string>
     <string name="school_mail_error_generic">Ve školní poště se něco pokazilo</string>
     <string name="school_mail_error_network">Nelze se připojit k poštovnímu serveru</string>
+    <string name="school_mail_error_too_large">Tato zpráva je příliš velká na otevření</string>
     <string name="school_mail_exact_alarm_hint">Povolte přesné budíky, aby mohl TigerDuck včas kontrolovat poštu.</string>
     <string name="school_mail_external_badge">Externí</string>
     <string name="school_mail_folder_all">Veškerá pošta</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Načíst obrázky</string>
     <string name="school_mail_mark_read">Označit jako přečtené</string>
     <string name="school_mail_mark_unread">Označit jako nepřečtené</string>
+    <string name="school_mail_message_actions">Další akce</string>
     <string name="school_mail_move_to">Přesunout do…</string>
     <string name="school_mail_new_mail_count">Nové zprávy: %1$@</string>
     <string name="school_mail_no_recipient">Přidejte alespoň jednoho příjemce</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Vzdálené obrázky jsou blokovány</string>
     <string name="school_mail_reply">Odpovědět</string>
     <string name="school_mail_reply_all">Odpovědět všem</string>
+    <string name="school_mail_reply_menu">Možnosti odpovědi</string>
     <string name="school_mail_risky_message">%1$@ může poškodit vaše zařízení. Pokračujte, jen pokud důvěřujete odesílateli.</string>
     <string name="school_mail_risky_title">Otevřít tuto přílohu?</string>
     <string name="school_mail_save_draft">Uložit koncept</string>

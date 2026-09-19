@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Ai scris greșit o adresă în e-mailul pe care tocmai l-ai trimis?</string>
     <string name="school_mail_cache_size">Dimensiunea memoriei cache</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Punct de pornire resetat</string>
+    <string name="school_mail_check_failed">Verificarea a eșuat: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Niciun e-mail nou</string>
+    <string name="school_mail_check_sign_in_failed">Conectarea a eșuat</string>
+    <string name="school_mail_check_skipped_auth_failed">Omisă: conectarea a eșuat</string>
+    <string name="school_mail_check_skipped_busy">Omisă: o altă verificare era deja în curs</string>
+    <string name="school_mail_check_skipped_disabled">Omisă: notificările sunt dezactivate</string>
+    <string name="school_mail_check_skipped_signed_out">Omisă: deconectat</string>
+    <string name="school_mail_check_trigger_background">Verificare în fundal</string>
+    <string name="school_mail_check_trigger_foreground">Aplicația a fost deschisă</string>
+    <string name="school_mail_check_trigger_page">Ecranul E-mail universitar</string>
     <string name="school_mail_clear_cache">Golește memoria cache</string>
     <string name="school_mail_compose">E-mail nou</string>
     <string name="school_mail_copy_all">Copiază tot</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Certificatul serverului de e-mail nu a putut fi verificat. Este posibil ca această rețea să nu fie sigură.</string>
     <string name="school_mail_error_generic">A apărut o problemă cu e-mailul universitar</string>
     <string name="school_mail_error_network">Serverul de e-mail nu poate fi accesat</string>
+    <string name="school_mail_error_too_large">Acest e-mail este prea mare pentru a fi deschis</string>
     <string name="school_mail_exact_alarm_hint">Permite alarmele exacte ca TigerDuck să poată verifica e-mailurile la timp.</string>
     <string name="school_mail_external_badge">Extern</string>
     <string name="school_mail_folder_all">Toate mesajele</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Încarcă imaginile</string>
     <string name="school_mail_mark_read">Marchează ca citit</string>
     <string name="school_mail_mark_unread">Marchează ca necitit</string>
+    <string name="school_mail_message_actions">Mai multe acțiuni</string>
     <string name="school_mail_move_to">Mută în…</string>
     <string name="school_mail_new_mail_count">%1$@ e-mailuri noi</string>
     <string name="school_mail_no_recipient">Adaugă cel puțin un destinatar</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Imaginile de la distanță sunt blocate</string>
     <string name="school_mail_reply">Răspunde</string>
     <string name="school_mail_reply_all">Răspunde tuturor</string>
+    <string name="school_mail_reply_menu">Opțiuni de răspuns</string>
     <string name="school_mail_risky_message">%1$@ ar putea afecta dispozitivul tău. Continuă doar dacă ai încredere în expeditor.</string>
     <string name="school_mail_risky_title">Deschizi acest atașament?</string>
     <string name="school_mail_save_draft">Salvează ciorna</string>

@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">你刚刚寄信是不是填错电子信箱？</string>
     <string name="school_mail_cache_size">缓存大小</string>
     <string name="school_mail_cc">抄送</string>
+    <string name="school_mail_check_baseline_reset">已重置起点</string>
+    <string name="school_mail_check_failed">检查失败：%1$@</string>
+    <string name="school_mail_check_no_new_mail">没有新邮件</string>
+    <string name="school_mail_check_sign_in_failed">登录失败</string>
+    <string name="school_mail_check_skipped_auth_failed">已跳过：登录失败</string>
+    <string name="school_mail_check_skipped_busy">已跳过：已有其他检查正在进行中</string>
+    <string name="school_mail_check_skipped_disabled">已跳过：通知已关闭</string>
+    <string name="school_mail_check_skipped_signed_out">已跳过：尚未登录</string>
+    <string name="school_mail_check_trigger_background">后台检查</string>
+    <string name="school_mail_check_trigger_foreground">打开 App</string>
+    <string name="school_mail_check_trigger_page">校园邮箱画面</string>
     <string name="school_mail_clear_cache">清除缓存</string>
     <string name="school_mail_compose">新邮件</string>
     <string name="school_mail_copy_all">全部复制</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">无法验证邮件服务器的证书，这个网络可能不安全。</string>
     <string name="school_mail_error_generic">校园邮箱出现错误</string>
     <string name="school_mail_error_network">无法连接到邮件服务器</string>
+    <string name="school_mail_error_too_large">这封邮件太大，无法打开</string>
     <string name="school_mail_exact_alarm_hint">允许精确闹钟，TigerDuck 才能准时检查新邮件。</string>
     <string name="school_mail_external_badge">外部</string>
     <string name="school_mail_folder_all">所有邮件</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">加载图片</string>
     <string name="school_mail_mark_read">标记为已读</string>
     <string name="school_mail_mark_unread">标记为未读</string>
+    <string name="school_mail_message_actions">更多操作</string>
     <string name="school_mail_move_to">移动到…</string>
     <string name="school_mail_new_mail_count">%1$@ 封新邮件</string>
     <string name="school_mail_no_recipient">请至少填写一位收件人</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">已屏蔽远程图片</string>
     <string name="school_mail_reply">回复</string>
     <string name="school_mail_reply_all">全部回复</string>
+    <string name="school_mail_reply_menu">回复选项</string>
     <string name="school_mail_risky_message">%1$@ 可能对设备有害，确认发件人可信后再继续。</string>
     <string name="school_mail_risky_title">要打开这个附件吗？</string>
     <string name="school_mail_save_draft">保存草稿</string>

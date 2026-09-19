@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">আপনি কি এইমাত্র পাঠানো মেইলে কোনো ঠিকানা ভুল টাইপ করেছেন?</string>
     <string name="school_mail_cache_size">ক্যাশের আকার</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">শুরুর বিন্দু রিসেট হয়েছে</string>
+    <string name="school_mail_check_failed">পরীক্ষা ব্যর্থ হয়েছে: %1$@</string>
+    <string name="school_mail_check_no_new_mail">নতুন মেইল নেই</string>
+    <string name="school_mail_check_sign_in_failed">সাইন ইন ব্যর্থ হয়েছে</string>
+    <string name="school_mail_check_skipped_auth_failed">এড়িয়ে যাওয়া হয়েছে: সাইন ইন ব্যর্থ হয়েছে</string>
+    <string name="school_mail_check_skipped_busy">এড়িয়ে যাওয়া হয়েছে: আরেকটি পরীক্ষা আগে থেকেই চলছিল</string>
+    <string name="school_mail_check_skipped_disabled">এড়িয়ে যাওয়া হয়েছে: বিজ্ঞপ্তি নিষ্ক্রিয়</string>
+    <string name="school_mail_check_skipped_signed_out">এড়িয়ে যাওয়া হয়েছে: সাইন আউট করা ছিল</string>
+    <string name="school_mail_check_trigger_background">ব্যাকগ্রাউন্ড পরীক্ষা</string>
+    <string name="school_mail_check_trigger_foreground">অ্যাপ খোলা হয়েছে</string>
+    <string name="school_mail_check_trigger_page">স্কুল মেইল স্ক্রিন</string>
     <string name="school_mail_clear_cache">ক্যাশ সাফ করুন</string>
     <string name="school_mail_compose">নতুন মেইল</string>
     <string name="school_mail_copy_all">সব কপি করুন</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">মেইল সার্ভারের সার্টিফিকেট যাচাই করা যায়নি। এই নেটওয়ার্কটি নিরাপদ নাও হতে পারে।</string>
     <string name="school_mail_error_generic">স্কুল মেইলে কিছু একটা সমস্যা হয়েছে</string>
     <string name="school_mail_error_network">মেইল সার্ভারে পৌঁছানো যাচ্ছে না</string>
+    <string name="school_mail_error_too_large">এই মেইলটি খোলার জন্য অনেক বড়</string>
     <string name="school_mail_exact_alarm_hint">সঠিক অ্যালার্মের অনুমতি দিন, যাতে TigerDuck সময়মতো মেইল পরীক্ষা করতে পারে।</string>
     <string name="school_mail_external_badge">বাহ্যিক</string>
     <string name="school_mail_folder_all">সব মেইল</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">ছবি লোড করুন</string>
     <string name="school_mail_mark_read">পঠিত হিসেবে চিহ্নিত করুন</string>
     <string name="school_mail_mark_unread">অপঠিত হিসেবে চিহ্নিত করুন</string>
+    <string name="school_mail_message_actions">আরও কার্যক্রম</string>
     <string name="school_mail_move_to">সরান…</string>
     <string name="school_mail_new_mail_count">%1$@টি নতুন মেইল</string>
     <string name="school_mail_no_recipient">অন্তত একজন প্রাপক যোগ করুন</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">দূরবর্তী ছবি ব্লক করা আছে</string>
     <string name="school_mail_reply">উত্তর দিন</string>
     <string name="school_mail_reply_all">সবাইকে উত্তর দিন</string>
+    <string name="school_mail_reply_menu">উত্তরের বিকল্প</string>
     <string name="school_mail_risky_message">%1$@ আপনার ডিভাইসের ক্ষতি করতে পারে। প্রেরককে বিশ্বাস করলে তবেই এগিয়ে যান।</string>
     <string name="school_mail_risky_title">এই অ্যাটাচমেন্টটি খুলবেন?</string>
     <string name="school_mail_save_draft">খসড়া সংরক্ষণ করুন</string>

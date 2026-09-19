@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Hai digitato male un indirizzo nel messaggio che hai appena inviato?</string>
     <string name="school_mail_cache_size">Dimensione della cache</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Punto di partenza reimpostato</string>
+    <string name="school_mail_check_failed">Controllo non riuscito: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Nessun nuovo messaggio</string>
+    <string name="school_mail_check_sign_in_failed">Accesso non riuscito</string>
+    <string name="school_mail_check_skipped_auth_failed">Saltato: accesso non riuscito</string>
+    <string name="school_mail_check_skipped_busy">Saltato: era già in corso un altro controllo</string>
+    <string name="school_mail_check_skipped_disabled">Saltato: le notifiche sono disattivate</string>
+    <string name="school_mail_check_skipped_signed_out">Saltato: disconnesso</string>
+    <string name="school_mail_check_trigger_background">Controllo in background</string>
+    <string name="school_mail_check_trigger_foreground">App aperta</string>
+    <string name="school_mail_check_trigger_page">Schermata di Posta universitaria</string>
     <string name="school_mail_clear_cache">Svuota cache</string>
     <string name="school_mail_compose">Nuovo messaggio</string>
     <string name="school_mail_copy_all">Copia tutto</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Impossibile verificare il certificato del server di posta. Questa rete potrebbe non essere sicura.</string>
     <string name="school_mail_error_generic">Si è verificato un errore con la posta universitaria</string>
     <string name="school_mail_error_network">Impossibile raggiungere il server di posta</string>
+    <string name="school_mail_error_too_large">Questo messaggio è troppo grande per essere aperto</string>
     <string name="school_mail_exact_alarm_hint">Consenti le sveglie esatte in modo che TigerDuck possa controllare la posta puntualmente.</string>
     <string name="school_mail_external_badge">Esterno</string>
     <string name="school_mail_folder_all">Tutti i messaggi</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Carica immagini</string>
     <string name="school_mail_mark_read">Segna come letto</string>
     <string name="school_mail_mark_unread">Segna come da leggere</string>
+    <string name="school_mail_message_actions">Altre azioni</string>
     <string name="school_mail_move_to">Sposta in…</string>
     <string name="school_mail_new_mail_count">%1$@ nuovi messaggi</string>
     <string name="school_mail_no_recipient">Aggiungi almeno un destinatario</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Le immagini remote sono bloccate</string>
     <string name="school_mail_reply">Rispondi</string>
     <string name="school_mail_reply_all">Rispondi a tutti</string>
+    <string name="school_mail_reply_menu">Opzioni di risposta</string>
     <string name="school_mail_risky_message">%1$@ potrebbe danneggiare il tuo dispositivo. Continua solo se ti fidi del mittente.</string>
     <string name="school_mail_risky_title">Aprire questo allegato?</string>
     <string name="school_mail_save_draft">Salva bozza</string>

@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Bạn có gõ sai địa chỉ trong thư vừa gửi không?</string>
     <string name="school_mail_cache_size">Dung lượng bộ nhớ đệm</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Đã đặt lại điểm bắt đầu</string>
+    <string name="school_mail_check_failed">Kiểm tra không thành công: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Không có thư mới</string>
+    <string name="school_mail_check_sign_in_failed">Đăng nhập không thành công</string>
+    <string name="school_mail_check_skipped_auth_failed">Đã bỏ qua: đăng nhập không thành công</string>
+    <string name="school_mail_check_skipped_busy">Đã bỏ qua: một lượt kiểm tra khác đang chạy</string>
+    <string name="school_mail_check_skipped_disabled">Đã bỏ qua: thông báo đang tắt</string>
+    <string name="school_mail_check_skipped_signed_out">Đã bỏ qua: đã đăng xuất</string>
+    <string name="school_mail_check_trigger_background">Kiểm tra nền</string>
+    <string name="school_mail_check_trigger_foreground">Mở ứng dụng</string>
+    <string name="school_mail_check_trigger_page">Màn hình Email trường</string>
     <string name="school_mail_clear_cache">Xóa bộ nhớ đệm</string>
     <string name="school_mail_compose">Thư mới</string>
     <string name="school_mail_copy_all">Sao chép tất cả</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Không thể xác minh chứng chỉ của máy chủ thư. Mạng này có thể không an toàn.</string>
     <string name="school_mail_error_generic">Đã xảy ra sự cố với Email trường</string>
     <string name="school_mail_error_network">Không thể kết nối đến máy chủ thư</string>
+    <string name="school_mail_error_too_large">Thư này quá lớn để mở</string>
     <string name="school_mail_exact_alarm_hint">Cho phép báo thức chính xác để TigerDuck có thể kiểm tra thư đúng giờ.</string>
     <string name="school_mail_external_badge">Bên ngoài</string>
     <string name="school_mail_folder_all">Tất cả thư</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Tải hình ảnh</string>
     <string name="school_mail_mark_read">Đánh dấu đã đọc</string>
     <string name="school_mail_mark_unread">Đánh dấu chưa đọc</string>
+    <string name="school_mail_message_actions">Thêm thao tác</string>
     <string name="school_mail_move_to">Chuyển đến…</string>
     <string name="school_mail_new_mail_count">%1$@ thư mới</string>
     <string name="school_mail_no_recipient">Thêm ít nhất một người nhận</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Hình ảnh từ xa đã bị chặn</string>
     <string name="school_mail_reply">Trả lời</string>
     <string name="school_mail_reply_all">Trả lời tất cả</string>
+    <string name="school_mail_reply_menu">Tùy chọn trả lời</string>
     <string name="school_mail_risky_message">%1$@ có thể gây hại cho thiết bị của bạn. Chỉ tiếp tục nếu bạn tin tưởng người gửi.</string>
     <string name="school_mail_risky_title">Mở tệp đính kèm này?</string>
     <string name="school_mail_save_draft">Lưu thư nháp</string>

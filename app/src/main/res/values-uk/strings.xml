@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Ви не помилилися адресою в листі, який щойно надіслали?</string>
     <string name="school_mail_cache_size">Розмір кешу</string>
     <string name="school_mail_cc">Копія</string>
+    <string name="school_mail_check_baseline_reset">Початкову точку скинуто</string>
+    <string name="school_mail_check_failed">Перевірка не вдалася: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Нових листів немає</string>
+    <string name="school_mail_check_sign_in_failed">Не вдалося увійти</string>
+    <string name="school_mail_check_skipped_auth_failed">Пропущено: не вдалося увійти</string>
+    <string name="school_mail_check_skipped_busy">Пропущено: вже виконувалася інша перевірка</string>
+    <string name="school_mail_check_skipped_disabled">Пропущено: сповіщення вимкнено</string>
+    <string name="school_mail_check_skipped_signed_out">Пропущено: виконано вихід з облікового запису</string>
+    <string name="school_mail_check_trigger_background">Перевірка у фоновому режимі</string>
+    <string name="school_mail_check_trigger_foreground">Додаток відкрито</string>
+    <string name="school_mail_check_trigger_page">Екран «Університетська пошта»</string>
     <string name="school_mail_clear_cache">Очистити кеш</string>
     <string name="school_mail_compose">Новий лист</string>
     <string name="school_mail_copy_all">Копіювати все</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Не вдалося перевірити сертифікат поштового сервера. Ця мережа може бути небезпечною.</string>
     <string name="school_mail_error_generic">Щось пішло не так з університетською поштою</string>
     <string name="school_mail_error_network">Не вдається підключитися до поштового сервера</string>
+    <string name="school_mail_error_too_large">Цей лист надто великий, щоб його відкрити</string>
     <string name="school_mail_exact_alarm_hint">Дозвольте точні будильники, щоб TigerDuck міг вчасно перевіряти пошту.</string>
     <string name="school_mail_external_badge">Зовнішній</string>
     <string name="school_mail_folder_all">Уся пошта</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Завантажити зображення</string>
     <string name="school_mail_mark_read">Позначити як прочитане</string>
     <string name="school_mail_mark_unread">Позначити як непрочитане</string>
+    <string name="school_mail_message_actions">Інші дії</string>
     <string name="school_mail_move_to">Перемістити до…</string>
     <string name="school_mail_new_mail_count">Нових листів: %1$@</string>
     <string name="school_mail_no_recipient">Додайте хоча б одного отримувача</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Віддалені зображення заблоковано</string>
     <string name="school_mail_reply">Відповісти</string>
     <string name="school_mail_reply_all">Відповісти всім</string>
+    <string name="school_mail_reply_menu">Варіанти відповіді</string>
     <string name="school_mail_risky_message">%1$@ може зашкодити вашому пристрою. Продовжуйте, лише якщо довіряєте відправнику.</string>
     <string name="school_mail_risky_title">Відкрити це вкладення?</string>
     <string name="school_mail_save_draft">Зберегти чернетку</string>

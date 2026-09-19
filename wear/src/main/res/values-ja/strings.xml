@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">送信したメールの宛先を間違えていませんか？</string>
     <string name="school_mail_cache_size">キャッシュサイズ</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">起点をリセットしました</string>
+    <string name="school_mail_check_failed">確認に失敗：%1$@</string>
+    <string name="school_mail_check_no_new_mail">新着メールなし</string>
+    <string name="school_mail_check_sign_in_failed">サインインに失敗</string>
+    <string name="school_mail_check_skipped_auth_failed">スキップ：サインインに失敗</string>
+    <string name="school_mail_check_skipped_busy">スキップ：別の確認が実行中でした</string>
+    <string name="school_mail_check_skipped_disabled">スキップ：通知がオフ</string>
+    <string name="school_mail_check_skipped_signed_out">スキップ：サインアウト</string>
+    <string name="school_mail_check_trigger_background">バックグラウンドでの確認</string>
+    <string name="school_mail_check_trigger_foreground">アプリの起動</string>
+    <string name="school_mail_check_trigger_page">学内メール画面</string>
     <string name="school_mail_clear_cache">キャッシュを削除</string>
     <string name="school_mail_compose">新規メール</string>
     <string name="school_mail_copy_all">すべてコピー</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">メールサーバーの証明書を確認できませんでした。このネットワークは安全でない可能性があります。</string>
     <string name="school_mail_error_generic">学内メールで問題が発生しました</string>
     <string name="school_mail_error_network">メールサーバーに接続できません</string>
+    <string name="school_mail_error_too_large">このメールは大きすぎて開けません</string>
     <string name="school_mail_exact_alarm_hint">「正確なアラーム」を許可すると、TigerDuckが時間どおりにメールを確認できます。</string>
     <string name="school_mail_external_badge">外部</string>
     <string name="school_mail_folder_all">すべてのメール</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">画像を読み込む</string>
     <string name="school_mail_mark_read">既読にする</string>
     <string name="school_mail_mark_unread">未読にする</string>
+    <string name="school_mail_message_actions">その他の操作</string>
     <string name="school_mail_move_to">移動先…</string>
     <string name="school_mail_new_mail_count">新着メール%1$@件</string>
     <string name="school_mail_no_recipient">宛先を1人以上追加してください</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">リモート画像はブロックされています</string>
     <string name="school_mail_reply">返信</string>
     <string name="school_mail_reply_all">全員に返信</string>
+    <string name="school_mail_reply_menu">返信オプション</string>
     <string name="school_mail_risky_message">%1$@は端末に害を及ぼす可能性があります。送信者を信頼できる場合のみ続行してください。</string>
     <string name="school_mail_risky_title">この添付ファイルを開きますか？</string>
     <string name="school_mail_save_draft">下書きを保存</string>

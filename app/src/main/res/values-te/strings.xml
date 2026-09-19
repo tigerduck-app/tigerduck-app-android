@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">మీరు ఇప్పుడే పంపిన ఇమెయిల్‌లో చిరునామా తప్పుగా టైప్ చేశారా?</string>
     <string name="school_mail_cache_size">క్యాష్ పరిమాణం</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">ప్రారంభ స్థానం రీసెట్ చేయబడింది</string>
+    <string name="school_mail_check_failed">తనిఖీ విఫలమైంది: %1$@</string>
+    <string name="school_mail_check_no_new_mail">కొత్త ఇమెయిల్ లేదు</string>
+    <string name="school_mail_check_sign_in_failed">సైన్ ఇన్ విఫలమైంది</string>
+    <string name="school_mail_check_skipped_auth_failed">వదిలేయబడింది: సైన్ ఇన్ విఫలమైంది</string>
+    <string name="school_mail_check_skipped_busy">వదిలేయబడింది: మరో తనిఖీ ఇప్పటికే జరుగుతోంది</string>
+    <string name="school_mail_check_skipped_disabled">వదిలేయబడింది: నోటిఫికేషన్‌లు నిలిపివేయబడ్డాయి</string>
+    <string name="school_mail_check_skipped_signed_out">వదిలేయబడింది: సైన్ అవుట్ చేయబడింది</string>
+    <string name="school_mail_check_trigger_background">నేపథ్య తనిఖీ</string>
+    <string name="school_mail_check_trigger_foreground">యాప్ తెరవబడింది</string>
+    <string name="school_mail_check_trigger_page">స్కూల్ ఇమెయిల్ స్క్రీన్</string>
     <string name="school_mail_clear_cache">క్యాష్ క్లియర్ చేయండి</string>
     <string name="school_mail_compose">కొత్త ఇమెయిల్</string>
     <string name="school_mail_copy_all">అన్నీ కాపీ చేయండి</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">మెయిల్ సర్వర్ సర్టిఫికేట్‌ను ధృవీకరించలేకపోయింది. ఈ నెట్‌వర్క్ సురక్షితం కాకపోవచ్చు.</string>
     <string name="school_mail_error_generic">స్కూల్ ఇమెయిల్‌లో ఏదో తప్పు జరిగింది</string>
     <string name="school_mail_error_network">మెయిల్ సర్వర్‌ను చేరుకోలేకపోయింది</string>
+    <string name="school_mail_error_too_large">ఈ ఇమెయిల్ తెరవడానికి చాలా పెద్దది</string>
     <string name="school_mail_exact_alarm_hint">TigerDuck సకాలంలో ఇమెయిల్‌ను తనిఖీ చేయడానికి ఖచ్చితమైన అలారంలను అనుమతించండి.</string>
     <string name="school_mail_external_badge">బాహ్య</string>
     <string name="school_mail_folder_all">అన్ని మెయిల్‌లు</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">చిత్రాలను లోడ్ చేయండి</string>
     <string name="school_mail_mark_read">చదివినట్లు గుర్తించు</string>
     <string name="school_mail_mark_unread">చదవనిదిగా గుర్తించు</string>
+    <string name="school_mail_message_actions">మరిన్ని చర్యలు</string>
     <string name="school_mail_move_to">తరలించు…</string>
     <string name="school_mail_new_mail_count">%1$@ కొత్త ఇమెయిల్స్</string>
     <string name="school_mail_no_recipient">కనీసం ఒక్క స్వీకర్తను జోడించండి</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">రిమోట్ చిత్రాలు బ్లాక్ చేయబడ్డాయి</string>
     <string name="school_mail_reply">రిప్లై</string>
     <string name="school_mail_reply_all">అందరికీ రిప్లై</string>
+    <string name="school_mail_reply_menu">రిప్లై ఎంపికలు</string>
     <string name="school_mail_risky_message">%1$@ మీ పరికరానికి హాని కలిగించవచ్చు. పంపినవారు నమ్మకమైనవారైతే మాత్రమే కొనసాగించండి.</string>
     <string name="school_mail_risky_title">ఈ జోడింపును తెరవాలా?</string>
     <string name="school_mail_save_draft">డ్రాఫ్ట్ సేవ్ చేయండి</string>

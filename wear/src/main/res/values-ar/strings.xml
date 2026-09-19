@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">هل أخطأت في كتابة عنوان في الرسالة التي أرسلتها للتو؟</string>
     <string name="school_mail_cache_size">حجم التخزين المؤقت</string>
     <string name="school_mail_cc">نسخة</string>
+    <string name="school_mail_check_baseline_reset">إعادة ضبط نقطة البداية</string>
+    <string name="school_mail_check_failed">فشل التحقق: %1$@</string>
+    <string name="school_mail_check_no_new_mail">لا رسائل جديدة</string>
+    <string name="school_mail_check_sign_in_failed">فشل تسجيل الدخول</string>
+    <string name="school_mail_check_skipped_auth_failed">تم التخطي: فشل تسجيل الدخول</string>
+    <string name="school_mail_check_skipped_busy">تم التخطي: كانت هناك عملية تحقق أخرى قيد التشغيل بالفعل</string>
+    <string name="school_mail_check_skipped_disabled">تم التخطي: الإشعارات معطّلة</string>
+    <string name="school_mail_check_skipped_signed_out">تم التخطي: تم تسجيل الخروج</string>
+    <string name="school_mail_check_trigger_background">التحقق في الخلفية</string>
+    <string name="school_mail_check_trigger_foreground">تم فتح التطبيق</string>
+    <string name="school_mail_check_trigger_page">شاشة البريد المدرسي</string>
     <string name="school_mail_clear_cache">مسح التخزين المؤقت</string>
     <string name="school_mail_compose">رسالة جديدة</string>
     <string name="school_mail_copy_all">نسخ الكل</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">تعذّر التحقق من شهادة خادم البريد، قد تكون هذه الشبكة غير آمنة.</string>
     <string name="school_mail_error_generic">حدث خطأ ما في البريد المدرسي</string>
     <string name="school_mail_error_network">تعذّر الوصول إلى خادم البريد</string>
+    <string name="school_mail_error_too_large">هذه الرسالة كبيرة جدًا بحيث لا يمكن فتحها</string>
     <string name="school_mail_exact_alarm_hint">اسمح بالمنبهات الدقيقة ليتمكن TigerDuck من التحقق من البريد في الوقت المحدد.</string>
     <string name="school_mail_external_badge">خارجي</string>
     <string name="school_mail_folder_all">كل الرسائل</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">تحميل الصور</string>
     <string name="school_mail_mark_read">تمييز كمقروءة</string>
     <string name="school_mail_mark_unread">تمييز كغير مقروءة</string>
+    <string name="school_mail_message_actions">المزيد من الإجراءات</string>
     <string name="school_mail_move_to">نقل إلى…</string>
     <string name="school_mail_new_mail_count">%1$@ رسالة جديدة</string>
     <string name="school_mail_no_recipient">أضف مستلمًا واحدًا على الأقل</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">الصور البعيدة محظورة</string>
     <string name="school_mail_reply">رد</string>
     <string name="school_mail_reply_all">الرد على الكل</string>
+    <string name="school_mail_reply_menu">خيارات الرد</string>
     <string name="school_mail_risky_message">قد يضر %1$@ بجهازك. تابع فقط إذا كنت تثق بالمرسل.</string>
     <string name="school_mail_risky_title">هل تريد فتح هذا المرفق؟</string>
     <string name="school_mail_save_draft">حفظ المسودة</string>

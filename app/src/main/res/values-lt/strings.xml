@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Ar suklydote įvesdami adresą ką tik išsiųstame laiške?</string>
     <string name="school_mail_cache_size">Podėlio dydis</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Pradinis taškas nustatytas iš naujo</string>
+    <string name="school_mail_check_failed">Patikrinimas nepavyko: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Naujų laiškų nėra</string>
+    <string name="school_mail_check_sign_in_failed">Nepavyko prisijungti</string>
+    <string name="school_mail_check_skipped_auth_failed">Praleista: nepavyko prisijungti</string>
+    <string name="school_mail_check_skipped_busy">Praleista: jau vyko kitas patikrinimas</string>
+    <string name="school_mail_check_skipped_disabled">Praleista: pranešimai išjungti</string>
+    <string name="school_mail_check_skipped_signed_out">Praleista: atsijungta</string>
+    <string name="school_mail_check_trigger_background">Patikrinimas fone</string>
+    <string name="school_mail_check_trigger_foreground">Programėlė atidaryta</string>
+    <string name="school_mail_check_trigger_page">Ekranas „Mokyklos paštas“</string>
     <string name="school_mail_clear_cache">Išvalyti podėlį</string>
     <string name="school_mail_compose">Naujas laiškas</string>
     <string name="school_mail_copy_all">Kopijuoti viską</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Nepavyko patikrinti pašto serverio sertifikato. Šis tinklas gali būti nesaugus.</string>
     <string name="school_mail_error_generic">Kilo klaida naudojant mokyklos paštą</string>
     <string name="school_mail_error_network">Nepavyksta pasiekti pašto serverio</string>
+    <string name="school_mail_error_too_large">Šis laiškas per didelis, kad būtų atidarytas</string>
     <string name="school_mail_exact_alarm_hint">Leiskite tikslius signalus, kad TigerDuck galėtų laiku tikrinti paštą.</string>
     <string name="school_mail_external_badge">Išorinis</string>
     <string name="school_mail_folder_all">Visi laiškai</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Įkelti vaizdus</string>
     <string name="school_mail_mark_read">Žymėti kaip skaitytą</string>
     <string name="school_mail_mark_unread">Žymėti kaip neskaitytą</string>
+    <string name="school_mail_message_actions">Daugiau veiksmų</string>
     <string name="school_mail_move_to">Perkelti į…</string>
     <string name="school_mail_new_mail_count">%1$@ naujų laiškų</string>
     <string name="school_mail_no_recipient">Pridėkite bent vieną gavėją</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Nuotoliniai vaizdai užblokuoti</string>
     <string name="school_mail_reply">Atsakyti</string>
     <string name="school_mail_reply_all">Atsakyti visiems</string>
+    <string name="school_mail_reply_menu">Atsakymo parinktys</string>
     <string name="school_mail_risky_message">%1$@ gali pakenkti jūsų įrenginiui. Tęskite tik jei pasitikite siuntėju.</string>
     <string name="school_mail_risky_title">Atidaryti šį priedą?</string>
     <string name="school_mail_save_draft">Išsaugoti juodraštį</string>

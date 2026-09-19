@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Did you mistype an address in the mail you just sent?</string>
     <string name="school_mail_cache_size">Cache size</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Starting point reset</string>
+    <string name="school_mail_check_failed">Check failed: %1$@</string>
+    <string name="school_mail_check_no_new_mail">No new mail</string>
+    <string name="school_mail_check_sign_in_failed">Sign-in failed</string>
+    <string name="school_mail_check_skipped_auth_failed">Skipped: sign-in failed</string>
+    <string name="school_mail_check_skipped_busy">Skipped: another check was already running</string>
+    <string name="school_mail_check_skipped_disabled">Skipped: notifications are off</string>
+    <string name="school_mail_check_skipped_signed_out">Skipped: signed out</string>
+    <string name="school_mail_check_trigger_background">Background check</string>
+    <string name="school_mail_check_trigger_foreground">App opened</string>
+    <string name="school_mail_check_trigger_page">School Mail screen</string>
     <string name="school_mail_clear_cache">Clear cache</string>
     <string name="school_mail_compose">New mail</string>
     <string name="school_mail_copy_all">Copy all</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Couldn\'t verify the mail server\'s certificate. This network may not be safe.</string>
     <string name="school_mail_error_generic">Something went wrong with school mail</string>
     <string name="school_mail_error_network">Can\'t reach the mail server</string>
+    <string name="school_mail_error_too_large">This mail is too large to open</string>
     <string name="school_mail_exact_alarm_hint">Allow exact alarms so TigerDuck can check for mail on time.</string>
     <string name="school_mail_external_badge">External</string>
     <string name="school_mail_folder_all">All mail</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Load images</string>
     <string name="school_mail_mark_read">Mark as read</string>
     <string name="school_mail_mark_unread">Mark as unread</string>
+    <string name="school_mail_message_actions">More actions</string>
     <string name="school_mail_move_to">Move to…</string>
     <string name="school_mail_new_mail_count">%1$@ new mails</string>
     <string name="school_mail_no_recipient">Add at least one recipient</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Remote images are blocked</string>
     <string name="school_mail_reply">Reply</string>
     <string name="school_mail_reply_all">Reply all</string>
+    <string name="school_mail_reply_menu">Reply options</string>
     <string name="school_mail_risky_message">%1$@ could harm your device. Only continue if you trust the sender.</string>
     <string name="school_mail_risky_title">Open this attachment?</string>
     <string name="school_mail_save_draft">Save draft</string>

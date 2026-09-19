@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">Skrev du fel på en adress i mejlet du precis skickade?</string>
     <string name="school_mail_cache_size">Cachestorlek</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">Utgångspunkten återställdes</string>
+    <string name="school_mail_check_failed">Kontrollen misslyckades: %1$@</string>
+    <string name="school_mail_check_no_new_mail">Inga nya mejl</string>
+    <string name="school_mail_check_sign_in_failed">Inloggningen misslyckades</string>
+    <string name="school_mail_check_skipped_auth_failed">Överhoppad: inloggningen misslyckades</string>
+    <string name="school_mail_check_skipped_busy">Överhoppad: en annan kontroll pågick redan</string>
+    <string name="school_mail_check_skipped_disabled">Överhoppad: aviseringar är avstängda</string>
+    <string name="school_mail_check_skipped_signed_out">Överhoppad: utloggad</string>
+    <string name="school_mail_check_trigger_background">Kontroll i bakgrunden</string>
+    <string name="school_mail_check_trigger_foreground">Appen öppnades</string>
+    <string name="school_mail_check_trigger_page">Skärmen för Skolmejl</string>
     <string name="school_mail_clear_cache">Rensa cache</string>
     <string name="school_mail_compose">Nytt mejl</string>
     <string name="school_mail_copy_all">Kopiera allt</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">Mejlserverns certifikat kunde inte verifieras. Det här nätverket kanske inte är säkert.</string>
     <string name="school_mail_error_generic">Något gick fel med Skolmejl</string>
     <string name="school_mail_error_network">Kan inte nå mejlservern</string>
+    <string name="school_mail_error_too_large">Det här mejlet är för stort för att öppnas</string>
     <string name="school_mail_exact_alarm_hint">Tillåt exakta alarm så att TigerDuck kan kontrollera e-post i tid.</string>
     <string name="school_mail_external_badge">Extern</string>
     <string name="school_mail_folder_all">Alla meddelanden</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">Läs in bilder</string>
     <string name="school_mail_mark_read">Markera som läst</string>
     <string name="school_mail_mark_unread">Markera som oläst</string>
+    <string name="school_mail_message_actions">Fler åtgärder</string>
     <string name="school_mail_move_to">Flytta till…</string>
     <string name="school_mail_new_mail_count">%1$@ nya mejl</string>
     <string name="school_mail_no_recipient">Lägg till minst en mottagare</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">Externa bilder blockeras</string>
     <string name="school_mail_reply">Svara</string>
     <string name="school_mail_reply_all">Svara alla</string>
+    <string name="school_mail_reply_menu">Svarsalternativ</string>
     <string name="school_mail_risky_message">%1$@ kan skada din enhet. Fortsätt bara om du litar på avsändaren.</string>
     <string name="school_mail_risky_title">Öppna den här bilagan?</string>
     <string name="school_mail_save_draft">Spara utkast</string>

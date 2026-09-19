@@ -25,16 +25,17 @@ fun MailError.messageRes(): Int = when (this) {
     is MailError.Network -> R.string.school_mail_error_network
     is MailError.Certificate -> R.string.school_mail_error_certificate
     is MailError.ServerBusy -> R.string.school_mail_error_busy
+    // Reaches the user from the source view of an outsized mail, where "something
+    // went wrong" would be actively misleading: nothing went wrong, the mail is
+    // simply past what the app will hold in memory.
+    is MailError.TooLarge -> R.string.school_mail_error_too_large
     // No dedicated copy for these yet: they either aren't reachable from sign-in
     // (SearchUnsupported, FolderChanged surface in the list/search screens, not
     // built yet) or are internal-only (Protocol, DemoMode never reaches the UI).
-    // TooLarge does reach the user, from the source view of an outsized mail, and
-    // wants copy of its own -- that needs a new key in the app-translation submodule.
     is MailError.SearchUnsupported,
     is MailError.Protocol,
     is MailError.DemoMode,
     is MailError.FolderChanged,
-    is MailError.TooLarge,
     -> R.string.school_mail_error_generic
 }
 

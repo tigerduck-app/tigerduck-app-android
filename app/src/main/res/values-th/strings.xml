@@ -600,6 +600,17 @@
     <string name="school_mail_bounce_warning">คุณพิมพ์ที่อยู่อีเมลผิดในอีเมลที่เพิ่งส่งไปหรือเปล่า?</string>
     <string name="school_mail_cache_size">ขนาดแคช</string>
     <string name="school_mail_cc">Cc</string>
+    <string name="school_mail_check_baseline_reset">รีเซ็ตจุดเริ่มต้นแล้ว</string>
+    <string name="school_mail_check_failed">ตรวจสอบไม่สำเร็จ: %1$@</string>
+    <string name="school_mail_check_no_new_mail">ไม่มีอีเมลใหม่</string>
+    <string name="school_mail_check_sign_in_failed">เข้าสู่ระบบไม่สำเร็จ</string>
+    <string name="school_mail_check_skipped_auth_failed">ข้าม: เข้าสู่ระบบไม่สำเร็จ</string>
+    <string name="school_mail_check_skipped_busy">ข้าม: มีการตรวจสอบอื่นกำลังทำงานอยู่</string>
+    <string name="school_mail_check_skipped_disabled">ข้าม: การแจ้งเตือนปิดอยู่</string>
+    <string name="school_mail_check_skipped_signed_out">ข้าม: ออกจากระบบแล้ว</string>
+    <string name="school_mail_check_trigger_background">ตรวจสอบเบื้องหลัง</string>
+    <string name="school_mail_check_trigger_foreground">เปิดแอป</string>
+    <string name="school_mail_check_trigger_page">หน้าจออีเมลมหาวิทยาลัย</string>
     <string name="school_mail_clear_cache">ล้างแคช</string>
     <string name="school_mail_compose">เขียนอีเมล</string>
     <string name="school_mail_copy_all">คัดลอกทั้งหมด</string>
@@ -618,6 +629,7 @@
     <string name="school_mail_error_certificate">ไม่สามารถตรวจสอบใบรับรองของเซิร์ฟเวอร์อีเมลได้ เครือข่ายนี้อาจไม่ปลอดภัย</string>
     <string name="school_mail_error_generic">อีเมลมหาวิทยาลัยเกิดข้อผิดพลาด</string>
     <string name="school_mail_error_network">ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์อีเมลได้</string>
+    <string name="school_mail_error_too_large">อีเมลนี้มีขนาดใหญ่เกินกว่าจะเปิดได้</string>
     <string name="school_mail_exact_alarm_hint">อนุญาตการตั้งปลุกที่แม่นยำ เพื่อให้ TigerDuck ตรวจสอบอีเมลได้ตรงเวลา</string>
     <string name="school_mail_external_badge">ภายนอก</string>
     <string name="school_mail_folder_all">จดหมายทั้งหมด</string>
@@ -647,6 +659,7 @@
     <string name="school_mail_load_images">โหลดรูปภาพ</string>
     <string name="school_mail_mark_read">ทำเครื่องหมายว่าอ่านแล้ว</string>
     <string name="school_mail_mark_unread">ทำเครื่องหมายว่ายังไม่อ่าน</string>
+    <string name="school_mail_message_actions">การดำเนินการเพิ่มเติม</string>
     <string name="school_mail_move_to">ย้ายไปที่…</string>
     <string name="school_mail_new_mail_count">อีเมลใหม่ %1$@ ฉบับ</string>
     <string name="school_mail_no_recipient">เพิ่มผู้รับอย่างน้อยหนึ่งคน</string>
@@ -660,6 +673,7 @@
     <string name="school_mail_remote_images_blocked">รูปภาพระยะไกลถูกบล็อก</string>
     <string name="school_mail_reply">ตอบกลับ</string>
     <string name="school_mail_reply_all">ตอบกลับทั้งหมด</string>
+    <string name="school_mail_reply_menu">ตัวเลือกการตอบกลับ</string>
     <string name="school_mail_risky_message">%1$@ อาจเป็นอันตรายต่ออุปกรณ์ของคุณ ดำเนินการต่อเฉพาะเมื่อคุณเชื่อถือผู้ส่งเท่านั้น</string>
     <string name="school_mail_risky_title">เปิดไฟล์แนบนี้หรือไม่?</string>
     <string name="school_mail_save_draft">บันทึกแบบร่าง</string>
