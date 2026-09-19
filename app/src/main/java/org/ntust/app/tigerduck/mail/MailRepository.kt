@@ -491,45 +491,67 @@ class MailRepository @Inject constructor(
      *   another client's earlier \Deleted flag is never attributed to us),
      *   and never for [MailError.AuthFailed]/[MailError.Certificate] (no
      *   second login attempt just to check).
+     * - Reads the owned-\Deleted set, acts, and writes it back **without
+     *   leaving [withSession]**, so the whole read-modify-write runs under
+     *   one hold of [SessionHolder]'s mutex. Two deletes overlapping in the
+     *   same folder would otherwise both read the same set, both fail to
+     *   expunge (each sees the other's freshly flagged \Deleted mail in the
+     *   server-side `UID SEARCH DELETED`) and then both write -- last writer
+     *   wins and the first UID is dropped from the set for good. `ours` would
+     *   stay a strict subset of the server's \Deleted set from then on, so
+     *   `expungeIfOnlyOurs` could never expunge that folder again for the
+     *   life of the account: every later delete would leave both the trash
+     *   copy and the original behind, invisible in the app but still on the
+     *   student's quota, and nothing in the app could undo it.
      */
     private suspend fun runExpunging(folder: String, uid: Long, op: (MailSession, Set<Long>) -> Boolean) {
         val cached = cachedPage(folder)
         val cachedValidity = cached?.uidValidity
         val alreadyDeleted = cached?.messages?.firstOrNull { it.uid == uid }?.flags?.deleted == true
         var validity = 0L
-        var owned: Set<Long> = emptySet()
         var attempted = false
         try {
-            val expunged = withSession { session ->
+            withSession { session ->
                 val serverValidity = session.status(folder).uidValidity
                 validity = serverValidity
                 if (cachedValidity != null && cachedValidity != serverValidity) {
                     throw MailError.FolderChanged()
                 }
-                owned = state.ownedDeleted(folder, serverValidity)
+                val owned = state.ownedDeleted(folder, serverValidity)
                 attempted = true
-                op(session, owned)
+                val expunged = op(session, owned)
+                // An EXPUNGE is mailbox-wide and only runs when every \Deleted
+                // mail in the folder was ours, so a successful one empties the
+                // set rather than removing this one UID from it.
+                state.setOwnedDeleted(folder, serverValidity, if (expunged) emptySet() else owned + uid)
             }
-            state.setOwnedDeleted(folder, validity, if (expunged) emptySet() else owned + uid)
         } catch (e: MailError) {
             if (!attempted && e is MailError.FolderChanged) {
                 withContext(Dispatchers.IO) { cache.deleteFolder(folder) }
             } else if (attempted && !alreadyDeleted && e !is MailError.AuthFailed && e !is MailError.Certificate) {
-                recordIfDeletedOnServer(folder, uid, validity, owned)
+                recordIfDeletedOnServer(folder, uid, validity)
             }
             throw e
         }
     }
 
-    private suspend fun recordIfDeletedOnServer(folder: String, uid: Long, validity: Long, owned: Set<Long>) {
-        val flaggedDeleted = try {
-            withSession { it.refreshFlags(folder, listOf(uid)) }[uid]?.deleted == true
+    /**
+     * Re-reads the owned-\Deleted set inside the same [withSession] hold as the write, for the
+     * reason [runExpunging] gives: the set this call's [runExpunging] read before [op] ran may
+     * already be stale, and adding to a stale copy would drop whatever landed in between.
+     */
+    private suspend fun recordIfDeletedOnServer(folder: String, uid: Long, validity: Long) {
+        try {
+            withSession { session ->
+                if (session.refreshFlags(folder, listOf(uid))[uid]?.deleted == true) {
+                    state.setOwnedDeleted(folder, validity, state.ownedDeleted(folder, validity) + uid)
+                }
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            false
+            // Best effort: not being able to check the flag just means the UID isn't recorded.
         }
-        if (flaggedDeleted) state.setOwnedDeleted(folder, validity, owned + uid)
     }
 
     private suspend fun updateCached(folder: String, transform: (MailSummary) -> MailSummary) = withContext(Dispatchers.IO) {

@@ -5,6 +5,7 @@ package org.ntust.app.tigerduck.mail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -25,6 +26,8 @@ import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.smtp.MailSender
 import org.ntust.app.tigerduck.mail.smtp.MailTransport
 import org.ntust.app.tigerduck.mail.store.MailCache
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class MailRepositoryTest {
     @get:Rule val tmp = TemporaryFolder()
@@ -113,6 +116,42 @@ class MailRepositoryTest {
         val repo = TestSetup(backgroundScope).signedIn()
         repo.move("INBOX", uid, "回收筒")
         assertEquals(setOf(uid), state.ownedDeleted("INBOX", server.uidValidity))
+    }
+
+    /**
+     * Two deletes overlapping in the same folder. The first is held between reading the
+     * owned-\Deleted set and writing it back -- exactly where the second one's own read used to
+     * slip in. Both UIDs have to survive: losing one leaves `ours` a permanent strict subset of
+     * the server's \Deleted set, and the folder can never be expunged again.
+     *
+     * With the read and the write under one hold of the session mutex the second delete cannot
+     * start at all while the first is paused, so the pause simply runs out its budget and the
+     * two deletes serialize. Without it, the second finishes inside that window and its write
+     * lands first, so the first delete's write overwrites it.
+     */
+    @Test
+    fun `two overlapping deletes in one folder both stay in the owned set`() = runTest {
+        val first = server.deliver("a")
+        val second = server.deliver("b")
+        server.expungeOnMove = false // nothing ever expunges, so each delete adds to the owned set
+        val repo = TestSetup(backgroundScope).signedIn()
+
+        val firstHoldsTheSession = CountDownLatch(1)
+        val secondFinished = CountDownLatch(1)
+        state.onOwnedDeletedRead = { firstHoldsTheSession.countDown() }
+        state.beforeSetOwnedDeleted = { uids ->
+            if (uids == setOf(first)) secondFinished.await(1, TimeUnit.SECONDS)
+        }
+        // A real dispatcher, so the second delete keeps running while the first is paused.
+        backgroundScope.launch(Dispatchers.IO) {
+            firstHoldsTheSession.await(10, TimeUnit.SECONDS)
+            runCatching { repo.move("INBOX", second, "回收筒") }
+            secondFinished.countDown()
+        }
+
+        repo.move("INBOX", first, "回收筒")
+        assertTrue(secondFinished.await(10, TimeUnit.SECONDS))
+        assertEquals(setOf(first, second), state.ownedDeleted("INBOX", server.uidValidity))
     }
 
     @Test

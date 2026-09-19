@@ -14,9 +14,20 @@ class InMemoryMailStateStore : MailStateStore {
         set(value) { field = value.take(10) }
     private val owned = mutableMapOf<Pair<String, Long>, Set<Long>>()
 
-    override fun ownedDeleted(folder: String, uidValidity: Long): Set<Long> = owned[folder to uidValidity].orEmpty()
+    /** Fires on every [ownedDeleted] read; with [beforeSetOwnedDeleted] it lets a test drive the
+     *  exact interleaving of two overlapping owned-set read-modify-writes. */
+    var onOwnedDeletedRead: (() -> Unit)? = null
+
+    /** Fires just before a [setOwnedDeleted] write lands, with the set about to be stored. */
+    var beforeSetOwnedDeleted: ((Set<Long>) -> Unit)? = null
+
+    override fun ownedDeleted(folder: String, uidValidity: Long): Set<Long> {
+        onOwnedDeletedRead?.invoke()
+        return owned[folder to uidValidity].orEmpty()
+    }
 
     override fun setOwnedDeleted(folder: String, uidValidity: Long, uids: Set<Long>) {
+        beforeSetOwnedDeleted?.invoke(uids)
         owned.keys.removeAll { it.first == folder }
         owned[folder to uidValidity] = uids
     }
