@@ -179,10 +179,10 @@ object MailWarnings {
         isExternal(from?.address, isBounce(returnPath), domain)
 
     /**
-     * True for a domain that reads as a mistyped [SCHOOL_MAIL_DOMAIN]: within
-     * [MAX_DOMAIN_TYPO_EDITS] single-character edits of it, but neither it nor any other real
-     * school domain. Two edits rather than one so a transposition (`ntsut`) counts, which plain
-     * Levenshtein scores as two.
+     * True for a [candidate] that reads as a mistyped [domain] -- [SCHOOL_MAIL_DOMAIN] unless
+     * the debug override moved the mailbox: within [MAX_DOMAIN_TYPO_EDITS] single-character
+     * edits of it, but neither it nor, for the school, any other real school domain. Two edits
+     * rather than one so a transposition (`ntsut`) counts, which plain Levenshtein scores as two.
      *
      * The length check first is not only a shortcut: it keeps an attacker-supplied token from
      * reaching the quadratic distance loop at all.
