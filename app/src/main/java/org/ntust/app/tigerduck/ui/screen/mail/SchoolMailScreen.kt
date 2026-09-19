@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
+import android.widget.Toast
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -71,6 +72,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
@@ -133,6 +135,16 @@ fun SchoolMailScreen(
     val signingIn by accountViewModel.signingIn.collectAsStateWithLifecycle()
     val signInError by accountViewModel.error.collectAsStateWithLifecycle()
     var showReauthSheet by remember { mutableStateOf(false) }
+
+    // A failed swipe-to-toggle-read, or one flaky minute of the poll, says so once and is gone --
+    // the same shape the message screen already uses for its own actions. Only a failed *load*
+    // reaches the header dot and the "couldn't load" empty state.
+    val context = LocalContext.current
+    LaunchedEffect(state.actionError) {
+        val error = state.actionError ?: return@LaunchedEffect
+        Toast.makeText(context, error.messageRes(), Toast.LENGTH_SHORT).show()
+        viewModel.dismissActionError()
+    }
 
     LaunchedEffect(signedIn, authFailed) {
         if (signedIn && !authFailed) {

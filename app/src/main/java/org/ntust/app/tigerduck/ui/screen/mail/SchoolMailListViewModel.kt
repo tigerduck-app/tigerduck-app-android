@@ -61,7 +61,19 @@ class SchoolMailListViewModel @Inject constructor(
         /** The server names of the folders All mail merges. Empty until [load] has resolved them. */
         val mergedFolders: List<String> = emptyList(),
         val messages: List<MailRow> = emptyList(),
+        /**
+         * Only ever describes a *load*: [load], [fetchFirstPage], [paginate], [runSearch]. A
+         * failed one-off action reports through [actionError] instead, so it can neither paint
+         * the header dot red for the rest of the session nor replace a list that loaded perfectly
+         * well with the "couldn't load" empty state.
+         */
         val loadState: LoadState = LoadState.Idle,
+        /**
+         * A transient failure of something other than a load -- a mark-read that did not stick,
+         * one flaky minute of the poll -- shown once as a toast and then cleared, the way the
+         * message screen has always handled its own actions.
+         */
+        val actionError: MailError? = null,
         /**
          * Per real folder, the sequence number to page back from; a folder drops out of the map
          * once the server says it has nothing older. Each folder has its own UID space, so "the
@@ -200,7 +212,9 @@ class SchoolMailListViewModel @Inject constructor(
                 repository.setSeen(row.folder, row.uid, seen)
                 updateMessage(row.key) { it.copy(flags = it.flags.copy(seen = seen)) }
             } catch (e: MailError) {
-                fail(e)
+                // One swipe that didn't stick is not the page failing: the list on screen is
+                // exactly as good as it was a moment ago.
+                actionFail(e)
             }
         }
     }
@@ -337,10 +351,13 @@ class SchoolMailListViewModel @Inject constructor(
             val newest = s.messages.filter { it.folder == s.inboxFolder }.maxOfOrNull { it.uid } ?: 0L
             if (status.uidNext > newest + 1) fetchFirstPage() else checker.noteSeenByPage(status)
         } catch (e: MailError) {
-            // The same path as every other list failure: a rejected password has to
-            // reach the account (spec §7.4) and a certificate failure has to reach
-            // the UI (spec §12.3) instead of being retried silently every minute.
-            fail(e)
+            // A rejected password still has to reach the account (spec §7.4) and a certificate
+            // failure still has to reach the user (spec §12.3) rather than being retried
+            // silently every minute -- but as a transient action failure, not as the page
+            // failing. Mail2000 caps connections and answers "server busy" under load, so one
+            // unlucky minute used to be enough to leave the header dot red for the rest of the
+            // session. The refresh this poll can trigger reports its own failures itself.
+            actionFail(e)
         }
     }
 
@@ -366,10 +383,23 @@ class SchoolMailListViewModel @Inject constructor(
     private fun cursorsOf(pages: List<Pair<String, MailPage>>): Map<String, Int> =
         pages.mapNotNull { (folder, page) -> page.nextBeforeSeq?.let { folder to it } }.toMap()
 
+    /** A load failed: the page itself has nothing to show, so [LoadState.Failed] is the truth. */
     private fun fail(error: MailError) {
         if (error is MailError.AuthFailed) account.onAuthFailure()
         _state.update { it.copy(loadState = LoadState.Failed(error)) }
     }
+
+    /**
+     * A one-off action failed. The account hop is identical to [fail]'s -- spec §7.4's lockout
+     * protection must not depend on which call happened to hit the rejected password -- but
+     * [UiState.loadState] is deliberately left alone.
+     */
+    private fun actionFail(error: MailError) {
+        if (error is MailError.AuthFailed) account.onAuthFailure()
+        _state.update { it.copy(actionError = error) }
+    }
+
+    fun dismissActionError() = _state.update { it.copy(actionError = null) }
 
     companion object {
         const val POLL_MS = 60_000L

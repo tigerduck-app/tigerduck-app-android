@@ -27,6 +27,8 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     var bodyError: MailError? = null
     var moveError: MailError? = null
     var deleteError: MailError? = null
+    /** Thrown by [setSeen] before it records anything, so a refused mark-read leaves no trace. */
+    var seenError: MailError? = null
     val seenCalls = mutableListOf<Triple<String, Long, Boolean>>()
     val moved = mutableListOf<Triple<String, Long, String>>()
     val deleted = mutableListOf<Pair<String, Long>>()
@@ -108,6 +110,7 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     }
 
     override suspend fun setSeen(folder: String, uid: Long, seen: Boolean) {
+        seenError?.let { throw it }
         foldersTouched += folder
         seenCalls += Triple(folder, uid, seen)
         update(folder, uid) { it.copy(flags = it.flags.copy(seen = seen)) }

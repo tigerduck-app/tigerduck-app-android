@@ -180,7 +180,7 @@ class SchoolMailListViewModelTest {
         main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS + 1)
         main.dispatcher.scheduler.runCurrent()
         assertTrue(account.authFailed.value)
-        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Failed)
+        assertTrue(vm.state.value.actionError is MailError.AuthFailed)
         val callsAfterRejection = repo.statusCalls
 
         main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS * 5)
@@ -219,9 +219,72 @@ class SchoolMailListViewModelTest {
         repo.statusError = MailError.Certificate()
         main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS + 1)
         main.dispatcher.scheduler.runCurrent()
-        val failed = vm.state.value.loadState as SchoolMailListViewModel.LoadState.Failed
-        assertTrue(failed.error is MailError.Certificate)
+        assertTrue(vm.state.value.actionError is MailError.Certificate)
         assertFalse(account.authFailed.value)
+    }
+
+    // --- a failed action is not a failed page -----------------------------------------------
+
+    @Test
+    fun `one flaky poll does not turn the loaded page into a failed one`() {
+        // Mail2000 caps connections and starts answering "server busy" under load, so a single
+        // unlucky minute is ordinary. It used to leave the header's status dot red for the rest
+        // of the session: nothing reset loadState short of a successful fetchFirstPage.
+        repo.add("INBOX", mailSummary(1))
+        vm.load()
+        vm.startPolling()
+        repo.statusError = MailError.ServerBusy()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertTrue(vm.state.value.actionError is MailError.ServerBusy)
+        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Loaded)
+        assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
+
+        // Shown once, then gone -- it must not linger into the next screenful.
+        vm.dismissActionError()
+        assertNull(vm.state.value.actionError)
+    }
+
+    @Test
+    fun `a mark-read the server refuses reports as an action, not as the list failing to load`() {
+        repo.add("INBOX", mailSummary(1))
+        vm.load()
+        repo.seenError = MailError.ServerBusy()
+        vm.toggleRead(vm.state.value.displayed.single())
+
+        assertTrue(vm.state.value.actionError is MailError.ServerBusy)
+        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Loaded)
+        // The row is unchanged, and the page it lives on is still the page that loaded fine.
+        assertFalse(vm.state.value.displayed.single().summary.flags.seen)
+    }
+
+    @Test
+    fun `an empty folder whose mark-read failed still reads as empty, not as unloadable`() {
+        // Nothing to toggle here, but the same failure used to replace a perfectly good empty
+        // folder with the "couldn't load" state, because displayed.isEmpty() && failed != null.
+        vm.load()
+        assertTrue(vm.state.value.displayed.isEmpty())
+        repo.statusError = MailError.Network()
+        vm.startPolling()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertTrue(vm.state.value.actionError is MailError.Network)
+        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Loaded)
+    }
+
+    @Test
+    fun `a rejected password still reaches the account from a mark-read, action error or not`() {
+        // Spec §7.4: whichever call happens to meet the rejected password, the account has to
+        // hear about it -- the lockout protection must not depend on that being a load.
+        repo.add("INBOX", mailSummary(1))
+        vm.load()
+        repo.seenError = MailError.AuthFailed()
+        vm.toggleRead(vm.state.value.displayed.single())
+
+        assertTrue(account.authFailed.value)
+        assertTrue(vm.state.value.actionError is MailError.AuthFailed)
     }
 
     @Test
