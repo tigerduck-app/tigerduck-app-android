@@ -40,6 +40,7 @@ import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 fun AboutOthersScreen(
     onBack: () -> Unit,
     onNavigateToSourceCode: () -> Unit,
+    onNavigateToLicenses: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -97,11 +98,7 @@ fun AboutOthersScreen(
                         }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_open_source_licenses)) {
-                            openUrl(
-                                context,
-                                "https://github.com/tigerduck-app/tigerduck-app-android/blob/main/LICENSE",
-                                browserPreference,
-                            )
+                            onNavigateToLicenses()
                         }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_view_source_code)) {
