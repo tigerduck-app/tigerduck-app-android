@@ -268,14 +268,34 @@ class MailRepository @Inject constructor(
         removeCached(folder, uid)
     }
 
-    override suspend fun deletesPermanently(folder: String): Boolean {
-        val trash = folders().nameOf(SpecialFolder.TRASH)
-        return trash == null || trash == folder
+    /**
+     * Whether deleting in [folder] destroys the mail instead of moving it to trash.
+     *
+     * This is also where a missing trash folder gets created, because the answer decides
+     * which confirmation the user is shown, so the CREATE has to have been tried before
+     * that choice is made. If the server refuses, the answer is `true` and the user is
+     * asked the permanent-delete question — a refused CREATE turns "move to trash" into a
+     * hard delete the user confirms, never a silent one.
+     */
+    override suspend fun deletesPermanently(folder: String): Boolean = trashFor(folder) == null
+
+    /**
+     * Where a delete from [folder] moves the mail, or null when deleting there is
+     * permanent: either [folder] *is* the trash, or the account has none and the server
+     * would not create one.
+     *
+     * [deletesPermanently] normally runs first and leaves a created folder in [resolved],
+     * so the [delete] that follows costs no second CREATE. When the first attempt was
+     * refused this does try again, which can only turn a permanent delete into a move to
+     * trash — the safer of the two, and never the other way round.
+     */
+    private suspend fun trashFor(folder: String): String? {
+        if (folders().nameOf(SpecialFolder.TRASH) == folder) return null
+        return ensureFolder(SpecialFolder.TRASH)
     }
 
     override suspend fun delete(folder: String, uid: Long) {
-        val trash = folders().nameOf(SpecialFolder.TRASH)
-        if (trash != null && trash != folder) return move(folder, uid, trash)
+        trashFor(folder)?.let { return move(folder, uid, it) }
         if (account.isDemo) {
             demoMutate(folder) { it.removeAll { m -> m.summary.uid == uid } }
             return
@@ -341,7 +361,9 @@ class MailRepository @Inject constructor(
         // The SMTP login uses the same rejected password, so §7.4 covers it too --
         // and `folders()` can answer from its cached resolution without a session.
         refuseWhileAuthFailed()
-        val sent = folders().nameOf(SpecialFolder.SENT)
+        // A null here -- no sent folder and none could be created -- still sends: filing the
+        // copy is a convenience, and [MailSender] simply skips the APPEND. Sending is the point.
+        val sent = ensureFolder(SpecialFolder.SENT)
         withContext(Dispatchers.IO) { sender.send(credentials(), mail, sent) }
         answered?.let { (folder, uid) ->
             val marked = try {
@@ -368,7 +390,9 @@ class MailRepository @Inject constructor(
             }
             return
         }
-        val drafts = folders().nameOf(SpecialFolder.DRAFTS) ?: throw MailError.Protocol("no drafts folder")
+        // Unlike the sent copy, a draft that is not kept is the whole operation failing, so a
+        // refused CREATE surfaces as the error the compose screen already reports.
+        val drafts = ensureFolder(SpecialFolder.DRAFTS) ?: throw MailError.Protocol("no drafts folder")
         val bytes = withContext(Dispatchers.IO) { builder.build(mail).toBytes() }
         withSession { it.append(drafts, bytes, setOf(AppendFlag.SEEN, AppendFlag.DRAFT)) }
         if (replacingUid != null) {
@@ -382,6 +406,9 @@ class MailRepository @Inject constructor(
             demoMutate(drafts) { it.removeAll { m -> m.summary.uid == uid } }
             return
         }
+        // Deliberately resolves without creating, unlike [saveDraft]: no drafts folder means
+        // there is no draft to remove either, so a CREATE here would put a folder on the
+        // student's real account for an operation that cannot do anything once it has one.
         val drafts = folders().nameOf(SpecialFolder.DRAFTS) ?: return
         runExpunging(drafts, uid) { session, owned -> session.deletePermanently(drafts, uid, owned) }
     }
@@ -395,6 +422,47 @@ class MailRepository @Inject constructor(
     }
 
     // --- helpers -------------------------------------------------------------------------
+
+    /**
+     * [role]'s folder on the server, created if the account has none.
+     *
+     * Called only from inside the operation that is about to write to the folder — never at
+     * sign-in, never on a folder refresh, never from `MailFolders.resolve` — so a student who
+     * only reads mail never sees folders appear in their account. Only the three roles in
+     * [CREATED_ON_DEMAND] may be asked for: INBOX always exists by RFC, and the junk folder
+     * belongs to the server's spam classifier, which would not know about one the app made.
+     *
+     * The name sent is [SpecialFolder.decodedName], the same form `LIST` hands back — see
+     * [org.ntust.app.tigerduck.mail.imap.AngusMailSession.createFolder] for why the raw
+     * modified-UTF-7 [SpecialFolder.imapName] would be wrong.
+     *
+     * Whatever the CREATE answers, the folder list is re-read and re-resolved, and *that*
+     * decides. It covers both halves of the problem at once: a refusal because the folder
+     * already exists — another client, or a racing operation of ours — is a success, and the
+     * cached resolution predates the CREATE either way, so without the re-resolve the very
+     * operation that just created the folder still could not see it.
+     *
+     * Returns null when the folder is missing and could not be created, so each caller keeps
+     * the behaviour it had before folders were ever created: [send] files no copy, [saveDraft]
+     * reports that the draft was not kept, and a delete falls back to the permanent-delete
+     * path with its own confirmation. Failing to resolve the folder list at all still throws,
+     * exactly as it did before.
+     */
+    private suspend fun ensureFolder(role: SpecialFolder): String? {
+        require(role in CREATED_ON_DEMAND) { "$role is never created on demand" }
+        folders().nameOf(role)?.let { return it }
+        if (account.isDemo) return null
+        return try {
+            withSession { session ->
+                runCatching { session.createFolder(role.decodedName) }
+                MailFolders.resolve(session.listFolders())
+            }.also { resolved = it }.nameOf(role)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     /**
      * Runs a COPY+STORE\Deleted (or plain STORE\Deleted) followed by a
@@ -470,6 +538,10 @@ class MailRepository @Inject constructor(
 
     companion object {
         const val PAGE_SIZE = 50
+
+        /** The only roles [ensureFolder] may create; see its doc for why the other two are out. */
+        private val CREATED_ON_DEMAND = setOf(SpecialFolder.SENT, SpecialFolder.DRAFTS, SpecialFolder.TRASH)
+
         private val DEMO_FOLDERS = ResolvedFolders(
             SpecialFolder.entries.associateWith { it.decodedName }, emptyList(),
         )

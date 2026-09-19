@@ -3,7 +3,18 @@ package org.ntust.app.tigerduck.mail.imap
 /**
  * Mail2000's own folders (spec appendix A.1). The server has no SPECIAL-USE,
  * so they are recognised by name — raw modified UTF-7 or decoded, since Angus
- * hands folder names back decoded. Never create any of these.
+ * hands folder names back decoded.
+ *
+ * None of these is ever created speculatively: not at sign-in, not when the
+ * folder list refreshes, and never in [MailFolders.resolve], which only ever
+ * reports what the server already has. An account that lacks one keeps lacking
+ * it until an operation genuinely needs it — at which point the repository
+ * creates [SENT], [DRAFTS] or [TRASH] on demand, by [decodedName], because that
+ * is the form the IMAP layer encodes for the wire.
+ *
+ * [INBOX] and [JUNK] are never created at all: INBOX always exists by RFC, and
+ * the junk folder is where the *server's* spam classifier files mail, so one
+ * the server does not know about would collect nothing.
  */
 enum class SpecialFolder(val imapName: String, val decodedName: String) {
     INBOX("INBOX", "INBOX"),

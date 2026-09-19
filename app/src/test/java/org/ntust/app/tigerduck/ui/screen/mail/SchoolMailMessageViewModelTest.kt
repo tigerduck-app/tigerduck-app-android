@@ -19,6 +19,8 @@ import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MainDispatcherRule
 import org.ntust.app.tigerduck.mail.RecordingNotifier
 import org.ntust.app.tigerduck.mail.RecordingScheduler
+import org.ntust.app.tigerduck.mail.imap.ResolvedFolders
+import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.mailSummary
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
@@ -226,6 +228,28 @@ class SchoolMailMessageViewModelTest {
         trash.confirmDeleteForever(true)
         assertEquals("回收筒" to 9L, repo.deleted.last())
         assertTrue(trash.state.value.closed)
+    }
+
+    /**
+     * An account whose trash folder is missing and could not be created still asks before it
+     * destroys anything: the repository reports the delete as permanent, and the screen shows
+     * the permanent-delete confirmation rather than deleting silently.
+     */
+    @Test
+    fun `an account with no trash folder still gets the permanent-delete confirmation`() {
+        repo.resolved = ResolvedFolders(
+            SpecialFolder.entries.filter { it != SpecialFolder.TRASH }.associateWith { it.decodedName }, emptyList(),
+        )
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(null, "x", emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+        vm.delete()
+        assertTrue(vm.state.value.confirmDeleteForever)
+        assertFalse(vm.state.value.confirmDelete)
+        assertTrue(repo.deleted.isEmpty())
+        vm.confirmDeleteForever(true)
+        assertEquals(listOf("INBOX" to 5L), repo.deleted)
     }
 
     @Test

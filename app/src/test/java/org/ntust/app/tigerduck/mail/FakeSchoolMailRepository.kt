@@ -121,8 +121,9 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         mail[folder]?.removeAll { it.uid == uid }
     }
 
+    /** Mirrors the real repository: permanent inside the trash, and permanent everywhere when the account has no trash folder and none could be created. */
     override suspend fun deletesPermanently(folder: String) =
-        touching(folder) { folder == resolved.nameOf(SpecialFolder.TRASH) }
+        touching(folder) { resolved.nameOf(SpecialFolder.TRASH).let { it == null || it == folder } }
 
     override suspend fun delete(folder: String, uid: Long) {
         foldersTouched += folder
