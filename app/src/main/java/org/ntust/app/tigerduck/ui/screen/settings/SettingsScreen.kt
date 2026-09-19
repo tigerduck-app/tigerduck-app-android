@@ -84,6 +84,7 @@ fun SettingsScreen(
     onNavigateToLibrarySettings: () -> Unit = {},
     onNavigateToSchoolMailSettings: () -> Unit = {},
     onNavigateToOtherSettings: () -> Unit = {},
+    onNavigateToAboutOthers: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToNotificationDebug: () -> Unit = {},
     onNavigateToTriggersDebug: () -> Unit = {},
@@ -559,6 +560,10 @@ fun SettingsScreen(
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_official_website)) {
                             openUrl(context, "https://tigerduck.app/", browserPreference)
+                        }
+                        HorizontalDivider()
+                        SettingsLinkRow(stringResource(R.string.settings_about_others)) {
+                            onNavigateToAboutOthers()
                         }
                     }
                 }

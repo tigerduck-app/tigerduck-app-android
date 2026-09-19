@@ -77,6 +77,7 @@ import org.ntust.app.tigerduck.ui.screen.library.LibraryScreen
 import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
 import org.ntust.app.tigerduck.ui.screen.score.ScoreScreen
+import org.ntust.app.tigerduck.ui.screen.settings.AboutOthersScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
 import org.ntust.app.tigerduck.ui.screen.settings.AssignmentReminderSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.CourseNameSizeSettingsScreen
@@ -114,6 +115,7 @@ sealed class Screen(val route: String) {
     object AssignmentReminderSettings : Screen("assignmentReminderSettings")
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
+    object AboutOthers : Screen("aboutOthers")
     object LibrarySettings : Screen("librarySettings")
     object SchoolMailSettings : Screen(MailRoutes.SETTINGS)
     object SchoolMailGuide : Screen(MailRoutes.GUIDE)
@@ -476,6 +478,7 @@ fun MainNavigation(
                     onNavigateToLibrarySettings = { navController.navigate(Screen.LibrarySettings.route) },
                     onNavigateToSchoolMailSettings = { navController.navigate(Screen.SchoolMailSettings.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
+                    onNavigateToAboutOthers = { navController.navigate(Screen.AboutOthers.route) },
                     // Debug-route navigation is no-op in release builds:
                     // the composables themselves are registered only inside
                     // the `if (BuildConfig.DEBUG)` block below, so an
@@ -544,9 +547,14 @@ fun MainNavigation(
                     onNavigateToApiEndpoint = {
                         navController.navigate(Screen.ApiEndpointDebug.route)
                     },
-                    onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
                     onNavigateToVibration = { navController.navigate(Screen.VibrationSettings.route) },
                     onNavigateToCourseNameSize = { navController.navigate(Screen.CourseNameSizeSettings.route) },
+                )
+            }
+            composable(Screen.AboutOthers.route) {
+                AboutOthersScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
                 )
             }
             composable(Screen.LibrarySettings.route) {
