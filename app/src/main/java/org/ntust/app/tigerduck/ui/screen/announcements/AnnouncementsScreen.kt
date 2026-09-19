@@ -66,8 +66,10 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -431,14 +433,17 @@ private fun BulletinCard(
     taxonomy: TaxonomyResponse?,
     isRead: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val container = MaterialTheme.colorScheme.surfaceVariant
     val cs = MaterialTheme.colorScheme
+    // [modifier] lands on the same layout node as Surface's own clickable, so semantics set on
+    // it merge into the single card node an accessibility service focuses.
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
         color = container,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             // --- Top row: unread dot + org + importance + withdrawn + date.
@@ -531,6 +536,12 @@ private fun SwipeableBulletinCard(
         if (isRead) R.string.bulletin_mark_as_unread_action
         else R.string.bulletin_mark_as_read_action
     )
+    // The same localized label the swipe icon announces. An accessibility service cannot
+    // perform a drag, and read state is functional, not decorative, so without this custom
+    // action the card's only reachable action was opening the bulletin.
+    val readActions = remember(iconDesc) {
+        listOf(CustomAccessibilityAction(iconDesc) { latestOnToggleRead(); true })
+    }
 
     Box(modifier = modifier.fillMaxWidth()) {
         val progress = (abs(swipeOffset.value) / thresholdPx).coerceIn(0f, 1f)
@@ -622,6 +633,7 @@ private fun SwipeableBulletinCard(
                 taxonomy = taxonomy,
                 isRead = isRead,
                 onClick = onClick,
+                modifier = Modifier.semantics { customActions = readActions },
             )
         }
     }

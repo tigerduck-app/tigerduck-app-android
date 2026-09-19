@@ -76,6 +76,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -416,10 +419,12 @@ fun SpecialFolder.labelRes(): Int = when (this) {
 
 /** Mirrors Announcements' BulletinCard: 12dp surfaceVariant card, 7dp unread dot, SemiBold when unread. */
 @Composable
-private fun MailCard(message: MailSummary, mailDomain: String, onClick: () -> Unit) {
+private fun MailCard(message: MailSummary, mailDomain: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val cs = MaterialTheme.colorScheme
     val unread = !message.flags.seen
-    Surface(onClick = onClick, shape = RoundedCornerShape(12.dp), color = cs.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
+    // [modifier] lands on the same layout node as Surface's own clickable, so semantics set on
+    // it merge into the single card node an accessibility service focuses.
+    Surface(onClick = onClick, shape = RoundedCornerShape(12.dp), color = cs.surfaceVariant, modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (unread) {
@@ -466,7 +471,12 @@ private fun MailCard(message: MailSummary, mailDomain: String, onClick: () -> Un
     }
 }
 
-/** Same gesture as SwipeableBulletinCard: either direction toggles read (100dp threshold, 0.6× damping). */
+/**
+ * Same gesture as SwipeableBulletinCard: either direction toggles read (100dp threshold, 0.6×
+ * damping) -- plus a custom accessibility action carrying the same label, because an
+ * accessibility service cannot perform a drag and read state is functional, not decorative.
+ * Without it the card's only reachable action was opening the mail.
+ */
 @Composable
 private fun SwipeableMailCard(
     row: MailRow,
@@ -485,6 +495,10 @@ private fun SwipeableMailCard(
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val icon = if (message.flags.seen) Icons.AutoMirrored.Filled.Undo else Icons.Filled.Check
     val iconDescription = stringResource(if (message.flags.seen) R.string.school_mail_mark_unread else R.string.school_mail_mark_read)
+    // The same localized label the swipe icon announces: what the toggle is about to do.
+    val readActions = remember(iconDescription) {
+        listOf(CustomAccessibilityAction(iconDescription) { latestToggle(); true })
+    }
 
     Box(modifier.fillMaxWidth()) {
         val progress = (abs(offset.value) / thresholdPx).coerceIn(0f, 1f)
@@ -520,7 +534,14 @@ private fun SwipeableMailCard(
                         },
                     )
                 },
-        ) { MailCard(message, mailDomain, onClick) }
+        ) {
+            MailCard(
+                message,
+                mailDomain,
+                onClick,
+                modifier = Modifier.semantics { customActions = readActions },
+            )
+        }
     }
 }
 
