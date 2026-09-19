@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.mail.smtp
 
 import jakarta.mail.Folder
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -27,7 +28,7 @@ class MailSenderTest {
     )
 
     @Test
-    fun `sends and saves exactly one sent copy`() {
+    fun `sends and saves exactly one sent copy`() = runBlocking {
         server.createFolders("寄件備份匣")
         val sessions = AngusMailSessionFactory(server.config)
         val sender = MailSender(MessageBuilder(), AngusMailTransport(server.config), sessions, pause = {})
@@ -38,7 +39,7 @@ class MailSenderTest {
     }
 
     @Test
-    fun `no second copy when the server already saved one`() {
+    fun `no second copy when the server already saved one`() = runBlocking {
         server.createFolders("寄件備份匣")
         val sessions = AngusMailSessionFactory(server.config)
         val real = AngusMailTransport(server.config)
@@ -53,7 +54,7 @@ class MailSenderTest {
     }
 
     @Test
-    fun `a failed sent copy never fails the send`() {
+    fun `a failed sent copy never fails the send`() = runBlocking {
         // No Sent folder exists on the server, so the APPEND fails; the mail is still sent.
         val sender = MailSender(MessageBuilder(), AngusMailTransport(server.config), AngusMailSessionFactory(server.config), pause = {})
         sender.send(server.credentials, mailToSelf(), sentFolder = "寄件備份匣")
