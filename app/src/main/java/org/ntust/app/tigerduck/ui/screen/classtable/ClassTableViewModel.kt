@@ -36,6 +36,7 @@ import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.network.CourseService
+import org.ntust.app.tigerduck.network.MoodleCourseIds
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.network.SemesterCatalog
@@ -461,15 +462,25 @@ class ClassTableViewModel @Inject constructor(
 
     /**
      * Numeric Moodle course id for [course], or null when we have no entry
-     * for it in the idnumber map yet (e.g. manual courses without a Moodle
+     * for it in the idnumber map yet (e.g. a manual course without a Moodle
      * counterpart, or a cold start before the first sync). The detail
      * popup uses this to decide whether to render the "open in Moodle"
      * affordance.
+     *
+     * A course added by hand carries no idnumber, so it is looked up as
+     * `<term><courseNo>` — the same shape a portal course falls back to in
+     * `CourseService.lookupOrFallback`, and a key [MoodleCourseIds.idMap]
+     * writes for every code a course answers to, 合開 aliases included.
      */
     fun moodleCourseIdFor(course: Course): Int? {
-        val idnumber = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: return null
-        return _moodleCourseIdByIdnumber.value[idnumber]
+        val idnumber = course.moodleIdNumber?.takeIf { it.isNotEmpty() }
+            ?: "${_currentSemester.value}${course.courseNo}"
+        return lookupMoodleCourseId(idnumber)
     }
+
+    /** Normalised on both sides: see [MoodleCourseIds.normalizedIdnumber]. */
+    private fun lookupMoodleCourseId(idnumber: String): Int? =
+        _moodleCourseIdByIdnumber.value[MoodleCourseIds.normalizedIdnumber(idnumber)]
 
     fun clearSelection() {
         _selectedCourse.value = null
@@ -551,7 +562,7 @@ class ClassTableViewModel @Inject constructor(
     private fun resolveMoodleNumericId(course: Course): Int? {
         course.moodleNumericCourseId?.let { return it }
         val idnumber = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: return null
-        return _moodleCourseIdByIdnumber.value[idnumber]
+        return lookupMoodleCourseId(idnumber)
     }
 
     fun deleteCourse(courseNo: String) {
@@ -638,7 +649,10 @@ class ClassTableViewModel @Inject constructor(
                 TigerDuckTheme.buildCourseColorMap(_courses.value)
             }
             if (cachedMoodleIds.isNotEmpty()) {
-                _moodleCourseIdByIdnumber.value = cachedMoodleIds
+                // A map written before keys were normalised still has
+                // Moodle's "114h" spelling; the lookup asks for "114H".
+                _moodleCourseIdByIdnumber.value =
+                    cachedMoodleIds.mapKeys { MoodleCourseIds.normalizedIdnumber(it.key) }
             }
             refreshLiveSemesterCourses()
             fetchData()
@@ -785,16 +799,15 @@ class ClassTableViewModel @Inject constructor(
             )
             // Build the idnumber → numeric-id map across ALL semesters
             // (not just the one currently displayed) so the detail popup's
-            // Moodle button works for historical semesters too. Skip entries
-            // missing either field — both are required to build a usable
-            // deep link. Only overwrite when Moodle returned something so a
-            // transient failure keeps the previously cached mapping live;
-            // account switches still reset it because logout wipes the
-            // cache file via DataCache.clearAllUserData.
+            // Moodle button works for historical semesters too, keyed on
+            // every code a course answers to so a 合開 course reached through
+            // its second department's code still resolves — see
+            // MoodleCourseIds.idMap. Only overwrite when Moodle returned
+            // something so a transient failure keeps the previously cached
+            // mapping live; account switches still reset it because logout
+            // wipes the cache file via DataCache.clearAllUserData.
             if (moodleAll.isNotEmpty()) {
-                val fresh = moodleAll
-                    .mapNotNull { c -> c.idnumber?.takeIf { it.isNotEmpty() }?.let { it to c.id } }
-                    .toMap()
+                val fresh = MoodleCourseIds.idMap(moodleAll)
                 _moodleCourseIdByIdnumber.value = fresh
                 dataCache.saveMoodleCourseIds(fresh)
             }
