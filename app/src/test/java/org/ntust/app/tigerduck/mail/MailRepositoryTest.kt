@@ -46,7 +46,7 @@ class MailRepositoryTest {
         val account = MailAccount(credentials, state, server.factory(), cache, demo, schoolMailSite(), RecordingScheduler(), RecordingNotifier(), scope)
         val repository = MailRepository(
             account, server.factory(), cache, state,
-            MailSender(MessageBuilder(), transport, server.factory(), pause = {}), MessageBuilder(), demo, schoolMailSite(), scope,
+            MailSender(MessageBuilder(), transport, server.factory(), pause = {}), MessageBuilder(), demo, scope,
         )
     }
 

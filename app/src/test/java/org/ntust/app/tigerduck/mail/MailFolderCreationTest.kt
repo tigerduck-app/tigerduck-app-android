@@ -44,7 +44,7 @@ class MailFolderCreationTest {
         val account = MailAccount(credentials, state, server.factory(), cache, demo, site, RecordingScheduler(), RecordingNotifier(), scope)
         val repository = MailRepository(
             account, server.factory(), cache, state,
-            MailSender(MessageBuilder(), transport, server.factory(), pause = {}), MessageBuilder(), demo, site, scope,
+            MailSender(MessageBuilder(), transport, server.factory(), pause = {}), MessageBuilder(), demo, scope,
         )
     }
 
@@ -128,6 +128,40 @@ class MailFolderCreationTest {
         assertEquals(listOf("a"), server.subjects("回收筒"))
     }
 
+    /**
+     * The debug mail-server override is no exception: someone else's mailbox gets the same
+     * three folders. One set of Mail2000 names the app owns everywhere beats picking among
+     * the `Sent` / `Sent Items` / `Sent Messages` a long-lived mailbox collects from other
+     * clients, and that is worth the two costs — the folders stay behind after the override
+     * is turned off, and other clients do not show what TigerDuck filed.
+     */
+    @Test
+    fun `the override creates them too, so one set the app owns exists on every server`() = runTest {
+        server.folders.keys.retainAll(setOf("INBOX"))
+        val uid = server.deliver("a")
+        devServer.settings = MailDevServerSettings(
+            enabled = true,
+            domain = "example.com",
+            imap = MailEndpoint("127.0.0.1", 3143, MailTransportSecurity.NONE),
+            smtp = MailEndpoint("127.0.0.1", 3025, MailTransportSecurity.NONE),
+        )
+        // The login name is not uppercased once the override is on, so it is typed as the server wants it.
+        val repo = TestSetup(backgroundScope).signedIn("B10000001", "pw")
+        repo.loadPage("INBOX", null)
+
+        repo.send(repo.outgoing("s"), answered = null)
+        assertEquals("the copy is filed, not dropped", listOf("s"), server.subjects("寄件備份匣"))
+
+        repo.saveDraft(repo.draft("d"), replacingUid = null)
+        assertEquals("the draft is kept, not refused", listOf("d"), server.subjects("草稿匣"))
+
+        assertFalse("deleting still means 'move to trash' here", repo.deletesPermanently("INBOX"))
+        repo.delete("INBOX", uid)
+        assertEquals(listOf("a"), server.subjects("回收筒"))
+
+        assertEquals(setOf("寄件備份匣", "草稿匣", "回收筒"), server.createAttempts.toSet())
+    }
+
     // --- never created -------------------------------------------------------------------
 
     @Test
@@ -166,41 +200,6 @@ class MailFolderCreationTest {
         val repo = TestSetup(backgroundScope).signedIn()
         repo.discardDraft(42) // must not throw
         assertEquals(emptyList<String>(), server.createAttempts)
-    }
-
-    /**
-     * The names are Mail2000's own, so against any other server they would appear as three
-     * new Chinese-named folders in the developer's own test mailbox — the one lasting mark
-     * the override could leave on it. Each caller falls back exactly as it does for an
-     * account whose folder could not be created.
-     */
-    @Test
-    fun `the debug mail-server override creates nothing on someone else's mailbox`() = runTest {
-        server.folders.keys.retainAll(setOf("INBOX"))
-        val uid = server.deliver("a")
-        devServer.settings = MailDevServerSettings(
-            enabled = true,
-            domain = "example.com",
-            imap = MailEndpoint("127.0.0.1", 3143, MailTransportSecurity.NONE),
-            smtp = MailEndpoint("127.0.0.1", 3025, MailTransportSecurity.NONE),
-        )
-        // The login name is not uppercased once the override is on, so it is typed as the server wants it.
-        val repo = TestSetup(backgroundScope).signedIn("B10000001", "pw")
-        repo.loadPage("INBOX", null)
-
-        repo.send(repo.outgoing("s"), answered = null)
-        assertEquals("sending still happens, it just files no copy", 1, sent.size)
-
-        assertTrue(
-            "no drafts folder means the draft is not kept, and the compose screen says so",
-            runCatching { repo.saveDraft(repo.draft("d"), replacingUid = null) }.exceptionOrNull() is MailError.Protocol,
-        )
-
-        assertTrue("deleting falls back to the permanent-delete confirmation", repo.deletesPermanently("INBOX"))
-        repo.delete("INBOX", uid)
-
-        assertEquals(emptyList<String>(), server.createAttempts)
-        assertEquals(setOf("INBOX"), server.folders.keys)
     }
 
     @Test

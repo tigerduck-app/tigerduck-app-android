@@ -179,6 +179,15 @@ fun MailDevServerDebugScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Text(
+                "Expect folders in the test mailbox: TigerDuck files mail in Mail2000's own " +
+                    "寄件備份匣 / 草稿匣 / 回收筒 on every server, and creates the one it needs when " +
+                    "sending, saving a draft or deleting finds none. They stay there after you " +
+                    "turn the override off, and mail filed in them is not in that account's own " +
+                    "Sent or Trash.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Override the school server", modifier = Modifier.weight(1f))

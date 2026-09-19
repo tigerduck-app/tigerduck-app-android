@@ -80,7 +80,6 @@ class MailRepository @Inject constructor(
     private val sender: MailSender,
     private val builder: MessageBuilder,
     private val demo: MailDemoGate,
-    private val site: MailSite,
     @ApplicationScope scope: CoroutineScope,
 ) : SchoolMailRepository {
     private val holder = SessionHolder(sessions, scope)
@@ -449,19 +448,19 @@ class MailRepository @Inject constructor(
      * path with its own confirmation. Failing to resolve the folder list at all still throws,
      * exactly as it did before.
      *
-     * Nothing is ever created while the debug mail-server override is on. The names are
-     * Mail2000's own -- `寄件備份匣`, `草稿匣`, `回收筒` -- and they match nothing on any other
-     * server, so the first send or delete against a test mailbox would leave three
-     * Chinese-named folders behind in it. That is precisely the "touching my own mailbox"
-     * the override exists to avoid, and it is the one side effect of using it that outlives
-     * turning it off again. The fallbacks above are what the caller then gets, unchanged;
-     * a developer who wants to exercise those paths creates the folders on the test server
-     * deliberately, once. The real school path is untouched by this.
+     * Created on any server, the debug mail-server override's included. The names are
+     * Mail2000's own -- `寄件備份匣`, `草稿匣`, `回收筒` -- and the app deliberately owns one
+     * unambiguous set of them everywhere rather than adopting whatever a mailbox happens
+     * to hold: a long-lived account collects `Sent`, `Sent Items` and `Sent Messages` left
+     * by different clients, and nothing distinguishes the real one reliably. Two
+     * consequences are accepted knowingly -- mail TigerDuck files is not in another
+     * client's own sent folder, and a test mailbox keeps these folders after the override
+     * is turned off again.
      */
     private suspend fun ensureFolder(role: SpecialFolder): String? {
         require(role in CREATED_ON_DEMAND) { "$role is never created on demand" }
         folders().nameOf(role)?.let { return it }
-        if (account.isDemo || site.activeOverride() != null) return null
+        if (account.isDemo) return null
         return try {
             withSession { session ->
                 runCatching { session.createFolder(role.decodedName) }
