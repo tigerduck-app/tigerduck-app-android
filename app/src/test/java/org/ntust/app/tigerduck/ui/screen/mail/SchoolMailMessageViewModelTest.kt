@@ -33,8 +33,29 @@ import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.Content
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.PendingAttachment
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.ViewMode
 import java.io.ByteArrayOutputStream
+import kotlin.coroutines.CoroutineContext
 import kotlin.system.measureTimeMillis
+import kotlinx.coroutines.CoroutineDispatcher
 import org.ntust.app.tigerduck.mail.schoolMailSite
+
+/**
+ * Stands in for the injected `@IoDispatcher` and holds everything handed to it until [drain].
+ * That makes a `withContext(io)` hop directly observable: whatever has not happened while this
+ * queue is still held is, by definition, not running on the caller's (Main) dispatcher.
+ */
+internal class HeldDispatcher : CoroutineDispatcher() {
+    private val queued = ArrayDeque<Runnable>()
+
+    val pending: Int get() = queued.size
+
+    override fun dispatch(context: CoroutineContext, block: Runnable) {
+        queued.addLast(block)
+    }
+
+    fun drain() {
+        while (queued.isNotEmpty()) queued.removeFirst().run()
+    }
+}
 
 class SchoolMailMessageViewModelTest {
     @get:Rule val main = MainDispatcherRule()
@@ -54,9 +75,10 @@ class SchoolMailMessageViewModelTest {
 
     // The same TestDispatcher backs both Dispatchers.Main and the injected @IoDispatcher, so a
     // withContext(io) hop stays synchronous under the test the way every other action already is.
-    private fun vm(folder: String = "INBOX", uid: Long = 5) =
+    // Pass a [HeldDispatcher] as [io] instead to make a hop off Main observable.
+    private fun vm(folder: String = "INBOX", uid: Long = 5, io: CoroutineDispatcher = main.dispatcher) =
         SchoolMailMessageViewModel(
-            SavedStateHandle(mapOf("folder" to folder, "uid" to uid)), repo, account, notifier, cache, schoolMailSite(), main.dispatcher,
+            SavedStateHandle(mapOf("folder" to folder, "uid" to uid)), repo, account, notifier, cache, schoolMailSite(), io,
         )
 
     private fun ready(vm: SchoolMailMessageViewModel) = vm.state.value.content as Content.Ready
@@ -75,6 +97,48 @@ class SchoolMailMessageViewModelTest {
         assertEquals(listOf(5L), notifier.cancelledUids)
 
         vm.loadRemoteImages()
+        assertTrue(vm.state.value.remoteImagesAllowed)
+        assertEquals(0, ready(vm).html!!.blockedRemoteImages)
+    }
+
+    // --- none of the parsing happens on the main thread --------------------------------------
+
+    @Test
+    fun `sanitizing, the document build and the plain-text pass all wait on the IO dispatcher`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody("""<p>hi <img src="https://t.example/p.gif"></p>""", null, emptyList(), emptyMap())
+        val io = HeldDispatcher()
+        val vm = vm(io = io)
+        vm.load()
+        // The body is already in hand, and still nothing has been parsed: that whole pass --
+        // jsoup, the Cleaner, the CSS filter, the Base64 inlining -- is parked on io.
+        assertTrue(vm.state.value.content is Content.LoadingBody)
+
+        io.drain()
+        assertTrue(vm.state.value.content is Content.Ready)
+        assertEquals(1, ready(vm).html!!.blockedRemoteImages)
+        assertEquals("hi", ready(vm).plain)
+    }
+
+    @Test
+    fun `loading remote images waits on the IO dispatcher and shows progress while it does`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody("""<p><img src="https://t.example/p.gif"></p>""", null, emptyList(), emptyMap())
+        val io = HeldDispatcher()
+        val vm = vm(io = io)
+        vm.load()
+        io.drain()
+
+        vm.loadRemoteImages()
+        assertTrue(vm.state.value.loadingRemoteImages)
+        assertFalse(vm.state.value.remoteImagesAllowed)
+        assertEquals(1, ready(vm).html!!.blockedRemoteImages)
+        // A second tap while that pass is still running does not start another one.
+        vm.loadRemoteImages()
+        assertEquals(1, io.pending)
+
+        io.drain()
+        assertFalse(vm.state.value.loadingRemoteImages)
         assertTrue(vm.state.value.remoteImagesAllowed)
         assertEquals(0, ready(vm).html!!.blockedRemoteImages)
     }

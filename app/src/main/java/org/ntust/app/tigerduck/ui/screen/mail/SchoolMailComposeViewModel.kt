@@ -174,8 +174,14 @@ class SchoolMailComposeViewModel @Inject constructor(
             try {
                 val original = repository.summary(sourceFolder, sourceUid) ?: throw MailError.Protocol("message is gone")
                 val body = repository.body(sourceFolder, sourceUid)
+                // Two full jsoup passes (sanitize, then plainText) over whatever the original
+                // sender sent. viewModelScope resumes on Main.immediate, so left here it quoted a
+                // large HTML mail by janking the compose screen; it belongs on [io] like every
+                // other non-trivial piece of work this view model does.
                 val text = body.plain
-                    ?: body.html?.let { HtmlSanitizer.plainText(HtmlSanitizer.sanitize(it, allowRemoteImages = false).html) }.orEmpty()
+                    ?: withContext(io) {
+                        body.html?.let { HtmlSanitizer.plainText(HtmlSanitizer.sanitize(it, allowRemoteImages = false).html) }.orEmpty()
+                    }
                 val self = repository.selfAddress().address
                 val draft = when (mode) {
                     ComposeMode.REPLY -> ComposePrefill.reply(original, text, all = false, selfAddress = self, labels = labels)

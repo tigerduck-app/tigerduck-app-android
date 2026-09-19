@@ -236,7 +236,14 @@ fun SchoolMailMessageScreen(
                     if (state.mode == ViewMode.FORMATTED && html != null && html.blockedRemoteImages > 0 && !state.remoteImagesAllowed) {
                         item(key = "remote-images") {
                             WarningCard(stringResource(R.string.school_mail_remote_images_blocked)) {
-                                TextButton(onClick = viewModel::loadRemoteImages) { Text(stringResource(R.string.school_mail_load_images)) }
+                                // Re-sanitizing and re-inlining runs off the main thread now, so
+                                // the banner has something to show for it rather than looking
+                                // like a button that did nothing.
+                                if (state.loadingRemoteImages) {
+                                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                                } else {
+                                    TextButton(onClick = viewModel::loadRemoteImages) { Text(stringResource(R.string.school_mail_load_images)) }
+                                }
                             }
                         }
                     }

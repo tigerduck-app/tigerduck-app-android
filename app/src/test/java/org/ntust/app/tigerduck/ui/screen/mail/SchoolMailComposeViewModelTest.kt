@@ -61,6 +61,23 @@ class SchoolMailComposeViewModelTest {
             .also { it.prefill(labels) }
 
     @Test
+    fun `quoting an HTML original waits on the IO dispatcher instead of parsing on the main thread`() {
+        repo.add("INBOX", mailSummary(5, subject = "期中考"))
+        repo.bodies[5] = MailBody("<p>line1</p>", null, emptyList(), emptyMap())
+        val io = HeldDispatcher()
+        val vm = SchoolMailComposeViewModel(handle(ComposeMode.REPLY, "INBOX", 5), repo, account, cache, noPicks, io)
+        vm.prefill(labels)
+        // The original is already fetched, and neither jsoup pass has run: the form is still
+        // loading rather than sanitizing and flattening the sender's HTML on Main.
+        assertTrue(vm.state.value.loading)
+        assertEquals("", vm.state.value.body)
+
+        io.drain()
+        assertFalse(vm.state.value.loading)
+        assertTrue(vm.state.value.body.contains("line1"))
+    }
+
+    @Test
     fun `reply prefills, sends with threading headers and marks the original answered`() {
         repo.add("INBOX", mailSummary(5, subject = "期中考"))
         repo.bodies[5] = MailBody(null, "line1", emptyList(), emptyMap())

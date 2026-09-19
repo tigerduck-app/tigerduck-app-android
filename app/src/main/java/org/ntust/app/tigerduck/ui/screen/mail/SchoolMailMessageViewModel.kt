@@ -97,6 +97,8 @@ class SchoolMailMessageViewModel @Inject constructor(
         val mode: ViewMode = ViewMode.FORMATTED,
         val folders: ResolvedFolders? = null,
         val remoteImagesAllowed: Boolean = false,
+        /** [loadRemoteImages] is re-sanitizing and re-inlining off the main thread: the banner shows progress instead of an unresponsive button. */
+        val loadingRemoteImages: Boolean = false,
         val parseFailed: Boolean = false,
         val source: String? = null,
         val sourceLoading: Boolean = false,
@@ -152,18 +154,11 @@ class SchoolMailMessageViewModel @Inject constructor(
                 // remote images rather than hard-coding false, so a load that runs while that
                 // flag is already true (in principle reachable from a future retry path) never
                 // silently re-blocks images the user already opted into.
-                val allowRemote = _state.value.remoteImagesAllowed
-                val html = body.html?.let { HtmlSanitizer.sanitize(it, allowRemoteImages = allowRemote) }
-                val document = html?.let { MailHtmlDocument.build(it.html, body.inlineImages, allowRemote) }
-                val plain = body.plain ?: html?.let { HtmlSanitizer.plainText(it.html) }.orEmpty()
-                val warnings = MailWarnings.evaluate(
-                    summary.from, summary.subject, plain, html?.links.orEmpty(), body.attachments, summary.returnPath,
-                    domain = mailDomain,
-                )
+                val ready = render(summary, body, allowRemote = _state.value.remoteImagesAllowed)
                 update {
                     it.copy(
-                        content = Content.Ready(summary, body, html, document, plain, warnings),
-                        mode = if (html != null) ViewMode.FORMATTED else ViewMode.PLAIN,
+                        content = ready,
+                        mode = if (ready.html != null) ViewMode.FORMATTED else ViewMode.PLAIN,
                     )
                 }
                 markSeen(summary)
@@ -173,6 +168,28 @@ class SchoolMailMessageViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * Turns a fetched body into the [Content.Ready] the screen renders, entirely on [io].
+     *
+     * Every step here is a jsoup parse or worse over a string the *sender* chose: the sanitizer's
+     * parse plus `Cleaner` plus its per-element CSS filter, [MailHtmlDocument.build]'s second
+     * parse and its Base64-encoding of every inline image into the document string, a third parse
+     * for the plain-text fallback, and the link/warning scan on top. `viewModelScope.launch`
+     * resumes on `Main.immediate`, so with none of this hopped off it, a mail with a large HTML
+     * part and a few MB of inline images janked and could ANR -- on attacker-chosen input.
+     */
+    private suspend fun render(summary: MailSummary, body: MailBody, allowRemote: Boolean): Content.Ready =
+        withContext(io) {
+            val html = body.html?.let { HtmlSanitizer.sanitize(it, allowRemoteImages = allowRemote) }
+            val document = html?.let { MailHtmlDocument.build(it.html, body.inlineImages, allowRemote) }
+            val plain = body.plain ?: html?.let { HtmlSanitizer.plainText(it.html) }.orEmpty()
+            val warnings = MailWarnings.evaluate(
+                summary.from, summary.subject, plain, html?.links.orEmpty(), body.attachments, summary.returnPath,
+                domain = mailDomain,
+            )
+            Content.Ready(summary, body, html, document, plain, warnings)
+        }
 
     private suspend fun markSeen(summary: MailSummary) {
         // Notification ids are derived from the UID alone, and only the inbox ever posts one.
@@ -191,12 +208,38 @@ class SchoolMailMessageViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Re-runs the same sanitize/inline pipeline [render] does, with remote images allowed -- and
+     * like [render] it runs on [io]. This used to be called straight from the banner's `onClick`,
+     * not from a coroutine at all, so the whole two-parse-plus-Base64 pass ran on the main thread
+     * with nothing on screen to say why the app had stopped responding. [UiState.loadingRemoteImages]
+     * is what the banner shows instead, and it also keeps a second tap from starting a second pass.
+     *
+     * Only `html`/`document` are replaced, exactly as before: `plain`, `warnings` and the summary
+     * are unchanged by allowing images, and recomputing them could only introduce drift.
+     */
     fun loadRemoteImages() {
         val ready = _state.value.content as? Content.Ready ?: return
         val source = ready.body.html ?: return
-        val html = HtmlSanitizer.sanitize(source, allowRemoteImages = true)
-        val document = MailHtmlDocument.build(html.html, ready.body.inlineImages, allowRemoteImages = true)
-        update { it.copy(remoteImagesAllowed = true, content = ready.copy(html = html, document = document)) }
+        if (_state.value.loadingRemoteImages) return
+        viewModelScope.launch {
+            update { it.copy(loadingRemoteImages = true) }
+            try {
+                val (html, document) = withContext(io) {
+                    val sanitized = HtmlSanitizer.sanitize(source, allowRemoteImages = true)
+                    sanitized to MailHtmlDocument.build(sanitized.html, ready.body.inlineImages, allowRemoteImages = true)
+                }
+                update { st ->
+                    // The mail cannot change underneath this (load() is a no-op once Ready), but
+                    // read the current content rather than closing over the captured one so a
+                    // future path that does replace it can never be silently reverted here.
+                    val current = st.content as? Content.Ready ?: return@update st
+                    st.copy(remoteImagesAllowed = true, content = current.copy(html = html, document = document))
+                }
+            } finally {
+                update { it.copy(loadingRemoteImages = false) }
+            }
+        }
     }
 
     /**
