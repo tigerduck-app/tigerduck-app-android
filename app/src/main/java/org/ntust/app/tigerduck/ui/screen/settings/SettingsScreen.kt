@@ -658,13 +658,19 @@ fun SettingsScreen(
     }
 
     if (showMailLoginSheet) {
+        // Under the debug mail-server override the server wants a whole address, not the
+        // bare ID the school takes, so the field says so and starts at the domain. The
+        // same two lines are in SchoolMailScreen's card and re-auth sheet; this is the
+        // third way into the same sign-in.
+        val mailAddressSuffix = mailViewModel.signInAddressSuffix
         LoginSheet(
             title = stringResource(R.string.school_mail_account_title),
             subtitle = stringResource(R.string.school_mail_sign_in_note),
-            usernamePlaceholder = stringResource(R.string.sign_in_student_id),
+            usernamePlaceholder = mailAddressSuffix?.let { "you$it" } ?: stringResource(R.string.sign_in_student_id),
             passwordPlaceholder = stringResource(R.string.sign_in_password),
-            // Only the mail account's own ID — never the NTUST or library one.
-            initialUsername = mailViewModel.studentId.orEmpty(),
+            // Only the mail account's own ID — never the NTUST or library one. The seed is
+            // for when there is none, and never replaces one.
+            initialUsername = mailViewModel.studentId.orEmpty().ifEmpty { mailAddressSuffix.orEmpty() },
             uppercaseInput = mailViewModel.devServer == null,
             isLoggingIn = isMailSigningIn,
             loginError = mailError?.let { stringResource(it.messageRes()) },

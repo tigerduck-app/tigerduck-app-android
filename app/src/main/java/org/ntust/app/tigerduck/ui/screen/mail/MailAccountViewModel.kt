@@ -38,6 +38,19 @@ class MailAccountViewModel @Inject constructor(
     /** Uppercased only for the school account, where the login name is the uppercased student ID. */
     val studentId: String? get() = account.studentId?.let { if (devServer == null) it.uppercase() else it }
 
+    /**
+     * What an address on the overridden server starts from -- `@example.test` -- or null
+     * against the school, which is also always the answer in a release build.
+     *
+     * The sign-in field is labelled "student ID" because against the school that is exactly
+     * what it wants: the app knows the domain and supplies it. Under the override the app
+     * knows the domain too -- it was typed on the Developer -> Email screen -- but the server
+     * wants the whole address, and a bare local part is simply rejected, which arrives on
+     * screen as "Wrong student ID or password". So there the field says which domain it is
+     * about and starts the value there, leaving the local part to type in front of it.
+     */
+    val signInAddressSuffix: String? get() = devServer?.toConfig()?.domain?.let { "@$it" }
+
     fun signIn(studentId: String, password: String) {
         if (_signingIn.value) return
         _signingIn.value = true

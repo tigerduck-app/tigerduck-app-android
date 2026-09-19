@@ -164,11 +164,16 @@ fun SchoolMailScreen(
         ) {
             PageHeader(title = stringResource(R.string.feature_school_mail))
             DevMailServerBanner(accountViewModel.devServer)
+            val addressSuffix = accountViewModel.signInAddressSuffix
             SchoolMailLoginCard(
-                initialUsername = accountViewModel.studentId.orEmpty(),
+                // Seeded only when there is nothing to prefill, so it can never land on top
+                // of a half-typed value, and left as ordinary editable text: a server that
+                // does want a bare username still works by deleting it.
+                initialUsername = accountViewModel.studentId.orEmpty().ifEmpty { addressSuffix.orEmpty() },
                 isLoggingIn = signingIn,
                 error = signInError?.let { stringResource(it.messageRes()) },
                 browserPreference = browserPreference,
+                usernameLabel = addressSuffix?.let { "you$it" } ?: stringResource(R.string.sign_in_student_id),
                 uppercaseId = accountViewModel.devServer == null,
                 onSubmit = accountViewModel::signIn,
             )
@@ -314,12 +319,15 @@ fun SchoolMailScreen(
     }
 
     if (showReauthSheet) {
+        val addressSuffix = accountViewModel.signInAddressSuffix
         LoginSheet(
             title = stringResource(R.string.school_mail_account_title),
             subtitle = stringResource(R.string.school_mail_sign_in_note),
-            usernamePlaceholder = stringResource(R.string.sign_in_student_id),
+            usernamePlaceholder = addressSuffix?.let { "you$it" } ?: stringResource(R.string.sign_in_student_id),
             passwordPlaceholder = stringResource(R.string.sign_in_password),
-            initialUsername = accountViewModel.studentId.orEmpty(),
+            // Re-auth normally prefills the saved ID; the seed is for the case where there
+            // is none, and never replaces one.
+            initialUsername = accountViewModel.studentId.orEmpty().ifEmpty { addressSuffix.orEmpty() },
             uppercaseInput = accountViewModel.devServer == null,
             isLoggingIn = signingIn,
             loginError = signInError?.let { stringResource(it.messageRes()) },
@@ -556,6 +564,11 @@ private fun SchoolMailLoginCard(
     isLoggingIn: Boolean,
     error: String?,
     browserPreference: String,
+    /**
+     * What the field is asking for: the localized "student ID" against the school, and the
+     * shape of an address on the overridden server while that is on.
+     */
+    usernameLabel: String,
     /** False while the debug mail-server override is on: only the school login name is uppercase. */
     uppercaseId: Boolean,
     onSubmit: (String, String) -> Unit,
@@ -581,7 +594,7 @@ private fun SchoolMailLoginCard(
                 onValueChange = { raw ->
                     username = raw.filter { !it.isWhitespace() }.let { if (uppercaseId) it.uppercase() else it }
                 },
-                label = stringResource(R.string.sign_in_student_id),
+                label = usernameLabel,
                 capitalization = if (uppercaseId) KeyboardCapitalization.Characters else KeyboardCapitalization.None,
                 imeAction = ImeAction.Next,
                 enabled = !isLoggingIn,
