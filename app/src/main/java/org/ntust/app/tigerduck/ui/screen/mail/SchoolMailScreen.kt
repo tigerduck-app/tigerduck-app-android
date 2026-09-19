@@ -110,6 +110,7 @@ import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.statusText
 import org.ntust.app.tigerduck.ui.screen.settings.LoginSheet
+import org.ntust.app.tigerduck.ui.screen.settings.signInFieldValue
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -165,11 +166,15 @@ fun SchoolMailScreen(
             PageHeader(title = stringResource(R.string.feature_school_mail))
             DevMailServerBanner(accountViewModel.devServer)
             val addressSuffix = accountViewModel.signInAddressSuffix
+            val prefill = accountViewModel.signInPrefill
             SchoolMailLoginCard(
-                // Seeded only when there is nothing to prefill, so it can never land on top
-                // of a half-typed value, and left as ordinary editable text: a server that
-                // does want a bare username still works by deleting it.
-                initialUsername = accountViewModel.studentId.orEmpty().ifEmpty { addressSuffix.orEmpty() },
+                // Both fields come from the one place the rules live, and every one of them
+                // matters: see MailAccountViewModel.signInPrefill. Nothing here submits --
+                // filling the fields and stopping is the condition the prefill exists under.
+                // Whatever lands stays ordinary editable text: a server that wants a bare
+                // username, or a mail password of its own, still works by typing over it.
+                initialUsername = prefill.username,
+                initialPassword = prefill.password,
                 isLoggingIn = signingIn,
                 error = signInError?.let { stringResource(it.messageRes()) },
                 browserPreference = browserPreference,
@@ -320,14 +325,17 @@ fun SchoolMailScreen(
 
     if (showReauthSheet) {
         val addressSuffix = accountViewModel.signInAddressSuffix
+        val prefill = accountViewModel.signInPrefill
         LoginSheet(
             title = stringResource(R.string.school_mail_account_title),
             subtitle = stringResource(R.string.school_mail_sign_in_note),
             usernamePlaceholder = addressSuffix?.let { "you$it" } ?: stringResource(R.string.sign_in_student_id),
             passwordPlaceholder = stringResource(R.string.sign_in_password),
-            // Re-auth normally prefills the saved ID; the seed is for the case where there
-            // is none, and never replaces one.
-            initialUsername = accountViewModel.studentId.orEmpty().ifEmpty { addressSuffix.orEmpty() },
+            // Re-auth starts from the saved mail ID, and from the stored NTUST password
+            // where that ID is the NTUST one -- see MailAccountViewModel.signInPrefill.
+            // Offered, never sent: the button is what signs in, here as everywhere.
+            initialUsername = prefill.username,
+            initialPassword = prefill.password,
             uppercaseInput = accountViewModel.devServer == null,
             isLoggingIn = signingIn,
             loginError = signInError?.let { stringResource(it.messageRes()) },
@@ -561,6 +569,8 @@ private fun DevMailServerBanner(settings: MailDevServerSettings?) {
 @Composable
 private fun SchoolMailLoginCard(
     initialUsername: String,
+    /** What the password field starts from; never submitted, and never laid over an edit. */
+    initialPassword: String,
     isLoggingIn: Boolean,
     error: String?,
     browserPreference: String,
@@ -573,8 +583,12 @@ private fun SchoolMailLoginCard(
     uppercaseId: Boolean,
     onSubmit: (String, String) -> Unit,
 ) {
-    var username by rememberSaveable(initialUsername) { mutableStateOf(initialUsername) }
-    var password by rememberSaveable { mutableStateOf("") }
+    // Null until edited, so a prefill only ever reaches an untouched field -- the same rule,
+    // and the same helper, as the sheet the other two entry points use.
+    var typedUsername by rememberSaveable { mutableStateOf<String?>(null) }
+    var typedPassword by rememberSaveable { mutableStateOf<String?>(null) }
+    val username = signInFieldValue(typedUsername, initialUsername)
+    val password = signInFieldValue(typedPassword, initialPassword)
     var passwordVisible by remember { mutableStateOf(false) }
     SecureScreen(secure = passwordVisible)
     val canSubmit = username.isNotBlank() && password.isNotBlank() && !isLoggingIn
@@ -592,7 +606,7 @@ private fun SchoolMailLoginCard(
             OutlinedAccountIdField(
                 value = username,
                 onValueChange = { raw ->
-                    username = raw.filter { !it.isWhitespace() }.let { if (uppercaseId) it.uppercase() else it }
+                    typedUsername = raw.filter { !it.isWhitespace() }.let { if (uppercaseId) it.uppercase() else it }
                 },
                 label = usernameLabel,
                 capitalization = if (uppercaseId) KeyboardCapitalization.Characters else KeyboardCapitalization.None,
@@ -603,7 +617,7 @@ private fun SchoolMailLoginCard(
             )
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = { typedPassword = it },
                 label = { Text(stringResource(R.string.sign_in_password)) },
                 singleLine = true,
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -612,7 +626,7 @@ private fun SchoolMailLoginCard(
                         PasswordTrailingIcons(
                             password = password,
                             passwordVisible = passwordVisible,
-                            onClear = { password = ""; passwordVisible = false },
+                            onClear = { typedPassword = ""; passwordVisible = false },
                             onToggleVisibility = { passwordVisible = !passwordVisible },
                         )
                     }

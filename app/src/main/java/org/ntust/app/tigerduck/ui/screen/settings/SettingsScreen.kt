@@ -663,14 +663,19 @@ fun SettingsScreen(
         // same two lines are in SchoolMailScreen's card and re-auth sheet; this is the
         // third way into the same sign-in.
         val mailAddressSuffix = mailViewModel.signInAddressSuffix
+        val mailPrefill = mailViewModel.signInPrefill
         LoginSheet(
             title = stringResource(R.string.school_mail_account_title),
             subtitle = stringResource(R.string.school_mail_sign_in_note),
             usernamePlaceholder = mailAddressSuffix?.let { "you$it" } ?: stringResource(R.string.sign_in_student_id),
             passwordPlaceholder = stringResource(R.string.sign_in_password),
-            // Only the mail account's own ID — never the NTUST or library one. The seed is
-            // for when there is none, and never replaces one.
-            initialUsername = mailViewModel.studentId.orEmpty().ifEmpty { mailAddressSuffix.orEmpty() },
+            // The mail account's own ID where there is one, otherwise the stored NTUST ID
+            // and password — never the library account, and never under the debug mail
+            // server override. MailAccountViewModel.signInPrefill holds the whole rule,
+            // including the condition it exists under: nothing is ever submitted for the
+            // user. This row is the busiest of the three ways into this sign-in.
+            initialUsername = mailPrefill.username,
+            initialPassword = mailPrefill.password,
             uppercaseInput = mailViewModel.devServer == null,
             isLoggingIn = isMailSigningIn,
             loginError = mailError?.let { stringResource(it.messageRes()) },

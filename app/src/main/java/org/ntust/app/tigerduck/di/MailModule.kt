@@ -2,12 +2,14 @@ package org.ntust.app.tigerduck.di
 
 import android.content.Context
 import dagger.Binds
+import dagger.Lazy
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.mail.AssetsMailDemoGate
 import org.ntust.app.tigerduck.mail.MailConnectionProbe
@@ -36,6 +38,7 @@ import org.ntust.app.tigerduck.mail.sync.MailAlarmScheduler
 import org.ntust.app.tigerduck.mail.sync.MailBackgroundScheduler
 import org.ntust.app.tigerduck.mail.sync.MailClock
 import org.ntust.app.tigerduck.ui.screen.mail.ContentResolverAttachmentReader
+import org.ntust.app.tigerduck.ui.screen.mail.NtustAccountSource
 import org.ntust.app.tigerduck.ui.screen.mail.PickedAttachmentReader
 import java.io.File
 import javax.inject.Singleton
@@ -100,6 +103,21 @@ object MailModule {
 
     @Provides
     fun clock(): MailClock = MailClock { System.currentTimeMillis() }
+
+    /**
+     * The stored NTUST account, for the School Mail sign-in prefill and nothing else.
+     *
+     * Read through [AuthService] -- the accessor the rest of the app uses -- rather than out
+     * of [CredentialManager] directly, and narrowed to the two values the sign-in may see.
+     * [Lazy] because a mail screen can be the first thing opened, and asking what the stored
+     * ID is should not be what builds the whole auth graph.
+     */
+    @Provides
+    @Singleton
+    fun ntustAccount(auth: Lazy<AuthService>): NtustAccountSource = object : NtustAccountSource {
+        override val studentId: String? get() = auth.get().storedStudentId
+        override val password: String? get() = auth.get().storedPassword
+    }
 }
 
 @Module
