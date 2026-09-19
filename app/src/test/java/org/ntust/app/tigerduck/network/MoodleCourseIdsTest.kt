@@ -141,6 +141,9 @@ class MoodleCourseIdsTest {
         assertEquals("114H", MoodleCourseIds.semesterPrefix("114hGD3115301"))
         assertEquals("114H", MoodleCourseIds.semesterPrefix("114HGD3115301"))
         assertNull(MoodleCourseIds.semesterPrefix("moodle:42"))
+        // A non-ASCII term letter or digit is not a term code.
+        assertNull(MoodleCourseIds.semesterPrefix("114中GD3115301"))
+        assertNull(MoodleCourseIds.semesterPrefix("١١٤1GD3115301"))
         assertNull(MoodleCourseIds.semesterPrefix("1151"))
         assertNull(MoodleCourseIds.semesterPrefix(""))
     }

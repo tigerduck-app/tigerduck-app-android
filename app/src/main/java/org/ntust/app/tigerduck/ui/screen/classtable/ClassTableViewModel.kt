@@ -559,12 +559,6 @@ class ClassTableViewModel @Inject constructor(
         syncCourseOverride(courseNo, customName = "", locale = locale)
     }
 
-    private fun resolveMoodleNumericId(course: Course): Int? {
-        course.moodleNumericCourseId?.let { return it }
-        val idnumber = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: return null
-        return lookupMoodleCourseId(idnumber)
-    }
-
     fun deleteCourse(courseNo: String) {
         val updated = _courses.value.filter { it.courseNo != courseNo }
         _courses.value = updated

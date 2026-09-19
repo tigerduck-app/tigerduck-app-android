@@ -30,12 +30,16 @@ object MoodleCourseIds {
      * is a letter. Every term check downstream compares against NTUST's
      * spelling, so the prefix is normalised here, once, rather than at each
      * comparison.
+     *
+     * ASCII only: `isDigit` / `isLetter` would also accept, say, a CJK
+     * character as the term letter, and an idnumber is always ASCII.
      */
     fun semesterPrefix(idnumber: String): String? {
         if (idnumber.length <= 4) return null
         val prefix = idnumber.take(4)
-        if (!prefix.take(3).all { it.isDigit() }) return null
-        if (!prefix[3].isLetterOrDigit()) return null
+        if (!prefix.take(3).all { it in '0'..'9' }) return null
+        val term = prefix[3]
+        if (term !in '0'..'9' && term.lowercaseChar() !in 'a'..'z') return null
         return prefix.uppercase()
     }
 
