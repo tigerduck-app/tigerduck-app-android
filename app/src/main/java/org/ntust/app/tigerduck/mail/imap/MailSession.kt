@@ -20,6 +20,18 @@ interface MailSession : Closeable {
     /** A cheap round trip that proves the connection is still alive without SELECTing (or deselecting) any folder. */
     fun noop()
     fun listFolders(): List<String>
+
+    /**
+     * `CREATE` a folder that holds messages. [name] is the decoded name, the
+     * same form [listFolders] hands back: the IMAP layer does the modified
+     * UTF-7 itself, so passing an already-encoded name creates a mailbox
+     * literally called that.
+     *
+     * A server that refuses because the folder is already there counts as
+     * success — another client, or a racing operation of ours, may have just
+     * created it.
+     */
+    fun createFolder(name: String)
     fun status(folder: String): FolderStatus
     fun fetchPage(folder: String, beforeSeq: Int?, pageSize: Int): MailPage
     fun fetchSince(folder: String, fromUid: Long): List<MailSummary>

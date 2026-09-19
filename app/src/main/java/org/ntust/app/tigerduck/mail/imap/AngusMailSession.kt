@@ -197,6 +197,27 @@ class AngusMailSession internal constructor(
             .map { it.fullName }
     }
 
+    /**
+     * [name] is the decoded name, never [SpecialFolder.imapName]: Angus takes
+     * mailbox names as Unicode and encodes them to modified UTF-7 on the wire
+     * itself (`IMAPProtocol.writeMailboxName` -> `BASE64MailboxEncoder`,
+     * because Mail2000's CAPABILITY has no `UTF8=ACCEPT`). Handing it the
+     * already-encoded form would encode the `&` again and leave the account
+     * with a mailbox literally named `&W8RO9lCZTv1TIw-`.
+     *
+     * `IMAPFolder.create` answers false for any refusal — including "already
+     * exists", which the server reports as a tagged NO rather than an error —
+     * so a fresh `LIST` decides before that is treated as a failure.
+     */
+    override fun createFolder(name: String) = io {
+        closeOpen()
+        val f = store.getFolder(name) as IMAPFolder
+        if (!f.create(Folder.HOLDS_MESSAGES) && !f.exists()) {
+            throw MailError.Protocol("could not create folder $name")
+        }
+        Unit
+    }
+
     override fun status(folder: String): FolderStatus = io {
         closeOpen()
         val f = store.getFolder(folder) as IMAPFolder

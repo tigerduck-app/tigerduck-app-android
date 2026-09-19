@@ -45,6 +45,12 @@ class FakeMailServer {
     var searchUnsupported = false
     var expungeOnMove = true
 
+    /** Every name a session was asked to CREATE, in order — what a test asserts on to prove nothing is created speculatively. */
+    val createAttempts = mutableListOf<String>()
+
+    /** Names the server refuses to CREATE, standing in for no permission, a quota or hierarchy rules. */
+    val refuseCreate = mutableSetOf<String>()
+
     /** When true, `move`/`deletePermanently` flag \Deleted (and, for `move`, COPY) before throwing a network error -- simulating the flag having landed server-side even though the call itself failed. */
     var failAfterFlag = false
     var opens = 0
@@ -98,6 +104,13 @@ class FakeMailServer {
         override fun noop() = call { Unit }
 
         override fun listFolders() = call { folders.keys.toList() }
+
+        override fun createFolder(name: String) = call {
+            createAttempts += name
+            if (name in refuseCreate) throw MailError.Protocol("cannot create $name")
+            folders.getOrPut(name) { mutableListOf() }
+            Unit
+        }
 
         override fun status(folder: String) = call {
             val l = list(folder)

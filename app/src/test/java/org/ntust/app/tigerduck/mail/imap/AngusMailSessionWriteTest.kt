@@ -39,6 +39,61 @@ class AngusMailSessionWriteTest {
         return ByteArrayOutputStream().also { msg.writeTo(it) }.toByteArray()
     }
 
+    /**
+     * The round trip the create path stands or falls on: a folder made by its decoded name
+     * comes back from a fresh `LIST` under that same decoded name, and [MailFolders.resolve]
+     * maps it to the role it was made for. Angus encodes to modified UTF-7 on the wire itself,
+     * so this is the only form that produces the folder Mail2000 already calls by that name.
+     */
+    @Test
+    fun `a folder created by its decoded name lists back and resolves to the same role`() {
+        session().use { s ->
+            listOf(SpecialFolder.SENT, SpecialFolder.DRAFTS, SpecialFolder.TRASH).forEach { s.createFolder(it.decodedName) }
+            val names = s.listFolders()
+            assertTrue("寄件備份匣" in names)
+            assertTrue("草稿匣" in names)
+            assertTrue("回收筒" in names)
+            val resolved = MailFolders.resolve(names)
+            assertEquals("寄件備份匣", resolved.nameOf(SpecialFolder.SENT))
+            assertEquals("草稿匣", resolved.nameOf(SpecialFolder.DRAFTS))
+            assertEquals("回收筒", resolved.nameOf(SpecialFolder.TRASH))
+        }
+    }
+
+    /**
+     * The counter-proof to the test above: handing the create path the already-encoded name
+     * gets the `&` encoded a second time, and the account ends up with a mailbox literally
+     * called `&W8RO9lCZTv1TIw-` instead of the one the user reads their sent mail in.
+     */
+    @Test
+    fun `a folder created by its raw modified UTF-7 name is not the folder that was wanted`() {
+        session().use { s ->
+            s.createFolder(SpecialFolder.SENT.imapName)
+            val names = s.listFolders()
+            assertFalse("寄件備份匣" in names)
+            assertTrue(SpecialFolder.SENT.imapName in names)
+        }
+    }
+
+    /** A created folder must hold messages, not only other folders. */
+    @Test
+    fun `a created folder can be appended to and read back`() {
+        session().use { s ->
+            s.createFolder(SpecialFolder.DRAFTS.decodedName)
+            s.append("草稿匣", rfc822("kept", "b10000001@mail.ntust.edu.tw", "<kept-1@x>"), setOf(AppendFlag.SEEN, AppendFlag.DRAFT))
+            assertEquals(listOf("kept"), s.fetchPage("草稿匣", null, 10).messages.map { it.subject })
+        }
+    }
+
+    @Test
+    fun `creating a folder that already exists is a success, not a failure`() {
+        server.createFolders("回收筒")
+        session().use { s ->
+            s.createFolder("回收筒") // must not throw
+            assertEquals("回收筒", MailFolders.resolve(s.listFolders()).nameOf(SpecialFolder.TRASH))
+        }
+    }
+
     @Test
     fun `seen and answered flags`() {
         server.deliver("a")
